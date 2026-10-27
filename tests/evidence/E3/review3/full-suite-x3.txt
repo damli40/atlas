@@ -1,0 +1,12 @@
+== run 1
+ Test Files  94 passed | 2 skipped (96)
+      Tests  1195 passed | 36 skipped (1231)
+   Duration  30.87s (tests 86%, import 13%)
+== run 2
+ Test Files  94 passed | 2 skipped (96)
+      Tests  1195 passed | 36 skipped (1231)
+   Duration  35.15s (tests 85%, import 15%)
+== run 3
+ Test Files  94 passed | 2 skipped (96)
+      Tests  1195 passed | 36 skipped (1231)
+   Duration  46.94s (tests 83%, import 16%)

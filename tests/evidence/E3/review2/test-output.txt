@@ -1,0 +1,42 @@
+
+ RUN  v5.0.5 <repo>
+
+ ✓ tests/unit/paste-server.test.ts > POST /paste > reads the language, the exports and the fingerprint; keeps the code in the session; logs no code 45ms
+ ✓ tests/unit/paste-server.test.ts > POST /paste > the person's language choice wins; a language with no runner shows as coming and nothing is kept 5ms
+ ✓ tests/unit/paste-server.test.ts > POST /paste > Python runs now (E2's runner): a round end to end, a package refused early, a stdlib module the sandbox does not load refused with its plain reason 482ms
+ ✓ tests/unit/paste-server.test.ts > POST /paste > a Python runner plugs in by language with no other change 1ms
+ ✓ tests/unit/paste-server.test.ts > POST /paste > refuses more than 64 KB, an empty paste and a body that is not JSON, each with a plain reason 2ms
+ ✓ tests/unit/paste-server.test.ts > POST /paste > counts pastes per client address (sessions are free to make) 1ms
+ ✓ tests/unit/paste-server.test.ts > POST /paste > says early when the whole run will be can't check (an import) 1ms
+ ✓ tests/unit/paste-server.test.ts > POST /paste > a pasted target belongs to its session: another session cannot use it 1ms
+ ✓ tests/unit/paste-review2.test.tsx > r2 B1: a cut trace states only exact counts > the reviewer's case, n = 499: no "stopped watching", no answer breakdown, the counts exact 596ms
+ ✓ tests/unit/paste-server.test.ts > Muse Wonder's proposals > allowed and refused proposals are both shown; the refused one can never run; the claim is held back 521ms
+ ✓ tests/unit/paste-server.test.ts > Muse Wonder's proposals > asks no model when the server has no proposer, and caps proposals per session 10ms
+ ✓ tests/unit/paste-server.test.ts > pasted code reaches non-contributor Meta models only > the guard refuses a contributor id even with ATLAS_ALLOW_CONTRIBUTOR=1, and an unknown id 0ms
+ ✓ tests/unit/paste-server.test.ts > pasted code reaches non-contributor Meta models only > Wonder set to a contributor id: the chat is never called, nothing is counted or spent 3ms
+ ✓ tests/unit/paste-server.test.ts > pasted code reaches non-contributor Meta models only > Spark set to a contributor id on a pasted round: no call, the slot says why; the same id still works on the fixture 7ms
+ ✓ tests/unit/paste-server.test.ts > D18 and D19: the betting models see exactly the bet screen's text, and never Wonder's claim > Spark's and Spark Open's prompts hold the seenContext the page shows, byte for byte, and no claim 3ms
+ ✓ tests/unit/paste-review2.test.tsx > r2 B1: a cut trace states only exact counts > the reviewer's case, n = 1000: no "stopped watching", no answer breakdown, the counts exact 674ms
+ ✓ tests/unit/paste-server.test.ts > a whole pasted round (real sandbox, real judge) > paste → proposal → bets → run → verdicts → proof card that verifies, kept in memory only 794ms
+ ✓ tests/unit/paste-server.test.ts > a whole pasted round (real sandbox, real judge) > code that imports a package: every verdict is can't check with the reason (never 'threw') 252ms
+ ✓ tests/unit/paste-server.test.ts > a whole pasted round (real sandbox, real judge) > a person's test the gate refuses is kept and shown with the reason, and can never run 1ms
+ ✓ tests/unit/paste-review2.test.tsx > r2 B2: the bettor text names the language that runs > paste as JS, test; re-paste as TS, same test: TypeScript. Another session, TS, same test: TypeScript 4ms
+ ✓ tests/unit/paste-review2.test.tsx > r2 B3: every text of a test counts, measured as bettors read it; nothing refused is kept; rounds are capped > messages and names count toward the 4,096 budget, each hidden character as its 6-character escape 1ms
+ ✓ tests/unit/paste-review2.test.tsx > r2 B3: every text of a test counts, measured as bettors read it; nothing refused is kept; rounds are capped > 25 distinct tests on the largest file keep ONE numbered file and only their small test parts 39ms
+ ✓ tests/unit/paste-review2.test.tsx > r2 B3: every text of a test counts, measured as bettors read it; nothing refused is kept; rounds are capped > a session keeps at most 20 pasted rounds: its oldest is dropped (never one that is running) 11ms
+ ✓ tests/unit/paste-review2.test.tsx > r2 M2 (coordinator's decision): a repeat is accepted, said, and its bets sealed with repeat: true > the same test after a run: 200, 'a repeat' in the bettor text, every bet (person and model) repeat: true and sealed 772ms
+ ✓ tests/unit/paste-review2.test.tsx > r2 M3: one size limit, derived from the prompt cap > a bettor text of exactly the cap makes a prompt of exactly the prompt cap, which the guard sends; one more is refused 0ms
+ ✓ tests/unit/paste-review2.test.tsx > r2 M4: the proxy-hop setting > an invalid value throws (the server refuses to start); valid values and unset work; the rule is described 1ms
+ ✓ tests/unit/paste-server.test.ts > a whole pasted round (real sandbox, real judge) > Muse Code and the Adversary are never asked about pasted code 468ms
+ ✓ tests/unit/paste-review2.test.tsx > r2 M1: privacy > a stranger's proof view has no source and no session log; the owner's has both 487ms
+ ✓ tests/unit/paste-review2.test.tsx > r2 M1: privacy > leftover sandbox folders older than 10 minutes are deleted at startup; younger ones and other folders are left 1ms
+ ✓ tests/unit/paste-review2.test.tsx > r2 minors > minor 1: a proposer-only server keeps the shared spend ceiling 2ms
+ ✓ tests/unit/paste-review2.test.tsx > r2 minors > minor 2: a lone CR is refused with a fix; U+2028 counts as a line toward the cap 1ms
+ ✓ tests/unit/paste-review2.test.tsx > r2 minors > minor 5: no owner on record → the source is withheld even with no session header 415ms
+ ✓ tests/unit/paste-review2.test.tsx > r2 minors > minor 6: hidden and direction characters in the file are escaped in the bettor text 0ms
+
+ Test Files  2 passed (2)
+      Tests  33 passed (33)
+   Start at  00:04:22
+   Duration  3.72s (tests 86%, import 12%, transform 2%)
+

@@ -1,0 +1,15 @@
+{
+ "pad": 0,
+ "tries": 12,
+ "L": null,
+ "lenPadMinus1": null,
+ "at150000": {
+  "status": 422
+ },
+ "at150001": {
+  "status": 422,
+  "err": "gate: rejected (the texts in args (JSON values, names and messages, with hidden characters written as escapes) are 122267 characters; the limit is 4096); nothing will run"
+ },
+ "sparkPromptChars": [],
+ "guardLimit": 160000
+}

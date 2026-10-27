@@ -1,0 +1,17 @@
+{
+ "mode": "refused",
+ "N": 600,
+ "statuses": {
+  "413": 600
+ },
+ "firstErr": "the request body is larger than 65536 bytes",
+ "stats": {
+  "blocks": 0,
+  "contexts": 0,
+  "sessions": 4,
+  "retainedBytes": 224
+ },
+ "heapGrowthMB": 2.8,
+ "perExperimentKB": 5,
+ "addressesUsed": 4
+}

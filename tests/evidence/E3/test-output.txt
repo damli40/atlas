@@ -1,0 +1,43 @@
+
+ RUN  v5.0.5 <repo>
+
+ ✓ tests/unit/paste-server.test.ts > POST /paste > reads the language, the exports and the fingerprint; keeps the code in the session; logs no code 25ms
+ ✓ tests/unit/paste-server.test.ts > POST /paste > the person's language choice wins; Python shows as coming and nothing is kept 3ms
+ ✓ tests/unit/paste-server.test.ts > POST /paste > a Python runner plugs in by language with no other change 1ms
+ ✓ tests/unit/paste-server.test.ts > POST /paste > refuses more than 64 KB, an empty paste and a body that is not JSON, each with a plain reason 1ms
+ ✓ tests/unit/paste-server.test.ts > POST /paste > counts pastes per client address (sessions are free to make) 1ms
+ ✓ tests/unit/paste-server.test.ts > POST /paste > says early when the whole run will be can't check (an import) 0ms
+ ✓ tests/unit/paste-server.test.ts > POST /paste > a pasted target belongs to its session: another session cannot use it 1ms
+ ✓ tests/unit/paste-server.test.ts > Muse Wonder's proposals > allowed and refused proposals are both shown; the refused one can never run; the claim is held back 15ms
+ ✓ tests/unit/paste-server.test.ts > Muse Wonder's proposals > asks no model when the server has no proposer, and caps proposals per session 2ms
+ ✓ tests/unit/paste-server.test.ts > pasted code reaches non-contributor Meta models only > the guard refuses a contributor id even with ATLAS_ALLOW_CONTRIBUTOR=1, and an unknown id 0ms
+ ✓ tests/unit/paste-server.test.ts > pasted code reaches non-contributor Meta models only > Wonder set to a contributor id: the chat is never called, nothing is counted or spent 0ms
+ ✓ tests/unit/paste-server.test.ts > pasted code reaches non-contributor Meta models only > Spark set to a contributor id on a pasted round: no call, the slot says why; the same id still works on the fixture 4ms
+ ✓ tests/unit/paste-server.test.ts > D18 and D19: the betting models see exactly the bet screen's text, and never Wonder's claim > Spark's and Spark Open's prompts hold the seenContext the page shows, byte for byte, and no claim 2ms
+ ✓ tests/unit/paste-server.test.ts > a whole pasted round (real sandbox, real judge) > paste → proposal → bets → run → verdicts → proof card that verifies, kept in memory only 441ms
+ ✓ tests/unit/paste-server.test.ts > a whole pasted round (real sandbox, real judge) > code that imports a package: every verdict is can't check with the reason (never 'threw') 219ms
+ ✓ tests/unit/paste-server.test.ts > a whole pasted round (real sandbox, real judge) > a person's test the gate refuses is kept and shown with the reason, and can never run 1ms
+ ✓ tests/unit/paste-server.test.ts > a whole pasted round (real sandbox, real judge) > Muse Code and the Adversary are never asked about pasted code 281ms
+ ✓ tests/unit/call-timeline.test.tsx > E3 call timeline: inputs > model.ts imports only the Run type and the pure trust rule 1ms
+ ✓ tests/unit/call-timeline.test.tsx > E3 call timeline: real runs > throws then returns: one rail (fetchIt), a slash peg at 0 ms and a dot peg at 100 ms, a dot token at 100 ms 13ms
+ ✓ tests/unit/call-timeline.test.tsx > E3 call timeline: real runs > always throws: 3 slash pegs at 0, 100 and 300 ms; a slash token at 700 ms (the code waits once more after the last call) 10ms
+ ✓ tests/unit/call-timeline.test.tsx > E3 call timeline: real runs > never answers: a dark peg with no mark, and a ring token where the run went quiet 6ms
+ ✓ tests/unit/call-timeline.test.tsx > E3 call timeline: real runs > a late answer draws a rib from the call (0 ms) to the answer (250 ms) 5ms
+ ✓ tests/unit/call-timeline.test.tsx > E3 call timeline: real runs > still running at the watch limit: the token stands at the stop with two bars; the final count is not claimed 7ms
+ ✓ tests/unit/call-timeline.test.tsx > E3 call timeline: real runs > no stand-in and no wait: only the function's rail; the ruler has no ticks; the caption says everything was at 0 ms 4ms
+ ✓ tests/unit/call-timeline.test.tsx > E3 call timeline: real runs > two stand-ins: two rails, named in the caption from the front, each with its own peg and rib 7ms
+ ✓ tests/unit/call-timeline.test.tsx > E3 call timeline: real runs > a held moment shows only what happened by then (the sled at 50 ms: the 100 ms peg and token hidden) 7ms
+ ✓ tests/unit/call-timeline.test.tsx > E3 call timeline: real runs > every drawn part is in the manifest, and every manifest name is drawn by some case 41ms
+ ✓ tests/unit/call-timeline.test.tsx > E3 call timeline: never shown as fact when the run cannot be > controlPassed false: no drawing, no number, the reason printed 0ms
+ ✓ tests/unit/call-timeline.test.tsx > E3 call timeline: never shown as fact when the run cannot be > controlPassed missing (an old or edited file): nothing drawn 0ms
+ ✓ tests/unit/call-timeline.test.tsx > E3 call timeline: never shown as fact when the run cannot be > a whole-run can't check (the code needs a package): nothing drawn, the reason printed 0ms
+ ✓ tests/unit/call-timeline.test.tsx > E3 call timeline: never shown as fact when the run cannot be > a run with no trace: nothing drawn 0ms
+ ✓ tests/unit/call-timeline.test.tsx > E3 call timeline: geometry limits > pegs at the same moment stand side by side in call order, marked as nudged 0ms
+ ✓ tests/unit/call-timeline.test.tsx > E3 call timeline: geometry limits > a rail with more calls than it holds is not drawn: the card says why and gives the counts 2ms
+ ✓ tests/unit/call-timeline.test.tsx > E3 call timeline: geometry limits > the ruler's ticks are 1, 2 or 5 × 10^k, at most 6 majors 0ms
+
+ Test Files  2 passed (2)
+      Tests  34 passed (34)
+   Start at  21:53:20
+   Duration  1.85s (tests 84%, import 14%, transform 2%)
+

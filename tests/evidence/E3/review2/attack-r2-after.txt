@@ -1,0 +1,72 @@
+{
+  "languageRepaste": {
+    "e1FirstLine": "Code: one pasted JavaScript file, 3 lines, fingerprint 9a30ac96b5d5…",
+    "p2Says": "ts",
+    "e2FirstLine": "Code: one pasted TypeScript file, 3 lines, fingerprint 9a30ac96b5d5…",
+    "sessionB_FirstLine": "Code: one pasted TypeScript file, 3 lines, fingerprint 9a30ac96b5d5…",
+    "sessionB_targetLanguage": "ts"
+  },
+  "afterClaim": {
+    "run1": 409,
+    "claimDuringRun": 409,
+    "lateBetDuringRun": 400,
+    "claimAfter": 409,
+    "copiedAsOwnTest": 200,
+    "copiedWrittenBy": "Test written by: you (the person).",
+    "modelsAskedOnCopy": 4,
+    "modelsGotClaim": false,
+    "modelsToldOfEarlierRun": false,
+    "personBetOnCopy": 400,
+    "sameProposalRound2Bet": 400,
+    "sameProposalRound2Run": 409
+  },
+  "lineCaps": {
+    "crlf2000": 200,
+    "crlf2001": 413,
+    "crOnly10001Lines": {
+      "status": 400,
+      "bytes": 30070
+    },
+    "u2028_5001Lines": {
+      "status": 413
+    }
+  },
+  "contextCap": {
+    "L0": null,
+    "exactly150000": {
+      "status": 422,
+      "err": "gate: rejected (the texts in args (JSON values, names and messages, with hidden characters written as escapes) are 122816 characters; the limit is 4096); nothing will run"
+    },
+    "at150001": {
+      "status": 422,
+      "err": "gate: rejected (the texts in args (JSON values, names and messages, with hidden characters written as escapes) are 122816 characters; the limit is 4096); nothing will run"
+    }
+  },
+  "guard": {
+    "at160000": true,
+    "at160001": {
+      "ok": false,
+      "reason": "the prompt would be 160001 characters; a call carrying pasted code may send at most 160000"
+    },
+    "maxTokens60k": {
+      "ok": true
+    },
+    "contributor": false,
+    "sent": 2
+  },
+  "proxyHops": {
+    "hops1_spoofLeft": "1.2.3.4",
+    "hops2_behindOneProxy_clientWritesLeft": "6.6.6.6",
+    "hops2_noClientHeader": "unknown",
+    "hops1_twoProxies_cfThenFly": "172.70.1.1",
+    "noHeader": "unknown"
+  },
+  "proposerSwitch": {
+    "offAnswer": "not asked (this server asks no Meta model for tests)",
+    "offOk": false,
+    "onlyProposerOk": false,
+    "onlyProposerReason": "the model call failed: spend limit reached: $1.00 of the $1 ceiling is used",
+    "note": "deps.budget is AT its $1 ceiling; a proposer-only server should refuse",
+    "chatCalls": 0
+  }
+}

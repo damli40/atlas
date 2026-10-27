@@ -1,0 +1,570 @@
+[
+  {
+    "id": "throws-then-returns",
+    "what": "fetchIt throws once, then returns: retryWithBackoff returns at 100 ms after 2 calls",
+    "runId": "7vItBTiKuz",
+    "controlPassed": true,
+    "trace": [
+      {
+        "t": 0,
+        "event": "start",
+        "data": {
+          "exportName": "retryWithBackoff",
+          "args": 3,
+          "watchLimitMs": 30000
+        }
+      },
+      {
+        "t": 0,
+        "event": "stand_in_call",
+        "data": {
+          "name": "fetchIt",
+          "n": 1
+        }
+      },
+      {
+        "t": 0,
+        "event": "stand_in_throws",
+        "data": {
+          "name": "fetchIt",
+          "n": 1,
+          "errorName": "TimeoutError"
+        }
+      },
+      {
+        "t": 100,
+        "event": "stand_in_call",
+        "data": {
+          "name": "fetchIt",
+          "n": 2
+        }
+      },
+      {
+        "t": 100,
+        "event": "stand_in_returns",
+        "data": {
+          "name": "fetchIt",
+          "n": 2
+        }
+      },
+      {
+        "t": 100,
+        "event": "returned",
+        "data": {
+          "type": "object"
+        }
+      },
+      {
+        "t": 100,
+        "event": "call_checks",
+        "data": {
+          "harnessSha256": "8e1c680e5a0246441a7c883d6a6db105e88ebfcf74591a06e3be45ddcd9d1f37",
+          "controlRunId": "wze6lhaTHj",
+          "controlPassed": true
+        }
+      }
+    ],
+    "measured": {
+      "outcome": "returned",
+      "virtualMs": 100,
+      "returnedType": "object",
+      "returnedJson": "{\"ok\":true}",
+      "calls:fetchIt": 2
+    },
+    "notMeasured": {
+      "thrownName": "the call returned, so nothing was thrown",
+      "thrownMessage": "the call returned, so nothing was thrown"
+    }
+  },
+  {
+    "id": "always-throws",
+    "what": "fetchIt always throws: retryWithBackoff throws after 3 calls and 3 waits (700 ms)",
+    "runId": "cbpS6YHfnX",
+    "controlPassed": true,
+    "trace": [
+      {
+        "t": 0,
+        "event": "start",
+        "data": {
+          "exportName": "retryWithBackoff",
+          "args": 3,
+          "watchLimitMs": 30000
+        }
+      },
+      {
+        "t": 0,
+        "event": "stand_in_call",
+        "data": {
+          "name": "fetchIt",
+          "n": 1
+        }
+      },
+      {
+        "t": 0,
+        "event": "stand_in_throws",
+        "data": {
+          "name": "fetchIt",
+          "n": 1,
+          "errorName": "TimeoutError"
+        }
+      },
+      {
+        "t": 100,
+        "event": "stand_in_call",
+        "data": {
+          "name": "fetchIt",
+          "n": 2
+        }
+      },
+      {
+        "t": 100,
+        "event": "stand_in_throws",
+        "data": {
+          "name": "fetchIt",
+          "n": 2,
+          "errorName": "TimeoutError"
+        }
+      },
+      {
+        "t": 300,
+        "event": "stand_in_call",
+        "data": {
+          "name": "fetchIt",
+          "n": 3
+        }
+      },
+      {
+        "t": 300,
+        "event": "stand_in_throws",
+        "data": {
+          "name": "fetchIt",
+          "n": 3,
+          "errorName": "TimeoutError"
+        }
+      },
+      {
+        "t": 700,
+        "event": "threw",
+        "data": {
+          "type": "Error",
+          "name": "TimeoutError"
+        }
+      },
+      {
+        "t": 700,
+        "event": "call_checks",
+        "data": {
+          "harnessSha256": "8e1c680e5a0246441a7c883d6a6db105e88ebfcf74591a06e3be45ddcd9d1f37",
+          "controlRunId": "wze6lhaTHj",
+          "controlPassed": true
+        }
+      }
+    ],
+    "measured": {
+      "outcome": "threw",
+      "virtualMs": 700,
+      "thrownType": "Error",
+      "thrownName": "TimeoutError",
+      "thrownMessage": "slow",
+      "calls:fetchIt": 3
+    },
+    "notMeasured": {
+      "returnedJson": "the call threw, so it returned nothing",
+      "returnedType": "the call threw, so it returned nothing"
+    }
+  },
+  {
+    "id": "never-answers",
+    "what": "fetchIt throws, then never answers: retryWithBackoff never settles",
+    "runId": "CfoFJSBtOF",
+    "controlPassed": true,
+    "trace": [
+      {
+        "t": 0,
+        "event": "start",
+        "data": {
+          "exportName": "retryWithBackoff",
+          "args": 3,
+          "watchLimitMs": 30000
+        }
+      },
+      {
+        "t": 0,
+        "event": "stand_in_call",
+        "data": {
+          "name": "fetchIt",
+          "n": 1
+        }
+      },
+      {
+        "t": 0,
+        "event": "stand_in_throws",
+        "data": {
+          "name": "fetchIt",
+          "n": 1,
+          "errorName": "TimeoutError"
+        }
+      },
+      {
+        "t": 100,
+        "event": "stand_in_call",
+        "data": {
+          "name": "fetchIt",
+          "n": 2
+        }
+      },
+      {
+        "t": 100,
+        "event": "stand_in_never_answers",
+        "data": {
+          "name": "fetchIt",
+          "n": 2
+        }
+      },
+      {
+        "t": 100,
+        "event": "never_settled"
+      },
+      {
+        "t": 100,
+        "event": "call_checks",
+        "data": {
+          "harnessSha256": "8e1c680e5a0246441a7c883d6a6db105e88ebfcf74591a06e3be45ddcd9d1f37",
+          "controlRunId": "wze6lhaTHj",
+          "controlPassed": true
+        }
+      }
+    ],
+    "measured": {
+      "outcome": "never_settled",
+      "calls:fetchIt": 2
+    },
+    "notMeasured": {
+      "returnedJson": "the call never settled: it was still waiting with nothing left that could wake it",
+      "returnedType": "the call never settled: it was still waiting with nothing left that could wake it",
+      "thrownName": "the call never settled: it was still waiting with nothing left that could wake it",
+      "thrownMessage": "the call never settled: it was still waiting with nothing left that could wake it",
+      "virtualMs": "the call never settled: it was still waiting with nothing left that could wake it, so it has no settle time"
+    }
+  },
+  {
+    "id": "late-answer",
+    "what": "fetchIt answers 250 ms after it is called: a rib from the call to the answer",
+    "runId": "vq22dbZa5Y",
+    "controlPassed": true,
+    "trace": [
+      {
+        "t": 0,
+        "event": "start",
+        "data": {
+          "exportName": "retryWithBackoff",
+          "args": 1,
+          "watchLimitMs": 30000
+        }
+      },
+      {
+        "t": 0,
+        "event": "stand_in_call",
+        "data": {
+          "name": "fetchIt",
+          "n": 1
+        }
+      },
+      {
+        "t": 250,
+        "event": "stand_in_returns",
+        "data": {
+          "name": "fetchIt",
+          "n": 1,
+          "afterMs": 250
+        }
+      },
+      {
+        "t": 250,
+        "event": "returned",
+        "data": {
+          "type": "number"
+        }
+      },
+      {
+        "t": 250,
+        "event": "call_checks",
+        "data": {
+          "harnessSha256": "8e1c680e5a0246441a7c883d6a6db105e88ebfcf74591a06e3be45ddcd9d1f37",
+          "controlRunId": "wze6lhaTHj",
+          "controlPassed": true
+        }
+      }
+    ],
+    "measured": {
+      "outcome": "returned",
+      "virtualMs": 250,
+      "returnedType": "number",
+      "returnedJson": "7",
+      "calls:fetchIt": 1
+    },
+    "notMeasured": {
+      "thrownName": "the call returned, so nothing was thrown",
+      "thrownMessage": "the call returned, so nothing was thrown"
+    }
+  },
+  {
+    "id": "still-running",
+    "what": "check never says ready: pollUntilReady is still running at the 5,000 ms watch limit",
+    "runId": "8Mp6kmKBzH",
+    "controlPassed": true,
+    "trace": [
+      {
+        "t": 0,
+        "event": "start",
+        "data": {
+          "exportName": "pollUntilReady",
+          "args": 1,
+          "watchLimitMs": 5000
+        }
+      },
+      {
+        "t": 0,
+        "event": "stand_in_call",
+        "data": {
+          "name": "check",
+          "n": 1
+        }
+      },
+      {
+        "t": 0,
+        "event": "stand_in_returns",
+        "data": {
+          "name": "check",
+          "n": 1
+        }
+      },
+      {
+        "t": 1000,
+        "event": "stand_in_call",
+        "data": {
+          "name": "check",
+          "n": 2
+        }
+      },
+      {
+        "t": 1000,
+        "event": "stand_in_returns",
+        "data": {
+          "name": "check",
+          "n": 2
+        }
+      },
+      {
+        "t": 2000,
+        "event": "stand_in_call",
+        "data": {
+          "name": "check",
+          "n": 3
+        }
+      },
+      {
+        "t": 2000,
+        "event": "stand_in_returns",
+        "data": {
+          "name": "check",
+          "n": 3
+        }
+      },
+      {
+        "t": 3000,
+        "event": "stand_in_call",
+        "data": {
+          "name": "check",
+          "n": 4
+        }
+      },
+      {
+        "t": 3000,
+        "event": "stand_in_returns",
+        "data": {
+          "name": "check",
+          "n": 4
+        }
+      },
+      {
+        "t": 4000,
+        "event": "stand_in_call",
+        "data": {
+          "name": "check",
+          "n": 5
+        }
+      },
+      {
+        "t": 4000,
+        "event": "stand_in_returns",
+        "data": {
+          "name": "check",
+          "n": 5
+        }
+      },
+      {
+        "t": 5000,
+        "event": "stand_in_call",
+        "data": {
+          "name": "check",
+          "n": 6
+        }
+      },
+      {
+        "t": 5000,
+        "event": "stand_in_returns",
+        "data": {
+          "name": "check",
+          "n": 6
+        }
+      },
+      {
+        "t": 5000,
+        "event": "still_running_at_watch_limit"
+      },
+      {
+        "t": 5000,
+        "event": "call_checks",
+        "data": {
+          "harnessSha256": "8e1c680e5a0246441a7c883d6a6db105e88ebfcf74591a06e3be45ddcd9d1f37",
+          "controlRunId": "fTwiMYZ53S",
+          "controlPassed": true
+        }
+      }
+    ],
+    "measured": {
+      "outcome": "still_running_at_watch_limit"
+    },
+    "notMeasured": {
+      "returnedJson": "the call was still running when Atlas's watch limit (5000 ms of virtual time, Atlas's limit, not the code's) ran out",
+      "returnedType": "the call was still running when Atlas's watch limit (5000 ms of virtual time, Atlas's limit, not the code's) ran out",
+      "thrownName": "the call was still running when Atlas's watch limit (5000 ms of virtual time, Atlas's limit, not the code's) ran out",
+      "thrownMessage": "the call was still running when Atlas's watch limit (5000 ms of virtual time, Atlas's limit, not the code's) ran out",
+      "virtualMs": "the call was still running when Atlas's watch limit (5000 ms of virtual time, Atlas's limit, not the code's) ran out",
+      "calls:check": "the call was still running when Atlas's watch limit (5000 ms of virtual time, Atlas's limit, not the code's) ran out, so the final count was not seen; the count so far was 6"
+    }
+  },
+  {
+    "id": "no-wait",
+    "what": "a plain parser with no stand-in: everything at 0 ms",
+    "runId": "L9WMJlTw4k",
+    "controlPassed": true,
+    "trace": [
+      {
+        "t": 0,
+        "event": "start",
+        "data": {
+          "exportName": "parseAmount",
+          "args": 1,
+          "watchLimitMs": 30000
+        }
+      },
+      {
+        "t": 0,
+        "event": "returned",
+        "data": {
+          "type": "number"
+        }
+      },
+      {
+        "t": 0,
+        "event": "call_checks",
+        "data": {
+          "harnessSha256": "8e1c680e5a0246441a7c883d6a6db105e88ebfcf74591a06e3be45ddcd9d1f37",
+          "controlRunId": "fTwiMYZ53S",
+          "controlPassed": true
+        }
+      }
+    ],
+    "measured": {
+      "outcome": "returned",
+      "virtualMs": 0,
+      "returnedType": "number",
+      "returnedJson": "1.5"
+    },
+    "notMeasured": {
+      "thrownName": "the call returned, so nothing was thrown",
+      "thrownMessage": "the call returned, so nothing was thrown"
+    }
+  },
+  {
+    "id": "two-stand-ins",
+    "what": "two stand-ins race: a answers at 300 ms, b at 120 ms",
+    "runId": "ciF-6rAn71",
+    "controlPassed": true,
+    "trace": [
+      {
+        "t": 0,
+        "event": "start",
+        "data": {
+          "exportName": "firstOf",
+          "args": 2,
+          "watchLimitMs": 30000
+        }
+      },
+      {
+        "t": 0,
+        "event": "stand_in_call",
+        "data": {
+          "name": "a",
+          "n": 1
+        }
+      },
+      {
+        "t": 0,
+        "event": "stand_in_call",
+        "data": {
+          "name": "b",
+          "n": 1
+        }
+      },
+      {
+        "t": 120,
+        "event": "stand_in_returns",
+        "data": {
+          "name": "b",
+          "n": 1,
+          "afterMs": 120
+        }
+      },
+      {
+        "t": 120,
+        "event": "returned",
+        "data": {
+          "type": "string"
+        }
+      },
+      {
+        "t": 300,
+        "event": "stand_in_returns",
+        "data": {
+          "name": "a",
+          "n": 1,
+          "afterMs": 300
+        }
+      },
+      {
+        "t": 300,
+        "event": "call_checks",
+        "data": {
+          "harnessSha256": "8e1c680e5a0246441a7c883d6a6db105e88ebfcf74591a06e3be45ddcd9d1f37",
+          "controlRunId": "fTwiMYZ53S",
+          "controlPassed": true
+        }
+      }
+    ],
+    "measured": {
+      "outcome": "returned",
+      "virtualMs": 120,
+      "returnedType": "string",
+      "returnedJson": "\"b\"",
+      "calls:a": 1,
+      "calls:b": 1
+    },
+    "notMeasured": {
+      "thrownName": "the call returned, so nothing was thrown",
+      "thrownMessage": "the call returned, so nothing was thrown"
+    }
+  }
+]

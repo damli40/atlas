@@ -1,0 +1,317 @@
+{
+ "firstRun": 200,
+ "storedParams": {
+  "shape": "call-function",
+  "exportName": "g",
+  "args": [
+   {
+    "kind": "stand-in",
+    "name": "f",
+    "async": true,
+    "then": "repeat_last",
+    "calls": [
+     {
+      "do": "return",
+      "value": 1
+     }
+    ]
+   },
+   {
+    "kind": "json",
+    "value": 2
+   }
+  ]
+ },
+ "identical": {
+  "status": 200,
+  "repeatOf": "lnaIyBlA8s",
+  "params": {
+   "shape": "call-function",
+   "exportName": "g",
+   "args": [
+    {
+     "kind": "stand-in",
+     "name": "f",
+     "async": true,
+     "then": "repeat_last",
+     "calls": [
+      {
+       "do": "return",
+       "value": 1
+      }
+     ]
+    },
+    {
+     "kind": "json",
+     "value": 2
+    }
+   ]
+  }
+ },
+ "keysReordered": {
+  "status": 200,
+  "repeatOf": "lnaIyBlA8s",
+  "params": {
+   "args": [
+    {
+     "then": "repeat_last",
+     "calls": [
+      {
+       "value": 1,
+       "do": "return"
+      }
+     ],
+     "async": true,
+     "name": "f",
+     "kind": "stand-in"
+    },
+    {
+     "value": 2,
+     "kind": "json"
+    }
+   ],
+   "exportName": "g",
+   "shape": "call-function"
+  }
+ },
+ "value2point0": {
+  "status": 200,
+  "repeatOf": "lnaIyBlA8s",
+  "params": {
+   "shape": "call-function",
+   "exportName": "g",
+   "args": [
+    {
+     "kind": "stand-in",
+     "name": "f",
+     "async": true,
+     "then": "repeat_last",
+     "calls": [
+      {
+       "do": "return",
+       "value": 1
+      }
+     ]
+    },
+    {
+     "kind": "json",
+     "value": 2
+    }
+   ]
+  }
+ },
+ "explicitWatchDefault": {
+  "status": 200,
+  "repeatOf": null,
+  "params": {
+   "shape": "call-function",
+   "exportName": "g",
+   "args": [
+    {
+     "kind": "stand-in",
+     "name": "f",
+     "async": true,
+     "then": "repeat_last",
+     "calls": [
+      {
+       "do": "return",
+       "value": 1
+      }
+     ]
+    },
+    {
+     "kind": "json",
+     "value": 2
+    }
+   ],
+   "watchLimitMs": 3000
+  }
+ },
+ "asyncFalse": {
+  "status": 200,
+  "repeatOf": null,
+  "params": {
+   "shape": "call-function",
+   "exportName": "g",
+   "args": [
+    {
+     "kind": "stand-in",
+     "name": "f",
+     "async": false,
+     "then": "repeat_last",
+     "calls": [
+      {
+       "do": "return",
+       "value": 1
+      }
+     ]
+    },
+    {
+     "kind": "json",
+     "value": 2
+    }
+   ]
+  }
+ },
+ "value2asString": {
+  "status": 200,
+  "repeatOf": null,
+  "params": {
+   "shape": "call-function",
+   "exportName": "g",
+   "args": [
+    {
+     "kind": "stand-in",
+     "name": "f",
+     "async": true,
+     "then": "repeat_last",
+     "calls": [
+      {
+       "do": "return",
+       "value": 1
+      }
+     ]
+    },
+    {
+     "kind": "json",
+     "value": "2"
+    }
+   ]
+  }
+ },
+ "valueNeg0": {
+  "status": 200,
+  "repeatOf": null,
+  "params": {
+   "shape": "call-function",
+   "exportName": "g",
+   "args": [
+    {
+     "kind": "stand-in",
+     "name": "f",
+     "async": true,
+     "then": "repeat_last",
+     "calls": [
+      {
+       "do": "return",
+       "value": 1
+      }
+     ]
+    },
+    {
+     "kind": "json",
+     "value": 0
+    }
+   ]
+  }
+ },
+ "explicitAfterMs0": {
+  "status": 200,
+  "repeatOf": "lnaIyBlA8s",
+  "params": {
+   "shape": "call-function",
+   "exportName": "g",
+   "args": [
+    {
+     "kind": "stand-in",
+     "name": "f",
+     "async": true,
+     "then": "repeat_last",
+     "calls": [
+      {
+       "do": "return",
+       "value": 1,
+       "afterMs": 0
+      }
+     ]
+    },
+    {
+     "kind": "json",
+     "value": 2
+    }
+   ]
+  }
+ },
+ "otherThen": {
+  "status": 200,
+  "repeatOf": null,
+  "params": {
+   "shape": "call-function",
+   "exportName": "g",
+   "args": [
+    {
+     "kind": "stand-in",
+     "name": "f",
+     "async": true,
+     "then": "throw_exhausted",
+     "calls": [
+      {
+       "do": "return",
+       "value": 1
+      }
+     ]
+    },
+    {
+     "kind": "json",
+     "value": 2
+    }
+   ]
+  }
+ },
+ "twoIdenticalSteps": {
+  "status": 200,
+  "repeatOf": null,
+  "params": {
+   "shape": "call-function",
+   "exportName": "g",
+   "args": [
+    {
+     "kind": "stand-in",
+     "name": "f",
+     "async": true,
+     "then": "repeat_last",
+     "calls": [
+      {
+       "do": "return",
+       "value": 1
+      },
+      {
+       "do": "return",
+       "value": 1
+      }
+     ]
+    },
+    {
+     "kind": "json",
+     "value": 2
+    }
+   ]
+  }
+ },
+ "renamedStandIn": {
+  "status": 200,
+  "repeatOf": null,
+  "params": {
+   "shape": "call-function",
+   "exportName": "g",
+   "args": [
+    {
+     "kind": "stand-in",
+     "name": "h",
+     "async": true,
+     "then": "repeat_last",
+     "calls": [
+      {
+       "do": "return",
+       "value": 1
+      }
+     ]
+    },
+    {
+     "kind": "json",
+     "value": 2
+    }
+   ]
+  }
+ }
+}

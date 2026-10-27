@@ -1,0 +1,41 @@
+{
+ "callChecks": {
+  "harnessSha256": "81bf0638fc7f561b8bfed60d890524835259e700fe2fcb05060a5ae10eeb2db7",
+  "controlRunId": "Knlgz1VGqx",
+  "controlPassed": true,
+  "controlFinishedAt": "2026-10-27T23:43:34.795Z",
+  "runtime": {
+   "executor": "local",
+   "node": "v25.8.1"
+  }
+ },
+ "none": "VERIFIES",
+ "checksSayControlFailed": [
+  "run UBePqIyP1P: its trace says the control did not pass, but the run says it passed"
+ ],
+ "runSaysControlFailedChecksPassed": [
+  "run UBePqIyP1P: its trace says the control passed, but the run says it did not",
+  "the verdict on bet PKQh3DOmUJ is not what src/judge.ts gives for it (stored matched, judged cant_check)"
+ ],
+ "runtimeSaysModalRunSaysLocal": [
+  "run UBePqIyP1P: its trace says it ran on modal, but the run says local"
+ ],
+ "runExecutorFlippedToModal": [
+  "run UBePqIyP1P: its trace says it ran on local, but the run says modal",
+  "run UBePqIyP1P: the run says it ran on modal, but its trace has no Modal runtime"
+ ],
+ "dropCallChecks": [
+  "run UBePqIyP1P: its trace has no call_checks line, so the control it relied on cannot be checked"
+ ],
+ "dropControlFinishedAt": [
+  "run UBePqIyP1P: its call_checks line says not when its control finished"
+ ],
+ "dropControlRunIdBoth": [
+  "run UBePqIyP1P: its call_checks line names no control run"
+ ],
+ "controlIdChangedBoth": "VERIFIES",
+ "harnessShaChanged": "VERIFIES",
+ "controlFinishedAfterStart": [
+  "run UBePqIyP1P: the control it relied on finished after the run started"
+ ]
+}

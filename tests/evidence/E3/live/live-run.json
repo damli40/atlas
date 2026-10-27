@@ -1,0 +1,727 @@
+{
+  "startedAt": "2026-10-27T20:49:36.109Z",
+  "finishedAt": "2026-10-27T20:49:46.694Z",
+  "code": "// Retry a flaky call, waiting longer after each failure.\nexport async function retryWithBackoff(fetchIt: () => Promise<unknown>, attempts: number = 3, baseMs: number = 100) {\n  let last: unknown;\n  for (let i = 0; i < attempts; i++) {\n    try {\n      return await fetchIt();\n    } catch (e) {\n      last = e;\n      await new Promise((r) => setTimeout(r, baseMs * 2 ** i));\n    }\n  }\n  throw last;\n}\n",
+  "paste": {
+    "target": {
+      "kind": "pasted",
+      "ref": "pasted:518e3fa2c900",
+      "codeSha256": "518e3fa2c900ee2ce8ccbeafa7dfc6c70e7c421d263b3de6b3b1057c8944b462",
+      "language": "ts"
+    },
+    "language": {
+      "chosen": "ts",
+      "guessed": "ts",
+      "why": "a type annotation on a parameter on line 2",
+      "chosenBy": "plain code"
+    },
+    "languages": [
+      {
+        "language": "js",
+        "name": "JavaScript",
+        "runnable": true
+      },
+      {
+        "language": "ts",
+        "name": "TypeScript",
+        "runnable": true
+      },
+      {
+        "language": "py",
+        "name": "Python",
+        "runnable": false
+      }
+    ],
+    "runnable": true,
+    "exports": [
+      {
+        "name": "retryWithBackoff",
+        "line": 2,
+        "declaredAs": "function"
+      }
+    ],
+    "cantCheck": null,
+    "lines": 13
+  },
+  "proposals": {
+    "ok": true,
+    "model": "muse-wonder-1.0",
+    "display": "Muse Wonder 1.0 (muse-wonder-1.0)",
+    "setId": "ps_XWqVNUlmpV",
+    "proposals": [
+      {
+        "id": "8xxfhec0RN",
+        "attempt": 1,
+        "params": {
+          "shape": "call-function",
+          "exportName": "retryWithBackoff",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "fetchIt",
+              "async": true,
+              "calls": [
+                {
+                  "do": "throw",
+                  "errorName": "Error",
+                  "message": "boom"
+                }
+              ],
+              "then": "repeat_last"
+            },
+            {
+              "kind": "json",
+              "value": 3
+            },
+            {
+              "kind": "json",
+              "value": 100
+            }
+          ]
+        },
+        "gate": {
+          "allowed": true
+        },
+        "says": "Atlas calls retryWithBackoff(fetchIt, 3, 100). fetchIt (async) throws Error (\"boom\") on call 1; every later call throws Error (\"boom\") too."
+      },
+      {
+        "id": "ePle-pyOZO",
+        "attempt": 1,
+        "params": {
+          "shape": "call-function",
+          "exportName": "retryWithBackoff",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "fetchIt",
+              "async": true,
+              "calls": [
+                {
+                  "do": "return",
+                  "value": 42
+                }
+              ],
+              "then": "repeat_last"
+            },
+            {
+              "kind": "json",
+              "value": 0
+            },
+            {
+              "kind": "json",
+              "value": 100
+            }
+          ]
+        },
+        "gate": {
+          "allowed": true
+        },
+        "says": "Atlas calls retryWithBackoff(fetchIt, 0, 100). fetchIt (async) returns 42 on call 1; every later call returns 42 too."
+      },
+      {
+        "id": "4BnL9_mjYv",
+        "attempt": 1,
+        "params": {
+          "shape": "call-function",
+          "exportName": "retryWithBackoff",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "fetchIt",
+              "async": true,
+              "calls": [
+                {
+                  "do": "throw",
+                  "errorName": "Error",
+                  "message": "only failure"
+                }
+              ],
+              "then": "repeat_last"
+            },
+            {
+              "kind": "json",
+              "value": 1
+            },
+            {
+              "kind": "json",
+              "value": 100
+            }
+          ]
+        },
+        "gate": {
+          "allowed": true
+        },
+        "says": "Atlas calls retryWithBackoff(fetchIt, 1, 100). fetchIt (async) throws Error (\"only failure\") on call 1; every later call throws Error (\"only failure\") too."
+      }
+    ],
+    "claimHeld": true,
+    "usage": {
+      "promptTokens": 739,
+      "completionTokens": 853,
+      "reasoningTokens": 535,
+      "usd": 0.020016
+    }
+  },
+  "used": "8xxfhec0RN",
+  "experiment": {
+    "id": "uTgqafQGli",
+    "target": {
+      "kind": "pasted",
+      "ref": "pasted:518e3fa2c900",
+      "codeSha256": "518e3fa2c900ee2ce8ccbeafa7dfc6c70e7c421d263b3de6b3b1057c8944b462",
+      "language": "ts"
+    },
+    "runner": "ts",
+    "params": {
+      "shape": "call-function",
+      "exportName": "retryWithBackoff",
+      "args": [
+        {
+          "kind": "stand-in",
+          "name": "fetchIt",
+          "async": true,
+          "calls": [
+            {
+              "do": "throw",
+              "errorName": "Error",
+              "message": "boom"
+            }
+          ],
+          "then": "repeat_last"
+        },
+        {
+          "kind": "json",
+          "value": 3
+        },
+        {
+          "kind": "json",
+          "value": 100
+        }
+      ]
+    },
+    "proposedBy": {
+      "role": "investigator",
+      "model": "muse-wonder-1.0"
+    },
+    "gate": {
+      "allowed": true
+    }
+  },
+  "questions": [
+    {
+      "measures": "outcome",
+      "text": "Atlas calls retryWithBackoff(fetchIt, 3, 100). fetchIt (async) throws Error (\"boom\") on call 1; every later call throws Error (\"boom\") too. What does retryWithBackoff do?",
+      "kind": "enum",
+      "unit": "enum",
+      "options": [
+        "returned",
+        "threw",
+        "never_settled",
+        "still_running_at_watch_limit"
+      ]
+    },
+    {
+      "measures": "returnedJson",
+      "text": "Atlas calls retryWithBackoff(fetchIt, 3, 100). fetchIt (async) throws Error (\"boom\") on call 1; every later call throws Error (\"boom\") too. If retryWithBackoff returns, what value does it return, as JSON?",
+      "kind": "json",
+      "unit": "json"
+    },
+    {
+      "measures": "virtualMs",
+      "text": "Atlas calls retryWithBackoff(fetchIt, 3, 100). fetchIt (async) throws Error (\"boom\") on call 1; every later call throws Error (\"boom\") too. How long until retryWithBackoff returns or throws, in ms of Atlas's virtual clock?",
+      "kind": "number",
+      "unit": "ms",
+      "tolerancePct": 10
+    },
+    {
+      "measures": "calls:fetchIt",
+      "text": "Atlas calls retryWithBackoff(fetchIt, 3, 100). fetchIt (async) throws Error (\"boom\") on call 1; every later call throws Error (\"boom\") too. How many times does retryWithBackoff call fetchIt?",
+      "kind": "integer",
+      "unit": "count"
+    }
+  ],
+  "seenContext": "Code: one pasted TypeScript file, 13 lines, fingerprint 518e3fa2c900…\nWhere it runs: Atlas's sandbox, with no network, no files and no packages, on a virtual clock that starts at 2026-01-01T00:00:00Z (waits cost no real time).\nWhat will run: Atlas calls retryWithBackoff(fetchIt, 3, 100). fetchIt (async) throws Error (\"boom\") on call 1; every later call throws Error (\"boom\") too.\nTest written by: Muse Wonder 1.0 (muse-wonder-1.0).\nAtlas watches for at most 30,000 ms of virtual time.\nQuestions (written by plain code):\n1. What does retryWithBackoff do? Answer: one of returned, threw, never_settled, still_running_at_watch_limit.\n2. If retryWithBackoff returns, what value does it return, as JSON? Answer: a JSON value (matched when it is exactly the returned value, key order ignored).\n3. How long until retryWithBackoff returns or throws, in ms of Atlas's virtual clock? Answer: a number in ms, matched within 10% of what the run measures.\n4. How many times does retryWithBackoff call fetchIt? Answer: a whole number.\nHow to bet: Give your best estimate for each question. Decline only if you cannot form any estimate at all; if you decline, say why.\nThe whole file, numbered as on screen, line 2 (where retryWithBackoff is declared) marked \">\":\n  1| // Retry a flaky call, waiting longer after each failure.\n> 2| export async function retryWithBackoff(fetchIt: () => Promise<unknown>, attempts: number = 3, baseMs: number = 100) {\n  3|   let last: unknown;\n  4|   for (let i = 0; i < attempts; i++) {\n  5|     try {\n  6|       return await fetchIt();\n  7|     } catch (e) {\n  8|       last = e;\n  9|       await new Promise((r) => setTimeout(r, baseMs * 2 ** i));\n  10|     }\n  11|   }\n  12|   throw last;\n  13| }",
+  "claimAfterSeal": {
+    "model": "muse-wonder-1.0",
+    "display": "Muse Wonder 1.0 (muse-wonder-1.0)",
+    "claim": "People expect the function to throw immediately after the last failed attempt; the code does an extra exponential backoff wait after that final failure before throwing."
+  },
+  "modelSlots": [
+    {
+      "model": "muse-spark-1.3",
+      "who": "model:muse-spark-1.3",
+      "display": "Muse Spark 1.3 (muse-spark-1.3)",
+      "status": "sealed",
+      "sealed": [
+        {
+          "id": "kpAbINytqt",
+          "experimentId": "uTgqafQGli",
+          "who": "model:muse-spark-1.3",
+          "question": "Atlas calls retryWithBackoff(fetchIt, 3, 100). fetchIt (async) throws Error (\"boom\") on call 1; every later call throws Error (\"boom\") too. What does retryWithBackoff do?",
+          "measures": "outcome",
+          "sealedAt": "2026-10-27T20:49:46.253Z",
+          "sealedHash": "278396e4f280542aad831d3bdc38e5b48bfd23898f4ead0a3dc30b7be10bfb74"
+        },
+        {
+          "id": "x-6k9F2Kgo",
+          "experimentId": "uTgqafQGli",
+          "who": "model:muse-spark-1.3",
+          "question": "Atlas calls retryWithBackoff(fetchIt, 3, 100). fetchIt (async) throws Error (\"boom\") on call 1; every later call throws Error (\"boom\") too. If retryWithBackoff returns, what value does it return, as JSON?",
+          "measures": "returnedJson",
+          "sealedAt": "2026-10-27T20:49:46.253Z",
+          "sealedHash": "b76cab8914c0aac16d2a808f7999dd034a99fe6cb0f5358208159ef4efa5a2c2"
+        },
+        {
+          "id": "3-7Fxk3ef5",
+          "experimentId": "uTgqafQGli",
+          "who": "model:muse-spark-1.3",
+          "question": "Atlas calls retryWithBackoff(fetchIt, 3, 100). fetchIt (async) throws Error (\"boom\") on call 1; every later call throws Error (\"boom\") too. How long until retryWithBackoff returns or throws, in ms of Atlas's virtual clock?",
+          "measures": "virtualMs",
+          "sealedAt": "2026-10-27T20:49:46.253Z",
+          "sealedHash": "b917ffd494219ee273531c47ab78326107ca388da1d47d2af0fc6c013e7def36"
+        },
+        {
+          "id": "qFvNgGenBp",
+          "experimentId": "uTgqafQGli",
+          "who": "model:muse-spark-1.3",
+          "question": "Atlas calls retryWithBackoff(fetchIt, 3, 100). fetchIt (async) throws Error (\"boom\") on call 1; every later call throws Error (\"boom\") too. How many times does retryWithBackoff call fetchIt?",
+          "measures": "calls:fetchIt",
+          "sealedAt": "2026-10-27T20:49:46.253Z",
+          "sealedHash": "56fee9bc5964e16f7ca30c65d4959bb7520faa492dfe20a2a7146244f2fa915d"
+        }
+      ]
+    },
+    {
+      "model": "meta-models/muse-spark-open-1026",
+      "who": "model:meta-models/muse-spark-open-1026",
+      "display": "Muse Spark Open (meta-models/muse-spark-open-1026) · via Baseten",
+      "status": "sealed",
+      "sealed": [
+        {
+          "id": "0Z7NJq4TRu",
+          "experimentId": "uTgqafQGli",
+          "who": "model:meta-models/muse-spark-open-1026",
+          "question": "Atlas calls retryWithBackoff(fetchIt, 3, 100). fetchIt (async) throws Error (\"boom\") on call 1; every later call throws Error (\"boom\") too. What does retryWithBackoff do?",
+          "measures": "outcome",
+          "sealedAt": "2026-10-27T20:49:44.358Z",
+          "sealedHash": "c1f5abf5aaf7a3253f2ee9b1eaa5e5c0701acd7cdf289111967ec7b49e3deca5"
+        },
+        {
+          "id": "DhjSL1Ry9a",
+          "experimentId": "uTgqafQGli",
+          "who": "model:meta-models/muse-spark-open-1026",
+          "question": "Atlas calls retryWithBackoff(fetchIt, 3, 100). fetchIt (async) throws Error (\"boom\") on call 1; every later call throws Error (\"boom\") too. If retryWithBackoff returns, what value does it return, as JSON?",
+          "measures": "returnedJson",
+          "sealedAt": "2026-10-27T20:49:44.358Z",
+          "sealedHash": "9440097b14c37a3db6b4d7cdfa87423b237573349acfb21f477b90db09fc485a"
+        },
+        {
+          "id": "6FaRJFq2PQ",
+          "experimentId": "uTgqafQGli",
+          "who": "model:meta-models/muse-spark-open-1026",
+          "question": "Atlas calls retryWithBackoff(fetchIt, 3, 100). fetchIt (async) throws Error (\"boom\") on call 1; every later call throws Error (\"boom\") too. How long until retryWithBackoff returns or throws, in ms of Atlas's virtual clock?",
+          "measures": "virtualMs",
+          "sealedAt": "2026-10-27T20:49:44.358Z",
+          "sealedHash": "c42c72e9ccc94c2929056d244185e0ff94d3303a8cc487fd323e89d410aefee8"
+        },
+        {
+          "id": "K-93EOkszJ",
+          "experimentId": "uTgqafQGli",
+          "who": "model:meta-models/muse-spark-open-1026",
+          "question": "Atlas calls retryWithBackoff(fetchIt, 3, 100). fetchIt (async) throws Error (\"boom\") on call 1; every later call throws Error (\"boom\") too. How many times does retryWithBackoff call fetchIt?",
+          "measures": "calls:fetchIt",
+          "sealedAt": "2026-10-27T20:49:44.358Z",
+          "sealedHash": "624f60766bf67d949b37adb25e385dbaf3fb7657ac81a0430c312770c3105f16"
+        }
+      ]
+    }
+  ],
+  "run": {
+    "id": "xLC9p3PBt4",
+    "experimentId": "uTgqafQGli",
+    "runner": "ts",
+    "executor": "local",
+    "codeSha256": "518e3fa2c900ee2ce8ccbeafa7dfc6c70e7c421d263b3de6b3b1057c8944b462",
+    "seed": "none",
+    "startedAt": "2026-10-27T20:49:46.433Z",
+    "finishedAt": "2026-10-27T20:49:46.556Z",
+    "trace": [
+      {
+        "t": 0,
+        "event": "start",
+        "data": {
+          "exportName": "retryWithBackoff",
+          "args": 3,
+          "watchLimitMs": 30000
+        }
+      },
+      {
+        "t": 0,
+        "event": "stand_in_call",
+        "data": {
+          "name": "fetchIt",
+          "n": 1
+        }
+      },
+      {
+        "t": 0,
+        "event": "stand_in_throws",
+        "data": {
+          "name": "fetchIt",
+          "n": 1,
+          "errorName": "Error"
+        }
+      },
+      {
+        "t": 100,
+        "event": "stand_in_call",
+        "data": {
+          "name": "fetchIt",
+          "n": 2
+        }
+      },
+      {
+        "t": 100,
+        "event": "stand_in_throws",
+        "data": {
+          "name": "fetchIt",
+          "n": 2,
+          "errorName": "Error"
+        }
+      },
+      {
+        "t": 300,
+        "event": "stand_in_call",
+        "data": {
+          "name": "fetchIt",
+          "n": 3
+        }
+      },
+      {
+        "t": 300,
+        "event": "stand_in_throws",
+        "data": {
+          "name": "fetchIt",
+          "n": 3,
+          "errorName": "Error"
+        }
+      },
+      {
+        "t": 700,
+        "event": "threw",
+        "data": {
+          "type": "Error",
+          "name": "Error"
+        }
+      },
+      {
+        "t": 700,
+        "event": "call_checks",
+        "data": {
+          "harnessSha256": "8e1c680e5a0246441a7c883d6a6db105e88ebfcf74591a06e3be45ddcd9d1f37",
+          "controlRunId": "Qny7uExONk",
+          "controlPassed": true
+        }
+      }
+    ],
+    "result": {
+      "measured": {
+        "outcome": "threw",
+        "virtualMs": 700,
+        "thrownType": "Error",
+        "thrownName": "Error",
+        "thrownMessage": "boom",
+        "calls:fetchIt": 3
+      },
+      "notMeasured": {
+        "returnedJson": "the call threw, so it returned nothing",
+        "returnedType": "the call threw, so it returned nothing"
+      }
+    },
+    "controlPassed": true,
+    "controlRunId": "Qny7uExONk"
+  },
+  "verdicts": [
+    {
+      "who": "human",
+      "measures": "outcome",
+      "answer": {
+        "kind": "enum",
+        "value": "returned",
+        "options": [
+          "returned",
+          "threw",
+          "never_settled",
+          "still_running_at_watch_limit"
+        ]
+      },
+      "outcome": "not_matched",
+      "observed": "threw",
+      "rationale": null
+    },
+    {
+      "who": "model:meta-models/muse-spark-open-1026",
+      "measures": "outcome",
+      "answer": {
+        "kind": "enum",
+        "value": "threw",
+        "options": [
+          "returned",
+          "threw",
+          "never_settled",
+          "still_running_at_watch_limit"
+        ]
+      },
+      "outcome": "matched",
+      "observed": "threw",
+      "rationale": "Code loops 3 times, each fetchIt throws, saves last error and waits, then throws last after loop."
+    },
+    {
+      "who": "model:meta-models/muse-spark-open-1026",
+      "measures": "returnedJson",
+      "answer": {
+        "kind": "json",
+        "value": null
+      },
+      "outcome": "cant_check",
+      "observed": null,
+      "reason": "the call threw, so it returned nothing",
+      "rationale": "Function is expected to throw not return; no return value exists so null is placeholder bet."
+    },
+    {
+      "who": "model:meta-models/muse-spark-open-1026",
+      "measures": "virtualMs",
+      "answer": {
+        "kind": "number",
+        "value": 700,
+        "tolerancePct": 10,
+        "unit": "ms"
+      },
+      "outcome": "matched",
+      "observed": 700,
+      "rationale": "Waits are 100*2^0 + 100*2^1 + 100*2^2 = 700ms virtual time before final throw."
+    },
+    {
+      "who": "model:meta-models/muse-spark-open-1026",
+      "measures": "calls:fetchIt",
+      "answer": {
+        "kind": "integer",
+        "value": 3
+      },
+      "outcome": "matched",
+      "observed": 3,
+      "rationale": "Loop runs attempts=3 times, each iteration calls fetchIt once before catching and waiting."
+    },
+    {
+      "who": "model:muse-spark-1.3",
+      "measures": "outcome",
+      "answer": {
+        "kind": "enum",
+        "value": "threw",
+        "options": [
+          "returned",
+          "threw",
+          "never_settled",
+          "still_running_at_watch_limit"
+        ]
+      },
+      "outcome": "matched",
+      "observed": "threw",
+      "rationale": "All 3 attempts throw, loop ends with throw last."
+    },
+    {
+      "who": "model:muse-spark-1.3",
+      "measures": "returnedJson",
+      "answer": {
+        "kind": "declined",
+        "reason": "unknown: function throws so there is no return value to estimate"
+      },
+      "outcome": "cant_check",
+      "observed": null,
+      "reason": "the bettor declined",
+      "rationale": "Outcome is throw, so no returned value exists."
+    },
+    {
+      "who": "model:muse-spark-1.3",
+      "measures": "virtualMs",
+      "answer": {
+        "kind": "number",
+        "value": 700,
+        "tolerancePct": 10,
+        "unit": "ms"
+      },
+      "outcome": "matched",
+      "observed": 700,
+      "rationale": "Sleeps 100*2^0 + 100*2^1 + 100*2^2 = 700ms virtual time."
+    },
+    {
+      "who": "model:muse-spark-1.3",
+      "measures": "calls:fetchIt",
+      "answer": {
+        "kind": "integer",
+        "value": 3
+      },
+      "outcome": "matched",
+      "observed": 3,
+      "rationale": "Loop runs i=0,1,2 calling fetchIt once each."
+    }
+  ],
+  "proofVerifies": true,
+  "replay": {
+    "runId": "xLC9p3PBt4",
+    "replayRunId": "sF2Leecoc_",
+    "runner": "ts",
+    "seed": "none",
+    "replaySeed": "none",
+    "measuredEqual": true,
+    "resultDiff": [],
+    "controlPassed": true,
+    "sameOutcomes": true,
+    "replay": {
+      "id": "sF2Leecoc_",
+      "experimentId": "uTgqafQGli",
+      "runner": "ts",
+      "executor": "local",
+      "codeSha256": "518e3fa2c900ee2ce8ccbeafa7dfc6c70e7c421d263b3de6b3b1057c8944b462",
+      "seed": "none",
+      "startedAt": "2026-10-27T20:49:46.562Z",
+      "finishedAt": "2026-10-27T20:49:46.694Z",
+      "trace": [
+        {
+          "t": 0,
+          "event": "start",
+          "data": {
+            "exportName": "retryWithBackoff",
+            "args": 3,
+            "watchLimitMs": 30000
+          }
+        },
+        {
+          "t": 0,
+          "event": "stand_in_call",
+          "data": {
+            "name": "fetchIt",
+            "n": 1
+          }
+        },
+        {
+          "t": 0,
+          "event": "stand_in_throws",
+          "data": {
+            "name": "fetchIt",
+            "n": 1,
+            "errorName": "Error"
+          }
+        },
+        {
+          "t": 100,
+          "event": "stand_in_call",
+          "data": {
+            "name": "fetchIt",
+            "n": 2
+          }
+        },
+        {
+          "t": 100,
+          "event": "stand_in_throws",
+          "data": {
+            "name": "fetchIt",
+            "n": 2,
+            "errorName": "Error"
+          }
+        },
+        {
+          "t": 300,
+          "event": "stand_in_call",
+          "data": {
+            "name": "fetchIt",
+            "n": 3
+          }
+        },
+        {
+          "t": 300,
+          "event": "stand_in_throws",
+          "data": {
+            "name": "fetchIt",
+            "n": 3,
+            "errorName": "Error"
+          }
+        },
+        {
+          "t": 700,
+          "event": "threw",
+          "data": {
+            "type": "Error",
+            "name": "Error"
+          }
+        },
+        {
+          "t": 700,
+          "event": "call_checks",
+          "data": {
+            "harnessSha256": "8e1c680e5a0246441a7c883d6a6db105e88ebfcf74591a06e3be45ddcd9d1f37",
+            "controlRunId": "Qny7uExONk",
+            "controlPassed": true
+          }
+        }
+      ],
+      "result": {
+        "measured": {
+          "outcome": "threw",
+          "virtualMs": 700,
+          "thrownType": "Error",
+          "thrownName": "Error",
+          "thrownMessage": "boom",
+          "calls:fetchIt": 3
+        },
+        "notMeasured": {
+          "returnedJson": "the call threw, so it returned nothing",
+          "returnedType": "the call threw, so it returned nothing"
+        }
+      },
+      "controlPassed": true,
+      "controlRunId": "Qny7uExONk"
+    }
+  },
+  "usage": [
+    {
+      "ts": "2026-10-27T20:49:41.768Z",
+      "role": "investigator",
+      "provider": "meta",
+      "model": "muse-wonder-1.0",
+      "promptTokens": 739,
+      "completionTokens": 853,
+      "reasoningTokens": 535,
+      "usd": 0.020016,
+      "finishReason": "stop",
+      "priceVerified": true
+    },
+    {
+      "ts": "2026-10-27T20:49:44.353Z",
+      "role": "claimant",
+      "provider": "baseten",
+      "model": "meta-models/muse-spark-open-1026",
+      "promptTokens": 1174,
+      "completionTokens": 582,
+      "reasoningTokens": 327,
+      "cachedTokens": 0,
+      "usd": 0.003941,
+      "finishReason": "stop",
+      "priceVerified": true
+    },
+    {
+      "ts": "2026-10-27T20:49:46.251Z",
+      "role": "claimant",
+      "provider": "meta",
+      "model": "muse-spark-1.3",
+      "promptTokens": 1041,
+      "completionTokens": 951,
+      "reasoningTokens": 709,
+      "usd": 0.023184,
+      "finishReason": "stop",
+      "priceVerified": false
+    }
+  ],
+  "totalUsd": 0.047141,
+  "budgetSpentUsd": 0.047141
+}
