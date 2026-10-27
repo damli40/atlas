@@ -29,11 +29,16 @@
 //    (runners/evm/apply.ts), and every name it uses resolves in the PR's own chains/8453.json
 //    (the wrapper name is <oracle name>_OEV_WRAPPER, as mip-x43.sol's _wireCoreFeeds builds it).
 //    An unknown name is "no usable change", never a guess.
+//    D20 (decided Oct 27): when the ONLY reason the changed config cannot be wired is that a named
+//    oracle has no "<name>_OEV_WRAPPER" while "<name>" itself IS in the PR's chains/8453.json, the change
+//    is accepted in the separately named mode "theoretical-direct-wire": Atlas wires "<name>" directly on
+//    the fork, and the change, the replay and every screen say "In theory". Neither name present: still
+//    "no usable change". No address is ever invented.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { changedLineCount, parseUnifiedDiff, placeHunks, type DiffFile } from "../src/diff.ts";
-import { loadAddressBook, MOONWELL_PR_COPY, parseBaseOracleConfigs, planFeedActions, type PlannedFeedAction } from "./evm/apply.ts";
+import { loadAddressBook, MOONWELL_PR_COPY, parseBaseOracleConfigs, planFeedActions, THEORETICAL_DIRECT_WIRE, type PlannedFeedAction } from "./evm/apply.ts";
 import { applyInScratch } from "./scratch.ts";
 
 export const MAX_CHANGED_LINES = 200;
@@ -78,6 +83,10 @@ export type CheckedChange =
       changedFiles: Record<string, string>;
       /** Moonwell only: the actions re-derived from the changed config by runners/evm/apply.ts. */
       planned?: PlannedFeedAction[];
+      /** D20: set when the config could be wired only by wiring a feed directly. */
+      mode?: typeof THEORETICAL_DIRECT_WIRE;
+      /** D20: the directly wired feeds (oracle name, market, address from the PR's address book). */
+      directWired?: { oracleName: string; market: string; address: string }[];
     }
   | { ok: false; reason: string };
 
@@ -151,15 +160,44 @@ export async function checkChange(diff: string, ctx: ChangeContext): Promise<Che
     if (!ctx.editable.includes(rel) && applied.files[rel] !== text) return { ok: false, reason: `${rel} changed in the scratch copy, and it may not` };
   }
   if (ctx.kind === "evm") {
-    let planned: PlannedFeedAction[];
-    try {
-      const configs = parseBaseOracleConfigs(applied.files[MOONWELL_CONFIG_FILE]!);
-      planned = planFeedActions(configs, loadAddressBook(applied.files["chains/8453.json"]!));
-    } catch (e) {
-      return { ok: false, reason: `the changed config cannot be wired: ${e instanceof Error ? e.message : String(e)}` };
-    }
-    if (planned.length === 0) return { ok: false, reason: "the changed config wires no Base market at all" };
-    return { ok: true, diffFiles: files, changedLines, changedFiles: applied.files, planned };
+    const wired = planChangedConfig(applied.files);
+    if (!wired.ok) return wired;
+    return { ok: true, diffFiles: files, changedLines, changedFiles: applied.files, ...wired.value };
   }
   return { ok: true, diffFiles: files, changedLines, changedFiles: applied.files };
+}
+
+/**
+ * The Moonwell config after a change, wired by plain code: first by the proposal's own rule (every name
+ * through "<name>_OEV_WRAPPER"); if that fails, by D20's theoretical-direct-wire mode (a missing wrapper
+ * replaced by "<name>" itself, only when "<name>" is in the address book). Exported for .atlas.json verify.
+ */
+export function planChangedConfig(files: Record<string, string>):
+  | { ok: true; value: { planned: PlannedFeedAction[]; mode?: typeof THEORETICAL_DIRECT_WIRE; directWired?: { oracleName: string; market: string; address: string }[] } }
+  | { ok: false; reason: string } {
+  let configs: ReturnType<typeof parseBaseOracleConfigs>;
+  let book: ReturnType<typeof loadAddressBook>;
+  try {
+    configs = parseBaseOracleConfigs(files[MOONWELL_CONFIG_FILE]!);
+    book = loadAddressBook(files["chains/8453.json"]!);
+  } catch (e) {
+    return { ok: false, reason: `the changed config cannot be wired: ${e instanceof Error ? e.message : String(e)}` };
+  }
+  if (configs.length === 0) return { ok: false, reason: "the changed config wires no Base market at all" };
+  try {
+    return { ok: true, value: { planned: planFeedActions(configs, book) } };
+  } catch (e) {
+    const reason = `the changed config cannot be wired: ${e instanceof Error ? e.message : String(e)}`;
+    try {
+      const planned = planFeedActions(configs, book, { directWire: true });
+      const direct = planned.filter((a) => a.directWire);
+      if (direct.length === 0) return { ok: false, reason };
+      return {
+        ok: true,
+        value: { planned, mode: THEORETICAL_DIRECT_WIRE, directWired: direct.map((a) => ({ oracleName: a.config.oracleName, market: a.config.mTokenKey, address: a.wrapper })) },
+      };
+    } catch {
+      return { ok: false, reason };
+    }
+  }
 }

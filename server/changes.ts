@@ -18,7 +18,7 @@ import { evaluateReplayRule, type PassRuleLine } from "../runners/evm/level2";
 import type { ReplayContext } from "../runners/runner";
 import { readFixture } from "../runners/ts/control";
 import { runFixer, towardFromBets, type FixerAttempt, type FixerDeps, type FixerPath } from "./meta/roles/fixer";
-import { CHANGE_CAPTION } from "../src/change";
+import { CHANGE_CAPTION, theoryCaptions } from "../src/change";
 import { fixtureFinding } from "./meta/roles/fixture-finding";
 import type { Usage } from "./meta/client";
 import { oneLine, type SessionEmitter } from "./log/agentlog";
@@ -105,7 +105,16 @@ export async function changeAndReplay(round: Round, deps: ChangeDeps): Promise<C
   const fixer: FixerView = { path: fx.path, model: fx.model, attempts: fx.attempts.map(({ answer: _answer, ...a }) => a), usage: fx.usage ?? null };
   if (!fx.ok) return { ok: false, runId: run.id, reason: fx.reason, fixer, toward };
 
-  const change: Change = { id: nanoid(10), runId: run.id, diff: fx.diff, proposedBy: { role: "fixer", model: fx.model }, toward };
+  const change: Change = {
+    id: nanoid(10),
+    runId: run.id,
+    diff: fx.diff,
+    proposedBy: { role: "fixer", model: fx.model },
+    toward,
+    // D20: the theoretical mode, exactly as plain code derived it (runners/change.ts planChangedConfig).
+    ...(fx.checked.mode ? { mode: fx.checked.mode, directWired: fx.checked.directWired ?? [] } : {}),
+  };
+  for (const line of theoryCaptions(change)) deps.log.emit({ role: "runner", action: oneLine(line, 240) });
   const log = roundLog(deps.log);
   const replayFn = exp.runner === "evm" ? deps.evmReplay : deps.tsReplay;
   let replay: Run;

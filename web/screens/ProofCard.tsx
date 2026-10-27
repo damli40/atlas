@@ -12,7 +12,7 @@ import { ApiError, type Api, type ReplayAnswer } from "../api";
 import { Scoreboard, bettorName } from "../machines/scoreboard/Scoreboard";
 import { SAY, proofCardModel, replayWords } from "./proofcard-model";
 import { DiffView } from "./Change";
-import { AFTER_LABEL, BEFORE_LABEL, CHANGE_CAPTION } from "../../src/change";
+import { AFTER_LABEL, BEFORE_LABEL, CHANGE_CAPTION, theoryCaptions } from "../../src/change";
 
 /** S6: the pre-existing label, from the file when it carries one. */
 const preExistingLabel = (file: AtlasFile) =>
@@ -225,6 +225,11 @@ function ProofChange({ file, said }: { file: AtlasFile; said: Record<string, str
       <p className="caption label" data-testid="pc-change-caption">
         {CHANGE_CAPTION}
       </p>
+      {theoryCaptions(change).map((t) => (
+        <p key={t} className="caption label theory" data-testid="pc-change-theory">
+          {t}
+        </p>
+      ))}
       <p className="pc-small">
         Change proposed by {change.proposedBy.model} · replay {replay.run.id}, {same} · judged by src/judge.ts
       </p>
@@ -260,6 +265,11 @@ function ProofChange({ file, said }: { file: AtlasFile; said: Record<string, str
           })}
         </tbody>
       </table>
+      {replay.passRule && change.mode && (
+        <p className="pc-small" data-testid="pc-change-pass-rule-theory">
+          PASS-RULE.md replay lines, in theory (about the theoretical replay, not the real proposal):
+        </p>
+      )}
       {replay.passRule && (
         <ul className="pc-small" data-testid="pc-change-pass-rule">
           {replay.passRule.map((l) => (

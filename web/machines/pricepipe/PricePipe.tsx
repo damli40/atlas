@@ -78,9 +78,11 @@ export interface PricePipeProps extends PipeInput {
   at?: number;
   /** Evidence only: a caption that replaces the Level caption (for a fixture that is not a whole run). */
   captionOverride?: string;
+  /** D20: the "In theory" captions of a theoretical-direct-wire replay (src/change.ts theoryCaptions). */
+  theory?: string[];
 }
 
-export function PricePipe({ run, bets, verdicts, still, theme, at, captionOverride }: PricePipeProps) {
+export function PricePipe({ run, bets, verdicts, still, theme, at, captionOverride, theory = [] }: PricePipeProps) {
   const input = useMemo(() => ({ run, bets, verdicts }), [run, bets, verdicts]);
   const model = useMemo(() => pipeModel(input), [input]);
   const dark = useDark();
@@ -116,6 +118,11 @@ export function PricePipe({ run, bets, verdicts, still, theme, at, captionOverri
         keys={keys}
         caption={
           <>
+            {theory.map((t) => (
+              <span key={t} className="pp-theory-caption" data-testid="pipe-theory-caption">
+                {t}{" "}
+              </span>
+            ))}
             {levelCaption ? (
               <span className="pp-level-caption" data-testid="pipe-level-caption">
                 {levelCaption}.{" "}

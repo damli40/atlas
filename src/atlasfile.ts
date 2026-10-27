@@ -29,7 +29,8 @@ import { evaluateReplayRule, falseAlarmFromRun } from "./falsealarm";
 import { chainlinkTo1e18, usdTimesRatio1e18 } from "./units";
 import { canonicalJson, sha256Hex, verifySeal } from "./seal";
 import { applyFileDiff, parseUnifiedDiff, type DiffFile } from "./diff";
-import { CHANGE_CAPTION, towardFromBets } from "./change";
+import { CHANGE_CAPTION, theoryCaptions, towardFromBets } from "./change";
+import { planChangedConfig } from "../runners/change";
 import type { AgentEvent, AtlasFile, Bet, Change, Experiment, Finding, Run, Target, Verdict } from "./types";
 
 // The two level captions live in src/captions.ts (no Node imports), so the web page can use them
@@ -212,6 +213,9 @@ export const atlasFileSchema = z
         proposedBy: z.object({ role: z.literal("fixer"), model: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,63}$/) }).strict(),
         toward: z.string().min(1),
         replayRunId: z.string().optional(),
+        // D20: the theoretical-direct-wire mode and the feeds wired directly (recomputed below).
+        mode: z.literal("theoretical-direct-wire").optional(),
+        directWired: z.array(z.object({ oracleName: z.string().regex(/^[A-Za-z0-9_]{1,64}$/), market: z.string().min(1), address: z.string().regex(/^0x[0-9a-fA-F]{40}$/) }).strict()).optional(),
       })
       .strict()
       .optional(),
@@ -518,7 +522,7 @@ export function verifyAtlasFile(raw: unknown): Verification {
   for (const p of changeProblems(file)) say(`change: ${p}`);
   const required = requiredCaptions(file);
   for (const c of required) if (!file.captions.includes(c)) say(`missing caption: "${c}"`);
-  const allowed = new Set([...required, ...allowedExtraCaptions(file), ...(file.change ? [CHANGE_CAPTION] : [])]);
+  const allowed = new Set([...required, ...allowedExtraCaptions(file), ...(file.change ? [CHANGE_CAPTION, ...theoryCaptions(file.change)] : [])]);
   for (const c of file.captions) if (!allowed.has(c)) say(`caption "${c}" is not one this run earns`);
   if (new Set(file.captions).size !== file.captions.length) say("a caption appears twice");
   // The false-alarm table is never trusted as stored: it is rebuilt from the run (src/falsealarm.ts),
@@ -630,6 +634,7 @@ export function changeProblems(file: AtlasFile): string[] {
       const sha = changedCodeSha256(file, run.runner, parsed.files[0]!, parsed.files);
       if (sha.ok && sha.value !== r.codeSha256) out.push(`the diff applied to the code gives ${sha.value.slice(0, 12)}…, the replay ran ${r.codeSha256.slice(0, 12)}…`);
       if (!sha.ok && sha.reason === "does not apply") out.push("its diff does not apply to the code the file names");
+      if (run.runner === "evm") for (const p of modeProblems(change, parsed.files[0]!)) out.push(p);
     }
   }
   const checksEv = r.trace.filter((e) => e.event === "replay_checks");
@@ -639,6 +644,11 @@ export function changeProblems(file: AtlasFile): string[] {
   if (checks && (checks.replayOf !== run.id || checks.changeId !== change.id)) out.push("the replay's replay_checks event does not name the original run and this change");
   if (Date.parse(r.finishedAt) < Date.parse(r.startedAt)) out.push("the replay finished before it started");
   if (!file.captions.includes(CHANGE_CAPTION)) out.push(`the file does not carry the caption "${CHANGE_CAPTION}"`);
+  // D20: a theoretical-direct-wire change carries its "In theory" captions, in the file and in its replay.
+  for (const c of theoryCaptions(change)) if (!file.captions.includes(c)) out.push(`the file does not carry the caption "${c}"`);
+  if ((checks?.mode ?? null) !== (change.mode ?? null)) out.push("the replay's replay_checks event does not record the change's mode");
+  if (change.mode && (change.directWired ?? []).length === 0) out.push("a theoretical-direct-wire change must name the feeds it wired directly");
+  if (run.runner !== "evm" && change.mode) out.push("only a Moonwell change can be theoretical-direct-wire");
   // S1 (day-6 review): the replay is checked as strictly as the original run.
   if (run.runner === "ts") {
     const hc = asRecord(checks?.harnessCheck);
@@ -663,6 +673,27 @@ export function changeProblems(file: AtlasFile): string[] {
   return out;
 }
 
+/**
+ * D20: the change's mode and directly wired feeds, recomputed by plain code (runners/change.ts
+ * planChangedConfig) from the Moonwell copy on this machine. Not checked when the copy is absent.
+ */
+function modeProblems(change: NonNullable<AtlasFile["change"]>, diff: DiffFile): string[] {
+  let files: Record<string, string>;
+  try {
+    files = Object.fromEntries(EVM_REPLAY_FILES.map((f) => [f, readFileSync(join(MOONWELL_COPY, f), "utf8")]));
+  } catch {
+    return [];
+  }
+  const changed = applyFileDiff(files[EVM_REPLAY_FILES[0]!]!, diff);
+  if (changed === null) return [];
+  const wired = planChangedConfig({ ...files, [EVM_REPLAY_FILES[0]!]: changed });
+  if (!wired.ok) return [`its changed config cannot be wired by plain code: ${wired.reason}`];
+  const out: string[] = [];
+  if ((wired.value.mode ?? null) !== (change.mode ?? null)) out.push(`its mode is ${change.mode ?? "the proposal's own rule"}, but plain code wires the changed config ${wired.value.mode ? `only in ${wired.value.mode} mode` : "by the proposal's own rule"}`);
+  if (!sameJson(wired.value.directWired ?? [], change.directWired ?? [])) out.push("its directly wired feeds are not the ones plain code derives from the address book");
+  return out;
+}
+
 /** The changed code's SHA-256, recomputed from the copy on this machine. Not checked when the copy is absent. */
 function changedCodeSha256(file: AtlasFile, runner: "ts" | "evm", diff: DiffFile, all: DiffFile[]): { ok: true; value: string } | { ok: false; reason: "absent" | "does not apply" } {
   if (all.length !== 1) return { ok: false, reason: "does not apply" };
@@ -684,7 +715,7 @@ function changedCodeSha256(file: AtlasFile, runner: "ts" | "evm", diff: DiffFile
 
 /** Add a change and its replay to a round's file, then verify the whole file again. Throws when it does not verify. */
 export function withChange(file: AtlasFile, change: Change, replay: NonNullable<AtlasFile["replay"]>): AtlasFile {
-  const next: AtlasFile = { ...file, change: { ...change, replayRunId: replay.run.id }, replay, captions: [...new Set([...file.captions, CHANGE_CAPTION])] };
+  const next: AtlasFile = { ...file, change: { ...change, replayRunId: replay.run.id }, replay, captions: [...new Set([...file.captions, CHANGE_CAPTION, ...theoryCaptions(change)])] };
   const v = verifyAtlasFile(JSON.parse(JSON.stringify(next)));
   if (!v.ok) throw new Error(`the .atlas.json with its change does not verify: ${v.problems.join("; ")}`);
   return v.file;

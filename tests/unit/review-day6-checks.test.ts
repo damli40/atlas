@@ -76,8 +76,8 @@ describe("S3: Atlas and git place every line identically, or the change is not t
     const mctx = moonwellChangeContext();
     const diff = `--- a/${MOONWELL_CONFIG_FILE}\n+++ b/${MOONWELL_CONFIG_FILE}\n@@ -42,1 +42,1 @@\n-            OracleConfig("cbETHETH_ORACLE", "cbETH", "MOONWELL_cbETH")\n+            OracleConfig("cbETH_ORACLE", "cbETH", "MOONWELL_cbETH")\n`;
     const r = await checkChange(diff, mctx);
-    // Placed (the line appears once); refused only later, for the address book (no OEV wrapper).
-    expect(!r.ok && r.reason).toMatch(/cbETH_ORACLE_OEV_WRAPPER/);
+    // Placed (the line appears once): the same bytes as git; then wired only in D20's theoretical mode.
+    expect(r.ok && r.mode).toBe("theoretical-direct-wire");
   });
 });
 

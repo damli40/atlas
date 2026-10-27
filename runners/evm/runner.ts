@@ -17,6 +17,7 @@ import type { Change, Experiment, Run, RunResult, Target, TraceEvent } from "../
 import { createHash } from "node:crypto";
 import type { ReplayContext, Runner } from "../runner.ts";
 import { checkChange, moonwellChangeContext, MOONWELL_CONFIG_FILE, MOONWELL_SCRATCH_FILES } from "../change.ts";
+import { theoryCaptions } from "../../src/change.ts";
 import { withAnvilFork } from "./anvil.ts";
 import { redactedError, redactRpc, scrubDeep } from "./redact.ts";
 import { cbEthReference, readControl, readNamedMarket, why, type EvmControlRecord } from "./control.ts";
@@ -199,6 +200,12 @@ export function evmRunner(options: EvmRunnerOptions = {}): Runner {
       const ctxFiles = moonwellChangeContext();
       const checked = await checkChange(change.diff, ctxFiles);
       if (!checked.ok) throw new Error(`the change cannot be replayed: ${checked.reason}`);
+      // D20: the theoretical mode must be declared by the Change itself, exactly as plain code derives it.
+      if ((checked.mode ?? null) !== (change.mode ?? null)) {
+        throw new Error(checked.mode ? `the change can only be wired in ${checked.mode} mode, but the change does not say so` : `the change says ${change.mode} mode, but plain code wires it without it`);
+      }
+      if (JSON.stringify(checked.directWired ?? []) !== JSON.stringify(change.directWired ?? [])) throw new Error("the change's directly wired feeds are not the ones plain code derives");
+      if (checked.mode) say(theoryCaptions(change).join(" "));
       const planned = checked.planned!;
       const changedConfig = checked.changedFiles[MOONWELL_CONFIG_FILE]!;
       const readSha = sha256(MOONWELL_SCRATCH_FILES.map((f) => checked.changedFiles[f]!).join("\n"));
@@ -223,8 +230,10 @@ export function evmRunner(options: EvmRunnerOptions = {}): Runner {
             changedFilesSha256: readSha,
             changedConfigSha256: sha256(changedConfig),
             changedLines: checked.changedLines,
-            derivedActions: rec.actions.map((a) => ({ symbol: a.symbol, oracleName: a.config.oracleName, wrapperName: a.wrapperName, wrapper: a.wrapper, line: a.config.line })),
+            derivedActions: rec.actions.map((a) => ({ symbol: a.symbol, oracleName: a.config.oracleName, wrapperName: a.wrapperName, wrapper: a.wrapper, line: a.config.line, ...(a.directWire ? { directWire: true } : {}) })),
             marketsNotRewired: (rec.readMarkets ?? []).map((a) => a.symbol).filter((s) => !wired.has(s)),
+            // D20: the mode, recorded in the replay run itself.
+            ...(checked.mode ? { mode: checked.mode, directWired: checked.directWired, theory: theoryCaptions(change) } : {}),
           },
         });
         return { ...r, codeSha256: readSha, replayOf: { runId: original.id, changeId: change.id } };

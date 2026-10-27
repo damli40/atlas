@@ -205,14 +205,21 @@ describe("Moonwell: only the proposal's config may change, and every name must b
     expect(await checkChange(d, ctx)).toEqual({ ok: false, reason: `the diff touches chains/8453.json, which may not change (only ${MOONWELL_CONFIG_FILE} may)` });
   });
 
-  it("an unknown oracle name is 'no usable change' (cbETH_ORACLE has no _OEV_WRAPPER entry), through the Fixer too", async () => {
+  it("D20: cbETH_ORACLE (no _OEV_WRAPPER, but the feed itself is in the address book) is usable only in theoretical-direct-wire mode", async () => {
     const d = diffOf(MOONWELL_CONFIG_FILE, config, config.replace(line42, line42.replace("cbETHETH_ORACLE", "cbETH_ORACLE")));
     const checked = await checkChange(d, ctx);
-    expect(checked).toEqual({ ok: false, reason: "the changed config cannot be wired: chains/8453.json has no address named cbETH_ORACLE_OEV_WRAPPER (wrapper for cbETH_ORACLE)" });
+    expect(checked.ok).toBe(true);
+    expect(checked.ok && checked.mode).toBe("theoretical-direct-wire");
+    expect(checked.ok && checked.directWired).toEqual([{ oracleName: "cbETH_ORACLE", market: "MOONWELL_cbETH", address: "0xB0Ba0C5D7DA4ec400C1C3E5ef2485134F89918C5" }]);
     const exp: Experiment = { ...s6, id: "exp-l2", runner: "evm", target: { kind: "github-pr", ref: "moonwell-fi/moonwell-contracts-v2#578", codeSha256: "x" }, params: { shape: "apply-proposal-then-read", markets: "touched" } };
     const r = await runFixer({ context: ctx, finding: { file: MOONWELL_CONFIG_FILE, lineStart: 42, lineEnd: 42 }, toward: "- The person bet 2200 USD.", experiment: exp, forkBlock: 42194662 }, { museExec: museSays(d), chat: noChat, usagePath });
-    expect(r.ok).toBe(false);
-    expect(!r.ok && r.reason).toBe("Muse Code: no usable change (the changed config cannot be wired: chains/8453.json has no address named cbETH_ORACLE_OEV_WRAPPER (wrapper for cbETH_ORACLE))");
+    expect(r.ok).toBe(true);
+    expect(r.ok && r.checked.mode).toBe("theoretical-direct-wire");
+  });
+
+  it("a name that is in the address book neither as <name>_OEV_WRAPPER nor as <name> is still 'no usable change' (no invented address)", async () => {
+    const d = diffOf(MOONWELL_CONFIG_FILE, config, config.replace(line42, line42.replace("cbETHETH_ORACLE", "cbETH_MADE_UP_ORACLE")));
+    expect(await checkChange(d, ctx)).toEqual({ ok: false, reason: "the changed config cannot be wired: chains/8453.json has no address named cbETH_MADE_UP_ORACLE_OEV_WRAPPER (wrapper for cbETH_MADE_UP_ORACLE)" });
   });
 
   it("a config edit with known names is re-derived by the same parser (one fewer action when a push is commented out)", async () => {
@@ -381,6 +388,7 @@ describe("zero-context hunks (git apply --unidiff-zero)", () => {
   it("a one-line hunk with no context lines is applied and then checked like any other", async () => {
     const ctx = moonwellChangeContext();
     const d = `--- a/${MOONWELL_CONFIG_FILE}\n+++ b/${MOONWELL_CONFIG_FILE}\n@@ -42,1 +42,1 @@\n-            OracleConfig("cbETHETH_ORACLE", "cbETH", "MOONWELL_cbETH")\n+            OracleConfig("cbETH_ORACLE", "cbETH", "MOONWELL_cbETH")\n`;
-    expect(await checkChange(d, ctx)).toEqual({ ok: false, reason: "the changed config cannot be wired: chains/8453.json has no address named cbETH_ORACLE_OEV_WRAPPER (wrapper for cbETH_ORACLE)" });
+    // Placed (the removed line appears once), then wired in D20's theoretical mode.
+    expect(await checkChange(d, ctx)).toMatchObject({ ok: true, mode: "theoretical-direct-wire" });
   });
 });

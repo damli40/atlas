@@ -9,6 +9,16 @@ import { formatUsd1e18 } from "./units";
 /** The caption under every before/after view. Templated by plain code, never a model's words. */
 export const CHANGE_CAPTION = "changed toward what you expected, then re-run";
 export const BEFORE_LABEL = "Before change";
+
+/**
+ * D20 (decided Oct 27): the caption every place a theoretical-direct-wire replay appears must carry,
+ * one per feed wired directly. Templated by plain code from the address-book name; never the proposal's
+ * own behaviour.
+ */
+export const theoryCaption = (name: string) => `In theory: Atlas wired ${name} directly; the real proposal would first need a new ${name}_OEV_WRAPPER contract deployed.`;
+/** The captions a change earns: one per directly wired feed name (empty when the change is not theoretical). */
+export const theoryCaptions = (change: { mode?: string; directWired?: { oracleName: string }[] } | null | undefined): string[] =>
+  change?.mode === "theoretical-direct-wire" ? [...new Set((change.directWired ?? []).map((d) => theoryCaption(d.oracleName)))] : [];
 export const AFTER_LABEL = "After change";
 
 // ── toward: written by plain code from the sealed bets ──────────────────────────────────────────

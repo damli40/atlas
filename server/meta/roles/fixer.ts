@@ -548,7 +548,7 @@ export async function runFixer(input: FixerInput, deps: FixerDeps = {}): Promise
     if (checked.ok) {
       attempts.push({ attempt, path, model, ok: true, ...(r.usage ? { usage: r.usage } : {}), ...kept });
       const files = checked.diffFiles.map((f) => f.newPath).join(", ");
-      say(model, `${pathLabel(path, model)} proposes a change to ${files} (${checked.changedLines} lines); plain code accepted it`, r.usage);
+      say(model, `${pathLabel(path, model)} proposes a change to ${files} (${checked.changedLines} lines); plain code accepted it${checked.mode ? ` in ${checked.mode} mode (in theory only)` : ""}`, r.usage);
       return { ok: true, diff: got!.diff, path, model, attempts, ...(total ? { usage: total } : {}), checked };
     }
     lastReason = checked.reason;

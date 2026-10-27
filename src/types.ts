@@ -135,6 +135,13 @@ export interface Change {
   /** What the bettors expected; the change is "toward" this, never "a fix". */
   toward: string;
   replayRunId?: string;
+  /**
+   * D20: present only when the change could be wired solely by connecting a feed directly (no
+   * "<name>_OEV_WRAPPER" in the PR's address book, "<name>" present). Every screen says "In theory".
+   */
+  mode?: "theoretical-direct-wire";
+  /** D20: the feeds wired directly: the config's oracle name, the market, and the address-book address used. */
+  directWired?: { oracleName: string; market: string; address: string }[];
 }
 
 export interface AgentEvent {   // one line of the on-screen agent log

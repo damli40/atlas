@@ -119,22 +119,40 @@ function lookup(book: Map<string, Address>, name: string, why: string): Address 
 /** One action before the symbol is read from the chain: every address comes from the PR's own files. */
 export interface PlannedFeedAction {
   config: OracleConfig;
+  /** The address-book name of the address wired: "<A>_OEV_WRAPPER", or "<A>" itself in theoretical-direct-wire mode. */
   wrapperName: string;
   wrapper: Address;
   token: Address;
   mToken: Address;
+  /** D20: true when this action wires the feed "<A>" directly because no "<A>_OEV_WRAPPER" exists. */
+  directWire?: true;
 }
 
-/** Pure: configs + address book → wrapper, token and market address for each config. */
-export function planFeedActions(configs: OracleConfig[], book: Map<string, Address>): PlannedFeedAction[] {
+/**
+ * D20 (decided Oct 27): the separately named mode in which Atlas may wire a feed directly. Used only
+ * when a changed config names an oracle whose "<A>_OEV_WRAPPER" is absent from the PR's chains/8453.json
+ * BUT "<A>" itself is there. It shows what the change would do IN THEORY: the real proposal only wires
+ * OEV wrappers, so it would first need a new wrapper contract deployed. Never an invented address.
+ */
+export const THEORETICAL_DIRECT_WIRE = "theoretical-direct-wire" as const;
+
+/**
+ * Pure: configs + address book → wrapper, token and market address for each config.
+ * Default (the proposal's own rule, mip-x43.sol _wireCoreFeeds): wrapper = "<A>_OEV_WRAPPER", or throw.
+ * `directWire: true` (D20 theoretical mode only): when "<A>_OEV_WRAPPER" is absent but "<A>" is present,
+ * wire "<A>" and mark the action `directWire`. When neither exists, it still throws.
+ */
+export function planFeedActions(configs: OracleConfig[], book: Map<string, Address>, opts: { directWire?: boolean } = {}): PlannedFeedAction[] {
   return configs.map((config) => {
     const wrapperName = `${config.oracleName}_OEV_WRAPPER`;
+    const direct = opts.directWire === true && !book.has(wrapperName) && book.has(config.oracleName);
     return {
       config,
-      wrapperName,
-      wrapper: lookup(book, wrapperName, `wrapper for ${safeName(config.oracleName)}`),
+      wrapperName: direct ? config.oracleName : wrapperName,
+      wrapper: direct ? book.get(config.oracleName)! : lookup(book, wrapperName, `wrapper for ${safeName(config.oracleName)}`),
       token: lookup(book, config.tokenKey, "token"),
       mToken: lookup(book, config.mTokenKey, "market"),
+      ...(direct ? { directWire: true as const } : {}),
     };
   });
 }

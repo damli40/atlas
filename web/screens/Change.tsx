@@ -8,7 +8,7 @@
 // When Muse Code gave no usable change, the page says "Muse Code: no usable change (<reason>)".
 
 import { useState } from "react";
-import { AFTER_LABEL, BEFORE_LABEL, CHANGE_CAPTION } from "../../src/change";
+import { AFTER_LABEL, BEFORE_LABEL, CHANGE_CAPTION, theoryCaptions } from "../../src/change";
 import { parseUnifiedDiff } from "../../src/diff";
 import type { Bet, Outcome, Verdict } from "../../src/types";
 import type { Api, ChangeAnswer, RunAnswer } from "../api";
@@ -100,11 +100,18 @@ export function ChangeResult({ answer, modelName, format = asStored }: { answer:
   const r = answer.replay;
   const checks = r.trace.at(-1)?.event === "replay_checks" ? (r.trace.at(-1)!.data as Record<string, unknown>) : undefined;
   const harness = checks?.harnessCheck as { passed?: boolean } | undefined;
+  const theory = theoryCaptions(answer.change);
   return (
     <div data-testid="change-result">
       <p className="caption label" data-testid="change-caption">
         {CHANGE_CAPTION}
       </p>
+      {theory.map((t) => (
+        // D20: a theoretical-direct-wire change; never shown as the proposal's own behaviour.
+        <p key={t} className="caption label theory" data-testid="change-theory">
+          {t}
+        </p>
+      ))}
       <p className="muted small" data-testid="change-by">
         Proposed by {by}. Checked by plain code before it ran: only the allowed file, at most 200 lines, placed by Atlas's own reader and by git apply in a scratch copy (both
         must agree).
@@ -146,7 +153,12 @@ export function ChangeResult({ answer, modelName, format = asStored }: { answer:
       </p>
       {answer.passRule && (
         <>
-          <h3>PASS-RULE.md, replay rule (plain code)</h3>
+          <h3>PASS-RULE.md, replay rule (plain code){theory.length ? ", in theory" : ""}</h3>
+          {theory.length > 0 && (
+            <p className="muted small" data-testid="change-pass-rule-theory">
+              These lines are about the theoretical replay above, not about how the real proposal would behave.
+            </p>
+          )}
           <ul className="seals" data-testid="change-pass-rule">
             {answer.passRule.map((l) => (
               <li key={l.rule} data-outcome={l.outcome}>
@@ -157,7 +169,7 @@ export function ChangeResult({ answer, modelName, format = asStored }: { answer:
           </ul>
         </>
       )}
-      {r.runner === "ts" ? <RetryMachine run={r} bets={answer.bets} verdicts={answer.after.verdicts} /> : <PricePipe run={r} bets={answer.bets} verdicts={answer.after.verdicts} />}
+      {r.runner === "ts" ? <RetryMachine run={r} bets={answer.bets} verdicts={answer.after.verdicts} /> : <PricePipe run={r} bets={answer.bets} verdicts={answer.after.verdicts} theory={theory} />}
     </div>
   );
 }
