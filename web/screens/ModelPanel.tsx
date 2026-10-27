@@ -25,6 +25,11 @@ export function ModelSlotCard({ slot, revealed }: { slot: ModelSlotView | null; 
           {name}: no usable answer ({slot.reason ?? "no reason given"}). Your bets are still judged.
         </p>
       )}
+      {slot.status === "no_usable_answer" && slot.detail && (
+        <p className="muted small" data-testid="model-no-answer-detail">
+          After the run, in full: {slot.detail}
+        </p>
+      )}
       {slot.status === "sealed" && !revealed && (
         <>
           <p data-testid="model-sealed-note">

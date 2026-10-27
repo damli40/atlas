@@ -72,13 +72,26 @@ export function App({ api: given }: { api?: Api } = {}) {
   const seal = () =>
     step(async () => {
       if (!experimentId) return;
-      const out: ShownBet[] = [];
+      // Check every answer here first, then send them all in ONE request: the server seals all or
+      // none, so a half-sealed attempt cannot happen (S1).
+      const toSend: { measures: string; answer: HumanAnswer }[] = [];
       for (const q of questions) {
         const raw = (answers[q.measures] ?? "").trim();
-        const answer: HumanAnswer = q.kind === "enum" ? { kind: "enum", value: raw } : { kind: "integer", value: Number(raw) };
-        out.push(await api.bet(experimentId, q.measures, answer));
+        if (q.kind === "enum") {
+          toSend.push({ measures: q.measures, answer: { kind: "enum", value: raw } });
+          continue;
+        }
+        const n = Number(raw);
+        if (raw === "" || !Number.isSafeInteger(n) || n < 0) throw new Error(`"${q.text}" needs a whole number of 0 or more`);
+        toSend.push({ measures: q.measures, answer: { kind: "integer", value: n } });
       }
-      setSealed(out);
+      const set = await api.bets(experimentId, toSend);
+      // The page shows exactly the set the server will judge: one sealed bet per question asked.
+      const asked = new Set(questions.map((q) => q.measures));
+      if (set.length !== asked.size || set.some((b) => !asked.has(b.measures))) {
+        throw new Error(`the server holds ${set.length} sealed bets for you, not one per question; start a new experiment`);
+      }
+      setSealed(set);
     });
 
   const breakIt = async () => {
@@ -86,7 +99,13 @@ export function App({ api: given }: { api?: Api } = {}) {
     setRunning(true);
     setError(null);
     try {
-      setResult(await api.run(experimentId));
+      const r = await api.run(experimentId);
+      // After the run, the server's slot is the truth (its bets were sealed even if the page's own
+      // model-bets request failed), so the model column is rebuilt from it. When the page already
+      // showed the model's hashes, it keeps its own copy: the seal check compares against what was
+      // on screen BEFORE the run, and any judged bet the page never showed is flagged there.
+      if (r.model && modelSlot?.status !== "sealed") setModelSlot({ ...r.model, sealed: [] });
+      setResult(r);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -118,6 +137,7 @@ export function App({ api: given }: { api?: Api } = {}) {
       {result && (
         <VerdictScreen
           shown={sealed}
+          typed={answers}
           modelShown={modelSlot?.sealed ?? []}
           modelName={modelSlot && modelSlot.status !== "off" ? modelSlot.display : null}
           modelEmpty={modelSlot?.status === "no_usable_answer" ? `no usable answer (${modelSlot.reason ?? "no reason given"})` : undefined}

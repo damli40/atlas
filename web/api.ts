@@ -64,6 +64,13 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
       post<ExperimentAnswer>("/experiments", { target: { ref: target.ref, codeSha256: target.codeSha256 }, params }),
     bet: (experimentId: string, measures: string, answer: HumanAnswer) =>
       post<{ bet: ShownBet }>("/bets", { experimentId, who: "human", measures, answer }).then((r) => r.bet),
+    /**
+     * Seals ALL of the person's answers in one request: if the server refuses any answer, none is
+     * sealed. Returns the person's whole sealed set on this experiment, which is exactly what the
+     * run will judge, so the page shows (and later checks) that set and nothing else.
+     */
+    bets: (experimentId: string, answers: { measures: string; answer: HumanAnswer }[]) =>
+      post<{ bets: ShownBet[] }>("/bets", { experimentId, who: "human", bets: answers }).then((r) => r.bets),
     /** Waits for the model's bets on this experiment; returns its status and sealed hashes (never its answers). */
     modelBets: (experimentId: string) =>
       post<{ model: ModelSlotView | null }>(`/experiments/${encodeURIComponent(experimentId)}/model-bets`, {}).then((r) => r.model),

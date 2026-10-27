@@ -20,11 +20,18 @@ export interface SealCheck {
   recomputed: string;
   match: boolean;
   sealedBeforeRun: boolean;
+  /** True for a revealed bet whose hash this page never displayed before the run. */
+  notShown?: boolean;
 }
 
-/** The browser's own check of every revealed bet against the hash it displayed before the run. */
+/**
+ * The browser's own check of every revealed bet against the hash it displayed before the run.
+ * One line per bet shown before the run, then one per revealed bet the page never showed (a bet the
+ * server judged that this page did not see sealed): those always fail, because the page cannot vouch
+ * for a hash it never displayed.
+ */
 export function checkSeals(shown: ShownBefore[], result: RunAnswer): SealCheck[] {
-  return shown.map((s) => {
+  const out: SealCheck[] = shown.map((s) => {
     const revealed = result.bets.find((b) => b.id === s.id);
     let recomputed = "";
     try {
@@ -40,6 +47,17 @@ export function checkSeals(shown: ShownBefore[], result: RunAnswer): SealCheck[]
       sealedBeforeRun: revealed !== undefined && Date.parse(revealed.sealedAt) < Date.parse(result.run.startedAt),
     };
   });
+  for (const b of result.bets) {
+    if (shown.some((s) => s.id === b.id)) continue;
+    let recomputed = "";
+    try {
+      recomputed = computeSealHash(b);
+    } catch {
+      recomputed = "";
+    }
+    out.push({ betId: b.id, shownHash: "", recomputed, match: false, sealedBeforeRun: Date.parse(b.sealedAt) < Date.parse(result.run.startedAt), notShown: true });
+  }
+  return out;
 }
 
 function answerText(b: Bet | undefined): string {
@@ -50,6 +68,8 @@ function answerText(b: Bet | undefined): string {
 export interface VerdictProps {
   /** The person's bets as shown before the run. */
   shown: ShownBefore[];
+  /** What the person typed, by measured field: the page checks the server sealed exactly that. */
+  typed?: Record<string, string>;
   /** The model's bets as shown before the run (hashes only). Empty when it gave no usable answer. */
   modelShown: ShownBefore[];
   /** The model's column heading, e.g. "Muse Spark 1.3 (muse-spark-1.3)"; null when no model was asked. */
@@ -70,13 +90,16 @@ function Cell({ bet, verdict, testId }: { bet: Bet | undefined; verdict: Verdict
   );
 }
 
-export function VerdictScreen({ shown, modelShown, modelName, modelEmpty, result }: VerdictProps) {
-  const all = [...shown, ...modelShown];
-  const checks = checkSeals(all, result);
-  const revealed = (id: string | undefined) => (id ? result.bets.find((b) => b.id === id) : undefined);
+export function VerdictScreen({ shown, typed, modelShown, modelName, modelEmpty, result }: VerdictProps) {
+  const shownBefore = [...shown, ...modelShown];
+  const checks = checkSeals(shownBefore, result);
+  // The table shows the JUDGED bets (the run's revealed set), so the page and the server agree on it.
+  const judgedYou = result.bets.filter((b) => b.who === "human");
+  const judgedModel = result.bets.filter((b) => b.who !== "human");
   const verdictOf = (id: string | undefined) => (id ? result.verdicts.find((v) => v.betId === id) : undefined);
-  const measures = [...new Set([...shown.map((b) => b.measures), ...modelShown.map((b) => b.measures)])];
-  const label = (s: ShownBefore) => (s.who === "human" ? "You" : (modelName ?? s.who));
+  const measures = [...new Set([...shown.map((b) => b.measures), ...judgedYou.map((b) => b.measures), ...modelShown.map((b) => b.measures), ...judgedModel.map((b) => b.measures)])];
+  const showModel = modelName !== null || judgedModel.length > 0;
+  const label = (who: string) => (who === "human" ? "You" : (modelName ?? who));
   return (
     <section className="card" aria-label="verdicts">
       <h2>4. Whose bet matched</h2>
@@ -85,24 +108,22 @@ export function VerdictScreen({ shown, modelShown, modelName, modelEmpty, result
           <tr>
             <th>question</th>
             <th>You</th>
-            {modelName && <th>{modelName}</th>}
+            {showModel && <th>{modelName ?? judgedModel[0]?.who}</th>}
             <th>observed</th>
           </tr>
         </thead>
         <tbody>
           {measures.map((m) => {
-            const mine = shown.find((b) => b.measures === m);
-            const theirs = modelShown.find((b) => b.measures === m);
-            const youBet = revealed(mine?.id);
-            const modelBet = revealed(theirs?.id);
-            const v = verdictOf(mine?.id) ?? verdictOf(theirs?.id);
+            const youBet = judgedYou.find((b) => b.measures === m);
+            const modelBet = judgedModel.find((b) => b.measures === m);
+            const v = verdictOf(youBet?.id) ?? verdictOf(modelBet?.id);
             return (
               <tr key={m} data-testid={`verdict-${m}`}>
                 <td>{youBet?.question ?? modelBet?.question ?? m}</td>
-                <Cell bet={youBet} verdict={verdictOf(mine?.id)} testId={`verdict-you-${m}`} />
-                {modelName &&
-                  (theirs ? (
-                    <Cell bet={modelBet} verdict={verdictOf(theirs.id)} testId={`verdict-model-${m}`} />
+                <Cell bet={youBet} verdict={verdictOf(youBet?.id)} testId={`verdict-you-${m}`} />
+                {showModel &&
+                  (modelBet ? (
+                    <Cell bet={modelBet} verdict={verdictOf(modelBet.id)} testId={`verdict-model-${m}`} />
                   ) : (
                     <td className="muted small" data-testid={`verdict-model-${m}`}>
                       {modelEmpty ?? "no bet"}
@@ -120,12 +141,25 @@ export function VerdictScreen({ shown, modelShown, modelName, modelEmpty, result
       <h3>Seal check (done by this page, for every bettor)</h3>
       <ul className="seals">
         {checks.map((c) => {
-          const b = all.find((x) => x.id === c.betId)!;
+          const b = shownBefore.find((x) => x.id === c.betId) ?? result.bets.find((x) => x.id === c.betId)!;
           const testId = b.who === "human" ? `seal-check-${b.measures}` : `seal-check-model-${b.measures}`;
+          const revealed = result.bets.find((x) => x.id === c.betId);
+          // The server sealed what the person typed? (The page kept its own copy of the answer.)
+          const typedRaw = b.who === "human" && typed ? typed[b.measures]?.trim() : undefined;
+          const typedOk = typedRaw === undefined || (revealed !== undefined && revealed.answer.kind !== "declined" && String(revealed.answer.value) === typedRaw);
           return (
-            <li key={c.betId} data-testid={testId} data-match={c.match ? "yes" : "no"}>
-              {label(b)}, {b.measures}: shown <ShortHash hash={c.shownHash} /> · recomputed {c.recomputed ? <ShortHash hash={c.recomputed} /> : "nothing to recompute"} ·{" "}
-              <b>{c.match ? "✓ match" : "✗ mismatch"}</b> · {c.sealedBeforeRun ? "sealed before the run started" : "NOT sealed before the run started"}
+            <li key={c.betId} data-testid={testId} data-match={c.match && typedOk ? "yes" : "no"}>
+              {label(b.who)}, {b.measures}:{" "}
+              {c.notShown ? (
+                <b>✗ judged, but this page never showed its hash before the run</b>
+              ) : (
+                <>
+                  shown <ShortHash hash={c.shownHash} /> · recomputed {c.recomputed ? <ShortHash hash={c.recomputed} /> : "nothing to recompute"} ·{" "}
+                  <b>{c.match ? "✓ match" : "✗ mismatch"}</b>
+                </>
+              )}{" "}
+              · {c.sealedBeforeRun ? "sealed before the run started" : "NOT sealed before the run started"}
+              {typedRaw !== undefined && <> · {typedOk ? "the answer you typed" : <b>NOT the answer you typed ({typedRaw})</b>}</>}
             </li>
           );
         })}

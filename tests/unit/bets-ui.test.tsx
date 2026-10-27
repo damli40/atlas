@@ -91,7 +91,12 @@ describe("D02-04 bets UI: sealed hash before the run, checked by the browser aft
     }
     expect(log.some((l) => l.path === "/runs")).toBe(false);
     // The server never sent the nonce before the run.
-    for (const l of log.filter((x) => x.path === "/bets")) expect((l.body as { bet: Record<string, unknown> }).bet).not.toHaveProperty("nonce");
+    // The page seals all three answers in ONE request (S1) and gets back the whole sealed set.
+    const betPosts = log.filter((x) => x.path === "/bets");
+    expect(betPosts.length).toBe(1);
+    const set = (betPosts[0]!.body as { bets: Record<string, unknown>[] }).bets;
+    expect(set.map((b) => b.measures)).toEqual(["calls", "totalWaitMs", "outcome"]);
+    for (const b of set) expect(b).not.toHaveProperty("nonce");
 
     // 2. Bet inputs are disabled after sealing.
     for (const m of ["calls", "totalWaitMs", "outcome"]) expect(($(`[data-testid="bet-${m}"]`) as HTMLInputElement).disabled).toBe(true);
