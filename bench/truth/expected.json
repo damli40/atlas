@@ -1,0 +1,2295 @@
+{
+  "bench": "truth",
+  "title": "Does Atlas tell the truth? Expected facts, written by hand before any run",
+  "writtenAt": "2026-10-27",
+  "rule": "bench/truth/PASS-RULE.md",
+  "functions": [
+    {
+      "id": "t01",
+      "file": "cases/t01-csv-line.js",
+      "language": "js",
+      "category": "ordinary: parser",
+      "tests": [
+        {
+          "id": "t01a",
+          "exportName": "parseCsvLine",
+          "args": [
+            {
+              "kind": "json",
+              "value": "x,\"y, z\",\"say \"\"hi\"\"\","
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": [
+              "x",
+              "y, z",
+              "say \"hi\"",
+              ""
+            ],
+            "returnedType": "array",
+            "virtualMs": 0
+          },
+          "why": "Quoted commas stay inside a field, a doubled quote is one quote, and the trailing comma leaves an empty last field. No waits: 0 ms."
+        },
+        {
+          "id": "t01b",
+          "exportName": "parseCsvLine",
+          "args": [
+            {
+              "kind": "json",
+              "value": "\"open,"
+            }
+          ],
+          "expect": {
+            "outcome": "threw",
+            "thrownName": "SyntaxError",
+            "thrownType": "Error",
+            "virtualMs": 0,
+            "thrownMessage": "unclosed quote"
+          },
+          "why": "The quote never closes, so the loop ends with inQuotes true and the function throws its own SyntaxError."
+        }
+      ]
+    },
+    {
+      "id": "t02",
+      "file": "cases/t02-format-duration.ts",
+      "language": "ts",
+      "category": "ordinary: formatter",
+      "tests": [
+        {
+          "id": "t02a",
+          "exportName": "formatDuration",
+          "args": [
+            {
+              "kind": "json",
+              "value": 3723999
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": "1h 2m 3s",
+            "returnedType": "string",
+            "virtualMs": 0
+          },
+          "why": "3723999 ms floors to 3723 s = 1 h, 2 min, 3 s."
+        },
+        {
+          "id": "t02b",
+          "exportName": "formatDuration",
+          "args": [
+            {
+              "kind": "json",
+              "value": 999
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": "0s",
+            "returnedType": "string",
+            "virtualMs": 0
+          },
+          "why": "999 ms floors to 0 s; with no other parts the function still writes 0s."
+        },
+        {
+          "id": "t02c",
+          "exportName": "formatDuration",
+          "args": [
+            {
+              "kind": "json",
+              "value": -5
+            }
+          ],
+          "expect": {
+            "outcome": "threw",
+            "thrownName": "RangeError",
+            "thrownType": "Error",
+            "virtualMs": 0,
+            "thrownMessage": "bad duration: -5"
+          },
+          "why": "A negative input throws RangeError with the number in the message."
+        }
+      ]
+    },
+    {
+      "id": "t03",
+      "file": "cases/t03-retry-backoff.js",
+      "language": "js",
+      "category": "ordinary: retry/backoff, virtual time",
+      "tests": [
+        {
+          "id": "t03a",
+          "exportName": "retryWithBackoff",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "op",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "throw",
+                  "errorName": "NetworkError",
+                  "message": "reset"
+                },
+                {
+                  "do": "throw",
+                  "errorName": "NetworkError",
+                  "message": "reset"
+                },
+                {
+                  "do": "return",
+                  "value": "ok"
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 5
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": "ok",
+            "returnedType": "string",
+            "virtualMs": 300,
+            "calls": {
+              "op": 3
+            }
+          },
+          "why": "Fails at 0 ms, waits 100; fails at 100 ms, waits 200; the third call at 300 ms returns ok."
+        },
+        {
+          "id": "t03b",
+          "exportName": "retryWithBackoff",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "op",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "throw",
+                  "errorName": "NetworkError",
+                  "message": "down"
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 3
+            }
+          ],
+          "expect": {
+            "outcome": "threw",
+            "thrownName": "NetworkError",
+            "thrownType": "Error",
+            "virtualMs": 300,
+            "thrownMessage": "down",
+            "calls": {
+              "op": 3
+            }
+          },
+          "why": "Every call fails. Attempts at 0, 100 and 300 ms; the third failure is re-thrown at 300 ms."
+        }
+      ]
+    },
+    {
+      "id": "t04",
+      "file": "cases/t04-debounce.js",
+      "language": "js",
+      "category": "ordinary: debounce, timers after settle",
+      "tests": [
+        {
+          "id": "t04a",
+          "exportName": "typeThenWait",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "onSearch",
+              "async": false,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": null
+                }
+              ]
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": "done",
+            "returnedType": "string",
+            "virtualMs": 600,
+            "calls": {
+              "onSearch": 1
+            }
+          },
+          "why": "Calls at 0, 50 and 100 ms each restart the 200 ms timer, so onSearch runs once at 300 ms. The function returns after 50 + 50 + 500 ms."
+        },
+        {
+          "id": "t04b",
+          "exportName": "fireAndReturn",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "onSearch",
+              "async": false,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": null
+                }
+              ]
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": "queued",
+            "returnedType": "string",
+            "virtualMs": 0,
+            "calls": {
+              "onSearch": 1
+            }
+          },
+          "why": "Returns at once; the debounced call still fires 200 ms later, inside the 30 s watch limit, so the final count is 1."
+        }
+      ]
+    },
+    {
+      "id": "t05",
+      "file": "cases/t05-token-bucket.ts",
+      "language": "ts",
+      "category": "ordinary: rate limiter on Date.now",
+      "tests": [
+        {
+          "id": "t05a",
+          "exportName": "sendBurst",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "send",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": null
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 5
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": [
+              0,
+              0,
+              500,
+              1000,
+              1500
+            ],
+            "returnedType": "array",
+            "virtualMs": 1500,
+            "calls": {
+              "send": 5
+            }
+          },
+          "why": "Two tokens go at 0 ms; then one token every 500 ms, so the next three go at 500, 1000 and 1500 ms."
+        }
+      ]
+    },
+    {
+      "id": "t06",
+      "file": "cases/t06-split-bill.js",
+      "language": "js",
+      "category": "ordinary: money in integer cents",
+      "tests": [
+        {
+          "id": "t06a",
+          "exportName": "splitBill",
+          "args": [
+            {
+              "kind": "json",
+              "value": 1000
+            },
+            {
+              "kind": "json",
+              "value": 3
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": [
+              334,
+              333,
+              333
+            ],
+            "returnedType": "array",
+            "virtualMs": 0
+          },
+          "why": "1000 / 3 = 333 rest 1; the first person gets the extra cent."
+        },
+        {
+          "id": "t06b",
+          "exportName": "splitBill",
+          "args": [
+            {
+              "kind": "json",
+              "value": 10.5
+            },
+            {
+              "kind": "json",
+              "value": 2
+            }
+          ],
+          "expect": {
+            "outcome": "threw",
+            "thrownName": "TypeError",
+            "thrownType": "Error",
+            "virtualMs": 0,
+            "thrownMessage": "whole cents and a positive head count"
+          },
+          "why": "10.5 is not an integer."
+        }
+      ]
+    },
+    {
+      "id": "t07",
+      "file": "cases/t07-float-money.js",
+      "language": "js",
+      "category": "ordinary: money in binary floats",
+      "tests": [
+        {
+          "id": "t07a",
+          "exportName": "roundTo2",
+          "args": [
+            {
+              "kind": "json",
+              "value": 1.005
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": 1,
+            "returnedType": "number",
+            "virtualMs": 0
+          },
+          "why": "1.005 * 100 is 100.49999999999999 in binary floating point, so Math.round gives 100 and the result is 1."
+        },
+        {
+          "id": "t07b",
+          "exportName": "addPrices",
+          "args": [
+            {
+              "kind": "json",
+              "value": 0.1
+            },
+            {
+              "kind": "json",
+              "value": 0.2
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": {
+              "raw": 0.30000000000000004,
+              "fixed": "0.30"
+            },
+            "returnedType": "object",
+            "virtualMs": 0
+          },
+          "why": "0.1 + 0.2 is 0.30000000000000004; toFixed(2) is 0.30."
+        }
+      ]
+    },
+    {
+      "id": "t08",
+      "file": "cases/t08-query-string.ts",
+      "language": "ts",
+      "category": "ordinary: parser",
+      "tests": [
+        {
+          "id": "t08a",
+          "exportName": "parseQuery",
+          "args": [
+            {
+              "kind": "json",
+              "value": "?tag=a&tag=b&q=hello+world&flag"
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": {
+              "tag": [
+                "a",
+                "b"
+              ],
+              "q": "hello world",
+              "flag": ""
+            },
+            "returnedType": "object",
+            "virtualMs": 0
+          },
+          "why": "A repeated key becomes a list, + becomes a space, a key with no = gets an empty string."
+        },
+        {
+          "id": "t08b",
+          "exportName": "parseQuery",
+          "args": [
+            {
+              "kind": "json",
+              "value": "%E0%A4%A"
+            }
+          ],
+          "expect": {
+            "outcome": "threw",
+            "thrownName": "URIError",
+            "thrownType": "Error",
+            "virtualMs": 0
+          },
+          "why": "decodeURIComponent throws URIError on a truncated escape (the message text is the engine's own, so only the name is checked)."
+        }
+      ]
+    },
+    {
+      "id": "t09",
+      "file": "cases/t09-lru-cache.ts",
+      "language": "ts",
+      "category": "ordinary: class with Map",
+      "tests": [
+        {
+          "id": "t09a",
+          "exportName": "lruAfterTouch",
+          "args": [],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": {
+              "keys": [
+                "a",
+                "c"
+              ],
+              "b": null
+            },
+            "returnedType": "object",
+            "virtualMs": 0
+          },
+          "why": "Reading a makes b the oldest, so adding c evicts b."
+        },
+        {
+          "id": "t09b",
+          "exportName": "lruInstance",
+          "args": [],
+          "expect": {
+            "outcome": "returned",
+            "returnedNotJson": {
+              "type": "object (Lru)",
+              "reasonMentions": "own class"
+            },
+            "virtualMs": 0
+          },
+          "why": "A class instance is not plain JSON; its type is reported with the class name."
+        }
+      ]
+    },
+    {
+      "id": "t10",
+      "file": "cases/t10-slugify.js",
+      "language": "js",
+      "category": "unicode",
+      "tests": [
+        {
+          "id": "t10a",
+          "exportName": "slugify",
+          "args": [
+            {
+              "kind": "json",
+              "value": "Cr\u00e8me Br\u00fbl\u00e9e: 10 Fa\u00e7ons!"
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": "creme-brulee-10-facons",
+            "returnedType": "string",
+            "virtualMs": 0
+          },
+          "why": "NFKD splits each accent off its letter; the accents are removed; runs of other characters become one dash; edge dashes are cut."
+        },
+        {
+          "id": "t10b",
+          "exportName": "slugify",
+          "args": [
+            {
+              "kind": "json",
+              "value": "\ud83d\udc4d\ud83d\udc4d"
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": "",
+            "returnedType": "string",
+            "virtualMs": 0
+          },
+          "why": "Emoji are not a-z or 0-9, so they become one dash, which is then cut: the empty string."
+        }
+      ]
+    },
+    {
+      "id": "t11",
+      "file": "cases/t11-text-lengths.ts",
+      "language": "ts",
+      "category": "unicode",
+      "tests": [
+        {
+          "id": "t11a",
+          "exportName": "lengths",
+          "args": [
+            {
+              "kind": "json",
+              "value": "a\ud83d\udc4d\u00e9"
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": {
+              "utf16": 4,
+              "codePoints": 3,
+              "bytes": 7
+            },
+            "returnedType": "object",
+            "virtualMs": 0
+          },
+          "why": "a (1 unit, 1 byte), thumbs-up (2 UTF-16 units, 4 bytes), e-acute as one code point (1 unit, 2 bytes)."
+        }
+      ]
+    },
+    {
+      "id": "t12",
+      "file": "cases/t12-non-error-throws.js",
+      "language": "js",
+      "category": "throws of non-Errors",
+      "tests": [
+        {
+          "id": "t12a",
+          "exportName": "throwString",
+          "args": [
+            {
+              "kind": "json",
+              "value": 7
+            }
+          ],
+          "expect": {
+            "outcome": "threw",
+            "thrownName": null,
+            "thrownType": "string",
+            "virtualMs": 0,
+            "thrownMessage": null
+          },
+          "why": "A thrown string has no name or message; its type is string."
+        },
+        {
+          "id": "t12b",
+          "exportName": "throwObject",
+          "args": [],
+          "expect": {
+            "outcome": "threw",
+            "thrownName": null,
+            "thrownType": "object",
+            "virtualMs": 0,
+            "thrownMessage": null
+          },
+          "why": "A thrown plain object has no name or message property."
+        },
+        {
+          "id": "t12c",
+          "exportName": "rejectNull",
+          "args": [],
+          "expect": {
+            "outcome": "threw",
+            "thrownName": null,
+            "thrownType": "null",
+            "virtualMs": 0,
+            "thrownMessage": null
+          },
+          "why": "An async function that throws null rejects with null, after one microtask (0 ms)."
+        }
+      ]
+    },
+    {
+      "id": "t13",
+      "file": "cases/t13-odd-numbers.js",
+      "language": "js",
+      "category": "NaN / -0 / bigint",
+      "tests": [
+        {
+          "id": "t13a",
+          "exportName": "nanResult",
+          "args": [],
+          "expect": {
+            "outcome": "returned",
+            "returnedNotJson": {
+              "type": "number (NaN)",
+              "reasonMentions": "NaN"
+            },
+            "virtualMs": 0
+          },
+          "why": "NaN is not a JSON number."
+        },
+        {
+          "id": "t13b",
+          "exportName": "negativeZero",
+          "args": [],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": 0,
+            "returnedType": "number",
+            "virtualMs": 0
+          },
+          "why": "JSON writes -0 as 0 (JSON.stringify(-0) is \"0\"); the returned type is number."
+        },
+        {
+          "id": "t13c",
+          "exportName": "bigTotal",
+          "args": [],
+          "expect": {
+            "outcome": "returned",
+            "returnedNotJson": {
+              "type": "bigint",
+              "reasonMentions": "BigInt"
+            },
+            "virtualMs": 0
+          },
+          "why": "A BigInt is not JSON."
+        }
+      ]
+    },
+    {
+      "id": "t14",
+      "file": "cases/t14-big-deep-cyclic.js",
+      "language": "js",
+      "category": "huge / deep / cyclic returns",
+      "tests": [
+        {
+          "id": "t14a",
+          "exportName": "bigList",
+          "args": [
+            {
+              "kind": "json",
+              "value": 1000
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedNotJson": {
+              "type": "array",
+              "reasonMentions": "2048"
+            },
+            "virtualMs": 0
+          },
+          "why": "0..999 written as JSON is 3,891 characters, over the 2,048-character limit."
+        },
+        {
+          "id": "t14b",
+          "exportName": "nested",
+          "args": [
+            {
+              "kind": "json",
+              "value": 150
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedNotJson": {
+              "type": "object",
+              "reasonMentions": "deeper than 100"
+            },
+            "virtualMs": 0
+          },
+          "why": "150 nested objects is past the 100-level limit."
+        },
+        {
+          "id": "t14c",
+          "exportName": "selfRef",
+          "args": [],
+          "expect": {
+            "outcome": "returned",
+            "returnedNotJson": {
+              "type": "object",
+              "reasonMentions": "cycle"
+            },
+            "virtualMs": 0
+          },
+          "why": "The object contains itself."
+        }
+      ]
+    },
+    {
+      "id": "t15",
+      "file": "cases/t15-clock-and-polling.js",
+      "language": "js",
+      "category": "timing on the virtual clock",
+      "tests": [
+        {
+          "id": "t15a",
+          "exportName": "zeroDelay",
+          "args": [],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": 1,
+            "returnedType": "number",
+            "virtualMs": 1
+          },
+          "why": "Node runs setTimeout(fn, 0) after 1 ms (a delay below 1 becomes 1), so Date.now() is the start plus 1."
+        },
+        {
+          "id": "t15b",
+          "exportName": "pollUntil",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "check",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": false
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 1000
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": {
+              "ok": false,
+              "tries": 4
+            },
+            "returnedType": "object",
+            "virtualMs": 1000,
+            "calls": {
+              "check": 4
+            }
+          },
+          "why": "Checks at 0, 250, 500 and 750 ms all say false; at 1000 ms the deadline is reached and the loop ends."
+        },
+        {
+          "id": "t15c",
+          "exportName": "pollUntil",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "check",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": false,
+                  "afterMs": 100
+                },
+                {
+                  "do": "return",
+                  "value": true,
+                  "afterMs": 100
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 1000
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": {
+              "ok": true,
+              "tries": 2
+            },
+            "returnedType": "object",
+            "virtualMs": 450,
+            "calls": {
+              "check": 2
+            }
+          },
+          "why": "First check answers false at 100 ms, sleep 250 to 350 ms, second check answers true at 450 ms."
+        },
+        {
+          "id": "t15d",
+          "exportName": "isoLater",
+          "args": [],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": "2026-01-01T00:00:01.500Z",
+            "returnedType": "string",
+            "virtualMs": 1500
+          },
+          "why": "Atlas's clock starts at 2026-01-01T00:00:00Z; after 1500 ms the date reads 1.5 s later."
+        }
+      ]
+    },
+    {
+      "id": "t16",
+      "file": "cases/t16-never-settles.js",
+      "language": "js",
+      "category": "never settles",
+      "tests": [
+        {
+          "id": "t16a",
+          "exportName": "waitForEvent",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "subscribe",
+              "async": false,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": null
+                }
+              ]
+            }
+          ],
+          "expect": {
+            "outcome": "never_settled",
+            "virtualMs": null,
+            "calls": {
+              "subscribe": 1
+            }
+          },
+          "why": "subscribe never calls resolve, and nothing else is pending."
+        },
+        {
+          "id": "t16b",
+          "exportName": "loadOnce",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "load",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "never_settle"
+                }
+              ]
+            }
+          ],
+          "expect": {
+            "outcome": "never_settled",
+            "virtualMs": null,
+            "calls": {
+              "load": 1
+            }
+          },
+          "why": "load never answers."
+        }
+      ]
+    },
+    {
+      "id": "t17",
+      "file": "cases/t17-still-running.js",
+      "language": "js",
+      "category": "still running / real-time trap",
+      "tests": [
+        {
+          "id": "t17a",
+          "exportName": "heartbeat",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "ping",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": null
+                }
+              ]
+            }
+          ],
+          "expect": {
+            "outcome": "still_running_at_watch_limit",
+            "virtualMs": null,
+            "calls": {
+              "ping": null
+            }
+          },
+          "why": "The loop pings every 1000 ms forever; at the 5,500 ms watch limit it is still running, so no settle time and no final count.",
+          "watchLimitMs": 5500
+        },
+        {
+          "id": "t17b",
+          "exportName": "spinForever",
+          "args": [],
+          "expect": {
+            "cantCheck": true,
+            "because": "A synchronous endless loop never hands control back; only a real-time limit can stop it, so how it ends is not a measurable fact."
+          },
+          "why": "Endless synchronous loop."
+        }
+      ]
+    },
+    {
+      "id": "t18",
+      "file": "cases/t18-background-hash.js",
+      "language": "js",
+      "category": "background work (crypto.subtle)",
+      "tests": [
+        {
+          "id": "t18a",
+          "exportName": "sha256Hex",
+          "args": [
+            {
+              "kind": "json",
+              "value": "abc"
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+            "returnedType": "string",
+            "virtualMs": 0
+          },
+          "why": "The SHA-256 of abc is the standard test vector. Hashing takes real time but no virtual time."
+        },
+        {
+          "id": "t18b",
+          "exportName": "hashOrTimeout",
+          "args": [
+            {
+              "kind": "json",
+              "value": "abc"
+            }
+          ],
+          "expect": {
+            "cantCheck": true,
+            "because": "Which of the background hash and the 10 ms timer wins depends on real speed, not on the code; Atlas must not guess."
+          },
+          "why": "Background work raced against a timer."
+        }
+      ]
+    },
+    {
+      "id": "t19",
+      "file": "cases/t19-abort-deadline.js",
+      "language": "js",
+      "category": "background timer (AbortSignal.timeout)",
+      "tests": [
+        {
+          "id": "t19a",
+          "exportName": "withDeadline",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "work",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": "done",
+                  "afterMs": 30
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 100
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": "done",
+            "returnedType": "string",
+            "virtualMs": 30,
+            "calls": {
+              "work": 1
+            }
+          },
+          "why": "work answers at 30 ms, before the 100 ms deadline."
+        },
+        {
+          "id": "t19b",
+          "exportName": "withDeadline",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "work",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": "done",
+                  "afterMs": 500
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 100
+            }
+          ],
+          "expect": {
+            "outcome": "threw",
+            "thrownName": "TimeoutError",
+            "thrownType": "Error",
+            "virtualMs": 100,
+            "thrownMessage": "The operation was aborted due to timeout",
+            "calls": {
+              "work": 1
+            }
+          },
+          "why": "The signal aborts at 100 ms with Node's TimeoutError, before work answers at 500 ms."
+        }
+      ]
+    },
+    {
+      "id": "t20",
+      "file": "cases/t20-fetch.js",
+      "language": "js",
+      "category": "trap: network",
+      "tests": [
+        {
+          "id": "t20a",
+          "exportName": "getPrice",
+          "args": [
+            {
+              "kind": "json",
+              "value": "ETH"
+            }
+          ],
+          "expect": {
+            "cantCheck": true,
+            "because": "The code uses the network."
+          },
+          "why": "fetch."
+        },
+        {
+          "id": "t20b",
+          "exportName": "getPriceOrOffline",
+          "args": [
+            {
+              "kind": "json",
+              "value": "ETH"
+            }
+          ],
+          "expect": {
+            "cantCheck": true,
+            "because": "The code uses the network and catches the failure; offline is what the sandbox caused, not what the code does."
+          },
+          "why": "fetch, caught."
+        }
+      ]
+    },
+    {
+      "id": "t21",
+      "file": "cases/t21-fs-import.ts",
+      "language": "ts",
+      "category": "trap: files / built-in module import",
+      "tests": [
+        {
+          "id": "t21a",
+          "exportName": "readConfig",
+          "args": [
+            {
+              "kind": "json",
+              "value": "/etc/hosts"
+            }
+          ],
+          "expect": {
+            "cantCheck": true,
+            "because": "The code imports node:fs and reads a file."
+          },
+          "why": "Import of a built-in module."
+        }
+      ]
+    },
+    {
+      "id": "t22",
+      "file": "cases/t22-package-import.js",
+      "language": "js",
+      "category": "trap: package import",
+      "tests": [
+        {
+          "id": "t22a",
+          "exportName": "pairs",
+          "args": [
+            {
+              "kind": "json",
+              "value": [
+                1,
+                2,
+                3
+              ]
+            }
+          ],
+          "expect": {
+            "cantCheck": true,
+            "because": "The code needs the lodash package."
+          },
+          "why": "Package import."
+        }
+      ]
+    },
+    {
+      "id": "t23",
+      "file": "cases/t23-code-from-text.js",
+      "language": "js",
+      "category": "trap: eval",
+      "tests": [
+        {
+          "id": "t23a",
+          "exportName": "calc",
+          "args": [
+            {
+              "kind": "json",
+              "value": "2+2"
+            }
+          ],
+          "expect": {
+            "cantCheck": true,
+            "because": "The code runs text as code (eval)."
+          },
+          "why": "eval."
+        },
+        {
+          "id": "t23b",
+          "exportName": "makeAdder",
+          "args": [
+            {
+              "kind": "json",
+              "value": 3
+            }
+          ],
+          "expect": {
+            "cantCheck": true,
+            "because": "The code runs text as code (new Function)."
+          },
+          "why": "new Function."
+        }
+      ]
+    },
+    {
+      "id": "t24",
+      "file": "cases/t24-process-exit.js",
+      "language": "js",
+      "category": "trap: process.exit",
+      "tests": [
+        {
+          "id": "t24a",
+          "exportName": "bail",
+          "args": [
+            {
+              "kind": "json",
+              "value": 0
+            }
+          ],
+          "expect": {
+            "cantCheck": true,
+            "because": "The code ends the process."
+          },
+          "why": "process.exit."
+        }
+      ]
+    },
+    {
+      "id": "t25",
+      "file": "cases/t25-ts-enum.ts",
+      "language": "ts",
+      "category": "trap: TypeScript syntax Node cannot strip",
+      "tests": [
+        {
+          "id": "t25a",
+          "exportName": "levelName",
+          "args": [
+            {
+              "kind": "json",
+              "value": 1
+            }
+          ],
+          "expect": {
+            "cantCheck": true,
+            "because": "Node's type stripping cannot run a TypeScript enum."
+          },
+          "why": "enum."
+        }
+      ]
+    },
+    {
+      "id": "t26",
+      "file": "cases/t26-ts-parameter-property.ts",
+      "language": "ts",
+      "category": "trap: TypeScript syntax Node cannot strip",
+      "tests": [
+        {
+          "id": "t26a",
+          "exportName": "convert",
+          "args": [
+            {
+              "kind": "json",
+              "value": 3
+            }
+          ],
+          "expect": {
+            "cantCheck": true,
+            "because": "Node's type stripping cannot run a TypeScript parameter property."
+          },
+          "why": "parameter property."
+        }
+      ]
+    },
+    {
+      "id": "t27",
+      "file": "cases/t27-lookalike-words.ts",
+      "language": "ts",
+      "category": "over-refusal bait: trap words in comments, strings and a type-only import",
+      "tests": [
+        {
+          "id": "t27a",
+          "exportName": "describe",
+          "args": [
+            {
+              "kind": "json",
+              "value": "x"
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": "x: 36",
+            "returnedType": "string",
+            "virtualMs": 0
+          },
+          "why": "fetch, require and import appear only in a comment, a string and an import type line, which loads nothing. The note string is 36 characters."
+        }
+      ]
+    },
+    {
+      "id": "t28",
+      "file": "cases/t28-settle-all.js",
+      "language": "js",
+      "category": "ordinary: concurrency with stand-in errors",
+      "tests": [
+        {
+          "id": "t28a",
+          "exportName": "loadAllSettled",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "load",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": "A",
+                  "afterMs": 300
+                },
+                {
+                  "do": "throw",
+                  "errorName": "NotFound",
+                  "message": "missing 2"
+                },
+                {
+                  "do": "return",
+                  "value": "C",
+                  "afterMs": 100
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": [
+                1,
+                2,
+                3
+              ]
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": [
+              "A",
+              "error: missing 2",
+              "C"
+            ],
+            "returnedType": "array",
+            "virtualMs": 300,
+            "calls": {
+              "load": 3
+            }
+          },
+          "why": "All three calls start at 0 ms; allSettled waits for the slowest (300 ms) and keeps the error as text."
+        },
+        {
+          "id": "t28b",
+          "exportName": "loadAll",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "load",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": "A",
+                  "afterMs": 300
+                },
+                {
+                  "do": "throw",
+                  "errorName": "NotFound",
+                  "message": "missing 2"
+                },
+                {
+                  "do": "return",
+                  "value": "C",
+                  "afterMs": 100
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": [
+                1,
+                2,
+                3
+              ]
+            }
+          ],
+          "expect": {
+            "outcome": "threw",
+            "thrownName": "NotFound",
+            "thrownType": "Error",
+            "virtualMs": 0,
+            "thrownMessage": "missing 2",
+            "calls": {
+              "load": 3
+            }
+          },
+          "why": "Promise.all rejects as soon as call 2 fails, at 0 ms; all three calls were already made."
+        }
+      ]
+    },
+    {
+      "id": "t29",
+      "file": "cases/t29-unhandled-rejection.js",
+      "language": "js",
+      "category": "trap: failure nobody catches",
+      "tests": [
+        {
+          "id": "t29a",
+          "exportName": "fireAndForget",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "save",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "throw",
+                  "errorName": "SaveError",
+                  "message": "disk full"
+                }
+              ]
+            }
+          ],
+          "expect": {
+            "cantCheck": true,
+            "because": "The save fails with nobody handling it; a real Node process stops on an unhandled rejection, so the returned 'sent' would not be what a real run shows."
+          },
+          "why": "Unhandled rejection."
+        }
+      ]
+    },
+    {
+      "id": "t30",
+      "file": "cases/t30-event-loop-order.js",
+      "language": "js",
+      "category": "timing: event-loop order",
+      "tests": [
+        {
+          "id": "t30a",
+          "exportName": "order",
+          "args": [],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": [
+              "sync",
+              "microtask",
+              "queueMicrotask",
+              "timeout"
+            ],
+            "returnedType": "array",
+            "virtualMs": 5
+          },
+          "why": "Synchronous code first, then microtasks in the order queued, then the 0 ms (really 1 ms) timer, then the 5 ms wait ends."
+        }
+      ]
+    },
+    {
+      "id": "p01",
+      "file": "cases/p01-parse-duration.py",
+      "language": "py",
+      "category": "ordinary: parser",
+      "tests": [
+        {
+          "id": "p01a",
+          "exportName": "parse_duration",
+          "args": [
+            {
+              "kind": "json",
+              "value": "1h30m15s"
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": 5415,
+            "returnedType": "number",
+            "virtualMs": 0
+          },
+          "why": "3600 + 30*60 + 15."
+        },
+        {
+          "id": "p01b",
+          "exportName": "parse_duration",
+          "args": [
+            {
+              "kind": "json",
+              "value": "90x"
+            }
+          ],
+          "expect": {
+            "outcome": "threw",
+            "thrownName": "ValueError",
+            "thrownType": "Error",
+            "virtualMs": 0,
+            "thrownMessage": "not a duration: '90x'"
+          },
+          "why": "x is not a unit; the message uses repr, so the text is quoted."
+        }
+      ]
+    },
+    {
+      "id": "p02",
+      "file": "cases/p02-decimal-money.py",
+      "language": "py",
+      "category": "ordinary: money with Decimal",
+      "tests": [
+        {
+          "id": "p02a",
+          "exportName": "invoice_total",
+          "args": [
+            {
+              "kind": "json",
+              "value": [
+                {
+                  "price": 19.99,
+                  "qty": 3
+                },
+                {
+                  "price": 0.1,
+                  "qty": 2
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 0.075
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": {
+              "subtotal": "60.17",
+              "tax": "4.51",
+              "total": "64.68"
+            },
+            "returnedType": "object",
+            "virtualMs": 0
+          },
+          "why": "59.97 + 0.2 = 60.17; 60.17 * 0.075 = 4.51275, rounded half up to 4.51; total 64.68."
+        },
+        {
+          "id": "p02b",
+          "exportName": "round_cents_both",
+          "args": [
+            {
+              "kind": "json",
+              "value": "2.665"
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": [
+              "2.67",
+              "2.66"
+            ],
+            "returnedType": "array",
+            "virtualMs": 0
+          },
+          "why": "Half up rounds 2.665 to 2.67; half even (banker's) rounds to the even cent, 2.66."
+        },
+        {
+          "id": "p02c",
+          "exportName": "raw_decimal",
+          "args": [],
+          "expect": {
+            "outcome": "returned",
+            "returnedNotJson": {
+              "type": "object (Decimal)",
+              "reasonMentions": "own class"
+            },
+            "virtualMs": 0
+          },
+          "why": "A Decimal is not plain JSON."
+        }
+      ]
+    },
+    {
+      "id": "p03",
+      "file": "cases/p03-dataclass-enum.py",
+      "language": "py",
+      "category": "ordinary: dataclass + enum",
+      "tests": [
+        {
+          "id": "p03a",
+          "exportName": "close_ticket",
+          "args": [
+            {
+              "kind": "json",
+              "value": {
+                "id": 7,
+                "title": "Fix login"
+              }
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": {
+              "id": 7,
+              "title": "Fix login",
+              "status": "closed",
+              "tags": [
+                "done"
+              ]
+            },
+            "returnedType": "object",
+            "virtualMs": 0
+          },
+          "why": "asdict gives a plain dict; status is replaced by the enum's value."
+        },
+        {
+          "id": "p03b",
+          "exportName": "ticket_object",
+          "args": [
+            {
+              "kind": "json",
+              "value": {
+                "id": 7,
+                "title": "Fix login"
+              }
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedNotJson": {
+              "type": "object (Ticket)",
+              "reasonMentions": "own class"
+            },
+            "virtualMs": 0
+          },
+          "why": "A dataclass instance is not plain JSON."
+        },
+        {
+          "id": "p03c",
+          "exportName": "status_of",
+          "args": [
+            {
+              "kind": "json",
+              "value": "PENDING"
+            }
+          ],
+          "expect": {
+            "outcome": "threw",
+            "thrownName": "KeyError",
+            "thrownType": "Error",
+            "virtualMs": 0,
+            "thrownMessage": "'PENDING'"
+          },
+          "why": "Enum lookup by an unknown name raises KeyError; str() of a KeyError is the key's repr, with quotes."
+        }
+      ]
+    },
+    {
+      "id": "p04",
+      "file": "cases/p04-async-retry.py",
+      "language": "py",
+      "category": "ordinary: async retry/backoff",
+      "tests": [
+        {
+          "id": "p04a",
+          "exportName": "fetch_with_retry",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "fetch",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "throw",
+                  "errorName": "ConnectionError",
+                  "message": "reset"
+                },
+                {
+                  "do": "throw",
+                  "errorName": "ConnectionError",
+                  "message": "reset"
+                },
+                {
+                  "do": "return",
+                  "value": {
+                    "ok": true
+                  },
+                  "afterMs": 50
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 4
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": {
+              "ok": true
+            },
+            "returnedType": "object",
+            "virtualMs": 350,
+            "calls": {
+              "fetch": 3
+            }
+          },
+          "why": "Fails at 0, sleeps 0.1 s; fails at 100 ms, sleeps 0.2 s; third call at 300 ms answers 50 ms later."
+        },
+        {
+          "id": "p04b",
+          "exportName": "fetch_with_retry",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "fetch",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "throw",
+                  "errorName": "TimeoutError",
+                  "message": "slow"
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 4
+            }
+          ],
+          "expect": {
+            "outcome": "threw",
+            "thrownName": "TimeoutError",
+            "thrownType": "Error",
+            "virtualMs": 0,
+            "thrownMessage": "slow",
+            "calls": {
+              "fetch": 1
+            }
+          },
+          "why": "TimeoutError is not a ConnectionError, so it is not retried."
+        }
+      ]
+    },
+    {
+      "id": "p05",
+      "file": "cases/p05-throttle.py",
+      "language": "py",
+      "category": "timing: blocking sleep and monotonic on the virtual clock",
+      "tests": [
+        {
+          "id": "p05a",
+          "exportName": "throttled_calls",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "send",
+              "async": false,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": null
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 4
+            },
+            {
+              "kind": "json",
+              "value": 4
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": [
+              0,
+              250,
+              500,
+              750
+            ],
+            "returnedType": "array",
+            "virtualMs": 750,
+            "calls": {
+              "send": 4
+            }
+          },
+          "why": "4 a second is one every 250 ms, starting at 0."
+        },
+        {
+          "id": "p05b",
+          "exportName": "now_epoch",
+          "args": [],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": 1767225600,
+            "returnedType": "number",
+            "virtualMs": 0
+          },
+          "why": "time.time() at the start of Atlas's clock: 2026-01-01T00:00:00Z is 1767225600; JSON writes 1767225600.0 as 1767225600."
+        }
+      ]
+    },
+    {
+      "id": "p06",
+      "file": "cases/p06-async-debounce.py",
+      "language": "py",
+      "category": "ordinary: debounce on asyncio",
+      "tests": [
+        {
+          "id": "p06a",
+          "exportName": "type_then_wait",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "on_search",
+              "async": false,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": null
+                }
+              ]
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": "done",
+            "returnedType": "string",
+            "virtualMs": 600,
+            "calls": {
+              "on_search": 1
+            }
+          },
+          "why": "Calls at 0, 50 and 100 ms each cancel the pending task; only the last fires, at 300 ms. Returns at 600 ms."
+        }
+      ]
+    },
+    {
+      "id": "p07",
+      "file": "cases/p07-never-and-forever.py",
+      "language": "py",
+      "category": "never settles / still running",
+      "tests": [
+        {
+          "id": "p07a",
+          "exportName": "wait_for_signal",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "register",
+              "async": false,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": null
+                }
+              ]
+            }
+          ],
+          "expect": {
+            "outcome": "never_settled",
+            "virtualMs": null,
+            "calls": {
+              "register": 1
+            }
+          },
+          "why": "Nothing ever resolves the future."
+        },
+        {
+          "id": "p07b",
+          "exportName": "poll_forever",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "check",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": false
+                }
+              ]
+            }
+          ],
+          "expect": {
+            "outcome": "still_running_at_watch_limit",
+            "virtualMs": null,
+            "calls": {
+              "check": null
+            }
+          },
+          "why": "Polls every 2 s forever; still running at the 7,000 ms limit.",
+          "watchLimitMs": 7000
+        }
+      ]
+    },
+    {
+      "id": "p08",
+      "file": "cases/p08-gather.py",
+      "language": "py",
+      "category": "ordinary: asyncio.gather with a failing call",
+      "tests": [
+        {
+          "id": "p08a",
+          "exportName": "load_all",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "load",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": "A",
+                  "afterMs": 300
+                },
+                {
+                  "do": "throw",
+                  "errorName": "LookupError",
+                  "message": "missing 2"
+                },
+                {
+                  "do": "return",
+                  "value": "C",
+                  "afterMs": 100
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": [
+                1,
+                2,
+                3
+              ]
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": [
+              "A",
+              "error: missing 2",
+              "C"
+            ],
+            "returnedType": "array",
+            "virtualMs": 300,
+            "calls": {
+              "load": 3
+            }
+          },
+          "why": "All three start at 0 ms; gather waits for the slowest (300 ms) and returns the error as a value."
+        },
+        {
+          "id": "p08b",
+          "exportName": "yield_once",
+          "args": [],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": "after",
+            "returnedType": "string",
+            "virtualMs": 0
+          },
+          "why": "asyncio.sleep(0) yields once without moving the clock."
+        }
+      ]
+    },
+    {
+      "id": "p09",
+      "file": "cases/p09-unicode-text.py",
+      "language": "py",
+      "category": "unicode / tuple",
+      "tests": [
+        {
+          "id": "p09a",
+          "exportName": "text_facts",
+          "args": [
+            {
+              "kind": "json",
+              "value": "e\u0301\u00df\ud83d\udc4d"
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": {
+              "len": 4,
+              "nfc_len": 3,
+              "upper": "E\u0301SS\ud83d\udc4d",
+              "utf8_bytes": 9
+            },
+            "returnedType": "object",
+            "virtualMs": 0
+          },
+          "why": "e + combining accent + sharp s + thumbs-up is 4 code points; NFC joins e and the accent (3); sharp s upper-cases to SS; UTF-8 bytes 1 + 2 + 2 + 4."
+        },
+        {
+          "id": "p09b",
+          "exportName": "pair",
+          "args": [],
+          "expect": {
+            "outcome": "returned",
+            "returnedNotJson": {
+              "type": "tuple",
+              "reasonMentions": "tuple"
+            },
+            "virtualMs": 0
+          },
+          "why": "A tuple is not stored as JSON (only lists are)."
+        }
+      ]
+    },
+    {
+      "id": "p10",
+      "file": "cases/p10-odd-numbers.py",
+      "language": "py",
+      "category": "NaN / big int / -0",
+      "tests": [
+        {
+          "id": "p10a",
+          "exportName": "nan_value",
+          "args": [],
+          "expect": {
+            "outcome": "returned",
+            "returnedNotJson": {
+              "type": "number (NaN)",
+              "reasonMentions": "NaN"
+            },
+            "virtualMs": 0
+          },
+          "why": "NaN is not a JSON number."
+        },
+        {
+          "id": "p10b",
+          "exportName": "huge_int",
+          "args": [],
+          "expect": {
+            "outcome": "returned",
+            "returnedNotJson": {
+              "type": "number (an integer beyond 2^53)",
+              "reasonMentions": "2^53"
+            },
+            "virtualMs": 0
+          },
+          "why": "2**64 cannot be held exactly by a JSON (JavaScript) number."
+        },
+        {
+          "id": "p10c",
+          "exportName": "neg_zero",
+          "args": [],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": 0,
+            "returnedType": "number",
+            "virtualMs": 0
+          },
+          "why": "-0.0 is written as 0 in JSON, as JavaScript writes it."
+        }
+      ]
+    },
+    {
+      "id": "p11",
+      "file": "cases/p11-exit.py",
+      "language": "py",
+      "category": "process exit: caught (fact) and escaping (trap)",
+      "tests": [
+        {
+          "id": "p11a",
+          "exportName": "safe_main",
+          "args": [
+            {
+              "kind": "json",
+              "value": []
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": "exit 2",
+            "returnedType": "string",
+            "virtualMs": 0
+          },
+          "why": "SystemExit is an ordinary exception the code catches; e.code is 2."
+        },
+        {
+          "id": "p11b",
+          "exportName": "hard_exit",
+          "args": [],
+          "expect": {
+            "cantCheck": true,
+            "because": "SystemExit escapes the call: a real run would end the process."
+          },
+          "why": "sys.exit escapes."
+        }
+      ]
+    },
+    {
+      "id": "p12",
+      "file": "cases/p12-run-length.py",
+      "language": "py",
+      "category": "ordinary: itertools",
+      "tests": [
+        {
+          "id": "p12a",
+          "exportName": "run_length",
+          "args": [
+            {
+              "kind": "json",
+              "value": "aaabccdd"
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": [
+              [
+                "a",
+                3
+              ],
+              [
+                "b",
+                1
+              ],
+              [
+                "c",
+                2
+              ],
+              [
+                "d",
+                2
+              ]
+            ],
+            "returnedType": "array",
+            "virtualMs": 0
+          },
+          "why": "Runs of equal characters."
+        }
+      ]
+    },
+    {
+      "id": "p13",
+      "file": "cases/p13-network.py",
+      "language": "py",
+      "category": "trap: network (urllib.request)",
+      "tests": [
+        {
+          "id": "p13a",
+          "exportName": "fetch_text",
+          "args": [
+            {
+              "kind": "json",
+              "value": "https://example.com"
+            }
+          ],
+          "expect": {
+            "cantCheck": true,
+            "because": "The code uses the network (and urllib.request is not a module Atlas loads)."
+          },
+          "why": "urllib.request."
+        }
+      ]
+    },
+    {
+      "id": "p14",
+      "file": "cases/p14-read-file.py",
+      "language": "py",
+      "category": "trap: files, caught by the code",
+      "tests": [
+        {
+          "id": "p14a",
+          "exportName": "load_config",
+          "args": [
+            {
+              "kind": "json",
+              "value": "/etc/hosts"
+            }
+          ],
+          "expect": {
+            "cantCheck": true,
+            "because": "The code reads a file; the sandbox refuses it and the code catches that, so 'default' would be the sandbox's doing."
+          },
+          "why": "open, caught."
+        }
+      ]
+    },
+    {
+      "id": "p15",
+      "file": "cases/p15-threads.py",
+      "language": "py",
+      "category": "trap: threads",
+      "tests": [
+        {
+          "id": "p15a",
+          "exportName": "parallel_sum",
+          "args": [
+            {
+              "kind": "json",
+              "value": [
+                1,
+                2,
+                3
+              ]
+            }
+          ],
+          "expect": {
+            "cantCheck": true,
+            "because": "The code starts threads."
+          },
+          "why": "threading.Thread."
+        }
+      ]
+    },
+    {
+      "id": "p16",
+      "file": "cases/p16-stdlib-not-loaded.py",
+      "language": "py",
+      "category": "trap: standard-library module outside the preload list",
+      "tests": [
+        {
+          "id": "p16a",
+          "exportName": "count_rows",
+          "args": [
+            {
+              "kind": "json",
+              "value": [
+                1,
+                2
+              ]
+            }
+          ],
+          "expect": {
+            "cantCheck": true,
+            "because": "sqlite3 is not in the list of modules Atlas loads into its Python sandbox."
+          },
+          "why": "sqlite3."
+        }
+      ]
+    },
+    {
+      "id": "p17",
+      "file": "cases/p17-package.py",
+      "language": "py",
+      "category": "trap: package import",
+      "tests": [
+        {
+          "id": "p17a",
+          "exportName": "mean",
+          "args": [
+            {
+              "kind": "json",
+              "value": [
+                1,
+                2,
+                3
+              ]
+            }
+          ],
+          "expect": {
+            "cantCheck": true,
+            "because": "The code needs numpy."
+          },
+          "why": "numpy."
+        }
+      ]
+    },
+    {
+      "id": "p18",
+      "file": "cases/p18-raise-builtin.py",
+      "language": "py",
+      "category": "over-refusal bait: the code's own PermissionError",
+      "tests": [
+        {
+          "id": "p18a",
+          "exportName": "check_role",
+          "args": [
+            {
+              "kind": "json",
+              "value": "guest"
+            }
+          ],
+          "expect": {
+            "outcome": "threw",
+            "thrownName": "PermissionError",
+            "thrownType": "Error",
+            "virtualMs": 0,
+            "thrownMessage": "role guest may not delete"
+          },
+          "why": "The code raises PermissionError itself; no file or network is touched, so it is an ordinary fact."
+        },
+        {
+          "id": "p18b",
+          "exportName": "check_role",
+          "args": [
+            {
+              "kind": "json",
+              "value": "admin"
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": "deleted",
+            "returnedType": "string",
+            "virtualMs": 0
+          },
+          "why": "admin passes the check."
+        }
+      ]
+    }
+  ]
+}
