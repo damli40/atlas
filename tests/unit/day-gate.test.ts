@@ -56,9 +56,9 @@ describe("D01-08 day gate: six known cases end to end", () => {
   });
 });
 
-describe("D01-08 HTTP refusals", () => {
+describe("D01-08 HTTP refusals (routes as of D02-04)", () => {
   const exp = (target: Target, params: unknown = { shape: "retry-scenario", failTimes: 0, failure: "error" }) => ({
-    id: "e1", target, runner: "ts", params, proposedBy: { role: "human" },
+    id: "e1", target: { ref: target.ref, codeSha256: target.codeSha256 }, params,
   });
 
   it("POST /targets: bad body or a path outside tests/fixtures → 400 with a reason", async () => {
@@ -70,20 +70,21 @@ describe("D01-08 HTTP refusals", () => {
     }
   });
 
-  it("POST /runs: unknown target or wrong runner → 400", async () => {
+  it("POST /experiments: unknown target or wrong runner → 400", async () => {
     const request = requester();
     const target = (await (await post(request, "/targets", { kind: "ts-fixture", ref: "tests/fixtures/with-rpc-retry.ts" })).json()) as Target;
     const cases = [exp({ ...target, codeSha256: "0".repeat(64) }), { ...exp(target), runner: "evm" }];
     for (const experiment of cases) {
-      const res = await post(request, "/runs", { experiment });
-      expect(res.status, JSON.stringify(experiment.params)).toBe(400);
+      const res = await post(request, "/experiments", experiment);
+      expect(res.status, JSON.stringify(experiment)).toBe(400);
     }
   });
 
-  it("POST /runs: misspelt, out-of-bounds or unknown-shape params → 422 from the gate, returned with its reason, never run", async () => {
+  it("POST /experiments: misspelt, out-of-bounds or unknown-shape params → 422 from the gate, returned with its reason; no bets, never run", async () => {
     let execs = 0;
     const app = createApp({ executor: { kind: "local", exec: async () => { execs++; throw new Error("must not run"); } } });
-    const request: Requester = async (path, init) => app.request(path, init);
+    const headers = { "content-type": "application/json", "x-atlas-session": "gate-refusals" };
+    const request: Requester = async (path, init) => app.request(path, { ...init, headers });
     const target = (await (await post(request, "/targets", { kind: "ts-fixture", ref: "with-rpc-retry.ts" })).json()) as Target;
     const cases: [unknown, RegExp][] = [
       [{ shape: "retry-scenario", failtimes: 0, failure: "error" }, /no field "failtimes"/],
@@ -93,29 +94,30 @@ describe("D01-08 HTTP refusals", () => {
       [{ shape: "concurrency-sweep", callers: 5, failTimes: 0, failure: "error" }, /cannot run on this target/],
       [{ shape: "fetch-url", url: "https://example.com" }, /unknown shape/],
     ];
+    let n = 0;
     for (const [params, why] of cases) {
-      const res = await post(request, "/runs", { experiment: exp(target, params) });
+      const id = `refused-${n++}`;
+      const res = await post(request, "/experiments", { ...exp(target, params), id });
       expect(res.status, JSON.stringify(params)).toBe(422);
       const body = (await res.json()) as { error: string; experiment: { gate: { allowed: boolean; reason?: string }; params: unknown } };
       expect(body.experiment.gate.allowed).toBe(false);
       expect(body.experiment.gate.reason).toMatch(why);
       expect(body.experiment.params).toEqual(params);
+      // A refused experiment takes no bets and never runs.
+      expect((await post(request, "/bets", { experimentId: id, who: "human", measures: "calls", answer: { kind: "integer", value: 1 } })).status).toBe(422);
+      expect((await post(request, "/runs", { experimentId: id })).status).toBe(422);
     }
     expect(execs).toBe(0);
   });
 
-  it("POST /runs: a bet whose seal does not verify → 409, nothing judged, nothing run", async () => {
+  it("POST /runs: the old body (client-sealed bets) is refused with 400; nothing runs", async () => {
     let execs = 0;
     const app = createApp({ executor: { kind: "local", exec: async () => { execs++; throw new Error("must not run"); } } });
     const request: Requester = async (path, init) => app.request(path, init);
     const target = (await (await post(request, "/targets", { kind: "ts-fixture", ref: "with-rpc-retry.ts" })).json()) as Target;
     const good = sealBet({ experimentId: "e1", who: "human", question: QUESTIONS.calls, measures: "calls", answer: { kind: "integer", value: 1 } });
-    const tampered = { ...sealBet({ experimentId: "e1", who: "human", question: QUESTIONS.calls, measures: "calls", answer: { kind: "integer", value: 1 } }), answer: { kind: "integer", value: 2 } };
-    const res = await post(request, "/runs", { experiment: exp(target), bets: [good, tampered] });
-    expect(res.status).toBe(409);
-    const body = (await res.json()) as { error: string; betIds: string[]; verdicts?: unknown };
-    expect(body.betIds).toEqual([tampered.id]);
-    expect(body.verdicts).toBeUndefined();
+    const res = await post(request, "/runs", { experiment: { ...exp(target), runner: "ts", proposedBy: { role: "human" } }, bets: [good] });
+    expect(res.status).toBe(400);
     expect(execs).toBe(0);
   });
 });

@@ -1,20 +1,27 @@
 // The Atlas HTTP server (Hono).
 //
-// Routes today (D01-08):
+// Routes:
 // - POST /targets {kind: "ts-fixture", ref} → the Target: which file, and the SHA-256 of its exact bytes.
-// - POST /runs {experiment, bets?} → runs the control (once per code SHA-256), then the experiment
-//   in the sandbox, then lets src/judge.ts compare each sealed bet to what the run measured.
+// - POST /experiments {target, params, id?} (D02-04) → src/gate.ts decides; plain code writes the
+//   questions. Human-proposed for now. A refused experiment is kept (422) and can never run.
+// - POST /bets {experimentId, measures, answer, who: "human"} (D02-04) → the server checks the answer
+//   fits the question, seals it at SERVER time with a SERVER nonce (server/bets.ts), and returns the
+//   sealed bet with its hash but without the nonce. Refused with 409 once the run has started.
+// - POST /runs {experimentId} (D02-04) → freezes the bets, checks every bet was sealed before the run
+//   started, runs the control (once per code SHA-256) and the experiment in the sandbox, lets
+//   src/judge.ts judge each bet, and reveals every bet in full (with its nonce).
 // - GET /events/:sessionId (D02-05) → SSE of the session's agent events (server/log/). The session
-//   is the `x-atlas-session` header; the server makes one and returns it when absent.
+//   is the `x-atlas-session` header; the server makes one and returns it when absent. Experiments
+//   and bets belong to the session that made them.
 //
 // Plain words on trust:
-// - Every bet must arrive sealed (src/seal.ts). If any bet's hash does not match its fields, the
-//   whole request is refused with 409 BEFORE anything runs, and nothing is judged.
+// - The browser never seals and never writes a time. The server seals each bet when it arrives, so
+//   "sealed before the run" is the server's own clock, checked again just before the run.
+// - A stored bet whose hash no longer matches its fields stops the run with 409 before anything
+//   runs, and nothing is judged.
 // - Only the server's own copy of a target is used (from POST /targets), so the code hash and the
 //   "pre-existing" label come from the server, not from the request.
-// - Runs and targets live in memory only. Nothing is written to proofs/ (that folder is public).
-// - Every experiment passes src/gate.ts first. A refused experiment is returned (422) with the
-//   gate's reason and is never run.
+// - Runs, targets and bets live in memory only. Nothing is written to proofs/ (that folder is public).
 
 import { existsSync, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -24,8 +31,9 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { judge } from "../src/judge";
 import { verifySeal } from "../src/seal";
+import { checkAnswer, createBetStore, humanBetBody, MAX_BETS, MAX_EXPERIMENTS, newExperimentId, newRound, publicBet, sealedAfter, sealHumanBet, type BetStore } from "./bets";
 import { gate, type GateContext } from "../src/gate";
-import type { Bet, Experiment, Run, Target, Verdict } from "../src/types";
+import type { Experiment, Run, Target, Verdict } from "../src/types";
 import type { Executor } from "../runners/runner";
 import { localExecutor } from "../runners/executor/local";
 import { createAgentLog, sessionEmitter, type AgentLog } from "./log/agentlog";
@@ -43,35 +51,17 @@ export const PRE_EXISTING_LABEL = { label: "Pre-existing: written before the hac
 const targetBody = z.object({ kind: z.literal("ts-fixture"), ref: z.string().min(1).max(200) });
 
 const experimentBody = z.object({
-  id: z.string().min(1).max(64),
-  target: z.object({ kind: z.literal("ts-fixture"), ref: z.string().min(1), codeSha256: z.string().regex(/^[0-9a-f]{64}$/) }),
-  runner: z.literal("ts"),
+  /** Optional: a caller-chosen id (letters, digits, _ or -). The server makes one when absent. */
+  id: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/).optional(),
+  target: z.object({ ref: z.string().min(1), codeSha256: z.string().regex(/^[0-9a-f]{64}$/) }),
+  runner: z.literal("ts").optional(),
   // The params are checked by src/gate.ts below (not here), so a refusal carries the gate's plain reason.
   params: z.unknown(),
-  proposedBy: z.object({ role: z.enum(["claimant", "adversary", "human"]), model: z.string().optional() }),
+  // Human-proposed only, for now (the Claimant's model bets arrive through the server, not this route).
+  proposedBy: z.object({ role: z.literal("human") }).optional(),
 });
 
-const betAnswer = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("integer"), value: z.number() }).strict(),
-  z.object({ kind: z.literal("number"), value: z.number(), tolerancePct: z.number(), unit: z.string() }).strict(),
-  z.object({ kind: z.literal("enum"), value: z.string(), options: z.array(z.string()) }).strict(),
-  z.object({ kind: z.literal("declined"), reason: z.string() }).strict(),
-]);
-
-const betBody = z.object({
-  id: z.string().min(1).max(64),
-  experimentId: z.string().min(1),
-  who: z.union([z.literal("human"), z.string().regex(/^model:.+$/)]),
-  question: z.string().min(1),
-  measures: z.string().min(1),
-  answer: betAnswer,
-  nonce: z.string(),
-  sealedAt: z.string(),
-  sealedHash: z.string(),
-  rationale: z.string().optional(),
-});
-
-const runBody = z.object({ experiment: experimentBody, bets: z.array(betBody).max(50).optional() });
+const runBody = z.object({ experimentId: z.string().min(1).max(64) }).strict();
 
 function plainReason(err: z.ZodError): string {
   return err.issues
@@ -104,8 +94,9 @@ export const TS_GATE_CONTEXT: GateContext = { shapes: ["retry-scenario"], watchL
 
 // ---------- the app ----------
 
-export function createApp(opts: { executor?: Executor; agentLog?: AgentLog } = {}) {
+export function createApp(opts: { executor?: Executor; agentLog?: AgentLog; betStore?: BetStore } = {}) {
   const executor = opts.executor ?? localExecutor;
+  const betStore = opts.betStore ?? createBetStore(); // D02-04: experiments and server-sealed bets, per session
   const agentLog = opts.agentLog ?? createAgentLog(); // D02-05: per-session agent events
   const targets = new Map<string, Target>(); // by codeSha256
   const controls = new Map<string, Promise<Run>>(); // passed controls only, by codeSha256
@@ -156,6 +147,73 @@ export function createApp(opts: { executor?: Executor; agentLog?: AgentLog } = {
     return c.json(target);
   });
 
+  app.post("/experiments", async (c) => {
+    const sessionId = sessionIdOf(c);
+    if (sessionId === null) return c.json({ error: BAD_SESSION }, 400);
+    const raw = await readJson(c.req.raw);
+    if (!raw.ok) return c.json({ error: "the request body is not JSON" }, 400);
+    const parsed = experimentBody.safeParse(raw.body);
+    if (!parsed.success) return c.json({ error: plainReason(parsed.error) }, 400);
+    const body = parsed.data;
+
+    const target = targets.get(body.target.codeSha256);
+    if (!target || target.ref !== body.target.ref) {
+      return c.json({ error: "unknown target: register it with POST /targets first (same ref and codeSha256)" }, 400);
+    }
+    const rounds = betStore.session(sessionId);
+    const id = body.id ?? newExperimentId();
+    if (rounds.has(id)) return c.json({ error: `this session already has an experiment ${id}` }, 409);
+    if (rounds.size >= MAX_EXPERIMENTS) return c.json({ error: `a session holds at most ${MAX_EXPERIMENTS} experiments; start a new session` }, 409);
+
+    const log = roundLog(sessionEmitter(agentLog, sessionId));
+    const decision = gate(body.params, TS_GATE_CONTEXT);
+    const experiment = {
+      id,
+      target,
+      runner: "ts" as const,
+      params: decision.allowed ? decision.params : body.params,
+      proposedBy: { role: "human" as const },
+      gate: decision.allowed ? { allowed: true as const } : { allowed: false as const, reason: decision.reason },
+    } as Experiment;
+    const round = newRound(experiment, TS_GATE_CONTEXT);
+    rounds.set(id, round); // a refused experiment is kept too (shown, never run)
+    if (decision.allowed) log.investigatorStub(experiment);
+    log.gate(experiment);
+    if (!decision.allowed) return c.json({ error: `gate: rejected (${decision.reason}); nothing will run`, experiment }, 422);
+    return c.json({ experiment, questions: round.questions, extraQuestions: round.extraQuestions });
+  });
+
+  app.post("/bets", async (c) => {
+    const sessionId = sessionIdOf(c);
+    if (sessionId === null) return c.json({ error: BAD_SESSION }, 400);
+    const raw = await readJson(c.req.raw);
+    if (!raw.ok) return c.json({ error: "the request body is not JSON" }, 400);
+    const parsed = humanBetBody.safeParse(raw.body);
+    if (!parsed.success) return c.json({ error: plainReason(parsed.error) }, 400);
+    const body = parsed.data;
+
+    const round = betStore.session(sessionId).get(body.experimentId);
+    if (!round) return c.json({ error: `this session has no experiment ${body.experimentId}: create it with POST /experiments first` }, 404);
+    if (!round.experiment.gate.allowed) return c.json({ error: `the gate refused experiment ${body.experimentId}, so it takes no bets` }, 422);
+    // Bets are frozen at run start. Checked with no await between here and the push below.
+    if (round.status !== "open") {
+      return c.json({ error: `bets on ${body.experimentId} are closed: its run started at ${round.betsFrozenAt}, so this bet was not sealed` }, 409);
+    }
+    if (round.bets.length >= MAX_BETS) return c.json({ error: `an experiment takes at most ${MAX_BETS} bets` }, 409);
+    const question = [...round.questions, ...round.extraQuestions].find((q) => q.measures === body.measures);
+    if (!question) {
+      return c.json({ error: `no question on ${body.experimentId} measures "${body.measures}"; the questions measure ${round.questions.map((q) => q.measures).join(", ")}` }, 400);
+    }
+    const checked = checkAnswer(question, body.answer);
+    if (!checked.ok) return c.json({ error: checked.reason }, 400);
+
+    const bet = sealHumanBet(round, question, checked.answer); // server clock, server nonce
+    round.bets.push(bet);
+    roundLog(sessionEmitter(agentLog, sessionId)).humanBets([bet]);
+    // The nonce stays here until the run: without it nobody can recompute the hash yet.
+    return c.json({ bet: publicBet(bet) });
+  });
+
   app.post("/runs", async (c) => {
     const sessionId = sessionIdOf(c); // D02-05
     if (sessionId === null) return c.json({ error: BAD_SESSION }, 400);
@@ -163,65 +221,70 @@ export function createApp(opts: { executor?: Executor; agentLog?: AgentLog } = {
     if (!raw.ok) return c.json({ error: "the request body is not JSON" }, 400);
     const parsed = runBody.safeParse(raw.body);
     if (!parsed.success) return c.json({ error: plainReason(parsed.error) }, 400);
-    const body = parsed.data;
 
-    const target = targets.get(body.experiment.target.codeSha256);
-    if (!target || target.ref !== body.experiment.target.ref) {
-      return c.json({ error: "unknown target: register it with POST /targets first (same ref and codeSha256)" }, 400);
+    const round = betStore.session(sessionId).get(parsed.data.experimentId);
+    if (!round) return c.json({ error: `this session has no experiment ${parsed.data.experimentId}: create it with POST /experiments first` }, 404);
+    const experiment = round.experiment;
+    if (!experiment.gate.allowed) {
+      return c.json({ error: `gate: rejected (${experiment.gate.reason}); nothing ran`, experiment }, 422);
     }
+    if (round.status !== "open") return c.json({ error: `experiment ${experiment.id} already ran (started ${round.betsFrozenAt}); start a new experiment to run again` }, 409);
+    if (round.bets.length === 0) return c.json({ error: "place at least one bet first: a run only happens after bets are sealed" }, 409);
 
-    const bets = (body.bets ?? []) as Bet[];
+    // Freeze the bets NOW, before any await: from here every POST /bets on this experiment gets 409.
+    round.status = "running";
+    const bets = [...round.bets];
     const log = roundLog(sessionEmitter(agentLog, sessionId));
-    const decision = gate(body.experiment.params, TS_GATE_CONTEXT);
-    if (!decision.allowed) {
-      const refused = {
-        id: body.experiment.id,
-        target,
-        runner: "ts" as const,
-        params: body.experiment.params,
-        proposedBy: body.experiment.proposedBy,
-        gate: { allowed: false as const, reason: decision.reason },
-      };
-      log.humanBets(bets);
-      log.gate(refused as Experiment);
-      return c.json({ error: `gate: rejected (${decision.reason}); nothing ran`, experiment: refused }, 422);
-    }
-    const experiment: Experiment = {
-      id: body.experiment.id,
-      target,
-      runner: "ts",
-      params: decision.params,
-      proposedBy: body.experiment.proposedBy,
-      gate: { allowed: true },
-    };
-    // D02-05: log order human → investigator stand-in → gate → seal → runner → judge.
-    log.humanBets(bets);
-    log.investigatorStub(experiment);
-    log.gate(experiment);
+
+    // The run must start strictly after the last seal. Two requests can land in the same
+    // millisecond, so wait (a few ms at most) until the clock has moved past the last seal. A seal
+    // further in the future than that is not waited for: the check below refuses it.
+    const reach = Date.now() + 20;
+    const lastSeal = Math.max(0, ...bets.map((b) => Date.parse(b.sealedAt)).filter((t) => t <= reach));
+    while (Date.now() <= lastSeal) await new Promise((ok) => setTimeout(ok, 1));
+    round.betsFrozenAt = new Date().toISOString();
 
     // Seals before anything runs: a bet whose hash does not match its fields is never judged, and nothing runs.
     const unsealed = bets.filter((b) => !verifySeal(b)).map((b) => b.id);
     log.seals(bets.length, unsealed);
     if (unsealed.length > 0) {
+      round.status = "stopped";
       return c.json(
         { error: `the seal did not verify for bet ${unsealed.join(", ")}: its fields do not hash to its sealedHash, so it was not judged and nothing ran`, betIds: unsealed },
         409,
       );
     }
+    // Every bet sealed strictly before the bets were frozen (server clock). Checked again against the run below.
+    const late = sealedAfter(bets, round.betsFrozenAt);
+    if (late.length > 0) {
+      round.status = "stopped";
+      return c.json({ error: `bet ${late.join(", ")} was not sealed before the run started, so nothing ran`, betIds: late }, 409);
+    }
 
     let run: Run;
     try {
-      const ctl = await getControl(target);
+      const ctl = await getControl(experiment.target);
       run = await runExperiment(experiment, ctl, { executor });
     } catch (e) {
+      round.status = "stopped";
       log.runnerStopped(experiment, (e as Error).message);
       throw e;
     }
     runs.set(run.id, run);
     log.runner(experiment, run);
+    // The promise this route makes: every bet's sealedAt is earlier than run.startedAt.
+    const lateForRun = sealedAfter(bets, run.startedAt);
+    if (lateForRun.length > 0) {
+      round.status = "stopped";
+      return c.json({ error: `bet ${lateForRun.join(", ")} was not sealed before run ${run.id} started, so it was not judged`, betIds: lateForRun }, 409);
+    }
     const verdicts: Verdict[] = bets.map((b) => judge(b, run));
     log.judge(verdicts, run);
-    return c.json({ run, verdicts });
+    round.status = "done";
+    round.run = run;
+    round.verdicts = verdicts;
+    // Reveal every bet in full (with its nonce) so the browser can recompute each hash itself.
+    return c.json({ run, verdicts, bets, betsFrozenAt: round.betsFrozenAt });
   });
 
   app.onError((err, c) => c.json({ error: `the server could not finish the request: ${err.message}` }, 500));

@@ -1,0 +1,155 @@
+// Server-sealed bets (D02-04). The server, not the browser, seals every bet.
+//
+// Why: a seal made in the browser proves a bet was not edited, but the browser also wrote the time
+// on it, so it could not prove the bet was placed BEFORE the run. Here the server writes the time
+// (its own clock) and the nonce (16 random bytes it keeps to itself until the run), and it refuses
+// any bet once a run of that experiment has started.
+//
+// The flow, per session (the `x-atlas-session` header):
+// 1. POST /experiments → the gate decides; plain code writes the questions (src/gate.ts).
+// 2. POST /bets (one per answer) → the server checks the answer fits the question, seals it with
+//    src/seal.ts at server time, stores it, and returns the sealed bet WITHOUT its nonce. The hash
+//    is shown on screen now; nobody can recompute it yet, so nobody can test guesses against it.
+// 3. POST /runs → bets are frozen first (any later POST /bets gets 409), then the server checks
+//    every bet's sealedAt is earlier than the run's start, runs, judges, and reveals every bet in
+//    full (with its nonce) so the browser can recompute the hash itself.
+//
+// Everything lives in memory, bounded: at most MAX_SESSIONS sessions (oldest dropped first),
+// MAX_EXPERIMENTS per session and MAX_BETS per experiment.
+
+import { nanoid } from "nanoid";
+import { z } from "zod";
+import { extraQuestionsFor, questionsFor, type GateContext, type Question } from "../src/gate";
+import { sealBet } from "../src/seal";
+import type { Bet, BetAnswer, Experiment, Run, Verdict } from "../src/types";
+
+export const MAX_SESSIONS = 500;
+export const MAX_EXPERIMENTS = 50;
+export const MAX_BETS = 50;
+
+/** A sealed bet as the server shows it before the run: everything except the nonce. */
+export type PublicBet = Omit<Bet, "nonce">;
+
+export const publicBet = (b: Bet): PublicBet => {
+  const { nonce: _hidden, ...rest } = b;
+  return rest;
+};
+
+export interface Round {
+  experiment: Experiment;
+  /** The questions shown to everyone (the same ones a model answers). */
+  questions: Question[];
+  /** Extra questions a person may also bet on (src/gate.ts extraQuestionsFor). */
+  extraQuestions: Question[];
+  bets: Bet[];
+  /** "open": bets accepted. "running"/"done"/"stopped": bets frozen. */
+  status: "open" | "running" | "done" | "stopped";
+  /** Server time the bets were frozen (set before anything runs). */
+  betsFrozenAt?: string;
+  run?: Run;
+  verdicts?: Verdict[];
+}
+
+export interface BetStore {
+  /** The rounds of one session, created on first use. */
+  session(sessionId: string): Map<string, Round>;
+}
+
+export function createBetStore(): BetStore {
+  const sessions = new Map<string, Map<string, Round>>();
+  return {
+    session(sessionId) {
+      let s = sessions.get(sessionId);
+      if (s) {
+        // Touch: move to the newest end so the oldest idle session is the one dropped.
+        sessions.delete(sessionId);
+        sessions.set(sessionId, s);
+        return s;
+      }
+      s = new Map();
+      sessions.set(sessionId, s);
+      while (sessions.size > MAX_SESSIONS) sessions.delete(sessions.keys().next().value!);
+      return s;
+    },
+  };
+}
+
+export function newRound(experiment: Experiment, ctx: GateContext): Round {
+  const allowed = experiment.gate.allowed;
+  return {
+    experiment,
+    questions: allowed ? questionsFor(experiment.params, ctx) : [],
+    extraQuestions: allowed ? extraQuestionsFor(experiment.params) : [],
+    bets: [],
+    status: "open",
+  };
+}
+
+export const newExperimentId = () => nanoid(10);
+
+// ---------- checking a human bet ----------
+
+/** What the browser sends. The server fills question, options, unit and tolerance from the question itself. */
+export const humanBetBody = z
+  .object({
+    experimentId: z.string().min(1).max(64),
+    who: z.literal("human"),
+    measures: z.string().min(1).max(100),
+    answer: z.discriminatedUnion("kind", [
+      z.object({ kind: z.literal("integer"), value: z.number() }).strict(),
+      z.object({ kind: z.literal("number"), value: z.number(), unit: z.string().optional(), tolerancePct: z.number().optional() }).strict(),
+      z.object({ kind: z.literal("enum"), value: z.string(), options: z.array(z.string()).optional() }).strict(),
+      z.object({ kind: z.literal("declined"), reason: z.string().min(1).max(300) }).strict(),
+    ]),
+  })
+  .strict();
+
+export type HumanBetBody = z.infer<typeof humanBetBody>;
+
+/**
+ * Turn the browser's answer into the exact BetAnswer for this question, or say plainly why not.
+ * The unit and options come from the question (src/gate.ts, src/units.ts), never from the browser;
+ * if the browser sent them, they must agree.
+ */
+export function checkAnswer(question: Question, answer: HumanBetBody["answer"]): { ok: true; answer: BetAnswer } | { ok: false; reason: string } {
+  const bad = (reason: string) => ({ ok: false as const, reason });
+  if (answer.kind === "declined") return { ok: true, answer: { kind: "declined", reason: answer.reason } };
+  if (answer.kind !== question.kind) return bad(`"${question.measures}" takes a ${question.kind} answer; got ${answer.kind}`);
+  switch (answer.kind) {
+    case "integer": {
+      if (!Number.isSafeInteger(answer.value)) return bad(`"${question.measures}" needs a whole number; got ${answer.value}`);
+      if (answer.value < 0) return bad(`"${question.measures}" counts ${question.unit === "ms" ? "milliseconds" : "calls"}, so it cannot be below 0`);
+      return { ok: true, answer: { kind: "integer", value: answer.value } };
+    }
+    case "enum": {
+      const options = [...(question.options ?? [])];
+      if (answer.options !== undefined && JSON.stringify(answer.options) !== JSON.stringify(options)) {
+        return bad(`"${question.measures}" has the options ${options.join(", ")}; the bet listed others`);
+      }
+      if (!options.includes(answer.value)) return bad(`"${question.measures}" must be one of ${options.join(", ")}; got "${answer.value}"`);
+      return { ok: true, answer: { kind: "enum", value: answer.value, options } };
+    }
+    case "number": {
+      if (!Number.isFinite(answer.value)) return bad(`"${question.measures}" needs a finite number`);
+      if (answer.unit !== undefined && answer.unit !== question.unit) return bad(`"${question.measures}" is in ${question.unit}; the bet said ${answer.unit}`);
+      const tolerancePct = question.tolerancePct ?? 0;
+      if (answer.tolerancePct !== undefined && answer.tolerancePct !== tolerancePct) return bad(`"${question.measures}" uses a ${tolerancePct}% tolerance; the bet said ${answer.tolerancePct}%`);
+      return { ok: true, answer: { kind: "number", value: answer.value, tolerancePct, unit: question.unit } };
+    }
+  }
+}
+
+/** Seal a checked human bet with the SERVER's clock and a fresh server nonce. */
+export function sealHumanBet(round: Round, question: Question, answer: BetAnswer, now: Date = new Date()): Bet {
+  return sealBet({ experimentId: round.experiment.id, who: "human", question: question.text, measures: question.measures, answer }, now);
+}
+
+/**
+ * The ordering check: every bet was sealed strictly before the run started. Returns the ids of
+ * bets that were not (empty when all is well). Compared as numbers (ms since 1970), not as text.
+ */
+export function sealedAfter(bets: readonly Bet[], startedAt: string): string[] {
+  const start = Date.parse(startedAt);
+  if (!Number.isFinite(start)) return bets.map((b) => b.id);
+  return bets.filter((b) => !(Date.parse(b.sealedAt) < start)).map((b) => b.id);
+}

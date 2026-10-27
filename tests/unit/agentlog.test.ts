@@ -6,8 +6,8 @@ import { createApp } from "../../server/app";
 import { AgentEventError, createAgentLog, sessionEmitter } from "../../server/log/agentlog";
 import { INVESTIGATOR_STUB_ACTION } from "../../server/log/round";
 import { SESSION_HEADER } from "../../server/log/sse";
-import { sealBet } from "../../src/seal";
-import type { AgentEvent, Bet, Target } from "../../src/types";
+import { createBetStore } from "../../server/bets";
+import type { AgentEvent, Target } from "../../src/types";
 import { runRound } from "../tools/agentlog-round";
 
 const usage = { promptTokens: 1200, completionTokens: 300, usd: 0.0042 };
@@ -49,17 +49,19 @@ describe("agent log bus", () => {
 });
 
 describe("one full retry round over app.request", () => {
-  it("emits human → investigator stand-in (human) → gate → seal → runner → judge, each well formed", async () => {
+  it("emits investigator stand-in (human) → gate → human bets → seal → runner → judge, each well formed (order since D02-04)", async () => {
     const agentLog = createAgentLog();
     const app = createApp({ agentLog });
     const { sessionId, verdicts } = await runRound((p, init) => app.request(p, init));
     expect(verdicts.map((v) => v.outcome)).toEqual(["matched", "matched", "not_matched"]);
 
     const events = agentLog.history(sessionId).map((e) => e.event);
-    expect(events.map((e) => e.role)).toEqual(["human", "human", "human", "human", "gate", "seal", "runner", "judge"]);
-    expect(events.slice(0, 3).map((e) => e.action)).toEqual(["seals a bet on calls", "seals a bet on outcome", "seals a bet on calls"]);
-    expect(events[3]!.action).toBe(INVESTIGATOR_STUB_ACTION);
-    expect(events[4]!.action).toBe("allowed (src/gate.ts)");
+    // D02-04: the server seals each bet when it arrives (after the gate wrote the questions), so the
+    // human lines now come after the gate, at the real time each bet was sealed.
+    expect(events.map((e) => e.role)).toEqual(["human", "gate", "human", "human", "human", "seal", "runner", "judge"]);
+    expect(events[0]!.action).toBe(INVESTIGATOR_STUB_ACTION);
+    expect(events[1]!.action).toBe("allowed (src/gate.ts)");
+    expect(events.slice(2, 5).map((e) => e.action)).toEqual(["seals a bet on calls", "seals a bet on outcome", "seals a bet on calls"]);
     expect(events[5]!.action).toBe("verifies 3 seals");
     expect(events[6]!.action).toBe("runs withRpcRetry in the sandbox (S3)");
     expect(events[7]!.action).toBe("judges 3 bets: 2 matched, 1 didn't match");
@@ -84,20 +86,23 @@ describe("one full retry round over app.request", () => {
 
   it("logs a refused seal and runs nothing", async () => {
     const agentLog = createAgentLog();
-    const app = createApp({ agentLog });
+    const betStore = createBetStore();
+    let execs = 0;
+    const app = createApp({ agentLog, betStore, executor: { kind: "local", exec: async () => { execs++; throw new Error("must not run"); } } });
     const headers = { "content-type": "application/json", [SESSION_HEADER]: "tamper" };
-    const target = (await (await app.request("/targets", { method: "POST", headers, body: JSON.stringify({ kind: "ts-fixture", ref: "tests/fixtures/with-rpc-retry.ts" }) })).json()) as Target;
-    const bet: Bet = sealBet({ experimentId: "S1", who: "human", question: "How many calls?", measures: "calls", answer: { kind: "integer", value: 1 } });
-    const tampered = { ...bet, answer: { kind: "integer", value: 2 } };
-    const res = await app.request("/runs", {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ experiment: { id: "S1", target, runner: "ts", params: { shape: "retry-scenario", failTimes: 0, failure: "error" }, proposedBy: { role: "human" } }, bets: [tampered] }),
-    });
+    const post = (path: string, body: unknown) => app.request(path, { method: "POST", headers, body: JSON.stringify(body) });
+    const target = (await (await post("/targets", { kind: "ts-fixture", ref: "tests/fixtures/with-rpc-retry.ts" })).json()) as Target;
+    await post("/experiments", { id: "S1", target, params: { shape: "retry-scenario", failTimes: 0, failure: "error" } });
+    expect((await post("/bets", { experimentId: "S1", who: "human", measures: "calls", answer: { kind: "integer", value: 1 } })).status).toBe(200);
+    // Someone with access to the server's memory edits the stored answer after it was sealed.
+    const stored = betStore.session("tamper").get("S1")!.bets[0]!;
+    stored.answer = { kind: "integer", value: 2 };
+    const res = await post("/runs", { experimentId: "S1" });
     expect(res.status).toBe(409);
     const roles = agentLog.history("tamper").map((e) => e.event.role);
-    expect(roles).toEqual(["human", "human", "gate", "seal"]);
+    expect(roles).toEqual(["human", "gate", "human", "seal"]);
     expect(agentLog.history("tamper").at(-1)!.event.action).toMatch(/^refuses bet/);
+    expect(execs).toBe(0);
   });
 });
 
