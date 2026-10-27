@@ -5,6 +5,7 @@
 //   npx tsx bench/truth/run.ts                      # local executor (Node --permission; macOS sandbox-exec for Python)
 //   ATLAS_EXECUTOR=modal npx tsx bench/truth/run.ts # Modal sandboxes, when the Modal executor (batch E4) is on this branch
 //   npx tsx bench/truth/run.ts --only t03a,p04b     # a subset (the result file then says it is partial)
+//   npx tsx bench/truth/run.ts --render results/<date>.json   # rewrite the .md table from a result file (no run)
 //
 // What it does, in order, for each test: build the pasted target and gate-check the call exactly as a pasted round
 // does (bench/lib/corpus.ts); run it with tsRunner().run, the production entry point (the known-case control runs
@@ -13,7 +14,7 @@
 // a model, and costs $0. Tests run one at a time so one slow test cannot push another past Atlas's real-time limit.
 
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { experimentFor, loadCorpus, type LoadedFunction, type CorpusTest } from "../lib/corpus.ts";
 import { CLASSES, classify, type Classified, type TruthClass, type TruthExpect } from "./classify.ts";
@@ -104,7 +105,7 @@ function short(v: unknown, max = 70): string {
 function expectedCell(e: TruthExpect): string {
   if (e.cantCheck) return "can't check";
   const parts: string[] = [e.outcome];
-  if (e.returnedJson !== undefined) parts.push(`json ${short(e.returnedJson, 40)}`);
+  if (e.returnedJson !== undefined) parts.push(`json ${short(JSON.stringify(e.returnedJson), 40)}`);
   if (e.returnedNotJson) parts.push(`not JSON (${e.returnedNotJson.type})`);
   if (e.thrownName !== undefined) parts.push(`name ${e.thrownName ?? "(none)"}`);
   if (e.thrownType !== undefined && e.outcome === "threw") parts.push(`type ${e.thrownType}`);
@@ -146,7 +147,7 @@ export function renderMarkdown(meta: Record<string, unknown>, records: TestRecor
   }
   const bad = records.filter((r) => r.classification !== "correct fact" && r.classification !== "correct can't-check");
   lines.push("", "## Tests that are not correct facts or correct can't-checks", "");
-  if (bad.length === 0) lines.push("None.");
+  if (bad.length === 0) lines.push("None.", "");
   for (const r of bad) {
     lines.push(`### ${r.id} (${r.file}, \`${r.exportName}\`): ${r.classification}`, "");
     lines.push(`- Expected: ${expectedCell(r.expected)}`);
@@ -171,6 +172,13 @@ export function renderMarkdown(meta: Record<string, unknown>, records: TestRecor
 }
 
 async function main(): Promise<void> {
+  const renderArg = process.argv.indexOf("--render");
+  if (renderArg !== -1) {
+    const file = join(HERE, process.argv[renderArg + 1] ?? "");
+    const saved = JSON.parse(readFileSync(file, "utf8")) as { meta: Record<string, unknown>; counts: Record<string, number>; byLanguage: Record<string, Record<string, number>>; tests: TestRecord[] };
+    writeFileSync(file.replace(/\.json$/, ".md"), scrubPaths(renderMarkdown(saved.meta, saved.tests, saved.counts, saved.byLanguage)).text);
+    return;
+  }
   const onlyArg = process.argv.indexOf("--only");
   const only = onlyArg !== -1 ? new Set((process.argv[onlyArg + 1] ?? "").split(",").filter(Boolean)) : null;
   const { js, py, name } = await pickExecutors();
