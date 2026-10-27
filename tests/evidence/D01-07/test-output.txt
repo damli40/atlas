@@ -1,5 +1,5 @@
 
- RUN  v5.0.5 /Users/Admin/Documents/Atlas-wt/meta
+ RUN  v5.0.5 <repo> (local path removed)
 
  ✓ tests/unit/meta-client.test.ts > Meta client > success: returns content, finish reason and usage priced per 1M tokens 21ms
  ✓ tests/unit/meta-client.test.ts > Meta client > prices Wonder at $4 in / $20 out per 1M tokens 0ms

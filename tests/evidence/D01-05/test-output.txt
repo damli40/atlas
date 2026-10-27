@@ -1,5 +1,5 @@
 
- RUN  v5.0.5 /Users/Admin/Documents/Atlas-wt/harness
+ RUN  v5.0.5 <repo> (local path removed)
 
  ✓ tests/unit/executor.test.ts > local executor boundary (Node permission model) > runs node in its temp folder and returns stdout 47ms
  ✓ tests/unit/executor.test.ts > local executor boundary (Node permission model) > blocks a network connection to a listening local port 49ms

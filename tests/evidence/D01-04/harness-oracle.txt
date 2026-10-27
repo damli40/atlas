@@ -1,5 +1,5 @@
 
- RUN  v5.0.5 /Users/Admin/Documents/Atlas-wt/harness
+ RUN  v5.0.5 <repo> (local path removed)
 
 stdout | tests/unit/harness.test.ts > TS harness against the oracle table (real withRpcRetry, virtual clock) > S1: calls, waits, log lines and outcome match the oracle row
 S1 measured {"calls":1,"waitCount":0,"waitsMs":"","logCount":0,"logAttempts":"","totalWaitMs":0,"outcome":"returns","settledAtMs":0,"returned":"\"the value\""} wall=0.3ms

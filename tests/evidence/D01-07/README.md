@@ -61,7 +61,7 @@ Wonder's $4 / $20 is the published price.
 
 ## What it proves
 
-- The client builds the request the build plan specifies and handles success, one length retry, a second
+- The client builds the request Atlas's design specifies and handles success, one length retry, a second
   empty reply, HTTP errors, network errors and timeouts, and a rejected `response_format`, all against a mocked network.
 - A fake key placed in a server error message and a thrown error does not appear in the returned reason or in usage.jsonl.
 - One real call works end to end and writes one priced usage line.

@@ -29,8 +29,8 @@ None of them is copied from the oracle table.
 - Two runs with the same seed give deep-equal traces and results. A different seed gives
   different errors.
 - If the code under test waits on a real timer the harness doesn't control, the outcome is
-  reported as can't-check (`notMeasured.outcome`), not as "pending". This guards against plan
-  section 10 item 7 (virtual time leaking into real time).
+  reported as can't-check (`notMeasured.outcome`), not as "pending". This guards against
+  virtual time leaking into real time.
 
 ## What it does not prove
 

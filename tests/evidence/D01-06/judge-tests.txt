@@ -1,5 +1,5 @@
 
- RUN  v5.0.5 /Users/Admin/Documents/Atlas-wt/judge
+ RUN  v5.0.5 <repo> (local path removed)
 
  ✓ tests/unit/units.test.ts > usdToUsd1e18 (no float drift) > converts whole and decimal USD exactly 1ms
  ✓ tests/unit/units.test.ts > usdToUsd1e18 (no float drift) > does not equal the floating-point product where that drifts 0ms

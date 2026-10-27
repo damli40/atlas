@@ -78,15 +78,17 @@ describe("TS harness against the oracle table (real withRpcRetry, virtual clock)
     expect(other.out.trace).not.toEqual(a.out.trace);
   });
 
-  it("S3: the five errors are all different", async () => {
+  it("S3: five rejected calls, each error naming its own call (1 to 5), and the thrown one is call 5's", async () => {
+    // The old version checked only that the five texts differ, which the "(call n)" suffix always
+    // made true. This checks which call each error came from, which a harness bug could break.
     const { out } = await runCase("S3");
-    const errors = out.trace.filter((t) => t.event === "reject").map((t) => t.data?.error);
-    expect(errors).toHaveLength(5);
-    expect(new Set(errors).size).toBe(5);
+    const errors = out.trace.filter((t) => t.event === "reject").map((t) => String(t.data?.error));
+    expect(errors.map((e) => /\(call (\d+)\)$/.exec(e)?.[1])).toEqual(["1", "2", "3", "4", "5"]);
+    expect(out.result.measured.thrown).toBe(errors[4]);
   });
 
   it("reports can't-check (not 'pending') when the code waits on a real timer the harness does not control", async () => {
-    // A stand-in that ignores the injected sleep and uses a real timer: the leak plan section 10 item 7 warns about.
+    // A stand-in that ignores the injected sleep and uses a real timer: virtual time leaking into real time.
     const leaky: RetryFn = async (_label, fn) => {
       try {
         return await fn();

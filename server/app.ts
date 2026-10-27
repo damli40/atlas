@@ -11,7 +11,7 @@
 // - Only the server's own copy of a target is used (from POST /targets), so the code hash and the
 //   "pre-existing" label come from the server, not from the request.
 // - Runs and targets live in memory only. Nothing is written to proofs/ (that folder is public).
-// - The experiment bounds below stand in for src/gate.ts until that exists (D02).
+// - The experiment bounds below stand in for src/gate.ts until that exists.
 
 import { existsSync, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";

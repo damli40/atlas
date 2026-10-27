@@ -24,7 +24,7 @@ names the row and the field.
 ## Node permission flag finding
 
 Node 25.8.1 has the permission model as a stable flag, `--permission`. The old name,
-`--experimental-permission`, is rejected with "bad option". The build plan's example command
+`--experimental-permission`, is rejected with "bad option". An example command written earlier
 uses the old name and would fail. The executor drops it if a caller passes it and always adds
 `--permission` itself. The tests show these blocks inside the child, each throwing `ERR_ACCESS_DENIED`:
 - a TCP connection to a port that really is listening on 127.0.0.1

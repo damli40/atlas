@@ -1,5 +1,5 @@
 
- RUN  v5.0.5 /Users/Admin/Documents/Atlas-Meta
+ RUN  v5.0.5 <repo> (local path removed)
 
  ✓ tests/unit/fixture.test.ts > withRpcRetry fixture > original file still has the pinned SHA-256 1ms
  ✓ tests/unit/fixture.test.ts > withRpcRetry fixture > fixture block equals lines 31–86 of the original 1ms

@@ -1,11 +1,11 @@
-// Runner and Executor interfaces (copied as written in the build plan, section 3.2).
+// Runner and Executor interfaces.
 //
 // Plain words: an Executor is WHERE a command runs (this machine, or a cloud sandbox). A Runner
 // is WHAT gets run (the TS harness or the EVM fork) and turns the raw output into a Run.
 
 import type { Change, Experiment, Run, Target } from "../src/types.ts";
 
-/** WHERE a command runs. One implementation per D16 option; the Runner never knows which. */
+/** WHERE a command runs. One implementation per place (this machine, or a cloud sandbox); the Runner never knows which. */
 export interface Executor {
   kind: "local" | "modal";
   /** Run a command in an isolated working dir with the given files, no network unless allowNetwork, hard wall-clock limit. */

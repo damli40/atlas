@@ -1,6 +1,6 @@
 $ vitest run
 
- RUN  v5.0.5 /Users/Admin/Documents/Atlas-Meta
+ RUN  v5.0.5 <repo> (local path removed)
 
 
  Test Files  1 passed (1)
