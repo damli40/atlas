@@ -25,7 +25,7 @@ The mark adds no new words. Its only text is the screen-reader label, built from
 ## What this does not prove
 - The two acceptance cases are written by hand as `Verdict` objects (in `tests/tools/scoreboard-cases.ts`), because no real round so far has you matching while the model can't check. Every other mark on the page comes from a real run.
 - No line-end check here. `lines.mjs` checks isometric `.iso-line` texture lines, and the mark is a flat logo with none of them. A line that stops short is the message here, not a fault.
-- The proof card and the film's end frame (plan section 6) do not exist yet, so they do not use this component yet.
+- The proof card and the film's end frame do not exist yet, so they do not use this component yet.
 - The pages are static end states. The grow-and-fill animation was looked at only in the live harness for D05-02, not filmed frame by frame.
 
 Rebuild the pages: `npx tsx tests/tools/machine-pages.tsx` (it writes D05-01 and D05-02 together; run ids change on every rebuild).

@@ -1,6 +1,6 @@
 # D05-05: "Ask why", only sentences with run evidence
 
-Date: 2026-10-27 (WAT) · no extra model call (the sentences come from the D05-04 live rounds) · `mida` not run.
+Date: 2026-10-27 (WAT) · no extra model call (the sentences come from the D05-04 live rounds).
 
 ## The rule, in plain words
 

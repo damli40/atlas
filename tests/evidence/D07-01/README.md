@@ -1,6 +1,6 @@
 # D07-01: open-weights mode (Muse Spark Open on Baseten)
 
-Date: 2026-10-27 (WAT) · `mida` not run · nothing written to `proofs/` (proofs kept in memory, copied here as `round-<n>.atlas.json`).
+Date: 2026-10-27 (WAT) · nothing written to `proofs/` (proofs kept in memory, copied here as `round-<n>.atlas.json`).
 
 ## Where to look first
 

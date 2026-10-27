@@ -1,6 +1,6 @@
 # D05-04: the agent log strip (D11), readable at 1920×1080
 
-Date: 2026-10-27 (WAT) · Node v25.8.1 · headless Chromium (chrome-headless-shell 1208) · `mida` not run.
+Date: 2026-10-27 (WAT) · Node v25.8.1 · headless Chromium (chrome-headless-shell 1208).
 Live models: `muse-wonder-1.0` (Investigator, Moonwell) and `muse-spark-1.3` (bets, both rounds). Base fork live.
 The RPC URL, its host and the Meta key appear in no file here (checked by script: 0 pieces found in D04-04, D05-04, D05-05).
 

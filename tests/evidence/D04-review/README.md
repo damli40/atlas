@@ -1,6 +1,6 @@
 # D04-review: fixes for the days 3–4 adversarial review
 
-Date: 2026-10-27 (WAT) · Node v25.8.1 · no live Meta call (every model answer is a mocked `chat()`), nothing written to `proofs/`, `mida` not run. The Base RPC was loaded only for the RPC test run and the concurrent probe, and it appears in no file here (checked by script: 0 pieces of the URL, host, subdomain or key).
+Date: 2026-10-27 (WAT) · Node v25.8.1 · no live Meta call (every model answer is a mocked `chat()`), nothing written to `proofs/`. The Base RPC was loaded only for the RPC test run and the concurrent probe, and it appears in no file here (checked by script: 0 pieces of the URL, host, subdomain or key).
 
 The review found 1 blocker (B1), 6 should-fix items (S1–S6) and 10 minors (M1–M10). All 7 main items are fixed, and 9 of the 10 minors. Every fix has a regression test. Each test was also run on the code before the fixes ([`regression-tests-on-old-code.txt`](regression-tests-on-old-code.txt)).
 

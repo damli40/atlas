@@ -28,7 +28,7 @@ The 14 wrapper addresses are not typed in by hand. `runners/evm/apply.ts` parses
 - All 14 wrapper addresses have code at 42194662; each holds 14,686 bytes. USDC and USDbC use the
   same wrapper (`CHAINLINK_USDC_USD_OEV_WRAPPER`), so there are 13 distinct addresses.
 - `admin()` of the oracle `0xEC94…a9d0` = `0x8b621804a7637b781e2BbD58e256a591F2dF7d51`, the TemporalGovernor.
-- So the plan's fallback (section 5.5) is not needed: Level 2 can run at 42194662.
+- So no fallback is needed: Level 2 can run at 42194662.
 
 ## What it proves
 

@@ -65,7 +65,7 @@ not measured, under `notMeasured["refUsd1e18:cbETH"]`).
 The stablecoin control covers USDC, USDbC, DAI and USDS. EURC is a touched market but a euro coin,
 so a 0.95–1.05 **USD** band does not apply to it; it is left out on purpose.
 
-## Guard for Level 2 (plan section 10, item 1)
+## Guard for Level 2: the fork must really be before the proposal
 
 `assertPreExecution(fork)` in `runners/evm/control.ts` checks that `getFeed("cbETH")` is the old
 feed `0xB0Ba…` and that cbETH reads above 1e21 (USD 1e18). Tested on real forks: at 42194662 it

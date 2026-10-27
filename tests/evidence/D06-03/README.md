@@ -1,6 +1,6 @@
 # D06-03: proof card, .atlas.json download and "re-run it"
 
-Date: 2026-10-27 (WAT) · Base RPC loaded at runtime (never printed) · model calls off · `mida` not run.
+Date: 2026-10-27 (WAT) · Base RPC loaded at runtime (never printed) · model calls off.
 
 ## Where to look first
 

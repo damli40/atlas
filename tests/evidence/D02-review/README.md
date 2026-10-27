@@ -1,6 +1,6 @@
 # D02-review: fixes for the day-2 adversarial review
 
-Date: 2026-10-27 (WAT) · Node v25.8.1 · no live Meta call (every model answer here is a mocked `chat()`), nothing written to `proofs/`, `mida` not run.
+Date: 2026-10-27 (WAT) · Node v25.8.1 · no live Meta call (every model answer here is a mocked `chat()`), nothing written to `proofs/`.
 
 The day-2 review found 0 blockers, 8 should-fix items (S1–S8) and 11 minor ones. All 8 should-fix
 items are fixed, and 9 of the 11 minors. Each fix has a regression test. Every one of those tests

@@ -1,6 +1,6 @@
 # D06-02: waves slider (`concurrency-sweep`, 1 to 200 callers)
 
-Date: 2026-10-27 (WAT) · Node v25.8.1 · headless Chromium (chrome-headless-shell) · no model calls · `mida` not run.
+Date: 2026-10-27 (WAT) · Node v25.8.1 · headless Chromium (chrome-headless-shell) · no model calls.
 
 ## Where to look first
 

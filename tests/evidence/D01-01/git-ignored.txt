@@ -2,7 +2,6 @@
 ?? README.md
 ?? brand/
 ?? tests/
-!! .mida/
 !! BUILD-CARD.md
 !! CLAUDE.md
 !! VISION.md

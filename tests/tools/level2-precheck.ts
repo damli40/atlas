@@ -1,7 +1,7 @@
 // D04-00 pre-flight for Level 2: at fork 42194662 (one block before MIP-X43 ran), does every OEV
 // wrapper the proposal points the oracle at already have code, and is the oracle's admin the
 // TemporalGovernor? If a wrapper has no code, setFeed would point at an empty address and Level 2
-// cannot run as planned (plan section 5.5 fallback). This script only reads; it never works around.
+// cannot run at that block, and a fallback would be needed. This script only reads; it never works around.
 //   ( set -a; . ~/.config/atlas/rpc.env; set +a; pnpm exec tsx tests/tools/level2-precheck.ts tests/evidence/D04-00/precheck.json )
 // The RPC URL is never written.
 

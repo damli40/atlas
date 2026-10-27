@@ -66,4 +66,4 @@ runs/tmp/
 # official/            copy of the participant guide
 # pitch/               decisions, drafts, X research
 # research/            councils, evidence, Meta key tests
-# .mida/ .claude/
+# tool folders (.claude/ and others)

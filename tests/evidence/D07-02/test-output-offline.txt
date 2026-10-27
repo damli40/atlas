@@ -1,6 +1,6 @@
 $ vitest run
 
- RUN  v5.0.5 <home>/Documents/Atlas-wt/adversary
+ RUN  v5.0.5 <repo>
 
 
  Test Files  65 passed (65)

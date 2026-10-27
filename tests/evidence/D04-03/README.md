@@ -1,6 +1,6 @@
 # D04-03: the Investigator on the fixture and on Moonwell PR #578
 
-Date: 2026-10-27 (WAT) · model `muse-wonder-1.0` (fallback `muse-spark-1.3`, never needed) · `mida` not run · nothing written to `proofs/`.
+Date: 2026-10-27 (WAT) · model `muse-wonder-1.0` (fallback `muse-spark-1.3`, never needed) · nothing written to `proofs/`.
 
 ## Where to look first
 

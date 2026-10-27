@@ -1,6 +1,6 @@
 # D19: on Moonwell, Muse Spark gets exactly what the person sees before betting
 
-Date: 2026-10-27 (WAT) · model `muse-spark-1.3` (bet-only) · `mida` not run · nothing written to `proofs/`.
+Date: 2026-10-27 (WAT) · model `muse-spark-1.3` (bet-only) · nothing written to `proofs/`.
 
 Two rounds of live calls, both recorded as they came back:
 - **v1 context: 1 line** (commit e7769c9). The context had the level sentence, the block and its time, the question, the unit, the

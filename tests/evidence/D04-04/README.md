@@ -1,6 +1,6 @@
 # D04-04: loop gate, both targets in the browser, each round writes an .atlas.json
 
-Date: 2026-10-27 (WAT) · models `muse-wonder-1.0` (Investigator), `muse-spark-1.3` (bets) · `mida` not run ·
+Date: 2026-10-27 (WAT) · models `muse-wonder-1.0` (Investigator), `muse-spark-1.3` (bets) ·
 nothing written to the public `proofs/` (the live rounds wrote to a scratch folder; two example files are copied here).
 
 ## Update, Oct 27: the two example files were regenerated
@@ -74,7 +74,7 @@ captions, false-alarm rows, file written only to the given folder, replay). `tes
   sealed before its run, re-judges every verdict with `src/judge.ts`, checks fingerprint / fork block /
   seed agree, and that required captions are present (pre-existing label; Level 2 caption; Level 1
   "re-run after the fact, on a fork of Base at block N").
-- `src/types.ts` (plan section 3.1 changed, noted here): `Finding.proposedBy` may be
+- `src/types.ts` (the data contract changed, noted here): `Finding.proposedBy` may be
   `{ role: "human", model: "none: picked by a person" }`; `AtlasFile.findings?` records the round's finding.
 - Server: `POST /targets` takes `github-pr` (refused unless it is PR #578 at the merge commit with the
   copy's fingerprint); `POST /investigate {target}` on it; `POST /findings` (lines a person picks);

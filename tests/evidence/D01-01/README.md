@@ -17,8 +17,9 @@ Both were run before the D01-01 commit, so `git-log.txt` shows commit 1 only, an
 - Commit 1 (`aa567d6`) holds exactly two files: `PRE-EXISTING.md` and `.gitignore`.
   No code was committed before the list of pre-existing work.
 - The private planning folders and files are ignored by git (lines starting `!!`):
-  `docs/`, `pitch/`, `research/`, `official/`, `.mida/`, `CLAUDE.md`, `BUILD-CARD.md`,
-  `VISION.md`, `atlas-prep.md`, and `brand/logo-explore.html`.
+  `docs/`, `pitch/`, `research/`, `official/`, a local tool folder, `CLAUDE.md`, `BUILD-CARD.md`,
+  `VISION.md`, `atlas-prep.md`, and `brand/logo-explore.html`. (On Oct 27 the tool folder's name was taken
+  out of `git-ignored.txt` and this list; the file is otherwise the command's output as it was.)
 
 ## What it does not prove
 
