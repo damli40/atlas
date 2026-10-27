@@ -33,6 +33,11 @@ const chat = createMetaClient({ timeoutMs: BET_TIMEOUT_MS }).chat;
 const investigatorOn = process.env.ATLAS_INVESTIGATOR !== "off";
 const investigatorChat = createMetaClient().chat;
 
+// D06-01: POST /changes asks Muse Code (`muse exec`, falling back to a muse-spark-1.3 chat) for a change
+// toward what the bettors expected. ATLAS_FIXER=off turns it off (the answer says no model is asked).
+const fixerOn = process.env.ATLAS_FIXER !== "off";
+const fixerChat = createMetaClient().chat;
+
 // D04-04: each completed round's .atlas.json + run.json is written to <proofs dir>/<runId>/ ONLY when
 // ATLAS_PUBLISH_PROOFS=1 (default off: kept in memory, served by GET /proofs/:runId and /replay/:runId).
 // ATLAS_PROOFS_DIR moves the folder (and the refusal records with it) somewhere else, e.g. a scratch
@@ -47,11 +52,12 @@ const app = createApp({
   proofs,
   ...(modelBetsOn ? { modelBets: { chat, budget } } : {}),
   ...(investigatorOn ? { investigator: { chat: investigatorChat, budget } } : {}),
+  ...(fixerOn ? { fixer: { chat: fixerChat, budget } } : {}),
   refusals: fileRefusalWriter(refusalsDir, (e) => console.error(`could not write a refusal record: ${e instanceof Error ? e.message : String(e)}`)),
 });
 
 serve({ fetch: app.fetch, port }, (info) => {
-  console.log(`Atlas server listening on http://localhost:${info.port} (model bets ${modelBetsOn ? "on" : "off"}, investigator ${investigatorOn ? "on" : "off"}, .atlas.json files ${publishProofs ? "written to the proofs folder" : "kept in memory only"})`);
+  console.log(`Atlas server listening on http://localhost:${info.port} (model bets ${modelBetsOn ? "on" : "off"}, investigator ${investigatorOn ? "on" : "off"}, fixer ${fixerOn ? "on" : "off"}, .atlas.json files ${publishProofs ? "written to the proofs folder" : "kept in memory only"})`);
   if (modelBetsOn || investigatorOn) {
     console.log(`model budget: $${budget.spentUsd().toFixed(2)} already spent (usage log, ${spentAtStart.lines} lines${spentAtStart.skipped ? `, ${spentAtStart.skipped} unreadable` : ""})`);
   }

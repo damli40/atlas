@@ -132,3 +132,9 @@ tr.flagged td { background: var(--label-bg); color: var(--label-ink); }
 .why li { margin: 6px 0; }
 /* The 14-market table is wider than a 390 px phone: it scrolls inside its card instead of widening the page. */
 section[data-testid="false-alarm"] { overflow-x: auto; }
+
+/* D06-01: the proposed diff (only the diff) and the plain-code "toward" text */
+.code.diff .line, .code.toward { cursor: default; }
+.code.diff .line.add { background: color-mix(in srgb, var(--matched) 14%, transparent); }
+.code.diff .line.del { background: color-mix(in srgb, var(--not-matched) 14%, transparent); }
+.code.toward { white-space: pre-wrap; padding: 8px; }
