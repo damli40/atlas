@@ -1,0 +1,112 @@
+
+ RUN  v5.0.5 <repo>
+
+ ✓ tests/unit/call-contract.test.ts > pasted target > is named by its fingerprint and carries its source and language
+ ✓ tests/unit/call-contract.test.ts > pasted target > refuses empty code, an unknown language and more than 64 KB
+ ✓ tests/unit/call-contract.test.ts > pasted target > a changed source no longer matches its fingerprint (verify recomputes it)
+ ✓ tests/unit/call-contract.test.ts > source scan (exports and imports, plain code) > lists every export with its line and how it was declared
+ ✓ tests/unit/call-contract.test.ts > source scan (exports and imports, plain code) > finds every way of loading other code and names it
+ ✓ tests/unit/call-contract.test.ts > source scan (exports and imports, plain code) > refuses CommonJS exports with a plain sentence
+ ✓ tests/unit/call-contract.test.ts > source scan (exports and imports, plain code) > text it cannot read is refused, not guessed
+ ✓ tests/unit/call-contract.test.ts > gate: call-function bounds > allows a well-formed experiment and copies only its fields
+ ✓ tests/unit/call-contract.test.ts > gate: call-function bounds > refuses an export the file does not have
+ ✓ tests/unit/call-contract.test.ts > gate: call-function bounds > refuses a non-identifier export name
+ ✓ tests/unit/call-contract.test.ts > gate: call-function bounds > refuses 9 arguments
+ ✓ tests/unit/call-contract.test.ts > gate: call-function bounds > refuses a non-JSON value
+ ✓ tests/unit/call-contract.test.ts > gate: call-function bounds > refuses an unknown arg kind
+ ✓ tests/unit/call-contract.test.ts > gate: call-function bounds > refuses an extra field on a json arg
+ ✓ tests/unit/call-contract.test.ts > gate: call-function bounds > refuses afterMs on a plain stand-in
+ ✓ tests/unit/call-contract.test.ts > gate: call-function bounds > refuses never_settle on a plain stand-in
+ ✓ tests/unit/call-contract.test.ts > gate: call-function bounds > refuses no steps
+ ✓ tests/unit/call-contract.test.ts > gate: call-function bounds > refuses 51 steps
+ ✓ tests/unit/call-contract.test.ts > gate: call-function bounds > refuses two stand-ins with one name
+ ✓ tests/unit/call-contract.test.ts > gate: call-function bounds > refuses an unknown then
+ ✓ tests/unit/call-contract.test.ts > gate: call-function bounds > refuses an error name with spaces
+ ✓ tests/unit/call-contract.test.ts > gate: call-function bounds > refuses a 501-character message
+ ✓ tests/unit/call-contract.test.ts > gate: call-function bounds > refuses afterMs past 600 000
+ ✓ tests/unit/call-contract.test.ts > gate: call-function bounds > refuses watchLimitMs 600 001
+ ✓ tests/unit/call-contract.test.ts > gate: call-function bounds > refuses watchLimitMs 0
+ ✓ tests/unit/call-contract.test.ts > gate: call-function bounds > refuses JSON values over 4 KB
+ ✓ tests/unit/call-contract.test.ts > gate: call-function bounds > the 4 KB limit counts the JSON values only, as canonical JSON
+ ✓ tests/unit/call-contract.test.ts > gate: call-function bounds > is in the rendered allow-list with its outcome words
+ ✓ tests/unit/call-contract.test.ts > questions: written by plain code from the shape > describes the call the way the spec's example does
+ ✓ tests/unit/call-contract.test.ts > questions: written by plain code from the shape > asks about outcome, returnedJson, virtualMs and each stand-in's calls, with the right answer kinds
+ ✓ tests/unit/call-contract.test.ts > questions: written by plain code from the shape > names an experiment without printing free text, and fills the default watch limit for sameness
+ ✓ tests/unit/call-contract.test.ts > judge: json bets, call outcome words, whole-run can't check > a json bet matches by canonical JSON (key order and spacing do not matter)
+ ✓ tests/unit/call-contract.test.ts > judge: json bets, call outcome words, whole-run can't check > a json bet on a field that is not JSON, or another kind on returnedJson, is can't check
+ ✓ tests/unit/call-contract.test.ts > judge: json bets, call outcome words, whole-run can't check > a json bet whose value is not plain JSON cannot be compared
+ ✓ tests/unit/call-contract.test.ts > judge: json bets, call outcome words, whole-run can't check > outcome bets must draw every option from ONE list (call words or retry words)
+ ✓ tests/unit/call-contract.test.ts > judge: json bets, call outcome words, whole-run can't check > stand-in call counts and virtual ms have units; thrownName has none (no bet can be judged on it yet)
+ ✓ tests/unit/call-contract.test.ts > judge: json bets, call outcome words, whole-run can't check > a whole-run reason makes EVERY bet can't check with that reason, whatever it measured
+ ✓ tests/unit/call-contract.test.ts > seal: the json bet kind > seals and verifies; the value is part of the hash
+ ✓ tests/unit/call-contract.test.ts > seal: the json bet kind > refuses to seal a value that is not plain JSON
+ ✓ tests/unit/call-function.test.ts > the call-function control (known cases through the same sandbox) > passes on the shipped reference file, every case matched
+ ✓ tests/unit/call-function.test.ts > a pasted file runs end to end > JavaScript: JSON args in, JSON out, stand-in counted, virtual time measured
+ ✓ tests/unit/call-function.test.ts > a pasted file runs end to end > TypeScript with type annotations runs (Node strips the types)
+ ✓ tests/unit/call-function.test.ts > a pasted file runs end to end > TypeScript with an enum: whole run can't check, in Node's own words
+ ✓ tests/unit/call-function.test.ts > a pasted file runs end to end > a .atlas.json of a pasted round carries the source and verifies; a changed source does not
+ ✓ tests/unit/call-function.test.ts > a pasted file runs end to end > the TS runner dispatches a pasted target to the call-function path (control first)
+ ✓ tests/unit/call-function.test.ts > returned values that are not plain JSON > return undefined; → returned, returnedType "undefined", returnedJson not measured
+ ✓ tests/unit/call-function.test.ts > returned values that are not plain JSON > return NaN; → returned, returnedType "number (NaN)", returnedJson not measured
+ ✓ tests/unit/call-function.test.ts > returned values that are not plain JSON > return 10n ** 20n; → returned, returnedType "bigint", returnedJson not measured
+ ✓ tests/unit/call-function.test.ts > returned values that are not plain JSON > return () => 1; → returned, returnedType "function", returnedJson not measured
+ ✓ tests/unit/call-function.test.ts > returned values that are not plain JSON > const a = { b: {} }; a.b.a = a; return a; → returned, returnedType "object", returnedJson not measured
+ ✓ tests/unit/call-function.test.ts > returned values that are not plain JSON > return "x".repeat(10 * 1024); → returned, returnedType "string", returnedJson not measured
+ ✓ tests/unit/call-function.test.ts > returned values that are not plain JSON > return new Map([[1, 2]]); → returned, returnedType "object (Map)", returnedJson not measured
+ ✓ tests/unit/call-function.test.ts > returned values that are not plain JSON > return Object.defineProperty({}, "a", { get() { throw new Error("boom"); }, enumerable: true }); → returned, returnedType "object", returnedJson not measured
+ ✓ tests/unit/call-function.test.ts > returned values that are not plain JSON > return [1, , 3]; → returned, returnedType "array", returnedJson not measured
+ ✓ tests/unit/call-function.test.ts > thrown values that are not Errors > a thrown string: threw, no name or message measured
+ ✓ tests/unit/call-function.test.ts > thrown values that are not Errors > a thrown null
+ ✓ tests/unit/call-function.test.ts > thrown values that are not Errors > a thrown object whose name getter throws: that read is not measured, the rest is
+ ✓ tests/unit/call-function.test.ts > thrown values that are not Errors > a real Error subclass keeps its name; a stand-in TypeError is a real TypeError
+ ✓ tests/unit/call-function.test.ts > stand-ins > then: throw_exhausted: the call after the last step throws AtlasStandInExhausted into the code
+ ✓ tests/unit/call-function.test.ts > stand-ins > a stand-in called after the call settled is still counted (the code went quiet later)
+ ✓ tests/unit/call-function.test.ts > stand-ins > a stand-in still being called by a timer at the watch limit: the final count is not claimed
+ ✓ tests/unit/call-function.test.ts > stand-ins > a stand-in that never answers: never_settled, with the count
+ ✓ tests/unit/call-function.test.ts > time > never settles: an empty promise
+ ✓ tests/unit/call-function.test.ts > time > setTimeout far beyond the watch limit: still running at the watch limit, nothing else claimed
+ ✓ tests/unit/call-function.test.ts > time > a delay past Node's 2^31-1 ms limit fires after 1 ms, as in Node itself
+ ✓ tests/unit/call-function.test.ts > time > Date.now and performance.now follow the virtual clock (a 5 s deadline loop ends at 5 s)
+ ✓ tests/unit/call-function.test.ts > time > a timer started while the file loads: whole run can't check
+ ✓ tests/unit/call-function.test.ts > time > an infinite synchronous loop hits the real wall-clock limit: whole run can't check, the test does not hang
+ ✓ tests/unit/call-function.test.ts > time > background work (crypto.subtle.digest) is waited for when nothing else is left: it settles, not 'never settles'
+ ✓ tests/unit/call-function.test.ts > time > background work racing a virtual timer: which comes first would be a guess, so the outcome is can't check
+ ✓ tests/unit/call-function.test.ts > time > background work THEN a timer (in sequence, no race) is measured
+ ✓ tests/unit/call-function.test.ts > time > Atomics.waitAsync and WebAssembly's background compile finish on real time: whole run can't check
+ ✓ tests/unit/call-function.test.ts > time > a zero-delay timer loop that never ends: the step limit stops it, the outcome is not claimed
+ ✓ tests/unit/call-function.test.ts > the code reaches outside the sandbox: whole run can't check, never outcome: threw > fetch
+ ✓ tests/unit/call-function.test.ts > the code reaches outside the sandbox: whole run can't check, never outcome: threw > fs via process.getBuiltinModule
+ ✓ tests/unit/call-function.test.ts > the code reaches outside the sandbox: whole run can't check, never outcome: threw > a file read the sandbox refuses (ERR_ACCESS_DENIED), caught by the code
+ ✓ tests/unit/call-function.test.ts > the code reaches outside the sandbox: whole run can't check, never outcome: threw > process.report (a file write)
+ ✓ tests/unit/call-function.test.ts > the code reaches outside the sandbox: whole run can't check, never outcome: threw > process.exit
+ ✓ tests/unit/call-function.test.ts > the code reaches outside the sandbox: whole run can't check, never outcome: threw > process.binding
+ ✓ tests/unit/call-function.test.ts > the code reaches outside the sandbox: whole run can't check, never outcome: threw > eval
+ ✓ tests/unit/call-function.test.ts > the code reaches outside the sandbox: whole run can't check, never outcome: threw > new Function
+ ✓ tests/unit/call-function.test.ts > the code reaches outside the sandbox: whole run can't check, never outcome: threw > the async function constructor
+ ✓ tests/unit/call-function.test.ts > the code reaches outside the sandbox: whole run can't check, never outcome: threw > Atomics.wait
+ ✓ tests/unit/call-function.test.ts > the code reaches outside the sandbox: whole run can't check, never outcome: threw > require at run time
+ ✓ tests/unit/call-function.test.ts > the code reaches outside the sandbox: whole run can't check, never outcome: threw > an uncaught rejection from work the code started is whole-run can't check
+ ✓ tests/unit/call-function.test.ts > the code reaches outside the sandbox: whole run can't check, never outcome: threw > a timer callback that throws is whole-run can't check
+ ✓ tests/unit/call-function.test.ts > imports are refused twice: by the scan before running, and by the module hook while running > the scan refuses an import before any sandbox starts
+ ✓ tests/unit/call-function.test.ts > imports are refused twice: by the scan before running, and by the module hook while running > the module hook refuses a static import even when the scan is skipped
+ ✓ tests/unit/call-function.test.ts > imports are refused twice: by the scan before running, and by the module hook while running > the module hook refuses a dynamic import of a built-in, even one the code catches
+ ✓ tests/unit/call-function.test.ts > imports are refused twice: by the scan before running, and by the module hook while running > require() at run time is refused by the sandbox guard even when the scan is skipped
+ ✓ tests/unit/call-function.test.ts > imports are refused twice: by the scan before running, and by the module hook while running > the module hook refuses importing Atlas's own harness files from the sandbox folder
+ ✓ tests/unit/call-function.test.ts > built-ins changed by the code: whole run can't check (B1 reason) > Promise
+ ✓ tests/unit/call-function.test.ts > built-ins changed by the code: whole run can't check (B1 reason) > JSON
+ ✓ tests/unit/call-function.test.ts > built-ins changed by the code: whole run can't check (B1 reason) > Object.prototype
+ ✓ tests/unit/call-function.test.ts > built-ins changed by the code: whole run can't check (B1 reason) > globalThis.setTimeout
+ ✓ tests/unit/call-function.test.ts > the export > missing: whole run can't check
+ ✓ tests/unit/call-function.test.ts > the export > not a function: whole run can't check
+ ✓ tests/unit/call-function.test.ts > the export > CommonJS: refused with a plain sentence
+ ✓ tests/unit/call-function.test.ts > the export > the code throws while it loads: whole run can't check, not outcome threw
+ ✓ tests/unit/call-function.test.ts > a broken measurement path fails the control loudly, and then every verdict is can't check > a clock off by 1 ms: the control does not pass and names the case and field
+ ✓ tests/unit/call-function.test.ts > a broken measurement path fails the control loudly, and then every verdict is can't check > lost stand-in counts: the control does not pass
+ ✓ tests/unit/call-function.test.ts > a broken measurement path fails the control loudly, and then every verdict is can't check > a control whose sandbox gives no result does not pass either
+ ✓ tests/unit/call-function.test.ts > a broken measurement path fails the control loudly, and then every verdict is can't check > the wire format keeps JSON values as text so they arrive as ordinary objects
+
+ Test Files  2 passed (2)
+      Tests  103 passed (103)
+   Start at (removed)
+   Duration (removed)
+
