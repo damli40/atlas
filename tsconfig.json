@@ -13,5 +13,6 @@
     "allowImportingTsExtensions": true,
     "types": ["node"]
   },
-  "include": ["src", "server", "web", "runners", "tests", "vite.config.ts"]
+  "include": ["src", "server", "web", "runners", "tests", "bench", "vite.config.ts"],
+  "exclude": ["bench/truth/cases", "bench/models/cases"]
 }
