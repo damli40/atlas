@@ -30,6 +30,10 @@ function goodControl(): Omit<EvmControlRecord, "passed" | "reasons"> {
     chainId: 8453,
     blockNumberOnFork: 42194663,
     weth,
+    wiredVsRaw: {
+      wiredFeed: "0x0", wiredFeedIsRawAggregator: false, wiredFeedAnswer: "196558018952", wiredFeedDecimals: 8,
+      rawAggregator: "0x0", rawAnswer: "196558018952", rawDecimals: 8, rawRoundId: "1", equalAt1e18: true,
+    } as EvmControlRecord["wiredVsRaw"],
     stablecoins: USD_STABLECOINS.map((symbol) => ({
       symbol, mToken: "0x0", tokenDecimals: 6, feedAddress: "0x0", rawUnderlyingPrice: "0", priceUsd1e18: "999900000000000000", inBand: true,
     })) as EvmControlRecord["stablecoins"],
@@ -67,6 +71,11 @@ describe("EVM runner, offline", () => {
     expect(controlReasons(missing).join()).toMatch(/USDS stablecoin control was not read/);
     expect(controlReasons({ ...goodControl(), blockNumberOnFork: 42194662 }).join()).toMatch(/not the block asked for/);
     expect(controlReasons({ ...goodControl(), chainId: 1 }).join()).toMatch(/not Base/);
+    // PASS-RULE.md names the raw ETH/USD answer: a wrapper that lags the raw feed fails the control.
+    const lagging = goodControl();
+    lagging.wiredVsRaw = { ...lagging.wiredVsRaw!, rawAnswer: "196600000000", equalAt1e18: false };
+    expect(controlReasons(lagging).join()).toMatch(/differs from the raw ETH\/USD answer/);
+    expect(controlReasons({ ...goodControl(), wiredVsRaw: undefined }).join()).toMatch(/raw ETH\/USD aggregator was not read/);
   });
 
   it("stablecoin band is 0.95–1.05 USD inclusive", () => {

@@ -92,6 +92,15 @@ export function controlReasons(r: Omit<EvmControlRecord, "passed" | "reasons">):
         `the oracle's own WETH feed answer brought to 18 decimals = ${r.weth.expectedRawUnderlyingPrice}`,
     );
   }
+  // PASS-RULE.md (committed before any EVM run) names the raw ETH/USD answer, so the wired feed
+  // must also equal the raw aggregator at this block. A lagging wrapper gives "can't check".
+  if (r.weth && !r.wiredVsRaw) out.push("the raw ETH/USD aggregator was not read, so PASS-RULE.md's WETH control cannot be checked");
+  else if (r.wiredVsRaw && !r.wiredVsRaw.equalAt1e18) {
+    out.push(
+      `WETH's wired feed answer (${r.wiredVsRaw.wiredFeedAnswer}) differs from the raw ETH/USD answer ` +
+        `(${r.wiredVsRaw.rawAnswer}) at this block; PASS-RULE.md checks against the raw answer`,
+    );
+  }
   const seen = new Set(r.stablecoins.map((s) => s.symbol));
   for (const sym of USD_STABLECOINS) if (!seen.has(sym)) out.push(`the ${sym} stablecoin control was not read`);
   for (const s of r.stablecoins) {
