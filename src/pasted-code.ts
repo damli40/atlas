@@ -17,6 +17,7 @@
 // No I/O, no clock, no model. Safe to load in the browser.
 
 import { sha256Hex } from "./seal";
+import { pyTopLevelFunctions, staticRefusalPy } from "./pasted-python";
 import type { Target } from "./types";
 import { COMMONJS_REASON, NAMED_AT_RUN_TIME, describeModule, needsPackageReason } from "../runners/ts/call-words.ts";
 
@@ -472,4 +473,17 @@ export function staticRefusal(source: string): string | null {
   if (first) return needsPackageReason(first.specifier);
   if (scan.commonJsLine !== undefined) return COMMONJS_REASON(scan.commonJsLine);
   return null;
+}
+
+/**
+ * Added E2: the functions a person can pick in a file of the given language. JavaScript/TypeScript: the exports
+ * (exportedFunctions). Python: the top-level `def` / `async def` functions (src/pasted-python.ts).
+ */
+export function exportedFunctionsFor(source: string, language: PastedLanguage): FoundExport[] {
+  return language === "py" ? pyTopLevelFunctions(source) : exportedFunctions(source);
+}
+
+/** Added E2: staticRefusal for any pasted language (Python: imports outside the standard library). */
+export function staticRefusalFor(source: string, language: PastedLanguage): string | null {
+  return language === "py" ? staticRefusalPy(source) : staticRefusal(source);
 }
