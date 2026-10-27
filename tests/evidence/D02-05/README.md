@@ -1,5 +1,12 @@
 # D02-05: agent event stream (data only, no log strip yet)
 
+**Regenerated 2026-10-27 (D02-06).** `events.jsonl` was re-made with the same command after D02-04
+moved sealing to the server. The order is now: investigator stand-in → gate (at `POST /experiments`)
+→ human ×3 (at `POST /bets`, one line per bet as it is sealed) → seal → runner → judge. The gate line
+now reads "allowed (src/gate.ts)" (the stub is gone). No model line appears in this file because the
+round runs on a server built without model bets; D02-06 has the round with Muse Spark's claimant line.
+The table below describes the original run and is kept as written.
+
 Date: 2026-10-27 (WAT) · Node v25.8.1
 
 **In plain words:** every step of a round now writes one short line to an in-memory log, kept
