@@ -6,6 +6,12 @@
 // - per rolling hour, across the whole server (default 10) and per session (default 3).
 // A replay over any cap is refused with HTTP 429 and a plain reason; nothing is started.
 // Each cap can be set from the environment (small whole numbers only). No I/O besides reading env.
+//
+// The same kind of gate also caps POST /runs on the EVM runner (each run is a fork + paid reads too):
+// defaults 2 at once and 20 an hour for the server, 1 at once and 6 an hour per session, env
+// ATLAS_RUNS_MAX_CONCURRENT, ATLAS_RUNS_MAX_PER_HOUR, ATLAS_RUNS_SESSION_MAX_CONCURRENT,
+// ATLAS_RUNS_SESSION_MAX_PER_HOUR. A run over a cap is refused with 429 before its bets are frozen,
+// so the person can press Run again later.
 
 export interface ReplayLimits {
   globalConcurrent: number;
@@ -23,17 +29,30 @@ const ENV: Record<keyof ReplayLimits, string> = {
   sessionPerHour: "ATLAS_REPLAY_SESSION_MAX_PER_HOUR",
 };
 
-/** The limits from the environment; a missing or unusable value (not a whole number 0–1000) keeps the default. */
-export function replayLimitsFromEnv(env: Record<string, string | undefined> = process.env): ReplayLimits {
-  const out = { ...DEFAULT_REPLAY_LIMITS };
-  for (const k of Object.keys(ENV) as (keyof ReplayLimits)[]) {
-    const raw = env[ENV[k]];
+export const DEFAULT_RUN_LIMITS: ReplayLimits = { globalConcurrent: 2, globalPerHour: 20, sessionConcurrent: 1, sessionPerHour: 6 };
+
+const RUN_ENV: Record<keyof ReplayLimits, string> = {
+  globalConcurrent: "ATLAS_RUNS_MAX_CONCURRENT",
+  globalPerHour: "ATLAS_RUNS_MAX_PER_HOUR",
+  sessionConcurrent: "ATLAS_RUNS_SESSION_MAX_CONCURRENT",
+  sessionPerHour: "ATLAS_RUNS_SESSION_MAX_PER_HOUR",
+};
+
+function limitsFromEnv(defaults: ReplayLimits, names: Record<keyof ReplayLimits, string>, env: Record<string, string | undefined>): ReplayLimits {
+  const out = { ...defaults };
+  for (const k of Object.keys(names) as (keyof ReplayLimits)[]) {
+    const raw = env[names[k]];
     if (raw === undefined || !/^\d{1,4}$/.test(raw.trim())) continue;
     const n = Number(raw.trim());
     if (n <= 1000) out[k] = n;
   }
   return out;
 }
+
+/** The replay limits from the environment; a missing or unusable value (not a whole number 0–1000) keeps the default. */
+export const replayLimitsFromEnv = (env: Record<string, string | undefined> = process.env): ReplayLimits => limitsFromEnv(DEFAULT_REPLAY_LIMITS, ENV, env);
+/** The EVM run limits (POST /runs) from the environment, same rules. */
+export const runLimitsFromEnv = (env: Record<string, string | undefined> = process.env): ReplayLimits => limitsFromEnv(DEFAULT_RUN_LIMITS, RUN_ENV, env);
 
 const HOUR_MS = 60 * 60 * 1000;
 const MAX_TRACKED_SESSIONS = 1000;
@@ -43,7 +62,8 @@ export interface ReplayGate {
   take(sessionId: string): { ok: true; release: () => void } | { ok: false; reason: string };
 }
 
-export function createReplayGate(limits: ReplayLimits = replayLimitsFromEnv(), now: () => number = Date.now): ReplayGate {
+/** `what` names the thing being capped in the refusal ("EVM replay" or "EVM run"). */
+export function createReplayGate(limits: ReplayLimits = replayLimitsFromEnv(), now: () => number = Date.now, what = "EVM replay"): ReplayGate {
   let running = 0;
   let started: number[] = [];
   const sessions = new Map<string, { running: number; started: number[] }>();
@@ -63,10 +83,10 @@ export function createReplayGate(limits: ReplayLimits = replayLimitsFromEnv(), n
         }
       }
       s.started = recent(s.started);
-      if (running >= limits.globalConcurrent) return { ok: false, reason: `the server runs at most ${limits.globalConcurrent} EVM replay(s) at once and one is running; try again when it finishes` };
-      if (s.running >= limits.sessionConcurrent) return { ok: false, reason: `this session runs at most ${limits.sessionConcurrent} EVM replay(s) at once and one is running` };
-      if (started.length >= limits.globalPerHour) return { ok: false, reason: `the server allows ${limits.globalPerHour} EVM replays an hour and that many have started in the last hour` };
-      if (s.started.length >= limits.sessionPerHour) return { ok: false, reason: `this session may start ${limits.sessionPerHour} EVM replays an hour and has started that many in the last hour` };
+      if (running >= limits.globalConcurrent) return { ok: false, reason: `the server runs at most ${limits.globalConcurrent} ${what}(s) at once and one is running; try again when it finishes` };
+      if (s.running >= limits.sessionConcurrent) return { ok: false, reason: `this session runs at most ${limits.sessionConcurrent} ${what}(s) at once and one is running` };
+      if (started.length >= limits.globalPerHour) return { ok: false, reason: `the server allows ${limits.globalPerHour} ${what}s an hour and that many have started in the last hour` };
+      if (s.started.length >= limits.sessionPerHour) return { ok: false, reason: `this session may start ${limits.sessionPerHour} ${what}s an hour and has started that many in the last hour` };
       running++;
       s.running++;
       const t = now();
@@ -86,3 +106,6 @@ export function createReplayGate(limits: ReplayLimits = replayLimitsFromEnv(), n
     },
   };
 }
+
+/** The gate for POST /runs on the EVM runner (limits from ATLAS_RUNS_* by default). */
+export const createRunGate = (limits: ReplayLimits = runLimitsFromEnv(), now: () => number = Date.now): ReplayGate => createReplayGate(limits, now, "EVM run");
