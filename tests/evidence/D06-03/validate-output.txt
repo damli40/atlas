@@ -1,0 +1,2 @@
+fixture-eRopGsrp2a.atlas.json: valid · captions ["Pre-existing: written before the hackathon (listed in PRE-EXISTING.md)"]
+moonwell-level2-mwTaxvHFzB.atlas.json: valid · captions ["fork of Base one block before MIP-X43 ran; Atlas applied the proposal's oracle-feed actions as the governor","the cbETH line was picked by a person; the Investigator pointed elsewhere"]

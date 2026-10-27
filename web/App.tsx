@@ -20,11 +20,24 @@ import { MoonwellFlow } from "./screens/Moonwell";
 import { LogStrip, useAgentEvents } from "./logstrip/LogStrip";
 import { modelTextsOf, WhyDroppedContext, WhyScreen } from "./screens/Why";
 import { ScaleScreen } from "./screens/Scale";
+import { ProofCardPage, ProofLink } from "./screens/ProofCard";
 import type { Finding } from "../src/types";
 
 type Mode = "fixture" | "pr" | "scale";
 
+/** D06-03: `?proof=<runId>` opens one round's proof card on its own (the end frame). */
+export function proofIdFromLocation(search: string): string | null {
+  const id = new URLSearchParams(search).get("proof");
+  return id && /^[A-Za-z0-9_-]{1,64}$/.test(id) ? id : null;
+}
+
 export function App({ api: given }: { api?: Api } = {}) {
+  const proofId = typeof window === "undefined" ? null : proofIdFromLocation(window.location.search);
+  if (proofId) return <ProofCardPage api={given ?? createApi()} runId={proofId} />;
+  return <Rounds {...(given ? { api: given } : {})} />;
+}
+
+function Rounds({ api: given }: { api?: Api }) {
   const [mode, setMode] = useState<Mode>("fixture");
   // One API client (one session) per target, so switching starts a clean round.
   const fixtureApi = useMemo(() => given ?? createApi(), [given]);
@@ -200,6 +213,7 @@ function FixtureFlow({ api }: { api: Api }) {
         />
       )}
       {result && <WhyScreen run={result.run} finding={finding} modelTexts={modelTextsOf(result.bets, finding)} />}
+      {result?.proof?.ok && <ProofLink runId={result.proof.runId} />}
       {error && (
         <p className="notice" role="alert">
           {error}

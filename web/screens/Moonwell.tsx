@@ -4,6 +4,7 @@
 // sealed beside it (hashes only) → a real run on a fork of Base (30–90 s, progress from the agent
 // log) → verdicts by src/judge.ts → the false-alarm table → the captions this kind of run must carry.
 
+import { ProofLink } from "./ProofCard";
 import { useState } from "react";
 import { MOONWELL_FORK_BLOCKS, MOONWELL_LEVEL_CAPTION, MOONWELL_LEVEL_SAYS, MOONWELL_LICENCE_LINE, moonwellBetContext, type MoonwellLevel } from "../../src/bet-context";
 import type { Question } from "../../src/gate";
@@ -277,6 +278,7 @@ export function MoonwellFlow({ api }: { api: Api }) {
               <p className="muted small">
                 .atlas.json for run {result.proof.runId}: {result.proof.published ? "written to the proofs folder" : "kept on the server (not published)"}. Anyone can replay it at /replay/{result.proof.runId}.
               </p>
+              <ProofLink runId={result.proof.runId} />
             </>
           ) : (
             <p className="notice">The .atlas.json could not be built: {result.proof.reason}</p>
