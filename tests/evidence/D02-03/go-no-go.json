@@ -1,5 +1,6 @@
 {
   "at": "2026-10-27T04:56:35.305Z",
+  "sparkOpenCheckedAt": "2026-10-27T10:52:57.210Z",
   "rows": [
     {
       "model": "muse-wonder-1.0",
@@ -19,11 +20,11 @@
     },
     {
       "model": "meta-models/muse-spark-open-1026",
-      "where": "Baseten (endpoint path UNVERIFIED)",
+      "where": "Baseten Model API (inference.baseten.co/v1, Api-Key auth)",
       "check": "1 live call if a key exists; GO only if schema-valid",
-      "result": "pending",
-      "detail": "pending: no Baseten key on this machine (credits not yet claimed); open-weights mode shows \"not available\"",
-      "usd": null
+      "result": "GO",
+      "detail": "schema-valid JSON, 3 finding(s), finish_reason stop",
+      "usd": 0.004029
     }
   ],
   "fallbackChain": [
