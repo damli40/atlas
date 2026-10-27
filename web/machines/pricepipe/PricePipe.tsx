@@ -7,7 +7,7 @@
 import { useMemo, useSyncExternalStore } from "react";
 import { Plate } from "../iso/react/draw";
 import { stillNow as asksForStillness } from "../env";
-import { LEVEL2_CAPTION, level1Caption } from "../../../src/atlasfile";
+import { LEVEL2_CAPTION, level1Caption } from "../../../src/captions";
 import { formatUsd1e18, usdToUsd1e18 } from "../../../src/units";
 import { PipeLive } from "./live";
 import { pipeModel, poseAt, type PipeInput, type PipeModel } from "./model";

@@ -24,7 +24,7 @@
 //   for network, files and child processes.
 
 import { readFileSync, writeSync } from "node:fs";
-import { RESULT_MARKER, installRealTimerTracker, runScenario, type RetryFn, type WorkerRequest, type WorkerResponse } from "./harness.ts";
+import { RESULT_MARKER, installRealTimerTracker, runScenario, runSweep, type RetryFn, type WorkerRequest, type WorkerResponse } from "./harness.ts";
 
 // ---- native references, captured before the code under test exists ----
 const nativeWriteSync = writeSync;
@@ -79,11 +79,16 @@ async function main(): Promise<void> {
 
   const out: WorkerResponse = { runs: [] };
   for (const r of req.runs) {
-    const res = await runScenario(target as RetryFn, r.scenario, {
+    const hopts = {
       seed: r.seed,
       ...(r.label !== undefined ? { label: r.label } : {}),
       ...(r.watchLimitMs !== undefined ? { watchLimitMs: r.watchLimitMs } : {}),
-    });
+    };
+    // D06-02: a sweep runs `callers` callers at once with the same failure pattern, on one virtual clock.
+    const res =
+      r.callers !== undefined
+        ? await runSweep(target as RetryFn, { callers: r.callers, failTimes: r.scenario.failTimes, ...(r.scenario.delayMs !== undefined ? { delayMs: r.scenario.delayMs } : {}) }, hopts)
+        : await runScenario(target as RetryFn, r.scenario, hopts);
     out.runs.push({ id: r.id, ...res });
   }
   const tampered = prototypeTampering();

@@ -15,7 +15,7 @@
 //   through the RPC in ~/.config/atlas/rpc.env. They are fixed facts of the chain, so they are stored
 //   here, never guessed and never read at run time.
 
-import { LEVEL2_CAPTION, level1Caption } from "./atlasfile";
+import { LEVEL2_CAPTION, level1Caption } from "./captions";
 import { MOONWELL_LEVEL1_BLOCK, MOONWELL_LEVEL2_BLOCK } from "./moonwell-blocks";
 import type { Finding } from "./types";
 

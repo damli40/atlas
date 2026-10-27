@@ -38,6 +38,10 @@
 //   re-executes it (TS: same seed; EVM: same fork block) and says whether `measured` is deep-equal.
 //   EVM replays need the x-atlas-session header and are capped at once and per hour, per session and
 //   overall (server/replay-limits.ts; env ATLAS_REPLAY_*); over a cap the answer is 429 with the reason.
+// - POST /sweeps {target, params} (D06-02) → the waves screen. src/gate.ts allows only "concurrency-sweep"
+//   here (1..200 callers); the control runs first (once per code SHA-256); then that many callers each call
+//   the real function with the same failure pattern, on one virtual clock, in the sandbox. Returns the Run
+//   (call times per virtual moment). No bets: nobody is asked anything about a sweep. One at a time per session.
 // - GET /events/:sessionId (D02-05) → SSE of the session's agent events (server/log/). The session
 //   is the `x-atlas-session` header; the server makes one and returns it when absent. Experiments
 //   and bets belong to the session that made them.
@@ -79,7 +83,7 @@ import { moonwellBetContext, moonwellLevelOf } from "../src/bet-context";
 import { FIXTURE_FILE, FIXTURE_FINDING_LABEL, fixtureContextRange, fixtureFinding } from "./meta/roles/fixture-finding";
 import { INVESTIGATOR_FALLBACK_MODEL, INVESTIGATOR_MODEL, runInvestigator, type InvestigatorFile } from "./meta/roles/investigator";
 import { fetchGithubPr, type GithubPrTarget } from "./targets/github";
-import { gate, type GateContext, type Question } from "../src/gate";
+import { SWEEP_GATE_CONTEXT, gate, type GateContext, type Question } from "../src/gate";
 import type { Bet, Experiment, Finding, Run, Target, Verdict } from "../src/types";
 import type { Executor } from "../runners/runner";
 import { localExecutor } from "../runners/executor/local";
@@ -132,6 +136,14 @@ const experimentBody = z.object({
 
 const runBody = z.object({ experimentId: z.string().min(1).max(64) }).strict();
 
+const sweepBody = z
+  .object({
+    target: z.object({ ref: z.string().min(1).max(200), codeSha256: z.string().regex(/^[0-9a-f]{64}$/) }),
+    // Checked by src/gate.ts (SWEEP_GATE_CONTEXT), so a refusal carries the gate's plain reason.
+    params: z.unknown(),
+  })
+  .strict();
+
 function plainReason(err: z.ZodError): string {
   return err.issues
     .slice(0, 3)
@@ -158,7 +170,7 @@ function listedAsPreExisting(fixturePath: string): boolean {
   return new RegExp(`(?<![\\w./-])${escaped}(?![\\w/-]|\\.\\w)`).test(text);
 }
 
-/** What the gate allows on a TS fixture today: only "retry-scenario" has a runner (no concurrency-sweep runner yet). */
+/** What the gate allows in a TS round: "retry-scenario". The sweep (D06-02) has its own route and context (SWEEP_GATE_CONTEXT), with no bets. */
 export const TS_GATE_CONTEXT: GateContext = { shapes: ["retry-scenario"], watchLimitMs: DEFAULT_WATCH_LIMIT_MS };
 
 /**
@@ -923,6 +935,60 @@ export function createApp(opts: AppOptions = {}) {
     // Reveal every bet in full (with its nonce) so the browser can recompute each hash itself.
     return c.json({ run, verdicts, bets, betsFrozenAt: round.betsFrozenAt, model: modelSlotView(round), proof, ...(falseAlarm ? { falseAlarm } : {}) });
   }
+
+  // D06-02: the waves screen. Many callers at once, same failure pattern, one virtual clock, in the sandbox.
+  const sweepsRunning = new Set<string>();
+  app.post("/sweeps", async (c) => {
+    const sessionId = sessionIdOf(c);
+    if (sessionId === null) return c.json({ error: BAD_SESSION }, 400);
+    const raw = await readJson(c.req.raw);
+    if (!raw.ok) return c.json({ error: "the request body is not JSON" }, 400);
+    const parsed = sweepBody.safeParse(raw.body);
+    if (!parsed.success) return c.json({ error: plainReason(parsed.error) }, 400);
+    const target = targets.get(parsed.data.target.codeSha256);
+    if (!target || target.ref !== parsed.data.target.ref) {
+      return c.json({ error: "unknown target: register it with POST /targets first (same ref and codeSha256)" }, 400);
+    }
+    if (target.kind !== "ts-fixture") return c.json({ error: `${target.ref} runs on the EVM runner; the waves screen runs TypeScript targets only` }, 400);
+    const id = newExperimentId();
+    const decision = gate(parsed.data.params, SWEEP_GATE_CONTEXT);
+    if (!decision.allowed) {
+      record({
+        kind: "gate_rejection",
+        id,
+        experimentId: id,
+        time: new Date().toISOString(),
+        role: "human",
+        trigger: "POST /sweeps: the gate refused the sweep, so it never ran",
+        experiment: parsed.data.params,
+        reason: decision.reason,
+      });
+      return c.json({ error: `gate: rejected (${decision.reason}); nothing will run` }, 422);
+    }
+    if (sweepsRunning.has(sessionId)) return c.json({ error: "a sweep is already running for this session; wait for it to finish" }, 429);
+    const experiment: Experiment = { id, target, runner: "ts", params: decision.params, proposedBy: { role: "human" }, gate: { allowed: true } };
+    sweepsRunning.add(sessionId);
+    let run: Run;
+    let ctl: Run;
+    try {
+      ctl = await getControl(target);
+      run = await runExperiment(experiment, ctl, { executor });
+    } finally {
+      sweepsRunning.delete(sessionId);
+    }
+    keepRun(run);
+    const p = decision.params as Extract<Experiment["params"], { shape: "concurrency-sweep" }>;
+    try {
+      agentLog.emit(sessionId, {
+        role: "runner",
+        action: oneLine(`runs ${p.callers} caller${p.callers === 1 ? "" : "s"} at once (concurrency-sweep, failTimes ${p.failTimes}); control ${run.controlPassed ? "matched" : "did not match"}`),
+        ref: { kind: "run", id: run.id },
+      });
+    } catch {
+      // a refused log line never hides the run
+    }
+    return c.json({ experiment, run, control: { runId: ctl.id, passed: ctl.controlPassed } });
+  });
 
   // D04-04: the round's .atlas.json, as kept (memory) or published (disk).
   app.get("/proofs/:runId", (c) => {

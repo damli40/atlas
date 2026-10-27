@@ -19,21 +19,39 @@ import { FindingsPanel } from "./screens/Findings";
 import { MoonwellFlow } from "./screens/Moonwell";
 import { LogStrip, useAgentEvents } from "./logstrip/LogStrip";
 import { modelTextsOf, WhyDroppedContext, WhyScreen } from "./screens/Why";
+import { ScaleScreen } from "./screens/Scale";
+import { ProofCardPage, ProofLink } from "./screens/ProofCard";
 import type { Finding } from "../src/types";
 
-type Mode = "fixture" | "pr";
+type Mode = "fixture" | "pr" | "scale";
+
+/** D06-03: `?proof=<runId>` opens one round's proof card on its own (the end frame). */
+export function proofIdFromLocation(search: string): string | null {
+  const id = new URLSearchParams(search).get("proof");
+  return id && /^[A-Za-z0-9_-]{1,64}$/.test(id) ? id : null;
+}
 
 export function App({ api: given }: { api?: Api } = {}) {
+  const proofId = typeof window === "undefined" ? null : proofIdFromLocation(window.location.search);
+  if (proofId) return <ProofCardPage api={given ?? createApi()} runId={proofId} />;
+  return <Rounds {...(given ? { api: given } : {})} />;
+}
+
+function Rounds({ api: given }: { api?: Api }) {
   const [mode, setMode] = useState<Mode>("fixture");
   // One API client (one session) per target, so switching starts a clean round.
   const fixtureApi = useMemo(() => given ?? createApi(), [given]);
   const prApi = useMemo(() => given ?? createApi(), [given]);
+  const scaleApi = useMemo(() => given ?? createApi(), [given]);
   // D05-04: the agent log strip. A side panel on a wide screen (toggled), under the flow on a phone.
   const [stripOpen, setStripOpen] = useState(true);
   // D05-05: how many "Ask why" sentences were dropped (no run evidence), per target, for the strip.
-  const [dropped, setDropped] = useState<Record<Mode, { count: number; at: string } | null>>({ fixture: null, pr: null });
+  const [dropped, setDropped] = useState<Record<"fixture" | "pr", { count: number; at: string } | null>>({ fixture: null, pr: null });
   const reportDropped = useCallback(
-    (count: number) => setDropped((d) => (d[mode]?.count === count ? d : { ...d, [mode]: { count, at: new Date().toISOString() } })),
+    (count: number) => {
+      if (mode === "scale") return; // no "Ask why" on the waves screen
+      setDropped((d) => (d[mode]?.count === count ? d : { ...d, [mode]: { count, at: new Date().toISOString() } }));
+    },
     [mode],
   );
   return (
@@ -50,10 +68,13 @@ export function App({ api: given }: { api?: Api } = {}) {
           <button type="button" className={mode === "pr" ? "on" : undefined} aria-pressed={mode === "pr"} onClick={() => setMode("pr")} data-testid="mode-pr">
             A pull request link (Solidity, Base fork)
           </button>
+          <button type="button" className={mode === "scale" ? "on" : undefined} aria-pressed={mode === "scale"} onClick={() => setMode("scale")} data-testid="mode-scale">
+            Many callers at once
+          </button>
         </nav>
-        <WhyDroppedContext.Provider value={reportDropped}>{mode === "fixture" ? <FixtureFlow api={fixtureApi} /> : <MoonwellFlow api={prApi} />}</WhyDroppedContext.Provider>
+        <WhyDroppedContext.Provider value={reportDropped}>{mode === "fixture" ? <FixtureFlow api={fixtureApi} /> : mode === "pr" ? <MoonwellFlow api={prApi} /> : <ScaleScreen api={scaleApi} />}</WhyDroppedContext.Provider>
       </main>
-      <LiveLogStrip key={mode} api={mode === "fixture" ? fixtureApi : prApi} dropped={dropped[mode]} open={stripOpen} onToggle={() => setStripOpen((o) => !o)} />
+      <LiveLogStrip key={mode} api={mode === "fixture" ? fixtureApi : mode === "pr" ? prApi : scaleApi} dropped={mode === "scale" ? null : dropped[mode]} open={stripOpen} onToggle={() => setStripOpen((o) => !o)} />
     </div>
   );
 }
@@ -192,6 +213,7 @@ function FixtureFlow({ api }: { api: Api }) {
         />
       )}
       {result && <WhyScreen run={result.run} finding={finding} modelTexts={modelTextsOf(result.bets, finding)} />}
+      {result?.proof?.ok && <ProofLink runId={result.proof.runId} />}
       {error && (
         <p className="notice" role="alert">
           {error}

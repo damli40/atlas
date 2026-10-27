@@ -1,0 +1,13 @@
+failTimes 3 callers 1: 200 control true calls 4 at 0:1,3000:1,6000:1,9000:1 · share in 0/3000/6000/9000 100.0% · 217 ms real
+failTimes 3 callers 10: 200 control true calls 40 at 0:10,3000:10,6000:10,9000:10 · share in 0/3000/6000/9000 100.0% · 106 ms real
+failTimes 3 callers 50: 200 control true calls 200 at 0:50,3000:50,6000:50,9000:50 · share in 0/3000/6000/9000 100.0% · 94 ms real
+failTimes 3 callers 100: 200 control true calls 400 at 0:100,3000:100,6000:100,9000:100 · share in 0/3000/6000/9000 100.0% · 98 ms real
+failTimes 3 callers 150: 200 control true calls 600 at 0:150,3000:150,6000:150,9000:150 · share in 0/3000/6000/9000 100.0% · 99 ms real
+failTimes 3 callers 200: 200 control true calls 800 at 0:200,3000:200,6000:200,9000:200 · share in 0/3000/6000/9000 100.0% · 110 ms real
+failTimes always callers 1: 200 control true calls 5 at 0:1,3000:1,6000:1,9000:1,12000:1 · share in 0/3000/6000/9000 80.0% · 96 ms real
+failTimes always callers 10: 200 control true calls 50 at 0:10,3000:10,6000:10,9000:10,12000:10 · share in 0/3000/6000/9000 80.0% · 108 ms real
+failTimes always callers 50: 200 control true calls 250 at 0:50,3000:50,6000:50,9000:50,12000:50 · share in 0/3000/6000/9000 80.0% · 110 ms real
+failTimes always callers 100: 200 control true calls 500 at 0:100,3000:100,6000:100,9000:100,12000:100 · share in 0/3000/6000/9000 80.0% · 109 ms real
+failTimes always callers 150: 200 control true calls 750 at 0:150,3000:150,6000:150,9000:150,12000:150 · share in 0/3000/6000/9000 80.0% · 101 ms real
+failTimes always callers 200: 200 control true calls 1000 at 0:200,3000:200,6000:200,9000:200,12000:200 · share in 0/3000/6000/9000 80.0% · 103 ms real
+callers 201: 422 gate: rejected (callers 201 is outside the allowed range (1 to 200)); nothing will run

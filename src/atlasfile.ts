@@ -30,10 +30,10 @@ import { chainlinkTo1e18, usdTimesRatio1e18 } from "./units";
 import { canonicalJson, verifySeal } from "./seal";
 import type { AgentEvent, AtlasFile, Bet, Experiment, Finding, Run, Target, Verdict } from "./types";
 
-/** Caption for a Level 2 run (fork before the proposal, actions applied). Same text as runners/evm/level2.ts LEVEL2_CAPTION. */
-export const LEVEL2_CAPTION = "fork of Base one block before MIP-X43 ran; Atlas applied the proposal's oracle-feed actions as the governor";
-/** Caption for a Level 1 run (read after the proposal ran). Never "caught before shipping". */
-export const level1Caption = (forkBlock: number) => `re-run after the fact, on a fork of Base at block ${forkBlock}`;
+// The two level captions live in src/captions.ts (no Node imports), so the web page can use them
+// without loading this file, which reads the Moonwell copy from disk.
+import { LEVEL2_CAPTION, level1Caption } from "./captions";
+export { LEVEL2_CAPTION, level1Caption };
 /** M7: the two halves of the "chosen line" caption. Each half is earned from the file's findings (chosenLineCaptions). */
 export const CBETH_PICKED_BY_PERSON = "the cbETH line was picked by a person";
 export const INVESTIGATOR_POINTED_ELSEWHERE = "the Investigator pointed elsewhere";

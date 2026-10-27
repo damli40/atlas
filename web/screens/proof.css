@@ -1,0 +1,63 @@
+/* D06-02 waves screen and D06-03 proof card. Colours come from the tokens in web/styles.css. */
+
+.scale-controls { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin: 12px 0; }
+.scale-slider { display: flex; flex-direction: column; gap: 4px; flex: 1 1 260px; }
+.scale-slider input[type="range"] { width: 100%; accent-color: var(--accent); }
+.scale-caption { font-weight: 600; margin: 8px 0 0; }
+.waves { margin: 8px 0 0; }
+.waves-svg { width: 100%; height: auto; display: block; }
+.waves-bar { fill: var(--accent); }
+.waves-axis { stroke: var(--line); stroke-width: 1; }
+.waves-tick { fill: var(--muted); font-size: 12px; }
+.waves-table { margin-top: 8px; }
+
+.proof-page { min-height: 100vh; padding: 24px 16px; display: flex; justify-content: center; align-items: flex-start; }
+.proof-card {
+  width: 100%; max-width: 1760px; background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+  padding: 28px 32px; display: grid; gap: 20px 40px;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  grid-template-areas: "head head" "score facts" "seals seals" "foot foot";
+}
+.pc-head { grid-area: head; display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; border-bottom: 1px solid var(--line); padding-bottom: 14px; }
+.pc-kicker { margin: 0; color: var(--muted); font-size: 15px; letter-spacing: 0.04em; text-transform: uppercase; }
+.pc-title { margin: 2px 0 0; font-size: 34px; overflow-wrap: anywhere; }
+.pc-level { margin: 4px 0 0; font-size: 17px; }
+.pc-judged { margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 17px; color: var(--muted); }
+.pc-score { grid-area: score; min-width: 0; }
+.pc-score .sb { justify-content: flex-start; }
+.pc-score .sb-mark { width: 120px; height: 120px; }
+.pc-bets { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 17px; }
+.pc-bets th, .pc-bets td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
+.pc-bets th { color: var(--muted); font-weight: 500; font-size: 14px; }
+.pc-who { font-weight: 600; }
+.pc-out { font-weight: 600; }
+.pc-matched { color: var(--matched); }
+.pc-not_matched { color: var(--not-matched); }
+.pc-cant_check { color: var(--cant); }
+.pc-facts { grid-area: facts; min-width: 0; font-size: 17px; }
+.pc-facts dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 14px; margin: 0; }
+.pc-facts dt { color: var(--muted); }
+.pc-facts dd { margin: 0; overflow-wrap: anywhere; }
+.pc-captions { margin: 14px 0 0; padding: 12px 14px 12px 30px; background: var(--label-bg); color: var(--label-ink); border-radius: 8px; }
+.pc-captions li { margin: 2px 0; }
+.pc-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; word-break: break-all; }
+.pc-seals { grid-area: seals; font-size: 14px; }
+.pc-seals ul { margin: 4px 0 0; padding-left: 18px; }
+.pc-small { font-size: 14px; margin: 0; }
+.pc-foot { grid-area: foot; display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; border-top: 1px solid var(--line); padding-top: 14px; font-size: 17px; }
+.pc-foot a { color: var(--accent); font-weight: 600; }
+.pc-replay { font-weight: 600; }
+.pc-replay.pc-same { color: var(--matched); }
+
+@media (max-width: 900px) {
+  .proof-page { padding: 12px 8px; }
+  .proof-card { grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "score" "facts" "seals" "foot"; padding: 16px; gap: 16px; }
+  .pc-title { font-size: 24px; }
+  .pc-bets { font-size: 15px; }
+  .pc-bets th:nth-child(2), .pc-bets td:nth-child(2) { display: none; }
+  .pc-bets th:nth-child(4), .pc-bets td:nth-child(4) { white-space: nowrap; overflow-wrap: normal; }
+  .pc-bets th, .pc-bets td { padding: 6px 5px; }
+  .pc-facts { font-size: 15px; }
+  .pc-facts dl { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .pc-facts dt { margin-top: 8px; }
+}

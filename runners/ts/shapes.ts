@@ -102,3 +102,16 @@ export function scenarioFromOracleInput(input: OracleInput): RetryScenario {
   if ("resolvesWith" in input) s.resolvesWith = input.resolvesWith;
   return s;
 }
+
+/**
+ * D06-02: what the sandbox runs for an experiment shape. "retry-scenario": one call. "concurrency-sweep":
+ * `callers` callers at once, each with the same failure pattern (a failing call throws a seeded error).
+ */
+export function harnessInputFromShape(shape: ExperimentShape): { scenario: RetryScenario; callers?: number } {
+  if (shape.shape === "concurrency-sweep") {
+    const s: RetryScenario = { failTimes: shape.failTimes, failure: "error", errorKind: "seeded" };
+    if (shape.delayMs !== undefined) s.delayMs = shape.delayMs;
+    return { scenario: s, callers: shape.callers };
+  }
+  return { scenario: scenarioFromShape(shape) };
+}
