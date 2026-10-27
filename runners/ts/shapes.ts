@@ -41,19 +41,22 @@ export const FAKE_RPC_ERRORS: ReadonlyArray<{ name: string; message: string }> =
 
 export const HTTP_429_ERROR = { name: "HttpRequestError", message: "HTTP request failed. Status: 429 Too Many Requests" };
 
+/** Captured when this module loads (before the code under test), so a replaced Math.imul cannot steer the errors. */
+const imul = Math.imul;
+
 /** Seeded random numbers in [0, 1). FNV-1a hashes the seed string; mulberry32 generates. */
 export function seededRandom(seed: string): () => number {
   let h = 0x811c9dc5;
   for (let i = 0; i < seed.length; i++) {
     h ^= seed.charCodeAt(i);
-    h = Math.imul(h, 0x01000193) >>> 0;
+    h = imul(h, 0x01000193) >>> 0;
   }
   let a = h;
   return () => {
     a = (a + 0x6d2b79f5) >>> 0;
     let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    t = imul(t ^ (t >>> 15), t | 1);
+    t ^= t + imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }

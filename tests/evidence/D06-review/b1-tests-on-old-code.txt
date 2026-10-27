@@ -1,0 +1,17 @@
+     × p5: a setter on Object.prototype.outcome (the code really stays pending) → can't check, never 'throws' 537ms
+     × Array.prototype.push patched to shrink every 3000 ms wait to 1 ms → can't check 528ms
+     × JSON.stringify patched at module load to rewrite the returned value → can't check 575ms
+     × Promise.prototype.then patched to call the harness's error handler at once (the code really never settles) → can't check 549ms
+     × a change that patches a built-in and puts it back before the end is still caught 549ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/unit/zz-old-b1.test.ts > B1: a change that rewrites JavaScript's built-ins cannot forge the record > p5: a setter on Object.prototype.outcome (the code really stays pending) → can't check, never 'throws'
+AssertionError: expected 'throws' not to be 'throws' // Object.is equality
+ FAIL  tests/unit/zz-old-b1.test.ts > B1: a change that rewrites JavaScript's built-ins cannot forge the record > Array.prototype.push patched to shrink every 3000 ms wait to 1 ms → can't check
+AssertionError: expected 4 not to be 4 // Object.is equality
+ FAIL  tests/unit/zz-old-b1.test.ts > B1: a change that rewrites JavaScript's built-ins cannot forge the record > JSON.stringify patched at module load to rewrite the returned value → can't check
+AssertionError: expected '"forged"' not to be '"forged"' // Object.is equality
+ FAIL  tests/unit/zz-old-b1.test.ts > B1: a change that rewrites JavaScript's built-ins cannot forge the record > Promise.prototype.then patched to call the harness's error handler at once (the code really never settles) → can't check
+AssertionError: expected 'throws' not to be 'throws' // Object.is equality
+ FAIL  tests/unit/zz-old-b1.test.ts > B1: a change that rewrites JavaScript's built-ins cannot forge the record > a change that patches a built-in and puts it back before the end is still caught
+AssertionError: expected true to be false // Object.is equality
+      Tests  5 failed | 2 passed (7)

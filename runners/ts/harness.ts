@@ -18,9 +18,36 @@
 //   code under test, so the code cannot keep a reference to the unwrapped functions.
 //
 // Every number in the result is counted from what happened; nothing is copied from the oracle.
+//
+// B1 (day-6 review): the code under test runs in this same process and may change JavaScript's
+// built-ins (Array.prototype.push, JSON.stringify, a setter on Object.prototype...). The harness records
+// with captured copies (runners/ts/primordials.ts), into objects with no prototype, and checks the
+// built-ins every time the code hands control back. A run whose code changed a built-in is returned
+// with nothing measured and BUILTINS_CHANGED_REASON, and the worker sends no result for it at all.
 
 import type { RunResult, TraceEvent } from "../../src/types.ts";
 import { FAKE_RPC_ERRORS, HTTP_429_ERROR, SUCCESS_VALUE, seededRandom, type RetryScenario } from "./shapes.ts";
+import {
+  ErrorCtor,
+  JSONStringify,
+  MathFloor,
+  NumberCtor,
+  NumberIsFinite,
+  ObjectHasOwn,
+  PromiseCtor,
+  ReflectApply,
+  StringCtor,
+  activeResourcesInfo,
+  append,
+  builtinWatch,
+  drainMicrotasks,
+  plain,
+  promiseReject,
+  promiseResolve,
+  promiseThen,
+  put,
+  record,
+} from "./primordials.ts";
 
 /** The signature of the function under test (structural; matches the fixture's withRpcRetry). */
 export type RetryFn = (
@@ -57,6 +84,8 @@ export interface WorkerResponse {
   runs: ({ id: string } & HarnessOutput)[];
   /** Set when the worker saw the code under test change something the result depends on. */
   tampered?: string;
+  /** B1: which built-in changed (e.g. "Array.prototype.push was replaced"); the parent re-checks the text before showing it. */
+  changed?: string;
 }
 /** The result line is `${RESULT_MARKER}${marker} ${json}`; the marker is random per run (see worker.ts). */
 export const RESULT_MARKER = "ATLAS_RESULT ";
@@ -81,77 +110,95 @@ const nativeSetInterval = globalThis.setInterval as unknown as Starter;
 const nativeClearInterval = globalThis.clearInterval as unknown as (h: unknown) => void;
 const nativeSetImmediate = globalThis.setImmediate as unknown as Starter;
 const nativeClearImmediate = globalThis.clearImmediate as unknown as (h: unknown) => void;
+const MapSet = Map.prototype.set;
+const MapDelete = Map.prototype.delete;
 
 type RealTimerKind = "setTimeout" | "setInterval" | "setImmediate";
 /** Real timers started during the current run and not yet fired or cleared. Null outside a run. */
 let currentRunTimers: Map<object, RealTimerKind> | null = null;
+/** The current run's built-in checker (B1): called whenever the code under test hands control back. */
+let currentWatch: (() => string | null) | null = null;
 let trackerInstalled = false;
 
 /**
  * Wraps the global timer functions so Atlas knows about every real timer the code under test starts,
  * whether or not it is unref()'d. Idempotent. Best effort: a timer from node:timers/promises is not
  * wrapped here; it is still caught by Node's resource list unless it is created with ref: false.
+ * The wrappers record with captured Map functions, so a replaced Map.prototype.set cannot hide a timer.
  */
 export function installRealTimerTracker(): void {
   if (trackerInstalled) return;
   trackerInstalled = true;
   const track = (kind: RealTimerKind, handle: object, repeats: boolean): (() => void) => {
+    currentWatch?.();
     const set = currentRunTimers;
-    set?.set(handle, kind);
+    if (set) ReflectApply(MapSet, set, [handle, kind]);
     return () => {
-      if (!repeats) set?.delete(handle);
+      if (!repeats && set) ReflectApply(MapDelete, set, [handle]);
     };
   };
   const g = globalThis as unknown as Record<string, unknown>;
   g.setTimeout = function (cb: unknown, ...rest: unknown[]) {
-    if (typeof cb !== "function") return nativeSetTimeout(cb, ...rest);
+    if (typeof cb !== "function") return ReflectApply(nativeSetTimeout, globalThis, [cb, ...rest]);
     let done = () => {};
-    const h = nativeSetTimeout((...a: unknown[]) => {
-      done();
-      return (cb as LooseFn)(...a);
-    }, ...rest);
+    const h = ReflectApply(nativeSetTimeout, globalThis, [
+      (...a: unknown[]) => {
+        done();
+        return ReflectApply(cb as LooseFn, undefined, a);
+      },
+      ...rest,
+    ]) as object;
     done = track("setTimeout", h, false);
     return h;
   };
   g.setInterval = function (cb: unknown, ...rest: unknown[]) {
-    const h = nativeSetInterval(cb, ...rest);
+    const h = ReflectApply(nativeSetInterval, globalThis, [cb, ...rest]) as object;
     track("setInterval", h, true);
     return h;
   };
   g.setImmediate = function (cb: unknown, ...rest: unknown[]) {
-    if (typeof cb !== "function") return nativeSetImmediate(cb, ...rest);
+    if (typeof cb !== "function") return ReflectApply(nativeSetImmediate, globalThis, [cb, ...rest]);
     let done = () => {};
-    const h = nativeSetImmediate((...a: unknown[]) => {
-      done();
-      return (cb as LooseFn)(...a);
-    }, ...rest);
+    const h = ReflectApply(nativeSetImmediate, globalThis, [
+      (...a: unknown[]) => {
+        done();
+        return ReflectApply(cb as LooseFn, undefined, a);
+      },
+      ...rest,
+    ]) as object;
     done = track("setImmediate", h, false);
     return h;
   };
   const untrack = (h: unknown) => {
-    if (h && typeof h === "object") currentRunTimers?.delete(h);
+    currentWatch?.();
+    if (h && typeof h === "object" && currentRunTimers) ReflectApply(MapDelete, currentRunTimers, [h]);
   };
   g.clearTimeout = (h: unknown) => {
     untrack(h);
-    nativeClearTimeout(h);
+    ReflectApply(nativeClearTimeout, globalThis, [h]);
   };
   g.clearInterval = (h: unknown) => {
     untrack(h);
-    nativeClearInterval(h);
+    ReflectApply(nativeClearInterval, globalThis, [h]);
   };
   g.clearImmediate = (h: unknown) => {
     untrack(h);
-    nativeClearImmediate(h);
+    ReflectApply(nativeClearImmediate, globalThis, [h]);
   };
 }
 
-/** Waits until every queued promise reaction has run. Uses the native setImmediate, never the wrapped one. */
-const drainMicrotasks = () => new Promise<void>((r) => void nativeSetImmediate(r));
+/**
+ * B1 (day-6 review). The one sentence for a run whose code changed JavaScript's built-in objects
+ * (Array.prototype.push, JSON.stringify, a setter on Object.prototype, ...). Such a run is never shown
+ * as fact: the worker sends no result at all, and every verdict is "can't check".
+ */
+export const BUILTINS_CHANGED_REASON = "the code under test changed JavaScript's built-in objects, so Atlas's record of this run cannot be trusted";
 
 /** Counts of the real Node resources (timers, sockets, file reads) alive right now, by type. */
 function activeResources(): Map<string, number> {
   const m = new Map<string, number>();
-  for (const r of process.getActiveResourcesInfo()) m.set(r, (m.get(r) ?? 0) + 1);
+  const list = activeResourcesInfo();
+  for (let i = 0; i < list.length; i++) m.set(list[i]!, (m.get(list[i]!) ?? 0) + 1);
   return m;
 }
 
@@ -165,108 +212,172 @@ function grownResources(before: Map<string, number>): string[] {
 function describeValue(v: unknown): string {
   if (v === undefined) return "undefined";
   try {
-    return JSON.stringify(v) ?? String(v);
+    return JSONStringify(v) ?? StringCtor(v);
   } catch {
-    return String(v);
+    try {
+      return StringCtor(v);
+    } catch {
+      return "a value Atlas could not turn into text";
+    }
   }
 }
 
 function describeError(e: unknown): string {
-  if (e instanceof Error) return `${e.name}: ${e.message}`;
+  try {
+    if (e instanceof ErrorCtor) return `${e.name}: ${e.message}`;
+  } catch {
+    return "an error Atlas could not turn into text";
+  }
   return describeValue(e);
 }
 
-export async function runScenario(withRpcRetry: RetryFn, scenario: RetryScenario, opts: HarnessOptions): Promise<HarnessOutput> {
+/** The run's result when the code changed a built-in: nothing measured, the reason in notMeasured.control. */
+function untrusted(trace: TraceEvent[], what: string): HarnessOutput {
+  const notMeasured = record<RunResult["notMeasured"]>();
+  put(notMeasured, "control", `${BUILTINS_CHANGED_REASON} (${what})`);
+  append(trace, { t: 0, event: "builtins_changed", data: { what } });
+  return plain({ trace, result: { measured: record<RunResult["measured"]>(), notMeasured } });
+}
+
+/** A copy of the scenario's own fields, read once at the start (never through a prototype later). */
+function ownScenario(s: RetryScenario): RetryScenario {
+  const out = record<RetryScenario>();
+  for (const k of ["failTimes", "failure", "attempts", "delayMs", "resolveAfterMs", "errorKind", "resolvesWith"] as const) {
+    if (ObjectHasOwn(s, k)) put(out, k, (s as unknown as Record<string, unknown>)[k]);
+  }
+  return out;
+}
+
+export async function runScenario(withRpcRetry: RetryFn, scenarioIn: RetryScenario, opts: HarnessOptions): Promise<HarnessOutput> {
+  // B1: everything the hooks below need is read now, before the code under test runs, and the run's
+  // built-in checker is called each time the code hands control back to Atlas.
+  installRealTimerTracker(); // no-op when the worker already installed it before importing the code
+  const watch = builtinWatch();
+  watch(); // first, before reading anything the code could have changed while it was loaded
+  const previousWatch = currentWatch;
+  currentWatch = watch;
+  const scenario = ownScenario(scenarioIn);
   const label = opts.label ?? "atlas-read";
   const watchLimitMs = opts.watchLimitMs ?? DEFAULT_WATCH_LIMIT_MS;
   const maxSteps = opts.maxSteps ?? DEFAULT_MAX_STEPS;
   const random = seededRandom(opts.seed);
+  const failTimes = scenario.failTimes;
+  const neverSettles = scenario.failure === "never_settles";
+  const is429 = scenario.errorKind === "429";
+  const value = ObjectHasOwn(scenario, "resolvesWith") ? scenario.resolvesWith : SUCCESS_VALUE;
+  const valueText = describeValue(value);
+  const resolveAfter = scenario.resolveAfterMs ?? 0;
 
   const trace: TraceEvent[] = [];
   let now = 0;
   let seq = 0;
   const timers: { at: number; seq: number; fire: () => void }[] = [];
-  const schedule = (at: number, fire: () => void) => timers.push({ at, seq: seq++, fire });
-  const emit = (event: string, data?: Record<string, unknown>) => trace.push(data ? { t: now, event, data } : { t: now, event });
+  const schedule = (at: number, fire: () => void) => append(timers, { at, seq: seq++, fire });
+  const emit = (event: string, data?: Record<string, unknown>) => append(trace, data ? { t: now, event, data } : { t: now, event });
 
   const waits: number[] = [];
   const logs: string[] = [];
   let calls = 0;
 
   // ---- injected into the code under test ----
-  const sleep = (ms: number): Promise<void> => {
-    waits.push(ms);
+  // Each hook first turns what the code passed into a plain number or string (that may run the code's
+  // own valueOf/toString), THEN checks the built-ins, then records with the captured functions only.
+  const sleep = (msIn: number): Promise<void> => {
+    const ms = typeof msIn === "number" ? msIn : NumberCtor(msIn);
+    watch();
+    append(waits, ms);
     emit("sleep", { ms });
-    const at = now + (Number.isFinite(ms) && ms > 0 ? ms : 0);
-    return new Promise<void>((resolve) =>
+    const at = now + (NumberIsFinite(ms) && ms > 0 ? ms : 0);
+    return new PromiseCtor<void>((resolve) =>
       schedule(at, () => {
         emit("wake", { ms });
         resolve();
       }),
     );
   };
-  const log = (msg: string): void => {
-    logs.push(msg);
+  const log = (msgIn: string): void => {
+    const msg = typeof msgIn === "string" ? msgIn : StringCtor(msgIn);
+    watch();
+    append(logs, msg);
     emit("log", { msg });
   };
 
   // ---- the fake RPC ----
   const fn = (): Promise<unknown> => {
+    watch();
     calls += 1;
     const n = calls;
     emit("call", { n });
-    const failing = scenario.failTimes === "always" || n <= scenario.failTimes;
-    if (failing && scenario.failure === "never_settles") {
+    const failing = failTimes === "always" || n <= failTimes;
+    if (failing && neverSettles) {
       emit("no_answer", { n });
-      return new Promise<unknown>(() => {});
+      return new PromiseCtor<unknown>(() => {});
     }
     if (failing) {
-      const pick = scenario.errorKind === "429" ? HTTP_429_ERROR : FAKE_RPC_ERRORS[Math.floor(random() * FAKE_RPC_ERRORS.length)]!;
+      const pick = is429 ? HTTP_429_ERROR : FAKE_RPC_ERRORS[MathFloor(random() * FAKE_RPC_ERRORS.length)]!;
       // The call number makes every error distinct and shows which call's error was finally thrown.
-      const err = Object.assign(new Error(`${pick.message} (call ${n})`), { atlasCall: n }) as Error & { atlasCall: number; status?: number };
-      err.name = pick.name;
-      if (scenario.errorKind === "429") err.status = 429;
-      emit("reject", { n, error: describeError(err) });
-      return Promise.reject(err);
+      const message = `${pick.message} (call ${n})`;
+      const err = new ErrorCtor(message);
+      put(err, "name", pick.name);
+      put(err, "atlasCall", n);
+      if (is429) put(err, "status", 429);
+      emit("reject", { n, error: `${pick.name}: ${message}` });
+      return promiseReject(err);
     }
-    const value = "resolvesWith" in scenario ? scenario.resolvesWith : SUCCESS_VALUE;
-    const after = scenario.resolveAfterMs ?? 0;
-    if (after > 0) {
-      return new Promise<unknown>((resolve) =>
-        schedule(now + after, () => {
-          emit("resolve", { n, value: describeValue(value) });
+    if (resolveAfter > 0) {
+      return new PromiseCtor<unknown>((resolve) =>
+        schedule(now + resolveAfter, () => {
+          emit("resolve", { n, value: valueText });
           resolve(value);
         }),
       );
     }
-    emit("resolve", { n, value: describeValue(value) });
-    return Promise.resolve(value);
+    emit("resolve", { n, value: valueText });
+    return promiseResolve(value);
   };
 
   // Only pass attempts/delayMs when the scenario sets them, so the code's own defaults are what run.
-  const retryOpts: Parameters<RetryFn>[2] = { sleep, log };
-  if (scenario.attempts !== undefined) retryOpts.attempts = scenario.attempts;
-  if (scenario.delayMs !== undefined) retryOpts.delayMs = scenario.delayMs;
+  const retryOpts: Parameters<RetryFn>[2] = {
+    sleep,
+    log,
+    ...(scenario.attempts !== undefined ? { attempts: scenario.attempts } : {}),
+    ...(scenario.delayMs !== undefined ? { delayMs: scenario.delayMs } : {}),
+  };
 
-  type Settled = { kind: "returns"; value: unknown; at: number } | { kind: "throws"; error: unknown; at: number };
+  // What the run ended with, described when it happened (describing may run the code's own toString or
+  // getters, so the built-ins are checked again right after).
+  type Settled = { kind: "returns"; text: string; at: number } | { kind: "throws"; text: string; fromCall: number | null; at: number };
   let settled: Settled | null = null;
-  installRealTimerTracker(); // no-op when the worker already installed it before importing the code
   const realTimers = new Map<object, RealTimerKind>();
   const previousRunTimers = currentRunTimers;
   currentRunTimers = realTimers;
   const before = activeResources();
 
   emit("start", { label, ...(scenario.attempts !== undefined ? { attempts: scenario.attempts } : {}), ...(scenario.delayMs !== undefined ? { delayMs: scenario.delayMs } : {}) });
-  Promise.resolve()
-    .then(() => withRpcRetry(label, fn, retryOpts))
-    .then(
-      (value) => {
-        settled = { kind: "returns", value, at: now };
-      },
-      (error: unknown) => {
-        settled = { kind: "throws", error, at: now };
-      },
-    );
+  promiseThen(
+    promiseThen(promiseResolve(undefined), () => withRpcRetry(label, fn, retryOpts)),
+    (v: unknown) => {
+      watch();
+      const at = now;
+      const text = describeValue(v);
+      watch();
+      settled = { kind: "returns", text, at };
+    },
+    (error: unknown) => {
+      watch();
+      const at = now;
+      const text = describeError(error);
+      let fromCall: number | null = null;
+      try {
+        const c = error !== null && (typeof error === "object" || typeof error === "function") && ObjectHasOwn(error, "atlasCall") ? (error as { atlasCall?: unknown }).atlasCall : undefined;
+        fromCall = typeof c === "number" ? c : null;
+      } catch {
+        fromCall = null;
+      }
+      watch();
+      settled = { kind: "throws", text, fromCall, at };
+    },
+  );
 
   // ---- the virtual event loop ----
   // `stop` is set when Atlas stops watching BEFORE the function finished. In every such case the run
@@ -276,6 +387,7 @@ export async function runScenario(withRpcRetry: RetryFn, scenario: RetryScenario
   try {
     for (;;) {
       await drainMicrotasks();
+      if (watch() !== null) break; // B1: the record is not trusted; nothing below runs on changed built-ins
       if (settled) break;
       // Real timers the code started. A setImmediate always runs on the next turn, so Atlas waits for
       // those (counted as steps). Any other real timer is time Atlas does not control: stop, can't check.
@@ -313,13 +425,17 @@ export async function runScenario(withRpcRetry: RetryFn, scenario: RetryScenario
     }
   } finally {
     currentRunTimers = previousRunTimers;
+    currentWatch = previousWatch;
   }
+  const changed = watch();
+  if (changed !== null) return untrusted(trace, changed);
 
   // ---- measured facts ----
-  const measured: RunResult["measured"] = {};
-  const notMeasured: RunResult["notMeasured"] = {};
+  // Written into objects with no prototype through defineProperty (B1), then copied out as plain data.
+  const measured = record<RunResult["measured"]>();
+  const notMeasured = record<RunResult["notMeasured"]>();
   // A negative or non-finite wait is not a span of time (a real timer treats it as 0), so no total is reported.
-  const badWait = waits.find((w) => !Number.isFinite(w) || w < 0);
+  const badWait = waits.find((w) => !NumberIsFinite(w) || w < 0);
   const totalWait = badWait === undefined ? waits.reduce((a, b) => a + b, 0) : null;
   const s = settled as Settled | null;
 
@@ -329,14 +445,14 @@ export async function runScenario(withRpcRetry: RetryFn, scenario: RetryScenario
     // it ends and how many calls/waits it makes in total were NOT observed. The numbers so far go
     // into the trace, marked partial; none of them is reported as measured.
     const r = stop.outcomeReason;
-    notMeasured.outcome = `${r}, so how it ends was not seen`;
-    notMeasured.settledAtMs = r;
-    notMeasured.calls = `${r}; the count so far was ${calls}`;
-    notMeasured.waitCount = `${r}; the count so far was ${waits.length}`;
-    notMeasured.waitsMs = `${r}; the waits asked for so far were [${waits.join(",")}]`;
-    notMeasured.totalWaitMs = `${r}; the waits asked for so far added up to ${totalWait ?? "a number that is not a real span of time (a negative or non-finite wait)"}${totalWait === null ? "" : " ms"}`;
-    notMeasured.logCount = `${r}; the count so far was ${logs.length}`;
-    notMeasured.logAttempts = `${r}; the log lines so far were ${logs.length}`;
+    put(notMeasured, "outcome", `${r}, so how it ends was not seen`);
+    put(notMeasured, "settledAtMs", r);
+    put(notMeasured, "calls", `${r}; the count so far was ${calls}`);
+    put(notMeasured, "waitCount", `${r}; the count so far was ${waits.length}`);
+    put(notMeasured, "waitsMs", `${r}; the waits asked for so far were [${waits.join(",")}]`);
+    put(notMeasured, "totalWaitMs", `${r}; the waits asked for so far added up to ${totalWait ?? "a number that is not a real span of time (a negative or non-finite wait)"}${totalWait === null ? "" : " ms"}`);
+    put(notMeasured, "logCount", `${r}; the count so far was ${logs.length}`);
+    put(notMeasured, "logAttempts", `${r}; the log lines so far were ${logs.length}`);
     emit("stopped_watching", {
       reason: r,
       partial: true,
@@ -344,38 +460,37 @@ export async function runScenario(withRpcRetry: RetryFn, scenario: RetryScenario
       waitsSoFarMs: waits.join(","),
       logLinesSoFar: logs.length,
     });
-    return { trace, result: { measured, notMeasured } };
+    return plain({ trace, result: { measured, notMeasured } });
   }
 
   // The function settled, or it can never settle (nothing left that could wake it): the counts are final.
-  measured.calls = calls;
-  measured.waitCount = waits.length;
-  measured.waitsMs = waits.join(",");
-  measured.logCount = logs.length;
-  measured.logAttempts = logs.map((m) => /attempt (\d+\/\d+)/.exec(m)?.[1] ?? "?").join(",");
-  if (totalWait !== null) measured.totalWaitMs = totalWait;
-  else notMeasured.totalWaitMs = `the code asked to wait ${badWait} ms, which is ${Number.isFinite(badWait) ? "negative" : "not a finite number"}; the waits do not add up to a real span of time`;
+  put(measured, "calls", calls);
+  put(measured, "waitCount", waits.length);
+  put(measured, "waitsMs", waits.join(","));
+  put(measured, "logCount", logs.length);
+  put(measured, "logAttempts", logs.map((m) => /attempt (\d+\/\d+)/.exec(m)?.[1] ?? "?").join(","));
+  if (totalWait !== null) put(measured, "totalWaitMs", totalWait);
+  else put(notMeasured, "totalWaitMs", `the code asked to wait ${badWait} ms, which is ${NumberIsFinite(badWait) ? "negative" : "not a finite number"}; the waits do not add up to a real span of time`);
 
   if (s) {
-    measured.outcome = s.kind;
-    measured.settledAtMs = s.at;
+    put(measured, "outcome", s.kind);
+    put(measured, "settledAtMs", s.at);
     if (s.kind === "returns") {
-      measured.returned = describeValue(s.value);
-      emit("returns", { value: describeValue(s.value) });
+      put(measured, "returned", s.text);
+      emit("returns", { value: s.text });
     } else {
-      measured.thrown = describeError(s.error);
-      const c = (s.error as { atlasCall?: unknown } | null)?.atlasCall;
-      measured.thrownFromCall = typeof c === "number" ? c : null;
-      emit("throws", { error: describeError(s.error) });
+      put(measured, "thrown", s.text);
+      put(measured, "thrownFromCall", s.fromCall);
+      emit("throws", { error: s.text });
     }
   } else {
     // Unsettled, no virtual timers left, nothing outside Atlas pending, queue drained: it can never settle.
-    measured.outcome = "pending";
-    notMeasured.settledAtMs = NEVER_SETTLED_REASON; // the settle-time field (SETTLE_FIELD in src/units.ts)
+    put(measured, "outcome", "pending");
+    put(notMeasured, "settledAtMs", NEVER_SETTLED_REASON); // the settle-time field (SETTLE_FIELD in src/units.ts)
     emit("pending", { reason: "unsettled, no timers left, queue drained" });
   }
 
-  return { trace, result: { measured, notMeasured } };
+  return plain({ trace, result: { measured, notMeasured } });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -387,6 +502,8 @@ export async function runScenario(withRpcRetry: RetryFn, scenario: RetryScenario
 // at the same virtual moment and call again together. The harness writes down the virtual time of
 // every call; nothing here assumes the schedule, it is counted from what happened.
 // `callTimesMs` is written as "t:count,t:count" in time order; web/screens/scale-model.ts parseCallTimes reads it.
+// B1: the same rules as runScenario: hooks record with captured functions only, and the built-ins are
+// checked each time the code hands control back.
 
 /** What a sweep runs: how many callers, and the one failure pattern every caller's fake read follows. */
 export interface SweepScenario {
@@ -396,17 +513,24 @@ export interface SweepScenario {
   delayMs?: number;
 }
 
-export async function runSweep(withRpcRetry: RetryFn, sweep: SweepScenario, opts: HarnessOptions): Promise<HarnessOutput> {
+export async function runSweep(withRpcRetry: RetryFn, sweepIn: SweepScenario, opts: HarnessOptions): Promise<HarnessOutput> {
+  installRealTimerTracker();
+  const watch = builtinWatch();
+  watch(); // first, before reading anything the code could have changed while it was loaded
+  const previousWatch = currentWatch;
+  currentWatch = watch;
   const label = opts.label ?? "atlas-read";
   const watchLimitMs = opts.watchLimitMs ?? DEFAULT_WATCH_LIMIT_MS;
   const maxSteps = opts.maxSteps ?? DEFAULT_MAX_STEPS;
   const random = seededRandom(opts.seed);
-  const n = sweep.callers;
+  const n = sweepIn.callers;
+  const failTimes = sweepIn.failTimes;
+  const delayMs = ObjectHasOwn(sweepIn, "delayMs") ? sweepIn.delayMs : undefined;
 
   let now = 0;
   let seq = 0;
   const timers: { at: number; seq: number; fire: () => void }[] = [];
-  const schedule = (at: number, fire: () => void) => timers.push({ at, seq: seq++, fire });
+  const schedule = (at: number, fire: () => void) => append(timers, { at, seq: seq++, fire });
 
   /** Virtual time of every call, per caller, in call order. */
   const callTimes: number[][] = Array.from({ length: n }, () => []);
@@ -417,46 +541,54 @@ export async function runSweep(withRpcRetry: RetryFn, sweep: SweepScenario, opts
   let settledCount = 0;
 
   const retryOptsFor = (i: number): Parameters<RetryFn>[2] => {
-    const sleep = (ms: number): Promise<void> => {
-      waits[i]!.push(ms);
-      const at = now + (Number.isFinite(ms) && ms > 0 ? ms : 0);
-      return new Promise<void>((resolve) => schedule(at, resolve));
+    const sleep = (msIn: number): Promise<void> => {
+      const ms = typeof msIn === "number" ? msIn : NumberCtor(msIn);
+      watch();
+      append(waits[i]!, ms);
+      const at = now + (NumberIsFinite(ms) && ms > 0 ? ms : 0);
+      return new PromiseCtor<void>((resolve) => schedule(at, resolve));
     };
-    const o: Parameters<RetryFn>[2] = { sleep, log: () => void (logLines += 1) };
-    if (sweep.delayMs !== undefined) o.delayMs = sweep.delayMs;
-    return o;
+    return {
+      sleep,
+      log: () => {
+        watch();
+        logLines += 1;
+      },
+      ...(delayMs !== undefined ? { delayMs } : {}),
+    };
   };
   const fnFor = (i: number) => (): Promise<unknown> => {
-    callTimes[i]!.push(now);
+    watch();
+    append(callTimes[i]!, now);
     const k = callTimes[i]!.length;
-    if (sweep.failTimes === "always" || k <= sweep.failTimes) {
-      const pick = FAKE_RPC_ERRORS[Math.floor(random() * FAKE_RPC_ERRORS.length)]!;
-      const err = new Error(`${pick.message} (caller ${i + 1}, call ${k})`);
-      err.name = pick.name;
-      return Promise.reject(err);
+    if (failTimes === "always" || k <= failTimes) {
+      const pick = FAKE_RPC_ERRORS[MathFloor(random() * FAKE_RPC_ERRORS.length)]!;
+      const err = new ErrorCtor(`${pick.message} (caller ${i + 1}, call ${k})`);
+      put(err, "name", pick.name);
+      return promiseReject(err);
     }
-    return Promise.resolve(SUCCESS_VALUE);
+    return promiseResolve(SUCCESS_VALUE);
   };
 
-  installRealTimerTracker();
   const realTimers = new Map<object, RealTimerKind>();
   const previousRunTimers = currentRunTimers;
   currentRunTimers = realTimers;
   const before = activeResources();
 
   for (let i = 0; i < n; i++) {
-    Promise.resolve()
-      .then(() => withRpcRetry(label, fnFor(i), retryOptsFor(i)))
-      .then(
-        () => {
-          settled[i] = { kind: "returns", at: now };
-          settledCount += 1;
-        },
-        () => {
-          settled[i] = { kind: "throws", at: now };
-          settledCount += 1;
-        },
-      );
+    promiseThen(
+      promiseThen(promiseResolve(undefined), () => withRpcRetry(label, fnFor(i), retryOptsFor(i))),
+      () => {
+        watch();
+        put(settled, i, { kind: "returns", at: now });
+        settledCount += 1;
+      },
+      () => {
+        watch();
+        put(settled, i, { kind: "throws", at: now });
+        settledCount += 1;
+      },
+    );
   }
 
   // The same virtual event loop as runScenario, for all callers at once.
@@ -465,6 +597,7 @@ export async function runSweep(withRpcRetry: RetryFn, sweep: SweepScenario, opts
   try {
     for (;;) {
       await drainMicrotasks();
+      if (watch() !== null) break; // B1: the record is not trusted
       if (settledCount === n) break;
       if (realTimers.size > 0) {
         const kinds = [...new Set(realTimers.values())].sort();
@@ -500,7 +633,10 @@ export async function runSweep(withRpcRetry: RetryFn, sweep: SweepScenario, opts
     }
   } finally {
     currentRunTimers = previousRunTimers;
+    currentWatch = previousWatch;
   }
+  const changed = watch();
+  if (changed !== null) return untrusted([{ t: 0, event: "start", data: { label, callers: n } }], changed);
 
   // ---- what happened, counted ----
   const byTime = new Map<number, number>();
@@ -509,7 +645,7 @@ export async function runSweep(withRpcRetry: RetryFn, sweep: SweepScenario, opts
   const callTimesText = instants.map(([t, c]) => `${t}:${c}`).join(",");
   const totalCalls = instants.reduce((a, [, c]) => a + c, 0);
 
-  const trace: TraceEvent[] = [{ t: 0, event: "start", data: { label, callers: n, failTimes: sweep.failTimes, ...(sweep.delayMs !== undefined ? { delayMs: sweep.delayMs } : {}) } }];
+  const trace: TraceEvent[] = [{ t: 0, event: "start", data: { label, callers: n, failTimes, ...(delayMs !== undefined ? { delayMs } : {}) } }];
   const settles = new Map<number, { returns: number; throws: number }>();
   for (const s of settled) {
     if (!s) continue;
@@ -523,30 +659,30 @@ export async function runSweep(withRpcRetry: RetryFn, sweep: SweepScenario, opts
     if (settles.has(t)) trace.push({ t, event: "settled", data: settles.get(t)! });
   }
 
-  const measured: RunResult["measured"] = {};
-  const notMeasured: RunResult["notMeasured"] = {};
+  const measured = record<RunResult["measured"]>();
+  const notMeasured = record<RunResult["notMeasured"]>();
   if (stop) {
     for (const f of ["calls", "callTimesMs", "waveCount", "largestWave", "sameScheduleCallers", "returnedCount", "threwCount", "pendingCount", "lastSettledAtMs"]) {
-      notMeasured[f] = f === "callTimesMs" ? `${stop}; the calls so far were at ${callTimesText || "no time"}` : stop;
+      put(notMeasured, f, f === "callTimesMs" ? `${stop}; the calls so far were at ${callTimesText || "no time"}` : stop);
     }
     trace.push({ t: now, event: "stopped_watching", data: { reason: stop, partial: true, callsSoFar: totalCalls } });
-    return { trace, result: { measured, notMeasured } };
+    return plain({ trace, result: { measured, notMeasured } });
   }
 
-  measured.callers = n;
-  measured.calls = totalCalls;
-  measured.callTimesMs = callTimesText;
-  measured.waveCount = instants.length;
-  measured.largestWave = instants.reduce((a, [, c]) => Math.max(a, c), 0);
+  put(measured, "callers", n);
+  put(measured, "calls", totalCalls);
+  put(measured, "callTimesMs", callTimesText);
+  put(measured, "waveCount", instants.length);
+  put(measured, "largestWave", instants.reduce((a, [, c]) => Math.max(a, c), 0));
   // How many callers called at exactly the same virtual times as caller 1 (the "same schedule").
   const first = callTimes[0]!.join(",");
-  measured.sameScheduleCallers = callTimes.filter((l) => l.join(",") === first).length;
-  measured.callerWaitsMs = waits.every((w) => w.join(",") === waits[0]!.join(",")) ? waits[0]!.join(",") : "not the same for every caller";
-  measured.logCount = logLines;
-  measured.returnedCount = settled.filter((s) => s?.kind === "returns").length;
-  measured.threwCount = settled.filter((s) => s?.kind === "throws").length;
-  measured.pendingCount = settled.filter((s) => s === null).length;
-  if (settledCount === n) measured.lastSettledAtMs = settled.reduce((a, s) => Math.max(a, s!.at), 0);
-  else notMeasured.lastSettledAtMs = `${n - settledCount} caller(s) never settled, so there is no last settle time`;
-  return { trace, result: { measured, notMeasured } };
+  put(measured, "sameScheduleCallers", callTimes.filter((l) => l.join(",") === first).length);
+  put(measured, "callerWaitsMs", waits.every((w) => w.join(",") === waits[0]!.join(",")) ? waits[0]!.join(",") : "not the same for every caller");
+  put(measured, "logCount", logLines);
+  put(measured, "returnedCount", settled.filter((s) => s?.kind === "returns").length);
+  put(measured, "threwCount", settled.filter((s) => s?.kind === "throws").length);
+  put(measured, "pendingCount", settled.filter((s) => s === null).length);
+  if (settledCount === n) put(measured, "lastSettledAtMs", settled.reduce((a, s) => Math.max(a, s!.at), 0));
+  else put(notMeasured, "lastSettledAtMs", `${n - settledCount} caller(s) never settled, so there is no last settle time`);
+  return plain({ trace, result: { measured, notMeasured } });
 }

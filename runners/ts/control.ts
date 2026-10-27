@@ -15,7 +15,7 @@ import type { Change, Experiment, Run, Target, TraceEvent } from "../../src/type
 import { localExecutor } from "../executor/local.ts";
 import type { Executor, ReplayContext, Runner } from "../runner.ts";
 import { checkChange, tsChangeContext } from "../change.ts";
-import { RESULT_MARKER, type HarnessOutput, type WorkerRequest, type WorkerResponse } from "./harness.ts";
+import { BUILTINS_CHANGED_REASON, RESULT_MARKER, type HarnessOutput, type WorkerRequest, type WorkerResponse } from "./harness.ts";
 import { SUCCESS_VALUE, harnessInputFromShape, scenarioFromOracleInput, type OracleInput } from "./shapes.ts";
 
 const REPO_ROOT = fileURLToPath(new URL("../../", import.meta.url));
@@ -43,7 +43,7 @@ const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 /** The files the sandbox needs besides request.json: the harness and the code under test as target.ts. */
 function harnessFiles(code: string): Record<string, string> {
   const own = (name: string) => readFileSync(new URL(`./${name}`, import.meta.url), "utf8");
-  return { "worker.ts": own("worker.ts"), "harness.ts": own("harness.ts"), "shapes.ts": own("shapes.ts"), "target.ts": code };
+  return { "worker.ts": own("worker.ts"), "harness.ts": own("harness.ts"), "shapes.ts": own("shapes.ts"), "primordials.ts": own("primordials.ts"), "target.ts": code };
 }
 
 type SandboxAnswer = { ok: true; runs: WorkerResponse["runs"] } | { ok: false; reason: string; tampered: boolean };
@@ -82,7 +82,12 @@ export function parseWorkerOutput(stdout: string, marker: string): SandboxAnswer
   } catch {
     return { ok: false, reason: "tampering or a cut-off write: the result line is not valid JSON", tampered: true };
   }
-  const p = parsed as { runs?: unknown; tampered?: unknown };
+  const p = parsed as { runs?: unknown; tampered?: unknown; changed?: unknown };
+  if (p?.tampered === BUILTINS_CHANGED_REASON) {
+    // B1: which built-in changed is shown only when it reads like one ("Array.prototype.push was replaced").
+    const what = typeof p.changed === "string" && /^[A-Za-z][\w.]{0,60}(?:'s prototype)? (?:was replaced|was added or deleted|was frozen or sealed)$|^a property of [A-Za-z][\w.]{0,60} was (?:replaced|added or deleted)$/.test(p.changed) ? p.changed : "a built-in object changed";
+    return { ok: false, reason: `${BUILTINS_CHANGED_REASON} (${what})`, tampered: true };
+  }
   if (typeof p?.tampered === "string") return { ok: false, reason: `tampering: ${p.tampered}`, tampered: true };
   if (!Array.isArray(p?.runs) || !p.runs.every(isHarnessRun)) {
     return { ok: false, reason: "tampering: the result line does not have the shape the worker writes", tampered: true };
@@ -328,7 +333,7 @@ export const REPLAY_CHECKS_EVENT = "replay_checks";
 
 function harnessSha256(): string {
   const own = (name: string) => readFileSync(new URL(`./${name}`, import.meta.url), "utf8");
-  return sha256(["worker.ts", "harness.ts", "shapes.ts"].map(own).join("\n"));
+  return sha256(["worker.ts", "harness.ts", "shapes.ts", "primordials.ts"].map(own).join("\n"));
 }
 
 /** Throws when the replay would not be the same experiment with the same inputs. */
@@ -394,7 +399,14 @@ async function replayTsWithChange(original: Run, change: Change, ctx: ReplayCont
       changedCodeSha256: changedSha,
       changedLines: checked.changedLines,
       harnessSha256: harnessSha256(),
-      harnessCheck: { on: "original code", rows: [...CONTROL_CASES], passed: harness.run.controlPassed, runId: harness.run.id, ...(harness.reason ? { reason: harness.reason } : {}) },
+      // B1: a replay whose changed code changed JavaScript's built-ins fails this check too, with that reason.
+      harnessCheck: {
+        on: "original code",
+        rows: [...CONTROL_CASES],
+        passed: harness.run.controlPassed === true && !tampered,
+        runId: harness.run.id,
+        ...(tampered ? { reason: res.ok ? "" : res.reason } : harness.reason ? { reason: harness.reason } : {}),
+      },
       changedCodeOnKnownRows: {
         note: "recorded only, not a gate: these rows are known answers of the original function",
         rows: [...CONTROL_CASES],

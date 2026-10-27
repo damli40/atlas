@@ -71,7 +71,8 @@ export async function withRpcRetry() { return "nope"; }
     const sneaky = code + `\nObject.defineProperty(Object.prototype, "toJSON", { value() { return this; }, configurable: true });\n`;
     const { run, reason } = await runControl(sneaky);
     expect(run.controlPassed).toBe(false);
-    expect(reason).toMatch(/tamper/i);
+    // Day-6 B1: the built-in snapshot now names what changed, in plain words.
+    expect(reason).toMatch(/changed JavaScript's built-in objects.*Object\.prototype/);
   });
 
   it("the parser takes only the first marker line; a second marker line or bad JSON counts as tampering", () => {
