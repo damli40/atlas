@@ -61,6 +61,64 @@ async function overflow(page, name) {
   return r;
 }
 
+/**
+ * Layout check axe cannot make: inside `root`, no two pieces of visible text overlap (each text node's line
+ * boxes, compared across different elements where neither holds the other), and no text sticks out of `root`.
+ * Text inside a scroll box is clipped to that box first (it may scroll, but it may not cover other text).
+ */
+async function overlap(page, name, root) {
+  const r = await page.evaluate((sel) => {
+    const card = document.querySelector(sel);
+    if (!card) return { error: `no ${sel}` };
+    const cb = card.getBoundingClientRect();
+    const clipOf = (el) => {
+      let box = null;
+      for (let a = el; a && a !== card; a = a.parentElement) {
+        const st = getComputedStyle(a);
+        if (/(auto|scroll|hidden)/.test(st.overflowX + st.overflowY)) {
+          const b = a.getBoundingClientRect();
+          box = box ? { left: Math.max(box.left, b.left), right: Math.min(box.right, b.right), top: Math.max(box.top, b.top), bottom: Math.min(box.bottom, b.bottom) } : { left: b.left, right: b.right, top: b.top, bottom: b.bottom };
+        }
+      }
+      return box;
+    };
+    const items = [];
+    const walker = document.createTreeWalker(card, NodeFilter.SHOW_TEXT);
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      if (!n.textContent.trim()) continue;
+      const el = n.parentElement;
+      if (!el || el.closest("svg")) continue;
+      const st = getComputedStyle(el);
+      if (st.visibility === "hidden" || st.display === "none") continue;
+      const range = document.createRange();
+      range.selectNodeContents(n);
+      const clip = clipOf(el);
+      for (const q of range.getClientRects()) {
+        let b = { left: q.left, right: q.right, top: q.top, bottom: q.bottom };
+        if (clip) b = { left: Math.max(b.left, clip.left), right: Math.min(b.right, clip.right), top: Math.max(b.top, clip.top), bottom: Math.min(b.bottom, clip.bottom) };
+        if (b.right - b.left < 1 || b.bottom - b.top < 1) continue;
+        items.push({ el, b, text: n.textContent.trim().slice(0, 40) });
+      }
+    }
+    const hits = [];
+    const outside = [];
+    for (const it of items) if (it.b.left < cb.left - 1 || it.b.right > cb.right + 1) outside.push(it.text);
+    for (let i = 0; i < items.length; i++) {
+      for (let j = i + 1; j < items.length; j++) {
+        const a = items[i], c = items[j];
+        if (a.el === c.el || a.el.contains(c.el) || c.el.contains(a.el)) continue;
+        const w = Math.min(a.b.right, c.b.right) - Math.max(a.b.left, c.b.left);
+        const h = Math.min(a.b.bottom, c.b.bottom) - Math.max(a.b.top, c.b.top);
+        if (w > 1 && h > 1) hits.push(`"${a.text}" × "${c.text}"`);
+      }
+    }
+    return { textBoxes: items.length, overlaps: hits.slice(0, 10), overlapCount: hits.length, outside: outside.slice(0, 10), outsideCount: outside.length, cardWidth: Math.round(cb.width) };
+  }, root);
+  (results.overlap ??= {})[name] = r;
+  say(`overlap ${name}: card ${r.cardWidth} px wide, ${r.textBoxes} text boxes, ${r.overlapCount} overlapping pairs${r.overlaps?.length ? ` (${r.overlaps.join("; ")})` : ""}, ${r.outsideCount} outside the card${r.outside?.length ? ` (${r.outside.join("; ")})` : ""}`);
+  return r;
+}
+
 /** With prefers-reduced-motion: no running CSS animation or transition on the page. */
 async function motion(page, name) {
   const r = await page.evaluate(() => {
@@ -77,6 +135,7 @@ async function at390(path, name, prep) {
   await p.goto(URL0 + path);
   if (prep) await prep(p);
   await overflow(p, name);
+  if (name.startsWith("proof-card")) await overlap(p, `${name}-390`, '[data-testid="proof-card"]');
   await p.screenshot({ path: `${outDir}/${name}-390.png`, fullPage: true });
   await p.close();
 }
@@ -137,6 +196,7 @@ await mw.getByTestId("price-pipe").first().waitFor({ timeout: 400000 });
 say("run facts:", flat(await mw.getByTestId("run-facts").innerText()));
 const mwRunId = (await mw.getByTestId("proof-link").getAttribute("href")).replace("?proof=", "");
 say("moonwell run id:", mwRunId);
+await overlap(mw, "verdict-moonwell", 'section[aria-label="verdicts"]');
 await mw.locator('section[aria-label="verdicts"]').screenshot({ path: `${outDir}/moonwell-verdict.png` });
 await mw.getByTestId("price-pipe").first().screenshot({ path: `${outDir}/moonwell-price-pipe.png` });
 await mw.getByTestId("false-alarm").screenshot({ path: `${outDir}/moonwell-market-table.png` });
@@ -165,6 +225,7 @@ for (const [tag, id] of [
   say(`${tag} proof card: each mark is ${Math.round(h.width)}×${Math.round(h.height)} px at 1920×1080; the marks' group is centred at x ${Math.round(g.x + g.width / 2)} of 1920, top at y ${Math.round(h.y)}`);
   results[`markSize-${tag}`] = h;
   say(`${tag} bettors:`, flat(await pc.getByTestId("pc-bettors").innerText()));
+  await overlap(pc, `proof-card-${tag}-1920`, '[data-testid="proof-card"]');
   await pc.screenshot({ path: `${outDir}/proof-card-${tag}-1920.png` });
   await pc.screenshot({ path: `${outDir}/proof-card-${tag}-1920-full.png`, fullPage: true });
   await axe(pc, `proof-card-${tag}`);

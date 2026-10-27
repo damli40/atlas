@@ -11,12 +11,22 @@
 .waves-tick { fill: var(--muted); font-size: 12px; }
 .waves-table { margin-top: 8px; }
 
-.proof-page { min-height: 100vh; padding: 24px 16px; display: flex; justify-content: center; align-items: flex-start; }
+/* main.proof-page: overrides the app's `main { max-width: 760px }` (the proof card is its own wide page). */
+main.proof-page { max-width: none; margin: 0; min-height: 100vh; padding: 24px 16px; display: flex; justify-content: center; align-items: flex-start; }
 .proof-card {
-  width: 100%; max-width: 1760px; background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+  width: 100%; max-width: 1600px; background: var(--card); border: 1px solid var(--line); border-radius: 14px;
   padding: 28px 32px; display: grid; gap: 20px 40px;
-  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
-  grid-template-areas: "head head" "hero hero" "score facts" "change change" "seals seals" "foot foot";
+  /* D07-04: one column by default; two columns (results ~60% | details ~40%) from 1200 px. */
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "head" "hero" "score" "change" "facts" "seals" "foot";
+  align-items: start;
+}
+@media (min-width: 1200px) {
+  /* Several questions: one row of marks in the left column (240 px each at 1920 wide, never under 220 there). */
+  .pc-hero .sb { gap: 12px 32px; flex-wrap: nowrap; }
+  .pc-hero .sb-item:not(:only-child) .sb-mark { width: min(240px, 12.5vw); }
+  .pc-hero .sb-item:not(:only-child) figcaption { max-width: min(240px, 12.5vw); }
+  .proof-card { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); grid-template-areas: "head head" "hero facts" "score seals" "change change" "foot foot"; }
 }
 /* D07-04: the end frame. The scoreboard (the Atlas mark) large and centred, then who bet and how it came out. */
 .pc-hero { grid-area: hero; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; padding: 8px 0 4px; }
@@ -42,6 +52,10 @@
 .pc-bets th, .pc-bets td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: break-word; }
 /* D07-04: outcome words never break inside a word (a long id may still wrap at its hyphens). */
 .pc-out { white-space: nowrap; }
+.pc-out .muted { display: block; white-space: normal; font-weight: 400; font-size: 14px; }
+.pc-bets td.pc-who { min-width: 11em; }
+.pc-score, .pc-facts, .pc-seals, .pc-hero, .pc-change { min-width: 0; }
+.pc-score { overflow-x: auto; }
 .pc-who { overflow-wrap: anywhere; }
 .pc-bets th { color: var(--muted); font-weight: 500; font-size: 14px; }
 .pc-who { font-weight: 600; }
@@ -66,7 +80,8 @@
 
 @media (max-width: 900px) {
   .proof-page { padding: 12px 8px; }
-  .proof-card { grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "hero" "score" "change" "facts" "seals" "foot"; padding: 16px; gap: 16px; }
+  .proof-card { padding: 16px; gap: 16px; }
+  .pc-bets td.pc-who { min-width: 0; }
   .pc-bettors { font-size: 17px; flex-direction: column; align-items: center; }
   .pc-hero .sb { gap: 8px 12px; }
   .pc-title { font-size: 24px; }

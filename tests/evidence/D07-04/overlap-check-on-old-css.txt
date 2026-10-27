@@ -1,0 +1,2 @@
+overlap OLD CSS moonwell 1920: card 728 px wide, 162 text boxes, 3 overlapping pairs ("outcome" × "target"; "the bettor declined" × "@ 9a6738e189"; "didn't match" × "control"), 0 outside the card
+overlap OLD CSS moonwell 390: card 374 px wide, 156 text boxes, 0 overlapping pairs, 0 outside the card

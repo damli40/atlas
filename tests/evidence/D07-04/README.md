@@ -33,7 +33,8 @@ script: withRpcRetry S3 = calls 5, wait 12000, throws; Moonwell Level 2 = $2,200
 | Accessibility: axe-core 4.10.3, WCAG 2.0/2.1 A + AA + best-practice rules, whole page | **0 violations** on all 8 pages: drop (withRpcRetry, Moonwell), verdict (withRpcRetry, Moonwell), change and replay, proof card (withRpcRetry, Moonwell) |
 | 390 px wide: no horizontal scroll | **none** on drop (both), verdict + change (withRpcRetry), Moonwell file picker, many-callers screen, both proof cards |
 | prefers-reduced-motion | **0 running animations** on every page above (also a global CSS rule in `web/styles.css`) |
-| The mark on the proof card at 1920×1080 | **300×300 px**, centred (group centre x 960 of 1920) |
+| Overlap check (text boxes of different elements must not intersect; no text outside the card) | **0 overlapping pairs, 0 outside** on both proof cards at 1920 and 390, and on the Moonwell verdict section |
+| The mark on the proof card at 1920×1080 | Moonwell (one question): **300×300 px**; withRpcRetry (three questions): **240×240 px** each, in one row. Centred in the left column |
 | The claimant toggle | locked while the round is open, unlocked after its run |
 | Page errors | none |
 
@@ -43,6 +44,19 @@ All three are fixed. At 390 px the proof card's tables broke words mid-word ("de
 
 **Lighthouse was not run** (it is not installed here). The score above is axe-core's, run through Playwright,
 which the task allowed. axe gives violations, not a 0–100 score.
+
+## Correction: the first proof-card PNGs had overlapping text
+
+The 1920 px proof cards in the previous commit (3c04e64) were wrong, and I reported them as fine. My own
+accessibility fix caused it: I made the proof page a `<main>` element, so it picked up the app's
+`main { max-width: 760px }` rule. The card shrank to a ~730 px column, and the details block (target, code
+fingerprint, fork, control) was drawn over the results table. axe does not check overlap, so it passed.
+
+Now: from 1200 px wide the card is ~1600 px with two columns (mark, bettor lines and table on the left, ~60%;
+details, captions and seals on the right). Below 1200 px everything stacks. `drive.mjs` now runs an overlap
+check on both proof cards at 1920 and 390 px. On the old CSS it finds exactly the 3 overlaps that were
+visible (`overlap-check-on-old-css.txt`: "the bettor declined" × "@ 9a6738e189", "didn't match" × "control",
+"outcome" × "target").
 
 ## PNGs
 

@@ -33,7 +33,7 @@
     "proof-card-moonwell": {
       "violations": [],
       "passes": 39,
-      "incomplete": 2
+      "incomplete": 1
     }
   },
   "overflow": {
@@ -101,15 +101,57 @@
     }
   },
   "errors": [],
+  "overlap": {
+    "verdict-moonwell": {
+      "textBoxes": 76,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "cardWidth": 728
+    },
+    "proof-card-fixture-1920": {
+      "textBoxes": 114,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "cardWidth": 1600
+    },
+    "proof-card-fixture-390": {
+      "textBoxes": 125,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "cardWidth": 358
+    },
+    "proof-card-moonwell-1920": {
+      "textBoxes": 123,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "cardWidth": 1600
+    },
+    "proof-card-moonwell-390": {
+      "textBoxes": 161,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "cardWidth": 358
+    }
+  },
   "markSize-fixture": {
-    "x": 636,
-    "y": 237,
-    "width": 300,
-    "height": 300
+    "x": 233.1875,
+    "y": 195.5,
+    "width": 240,
+    "height": 240
   },
   "markSize-moonwell": {
-    "x": 810,
-    "y": 242.5,
+    "x": 491.1875,
+    "y": 201,
     "width": 300,
     "height": 300
   }
