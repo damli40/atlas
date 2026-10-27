@@ -473,3 +473,91 @@ image, and every exec refuses a Node other than v25.8.1.
 - Making the output cap count the same way on both executors (M).
 - A V1 live test: V1 is no longer used.
 - No second reviewer has looked at these fixes yet.
+
+## Rebase onto main, and hosted Python (D24), 2026-10-27
+
+### Rebase
+`e4-modal` was rebased onto main at b28f9b3, which carries E2 (Python). Three files had conflicts:
+- **`runners/executor/local.ts`:** kept E2's fix, which collects raw bytes and decodes them once, so a multi-byte
+  character split across reads stays whole. Also kept E4's shared flag guard, fingerprint and `runtime` field.
+- **`runners/ts/control.ts`:** kept E2's Python dispatch, and applied D31 to it.
+- **`tests/evidence/README.md`:** both index lines are kept.
+
+All E2 tests pass unchanged on the rebased branch.
+
+### Hosted Python
+Judges can paste Python on the hosted site (D24), and before this change hosted Python did not work. Now it does:
+- **When the runner's executor is Modal, pasted Python runs in a Modal sandbox too.** The rule is
+  `pythonExecutorFor` in `runners/ts/control.ts`, and it never falls back to running locally. On the local
+  executor, Python still uses macOS sandbox-exec, as in E2.
+- **The command:** `python3 -I -S -B boot.py`, the same flags as the macOS executor, under `env -i`, as nobody with
+  no new privileges, with no network.
+  - The container, the network block and the non-root user take the place of sandbox-exec.
+  - The harness's audit hook and every in-process refusal are unchanged (`runners/py/*.py` was not edited).
+  - The Modal executor applies the macOS executor's rules to `python3`: script names only, no interpreter flags,
+    an empty environment, no network.
+- **What each Python run records in its trace:** the executor and its runtime (Modal backend `v2`, Node, Python
+  `Python 3.14.7`, image, sandbox id). It also keeps the harness's own reported Python version (`3.14.7`).
+- **The other E4 protections apply to Python too:**
+  - the result key travels on stdin only;
+  - a sandbox that stops under the code gives "stopped", not "could not start";
+  - exit 137 gives the plain out-of-memory reason;
+  - Modal's own text is stripped from reasons;
+  - E2's redaction of the run folder now also covers the Modal folder (`atlas-exec-`).
+- **D31 covers the Python control.**
+  - `pyControlFor` reuses a passed Python control for 10 minutes.
+  - Its key is: the Python harness files (`boot.py`, `harness.py`, `exposed.py`), `reference.py` and its known
+    answers, the executor kind and fingerprint, and the Python version (the pinned image's on Modal, this Mac's
+    locally).
+  - The macOS executor now has a fingerprint naming its Python.
+  - A Python control made on one executor is refused for a run on another.
+  - Each Python run names its control and that control's time (`controlFinishedAt`), so `verify` and the proof
+    card treat it like a JavaScript run.
+
+**Tests (fake Modal, $0):** `tests/unit/modal-python.test.ts`, 6 tests.
+- The exact container command for Python.
+- The key on stdin only.
+- Which executor runs Python.
+- The Python reuse key changes with the executor and the image.
+- End to end through the real Python harness, with Modal's plumbing emulated on this Mac:
+  - the Python control passes on "modal" and is reused;
+  - a run records the executor, the runtime and the control time;
+  - a Python control made locally is refused for a Modal run.
+- `tests/unit/modal-executor.test.ts` also refuses Python interpreter flags and Python env.
+
+**Live (`ATLAS_LIVE_MODAL=1 pnpm vitest run tests/unit/modal-live-py.test.ts`, one run, 22:37 UTC): 5 of 5
+passed.** Files: `python-live-test-output.txt`, `python-live-sandboxes.json`.
+
+| Check | Result on Modal |
+|---|---|
+| Python control | passed; `executor: "modal"`, backend v2, `Python 3.14.7` (harness and container agree) |
+| 2 ordinary functions (a dict total; an async retry with a stand-in that throws, then returns after 250 virtual ms) | the measured result is deep-equal to this Mac's sandbox-exec run, both |
+| Network through the harness (`socket.create_connection`, the error caught by the code) | whole-run "can't check" (network/files: socket) |
+| A file through the harness (`open('/etc/passwd')`, caught) | whole-run "can't check" (network/files: open(/etc/passwd)) |
+| Env through the harness | the code sees only `LC_CTYPE`, which Python sets itself for its locale; no secrets |
+| Raw in the container, Python as nobody WITHOUT the harness | uid 65534; DNS fails (`gaierror`); TCP to 1.1.1.1 fails (`OSError`); writing into the run folder fails (`PermissionError`); env only `LC_CTYPE` |
+| Forged result line | refused as tampering, "can't check" |
+| Endless `while True: pass`, 4 s limit | Atlas stopped it at 4,002 ms: "can't check" (REAL time) |
+
+**Latency:** a warm Python sandbox takes 3.2–4.6 s end to end (the run itself 0.6–0.9 s). The first Python
+sandbox in a process took 5.8 s.
+- D32's warm-up runs only the JavaScript control. So the first Python paste after a server start needs 2 sandboxes,
+  about 9–10 s. Later Python pastes within 10 minutes need one sandbox (D31).
+- Warming the Python control as well would cost one more sandbox at startup. Not done; it is a one-line change in
+  `runners/executor/warm.ts` if wanted.
+
+**Modal time for this step:** 9 sandboxes, 41.5 s as Atlas measured them (about 0.7 minutes).
+- Stopped sandboxes stayed listed for about 30 s, as measured in review round 1 (not billed).
+- `sandboxes.list` reached 0 at 22:38:18 UTC. Nothing is left running.
+
+### Full suite after the rebase and hosted Python
+- **Result:** 1,111 passed and 35 skipped in clean runs (90 test files plus 2 live-only files that skip). The type
+  check is clean (`python-tsc-output.txt` is empty).
+- **The skip count moves between 35 and 36:** the GitHub-network test skips when GitHub rate-limits.
+- **Some runs hit timeouts, all caused by the machine being overloaded:**
+  - The failing tests were the retry-fixture replays, the sweep and the day gate. Each hit vitest's 5-second
+    per-test limit.
+  - The load average was 44 at the time, from other agents on this machine.
+  - The same file passes 10 of 10 on its own, 5 times in a row.
+  - None of these tests touch the Python or Modal code.
+- See `python-full-suite.txt`. Its count line is in the report to the coordinator.

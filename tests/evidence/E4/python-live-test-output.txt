@@ -1,0 +1,14 @@
+
+ RUN  v5.0.5 <repo>
+
+ ✓ tests/unit/modal-live-py.test.ts > E4 live: hosted Python on real Modal Sandboxes > the Python control passes on Modal; the run records the executor, the backend and the Python version 1ms
+ ✓ tests/unit/modal-live-py.test.ts > E4 live: hosted Python on real Modal Sandboxes > two ordinary Python functions: results identical to this Mac's sandbox-exec run 9198ms
+ ✓ tests/unit/modal-live-py.test.ts > E4 live: hosted Python on real Modal Sandboxes > attacks through the harness: network, files and env 11419ms
+ ✓ tests/unit/modal-live-py.test.ts > E4 live: hosted Python on real Modal Sandboxes > attacks raw in the container (Python as nobody, WITHOUT the harness): no network, no secrets, not root 3205ms
+ ✓ tests/unit/modal-live-py.test.ts > E4 live: hosted Python on real Modal Sandboxes > a forged result line is refused (tampering), and an endless loop is can't check 12067ms
+
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  23:37:03
+   Duration  41.98s (tests 100%)
+

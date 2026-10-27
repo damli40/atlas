@@ -1,0 +1,49 @@
+{
+  "when": "2026-10-27T22:37:45.773Z",
+  "lines": [
+    {
+      "label": "python control (first sandbox in this process)",
+      "line": "modal sandbox sb-01M5ZR54XJEG46KQ7C616GVZ1F done exit=0 timedOut=false createMs=2334 setupMs=2370 runMs=653 totalMs=5822 stdoutChars=9668 stderrChars=0"
+    },
+    {
+      "label": "py ordinary: totals",
+      "line": "modal sandbox sb-01M5ZR58NV0EPTZVP4VPC28M7R done exit=0 timedOut=false createMs=326 setupMs=2845 runMs=817 totalMs=4567 stdoutChars=640 stderrChars=0"
+    },
+    {
+      "label": "py ordinary: async retry with a stand-in",
+      "line": "modal sandbox sb-01M5ZR5D88DJNYSHW3XQYVS5ZM done exit=0 timedOut=false createMs=299 setupMs=2692 runMs=831 totalMs=4407 stdoutChars=971 stderrChars=0"
+    },
+    {
+      "label": "py attack: network",
+      "line": "modal sandbox sb-01M5ZR5HN4K2JVM4KRE0CHGKDD done exit=0 timedOut=false createMs=281 setupMs=2677 runMs=917 totalMs=4432 stdoutChars=240 stderrChars=0"
+    },
+    {
+      "label": "py attack: read a file",
+      "line": "modal sandbox sb-01M5ZR5P04AM8Z2CAHGKF4YDQH done exit=0 timedOut=false createMs=331 setupMs=2082 runMs=636 totalMs=3510 stdoutChars=239 stderrChars=0"
+    },
+    {
+      "label": "py attack: env",
+      "line": "modal sandbox sb-01M5ZR5SDJPZPA7W0P73RTTB2P done exit=0 timedOut=false createMs=245 setupMs=2057 runMs=713 totalMs=3467 stdoutChars=627 stderrChars=0"
+    },
+    {
+      "label": "py env keys seen by pasted code",
+      "line": "[\"LC_CTYPE\"]"
+    },
+    {
+      "label": "py raw: as nobody without the harness",
+      "line": "modal sandbox sb-01M5ZR5WSZ29ZC5B5FW0NK012N done exit=0 timedOut=false createMs=284 setupMs=2097 runMs=270 totalMs=3204 stdoutChars=124 stderrChars=0"
+    },
+    {
+      "label": "py raw probe result",
+      "line": "{\"uid\": 65534, \"env\": [\"LC_CTYPE\"], \"dns\": \"FAIL gaierror\", \"tcp\": \"FAIL OSError\", \"write_run_dir\": \"FAIL PermissionError\"}"
+    },
+    {
+      "label": "py attack: forged result line",
+      "line": "modal sandbox sb-01M5ZR5ZYATQ8DTZ77J7M2FZ33 done exit=0 timedOut=false createMs=297 setupMs=2658 runMs=830 totalMs=4342 stdoutChars=707 stderrChars=0"
+    },
+    {
+      "label": "py attack: endless loop",
+      "line": "modal sandbox sb-01M5ZR646A4A5H42XY4C59YGPM timed out exit=none timedOut=true createMs=297 setupMs=2834 runMs=4002 totalMs=7719 stdoutChars=0 stderrChars=0"
+    }
+  ]
+}
