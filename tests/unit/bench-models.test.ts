@@ -2,7 +2,7 @@
 // Nothing here calls a model or spends money.
 
 import { describe, expect, it } from "vitest";
-import { buildPlan, estimateCost, runLive, scoreBet, tally, rates, BUDGET_CAP_USD, WONDER_MODEL, type LiveDeps, type PlannedPrompt } from "../../bench/models/run.ts";
+import { buildPlan, estimateCost, latestCommittedDryRun, runLive, scoreBet, tally, rates, BUDGET_CAP_USD, WONDER_MODEL, type LiveDeps, type PlannedPrompt } from "../../bench/models/run.ts";
 import { describeCall } from "../../src/gate.ts";
 import { SPARK_MODEL, SPARK_OPEN_MODEL } from "../../src/claimants.ts";
 import { validateBetOnlyOutput } from "../../server/meta/roles/claimant-bets.ts";
@@ -48,8 +48,23 @@ describe("bench M prompt plan (built by plain code, no model call)", () => {
     const two = estimateCost(plan, [SPARK_MODEL, SPARK_OPEN_MODEL]);
     const three = estimateCost(plan, [SPARK_MODEL, SPARK_OPEN_MODEL, WONDER_MODEL]);
     expect(two.totalCentralUsd).toBeGreaterThan(1);
-    expect(three.totalCentralUsd).toBeLessThan(BUDGET_CAP_USD);
+    expect(two.totalCentralUsd).toBeLessThan(BUDGET_CAP_USD);
+    expect(three.totalCentralUsd).toBeGreaterThan(two.totalCentralUsd);
     expect(three.assumptions.completionCentral).toBe(1500);
+    // B1 review minor 9: the 32,000-token retry is in the estimate.
+    expect(three.assumptions.overflowExtraCompletion).toBe(46500);
+    const noOverflow = { ...three.assumptions };
+    expect(noOverflow.overflowShareCentral).toBeGreaterThan(0);
+  });
+});
+
+describe("bench M prompt freeze reads the COMMITTED dry run", () => {
+  it("finds the newest dry run added in git history and reads it from HEAD", () => {
+    const d = latestCommittedDryRun();
+    expect(d?.file).toMatch(/^bench\/models\/dry-run\/.+\.json$/);
+    expect(Object.keys(d!.prompts).length).toBe(90);
+    // The current plan (B1 builder: E3 is not on this branch) matches it, prompt for prompt.
+    for (const p of plan) expect(d!.prompts[p.testId], p.testId).toBe(p.promptSha256);
   });
 });
 

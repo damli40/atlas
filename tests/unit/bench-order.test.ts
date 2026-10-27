@@ -140,7 +140,7 @@ for (const b of REGISTRATIONS) {
           continue;
         }
         expect(j.meta.dirty, `${a.path} was produced from a working tree with uncommitted changes`).toBe(false);
-        expect(Object.keys(j.meta.tooling)).toContain("bench/truth/classify.ts");
+        expect(Object.keys(j.meta.tooling)).toContain(b.name === "models" ? "bench/models/run.ts" : "bench/truth/classify.ts");
         for (const [path, sha] of Object.entries(j.meta.tooling)) {
           let at: string;
           try {

@@ -14,7 +14,8 @@
 // product's check lacks), the bets are sealed, Atlas runs the code once, and src/judge.ts judges every
 // bet against that run. It stops before the next model call once the logged cost reaches the $8 cap.
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { experimentFor, loadCorpus, paramsOf, sha256Hex, type CorpusTest, type LoadedFunction } from "../lib/corpus.ts";
 import { pastedBetMessages, pastedQuestions, type ChatMessageLike } from "./bet-context.ts";
@@ -25,6 +26,7 @@ import type { Bet, BetAnswer, Experiment, Run } from "../../src/types.ts";
 import type { Question } from "../../src/gate.ts";
 
 const HERE = new URL(".", import.meta.url).pathname;
+const ROOT = new URL("../..", import.meta.url).pathname;
 const CORPUS = join(HERE, "corpus.json");
 export const WONDER_MODEL = "muse-wonder-1.0";
 export const BUDGET_CAP_USD = 8;
@@ -44,7 +46,20 @@ export const PRICES: Record<string, { inPerM: number; outPerM: number; verified:
  *   about 900 to 1,900 completion tokens at a similar prompt size.
  * - 10% more calls for repair tries.
  */
-export const ESTIMATE = { charsPerToken: 3.5, completionCentral: 1500, completionHigh: 3000, repairShare: 0.1 };
+export const ESTIMATE = {
+  charsPerToken: 3.5,
+  completionCentral: 1500,
+  completionHigh: 3000,
+  repairShare: 0.1,
+  /**
+   * Added after the B1 review (minor 9): when a reasoning model runs out of room (16,000 tokens), Atlas's client retries
+   * once at 32,000. One such event costs up to 16,000 wasted + 32,000 retry tokens instead of the usual answer,
+   * i.e. about 46,500 more completion tokens. Assumed share of calls that overflow: 2% central, 5% high.
+   */
+  overflowShareCentral: 0.02,
+  overflowShareHigh: 0.05,
+  overflowExtraCompletion: 16000 - 1500 + 32000,
+};
 
 export interface PlannedPrompt {
   testId: string;
@@ -63,7 +78,50 @@ export function promptSha(messages: readonly ChatMessageLike[]): string {
 }
 
 /** Every prompt, built from the corpus by plain code. No I/O beyond reading the corpus; no model call. */
-export function buildPlan(corpusPath = CORPUS): { plan: PlannedPrompt[]; corpusSha256: string; refused: { testId: string; reason: string }[] } {
+/**
+ * Who writes the prompt. "b1": bench/models/bet-context.ts (registered with this bench). "e3": E3's paste-screen text
+ * (src/paste-context.ts pastedBetContext) inside the server's prompt (buildBetOnlyMessages with seenInstruction null),
+ * which bench/models/AMENDMENT-1-e3-bet-context.md makes the ONLY builder allowed for a live run.
+ */
+export interface PromptBuilder {
+  name: "b1" | "e3";
+  messages: (f: LoadedFunction, exp: Experiment, questions: Question[]) => ChatMessageLike[];
+  questions: (params: ReturnType<typeof paramsOf>) => Question[];
+}
+
+export const B1_BUILDER: PromptBuilder = {
+  name: "b1",
+  messages: (f, exp) => pastedBetMessages({ source: f.source, language: f.language, params: exp.params as ReturnType<typeof paramsOf> }),
+  questions: (params) => pastedQuestions(params),
+};
+
+/** E3's builder, when src/paste-context.ts is on this branch; null otherwise. Loaded by path so this file type-checks without E3. */
+export async function e3Builder(): Promise<PromptBuilder | null> {
+  const ctxPath = "../../src/paste-context.ts";
+  let ctx: Record<string, unknown>;
+  try {
+    ctx = (await import(ctxPath)) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+  const bets = (await import("../../server/meta/roles/claimant-bets.ts")) as unknown as Record<string, unknown>;
+  const gate = await import("../../src/gate.ts");
+  const pastedBetContext = ctx.pastedBetContext as (i: { experiment: Experiment; questions: readonly Question[]; exportLine?: number }) => string;
+  const buildBetOnlyMessages = bets.buildBetOnlyMessages as (i: Record<string, unknown>) => ChatMessageLike[];
+  if (typeof pastedBetContext !== "function" || typeof buildBetOnlyMessages !== "function") return null;
+  const { exportedFunctionsFor } = await import("../../src/pasted-code.ts");
+  return {
+    name: "e3",
+    questions: (params) => gate.questionsFor(params),
+    messages: (f, exp, questions) => {
+      const exportLine = exportedFunctionsFor(f.source, f.language).find((e) => e.name === (exp.params as { exportName: string }).exportName)?.line;
+      const seenContext = pastedBetContext({ experiment: exp, questions, ...(exportLine ? { exportLine } : {}) });
+      return buildBetOnlyMessages({ experiment: exp, questions, seenContext, seenInstruction: null, finding: { verified: true }, fileText: "", gateContext: {} });
+    },
+  };
+}
+
+export function buildPlan(corpusPath = CORPUS, builder: PromptBuilder = B1_BUILDER): { plan: PlannedPrompt[]; corpusSha256: string; refused: { testId: string; reason: string }[] } {
   const { functions, corpusSha256 } = loadCorpus(corpusPath);
   const plan: PlannedPrompt[] = [];
   const refused: { testId: string; reason: string }[] = [];
@@ -74,15 +132,15 @@ export function buildPlan(corpusPath = CORPUS): { plan: PlannedPrompt[]; corpusS
         refused.push({ testId: t.id, reason: e.reason });
         continue;
       }
-      const params = paramsOf(t);
-      const messages = pastedBetMessages({ source: f.source, language: f.language, params });
+      const questions = builder.questions(paramsOf(t));
+      const messages = builder.messages(f, e.experiment, questions);
       plan.push({
         testId: t.id,
         functionId: f.id,
         language: f.language,
         category: f.category,
         experiment: e.experiment,
-        questions: pastedQuestions(params),
+        questions,
         messages,
         promptSha256: promptSha(messages),
         promptChars: messages.reduce((n, m) => n + m.content.length, 0),
@@ -98,8 +156,9 @@ export function estimateCost(plan: readonly PlannedPrompt[], models: readonly st
   const perModel = models.map((m) => {
     const price = PRICES[m]!;
     const input = (promptTokens * (1 + ESTIMATE.repairShare) * price.inPerM) / 1e6;
-    const central = input + (calls * ESTIMATE.completionCentral * price.outPerM) / 1e6;
-    const high = input + (calls * ESTIMATE.completionHigh * price.outPerM) / 1e6;
+    const overflow = (share: number) => (calls * share * (ESTIMATE.overflowExtraCompletion * price.outPerM + Math.ceil(promptTokens / plan.length) * price.inPerM)) / 1e6;
+    const central = input + (calls * ESTIMATE.completionCentral * price.outPerM) / 1e6 + overflow(ESTIMATE.overflowShareCentral);
+    const high = input + (calls * ESTIMATE.completionHigh * price.outPerM) / 1e6 + overflow(ESTIMATE.overflowShareHigh);
     return { model: m, priceVerified: price.verified, calls: Math.round(calls), promptTokens: Math.round(promptTokens * (1 + ESTIMATE.repairShare)), centralUsd: round4(central), highUsd: round4(high) };
   });
   const sum = (k: "centralUsd" | "highUsd") => round4(perModel.reduce((n, x) => n + x[k], 0));
@@ -284,15 +343,21 @@ export function renderMarkdown(meta: Record<string, unknown>, summary: ReturnTyp
 
 // ── main ────────────────────────────────────────────────────────────────────────────────────────────
 
-/** The newest committed dry run, by file name (dates sort). */
-function latestDryRun(): { file: string; prompts: Record<string, string> } | null {
-  const dir = join(HERE, "dry-run");
-  if (!existsSync(dir)) return null;
-  const files = readdirSync(dir).filter((f) => f.endsWith(".json")).sort();
-  const last = files[files.length - 1];
-  if (!last) return null;
-  const j = JSON.parse(readFileSync(join(dir, last), "utf8")) as { prompts: { testId: string; promptSha256: string }[] };
-  return { file: last, prompts: Object.fromEntries(j.prompts.map((p) => [p.testId, p.promptSha256])) };
+/**
+ * The most recently COMMITTED dry run (B1 review minor 8): the newest file added under bench/models/dry-run/ in git
+ * history, read from HEAD, never the working tree. A dry-run file that was written but not committed does not count.
+ */
+export function latestCommittedDryRun(root = ROOT): { file: string; builder?: string; prompts: Record<string, string> } | null {
+  let added: string;
+  try {
+    added = execFileSync("git", ["log", "--diff-filter=A", "--format=", "--name-only", "--", "bench/models/dry-run"], { cwd: root, encoding: "utf8" });
+  } catch {
+    return null;
+  }
+  const file = added.split("\n").map((l) => l.trim()).find((l) => l.endsWith(".json"));
+  if (!file) return null;
+  const j = JSON.parse(execFileSync("git", ["show", `HEAD:${file}`], { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 })) as { meta?: { builder?: string }; prompts: { testId: string; promptSha256: string }[] };
+  return { file, ...(j.meta?.builder ? { builder: j.meta.builder } : {}), prompts: Object.fromEntries(j.prompts.map((p) => [p.testId, p.promptSha256])) };
 }
 
 async function main(): Promise<void> {
@@ -300,7 +365,11 @@ async function main(): Promise<void> {
   const dry = process.argv.includes("--dry-run");
   const withWonder = process.argv.includes("--with-wonder");
   if (live === dry) throw new Error("pass exactly one of --dry-run or --live");
-  const { plan, corpusSha256, refused } = buildPlan();
+  // AMENDMENT-1: with E3 on this branch, prompts come from E3's paste-screen text; a live run requires it.
+  const e3 = await e3Builder();
+  if (live && !e3) throw new Error("bench/models/AMENDMENT-1-e3-bet-context.md: a live run must use E3's pastedBetContext (src/paste-context.ts), which is not on this branch yet; no model was called");
+  const builder = e3 ?? B1_BUILDER;
+  const { plan, corpusSha256, refused } = buildPlan(CORPUS, builder);
   if (refused.length) throw new Error(`the gate refused ${refused.length} test(s): ${refused.map((r) => `${r.testId}: ${r.reason}`).join("; ")}`);
   const models = [SPARK_MODEL, SPARK_OPEN_MODEL, ...(withWonder || dry ? [WONDER_MODEL] : [])];
   const date = localDate();
@@ -309,43 +378,56 @@ async function main(): Promise<void> {
     const est = estimateCost(plan, [SPARK_MODEL, SPARK_OPEN_MODEL, WONDER_MODEL]);
     const estNoWonder = estimateCost(plan, [SPARK_MODEL, SPARK_OPEN_MODEL]);
     const out = {
-      meta: { bench: "models", kind: "dry run (no model call)", date, corpusSha256, tests: plan.length, functions: new Set(plan.map((p) => p.functionId)).size, questions: plan.reduce((n, p) => n + p.questions.length, 0) },
+      meta: { bench: "models", kind: "dry run (no model call)", date, builder: builder.name, corpusSha256, tests: plan.length, functions: new Set(plan.map((p) => p.functionId)).size, questions: plan.reduce((n, p) => n + p.questions.length, 0) },
       estimate: { sparkAndSparkOpen: estNoWonder, withWonder: est },
       prompts: plan.map((p) => ({ testId: p.testId, promptSha256: p.promptSha256, promptChars: p.promptChars, questions: p.questions.map((q) => q.measures) })),
       samplePrompt: { testId: plan[0]!.testId, messages: plan[0]!.messages },
     };
     const dir = join(HERE, "dry-run");
     mkdirSync(dir, { recursive: true });
-    writeFileSync(join(dir, `${date}.json`), JSON.stringify(out, null, 2) + "\n");
+    // Dry runs are append-only too: a second one the same day gets a new name (the freeze reads git's add order).
+    let stem = date;
+    for (let i = 2; existsSync(join(dir, `${stem}.json`)); i++) stem = `${date}-${i}`;
+    writeFileSync(join(dir, `${stem}.json`), JSON.stringify(out, null, 2) + "\n");
     process.stdout.write(
       `dry run: ${plan.length} prompts, ${out.meta.questions} questions; estimate Spark + Spark Open $${estNoWonder.totalCentralUsd} (high $${estNoWonder.totalHighUsd}); ` +
-        `with Wonder $${est.totalCentralUsd} (high $${est.totalHighUsd}). Wrote bench/models/dry-run/${date}.json. No model was called.\n`,
+        `with Wonder $${est.totalCentralUsd} (high $${est.totalHighUsd}). Wrote bench/models/dry-run/${stem}.json. No model was called.\n`,
     );
     return;
   }
 
+  if (execFileSync("git", ["status", "--porcelain"], { cwd: ROOT, encoding: "utf8" }).trim() !== "") throw new Error("the working tree has uncommitted changes; a live run must be produced by committed files; no model was called");
   // --live: the prompt freeze, then the real clients (loaded only here, so a dry run never touches them).
-  const frozen = latestDryRun();
+  const frozen = latestCommittedDryRun();
   if (!frozen) throw new Error("no committed dry run to compare prompts with; run --dry-run and commit it first");
+  if (frozen.builder !== builder.name) throw new Error(`the newest committed dry run (${frozen.file}) was built with "${frozen.builder ?? "b1"}" prompts, this run would use "${builder.name}"; commit a new dry run first`);
   const changed = plan.filter((p) => frozen.prompts[p.testId] !== p.promptSha256).map((p) => p.testId);
   if (changed.length) throw new Error(`prompts differ from dry-run/${frozen.file} for ${changed.length} test(s) (${changed.slice(0, 5).join(", ")}...); no model was called. See PASS-RULE.md, "Prompt freeze".`);
   const resultsDir = join(HERE, "results");
   mkdirSync(resultsDir, { recursive: true });
   process.env.ATLAS_USAGE_PATH = join(resultsDir, `${date}-usage.jsonl`);
   const { chat } = await import("../../server/meta/client.ts");
+  // E3's own check accepts json bets; the bench check (validate.ts) is used only when the product's refuses them.
   const { validatePastedBets } = await import("./validate.ts");
+  const { validateBetOnlyOutput } = await import("../../server/meta/roles/claimant-bets.ts");
+  const probe = plan.find((p) => p.questions.some((q) => q.kind === "json"))!;
+  const probeAnswer = JSON.stringify({ bets: probe.questions.map((q) => ({ measures: q.measures, answer: { kind: "declined", reason: "unknown: probe" }, rationale: "probe" })).map((b, i) => (probe.questions[i]!.kind === "json" ? { ...b, answer: { kind: "json", value: 1 } } : b)) });
+  const productTakesJson = (validateBetOnlyOutput(probeAnswer, probe.questions) as { ok: boolean }).ok;
+  const validate = (productTakesJson ? validateBetOnlyOutput : validatePastedBets) as unknown as LiveDeps["validate"];
   const { repairMessage } = await import("../../server/meta/roles/claimant.ts");
   const { tsRunner } = await import("../../runners/ts/control.ts");
   const runner = tsRunner();
   const res = await runLive(plan, models, {
     chat: chat as unknown as LiveDeps["chat"],
-    validate: validatePastedBets as unknown as LiveDeps["validate"],
+    validate,
     repairMessage,
     run: (exp) => runner.run(exp, {}),
     log: (l) => process.stdout.write(`${l}\n`),
   });
   const summary = tally(res.rows);
-  const out = { meta: { bench: "models", date, corpusSha256, models, dryRun: frozen.file, testsPlanned: plan.length, testsDone: res.tests.length, partial: res.tests.length < plan.length, spentUsd: res.spentUsd, ...(res.stoppedBecause ? { stoppedBecause: res.stoppedBecause } : {}) }, summary, rates: Object.fromEntries(Object.entries(summary).map(([m, byType]) => [m, Object.fromEntries(Object.entries(byType).map(([k, t]) => [k, rates(t)]))])), tests: res.tests };
+  const { REGISTRATIONS, contentHash, toolingHashes, workingFiles } = await import("../lib/registration.ts");
+  const reg = REGISTRATIONS.find((r) => r.name === "models")!;
+  const out = { meta: { bench: "models", date, corpusSha256, corpusPath: reg.corpus, registrationSha256: contentHash(workingFiles(ROOT, reg.prereg)), tooling: { ...toolingHashes(ROOT), ...Object.fromEntries(workingFiles(ROOT, ["bench/models/run.ts", "bench/models/validate.ts"]).map((f) => [f.path, f.sha256])) }, dirty: execFileSync("git", ["status", "--porcelain"], { cwd: ROOT, encoding: "utf8" }).trim() !== "", builder: builder.name, validator: productTakesJson ? "product (E3)" : "bench/models/validate.ts", models, dryRun: frozen.file, testsPlanned: plan.length, testsDone: res.tests.length, partial: res.tests.length < plan.length, spentUsd: res.spentUsd, ...(res.stoppedBecause ? { stoppedBecause: res.stoppedBecause } : {}) }, summary, rates: Object.fromEntries(Object.entries(summary).map(([m, byType]) => [m, Object.fromEntries(Object.entries(byType).map(([k, t]) => [k, rates(t)]))])), tests: res.tests };
   writeFileSync(join(resultsDir, `${date}.json`), JSON.stringify(out, null, 2) + "\n");
   writeFileSync(join(resultsDir, `${date}.md`), renderMarkdown(out.meta, summary, res.rows));
   process.stdout.write(`wrote bench/models/results/${date}.json and .md; spent $${res.spentUsd}\n`);

@@ -10,6 +10,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { experimentFor, loadCorpus, standInNames } from "../../bench/lib/corpus.ts";
+import { functionTexts, normalizeFunction } from "../../bench/lib/normalize.ts";
 import type { TruthExpect } from "../../bench/truth/classify.ts";
 
 const ROOT = new URL("../..", import.meta.url).pathname;
@@ -88,6 +89,26 @@ describe.skipIf(!existsSync(MODELS))("bench/models corpus (fresh functions for t
     expect(functions.some((f) => f.language !== "py")).toBe(true);
     const ids = tests.map(({ t }) => t.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("shares no function body with bench/truth or bench/truth-2, after comments, layout and names are normalised", () => {
+    const bodies = (fs: { source: string; language: string; id: string }[]) =>
+      fs.flatMap((f) => functionTexts(f.source, f.language === "py").map((t) => ({ id: f.id, norm: normalizeFunction(t, f.language === "py") })));
+    const others = [loadCorpus(TRUTH).functions, ...(existsSync(TRUTH2) ? [loadCorpus(TRUTH2).functions] : [])].flat();
+    const seen = new Map(bodies(others).map((b) => [b.norm, b.id]));
+    const mine = bodies(functions);
+    expect(mine.length).toBeGreaterThanOrEqual(30);
+    for (const b of mine) expect(seen.get(b.norm), `${b.id} has a function body that bench T also has`).toBeUndefined();
+  });
+
+  it("the normaliser sees through renamed variables, comments and layout, and not through a changed constant", () => {
+    const a = "function f(x) {\n  // add one\n  return x + 1;\n}";
+    const b = "function   g(y){return y+1}";
+    expect(normalizeFunction(functionTexts(a, false)[0]!, false)).toBe(normalizeFunction(functionTexts(b, false)[0]!, false));
+    expect(normalizeFunction("function g(y){return y+2}", false)).not.toBe(normalizeFunction(functionTexts(a, false)[0]!, false));
+    const p1 = "def f(a):\n    # c\n    return a * 2\n";
+    const p2 = "def other(z):\n    return z*2\n";
+    expect(normalizeFunction(functionTexts(p1, true)[0]!, true)).toBe(normalizeFunction(functionTexts(p2, true)[0]!, true));
   });
 
   it("shares no case file text with bench/truth", () => {
