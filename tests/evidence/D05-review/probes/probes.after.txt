@@ -1,0 +1,81 @@
+=== p1-machines.tsx
+{"id":"attempts10","measured":{"calls":10,"waitCount":9,"waitsMs":"3000,3000,3000,3000,3000,3000,3000,3000,3000","logCount":9,"logAttempts":"1/10,2/10,3/10,4/10,5/10,6/10,7/10,8/10,9/10","totalWaitMs":27000,"outcome":"throws","settledAtMs":27000,"thrown":"SocketError: read ECONNRESET (call 10)","thrownFromCall":10},"notMeasured":[],"events":"start call reject log sleep wake call reject log sleep wake call reject log sleep wake call reject log sleep wake call reject log sleep wake call reject log sleep wake call reject log sleep wake call reject log sleep wake call reject log sleep wake call reject throws","calls":10,"distinctCapsulePositions":10,"pulls":9,"pullMarksOn":9,"waits":9,"wakes":9,"turnMarksOn":9,"drumTurns":9,"readout":"calls 10 · waits 9 × 3,000 ms · threw the 10th error","endCaption":"","ghosts":[{"who":"human","kind":"person","value":10,"slot":10,"offScale":false,"outcome":"matched"}],"verdicts":[["matched",10]]}
+{"id":"watchcut","measured":{},"notMeasured":["outcome","settledAtMs","calls","waitCount","waitsMs","totalWaitMs","logCount","logAttempts"],"events":"start call reject log sleep wake call reject log sleep stopped_watching","calls":2,"distinctCapsulePositions":2,"pulls":1,"pullMarksOn":1,"waits":2,"wakes":1,"turnMarksOn":1,"drumTurns":1.5,"readout":"calls 2 · waits 1 × 20,000 ms + 1 cut off · still waiting when Atlas stopped watching","endCaption":"Still running at Atlas's watch limit: Atlas's watch limit (30000 ms of virtual time, Atlas's limit, not the code's) ended the run before the function finished. 1 retry so far.","ghosts":[{"who":"human","kind":"person","value":3,"slot":3,"offScale":false,"outcome":"cant_check"}],"verdicts":[["cant_check",null]]}
+{"id":"onecall","measured":{"calls":1,"waitCount":0,"waitsMs":"","logCount":0,"logAttempts":"","totalWaitMs":0,"outcome":"returns","settledAtMs":0,"returned":"\"the value\""},"notMeasured":[],"events":"start call resolve returns","calls":1,"distinctCapsulePositions":1,"pulls":0,"pullMarksOn":0,"waits":0,"wakes":0,"turnMarksOn":0,"drumTurns":0,"readout":"calls 1 · waits 0 · returned","endCaption":"","ghosts":[{"who":"human","kind":"person","value":1,"slot":1,"offScale":false,"outcome":"matched"}],"verdicts":[["matched",1],["matched","returns"]]}
+{"id":"fail0_attempts1","measured":{"calls":1,"waitCount":0,"waitsMs":"","logCount":0,"logAttempts":"","totalWaitMs":0,"outcome":"throws","settledAtMs":0,"thrown":"BlockNotFoundError: Block at number 42194663 could not be found. (call 1)","thrownFromCall":1},"notMeasured":[],"events":"start call reject throws","calls":1,"distinctCapsulePositions":1,"pulls":0,"pullMarksOn":0,"waits":0,"wakes":0,"turnMarksOn":0,"drumTurns":0,"readout":"calls 1 · waits 0 · threw the 1st error","endCaption":"","ghosts":[{"who":"human","kind":"person","value":1,"slot":1,"offScale":false,"outcome":"matched"}],"verdicts":[["matched",1]]}
+{"id":"slow-resolve","measured":{},"notMeasured":["outcome","settledAtMs","calls","waitCount","waitsMs","totalWaitMs","logCount","logAttempts"],"events":"start call stopped_watching","calls":1,"distinctCapsulePositions":1,"pulls":0,"pullMarksOn":0,"waits":0,"wakes":0,"turnMarksOn":0,"drumTurns":0,"readout":"calls 1 · waits 0 · still waiting when Atlas stopped watching","endCaption":"Still running at Atlas's watch limit: Atlas's watch limit (30000 ms of virtual time, Atlas's limit, not the code's) ended the run before the function finished. 0 retries so far.","ghosts":[{"who":"human","kind":"person","value":1,"slot":1,"offScale":false,"outcome":"cant_check"}],"verdicts":[["cant_check",null],["cant_check",null]]}
+diffQ [[["calls","human","matched",true,true],["calls","model:muse-spark-1.3",null,false,null]],[["outcome","human",null,false,null],["outcome","model:muse-spark-1.3","cant_check",false,false]]]
+twoExp [[["human","not_matched"]],[["human","matched"]]]
+cant [["human",false,true,false,56.400000000000006],["model:s",false,true,false,55.725]]
+=== p2-m7-why.mts
+M7 wide pick + Wonder 55-58: [ 'the person picked lines 30–60' ]
+M7 exact pick 42 + Wonder 55-58: [
+  'the cbETH line was picked by a person; the Investigator pointed elsewhere'
+]
+real findings: [
+  [ 'human', 'proposals/ChainlinkOracleConfigs.sol', 42, 42, true ],
+  [
+    'investigator',
+    'proposals/ChainlinkOracleConfigs.sol',
+    44,
+    53,
+    true
+  ],
+  [
+    'investigator',
+    'proposals/ChainlinkOracleConfigs.sol',
+    142,
+    144,
+    true
+  ],
+  [
+    'investigator',
+    'proposals/mips/mip-x43/mip-x43.sol',
+    147,
+    169,
+    true
+  ]
+]
+real captions: [
+  "fork of Base one block before MIP-X43 ran; Atlas applied the proposal's oracle-feed actions as the governor",
+  'the cbETH line was picked by a person; the Investigator pointed elsewhere'
+]
+forged also-pointed-here verifies: false undefined
+dropped: "The oracle is wrong, see traces #999 and trace #1."
+dropped: "It failed at trace #1 or #999."
+dropped: "Proven by trace #2; #77."
+dropped: "Look at line 42 of mip-x43.sol."
+dropped: "Look at mip-x43.sol, lines 42-43."
+dropped: "Lines 42—99 show the bug."
+dropped: "lines 42 to 99 prove it."
+dropped: "Trace #0 proves the code is wrong and the oracle will misprice cbETH."
+dropped: "Event #999 and trace #3."
+dropped: "trace#4 is it"
+cut-off templated: []
+pending templated: []
+no-n templated: []
+=== p3-caps.mts
+one actor, new session per run: 200,200,200,200,200,200,200,200,429,429,429,429,429,429,429,429,429,429,429,429,429,429
+a legit user afterwards: 429
+=== p3b-caps-by-address.mts
+one address, new session per run: 200,200,200,200,200,200,200,200,429,429,429,429,429,429,429,429,429,429,429,429,429,429
+a legit user from another address afterwards: 200
+=== p4-why-real.tsx
+== fixture-eRopGsrp2a
+SHOWN Atlas, plain code | tests/fixtures/with-rpc-retry.ts lines 49–66 were chosen for this round by hand (a fixture finding written by hand, not a model)
+SHOWN Atlas, plain code | it waited 4 times, 3000 ms each (trace #4, #9, #14, #19)
+SHOWN Atlas, plain code | call 5 threw; no more attempts (trace #23)
+MODEL WORDS (unlinked) muse-spark-1.3 | Defaults apply: attempts=5, so 5 failures exhaust the loop with 5 calls and no 6th answering call.
+MODEL WORDS (unlinked) muse-spark-1.3 | Sleep of 3000ms after each failed attempt except the last: 4 sleeps x 3000ms = 12000ms.
+MODEL WORDS (unlinked) muse-spark-1.3 | All 5 attempts fail with error, so the loop rethrows the last error after the final attempt.
+== moonwell-level2-mwTaxvHFzB
+SHOWN Atlas, plain code | a person chose proposals/ChainlinkOracleConfigs.sol lines 42–42 for this round
+SHOWN Atlas, plain code | the known-case control matched before anything was judged (trace #2)
+SHOWN Atlas, plain code | Atlas set cbETH's oracle feed as the governor, as the proposal does (trace #21)
+SHOWN Atlas, plain code | cbETH's price read after the change was $1.12 (trace #35)
+SHOWN Atlas, plain code | before the change, cbETH's price read touched 2 price sources (trace #47)
+SHOWN Atlas, plain code | after the change, cbETH's price read touched 1 price source (trace #48)
+MODEL WORDS (unlinked) muse-spark-1.3 | Price requires on-chain oracle reading at a future block beyond cutoff, cannot be known in advance.
+=== p5-control.tsx
+CONTROL FAILED:  Fig 1 · The retry machine · can&#x27;t check Atlas&#x27;s known-case check did not match, so this run is not shown as fact: tampered: result rewritten Run eRopGsrp2a. Every verdict on this run is &quot;can&#x27;t check&quot;. 
+SANDBOX FAILED:  Fig 1 · The retry machine · can&#x27;t check The sandbox did not finish this run, so nothing from it is shown as fact: the sandbox returned no result for this experiment Run eRopGsrp2a. Every verdict on this run is &quot;can&#x27;t check&quot;. 
