@@ -1,0 +1,18 @@
+# git log --diff-filter=A --format='%H %ct %cI %s' -- proofs/moonwell/PASS-RULE.md
+98e71ef2aaf2d9bbd859009d6acfe1db8ce2039a 1793077973 2026-10-27T06:12:53+01:00 D03-01 pass rule: pre-register the Moonwell MIP-X43 checks before any EVM run
+
+# git show --stat --format='%H%n%s' 98e71ef  (the commit holds PASS-RULE.md and nothing else)
+98e71ef2aaf2d9bbd859009d6acfe1db8ce2039a
+D03-01 pass rule: pre-register the Moonwell MIP-X43 checks before any EVM run
+
+ proofs/moonwell/PASS-RULE.md | 90 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 90 insertions(+)
+
+# EVM run.json files ever added under proofs/ (git log --diff-filter=A -- ':(glob)proofs/**/run.json')
+<none>
+
+# pnpm exec vitest run tests/unit/pass-rule-order.test.ts --reporter=verbose
+ ✓ tests/unit/pass-rule-order.test.ts > pass rule is committed before any EVM run (pre-registration) > PASS-RULE.md has an adding commit 14ms
+ ✓ tests/unit/pass-rule-order.test.ts > pass rule is committed before any EVM run (pre-registration) > no EVM run.json has been committed yet, so the order holds trivially 14ms
+ ✓ tests/unit/pass-rule-order.test.ts > pass rule is committed before any EVM run (pre-registration) > recognises an EVM run in both shapes (a single Run, or a file with runs[]) 0ms
+      Tests  3 passed (3)
