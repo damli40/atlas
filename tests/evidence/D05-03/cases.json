@@ -1,0 +1,657 @@
+[
+  {
+    "id": "level2-count1",
+    "real": true,
+    "runId": "mwTaxvHFzB",
+    "controlPassed": true,
+    "measured": {
+      "preApplyPriceUsd1e18:DAI": "999900000000000000",
+      "preApplyFeedAddress:DAI": "0x591e79239a7d679378eC8c847e5038150364C78F",
+      "preApplyPriceUsd1e18:USDC": "999900000000000000",
+      "preApplyFeedAddress:USDC": "0x7e860098F58bBFC8648a4311b374B1D669a2bc6B",
+      "preApplyPriceUsd1e18:USDbC": "999900000000000000",
+      "preApplyFeedAddress:USDbC": "0x7e860098F58bBFC8648a4311b374B1D669a2bc6B",
+      "preApplyPriceUsd1e18:cbETH": "2206683650838065175827",
+      "preApplyFeedAddress:cbETH": "0xB0Ba0C5D7DA4ec400C1C3E5ef2485134F89918C5",
+      "preApplyPriceUsd1e18:AERO": "310865530000000000",
+      "preApplyFeedAddress:AERO": "0x4EC5970fC728C5f65ba413992CD5fF6FD70fcfF0",
+      "preApplyPriceUsd1e18:cbBTC": "68489740000000000000000",
+      "preApplyFeedAddress:cbBTC": "0x6F0cC02e5a7640B28F538fcc06bCA3BdFA57d1BB",
+      "preApplyPriceUsd1e18:EURC": "1184823110000000000",
+      "preApplyFeedAddress:EURC": "0x48F86A23aDE243F7a1028108aA65274FC84f382F",
+      "preApplyPriceUsd1e18:WELL": "5012000000000000",
+      "preApplyFeedAddress:WELL": "0x1E0E8bcFb5FFa86749B8b89fb6e055337Ba74A39",
+      "preApplyPriceUsd1e18:USDS": "999635870000000000",
+      "preApplyFeedAddress:USDS": "0xAeC8E8E3696fc5fcd954eb3ebC26B72FC2FE8E8e",
+      "preApplyPriceUsd1e18:tBTC": "68265908984780000000000",
+      "preApplyFeedAddress:tBTC": "0x94423903EaAf8638bDE262c417fEEf5E2Ec507E5",
+      "preApplyPriceUsd1e18:VIRTUAL": "627045790000000000",
+      "preApplyFeedAddress:VIRTUAL": "0x6aa41dF8FB0deC976B59bf0824FC5fFB88ccA958",
+      "preApplyPriceUsd1e18:MORPHO": "1323195190000000000",
+      "preApplyFeedAddress:MORPHO": "0xe95e258bb6615d47515Fc849f8542dA651f12bF6",
+      "preApplyPriceUsd1e18:cbXRP": "1493697000000000000",
+      "preApplyFeedAddress:cbXRP": "0x9f0C1dD78C4CBdF5b9cf923a549A201EdC676D34",
+      "preApplyPriceUsd1e18:MAMO": "14376590000000000",
+      "preApplyFeedAddress:MAMO": "0xeF7541b388a77C1709a3d44BfBfC5c1ED3F0Ac94",
+      "appliedFeedActions": 14,
+      "forkEventsEqualDerived": true,
+      "blockAfterApply": 42194676,
+      "priceUsd1e18:DAI": "999900000000000000",
+      "rawUnderlyingPrice:DAI": "999900000000000000",
+      "feedAddress:DAI": "0x4916EC6773e14CA873be3d65022BB122CB8b89a2",
+      "feedDecimals:DAI": 8,
+      "feedDescription:DAI": "DAI / USD",
+      "tokenDecimals:DAI": 18,
+      "priceUsd1e18:USDC": "999900000000000000",
+      "rawUnderlyingPrice:USDC": "999900000000000000000000000000",
+      "feedAddress:USDC": "0x7600b9068bB0aFEA6adf70eD6CD0f8492117236d",
+      "feedDecimals:USDC": 8,
+      "feedDescription:USDC": "USDC / USD",
+      "tokenDecimals:USDC": 6,
+      "priceUsd1e18:USDbC": "999900000000000000",
+      "rawUnderlyingPrice:USDbC": "999900000000000000000000000000",
+      "feedAddress:USDbC": "0x7600b9068bB0aFEA6adf70eD6CD0f8492117236d",
+      "feedDecimals:USDbC": 8,
+      "feedDescription:USDbC": "USDC / USD",
+      "tokenDecimals:USDbC": 6,
+      "priceUsd1e18:cbETH": "1122662744874806300",
+      "rawUnderlyingPrice:cbETH": "1122662744874806300",
+      "feedAddress:cbETH": "0x67996D1ff7a3711a91E2839d1059Fcb950C0495D",
+      "feedDecimals:cbETH": 18,
+      "feedDescription:cbETH": "CBETH / ETH",
+      "tokenDecimals:cbETH": 18,
+      "priceUsd1e18:AERO": "310865530000000000",
+      "rawUnderlyingPrice:AERO": "310865530000000000",
+      "feedAddress:AERO": "0xdC79C7D5D4dA3b237D2d078a1ee06F2FD1FfEf98",
+      "feedDecimals:AERO": 8,
+      "feedDescription:AERO": "AERO / USD",
+      "tokenDecimals:AERO": 18,
+      "priceUsd1e18:cbBTC": "68489740000000000000000",
+      "rawUnderlyingPrice:cbBTC": "684897400000000000000000000000000",
+      "feedAddress:cbBTC": "0x6a3c960Bcfb69BAe78f706c9c6B168bB7693E119",
+      "feedDecimals:cbBTC": 8,
+      "feedDescription:cbBTC": "BTC / USD",
+      "tokenDecimals:cbBTC": 8,
+      "priceUsd1e18:EURC": "1184823110000000000",
+      "rawUnderlyingPrice:EURC": "1184823110000000000000000000000",
+      "feedAddress:EURC": "0xd5669e0175D01cc5F6Be9607129668D0833DcbEC",
+      "feedDecimals:EURC": 8,
+      "feedDescription:EURC": "EURC / USD",
+      "tokenDecimals:EURC": 6,
+      "priceUsd1e18:WELL": "5012000000000000",
+      "rawUnderlyingPrice:WELL": "5012000000000000",
+      "feedAddress:WELL": "0xBA5220805E43194Ff12A434fBb745f3a2E1a09db",
+      "feedDecimals:WELL": 8,
+      "feedDescription:WELL": "WELL / USD",
+      "tokenDecimals:WELL": 18,
+      "priceUsd1e18:USDS": "999635870000000000",
+      "rawUnderlyingPrice:USDS": "999635870000000000",
+      "feedAddress:USDS": "0x6621069673C61a143DaDF376389e82DA372BF405",
+      "feedDecimals:USDS": 8,
+      "feedDescription:USDS": "USDS / USD",
+      "tokenDecimals:USDS": 18,
+      "priceUsd1e18:tBTC": "68265908984780000000000",
+      "rawUnderlyingPrice:tBTC": "68265908984780000000000",
+      "feedAddress:tBTC": "0xBfAaA8B347dA80B909504d403CB4C8F245e921ab",
+      "feedDecimals:tBTC": 8,
+      "feedDescription:tBTC": "TBTC / USD",
+      "tokenDecimals:tBTC": 18,
+      "priceUsd1e18:VIRTUAL": "627045790000000000",
+      "rawUnderlyingPrice:VIRTUAL": "627045790000000000",
+      "feedAddress:VIRTUAL": "0x12EC8CfEbCF5728774925feC1502733f906CB6e3",
+      "feedDecimals:VIRTUAL": 8,
+      "feedDescription:VIRTUAL": "VIRTUAL / USD",
+      "tokenDecimals:VIRTUAL": 18,
+      "priceUsd1e18:MORPHO": "1323195190000000000",
+      "rawUnderlyingPrice:MORPHO": "1323195190000000000",
+      "feedAddress:MORPHO": "0x09793267120dbF519B2B0e8Ea77A689e2Ba453F0",
+      "feedDecimals:MORPHO": 8,
+      "feedDescription:MORPHO": "MORPHO / USD",
+      "tokenDecimals:MORPHO": 18,
+      "priceUsd1e18:cbXRP": "1493697000000000000",
+      "rawUnderlyingPrice:cbXRP": "1493697000000000000000000000000",
+      "feedAddress:cbXRP": "0xf2Ac6F14A094A82A6f9489364CdE9e1ba2548d49",
+      "feedDecimals:cbXRP": 8,
+      "feedDescription:cbXRP": "XRP / USD",
+      "tokenDecimals:cbXRP": 6,
+      "priceUsd1e18:MAMO": "14376590000000000",
+      "rawUnderlyingPrice:MAMO": "14376590000000000",
+      "feedAddress:MAMO": "0xfbA86a013f7FD93B5454e147242CF2Bf419e120D",
+      "feedDecimals:MAMO": 8,
+      "feedDescription:MAMO": "MAMO / USD",
+      "tokenDecimals:MAMO": 18,
+      "preApplyPriceSources:cbETH": 2,
+      "priceSources:cbETH": 1
+    },
+    "notMeasured": {},
+    "references": {
+      "refUsd1e18:cbETH": {
+        "value": "2206683650838065175827",
+        "method": "Chainlink ETH/USD × cbETH/ETH at block 42194662, decimals 8 and 18 read on-chain"
+      }
+    },
+    "callTrace": [
+      {
+        "t": 47,
+        "event": "call_trace",
+        "data": {
+          "phase": "pre-apply",
+          "ok": true,
+          "sources": [
+            "0x57d2d46fc7ff2a7142d479f2f59e1e3f95447077",
+            "0x08f9654349b33b955133b28e35dbecce9950c219"
+          ],
+          "count": 2,
+          "latestRoundDataCallees": [
+            "0xb0ba0c5d7da4ec400c1c3e5ef2485134f89918c5",
+            "0x71041dddad3595f9ced3dccfbe3d1f4b0a16bb70",
+            "0x57d2d46fc7ff2a7142d479f2f59e1e3f95447077",
+            "0x806b4ac04501c29769051e42783cf04dce41440b",
+            "0x08f9654349b33b955133b28e35dbecce9950c219"
+          ],
+          "method": "debug_traceCall with callTracer on getUnderlyingPrice; walk the call tree; keep calls whose input starts with latestRoundData() (0xfeaf968c); if any call reads a price another way (latestAnswer, getRoundData, getAnswer) the count is not measured; count the distinct callee addresses that make no further latestRoundData() call themselves (the aggregators the numbers come from; wrappers and Chainlink proxies pass a call through and are not counted)",
+          "calledAt": "latest"
+        }
+      },
+      {
+        "t": 48,
+        "event": "call_trace",
+        "data": {
+          "phase": "post-apply",
+          "ok": true,
+          "sources": [
+            "0x08f9654349b33b955133b28e35dbecce9950c219"
+          ],
+          "count": 1,
+          "latestRoundDataCallees": [
+            "0x67996d1ff7a3711a91e2839d1059fcb950c0495d",
+            "0x806b4ac04501c29769051e42783cf04dce41440b",
+            "0x08f9654349b33b955133b28e35dbecce9950c219"
+          ],
+          "method": "debug_traceCall with callTracer on getUnderlyingPrice; walk the call tree; keep calls whose input starts with latestRoundData() (0xfeaf968c); if any call reads a price another way (latestAnswer, getRoundData, getAnswer) the count is not measured; count the distinct callee addresses that make no further latestRoundData() call themselves (the aggregators the numbers come from; wrappers and Chainlink proxies pass a call through and are not counted)",
+          "calledAt": "latest"
+        }
+      }
+    ],
+    "bets": [
+      {
+        "who": "human",
+        "measures": "priceUsd1e18:cbETH",
+        "answer": {
+          "kind": "number",
+          "value": 2200,
+          "tolerancePct": 10,
+          "unit": "USD"
+        }
+      },
+      {
+        "who": "model:muse-spark-1.3",
+        "measures": "priceUsd1e18:cbETH",
+        "answer": {
+          "kind": "declined",
+          "reason": "unknown: cbETH USD price at fork block 2026-02-15 is after knowledge cutoff and depends on live oracle state"
+        }
+      }
+    ],
+    "verdicts": [
+      {
+        "betId": "QGcgbbn-xH",
+        "outcome": "not_matched"
+      },
+      {
+        "betId": "xui1c_0riH",
+        "outcome": "cant_check",
+        "reason": "the bettor declined"
+      }
+    ],
+    "drawn": {
+      "slot": {
+        "kind": "ghost",
+        "who": [
+          "human",
+          "model:muse-spark-1.3"
+        ]
+      },
+      "inlets": [
+        {
+          "state": "read",
+          "label": "CBETH / ETH",
+          "labelFrom": "feedDescription"
+        },
+        {
+          "state": "blank",
+          "label": null,
+          "labelFrom": null
+        }
+      ],
+      "readout": "cbETH read $1.12 · reference $2,206.68 · 1 price source",
+      "price": "$1.12",
+      "reference": "$2,206.68",
+      "ghosts": [
+        {
+          "who": "human",
+          "usd": 2200
+        }
+      ],
+      "declined": [
+        "model:muse-spark-1.3"
+      ]
+    }
+  },
+  {
+    "id": "pre-apply-count2",
+    "real": false,
+    "runId": "mwTaxvHFzB-pre-apply",
+    "controlPassed": true,
+    "measured": {
+      "priceUsd1e18:cbETH": "2206683650838065175827",
+      "rawUnderlyingPrice:cbETH": "2206683650838065175827",
+      "feedAddress:cbETH": "0xB0Ba0C5D7DA4ec400C1C3E5ef2485134F89918C5",
+      "feedDecimals:cbETH": 18,
+      "feedDescription:cbETH": null,
+      "tokenDecimals:cbETH": 18,
+      "priceSources:cbETH": 2
+    },
+    "notMeasured": {},
+    "references": {
+      "refUsd1e18:cbETH": {
+        "value": "2206683650838065175827",
+        "method": "Chainlink ETH/USD × cbETH/ETH at block 42194662, decimals 8 and 18 read on-chain"
+      }
+    },
+    "callTrace": [
+      {
+        "t": 5,
+        "event": "call_trace",
+        "data": {
+          "phase": "pre-apply",
+          "ok": true,
+          "sources": [
+            "0x57d2d46fc7ff2a7142d479f2f59e1e3f95447077",
+            "0x08f9654349b33b955133b28e35dbecce9950c219"
+          ],
+          "count": 2,
+          "latestRoundDataCallees": [
+            "0xb0ba0c5d7da4ec400c1c3e5ef2485134f89918c5",
+            "0x71041dddad3595f9ced3dccfbe3d1f4b0a16bb70",
+            "0x57d2d46fc7ff2a7142d479f2f59e1e3f95447077",
+            "0x806b4ac04501c29769051e42783cf04dce41440b",
+            "0x08f9654349b33b955133b28e35dbecce9950c219"
+          ],
+          "method": "debug_traceCall with callTracer on getUnderlyingPrice; walk the call tree; keep calls whose input starts with latestRoundData() (0xfeaf968c); if any call reads a price another way (latestAnswer, getRoundData, getAnswer) the count is not measured; count the distinct callee addresses that make no further latestRoundData() call themselves (the aggregators the numbers come from; wrappers and Chainlink proxies pass a call through and are not counted)",
+          "calledAt": "latest"
+        }
+      }
+    ],
+    "bets": [
+      {
+        "who": "human",
+        "measures": "priceUsd1e18:cbETH",
+        "answer": {
+          "kind": "number",
+          "value": 2200,
+          "tolerancePct": 10,
+          "unit": "USD"
+        }
+      },
+      {
+        "who": "model:muse-spark-1.3",
+        "measures": "priceUsd1e18:cbETH",
+        "answer": {
+          "kind": "declined",
+          "reason": "unknown: cbETH USD price at fork block 2026-02-15 is after knowledge cutoff and depends on live oracle state"
+        }
+      }
+    ],
+    "verdicts": [
+      {
+        "betId": "QGcgbbn-xH",
+        "outcome": "matched"
+      },
+      {
+        "betId": "xui1c_0riH",
+        "outcome": "cant_check",
+        "reason": "the bettor declined"
+      }
+    ],
+    "drawn": {
+      "slot": {
+        "kind": "gear"
+      },
+      "inlets": [
+        {
+          "state": "read",
+          "label": "ETH / USD",
+          "labelFrom": "reference input"
+        },
+        {
+          "state": "read",
+          "label": "cbETH / ETH",
+          "labelFrom": "reference input"
+        }
+      ],
+      "readout": "cbETH read $2,206.68 · reference $2,206.68 · 2 price sources",
+      "price": "$2,206.68",
+      "reference": "$2,206.68",
+      "ghosts": [
+        {
+          "who": "human",
+          "usd": 2200
+        }
+      ],
+      "declined": [
+        "model:muse-spark-1.3"
+      ]
+    }
+  },
+  {
+    "id": "control-failed",
+    "real": false,
+    "runId": "mwTaxvHFzB-control-failed",
+    "controlPassed": false,
+    "measured": {
+      "preApplyPriceUsd1e18:DAI": "999900000000000000",
+      "preApplyFeedAddress:DAI": "0x591e79239a7d679378eC8c847e5038150364C78F",
+      "preApplyPriceUsd1e18:USDC": "999900000000000000",
+      "preApplyFeedAddress:USDC": "0x7e860098F58bBFC8648a4311b374B1D669a2bc6B",
+      "preApplyPriceUsd1e18:USDbC": "999900000000000000",
+      "preApplyFeedAddress:USDbC": "0x7e860098F58bBFC8648a4311b374B1D669a2bc6B",
+      "preApplyPriceUsd1e18:cbETH": "2206683650838065175827",
+      "preApplyFeedAddress:cbETH": "0xB0Ba0C5D7DA4ec400C1C3E5ef2485134F89918C5",
+      "preApplyPriceUsd1e18:AERO": "310865530000000000",
+      "preApplyFeedAddress:AERO": "0x4EC5970fC728C5f65ba413992CD5fF6FD70fcfF0",
+      "preApplyPriceUsd1e18:cbBTC": "68489740000000000000000",
+      "preApplyFeedAddress:cbBTC": "0x6F0cC02e5a7640B28F538fcc06bCA3BdFA57d1BB",
+      "preApplyPriceUsd1e18:EURC": "1184823110000000000",
+      "preApplyFeedAddress:EURC": "0x48F86A23aDE243F7a1028108aA65274FC84f382F",
+      "preApplyPriceUsd1e18:WELL": "5012000000000000",
+      "preApplyFeedAddress:WELL": "0x1E0E8bcFb5FFa86749B8b89fb6e055337Ba74A39",
+      "preApplyPriceUsd1e18:USDS": "999635870000000000",
+      "preApplyFeedAddress:USDS": "0xAeC8E8E3696fc5fcd954eb3ebC26B72FC2FE8E8e",
+      "preApplyPriceUsd1e18:tBTC": "68265908984780000000000",
+      "preApplyFeedAddress:tBTC": "0x94423903EaAf8638bDE262c417fEEf5E2Ec507E5",
+      "preApplyPriceUsd1e18:VIRTUAL": "627045790000000000",
+      "preApplyFeedAddress:VIRTUAL": "0x6aa41dF8FB0deC976B59bf0824FC5fFB88ccA958",
+      "preApplyPriceUsd1e18:MORPHO": "1323195190000000000",
+      "preApplyFeedAddress:MORPHO": "0xe95e258bb6615d47515Fc849f8542dA651f12bF6",
+      "preApplyPriceUsd1e18:cbXRP": "1493697000000000000",
+      "preApplyFeedAddress:cbXRP": "0x9f0C1dD78C4CBdF5b9cf923a549A201EdC676D34",
+      "preApplyPriceUsd1e18:MAMO": "14376590000000000",
+      "preApplyFeedAddress:MAMO": "0xeF7541b388a77C1709a3d44BfBfC5c1ED3F0Ac94",
+      "appliedFeedActions": 14,
+      "forkEventsEqualDerived": true,
+      "blockAfterApply": 42194676,
+      "priceUsd1e18:DAI": "999900000000000000",
+      "rawUnderlyingPrice:DAI": "999900000000000000",
+      "feedAddress:DAI": "0x4916EC6773e14CA873be3d65022BB122CB8b89a2",
+      "feedDecimals:DAI": 8,
+      "feedDescription:DAI": "DAI / USD",
+      "tokenDecimals:DAI": 18,
+      "priceUsd1e18:USDC": "999900000000000000",
+      "rawUnderlyingPrice:USDC": "999900000000000000000000000000",
+      "feedAddress:USDC": "0x7600b9068bB0aFEA6adf70eD6CD0f8492117236d",
+      "feedDecimals:USDC": 8,
+      "feedDescription:USDC": "USDC / USD",
+      "tokenDecimals:USDC": 6,
+      "priceUsd1e18:USDbC": "999900000000000000",
+      "rawUnderlyingPrice:USDbC": "999900000000000000000000000000",
+      "feedAddress:USDbC": "0x7600b9068bB0aFEA6adf70eD6CD0f8492117236d",
+      "feedDecimals:USDbC": 8,
+      "feedDescription:USDbC": "USDC / USD",
+      "tokenDecimals:USDbC": 6,
+      "priceUsd1e18:cbETH": "1122662744874806300",
+      "rawUnderlyingPrice:cbETH": "1122662744874806300",
+      "feedAddress:cbETH": "0x67996D1ff7a3711a91E2839d1059Fcb950C0495D",
+      "feedDecimals:cbETH": 18,
+      "feedDescription:cbETH": "CBETH / ETH",
+      "tokenDecimals:cbETH": 18,
+      "priceUsd1e18:AERO": "310865530000000000",
+      "rawUnderlyingPrice:AERO": "310865530000000000",
+      "feedAddress:AERO": "0xdC79C7D5D4dA3b237D2d078a1ee06F2FD1FfEf98",
+      "feedDecimals:AERO": 8,
+      "feedDescription:AERO": "AERO / USD",
+      "tokenDecimals:AERO": 18,
+      "priceUsd1e18:cbBTC": "68489740000000000000000",
+      "rawUnderlyingPrice:cbBTC": "684897400000000000000000000000000",
+      "feedAddress:cbBTC": "0x6a3c960Bcfb69BAe78f706c9c6B168bB7693E119",
+      "feedDecimals:cbBTC": 8,
+      "feedDescription:cbBTC": "BTC / USD",
+      "tokenDecimals:cbBTC": 8,
+      "priceUsd1e18:EURC": "1184823110000000000",
+      "rawUnderlyingPrice:EURC": "1184823110000000000000000000000",
+      "feedAddress:EURC": "0xd5669e0175D01cc5F6Be9607129668D0833DcbEC",
+      "feedDecimals:EURC": 8,
+      "feedDescription:EURC": "EURC / USD",
+      "tokenDecimals:EURC": 6,
+      "priceUsd1e18:WELL": "5012000000000000",
+      "rawUnderlyingPrice:WELL": "5012000000000000",
+      "feedAddress:WELL": "0xBA5220805E43194Ff12A434fBb745f3a2E1a09db",
+      "feedDecimals:WELL": 8,
+      "feedDescription:WELL": "WELL / USD",
+      "tokenDecimals:WELL": 18,
+      "priceUsd1e18:USDS": "999635870000000000",
+      "rawUnderlyingPrice:USDS": "999635870000000000",
+      "feedAddress:USDS": "0x6621069673C61a143DaDF376389e82DA372BF405",
+      "feedDecimals:USDS": 8,
+      "feedDescription:USDS": "USDS / USD",
+      "tokenDecimals:USDS": 18,
+      "priceUsd1e18:tBTC": "68265908984780000000000",
+      "rawUnderlyingPrice:tBTC": "68265908984780000000000",
+      "feedAddress:tBTC": "0xBfAaA8B347dA80B909504d403CB4C8F245e921ab",
+      "feedDecimals:tBTC": 8,
+      "feedDescription:tBTC": "TBTC / USD",
+      "tokenDecimals:tBTC": 18,
+      "priceUsd1e18:VIRTUAL": "627045790000000000",
+      "rawUnderlyingPrice:VIRTUAL": "627045790000000000",
+      "feedAddress:VIRTUAL": "0x12EC8CfEbCF5728774925feC1502733f906CB6e3",
+      "feedDecimals:VIRTUAL": 8,
+      "feedDescription:VIRTUAL": "VIRTUAL / USD",
+      "tokenDecimals:VIRTUAL": 18,
+      "priceUsd1e18:MORPHO": "1323195190000000000",
+      "rawUnderlyingPrice:MORPHO": "1323195190000000000",
+      "feedAddress:MORPHO": "0x09793267120dbF519B2B0e8Ea77A689e2Ba453F0",
+      "feedDecimals:MORPHO": 8,
+      "feedDescription:MORPHO": "MORPHO / USD",
+      "tokenDecimals:MORPHO": 18,
+      "priceUsd1e18:cbXRP": "1493697000000000000",
+      "rawUnderlyingPrice:cbXRP": "1493697000000000000000000000000",
+      "feedAddress:cbXRP": "0xf2Ac6F14A094A82A6f9489364CdE9e1ba2548d49",
+      "feedDecimals:cbXRP": 8,
+      "feedDescription:cbXRP": "XRP / USD",
+      "tokenDecimals:cbXRP": 6,
+      "priceUsd1e18:MAMO": "14376590000000000",
+      "rawUnderlyingPrice:MAMO": "14376590000000000",
+      "feedAddress:MAMO": "0xfbA86a013f7FD93B5454e147242CF2Bf419e120D",
+      "feedDecimals:MAMO": 8,
+      "feedDescription:MAMO": "MAMO / USD",
+      "tokenDecimals:MAMO": 18,
+      "preApplyPriceSources:cbETH": 2,
+      "priceSources:cbETH": 1
+    },
+    "notMeasured": {
+      "control": "fixture: the D04-04 run with its control marked as not passed"
+    },
+    "references": {
+      "refUsd1e18:cbETH": {
+        "value": "2206683650838065175827",
+        "method": "Chainlink ETH/USD × cbETH/ETH at block 42194662, decimals 8 and 18 read on-chain"
+      }
+    },
+    "callTrace": [
+      {
+        "t": 47,
+        "event": "call_trace",
+        "data": {
+          "phase": "pre-apply",
+          "ok": true,
+          "sources": [
+            "0x57d2d46fc7ff2a7142d479f2f59e1e3f95447077",
+            "0x08f9654349b33b955133b28e35dbecce9950c219"
+          ],
+          "count": 2,
+          "latestRoundDataCallees": [
+            "0xb0ba0c5d7da4ec400c1c3e5ef2485134f89918c5",
+            "0x71041dddad3595f9ced3dccfbe3d1f4b0a16bb70",
+            "0x57d2d46fc7ff2a7142d479f2f59e1e3f95447077",
+            "0x806b4ac04501c29769051e42783cf04dce41440b",
+            "0x08f9654349b33b955133b28e35dbecce9950c219"
+          ],
+          "method": "debug_traceCall with callTracer on getUnderlyingPrice; walk the call tree; keep calls whose input starts with latestRoundData() (0xfeaf968c); if any call reads a price another way (latestAnswer, getRoundData, getAnswer) the count is not measured; count the distinct callee addresses that make no further latestRoundData() call themselves (the aggregators the numbers come from; wrappers and Chainlink proxies pass a call through and are not counted)",
+          "calledAt": "latest"
+        }
+      },
+      {
+        "t": 48,
+        "event": "call_trace",
+        "data": {
+          "phase": "post-apply",
+          "ok": true,
+          "sources": [
+            "0x08f9654349b33b955133b28e35dbecce9950c219"
+          ],
+          "count": 1,
+          "latestRoundDataCallees": [
+            "0x67996d1ff7a3711a91e2839d1059fcb950c0495d",
+            "0x806b4ac04501c29769051e42783cf04dce41440b",
+            "0x08f9654349b33b955133b28e35dbecce9950c219"
+          ],
+          "method": "debug_traceCall with callTracer on getUnderlyingPrice; walk the call tree; keep calls whose input starts with latestRoundData() (0xfeaf968c); if any call reads a price another way (latestAnswer, getRoundData, getAnswer) the count is not measured; count the distinct callee addresses that make no further latestRoundData() call themselves (the aggregators the numbers come from; wrappers and Chainlink proxies pass a call through and are not counted)",
+          "calledAt": "latest"
+        }
+      }
+    ],
+    "bets": [
+      {
+        "who": "human",
+        "measures": "priceUsd1e18:cbETH",
+        "answer": {
+          "kind": "number",
+          "value": 2200,
+          "tolerancePct": 10,
+          "unit": "USD"
+        }
+      },
+      {
+        "who": "model:muse-spark-1.3",
+        "measures": "priceUsd1e18:cbETH",
+        "answer": {
+          "kind": "declined",
+          "reason": "unknown: cbETH USD price at fork block 2026-02-15 is after knowledge cutoff and depends on live oracle state"
+        }
+      }
+    ],
+    "verdicts": [
+      {
+        "betId": "QGcgbbn-xH",
+        "outcome": "cant_check",
+        "reason": "the run is not trusted: fixture: the D04-04 run with its control marked as not passed"
+      },
+      {
+        "betId": "xui1c_0riH",
+        "outcome": "cant_check",
+        "reason": "the run is not trusted: fixture: the D04-04 run with its control marked as not passed"
+      }
+    ],
+    "drawn": {
+      "slot": {
+        "kind": "ghost",
+        "who": [
+          "human",
+          "model:muse-spark-1.3"
+        ]
+      },
+      "inlets": [
+        {
+          "state": "read",
+          "label": "CBETH / ETH",
+          "labelFrom": "feedDescription"
+        },
+        {
+          "state": "blank",
+          "label": null,
+          "labelFrom": null
+        }
+      ],
+      "readout": "cbETH: can't check (the control did not pass) · 1 price source",
+      "price": null,
+      "reference": null,
+      "ghosts": [
+        {
+          "who": "human",
+          "usd": 2200
+        }
+      ],
+      "declined": [
+        "model:muse-spark-1.3"
+      ]
+    }
+  },
+  {
+    "id": "level1-not-measured",
+    "real": true,
+    "runId": "U6Gk6cu_i0",
+    "controlPassed": true,
+    "measured": {
+      "priceUsd1e18:cbETH": "1122662744874806300",
+      "rawUnderlyingPrice:cbETH": "1122662744874806300",
+      "feedAddress:cbETH": "0x67996D1ff7a3711a91E2839d1059Fcb950C0495D",
+      "feedDecimals:cbETH": 18,
+      "feedDescription:cbETH": "CBETH / ETH",
+      "tokenDecimals:cbETH": 18
+    },
+    "notMeasured": {},
+    "references": {
+      "refUsd1e18:cbETH": {
+        "value": "2206683650838065175827",
+        "method": "Chainlink ETH/USD × cbETH/ETH at block 42194663, decimals 8 and 18 read on-chain"
+      }
+    },
+    "callTrace": [],
+    "bets": [
+      {
+        "who": "human",
+        "measures": "priceUsd1e18:cbETH",
+        "answer": {
+          "kind": "number",
+          "value": 2200,
+          "tolerancePct": 10,
+          "unit": "USD"
+        }
+      }
+    ],
+    "verdicts": [
+      {
+        "betId": "-OUbGRZ3fV",
+        "outcome": "not_matched"
+      }
+    ],
+    "drawn": {
+      "slot": {
+        "kind": "not_measured",
+        "reason": "this run did not trace where its price came from"
+      },
+      "inlets": [
+        {
+          "state": "read",
+          "label": "CBETH / ETH",
+          "labelFrom": "feedDescription"
+        },
+        {
+          "state": "unknown",
+          "label": null,
+          "labelFrom": null
+        }
+      ],
+      "readout": "cbETH read $1.12 · reference $2,206.68 · price sources not measured",
+      "price": "$1.12",
+      "reference": "$2,206.68",
+      "ghosts": [
+        {
+          "who": "human",
+          "usd": 2200
+        }
+      ],
+      "declined": []
+    }
+  }
+]

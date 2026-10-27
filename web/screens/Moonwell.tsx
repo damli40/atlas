@@ -17,6 +17,7 @@ import { FindingsPanel } from "./Findings";
 import { ModelSlotCard } from "./ModelPanel";
 import { VerdictScreen, type FormatValue } from "./Verdict";
 import { modelTextsOf, WhyScreen } from "./Why";
+import { PricePipe } from "../machines/pricepipe/PricePipe";
 
 export const PR_FORK_BLOCK = { level2: MOONWELL_FORK_BLOCKS.level2.block, level1: MOONWELL_FORK_BLOCKS.level1.block } as const;
 
@@ -245,6 +246,8 @@ export function MoonwellFlow({ api }: { api: Api }) {
           )}
         </section>
       )}
+
+      {result && result.run.runner === "evm" && <PricePipe run={result.run} bets={result.bets} verdicts={result.verdicts} />}
 
       {result && (
         <VerdictScreen

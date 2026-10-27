@@ -1,0 +1,32 @@
+/* The price pipe's own styles, scoped to .pp (Anatomy: figure tokens stay off :root). */
+.pp { margin: 16px 0; }
+.pp .iso-figure { margin: 0; }
+.pp .iso-plate-corner[data-corner="readout"] { white-space: normal; max-width: 62%; text-align: right; line-height: 1.35; }
+.pp .iso-legend { display: block; padding: 10px 2px 0; font-size: 13px; color: var(--anatomy-text); }
+.pp .iso-keys { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 6px; }
+.pp .iso-key { display: inline-flex; gap: 6px; align-items: center; }
+.pp .iso-swatch { width: 16px; height: 10px; }
+.pp-live:focus-visible { outline: 1px solid var(--anatomy-muted); outline-offset: 6px; }
+
+/* The slot's pocket floor, a shade darker than the housing top. */
+.pp-pocket-face { fill: var(--anatomy-shade-1); stroke: none; }
+/* The ghost of the bettors' expectation: dashed, never solid, never lit. */
+.pp-ghost-outline { stroke-dasharray: 4 3; }
+
+/* Flow beads: the lit accent travelling through a pipe. */
+.pp-bead { fill: var(--anatomy-lit); }
+
+/* Ghost bet marks on the rim: faint until the verdict; a matched bet's mark goes to the strong tone. */
+.pp-ghost[data-kind="person"] { fill: var(--anatomy-mid); }
+.pp-ghost[data-kind="person"][data-matched] { fill: var(--anatomy-hi); }
+.pp-ghost[data-kind="model"] { fill: none; }
+.pp-ghost[data-kind="model"][data-matched] { stroke: var(--anatomy-hi); }
+
+.pp-level-caption { color: var(--anatomy-strong); }
+
+@media (max-width: 480px) {
+  .pp .iso-plate { padding: 44px 6px 78px; }
+  .pp .iso-plate-corner[data-corner="readout"] { max-width: 92%; }
+  /* The keys hint makes room for the readout on a phone (the keys still work). */
+  .pp .iso-plate-corner[data-corner="hint"] { display: none; }
+}

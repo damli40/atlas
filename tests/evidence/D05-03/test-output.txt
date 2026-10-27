@@ -1,0 +1,17 @@
+
+ RUN  v5.0.5 /Users/Admin/Documents/Atlas-wt/pipe
+
+ ✓ tests/unit/machines-pricepipe.test.tsx > D05-03 price pipe > model.ts imports nothing but its input types and the USD formatter from src/units.ts 2ms
+ ✓ tests/unit/machines-pricepipe.test.tsx > D05-03 price pipe > parts manifest: 40–80 parts, every drawn part is listed, every listed part is drawn in some case, none named after a judgement 66ms
+ ✓ tests/unit/machines-pricepipe.test.tsx > D05-03 price pipe > Level 2 real run (count 1): no gear, the slot is a dashed outline drawn from the bets, the gauge reads $1.12 beside the $2,206.68 reference 6ms
+ ✓ tests/unit/machines-pricepipe.test.tsx > D05-03 price pipe > pre-apply phase of the same run (fixture, count 2): the multiply gear is in the slot and both inlets are named 14ms
+ ✓ tests/unit/machines-pricepipe.test.tsx > D05-03 price pipe > control failed: the gauge says can't check and no needle is drawn; every verdict is can't check 5ms
+ ✓ tests/unit/machines-pricepipe.test.tsx > D05-03 price pipe > Level 1 real run: the source count was not measured, so the slot is plain with 'not measured', no gear and no dashed claim 26ms
+ ✓ tests/unit/machines-pricepipe.test.tsx > D05-03 price pipe > an explicit notMeasured count gives the runner's reason; a count with no bets leaves the slot empty, not dashed 5ms
+ ✓ tests/unit/machines-pricepipe.test.tsx > D05-03 price pipe > reduced motion: the first paint is the end state (needles at their values, final readout, gear at rest) 50ms
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  09:08:54
+   Duration  487ms (import 51%, tests 44%, transform 4%, worker 1%)
+

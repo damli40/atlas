@@ -1,0 +1,13 @@
+$ vitest run
+
+ RUN  v5.0.5 /Users/Admin/Documents/Atlas-wt/pipe
+
+
+ Test Files  44 passed (44)
+      Tests  461 passed | 16 skipped (477)
+   Start at  09:08:06
+   Duration  10.88s (tests 63%, import 35%, transform 2%)
+
+    Isolate  44 workers spawned · ~334ms startup each (spawn + environment, per file)
+             at least ~1.30s faster with isolate: false — reuses workers across files instead of one per file
+

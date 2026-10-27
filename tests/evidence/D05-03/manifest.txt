@@ -1,0 +1,61 @@
+53 parts (web/machines/pricepipe/geometry.ts PARTS)
+
+base-halo
+base-plate
+base-groove
+foot-1
+foot-2
+foot-3
+foot-4
+corner-screws
+label-plate
+inlet-1-label
+feed-1-canister-foot
+feed-1-canister
+feed-1-bands
+feed-1-cap
+feed-1-knob
+feed-1-connector
+inlet-1-flange
+inlet-1-duct
+inlet-2-label
+feed-2-canister-foot
+feed-2-canister
+feed-2-bands
+feed-2-cap
+feed-2-knob
+feed-2-connector
+inlet-2-flange
+inlet-2-duct
+inlet-2-blank-plate
+gear-housing
+housing-seam
+housing-screws
+slot-pocket
+slot-seat
+slot-ghost-outline
+multiply-gear
+gear-spokes
+gear-hub
+outlet-collar
+outlet-duct
+flow-bead
+gauge-pedestal
+pedestal-seam
+pedestal-screws
+gauge-case
+gauge-bezel
+dial-face
+dial-ticks
+dial-numerals
+dial-engraving
+ghost-bet-marks
+reference-needle
+price-needle
+needle-hub
+
+Drawn per case (data-part names found in the rendered SVG):
+- level2-count1: 43 drawn; not drawn: inlet-2-label, feed-2-canister-foot, feed-2-canister, feed-2-bands, feed-2-cap, feed-2-knob, feed-2-connector, multiply-gear, gear-spokes, gear-hub
+- pre-apply-count2: 51 drawn; not drawn: inlet-2-blank-plate, slot-ghost-outline
+- control-failed: 41 drawn; not drawn: inlet-2-label, feed-2-canister-foot, feed-2-canister, feed-2-bands, feed-2-cap, feed-2-knob, feed-2-connector, multiply-gear, gear-spokes, gear-hub, reference-needle, price-needle
+- level1-not-measured: 41 drawn; not drawn: inlet-2-label, feed-2-canister-foot, feed-2-canister, feed-2-bands, feed-2-cap, feed-2-knob, feed-2-connector, inlet-2-blank-plate, slot-ghost-outline, multiply-gear, gear-spokes, gear-hub
