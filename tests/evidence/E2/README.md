@@ -285,10 +285,19 @@ objects"):
    trace capped at 5,000 events (counts stay exact, the cut is marked), size guards so a 50-million-character string
    is refused without being walked. Each has a test.
 
-## Unsafe things noticed (not fixed here)
+## Unsafe thing noticed in E1, then fixed on this branch
 
-- **E1's local executor decodes stdout chunk by chunk** (`runners/executor/local.ts`: `b.toString("utf8")` per
-  data event). A multi-byte character split across two chunks becomes two replacement characters, the HMAC no
-  longer verifies, and a JavaScript run that returns non-ASCII text in a large output would be reported as
-  "tampering" (can't check, never a false fact). The Python executor collects the bytes and decodes once, and the
-  Python harness writes its line in ASCII only. I did not change E1's executor (outside this batch).
+- **Finding:** E1's local executor (`runners/executor/local.ts`) decoded stdout chunk by chunk
+  (`b.toString("utf8")` per data event). A multi-byte character split across two pipe reads became two
+  replacement characters, the HMAC no longer verified, and an honest JavaScript run was reported as "tampering"
+  (can't check, never a false fact).
+- **Fix:** the executor keeps the raw bytes and decodes once when the child exits (stdout and stderr). Nothing else
+  in the executor changed.
+- **Tests** (`tests/unit/local-executor-utf8.test.ts`, both failed on the old code, both pass now):
+  - 750 KB of 2-, 3- and 4-byte characters, offset so the 64 KB pipe reads land mid-character, arrive whole.
+  - A real signed result line, written in two pieces split inside a euro sign with a 100 ms pause between, is
+    accepted by `parseCallWorkerOutput`. On the old code it came back "tampering: a result line that does not
+    carry this run's key". The split is forced by the script because the real harness writes its line in one
+    call: I tried 27 padding sizes, with and without stalling the parent, and the OS never split the harness's own
+    line, so a natural reproduction is timing-dependent (it needs the pipe full while the parent is busy).
+- **Counts after the fix:** 87 files, 1,059 passed, 19 skipped.

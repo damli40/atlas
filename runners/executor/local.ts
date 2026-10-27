@@ -79,14 +79,20 @@ export const localExecutor: Executor = {
           child.stdin.on("error", () => {}); // the child may exit before reading it; that is its answer, not ours
           child.stdin.end(req.stdin);
         }
-        let stdout = "";
-        let stderr = "";
+        // Raw bytes, decoded once at the end: decoding each chunk on its own turned a multi-byte character split
+        // across two pipe reads into two U+FFFD, which broke the result line's HMAC (tests/unit/local-executor-utf8).
+        const out: Buffer[] = [];
+        const err: Buffer[] = [];
+        let outBytes = 0;
+        let errBytes = 0;
         let timedOut = false;
         child.stdout!.on("data", (b: Buffer) => {
-          if (stdout.length < MAX_OUTPUT_BYTES) stdout += b.toString("utf8");
+          if (outBytes < MAX_OUTPUT_BYTES) out.push(b);
+          outBytes += b.length;
         });
         child.stderr!.on("data", (b: Buffer) => {
-          if (stderr.length < MAX_OUTPUT_BYTES) stderr += b.toString("utf8");
+          if (errBytes < MAX_OUTPUT_BYTES) err.push(b);
+          errBytes += b.length;
         });
         const timer = setTimeout(() => {
           timedOut = true;
@@ -98,7 +104,7 @@ export const localExecutor: Executor = {
         });
         child.on("close", (code) => {
           clearTimeout(timer);
-          resolve({ stdout, stderr, exitCode: code, timedOut, durationMs: Math.round(performance.now() - started) });
+          resolve({ stdout: Buffer.concat(out).toString("utf8"), stderr: Buffer.concat(err).toString("utf8"), exitCode: code, timedOut, durationMs: Math.round(performance.now() - started) });
         });
       });
     } finally {
