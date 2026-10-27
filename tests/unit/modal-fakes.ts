@@ -12,6 +12,7 @@ import { mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Readable } from "node:stream";
+import { findPython } from "../../runners/executor/sandbox-exec-python.ts";
 import { MODAL_IMAGE, NODE_BIN, PYTHON_BIN, SANDBOX_DIR, type ModalBackend, type ModalProcess, type ModalSandbox, type SandboxSpec } from "../../runners/executor/modal.ts";
 
 export interface Recorded {
@@ -155,8 +156,13 @@ export function emulatingBackend(): ModalBackend & { rec: Recorded } {
               const eq = cmd[i]!.indexOf("=");
               env[cmd[i]!.slice(0, eq)] = cmd[i]!.slice(eq + 1);
             }
-            while (cmd[i] !== NODE_BIN) i++;
-            file = process.execPath;
+            while (cmd[i] !== NODE_BIN && cmd[i] !== PYTHON_BIN) i++;
+            if (cmd[i] === PYTHON_BIN) {
+              // Hosted Python: this Mac's python3 with the same flags (-I -S -B), no sandbox-exec (the container's job).
+              const py = findPython();
+              if (!py) throw new Error("emulatingBackend: no python3 on this machine");
+              file = py.foundAs;
+            } else file = process.execPath;
             args = cmd.slice(i + 1).map((a) => a.replaceAll(SANDBOX_DIR, dir));
           } else throw new Error(`emulatingBackend: unexpected command ${cmd[0]}`);
           const child = spawn(file, args, { cwd: dir, env, stdio: ["pipe", "pipe", "pipe"] });

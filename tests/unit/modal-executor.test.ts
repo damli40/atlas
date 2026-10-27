@@ -68,7 +68,7 @@ describe("what Atlas sends to Modal", () => {
     expect(cmd.slice(9)).toEqual([NODE_BIN, "--permission", `--allow-fs-read=${SANDBOX_DIR}`, "--disallow-code-generation-from-strings", "w.mjs"]);
   });
 
-  it("refuses before any sandbox exists: a widening node flag, a network host list, NODE_OPTIONS, a non-node command, odd env, a path that leaves the folder", async () => {
+  it("refuses before any sandbox exists: a widening node flag, a network host list, NODE_OPTIONS, a command other than node or python3, Python flags or env, odd env, a path that leaves the folder", async () => {
     const b = scriptedBackend();
     const ex = createModalExecutor({ backend: b, log: () => {} });
     const bad: [Partial<ExecRequest>, RegExp][] = [
@@ -77,7 +77,9 @@ describe("what Atlas sends to Modal", () => {
       [{ allowNetwork: { hosts: ["example.com"] } }, /cannot limit network/],
       [{ env: { NODE_OPTIONS: "--no-permission" } }, /NODE_OPTIONS/],
       [{ env: { "A B": "1" } }, /not a plain NAME=value/],
-      [{ cmd: ["python3", "x.py"] }, /only "node"/],
+      [{ cmd: ["bash", "x.sh"] }, /only "node" and "python3"/],
+      [{ cmd: ["python3", "-c", "print(1)"] }, /script name only, no interpreter flags/],
+      [{ cmd: ["python3", "boot.py"], env: { A: "1" } }, /empty environment/],
       [{ files: { "../x.mjs": "" } }, /leaves the sandbox folder/],
       [{ files: { "/etc/x": "" } }, /leaves the sandbox folder/],
       [{ wallClockMs: 0 }, /positive/],

@@ -357,24 +357,21 @@ export function callControlKey(executor: Executor): string {
   );
 }
 
-const reusable = new Map<string, Promise<CallControlOutcome>>();
+const reusable = new Map<string, Promise<{ run: Run }>>();
 
 /**
- * D31: the control to rely on for a call-function run. Reuses a PASSED control made under the same key within the
- * last 10 minutes (measured from when it finished); otherwise runs a new one. A control that did not pass, or
- * threw, is never kept. Two runs asking at once share one control run.
+ * D31: a passed control under `key`, reused within 10 minutes of when it finished; otherwise `start()` runs a new
+ * one. A control that did not pass, or threw, is never kept. Two runs asking at once share one control run. Shared
+ * by the JavaScript and the Python call-function controls (their keys differ).
  */
-export async function callControlFor(opts: { executor?: Executor; wallClockMs?: number; now?: () => number } = {}): Promise<CallControlOutcome> {
-  const executor = opts.executor ?? localExecutor;
-  const now = opts.now ?? Date.now;
-  const key = callControlKey(executor);
-  const held = reusable.get(key);
+export async function reuseControl<T extends { run: Run }>(key: string, start: () => Promise<T>, now: () => number = Date.now): Promise<T> {
+  const held = reusable.get(key) as Promise<T> | undefined;
   if (held) {
     const got = await held.catch(() => undefined);
     if (got && got.run.controlPassed === true && now() - Date.parse(got.run.finishedAt) <= CALL_CONTROL_REUSE_MS) return got;
     if (reusable.get(key) === held) reusable.delete(key);
   }
-  const fresh = runCallControl({ executor, ...(opts.wallClockMs ? { wallClockMs: opts.wallClockMs } : {}) });
+  const fresh = start();
   reusable.set(key, fresh);
   try {
     const got = await fresh;
@@ -384,6 +381,12 @@ export async function callControlFor(opts: { executor?: Executor; wallClockMs?: 
     if (reusable.get(key) === fresh) reusable.delete(key);
     throw e;
   }
+}
+
+/** D31: the control to rely on for a JavaScript/TypeScript call-function run (see reuseControl). */
+export function callControlFor(opts: { executor?: Executor; wallClockMs?: number; now?: () => number } = {}): Promise<CallControlOutcome> {
+  const executor = opts.executor ?? localExecutor;
+  return reuseControl(callControlKey(executor), () => runCallControl({ executor, ...(opts.wallClockMs ? { wallClockMs: opts.wallClockMs } : {}) }), opts.now);
 }
 
 /** For tests: forget every reusable control. */

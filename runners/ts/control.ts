@@ -19,7 +19,7 @@ import { BUILTINS_CHANGED_REASON, type HarnessOutput, type WorkerRequest, type W
 import { SUCCESS_VALUE, harnessInputFromShape, scenarioFromOracleInput, type OracleInput } from "./shapes.ts";
 import { TS_TARGET_EXPORTS } from "../../src/target-name.ts";
 import { callControlFor, resultMac, runCallExperiment } from "./call-runner.ts";
-import { runPyCallControl, runPyCallExperiment } from "../py/py-runner.ts";
+import { pyControlFor, runPyCallExperiment } from "../py/py-runner.ts";
 import { pythonSandboxExecutor } from "../executor/sandbox-exec-python.ts";
 
 const REPO_ROOT = fileURLToPath(new URL("../../", import.meta.url));
@@ -370,20 +370,26 @@ export async function runExperiment(
   };
 }
 
+/** E4: where pasted Python runs, given the executor JavaScript runs on: Modal for Modal, sandbox-exec otherwise. */
+export function pythonExecutorFor(executor: Executor): Executor {
+  return executor.kind === "modal" ? executor : pythonSandboxExecutor;
+}
+
 /**
  * The TS Runner: every run is preceded by a control on the same code through the same executor.
  * E1: a pasted target runs "call-function" experiments; its control is the call-function known-case check
  * (runners/ts/call-runner.ts), which checks the harness on fixed reference functions.
  * E2: a pasted target in Python runs on `pyExecutor` (macOS sandbox-exec) through runners/py/py-runner.ts, after
  * the Python known-case check.
+ * E4 (D24, hosted Python): when the runner's executor is Modal, Python runs in Modal sandboxes too (never locally).
  */
-export function tsRunner(executor: Executor = localExecutor, pyExecutor: Executor = pythonSandboxExecutor): Runner {
+export function tsRunner(executor: Executor = localExecutor, pyExecutor: Executor = pythonExecutorFor(executor)): Runner {
   return {
     kind: "ts",
     control: async (target) =>
       target.kind === "pasted"
         ? target.language === "py"
-          ? (await runPyCallControl({ executor: pyExecutor })).run
+          ? (await pyControlFor({ executor: pyExecutor })).run // D31
           : (await callControlFor({ executor })).run // D31: reused up to 10 min
         : control(target, executor),
     async run(exp: Experiment, opts): Promise<Run> {
@@ -392,7 +398,7 @@ export function tsRunner(executor: Executor = localExecutor, pyExecutor: Executo
         if (exp.params.shape !== "call-function" || exp.target.kind !== "pasted") throw new Error(`"call-function" runs on pasted targets, and pasted targets run "call-function" only`);
         // E2: pasted Python runs through the Python harness in the OS sandbox, after the Python control.
         if (exp.target.language === "py") {
-          const pyCtl = await runPyCallControl({ executor: pyExecutor });
+          const pyCtl = await pyControlFor({ executor: pyExecutor }); // D31
           return runPyCallExperiment(exp, pyCtl.run, { executor: pyExecutor, ...(opts.replayOf ? { replayOf: opts.replayOf } : {}) });
         }
         const ctl = await callControlFor({ executor }); // D31
