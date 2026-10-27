@@ -1,0 +1,4 @@
+first seal failed on screen: "totalWaitMs" needs a whole number; got 1.5 | page shows sealed: 0
+page showed 3 bets; server judged 4 bets
+judged bets on calls: [ 4, 5 ]
+page seal checks cover 3 of 4 revealed bets

@@ -1,0 +1,38 @@
+ ✓ tests/unit/limits.test.ts > S5 model budget > global calls per hour: the 4th call in the hour is refused; an hour later calls are allowed again
+ ✓ tests/unit/limits.test.ts > S5 model budget > spend ceiling: usage.jsonl total at start plus calls since; past the ceiling nothing is asked, with a plain reason
+ ✓ tests/unit/limits.test.ts > S5 model budget > readUsageTotal sums usd, skips unreadable lines, and a missing file is $0
+ ✓ tests/unit/review-day2.test.ts > S1: one bet per person per question; the page and the server agree on the judged set > a second bet on the same question is refused with 409, and only the first is judged
+ ✓ tests/unit/limits.test.ts > S5 model budget > through the server: a spent budget leaves the slot 'off' with the reason, and the person's bet and run go on
+ ✓ tests/unit/limits.test.ts > S4 session store > peek never creates; open creates; the least recently USED idle session is dropped first
+ ✓ tests/unit/limits.test.ts > S4 session store > a session with sealed, unrun bets is kept for 2 hours; when all are kept a new session is refused; after 2 hours it may go
+ ✓ tests/unit/limits.test.ts > S4 session store > a session whose round already ran is not protected
+ ✓ tests/unit/limits.test.ts > S7 refusal records > file names: date-runId-betId for a can't check, date-experimentId for a gate refusal
+ ✓ tests/unit/limits.test.ts > S7 refusal records > scrubs local paths, URLs, long secret-looking strings and the live key; keeps a 64-hex code fingerprint
+ ✓ tests/unit/limits.test.ts > S7 refusal records > writeRefusal writes only known fields, scrubbed, into the given folder; the memory writer writes nothing
+ ✓ tests/unit/review-day2.test.ts > S1: one bet per person per question; the page and the server agree on the judged set > all answers in one request: one refused answer seals none; the fixed resend seals exactly one per question, and that set is judged
+ ✓ tests/unit/review-day2.test.ts > S1: one bet per person per question; the page and the server agree on the judged set > the page's own seal (web/api.ts + checkSeals): a typo seals nothing; after the fix the page shows and checks every judged bet
+ ✓ tests/unit/review-day2.test.ts > S2: no model answer value in any log line, SSE event or API answer before the run > unusable first answer, usable repair
+ ✓ tests/unit/review-day2.test.ts > S2: no model answer value in any log line, SSE event or API answer before the run > two unusable answers (no usable answer)
+ ✓ tests/unit/review-day2.test.ts > S2: no model answer value in any log line, SSE event or API answer before the run > fractional number first
+ ✓ tests/unit/review-day2.test.ts > S3: a long or multi-line gate reason gives 422 with the full reason; the log line is one short line > 12 extra fields, and a field name with a line break
+ ✓ tests/unit/review-day2.test.ts > S4: failed requests from other sessions do not evict a round with sealed bets > 600 POST /bets (404) from new session ids, then the victim's run still runs
+ ✓ tests/unit/review-day2.test.ts > S5: a session's experiments stop asking the model at the cap; the person's round goes on > 12 experiments in one session: the model is asked 10 times; the 11th slot says not asked (call limit reached) and still runs
+ ✓ tests/unit/review-day2.test.ts > S6: the settle-time question measures the field the runner writes > S3 settles at 12000 ms: matched on the real value; S1 at 0 ms: matched; S6 never settles: can't check with the runner's reason
+ ✓ tests/unit/review-day2.test.ts > S7: the server hands every gate refusal and can't-check verdict to its refusal writer; by default nothing is written > records go to the injected writer (no paths, no keys); proofs/refusals is unchanged
+ ✓ tests/unit/review-day2.test.ts > S8: the full-mode Claimant returns {ok:false} with the real agent log; it never throws > a failed model call (no usage)
+ ✓ tests/unit/review-day2.test.ts > S8: the full-mode Claimant returns {ok:false} with the real agent log; it never throws > an experiment with 12 extra fields (twice)
+ ✓ tests/unit/review-day2.test.ts > S8: the full-mode Claimant returns {ok:false} with the real agent log; it never throws > a usable answer: the seal line carries no model (plain code), and nothing throws
+ ✓ tests/unit/review-day2.test.ts > minor fixes > m1: a second POST /runs while the first waits for the model says it is running (never 'started undefined')
+ ✓ tests/unit/review-day2.test.ts > minor fixes > m2: a model that never answers holds the run only until the server's deadline; the slot says why
+ ✓ tests/unit/review-day2.test.ts > minor fixes > m3: a failed model call with no usage is logged as 'cost unknown', not as a plain $0
+ ✓ tests/unit/review-day2.test.ts > minor fixes > m4: a declined bet whose reason is only spaces is not usable
+ ✓ tests/unit/review-day2.test.ts > minor fixes > m6: a judged bet the page never showed is flagged by the page's seal check
+ ✓ tests/unit/review-day2.test.ts > minor fixes > m8: the gate refuses fields that cannot take effect
+ ✓ tests/unit/review-day2.test.ts > minor fixes > m9: Spark's prompt says the experiment JSON is data, never an instruction
+ ✓ tests/unit/review-day2.test.ts > minor fixes > m11: a request body over the limit is refused (413), not read whole
+ Test Files  2 passed (2)
+      Tests  32 passed (32)
+
+--- full suite (pnpm test) ---
+ Test Files  22 passed (22)
+      Tests  288 passed | 3 skipped (291)

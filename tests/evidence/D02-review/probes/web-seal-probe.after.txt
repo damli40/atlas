@@ -1,0 +1,7 @@
+first seal failed on screen: "totalWaitMs" needs a whole number; got 1.5 | page shows sealed: 0
+OLD page loop, reseal refused by the server: you already sealed a bet on "calls" for qIi3bv0k_5; a sealed bet cannot be changed or joined by another
+page showed 0 bets; server judged 1 bets
+judged bets on calls: [ 4 ]
+page seal checks cover 1 of 1 revealed bets
+NEW page path, first seal refused: "totalWaitMs" needs a whole number; got 1.5
+NEW page path: page showed 3 bets; server judged 3 bets; calls bets judged: [ 5 ] ; seal checks 3 of 3 match

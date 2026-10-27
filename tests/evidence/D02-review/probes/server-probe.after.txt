@@ -1,0 +1,109 @@
+
+### P1 ten human bets on 'calls' (0..9): statuses
+[
+ 200,
+ 409,
+ 409,
+ 409,
+ 409,
+ 409,
+ 409,
+ 409,
+ 409,
+ 409
+]
+
+### P1 run verdicts on calls
+[
+ "not_matched"
+]
+
+### P2 race: run status, accepted bets, accepted-but-not-judged
+{
+ "run": 200,
+ "accepted": 1,
+ "rejected409": 9,
+ "acceptedNotJudged": 0,
+ "allSealedBeforeStart": true
+}
+
+### P3a 12 extra keys
+{
+ "status": 422,
+ "error": "gate: rejected (\"retry-scenario\" has no field \"extraField0\", \"extraField1\", \"extraField2\", \"extraField3\", \"extraField4\", \"extraField5\", \"extraField6\", \"extraField7\", \"extraField8\", \"extraField9\", \"ext"
+}
+
+### P3b key with a newline
+{
+ "status": 422,
+ "error": "gate: rejected (\"retry-scenario\" has no field \"a\nb\"; its fields are failTimes, failure, attempts, delayMs, resolveAfterMs, errorKind, resolvesWith); nothing will run"
+}
+
+### P4 agent log visible over SSE before the person bets
+[
+ "human: uses a fixture finding, written by hand (Investigator arrives Oct 30)",
+ "gate: allowed (src/gate.ts)",
+ "claimant: answers (not usable: bet on \"outcome\": outcome not one of the options); one repair try",
+ "claimant: bets on c0MKd4dDHx (3 answers, hidden until the run)",
+ "seal: seals 3 bets from muse-spark-1.3 at server time"
+]
+
+### P4b numeric leak
+[
+ "answers (not usable: bet on \"calls\": calls must be a whole number); one repair try"
+]
+
+### P5 victim's run after 500 bogus POST /bets from other session ids
+{
+ "status": 200
+}
+
+### P6 hung model (mock never resolves; real client caps at 2 x 120 s)
+{
+ "winner": "run still waiting after 2 s",
+ "betAfter": 409,
+ "runAgain": 409,
+ "runAgainErr": "experiment xrXIwl1UvP is already running: its run is waiting for the model's bets"
+}
+
+### P7 model calls made for 100 POST /experiments across 4 sessions
+60
+
+### P8 settledAtMs (was settleTime) on S1 (code returns at t=0)
+{
+ "verdict": {
+  "betId": "navFGs3nql",
+  "runId": "_dKjpLzl-_",
+  "judgedBy": "src/judge.ts",
+  "outcome": "matched",
+  "observed": 0
+ },
+ "measuredKeys": [
+  "calls",
+  "waitCount",
+  "waitsMs",
+  "logCount",
+  "logAttempts",
+  "totalWaitMs",
+  "outcome",
+  "settledAtMs",
+  "returned"
+ ]
+}
+
+### P9 gate status
+{
+ "allowed": true
+}
+
+### P9 verdicts
+[
+ {
+  "o": "cant_check",
+  "why": "Atlas's watch limit (30000 ms of virtual time, Atlas's limit, not the code's) ended the run before the function finished, so how it ends was not seen"
+ },
+ {
+  "o": "cant_check",
+  "why": "Atlas's watch limit (30000 ms of virtual time, Atlas's limit, not the code's) ended the run before the function finished; the count so far was 1"
+ }
+]
