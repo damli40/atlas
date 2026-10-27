@@ -9,23 +9,18 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseAbi, type Address } from "viem";
 import { withAnvilFork } from "../../runners/evm/anvil.ts";
-import { loadAddressBook, parseBaseOracleConfigs, planFeedActions } from "../../runners/evm/apply.ts";
+import { MOONWELL_PR_COPY, planFromPrFiles } from "../../runners/evm/apply.ts";
 import { CHAINLINK_ORACLE, FORK_BLOCK, TEMPORAL_GOVERNOR } from "../../runners/evm/moonwell-base.ts";
 import { localClient } from "../../runners/evm/reads.ts";
 
-export const MOONWELL_COPY = join(import.meta.dirname, "..", "..", "contracts", "lib", "moonwell");
-
 export function prFiles() {
   return {
-    configs: readFileSync(join(MOONWELL_COPY, "proposals", "ChainlinkOracleConfigs.sol"), "utf8"),
-    chain: readFileSync(join(MOONWELL_COPY, "chains", "8453.json"), "utf8"),
+    configs: readFileSync(join(MOONWELL_PR_COPY, "proposals", "ChainlinkOracleConfigs.sol"), "utf8"),
+    chain: readFileSync(join(MOONWELL_PR_COPY, "chains", "8453.json"), "utf8"),
   };
 }
 
-export function plannedFromPr() {
-  const f = prFiles();
-  return planFeedActions(parseBaseOracleConfigs(f.configs), loadAddressBook(f.chain));
-}
+export const plannedFromPr = () => planFromPrFiles();
 
 export async function level2Precheck(forkBlock = FORK_BLOCK.beforeProposal) {
   const planned = plannedFromPr();
