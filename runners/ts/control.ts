@@ -6,7 +6,7 @@
 // `controlPassed` is false and every verdict on that runner becomes "can't check". The reason says
 // which row and which field didn't match.
 
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15,10 +15,10 @@ import type { Change, Experiment, Run, Target, TraceEvent } from "../../src/type
 import { localExecutor } from "../executor/local.ts";
 import type { Executor, ReplayContext, Runner } from "../runner.ts";
 import { checkChange, tsChangeContext } from "../change.ts";
-import { BUILTINS_CHANGED_REASON, RESULT_MARKER, type HarnessOutput, type WorkerRequest, type WorkerResponse } from "./harness.ts";
+import { BUILTINS_CHANGED_REASON, type HarnessOutput, type WorkerRequest, type WorkerResponse } from "./harness.ts";
 import { SUCCESS_VALUE, harnessInputFromShape, scenarioFromOracleInput, type OracleInput } from "./shapes.ts";
 import { TS_TARGET_EXPORTS } from "../../src/target-name.ts";
-import { runCallControl, runCallExperiment } from "./call-runner.ts";
+import { resultMac, runCallControl, runCallExperiment } from "./call-runner.ts";
 
 const REPO_ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const FIXTURES_DIR = resolve(REPO_ROOT, "tests/fixtures");
@@ -67,22 +67,29 @@ function isHarnessRun(r: unknown): r is WorkerResponse["runs"][number] {
 }
 
 /**
- * Reads the worker's stdout. Only lines carrying this run's marker count. The FIRST one is the
- * result; a second one, a line that does not parse, or a result the worker flagged as tampered
- * means the code under test interfered, so nothing from the run is trusted. Never throws.
+ * Reads the worker's stdout. E1 review round 1: a result line counts only when its HMAC verifies under this
+ * run's key, which only the worker held (sent on stdin; see runners/ts/worker.ts). A line that does not verify
+ * is the code's own output and is ignored: it cannot be a result. Exactly one verified line is the result; a
+ * second verified line, or a verified line that does not parse or has the wrong shape, means interference, so
+ * nothing from the run is trusted. Never throws.
  */
-export function parseWorkerOutput(stdout: string, marker: string): SandboxAnswer {
-  const lines = stdout.split("\n").filter((l) => l.includes(marker));
-  if (lines.length === 0) return { ok: false, reason: "the sandbox gave no result line", tampered: false };
-  if (lines.length > 1) {
-    return { ok: false, reason: `tampering: ${lines.length} result lines carry this run's marker (only the worker writes one)`, tampered: true };
+export function parseWorkerOutput(stdout: string, key: string): SandboxAnswer {
+  const verified: string[] = [];
+  for (const l of stdout.split("\n")) {
+    const m = /^ATLAS_RESULT ([0-9a-f]{64}) (.*)$/.exec(l);
+    if (!m) continue;
+    const want = Buffer.from(resultMac(key, m[2]!), "hex");
+    const got = Buffer.from(m[1]!, "hex");
+    if (want.length === got.length && timingSafeEqual(want, got)) verified.push(m[2]!);
   }
-  const prefix = `${RESULT_MARKER}${marker} `;
-  const line = lines[0]!;
-  if (!line.startsWith(prefix)) return { ok: false, reason: "tampering: the result line was changed", tampered: true };
+  if (verified.length === 0) return { ok: false, reason: "the sandbox gave no result line", tampered: false };
+  if (verified.length > 1) {
+    return { ok: false, reason: `tampering: ${verified.length} result lines carry this run's key (only the worker writes one)`, tampered: true };
+  }
+  const body = verified[0]!;
   let parsed: unknown;
   try {
-    parsed = JSON.parse(line.slice(prefix.length));
+    parsed = JSON.parse(body);
   } catch {
     return { ok: false, reason: "tampering or a cut-off write: the result line is not valid JSON", tampered: true };
   }
@@ -101,12 +108,13 @@ export function parseWorkerOutput(stdout: string, marker: string): SandboxAnswer
 
 /** Runs scenarios in the sandbox. Returns per-run outputs, or a reason the sandbox gave no usable answer. */
 async function execInSandbox(executor: Executor, code: string, request: WorkerRequest, wallClockMs: number): Promise<SandboxAnswer> {
-  const marker = randomBytes(16).toString("hex"); // fresh per run; passed only as an argument
+  const key = randomBytes(32).toString("hex"); // fresh per run; sent on stdin only (E1 review round 1)
   let res: Awaited<ReturnType<Executor["exec"]>>;
   try {
     res = await executor.exec({
       files: { ...harnessFiles(code), "request.json": JSON.stringify(request) },
-      cmd: ["node", "--permission", "--allow-fs-read=.", "worker.ts", marker],
+      cmd: ["node", "--permission", "--allow-fs-read=.", "worker.ts"],
+      stdin: `${key}\n`,
       wallClockMs,
       allowNetwork: false,
     });
@@ -114,7 +122,7 @@ async function execInSandbox(executor: Executor, code: string, request: WorkerRe
     return { ok: false, reason: `the sandbox could not start: ${(e as Error).message}`, tampered: false, notStarted: true };
   }
   if (res.timedOut) return { ok: false, reason: `the sandbox hit Atlas's ${wallClockMs} ms wall-clock limit`, tampered: false };
-  const parsed = parseWorkerOutput(res.stdout, marker);
+  const parsed = parseWorkerOutput(res.stdout, key);
   if (parsed.ok && res.exitCode !== 0) {
     return { ok: false, reason: `tampering: the sandbox wrote a result but exited with code ${res.exitCode}`, tampered: true };
   }

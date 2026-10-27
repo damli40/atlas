@@ -3,17 +3,22 @@
 // The executor copies four files into an empty temp folder: this worker, harness.ts, shapes.ts,
 // the code under test as target.ts, plus request.json. The worker loads target.ts, runs every
 // requested scenario through the harness, and writes ONE line to stdout:
-//   ATLAS_RESULT <marker> {"runs":[...]}
-// <marker> is a random value the parent passes as this script's first argument, fresh for every run.
+//   ATLAS_RESULT <mac> {"runs":[...]}
+// <mac> is HMAC-SHA256 of the JSON under a fresh per-run key (E1 review round 1, same channel as
+// runners/ts/call-worker.ts, which explains the design). The key arrives on STDIN only; the worker reads it
+// before the code under test exists and closes stdin, so it is never in argv, env, a file or process.report.
+// The code under test here is the fixture or a Fixer change (AI-written), so it may try to write its own
+// result line: without the key that line cannot verify, and the parent ignores it.
 //
 // How the result is protected, in plain words (and how far that goes):
 // - Before the code under test is imported, the worker keeps its own references to the functions it
 //   needs to write the result (fs.writeSync, JSON.stringify, Buffer.from, process.exit), and the
 //   harness wraps the timer functions. Changing process.stdout.write or JSON.stringify later does not
 //   touch the result.
-// - The marker is read from the arguments and then REMOVED from process.argv before the import, so
-//   the code under test cannot read it there. The parent accepts only the first line that carries the
-//   marker; a second one, or one that does not parse, is treated as tampering and the run is not trusted.
+// - (Before E1 review round 1 a marker was passed in argv and removed from process.argv; process.report
+//   still showed it, so code could forge a result. The stdin key above replaced it.) The parent counts
+//   only lines whose HMAC verifies; two such lines, or one that does not parse, is tampering and the run
+//   is not trusted.
 // - The result is written with a blocking write to fd 1, in a loop, so all of it is out before exit.
 //   (process.stdout.write to a pipe is asynchronous on macOS, and exiting right after it cut results
 //   at 64 KB.)
@@ -29,7 +34,8 @@
 //   no network, no file writes, no child processes) is the real boundary, and code in this process can
 //   still do things the snapshot does not look at (it would then be caught only if it changed the record).
 
-import { readFileSync, writeSync } from "node:fs";
+import { createHmac } from "node:crypto";
+import { closeSync, readFileSync, writeSync } from "node:fs";
 import { BUILTINS_CHANGED_REASON, RESULT_MARKER, installOutsideWorkTracker, installRealTimerTracker, runScenario, runSweep, type RetryFn, type WorkerRequest, type WorkerResponse } from "./harness.ts";
 import { JSONParse, ObjectGetOwnPropertyDescriptor, append, armBuiltinCheck, builtinsChanged, put, record } from "./primordials.ts";
 
@@ -39,9 +45,19 @@ const nativeStringify = JSON.stringify;
 const nativeBufferFrom = Buffer.from.bind(Buffer);
 const nativeExit = process.exit.bind(process);
 const nativeWait = Atomics.wait;
-// ---- the marker: read it, then take it out of process.argv ----
-const marker = process.argv[2] ?? "";
-process.argv.splice(2);
+const nativeCreateHmac = createHmac;
+// ---- the result key: read from stdin, then stdin is closed for good ----
+let resultKey = "";
+try {
+  resultKey = readFileSync(0, "utf8").trim();
+} catch {
+  resultKey = "";
+}
+try {
+  closeSync(0);
+} catch {
+  // already closed
+}
 
 /** Writes all of `text` to fd 1 with blocking writes. Retries on EAGAIN (a full, non-blocking pipe). */
 function writeAll(text: string): void {
@@ -70,7 +86,7 @@ function parseOwn(text: string): unknown {
 }
 
 async function main(): Promise<void> {
-  if (!/^[0-9a-f]{32}$/.test(marker)) throw new Error("the worker was started without a valid result marker");
+  if (!/^[0-9a-f]{64}$/.test(resultKey)) throw new Error("the worker was started without a valid result key");
   const req = parseOwn(readFileSync(new URL("./request.json", import.meta.url), "utf8")) as WorkerRequest;
   installRealTimerTracker();
   // stdout/stderr are made lazily; make them before the tracker starts, so console.log is not "outside work".
@@ -118,7 +134,8 @@ async function main(): Promise<void> {
   } else {
     put(payload, "runs", runs);
   }
-  writeAll(`\n${RESULT_MARKER}${marker} ${nativeStringify(payload)}\n`);
+  const json = nativeStringify(payload);
+  writeAll(`\n${RESULT_MARKER}${nativeCreateHmac("sha256", resultKey).update(json, "utf8").digest("hex")} ${json}\n`);
   // Exit now: a never-settled promise must not keep the process alive, and the whole answer is written.
   nativeExit(0);
 }

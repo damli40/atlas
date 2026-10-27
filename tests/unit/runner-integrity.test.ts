@@ -10,6 +10,9 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { Experiment, Target } from "../../src/types.ts";
 import { CONTROL_CASES, parseWorkerOutput, runControl, tsRunner } from "../../runners/ts/control.ts";
+import { resultMac } from "../../runners/ts/call-runner.ts";
+import { localExecutor } from "../../runners/executor/local.ts";
+import type { Executor } from "../../runners/runner.ts";
 import { runScenario, type RetryFn } from "../../runners/ts/harness.ts";
 
 const code = readFileSync(new URL("../fixtures/with-rpc-retry.ts", import.meta.url), "utf8");
@@ -75,20 +78,73 @@ export async function withRpcRetry() { return "nope"; }
     expect(reason).toMatch(/changed JavaScript's built-in objects.*Object\.prototype/);
   });
 
-  it("the parser takes only the first marker line; a second marker line or bad JSON counts as tampering", () => {
-    const m = "f".repeat(32);
-    const good = `noise\nATLAS_RESULT ${m} {"runs":[]}\n`;
-    expect(parseWorkerOutput(good, m)).toEqual({ ok: true, runs: [] });
-    const twice = `${good}ATLAS_RESULT ${m} {"runs":[]}\n`;
-    const r2 = parseWorkerOutput(twice, m);
+  // E1 review round 1: the marker became a per-run key on stdin, and a result line carries HMAC(key, json).
+  it("the parser counts only lines signed with the run's key; two signed lines or bad JSON count as tampering", () => {
+    const key = "f".repeat(64);
+    const signed = (body: string) => `ATLAS_RESULT ${resultMac(key, body)} ${body}`;
+    const good = `noise\n${signed('{"runs":[]}')}\n`;
+    expect(parseWorkerOutput(good, key)).toEqual({ ok: true, runs: [] });
+    const r2 = parseWorkerOutput(`${good}${signed('{"runs":[]}')}\n`, key);
     expect(r2.ok).toBe(false);
     expect(!r2.ok && r2.tampered).toBe(true);
-    const bad = `ATLAS_RESULT ${m} {not json\n`;
-    const r3 = parseWorkerOutput(bad, m);
+    const r3 = parseWorkerOutput(`${signed("{not json")}\n`, key);
     expect(r3.ok).toBe(false);
     expect(!r3.ok && r3.tampered).toBe(true);
-    // A line without the marker is the code's own output and is ignored.
-    expect(parseWorkerOutput(`ATLAS_RESULT {"runs":[{"id":"x"}]}\n`, m)).toMatchObject({ ok: false, tampered: false });
+    // A line that does not carry this run's key is the code's own output: ignored, never a result.
+    expect(parseWorkerOutput(`ATLAS_RESULT {"runs":[{"id":"x"}]}\n`, key)).toMatchObject({ ok: false, tampered: false });
+    expect(parseWorkerOutput(`ATLAS_RESULT ${"0".repeat(64)} {"runs":[]}\n`, key)).toMatchObject({ ok: false, tampered: false });
+    expect(parseWorkerOutput(good, "e".repeat(64))).toMatchObject({ ok: false, tampered: false });
+    // A guessed line next to the real one is ignored; the real one still counts.
+    expect(parseWorkerOutput(`ATLAS_RESULT ${"1".repeat(64)} {"runs":[{"id":"S1"}]}\n${good}`, key)).toEqual({ ok: true, runs: [] });
+  });
+
+  // E1 review round 1 (B1) on the retry path: the reviewer's forge, adapted to a changed withRpcRetry. It reads the
+  // command line from process.report (the old marker lived there), writes a result claiming S1-S6 matched, and ends
+  // the process before the worker can write. The key is not on the command line, so the line cannot verify.
+  it("a changed withRpcRetry that forges a result from process.report and exits early does not pass the control", async () => {
+    const forge = `
+// Every field the control compares, set to the oracle's answer: on the old marker channel this forged line PASSED the control.
+const M = {
+  S1: { calls: 1, waitsMs: "", totalWaitMs: 0, logCount: 0, logAttempts: "", outcome: "returns", returned: JSON.stringify("the value") },
+  S3: { calls: 5, waitsMs: "3000,3000,3000,3000", totalWaitMs: 12000, logCount: 4, logAttempts: "1/5,2/5,3/5,4/5", outcome: "throws", thrownFromCall: 5 },
+  S6: { calls: 1, waitsMs: "", totalWaitMs: 0, logCount: 0, logAttempts: "", outcome: "pending" },
+};
+const fake = (id) => ({ id, trace: [{ t: 0, event: "start" }], result: { measured: M[id], notMeasured: {} } });
+export async function withRpcRetry() {
+  const line = process.report.getReport().header.commandLine;
+  const guess = line[line.length - 1];
+  process.stdout.write("\\nATLAS_RESULT " + guess + " " + JSON.stringify({ runs: ["S1", "S3", "S6"].map(fake) }) + "\\n", () => process.reallyExit(0));
+  return new Promise(() => {});
+}`;
+    const { run, reason } = await runControl(forge);
+    expect(run.controlPassed).toBe(false);
+    expect(reason).toMatch(/no result/);
+    expect(Object.keys(run.result.measured)).toEqual([]);
+  });
+
+  it("variant: a forged line with a guessed 64-hex key from an exit handler, after the real result, changes nothing", async () => {
+    const forged = code + `\nprocess.on("exit", () => { process.stdout.write("\\nATLAS_RESULT " + "a".repeat(64) + ' {"runs":[]}\\n'); });\n`;
+    const { run, reason } = await runControl(forged);
+    expect(run.controlPassed, reason).toBe(true);
+    expect(run.result.measured["S3.calls"]).toBe(5);
+  });
+
+  it("variant: the key is not anywhere the changed code can read (argv, execArgv, env)", async () => {
+    let key = "";
+    const spy: Executor = {
+      kind: "local",
+      exec(req) {
+        key = (req.stdin ?? "").trim();
+        return localExecutor.exec(req);
+      },
+    };
+    const leaky = `export async function withRpcRetry() { return JSON.stringify([process.argv, process.execArgv, process.env, process.title]); }`;
+    const { run } = await runControl(leaky, { executor: spy });
+    expect(key).toMatch(/^[0-9a-f]{64}$/);
+    const seen = run.result.measured["S1.returned"];
+    expect(typeof seen).toBe("string");
+    expect(String(seen)).toContain("worker.ts"); // it really did read argv
+    expect(String(seen)).not.toContain(key);
   });
 });
 
