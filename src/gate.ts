@@ -370,7 +370,8 @@ export function renderAllowList(ctx: GateContext = {}): string {
     for (const [f, fs] of Object.entries(spec.required)) lines.push(`  required ${renderField(f, fs, ctx)}${note(f)}`);
     for (const [f, fs] of Object.entries(spec.optional)) lines.push(`  optional ${renderField(f, fs, ctx)}${note(f)}`);
     if (spec.runner === "ts" && ctx.watchLimitMs !== undefined) {
-      lines.push(`  Atlas's clock is virtual: waits cost no real time. Atlas watches a run for at most ${ctx.watchLimitMs} ms of virtual time; a run still going after that is "can't check".`);
+      lines.push(`  Atlas's clock is virtual: waits cost no real time. Atlas watches a run for at most ${ctx.watchLimitMs} ms of virtual time.`);
+      lines.push(`  Two different endings: a run where the function provably can never finish (it is still waiting and nothing is left that could wake it: no timers, no pending work) is measured, with outcome "pending". A run that Atlas's watch limit cuts off before the end is "can't check".`);
     }
   }
   return lines.join("\n");
