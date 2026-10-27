@@ -1,7 +1,11 @@
 // The retry machine's model. A pure function from { run, bets, verdicts } to the state of every
 // moving part, and to the words the card prints. It reads ONLY the run's trace (what the harness
-// recorded while withRpcRetry ran), the bets, and the verdicts. It imports nothing but types
-// (tests/unit/machines-retry.test.ts checks that).
+// recorded while withRpcRetry ran), the bets, and the verdicts. It imports nothing but types and the
+// pure src/trust.ts rule (tests/unit/machines-retry.test.ts checks that).
+//
+// When the run may not be shown as fact (its known-case control did not match, it was tampered with,
+// or the sandbox never finished it), the model is EMPTY: no calls, no waits, no steps, no readout
+// numbers, no ghosts, and `notShown` holds the reason the card prints instead.
 //
 // The machine, in one sentence: a dispatch station sends one capsule up a tube for every call;
 // what comes back down the return chute is what that call did (returned, or threw); the retry
@@ -12,6 +16,7 @@
 // - "story seconds" are only how long the page takes to show each step. They are not run times.
 
 import type { Bet, Run, Verdict } from "../../../src/types";
+import { notShownAsFact } from "../../../src/trust";
 
 export interface RetryInput {
   run: Run;
@@ -78,6 +83,8 @@ export interface RetryModel {
   /** The wait engraved on the drum: "3 s (virtual)" when every wait was 3,000 ms. */
   engraving: string;
   ghosts: Ghost[];
+  /** Set when nothing from this run may be shown as fact: the sentence the card prints instead. */
+  notShown: string | null;
 }
 
 /** The rack's ruler holds this many call slots. */
@@ -119,6 +126,10 @@ function endingText(e: Ending | null): string {
 
 /** Reads the trace once, in order. Nothing is guessed: an event the trace lacks is not drawn. */
 export function retryModel({ run, bets, verdicts }: RetryInput): RetryModel {
+  const notShown = notShownAsFact(run);
+  if (notShown !== null) {
+    return { calls: [], waits: [], pulls: 0, ending: null, steps: [], total: 0, readout: "", endCaption: "", engraving: "", ghosts: [], notShown };
+  }
   const calls: CallPart[] = [];
   const waits: WaitPart[] = [];
   const steps: Step[] = [];
@@ -185,7 +196,7 @@ export function retryModel({ run, bets, verdicts }: RetryInput): RetryModel {
     ghosts.push({ who: b.who, kind: b.who === "human" ? "person" : "model", value, slot, offScale: slot !== value, outcome: verdictOf(b.id)?.outcome ?? null });
   }
   ghosts.sort((a, b) => (a.kind === b.kind ? a.who.localeCompare(b.who) : a.kind === "person" ? -1 : 1));
-  return { calls, waits, pulls, ending, steps, total, readout, endCaption, engraving, ghosts };
+  return { calls, waits, pulls, ending, steps, total, readout, endCaption, engraving, ghosts, notShown: null };
 }
 
 // ---- the pose at one moment of the story ----

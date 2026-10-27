@@ -11,6 +11,7 @@
 // "dropped: no run evidence". A model sentence is never reworded or repaired here: shown whole or not at all.
 // No I/O, no clock, no model.
 
+import { notShownAsFact } from "./trust";
 import { formatUsd1e18 } from "./units";
 import type { Finding, Run } from "./types";
 
@@ -145,7 +146,11 @@ function findingSentence(f: Finding): WhySentence {
   return { text: `${who} chose ${f.file} lines ${f.lineStart}–${f.lineEnd} for this round`, by: PLAIN };
 }
 
-/** Every templated sentence for this run (and the round's finding first, when there is one). */
+/**
+ * Every templated sentence for this run (and the round's finding first, when there is one).
+ * None at all when the run may not be shown as fact (src/trust.ts): the page shows the reason instead.
+ */
 export function templatedSentences(run: Run, finding?: Finding): WhySentence[] {
+  if (notShownAsFact(run) !== null) return [];
   return [...(finding ? [findingSentence(finding)] : []), ...(run.runner === "evm" ? evmSentences(run) : tsSentences(run))];
 }

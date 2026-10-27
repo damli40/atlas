@@ -17,6 +17,7 @@ import { FindingsPanel } from "./Findings";
 import { ModelSlotCard } from "./ModelPanel";
 import { VerdictScreen, type FormatValue } from "./Verdict";
 import { modelTextsOf, WhyScreen } from "./Why";
+import { notShownAsFact } from "../../src/trust";
 
 export const PR_FORK_BLOCK = { level2: MOONWELL_FORK_BLOCKS.level2.block, level1: MOONWELL_FORK_BLOCKS.level1.block } as const;
 
@@ -234,8 +235,8 @@ export function MoonwellFlow({ api }: { api: Api }) {
               <dt>known-case check first</dt>
               <dd>{result.run.controlPassed ? "passed (WETH exact, USD stablecoins about $1)" : "did not pass, so every verdict is can't check"}</dd>
               <dt>cbETH, read</dt>
-              <dd>{typeof m["priceUsd1e18:cbETH"] === "string" ? usd("priceUsd1e18:cbETH", m["priceUsd1e18:cbETH"]) : "not read"}</dd>
-              {typeof m["priceSources:cbETH"] === "number" && (
+              <dd>{notShownAsFact(result.run) !== null ? `nothing shown: ${notShownAsFact(result.run)}` : typeof m["priceUsd1e18:cbETH"] === "string" ? usd("priceUsd1e18:cbETH", m["priceUsd1e18:cbETH"]) : "not read"}</dd>
+              {notShownAsFact(result.run) === null && typeof m["priceSources:cbETH"] === "number" && (
                 <>
                   <dt>price sources</dt>
                   <dd>cbETH's read touched {m["priceSources:cbETH"]} price source(s) (call trace). Observed, not part of the pre-registered rule: PASS-RULE.md counts sources only after a proposed change.</dd>

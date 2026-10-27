@@ -39,11 +39,14 @@ const partsIn = (html: string) => new Set([...html.matchAll(/data-part="([^"]+)"
 const traceCount = (r: Round, event: string) => r.run.trace.filter((e) => e.event === event).length;
 
 describe("D05-02 retry machine", () => {
-  it("model.ts imports nothing but the types of its input", () => {
+  it("model.ts imports nothing but the types of its input and the pure src/trust.ts rule (which imports only types)", () => {
     const src = readFileSync(join(ROOT, "web/machines/retry/model.ts"), "utf8");
     const imports = [...src.matchAll(/^\s*import\s[^;]*;/gm)].map((m) => m[0].trim());
-    expect(imports).toEqual(['import type { Bet, Run, Verdict } from "../../../src/types";']);
+    expect(imports).toEqual(['import type { Bet, Run, Verdict } from "../../../src/types";', 'import { notShownAsFact } from "../../../src/trust";']);
     expect(src).not.toMatch(/\brequire\(|\bimport\(/);
+    const trust = readFileSync(join(ROOT, "src/trust.ts"), "utf8");
+    expect([...trust.matchAll(/^\s*import\s[^;]*;/gm)].map((m) => m[0].trim())).toEqual(['import type { Run } from "./types";']);
+    expect(trust).not.toMatch(/\brequire\(|\bimport\(/);
   });
 
   it("parts manifest: 40–80 parts, every drawn part is listed and every listed part is drawn, none forbidden", () => {

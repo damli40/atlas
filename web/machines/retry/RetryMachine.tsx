@@ -39,6 +39,18 @@ export function RetryMachine({ run, bets, verdicts, still, theme, at }: RetryMac
   const dark = useDark();
   const calm = still ?? asksForStillness();
   const shown = theme ?? (dark ? "dark" : "light");
+  if (model.notShown !== null) {
+    // B1: nothing from this run is shown as fact. No drawing, no motion, no readout numbers: the reason only.
+    return (
+      <div className="iso rm" data-theme={shown === "light" ? "light" : undefined} data-testid="retry-machine">
+        <div className="card notice" role="note" data-testid="retry-cant-check">
+          <p className="label">Fig 1 · The retry machine · can't check</p>
+          <p>{model.notShown}</p>
+          <p className="muted small">Run {run.id}. Every verdict on this run is "can't check".</p>
+        </div>
+      </div>
+    );
+  }
   const firstReadout = at !== undefined ? poseAt(model, at).readout : calm ? model.readout : poseAt(model, 0).readout;
   const ghosts = model.ghosts
     .map((g) => `${nameOf(g.who)} bet: ${g.value} ${g.value === 1 ? "call" : "calls"}${g.offScale ? ` (drawn at the ruler's end, slot ${g.slot})` : ""}`)

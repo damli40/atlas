@@ -11,6 +11,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { Bet, Finding, Run } from "../../src/types";
+import { notShownAsFact } from "../../src/trust";
 import { linkSentences, modelSentences, templatedSentences, type LinkedSentence, type WhyLink, type WhySentence } from "../../src/why";
 
 /** Where "Ask why" reports how many sentences it dropped (App passes it to the log strip). */
@@ -49,10 +50,13 @@ const linkWords = (l: WhyLink) => (l.kind === "trace" ? `trace #${l.index}: ${l.
 export function WhyScreen({ run, finding, findings, modelTexts = [] }: WhyProps) {
   const [asked, setAsked] = useState(false);
   const report = useContext(WhyDroppedContext);
+  const notShown = useMemo(() => notShownAsFact(run), [run]);
   const result = useMemo(() => {
+    // B1: from a run that may not be shown as fact, no sentence is offered at all (none is "dropped" either).
+    if (notShown !== null) return { shown: [], dropped: [] };
     const all = [...(finding ? [finding] : []), ...(findings ?? []).filter((f) => f.id !== finding?.id)];
     return linkSentences(whySentences(run, finding, modelTexts), run, all);
-  }, [run, finding, findings, modelTexts]);
+  }, [run, finding, findings, modelTexts, notShown]);
   const droppedCount = result.dropped.length;
   useEffect(() => {
     if (asked) report(droppedCount);
@@ -66,6 +70,10 @@ export function WhyScreen({ run, finding, findings, modelTexts = [] }: WhyProps)
         <button type="button" onClick={() => setAsked(true)} data-testid="why-ask">
           Ask why
         </button>
+      ) : notShown !== null ? (
+        <p className="notice" role="note" data-testid="why-cant-check">
+          {notShown}
+        </p>
       ) : (
         <>
           <p className="muted small">Only sentences that point at this run's evidence (a trace event or a finding's lines) are shown. {result.dropped.length} dropped: no run evidence.</p>
