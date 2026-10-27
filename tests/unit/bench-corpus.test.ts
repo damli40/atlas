@@ -17,7 +17,7 @@ const TRUTH = join(ROOT, "bench/truth/expected.json");
 const MODELS = join(ROOT, "bench/models/corpus.json");
 
 const OUTCOMES = ["returned", "threw", "never_settled", "still_running_at_watch_limit"];
-const FACT_KEYS = new Set(["outcome", "returnedJson", "returnedType", "returnedNotJson", "thrownName", "thrownType", "thrownMessage", "virtualMs", "calls"]);
+const FACT_KEYS = new Set(["wholeRunCantCheckOk", "outcome", "returnedJson", "returnedType", "returnedNotJson", "thrownName", "thrownType", "thrownMessage", "virtualMs", "calls"]);
 
 describe("bench/truth corpus (hand-written expected facts)", () => {
   const { functions } = loadCorpus<TruthExpect>(TRUTH);

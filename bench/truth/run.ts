@@ -2,31 +2,59 @@
 // call-function runners and compares what Atlas measured with the facts written by hand before any run.
 //
 // Usage:
-//   npx tsx bench/truth/run.ts                      # local executor (Node --permission; macOS sandbox-exec for Python)
-//   ATLAS_EXECUTOR=modal npx tsx bench/truth/run.ts # Modal sandboxes, when the Modal executor (batch E4) is on this branch
+//   npx tsx bench/truth/run.ts                      # bench T, local executor (Node --permission; macOS sandbox-exec for Python)
+//   npx tsx bench/truth/run.ts --bench truth-2      # bench T2 (the found failures, bench/truth-2/)
+//   ATLAS_EXECUTOR=modal npx tsx bench/truth/run.ts # Modal sandboxes (batch E4's executor, runners/executor/select.ts)
 //   npx tsx bench/truth/run.ts --only t03a,p04b     # a subset (the result file then says it is partial)
-//   npx tsx bench/truth/run.ts --render results/<date>.json   # rewrite the .md table from a result file (no run)
 //
 // What it does, in order, for each test: build the pasted target and gate-check the call exactly as a pasted round
 // does (bench/lib/corpus.ts); run it with tsRunner().run, the production entry point (the known-case control runs
 // first, every time); classify the result with bench/truth/classify.ts under the rules of PASS-RULE.md. It writes
 // bench/truth/results/<date>.json (everything) and <date>.md (the table). It never edits expected.json, never calls
 // a model, and costs $0. Tests run one at a time so one slow test cannot push another past Atlas's real-time limit.
+//
+// After the B1 review: it reads expectations ONLY from the registered path of the chosen bench (BENCH_CORPORA, equal to
+// bench/lib/registration.ts; tests/unit/bench-order.test.ts checks both), refuses to run on a working tree with
+// uncommitted changes, and records in every result the registration's content hash, the SHA-256 of every file that
+// produced it (tooling), the reason categories used, and how many fields were compared.
 
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { experimentFor, loadCorpus, type LoadedFunction, type CorpusTest } from "../lib/corpus.ts";
 import { CLASSES, classify, type Classified, type TruthClass, type TruthExpect } from "./classify.ts";
+import type { ClassifyOptions, ReasonCategories } from "./classify.ts";
 import { tsRunner } from "../../runners/ts/control.ts";
-import { localExecutor } from "../../runners/executor/local.ts";
-import { findPython, pythonSandboxExecutor } from "../../runners/executor/sandbox-exec-python.ts";
+import { executorFromEnv } from "../../runners/executor/select.ts";
+import { findPython } from "../../runners/executor/sandbox-exec-python.ts";
 import type { Executor } from "../../runners/runner.ts";
 import type { Run } from "../../src/types.ts";
+import { REGISTRATIONS, contentHash, toolingHashes, workingFiles } from "../lib/registration.ts";
 
-const HERE = new URL(".", import.meta.url).pathname;
 const ROOT = new URL("../..", import.meta.url).pathname;
-const CORPUS = join(HERE, "expected.json");
+
+/** The ONLY expectation files this runner reads, by bench name. Must equal bench/lib/registration.ts (tested). */
+export const BENCH_CORPORA: Readonly<Record<string, string>> = { truth: "bench/truth/expected.json", "truth-2": "bench/truth-2/expected.json" };
+
+/** Bench T's reason categories come from its amendment (registered after its result); T2 registers its own. */
+export const TRUTH_CATEGORIES_FILE = "bench/truth/reason-categories.json";
+
+/** The reason categories and per-trap category for a bench, read from the registered places only. */
+export function categoriesFor(bench: string, root = ROOT): { categories: ReasonCategories; perTest: Record<string, string | string[]> } {
+  if (bench === "truth") {
+    const path = join(root, TRUTH_CATEGORIES_FILE);
+    if (!existsSync(path)) return { categories: {}, perTest: {} };
+    const j = JSON.parse(readFileSync(path, "utf8")) as { categories: ReasonCategories; traps: Record<string, string | string[]> };
+    return { categories: j.categories, perTest: j.traps };
+  }
+  const j = JSON.parse(readFileSync(join(root, BENCH_CORPORA[bench]!), "utf8")) as { reasonCategories?: ReasonCategories };
+  return { categories: j.reasonCategories ?? {}, perTest: {} };
+}
+
+export function classifyOptions(bench: string, testId: string, root = ROOT): ClassifyOptions {
+  const c = categoriesFor(bench, root);
+  return { categories: c.categories, ...(c.perTest[testId] !== undefined ? { reasonCategory: c.perTest[testId] } : {}) };
+}
 
 export interface TestRecord {
   id: string;
@@ -62,24 +90,10 @@ export function scrubPaths(text: string): { text: string; removed: number } {
   return { text: out, removed };
 }
 
-async function pickExecutors(): Promise<{ js: Executor; py: Executor; name: string }> {
-  const want = process.env.ATLAS_EXECUTOR ?? "local";
-  if (want === "local") return { js: localExecutor, py: pythonSandboxExecutor, name: "local (Node --permission for JS/TS; macOS sandbox-exec for Python)" };
-  if (want === "modal") {
-    // Batch E4 adds the Modal executor. Its module name is not known on this branch, so it is looked up at run
-    // time; when it is missing nothing runs (a bench run on the wrong executor would be mislabelled).
-    const path = "../../runners/executor/modal.ts";
-    let mod: Record<string, unknown>;
-    try {
-      mod = (await import(path)) as Record<string, unknown>;
-    } catch {
-      throw new Error("ATLAS_EXECUTOR=modal, but runners/executor/modal.ts (batch E4) is not on this branch; nothing was run");
-    }
-    const ex = (mod.modalExecutor ?? mod.default) as Executor | undefined;
-    if (!ex || typeof ex.exec !== "function") throw new Error("runners/executor/modal.ts exports no modalExecutor; nothing was run");
-    return { js: ex, py: ex, name: "modal" };
-  }
-  throw new Error(`ATLAS_EXECUTOR must be "local" or "modal"; got ${JSON.stringify(want)}`);
+function pickExecutors(): { js: Executor; name: string } {
+  // E4 (on main): ATLAS_EXECUTOR unset or "local" = this machine; "modal" = Modal sandboxes. The Python executor follows.
+  const js = executorFromEnv(process.env);
+  return { js, name: js.kind === "modal" ? "modal" : "local (Node --permission for JS/TS; macOS sandbox-exec for Python)" };
 }
 
 function localDate(d = new Date()): string {
@@ -130,13 +144,14 @@ function measuredCell(r: TestRecord): string {
 
 export function renderMarkdown(meta: Record<string, unknown>, records: TestRecord[], counts: Record<string, number>, byLang: Record<string, Record<string, number>>): string {
   const lines: string[] = [];
-  lines.push(`# Bench T result, ${meta.date}`, "");
+  lines.push(`# Bench ${meta.bench === "truth" ? "T" : String(meta.bench)} result, ${meta.date}`, "");
   lines.push(`Sample: **${meta.testsRun} tests run** of ${meta.testsInCorpus} in the corpus (${meta.factTests} fact tests, ${meta.trapTests} can't-check traps), ${meta.filesInCorpus} case files. One run each. No general claim follows from this sample (PASS-RULE.md).`, "");
   lines.push(`- Executor: ${meta.executor}`);
   lines.push(`- Node ${meta.node}; Python ${meta.python}; ${meta.platform}`);
   lines.push(`- Git commit: \`${meta.commit}\`${meta.dirty ? " (working tree had uncommitted changes)" : ""}`);
   lines.push(`- expected.json SHA-256: \`${meta.corpusSha256}\``);
   lines.push(`- Wall time: ${meta.wallSeconds} s · cost $0 (no model call)`);
+  if (meta.fieldsCompared !== undefined) lines.push(`- Fields compared: **${meta.fieldsCompared}** (${Object.entries((meta.fieldVerdicts ?? {}) as Record<string, number>).map(([k, v]) => `${v} ${k}`).join(", ")})`);
   if (meta.partial) lines.push(`- **Partial run** (--only): not a full bench result.`);
   lines.push("", "## Counts", "");
   lines.push("| Classification | All | JS/TS | Python |", "|---|---|---|---|");
@@ -172,18 +187,19 @@ export function renderMarkdown(meta: Record<string, unknown>, records: TestRecor
 }
 
 async function main(): Promise<void> {
-  const renderArg = process.argv.indexOf("--render");
-  if (renderArg !== -1) {
-    const file = join(HERE, process.argv[renderArg + 1] ?? "");
-    const saved = JSON.parse(readFileSync(file, "utf8")) as { meta: Record<string, unknown>; counts: Record<string, number>; byLanguage: Record<string, Record<string, number>>; tests: TestRecord[] };
-    writeFileSync(file.replace(/\.json$/, ".md"), scrubPaths(renderMarkdown(saved.meta, saved.tests, saved.counts, saved.byLanguage)).text);
-    return;
-  }
   const onlyArg = process.argv.indexOf("--only");
   const only = onlyArg !== -1 ? new Set((process.argv[onlyArg + 1] ?? "").split(",").filter(Boolean)) : null;
-  const { js, py, name } = await pickExecutors();
-  const runner = tsRunner(js, py);
-  const { corpus, corpusSha256, functions } = loadCorpus<TruthExpect>(CORPUS);
+  const benchArg = process.argv.indexOf("--bench");
+  const bench = benchArg !== -1 ? (process.argv[benchArg + 1] ?? "") : "truth";
+  const corpusRel = BENCH_CORPORA[bench];
+  const reg = REGISTRATIONS.find((r) => r.name === bench);
+  if (!corpusRel || !reg || reg.corpus !== corpusRel) throw new Error(`unknown bench ${JSON.stringify(bench)}; registered: ${Object.keys(BENCH_CORPORA).join(", ")}`);
+  if (git("status", "--porcelain") !== "" && !process.argv.includes("--allow-dirty")) {
+    throw new Error("the working tree has uncommitted changes; a result must be produced by committed files (its hashes are checked against git)");
+  }
+  const { js, name } = pickExecutors();
+  const runner = tsRunner(js);
+  const { corpus, corpusSha256, functions } = loadCorpus<TruthExpect>(join(ROOT, corpusRel));
   const python = findPython();
   const started = Date.now();
   const records: TestRecord[] = [];
@@ -191,7 +207,7 @@ async function main(): Promise<void> {
   const todo = all.filter(({ t }) => !only || only.has(t.id));
 
   for (const { f, t } of todo) {
-    records.push(await runOne(runner, f as LoadedFunction<TruthExpect>, t, name === "modal" || python !== null));
+    records.push(await runOne(runner, f as LoadedFunction<TruthExpect>, t, name === "modal" || python !== null, classifyOptions(bench, t.id)));
     const r = records[records.length - 1]!;
     process.stdout.write(`${r.id.padEnd(6)} ${r.classification}\n`);
   }
@@ -224,9 +240,15 @@ async function main(): Promise<void> {
     partial: only !== null,
     costUsd: 0,
     sources: Object.fromEntries(functions.map((f) => [f.file, f.sourceSha256])),
+    corpusPath: corpusRel,
+    registrationSha256: contentHash(workingFiles(ROOT, reg.prereg)),
+    tooling: toolingHashes(ROOT),
+    reasonCategories: categoriesFor(bench),
+    fieldsCompared: records.reduce((n, r) => n + r.fields.length, 0),
+    fieldVerdicts: records.flatMap((r) => r.fields).reduce<Record<string, number>>((acc, f) => ((acc[f.verdict] = (acc[f.verdict] ?? 0) + 1), acc), {}),
   };
 
-  const dir = join(HERE, "results");
+  const dir = join(ROOT, reg.results);
   mkdirSync(dir, { recursive: true });
   let stem = meta.date + (only ? "-partial" : "");
   for (let i = 2; existsSync(join(dir, `${stem}.json`)); i++) stem = `${meta.date}${only ? "-partial" : ""}-${i}`;
@@ -234,10 +256,10 @@ async function main(): Promise<void> {
   const md = scrubPaths(renderMarkdown(meta, records, counts, byLang));
   writeFileSync(join(dir, `${stem}.json`), json.text);
   writeFileSync(join(dir, `${stem}.md`), md.text);
-  process.stdout.write(`\n${JSON.stringify(counts)}\nwrote bench/truth/results/${stem}.json and .md (local paths removed: ${json.removed + md.removed})\n`);
+  process.stdout.write(`\n${JSON.stringify(counts)}\nwrote ${reg.results}/${stem}.json and .md (local paths removed: ${json.removed + md.removed})\n`);
 }
 
-async function runOne(runner: ReturnType<typeof tsRunner>, f: LoadedFunction<TruthExpect>, t: CorpusTest<TruthExpect>, pythonAvailable: boolean): Promise<TestRecord> {
+async function runOne(runner: ReturnType<typeof tsRunner>, f: LoadedFunction<TruthExpect>, t: CorpusTest<TruthExpect>, pythonAvailable: boolean, opts: ClassifyOptions): Promise<TestRecord> {
   const base = { id: t.id, functionId: f.id, file: f.file, language: f.language, category: f.category, exportName: t.exportName, expected: t.expect!, why: t.why ?? "", fields: [], notes: [] };
   if (f.language === "py" && !pythonAvailable) return { ...base, classification: "not run", notRunBecause: "no Python 3.12+ on this machine" };
   const e = experimentFor(f, t);
@@ -245,7 +267,7 @@ async function runOne(runner: ReturnType<typeof tsRunner>, f: LoadedFunction<Tru
   const t0 = Date.now();
   const run = await runner.run(e.experiment, {});
   const realMs = Date.now() - t0;
-  const c = classify(t.expect!, run.result, run.controlPassed === true);
+  const c = classify(t.expect!, run.result, run.controlPassed === true, opts);
   const py = run.trace.find((ev) => ev.event === "call_checks")?.data as { python?: string } | undefined;
   return {
     ...base,

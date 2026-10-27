@@ -78,3 +78,32 @@ describe("result files carry no local paths", () => {
     expect(s.removed).toBe(3);
   });
 });
+
+describe("after the B1 review: reason categories and values that depend on something outside the code", () => {
+  const cats = { "network-or-files": ["tried to use the network/files"], clock: ["clock"], randomness: ["random", "seed"] };
+  const trap: TruthExpect = { cantCheck: true, because: "fetch", reasonCategory: "network-or-files" };
+
+  it("a trap refused for the registered reason is a correct can't-check; for another reason it is a wrong-reason can't-check", () => {
+    expect(classify(trap, { measured: {}, notMeasured: { wholeRun: "the code tried to use the network/files (fetch), which Atlas does not allow" } }, true, { categories: cats }).classification).toBe("correct can't-check");
+    expect(classify(trap, { measured: {}, notMeasured: { wholeRun: "the code needs lodash" } }, true, { categories: cats }).classification).toBe("can't-check, wrong reason");
+  });
+
+  it("a category can come from outside the expectation (bench T's amendment)", () => {
+    const old: TruthExpect = { cantCheck: true, because: "fetch" };
+    expect(classify(old, { measured: {}, notMeasured: { wholeRun: "the code needs lodash" } }, true, { categories: cats, reasonCategory: "network-or-files" }).classification).toBe("can't-check, wrong reason");
+    expect(classify(old, { measured: {}, notMeasured: { wholeRun: "the code needs lodash" } }, true).classification).toBe("correct can't-check");
+  });
+
+  it("a value that depends on Atlas's clock, reported as a plain value, is a FALSE FACT; not measured for that reason, correct", () => {
+    const e: TruthExpect = { outcome: "returned", returnedJson: { dependsOn: "clock" }, virtualMs: 0 };
+    expect(classify(e, { measured: { outcome: "returned", returnedJson: "false", virtualMs: 0 }, notMeasured: {} }, true, { categories: cats }).classification).toBe("FALSE FACT");
+    expect(classify(e, { measured: { outcome: "returned", virtualMs: 0 }, notMeasured: { returnedJson: "the value read Atlas's clock during CPU work" } }, true, { categories: cats }).classification).toBe("correct fact");
+    expect(classify(e, { measured: { outcome: "returned", virtualMs: 0 }, notMeasured: { returnedJson: "too big" } }, true, { categories: cats }).classification).toBe("can't-check, wrong reason");
+  });
+
+  it("a whole-run refusal is honest only when the test allows it and the reason is in that category", () => {
+    const e: TruthExpect = { outcome: "returned", returnedJson: { dependsOn: "randomness" }, virtualMs: 0, wholeRunCantCheckOk: "randomness" };
+    expect(classify(e, { measured: {}, notMeasured: { wholeRun: "the code uses Math.random" } }, true, { categories: cats }).classification).toBe("correct can't-check");
+    expect(classify(e, { measured: {}, notMeasured: { wholeRun: "the code needs lodash" } }, true, { categories: cats }).classification).toBe("wrong can't-check (over-refusal)");
+  });
+});
