@@ -101,6 +101,7 @@ import { ASKED_FIELD, createProofStore, EVM_GATE_CONTEXT, evmTargetRefusal, extr
 import { control as runTsControl, readFixture, runExperiment, tsRunner } from "../runners/ts/control";
 import { changeAndReplay, type ChangeAnswer, type ReplayFn } from "./changes";
 import { MUSE_CODE, type MuseExec } from "./meta/roles/fixer";
+import { ADVERSARY_MODEL, runAdversary } from "./meta/roles/adversary";
 
 const REPO_ROOT = fileURLToPath(new URL("../", import.meta.url));
 const PRE_EXISTING_PATH = resolve(REPO_ROOT, "PRE-EXISTING.md");
@@ -286,6 +287,40 @@ export interface AppOptions {
   tsReplay?: ReplayFn;
   /** D06-01: replays a change on the EVM runner. Default: evmRunner().replayWithChange (spawns anvil; needs BASE_RPC_URL). */
   evmReplay?: ReplayFn;
+  /**
+   * D07-02, POST /adversary: the Adversary (muse-spark-1.3) proposes one more experiment after a run, and
+   * Atlas runs it as an autonomous round (Muse Spark bets, no person, no click). Absent: no model is asked
+   * and the answer says so. Spark's bets in that round use `modelBets` (absent: Spark's slot says "not asked").
+   */
+  adversary?: { chat: (args: ChatArgs) => Promise<ChatResult>; model?: string; budget?: ModelBudget };
+}
+
+/** D07-02: "what else?" questions one session may ask (each is up to 2 Adversary calls, Spark's bets and one run). */
+export const MAX_ADVERSARY_PER_SESSION = 3;
+
+/** D07-02: what POST /adversary answers. The Adversary's `why` is model text, shown only in a model panel. */
+export interface AdversaryAnswer {
+  ok: boolean;
+  /** The run the Adversary read. */
+  fromRunId: string;
+  /** Plain reason when there is no autonomous verdict (not asked, no usable answer, the run could not finish). */
+  reason?: string;
+  adversary: {
+    model: string;
+    display: string;
+    /** The proposal the gate allowed: its experiment id, its plain-code name (shape id + params) and its params. */
+    proposed?: { experimentId: string; name: string; params: Experiment["params"] };
+    /** The model's own sentence. Model panel only, never a verdict. */
+    why?: string;
+    /** Proposals the gate refused on the way (recorded in proofs/refusals/ by the live server). Screen-safe reasons only. */
+    rejected: { id: string; safeReason: string }[];
+    /** Dollars the Adversary's calls cost, as the API reported them (null when no call reported usage). */
+    usd: number | null;
+  } | null;
+  /** The person's slot in the autonomous round: never asked. */
+  person?: { status: "not asked"; reason: string };
+  /** The autonomous round: the experiment, the plain-code questions, Spark's slot, and the run's answer (as POST /runs). */
+  round?: Record<string, unknown>;
 }
 
 /** D06-01: changes one session may ask for (each is up to 4 paid model calls and one replay). */
@@ -306,9 +341,10 @@ export function createApp(opts: AppOptions = {}) {
   const betStore = opts.betStore ?? createBetStore(); // D02-04: experiments and server-sealed bets, per session
   const agentLog = opts.agentLog ?? createAgentLog(); // D02-05: per-session agent events
   const refusals: RefusalWriter = opts.refusals ?? (() => {});
-  const budget = opts.modelBets?.budget ?? opts.investigator?.budget ?? (opts.modelBets || opts.investigator ? createModelBudget() : undefined);
+  const budget = opts.modelBets?.budget ?? opts.investigator?.budget ?? opts.adversary?.budget ?? (opts.modelBets || opts.investigator || opts.adversary ? createModelBudget() : undefined);
   const modelChat = opts.modelBets && budget ? budget.wrap(opts.modelBets.chat) : undefined;
   const investigatorChat = opts.investigator && budget ? budget.wrap(opts.investigator.chat) : undefined;
+  const adversaryChat = opts.adversary && budget ? budget.wrap(opts.adversary.chat) : undefined;
   /** Per session: how many investigations it asked for, and the verified findings by target codeSha256. */
   const investigations = new Map<string, { count: number; findings: Map<string, Finding[]> }>();
   const investigationsOf = (sessionId: string) => {
@@ -776,6 +812,7 @@ export function createApp(opts: AppOptions = {}) {
     const round = betStore.peek(sessionId)?.get(experimentId); // a lookup never creates a session (S4)
     if (!round) return c.json({ error: `this session has no experiment ${experimentId}: create it with POST /experiments first` }, 404);
     if (!round.experiment.gate.allowed) return c.json({ error: `the gate refused experiment ${experimentId}, so it takes no bets` }, 422);
+    if (round.autonomous) return c.json({ error: `${experimentId} is an autonomous round (proposed by the Adversary, run by Atlas): no person is asked, so it takes no person's bets` }, 409);
     // Bets are frozen at run start. Checked with no await between here and the push below.
     if (round.status !== "open") {
       const when = round.betsFrozenAt ? `its run started at ${round.betsFrozenAt}` : "its run is starting";
@@ -828,6 +865,7 @@ export function createApp(opts: AppOptions = {}) {
     if (!experiment.gate.allowed) {
       return c.json({ error: `gate: rejected (${experiment.gate.reason}); nothing ran`, experiment }, 422);
     }
+    if (round.autonomous) return c.json({ error: `${experiment.id} is an autonomous round: Atlas runs it itself (POST /adversary)` }, 409);
     if (round.status === "running") {
       const why = round.betsFrozenAt ? `its run started at ${round.betsFrozenAt}` : "its run is waiting for the model's bets";
       return c.json({ error: `experiment ${experiment.id} is already running: ${why}` }, 409);
@@ -843,14 +881,19 @@ export function createApp(opts: AppOptions = {}) {
       runSlot = slot;
     }
     try {
-      return await runRound(c, sessionId, round);
+      const r = await runRound(sessionId, round);
+      return c.json(r.body, r.status);
     } finally {
       runSlot?.release();
     }
   });
 
-  /** The body of POST /runs once the request is accepted (and, on the EVM runner, holds a run slot). */
-  async function runRound(c: Context, sessionId: string, round: Round) {
+  /**
+   * The body of POST /runs once the request is accepted (and, on the EVM runner, holds a run slot).
+   * D07-02: also the autonomous round's run. Returns the answer and its HTTP status; throws (after
+   * logging it) when the runner could not finish.
+   */
+  async function runRound(sessionId: string, round: Round): Promise<{ status: 200 | 409; body: Record<string, unknown> }> {
     const experiment = round.experiment;
     betStore.touch(sessionId);
 
@@ -874,16 +917,13 @@ export function createApp(opts: AppOptions = {}) {
     log.seals(bets.length, unsealed);
     if (unsealed.length > 0) {
       round.status = "stopped";
-      return c.json(
-        { error: `the seal did not verify for bet ${unsealed.join(", ")}: its fields do not hash to its sealedHash, so it was not judged and nothing ran`, betIds: unsealed },
-        409,
-      );
+      return { status: 409, body: { error: `the seal did not verify for bet ${unsealed.join(", ")}: its fields do not hash to its sealedHash, so it was not judged and nothing ran`, betIds: unsealed } };
     }
     // Every bet sealed strictly before the bets were frozen (server clock). Checked again against the run below.
     const late = sealedAfter(bets, round.betsFrozenAt);
     if (late.length > 0) {
       round.status = "stopped";
-      return c.json({ error: `bet ${late.join(", ")} was not sealed before the run started, so nothing ran`, betIds: late }, 409);
+      return { status: 409, body: { error: `bet ${late.join(", ")} was not sealed before the run started, so nothing ran`, betIds: late } };
     }
 
     let run: Run;
@@ -919,7 +959,7 @@ export function createApp(opts: AppOptions = {}) {
     const lateForRun = sealedAfter(bets, run.startedAt);
     if (lateForRun.length > 0) {
       round.status = "stopped";
-      return c.json({ error: `bet ${lateForRun.join(", ")} was not sealed before run ${run.id} started, so it was not judged`, betIds: lateForRun }, 409);
+      return { status: 409, body: { error: `bet ${lateForRun.join(", ")} was not sealed before run ${run.id} started, so it was not judged`, betIds: lateForRun } };
     }
     const verdicts: Verdict[] = bets.map((b) => judge(b, run));
     log.judge(verdicts, run);
@@ -950,7 +990,7 @@ export function createApp(opts: AppOptions = {}) {
     const proof = keepProof(sessionId, round, run, bets, verdicts);
     const falseAlarm = experiment.runner === "evm" && experiment.params.shape === "apply-proposal-then-read" ? falseAlarmFromRun(run) : undefined;
     // Reveal every bet in full (with its nonce) so the browser can recompute each hash itself.
-    return c.json({ run, verdicts, bets, betsFrozenAt: round.betsFrozenAt, model: modelSlotView(round), proof, ...(falseAlarm ? { falseAlarm } : {}) });
+    return { status: 200, body: { run, verdicts, bets, betsFrozenAt: round.betsFrozenAt, model: modelSlotView(round), proof, ...(falseAlarm ? { falseAlarm } : {}) } };
   }
 
   // D06-02: the waves screen. Many callers at once, same failure pattern, one virtual clock, in the sandbox.
@@ -1084,6 +1124,139 @@ export function createApp(opts: AppOptions = {}) {
           }
         }
       }
+      return c.json(answer);
+    } finally {
+      slot?.release();
+    }
+  });
+
+  // D07-02: "what else?". The Adversary reads a finished round and proposes one more experiment on the same
+  // target; the gate decides; a repeat of an experiment already run here is refused; then Atlas runs it as an
+  // autonomous round: plain-code questions, Muse Spark's bets sealed before the run, the person "not asked",
+  // the run, the judge. No human click between the proposal and the verdict.
+  const adversaryByRun = new Map<string, Promise<AdversaryAnswer>>();
+  const adversaryPerSession = new Map<string, number>();
+  /** The finding a round worked on, with its file text (the same choice startModelBets makes). */
+  const roundFinding = (sessionId: string, round: Round): { finding: Finding; fileText: string } | undefined => {
+    const exp = round.experiment;
+    if (round.finding) {
+      const text = fileTextOf(exp.target, round.finding.file);
+      return text === undefined ? undefined : { finding: round.finding, fileText: text };
+    }
+    if (exp.target.kind === "ts-fixture" && exp.target.ref === FIXTURE_FILE) {
+      const fileText = readFixture(exp.target);
+      return { finding: findingFor(sessionId, exp.target, fileText).finding, fileText };
+    }
+    return undefined;
+  };
+  app.post("/adversary", async (c) => {
+    const sessionId = sessionIdOf(c);
+    if (sessionId === null) return c.json({ error: BAD_SESSION }, 400);
+    const raw = await readJson(c.req.raw);
+    if (!raw.ok) return c.json({ error: "the request body is not JSON" }, 400);
+    const parsed = changeBody.safeParse(raw.body);
+    if (!parsed.success) return c.json({ error: plainReason(parsed.error) }, 400);
+    const runId = parsed.data.runId;
+    const rounds = betStore.peek(sessionId);
+    const round = [...(rounds?.values() ?? [])].find((r) => r.run?.id === runId);
+    if (!rounds || !round || round.status !== "done" || !round.run) return c.json({ error: `this session has no finished run ${runId}` }, 404);
+    // One "what else?" per run: asking again returns the same answer (no new model call, no new run).
+    const known = adversaryByRun.get(runId);
+    if (known) return c.json(await known);
+    const model = opts.adversary?.model ?? ADVERSARY_MODEL;
+    const display = modelDisplay(model);
+    const notAsked = (reason: string) => c.json({ ok: false, fromRunId: runId, reason: `Adversary (${model}): not asked (${reason})`, adversary: null } satisfies AdversaryAnswer);
+    if (!opts.adversary || !adversaryChat || !budget) return notAsked("this server asks no Meta model what else to run");
+    const used = adversaryPerSession.get(sessionId) ?? 0;
+    if (used >= MAX_ADVERSARY_PER_SESSION) return notAsked(`call limit reached: this session already asked ${MAX_ADVERSARY_PER_SESSION} times`);
+    if (rounds.size >= MAX_EXPERIMENTS) return notAsked(`a session holds at most ${MAX_EXPERIMENTS} experiments; start a new session`);
+    const picked = roundFinding(sessionId, round);
+    if (!picked) return notAsked(`no finding on ${round.experiment.target.ref} for this run`);
+    let slot: { release: () => void } | undefined;
+    if (round.experiment.runner === "evm") {
+      // The autonomous round forks Base (paid RPC reads): it takes a run slot like POST /runs, BEFORE any model call.
+      const s = runGate.take(sessionId, clientOf(c));
+      if (!s.ok) return c.json({ error: `what else not started: ${s.reason}` }, 429);
+      slot = s;
+    }
+    const byIp = modelRoundsByIp.take(clientOf(c));
+    const allowed = byIp.ok ? budget.startExperiment(sessionId) : byIp;
+    if (!allowed.ok) {
+      slot?.release();
+      return notAsked(allowed.reason);
+    }
+    adversaryPerSession.set(sessionId, used + 1);
+    const emitter = sessionEmitter(agentLog, sessionId);
+    const clientIp = clientOf(c);
+    const work = (async (): Promise<AdversaryAnswer> => {
+      const exp0 = round.experiment;
+      const gateCtx = round.gateContext ?? (exp0.runner === "evm" ? EVM_GATE_CONTEXT : TS_GATE_CONTEXT);
+      const alreadyRun = [...rounds.values()]
+        .filter((r) => r.experiment.gate.allowed && r.experiment.target.codeSha256 === exp0.target.codeSha256 && (r.run !== undefined || r.status !== "open"))
+        .map((r) => r.experiment.params);
+      const measuresOf = Object.fromEntries(round.bets.map((b) => [b.id, b.measures]));
+      try {
+        emitter.emit({ role: "human", action: oneLine(`asks what else, after run ${runId}`), ref: { kind: "run", id: runId } });
+      } catch {
+        // a refused log line never stops the round
+      }
+      const a = await runAdversary(
+        {
+          target: exp0.target,
+          finding: picked.finding,
+          fileText: picked.fileText,
+          ...(exp0.target.ref === FIXTURE_FILE ? { contextRange: fixtureContextRange(picked.fileText) } : {}),
+          lastExperiment: exp0.params,
+          lastRun: round.run!,
+          verdicts: round.verdicts ?? [],
+          measuresOf,
+          alreadyRun,
+          gateContext: gateCtx,
+          model,
+        },
+        { chat: adversaryChat, log: emitter, onRefusal: (r) => record(r) },
+      );
+      const rejected = a.rejected.map((x) => ({ id: x.id, safeReason: x.safeReason }));
+      const usd = a.usage ? a.usage.usd : null;
+      if (!a.ok) return { ok: false, fromRunId: runId, reason: `${display}: no usable answer (${a.reason})`, adversary: { model, display, rejected, usd } };
+
+      // Plain code builds the experiment from the gate-checked params; the model's words name nothing.
+      const recheck = gate(a.params, gateCtx);
+      if (!recheck.allowed) return { ok: false, fromRunId: runId, reason: `gate: rejected (${recheck.reason})`, adversary: { model, display, rejected, usd } };
+      const id = newExperimentId();
+      const experiment: Experiment = { id, target: exp0.target, runner: exp0.runner, params: recheck.params, proposedBy: { role: "adversary", model }, gate: { allowed: true } };
+      const next = newRound(experiment, gateCtx);
+      next.gateContext = gateCtx;
+      next.finding = picked.finding;
+      next.extraQuestions = []; // nobody else bets in an autonomous round
+      next.autonomous = { fromRunId: runId, adversaryModel: model };
+      rounds.set(id, next);
+      const adversary = { model, display, proposed: { experimentId: id, name: a.name, params: recheck.params }, why: a.why, rejected, usd };
+      const person = { status: "not asked" as const, reason: "autonomous round: Atlas asks no person and waits for no click" };
+      try {
+        emitter.emit({ role: "human", action: oneLine(`not asked: ${id} is an autonomous round (${a.name}); no person bets, no click`), ref: { kind: "experiment", id } });
+      } catch {
+        // a refused log line never stops the round
+      }
+      startModelBets(next, sessionId, clientIp); // Muse Spark bets on the plain-code questions, sealed before the run
+      let r: Awaited<ReturnType<typeof runRound>>;
+      try {
+        r = await runRound(sessionId, next);
+      } catch (e) {
+        const message = redactRpc(e instanceof Error ? e.message : String(e));
+        return { ok: false, fromRunId: runId, reason: `the run could not finish: ${message}`, adversary, person, round: { experiment, questions: next.questions, model: modelSlotView(next) } };
+      }
+      if (r.status !== 200) return { ok: false, fromRunId: runId, reason: String(r.body.error), adversary, person, round: { experiment, questions: next.questions, model: modelSlotView(next) } };
+      return { ok: true, fromRunId: runId, adversary, person, round: { experiment, questions: next.questions, ...r.body } };
+    })().then(
+      (a) => scrubDeep(a) as AdversaryAnswer, // S1: no RPC URL in any answer
+      (e: unknown): AdversaryAnswer => ({ ok: false, fromRunId: runId, reason: `the server could not finish: ${redactRpc(e instanceof Error ? e.message : String(e))}`, adversary: null }),
+    );
+    adversaryByRun.set(runId, work);
+    try {
+      const answer = await work;
+      // A run that could not finish is not kept, so "what else?" can be asked again (within the session cap).
+      if (!answer.ok && answer.reason?.startsWith("the run could not finish")) adversaryByRun.delete(runId);
       return c.json(answer);
     } finally {
       slot?.release();

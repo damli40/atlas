@@ -1,0 +1,10 @@
+$ vitest run
+
+ RUN  v5.0.5 <home>/Documents/Atlas-wt/adversary
+
+
+ Test Files  65 passed (65)
+      Tests  675 passed | 4 skipped (679)
+   Start at  11:57:15
+   Duration  22.53s (tests 85%, import 14%, transform 1%)
+

@@ -1,0 +1,13 @@
+$ vitest run
+
+ RUN  v5.0.5 <home>/Documents/Atlas-wt/adversary
+
+
+ Test Files  65 passed (65)
+      Tests  661 passed | 18 skipped (679)
+   Start at  11:57:03
+   Duration  11.38s (tests 77%, import 22%, transform 1%)
+
+    Isolate  65 workers spawned · ~146ms startup each (spawn + environment, per file)
+             at least ~908ms faster with isolate: false — reuses workers across files instead of one per file
+

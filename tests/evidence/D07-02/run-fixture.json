@@ -1,0 +1,293 @@
+{
+  "run": {
+    "id": "a1EFe8LL4U",
+    "experimentId": "MWHWjyKSFo",
+    "runner": "ts",
+    "executor": "local",
+    "codeSha256": "f3d2c59f05151be85d8a950c009e63de8015e638d3af6f2fd1c2a729393ad101",
+    "seed": "lgvoTepo5V",
+    "startedAt": "2026-10-27T10:54:16.590Z",
+    "finishedAt": "2026-10-27T10:54:16.701Z",
+    "trace": [
+      {
+        "t": 0,
+        "event": "start",
+        "data": {
+          "label": "atlas-read"
+        }
+      },
+      {
+        "t": 0,
+        "event": "call",
+        "data": {
+          "n": 1
+        }
+      },
+      {
+        "t": 0,
+        "event": "reject",
+        "data": {
+          "n": 1,
+          "error": "ResourceNotFoundRpcError: header not found (call 1)"
+        }
+      },
+      {
+        "t": 0,
+        "event": "log",
+        "data": {
+          "msg": "atlas-read: chain read failed (attempt 1/5, likely RPC lag) — retrying in 3s"
+        }
+      },
+      {
+        "t": 0,
+        "event": "sleep",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 3000,
+        "event": "wake",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 3000,
+        "event": "call",
+        "data": {
+          "n": 2
+        }
+      },
+      {
+        "t": 3000,
+        "event": "reject",
+        "data": {
+          "n": 2,
+          "error": "TimeoutError: The request took too long to respond. (call 2)"
+        }
+      },
+      {
+        "t": 3000,
+        "event": "log",
+        "data": {
+          "msg": "atlas-read: chain read failed (attempt 2/5, likely RPC lag) — retrying in 3s"
+        }
+      },
+      {
+        "t": 3000,
+        "event": "sleep",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 6000,
+        "event": "wake",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 6000,
+        "event": "call",
+        "data": {
+          "n": 3
+        }
+      },
+      {
+        "t": 6000,
+        "event": "reject",
+        "data": {
+          "n": 3,
+          "error": "TimeoutError: The request took too long to respond. (call 3)"
+        }
+      },
+      {
+        "t": 6000,
+        "event": "log",
+        "data": {
+          "msg": "atlas-read: chain read failed (attempt 3/5, likely RPC lag) — retrying in 3s"
+        }
+      },
+      {
+        "t": 6000,
+        "event": "sleep",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 9000,
+        "event": "wake",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 9000,
+        "event": "call",
+        "data": {
+          "n": 4
+        }
+      },
+      {
+        "t": 9000,
+        "event": "reject",
+        "data": {
+          "n": 4,
+          "error": "SocketError: read ECONNRESET (call 4)"
+        }
+      },
+      {
+        "t": 9000,
+        "event": "log",
+        "data": {
+          "msg": "atlas-read: chain read failed (attempt 4/5, likely RPC lag) — retrying in 3s"
+        }
+      },
+      {
+        "t": 9000,
+        "event": "sleep",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 12000,
+        "event": "wake",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 12000,
+        "event": "call",
+        "data": {
+          "n": 5
+        }
+      },
+      {
+        "t": 12000,
+        "event": "reject",
+        "data": {
+          "n": 5,
+          "error": "SocketError: read ECONNRESET (call 5)"
+        }
+      },
+      {
+        "t": 12000,
+        "event": "throws",
+        "data": {
+          "error": "SocketError: read ECONNRESET (call 5)"
+        }
+      }
+    ],
+    "result": {
+      "measured": {
+        "calls": 5,
+        "waitCount": 4,
+        "waitsMs": "3000,3000,3000,3000",
+        "logCount": 4,
+        "logAttempts": "1/5,2/5,3/5,4/5",
+        "totalWaitMs": 12000,
+        "outcome": "throws",
+        "settledAtMs": 12000,
+        "thrown": "SocketError: read ECONNRESET (call 5)",
+        "thrownFromCall": 5
+      },
+      "notMeasured": {}
+    },
+    "controlPassed": true,
+    "controlRunId": "w0cHYTgmuj"
+  },
+  "verdicts": [
+    {
+      "betId": "05PqMX7NOm",
+      "runId": "a1EFe8LL4U",
+      "judgedBy": "src/judge.ts",
+      "outcome": "matched",
+      "observed": 5
+    },
+    {
+      "betId": "YLrE5FcXpU",
+      "runId": "a1EFe8LL4U",
+      "judgedBy": "src/judge.ts",
+      "outcome": "matched",
+      "observed": 12000
+    },
+    {
+      "betId": "PMI04gzP2u",
+      "runId": "a1EFe8LL4U",
+      "judgedBy": "src/judge.ts",
+      "outcome": "matched",
+      "observed": "throws"
+    }
+  ],
+  "bets": [
+    {
+      "experimentId": "MWHWjyKSFo",
+      "who": "human",
+      "question": "How many times will the function call the RPC?",
+      "measures": "calls",
+      "answer": {
+        "kind": "integer",
+        "value": 5
+      },
+      "id": "05PqMX7NOm",
+      "nonce": "dd94b7d3162dfe3582c4d9f455b12a30",
+      "sealedAt": "2026-10-27T10:54:05.949Z",
+      "sealedHash": "9eea2a91fe17561994cf795cb57fc36fcecdf807ad0f35088fe82669f62a73bb"
+    },
+    {
+      "experimentId": "MWHWjyKSFo",
+      "who": "human",
+      "question": "How long will it wait in total, in ms?",
+      "measures": "totalWaitMs",
+      "answer": {
+        "kind": "integer",
+        "value": 12000
+      },
+      "id": "YLrE5FcXpU",
+      "nonce": "31be7e228bda05dcd55a9c9b37b94f45",
+      "sealedAt": "2026-10-27T10:54:05.949Z",
+      "sealedHash": "826b7cddcc80f0cdaca3404732b5e542f57a9e981574f115e84299115ad7729f"
+    },
+    {
+      "experimentId": "MWHWjyKSFo",
+      "who": "human",
+      "question": "How will it end: returns, throws, or pending (never settles)?",
+      "measures": "outcome",
+      "answer": {
+        "kind": "enum",
+        "value": "throws",
+        "options": [
+          "returns",
+          "throws",
+          "pending"
+        ]
+      },
+      "id": "PMI04gzP2u",
+      "nonce": "b601c37ef47ba78153bde6860628981d",
+      "sealedAt": "2026-10-27T10:54:05.949Z",
+      "sealedHash": "fb7325d14535599b48b7fe3d2764f2b6465c25cab5d8502183234ffabf63b22f"
+    }
+  ],
+  "betsFrozenAt": "2026-10-27T10:54:16.466Z",
+  "model": {
+    "model": "muse-spark-1.3",
+    "who": "model:muse-spark-1.3",
+    "display": "Muse Spark 1.3 (muse-spark-1.3)",
+    "status": "no_usable_answer",
+    "reason": "the model call failed: network error (TypeError: fetch failed)",
+    "sealed": []
+  },
+  "proof": {
+    "ok": true,
+    "runId": "a1EFe8LL4U",
+    "captions": [
+      "Pre-existing: written before the hackathon (listed in PRE-EXISTING.md)"
+    ],
+    "published": false
+  }
+}

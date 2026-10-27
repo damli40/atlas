@@ -21,6 +21,7 @@ import { modelTextsOf, WhyScreen } from "./Why";
 import { notShownAsFact } from "../../src/trust";
 import { PricePipe } from "../machines/pricepipe/PricePipe";
 import { ChangePanel } from "./Change";
+import { AdversaryPanel } from "./Adversary";
 
 export const PR_FORK_BLOCK = { level2: MOONWELL_FORK_BLOCKS.level2.block, level1: MOONWELL_FORK_BLOCKS.level1.block } as const;
 
@@ -292,6 +293,8 @@ export function MoonwellFlow({ api }: { api: Api }) {
       {result && experimentId && result.run.runner === "evm" && (
         <ChangePanel api={api} result={result} experimentId={experimentId} modelName={modelSlot && modelSlot.status !== "off" ? modelSlot.display : null} format={usd} />
       )}
+
+      {result && result.run.runner === "evm" && <AdversaryPanel api={api} runId={result.run.id} format={usd} />}
 
       {error && (
         <p className="notice" role="alert">
