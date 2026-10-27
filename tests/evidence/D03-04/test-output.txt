@@ -1,0 +1,30 @@
+
+ RUN  v5.0.5 /Users/Admin/Documents/Atlas-wt/ghtarget
+
+ ✓ tests/unit/github-target.test.ts > GitHub target with a mocked fetch > sorts by path and hashes path + \n + bytes + \n in that order 5ms
+ ✓ tests/unit/github-target.test.ts > GitHub target with a mocked fetch > gives the same fingerprint whatever order GitHub lists the files in 2ms
+ ✓ tests/unit/github-target.test.ts > GitHub target with a mocked fetch > the path is part of the fingerprint (moving bytes between files changes it) 0ms
+ ✓ tests/unit/github-target.test.ts > GitHub target with a mocked fetch > skips a removed file with a note and leaves it out of the fingerprint 1ms
+ ✓ tests/unit/github-target.test.ts > GitHub target with a mocked fetch > keeps a binary file's bytes in the fingerprint but gives it no text or line count 1ms
+ ✓ tests/unit/github-target.test.ts > GitHub target with a mocked fetch > refuses a PR that is not merged, in plain words 1ms
+ ✓ tests/unit/github-target.test.ts > GitHub target with a mocked fetch > refuses when the merge commit is not the expected one 0ms
+ ✓ tests/unit/github-target.test.ts > GitHub target with a mocked fetch > reports a rate limit plainly (403 with no requests left, and 429), with the reset time 1ms
+ ✓ tests/unit/github-target.test.ts > GitHub target with a mocked fetch > a plain 403 (not a rate limit) is an http error, not a rate limit 0ms
+ ✓ tests/unit/github-target.test.ts > GitHub target with a mocked fetch > refuses a partial list (GitHub listed fewer files than the PR changed) 0ms
+ ✓ tests/unit/github-target.test.ts > GitHub target with a mocked fetch > pages through more than 100 files 4ms
+ ✓ tests/unit/github-target.test.ts > GitHub target with a mocked fetch > sends the token only to api.github.com and never puts it in an error 0ms
+ ✓ tests/unit/github-target.test.ts > GitHub target with a mocked fetch > a network failure becomes a plain 'could not reach' error 0ms
+ ✓ tests/unit/github-target.test.ts > GitHub target with a mocked fetch > counts lines the way an editor numbers them 0ms
+ ✓ tests/unit/github-target.test.ts > committed Moonwell copies (contracts/lib/moonwell/) > chains/8453.json still has the SHA-256 of the merge-commit bytes 0ms
+ ✓ tests/unit/github-target.test.ts > committed Moonwell copies (contracts/lib/moonwell/) > proposals/ChainlinkOracleConfigs.sol still has the SHA-256 of the merge-commit bytes 0ms
+ ✓ tests/unit/github-target.test.ts > committed Moonwell copies (contracts/lib/moonwell/) > proposals/mips/mip-x43/mip-x43.sol still has the SHA-256 of the merge-commit bytes 0ms
+ ✓ tests/unit/github-target.test.ts > committed Moonwell copies (contracts/lib/moonwell/) > proposals/mips/mip-x43/x43.md still has the SHA-256 of the merge-commit bytes 0ms
+ ✓ tests/unit/github-target.test.ts > committed Moonwell copies (contracts/lib/moonwell/) > LICENSE still has the SHA-256 of the merge-commit bytes 0ms
+ ✓ tests/unit/github-target.test.ts > committed Moonwell copies (contracts/lib/moonwell/) > keeps the BSD-3-Clause notice and the NOTICE.md 0ms
+ ✓ tests/unit/github-target.test.ts > real fetch of moonwell-fi/moonwell-contracts-v2#578 (network) > returns the 6 changed files at the merge commit, and the copies match byte for byte 3394ms
+
+ Test Files  1 passed (1)
+      Tests  21 passed (21)
+   Start at  06:42:07
+   Duration  3.98s (tests 88%, import 12%)
+
