@@ -22,8 +22,10 @@
 
 import { z } from "zod";
 import { judge } from "./judge";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+// Namespace imports on purpose: the page imports this file (for its captions), and a named import from
+// node:fs or node:path is read the moment the module loads, which Vite's browser stand-in refuses.
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { FORK_BLOCK, PR578_CODE_SHA256 } from "../runners/evm/moonwell-base";
 import { falseAlarmFromRun } from "./falsealarm";
 import { chainlinkTo1e18, usdTimesRatio1e18 } from "./units";
@@ -471,7 +473,8 @@ export function verifyAtlasFile(raw: unknown): Verification {
 //   quote must be exactly those lines, and an Investigator's quote must sit inside them.
 // What this cannot catch: someone who also forges the matching agent-log lines AND quotes the real line.
 // The file is not signed; the README says so.
-const MOONWELL_COPY = join(import.meta.dirname, "..", "contracts", "lib", "moonwell");
+// Computed when used, not when the module loads (the page imports this file too; see the imports).
+const moonwellCopy = () => path.join(import.meta.dirname, "..", "contracts", "lib", "moonwell");
 const MOONWELL_COPY_FILES = ["chains/8453.json", "proposals/ChainlinkOracleConfigs.sol", "proposals/mips/mip-x43/mip-x43.sol"];
 const squashWs = (s: string) => s.replace(/\s+/g, " ").trim();
 const unprefixed = (q: string) => {
@@ -493,7 +496,7 @@ function findingProblems(file: AtlasFile): string[] {
     if (!copy || !MOONWELL_COPY_FILES.includes(f.file)) continue;
     let text: string;
     try {
-      text = readFileSync(join(MOONWELL_COPY, f.file), "utf8");
+      text = fs.readFileSync(path.join(moonwellCopy(), f.file), "utf8");
     } catch {
       continue; // the copy is not on this machine: cannot check, so not checked
     }
