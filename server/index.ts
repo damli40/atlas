@@ -8,6 +8,8 @@ import { fileRefusalWriter } from "./proofs/refusals";
 import { createProofStore } from "./evm-round";
 import { dotEnv } from "./load-env";
 import { currentStartupNotes } from "./startup-check";
+import { executorFromEnv } from "../runners/executor/select";
+import { warmUp } from "../runners/executor/warm";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -66,8 +68,13 @@ const proofsDir = process.env.ATLAS_PROOFS_DIR ? resolve(process.env.ATLAS_PROOF
 const proofs = createProofStore({ publish: publishProofs, dir: proofsDir });
 const refusalsDir = process.env.ATLAS_PROOFS_DIR ? join(proofsDir, "refusals") : undefined;
 
+// E4: ATLAS_EXECUTOR=modal runs every sandboxed command in a throwaway Modal Sandbox (the hosted mode, D25);
+// unset or "local" keeps this machine's Node sandbox. An unknown value stops the server here. No fallback.
+const executor = executorFromEnv();
+
 // S7: the live server writes a public refusal record for every gate refusal and can't-check verdict.
 const app = createApp({
+  executor,
   proofs,
   ...(modelBetsOn ? { modelBets: { chat, budget, sparkOpen } } : {}),
   ...(investigatorOn ? { investigator: { chat: investigatorChat, budget } } : {}),
@@ -82,7 +89,9 @@ if (dotEnv.loaded.length > 0) console.log(`.env: read ${dotEnv.loaded.join(", ")
 for (const note of currentStartupNotes()) console.warn(`note: ${note}`);
 
 serve({ fetch: app.fetch, port }, (info) => {
-  console.log(`Atlas server listening on http://localhost:${info.port} (model bets ${modelBetsOn ? "on" : "off"}, Muse Spark Open ${sparkOpen.available ? "available" : `not available (${sparkOpen.reason})`}, investigator ${investigatorOn ? "on" : "off"}, fixer ${fixerOn ? "on" : "off"}, adversary ${adversaryOn ? "on" : "off"}, .atlas.json files ${publishProofs ? "written to the proofs folder" : "kept in memory only"})`);
+  console.log(`Atlas server listening on http://localhost:${info.port} (model bets ${modelBetsOn ? "on" : "off"}, Muse Spark Open ${sparkOpen.available ? "available" : `not available (${sparkOpen.reason})`}, investigator ${investigatorOn ? "on" : "off"}, fixer ${fixerOn ? "on" : "off"}, adversary ${adversaryOn ? "on" : "off"}, .atlas.json files ${publishProofs ? "written to the proofs folder" : "kept in memory only"}, sandbox ${executor.kind === "modal" ? "Modal (a throwaway container per run, no network)" : "local (Node permission model on this machine)"})`);
+  // D32: warm Modal once, in the background; never blocks or stops the server.
+  void warmUp(executor);
   if (modelBetsOn || investigatorOn) {
     console.log(`model budget: $${budget.spentUsd().toFixed(2)} already spent (usage log, ${spentAtStart.lines} lines${spentAtStart.skipped ? `, ${spentAtStart.skipped} unreadable` : ""})`);
   }

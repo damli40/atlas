@@ -1,0 +1,11 @@
+{
+  "what": "A fresh Node process (image already built on Modal) runs 4 trivial execs through createModalExecutor one after another: `node a.mjs` printing 2. The first one pays for loading the SDK, looking up the app and the image; the next three are warm.",
+  "when": "2026-10-27T21:13Z",
+  "wallMsPerExec": [5929, 3211, 3149, 2357],
+  "logLines": [
+    "modal sandbox sb-01M5ZKBPAVKWRENTAZ5ZB51NF6 done exit=0 timedOut=false createMs=2376 setupMs=2722 runMs=272 totalMs=5925 stdoutChars=2 stderrChars=0",
+    "modal sandbox sb-01M5ZKBT2RPY691TK1XVY8D2TB done exit=0 timedOut=false createMs=295 setupMs=2099 runMs=271 totalMs=3210 stdoutChars=2 stderrChars=0",
+    "modal sandbox sb-01M5ZKBX6Z53VEP7BDT8VHACE2 done exit=0 timedOut=false createMs=285 setupMs=2051 runMs=265 totalMs=3149 stdoutChars=2 stderrChars=0",
+    "modal sandbox sb-01M5ZKC09A24GEAAKT883CZ5N9 done exit=0 timedOut=false createMs=235 setupMs=1518 runMs=190 totalMs=2357 stdoutChars=2 stderrChars=0"
+  ]
+}

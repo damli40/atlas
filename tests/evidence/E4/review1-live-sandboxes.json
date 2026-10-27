@@ -1,0 +1,79 @@
+{
+  "when": "2026-10-27T22:27:19.295Z",
+  "specs": [
+    {
+      "blockNetwork": true,
+      "cpu": 0.5,
+      "cpuLimit": 1,
+      "memoryMiB": 512,
+      "memoryLimitMiB": 1024,
+      "timeoutMs": 160000
+    }
+  ],
+  "lines": [
+    {
+      "label": "control (first sandbox: cold)",
+      "line": "modal sandbox sb-01M5ZQGBDQ2R8Q2FK4PJ62P865 done exit=0 timedOut=false createMs=3511 setupMs=2752 runMs=575 totalMs=7365 stdoutChars=6496 stderrChars=0"
+    },
+    {
+      "label": "ordinary: add",
+      "line": "modal sandbox sb-01M5ZQGFN6S09K4457VRAJSZ8M done exit=0 timedOut=false createMs=250 setupMs=2262 runMs=551 totalMs=3509 stdoutChars=492 stderrChars=0"
+    },
+    {
+      "label": "ordinary: retry with a stand-in",
+      "line": "modal sandbox sb-01M5ZQGKBN8C83H9863MRYV61Q done exit=0 timedOut=false createMs=299 setupMs=2969 runMs=627 totalMs=4464 stdoutChars=828 stderrChars=0"
+    },
+    {
+      "label": "ordinary: throws",
+      "line": "modal sandbox sb-01M5ZQGR3833HT516ZAZ4Q26Q2 done exit=0 timedOut=false createMs=234 setupMs=2562 runMs=527 totalMs=3816 stdoutChars=533 stderrChars=0"
+    },
+    {
+      "label": "attack: fetch",
+      "line": "modal sandbox sb-01M5ZQGW3M4SD0CQNGRRAQ844X done exit=0 timedOut=false createMs=246 setupMs=2308 runMs=522 totalMs=3525 stdoutChars=170 stderrChars=0"
+    },
+    {
+      "label": "attack: env from pasted code",
+      "line": "modal sandbox sb-01M5ZQH1BNPR22616GVF92KVSY done exit=0 timedOut=false createMs=278 setupMs=5065 runMs=615 totalMs=6500 stdoutChars=478 stderrChars=0"
+    },
+    {
+      "label": "attack: env through the executor",
+      "line": "modal sandbox sb-01M5ZQH7PW0PQB2HZM3RFRDXNG done exit=0 timedOut=false createMs=226 setupMs=1712 runMs=211 totalMs=2588 stdoutChars=23 stderrChars=0"
+    },
+    {
+      "label": "raw env NAMES Modal sets (values not read)",
+      "line": "BLIS_NUM_THREADS CFLAGS HOME MKL_NUM_THREADS MODAL_CLOUD_PROVIDER MODAL_CONTAINER_ARGUMENTS_PATH MODAL_IMAGE_ID MODAL_REGION MODAL_SANDBOX_ID MODAL_TASK_ID OMP_NUM_THREADS OPENBLAS_NUM_THREADS ORT_INTER_OP_NUM_THREADS ORT_INTRA_OP_NUM_THREADS PATH PIP_DEFAULT_TIMEOUT PIP_NO_CACHE_DIR PIP_ROOT_USER_ACTION PWD PYTHONHASHSEED PYTHONPATH PYTHON_SHA256 PYTHON_VERSION SOURCE_DATE_EPOCH SSL_CERT_DIR TERM UV_BREAK_SYSTEM_PACKAGES"
+    },
+    {
+      "label": "attack: look for the key",
+      "line": "modal sandbox sb-01M5ZQHC3FQPBA71D3JKE2YHG2 done exit=0 timedOut=false createMs=291 setupMs=3109 runMs=623 totalMs=4607 stdoutChars=730 stderrChars=0"
+    },
+    {
+      "label": "attack: forged result line",
+      "line": "modal sandbox sb-01M5ZQHGKGKAHH75X8AB0GV7G9 done exit=0 timedOut=false createMs=227 setupMs=2234 runMs=442 totalMs=3327 stdoutChars=1044 stderrChars=0"
+    },
+    {
+      "label": "attack: process.report forge",
+      "line": "modal sandbox sb-01M5ZQHKVQ6N23WXT05EGET2NT done exit=0 timedOut=false createMs=288 setupMs=3133 runMs=626 totalMs=4619 stdoutChars=180 stderrChars=0"
+    },
+    {
+      "label": "attack: endless loop",
+      "line": "modal sandbox sb-01M5ZQHRCAY0NHH21TBRBMFK2S timed out exit=none timedOut=true createMs=242 setupMs=2173 runMs=4003 totalMs=6858 stdoutChars=0 stderrChars=0"
+    },
+    {
+      "label": "attack: 20 MB stdout flood",
+      "line": "modal sandbox sb-01M5ZQHZ2JZXQ2KQX2MR5GMVRJ done exit=0 timedOut=false createMs=234 setupMs=2226 runMs=3478 totalMs=6370 stdoutChars=20971999 stderrChars=0"
+    },
+    {
+      "label": "review1: memory bomb",
+      "line": "modal sandbox sb-01M5ZQJ5A5AR5JZNEZRYNA2VDM done exit=137 timedOut=false createMs=226 setupMs=2195 runMs=26347 totalMs=29650 stdoutChars=0 stderrChars=132"
+    },
+    {
+      "label": "review1: memory bomb reason",
+      "line": "the sandbox killed the code (exit 137), most likely because it used more memory than the sandbox allows"
+    },
+    {
+      "label": "review1: D31 control (fresh)",
+      "line": "modal sandbox sb-01M5ZQK297N7E3ABNTTDP89WS3 done exit=0 timedOut=false createMs=295 setupMs=3142 runMs=693 totalMs=4806 stdoutChars=6496 stderrChars=0"
+    }
+  ]
+}

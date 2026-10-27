@@ -27,8 +27,8 @@ import type { ExecRequest, ExecResult, Executor } from "../runner.ts";
 
 const MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
 
-/** Rewrites the caller's node flags. Returns the final argv after the node binary. */
-function guardedNodeArgs(args: string[], dir: string, allowNetwork: ExecRequest["allowNetwork"]): string[] {
+/** Rewrites the caller's node flags. Returns the final argv after the node binary. Shared with the Modal executor. */
+export function guardedNodeArgs(args: string[], dir: string, allowNetwork: ExecRequest["allowNetwork"]): string[] {
   if (allowNetwork !== false) {
     // Node's permission model is all-or-nothing for network (--allow-net), so a host list cannot be honoured.
     throw new Error("local executor cannot limit network to specific hosts; refusing rather than allowing every host");
@@ -53,6 +53,7 @@ function safePath(dir: string, p: string): string {
 
 export const localExecutor: Executor = {
   kind: "local",
+  fingerprint: `local node ${process.version}`,
   async exec(req: ExecRequest): Promise<ExecResult> {
     if (req.cmd[0] !== "node") throw new Error(`local executor runs only "node" commands; got "${req.cmd[0] ?? ""}"`);
     if (!(req.wallClockMs > 0)) throw new Error("wallClockMs must be a positive number");
@@ -104,7 +105,7 @@ export const localExecutor: Executor = {
         });
         child.on("close", (code) => {
           clearTimeout(timer);
-          resolve({ stdout: Buffer.concat(out).toString("utf8"), stderr: Buffer.concat(err).toString("utf8"), exitCode: code, timedOut, durationMs: Math.round(performance.now() - started) });
+          resolve({ stdout: Buffer.concat(out).toString("utf8"), stderr: Buffer.concat(err).toString("utf8"), exitCode: code, timedOut, durationMs: Math.round(performance.now() - started), runtime: { executor: "local", node: process.version } });
         });
       });
     } finally {

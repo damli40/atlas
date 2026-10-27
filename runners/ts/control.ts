@@ -18,8 +18,8 @@ import { checkChange, tsChangeContext } from "../change.ts";
 import { BUILTINS_CHANGED_REASON, type HarnessOutput, type WorkerRequest, type WorkerResponse } from "./harness.ts";
 import { SUCCESS_VALUE, harnessInputFromShape, scenarioFromOracleInput, type OracleInput } from "./shapes.ts";
 import { TS_TARGET_EXPORTS } from "../../src/target-name.ts";
-import { resultMac, runCallControl, runCallExperiment } from "./call-runner.ts";
-import { runPyCallControl, runPyCallExperiment } from "../py/py-runner.ts";
+import { callControlFor, resultMac, runCallExperiment } from "./call-runner.ts";
+import { pyControlFor, runPyCallExperiment } from "../py/py-runner.ts";
 import { pythonSandboxExecutor } from "../executor/sandbox-exec-python.ts";
 
 const REPO_ROOT = fileURLToPath(new URL("../../", import.meta.url));
@@ -124,6 +124,7 @@ async function execInSandbox(executor: Executor, code: string, request: WorkerRe
     return { ok: false, reason: `the sandbox could not start: ${(e as Error).message}`, tampered: false, notStarted: true };
   }
   if (res.timedOut) return { ok: false, reason: `the sandbox hit Atlas's ${wallClockMs} ms wall-clock limit`, tampered: false };
+  if (res.stopped !== undefined) return { ok: false, reason: res.stopped, tampered: false }; // E4 review round 1 (F)
   const parsed = parseWorkerOutput(res.stdout, key);
   if (parsed.ok && res.exitCode !== 0) {
     return { ok: false, reason: `tampering: the sandbox wrote a result but exited with code ${res.exitCode}`, tampered: true };
@@ -369,21 +370,27 @@ export async function runExperiment(
   };
 }
 
+/** E4: where pasted Python runs, given the executor JavaScript runs on: Modal for Modal, sandbox-exec otherwise. */
+export function pythonExecutorFor(executor: Executor): Executor {
+  return executor.kind === "modal" ? executor : pythonSandboxExecutor;
+}
+
 /**
  * The TS Runner: every run is preceded by a control on the same code through the same executor.
  * E1: a pasted target runs "call-function" experiments; its control is the call-function known-case check
  * (runners/ts/call-runner.ts), which checks the harness on fixed reference functions.
  * E2: a pasted target in Python runs on `pyExecutor` (macOS sandbox-exec) through runners/py/py-runner.ts, after
  * the Python known-case check.
+ * E4 (D24, hosted Python): when the runner's executor is Modal, Python runs in Modal sandboxes too (never locally).
  */
-export function tsRunner(executor: Executor = localExecutor, pyExecutor: Executor = pythonSandboxExecutor): Runner {
+export function tsRunner(executor: Executor = localExecutor, pyExecutor: Executor = pythonExecutorFor(executor)): Runner {
   return {
     kind: "ts",
     control: async (target) =>
       target.kind === "pasted"
         ? target.language === "py"
-          ? (await runPyCallControl({ executor: pyExecutor })).run
-          : (await runCallControl({ executor })).run
+          ? (await pyControlFor({ executor: pyExecutor })).run // D31
+          : (await callControlFor({ executor })).run // D31: reused up to 10 min
         : control(target, executor),
     async run(exp: Experiment, opts): Promise<Run> {
       if (!exp.gate.allowed) throw new Error(`experiment ${exp.id} was rejected by the gate: ${exp.gate.reason}`);
@@ -391,10 +398,10 @@ export function tsRunner(executor: Executor = localExecutor, pyExecutor: Executo
         if (exp.params.shape !== "call-function" || exp.target.kind !== "pasted") throw new Error(`"call-function" runs on pasted targets, and pasted targets run "call-function" only`);
         // E2: pasted Python runs through the Python harness in the OS sandbox, after the Python control.
         if (exp.target.language === "py") {
-          const pyCtl = await runPyCallControl({ executor: pyExecutor });
+          const pyCtl = await pyControlFor({ executor: pyExecutor }); // D31
           return runPyCallExperiment(exp, pyCtl.run, { executor: pyExecutor, ...(opts.replayOf ? { replayOf: opts.replayOf } : {}) });
         }
-        const ctl = await runCallControl({ executor });
+        const ctl = await callControlFor({ executor }); // D31
         return runCallExperiment(exp, ctl.run, { executor, ...(opts.replayOf ? { replayOf: opts.replayOf } : {}) });
       }
       const ctl = await runControl(readFixture(exp.target), { executor, expectedSha256: exp.target.codeSha256 });

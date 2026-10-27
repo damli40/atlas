@@ -22,10 +22,11 @@ import { nanoid } from "nanoid";
 import { gate } from "../../src/gate.ts";
 import { staticRefusalPy } from "../../src/pasted-python.ts";
 import type { ArgSpec, Experiment, ExperimentShape, JsonValue, Run, Target, TraceEvent } from "../../src/types.ts";
-import { pythonSandboxExecutor } from "../executor/sandbox-exec-python.ts";
-import type { Executor } from "../runner.ts";
+import { MODAL_IMAGE } from "../executor/modal.ts";
+import { findPython, pythonSandboxExecutor } from "../executor/sandbox-exec-python.ts";
+import type { ExecRuntime, Executor } from "../runner.ts";
 import { CALL_DEFAULT_WATCH_LIMIT_MS, type CallRunRequest, type CallWorkerResponse } from "../ts/call-harness.ts";
-import { CALL_SEED, compareCallCase, parseCallWorkerOutput, toWire, type CallControlCase } from "../ts/call-runner.ts";
+import { CALL_SEED, compareCallCase, parseCallWorkerOutput, reuseControl, toWire, type CallControlCase } from "../ts/call-runner.ts";
 import { ACCESS_REASON, PROCESS_REASON, REAL_TIME_REASON } from "../ts/call-words.ts";
 import {
   PY_INTERNALS_REASON,
@@ -89,9 +90,13 @@ export interface PyWorkerRequest {
   runs: CallRunRequest[];
 }
 
-export type PyAnswer =
+export type PyAnswer = (
   | { ok: true; runs: NonNullable<CallWorkerResponse["runs"]>; python?: PythonInfo }
-  | { ok: false; reason: string; kind: "wholeRun" | "tampered" | "noResult" | "notStarted"; python?: PythonInfo };
+  | { ok: false; reason: string; kind: "wholeRun" | "tampered" | "noResult" | "notStarted"; python?: PythonInfo }
+) & {
+  /** E4: where the sandbox ran (local sandbox-exec or a Modal sandbox) and with which versions, as measured. */
+  runtime?: ExecRuntime;
+};
 
 export interface PythonInfo {
   version: string;
@@ -115,6 +120,11 @@ function pythonOf(stdout: string): PythonInfo | undefined {
 
 /** Runs the Python harness on `code` in the sandbox. */
 export async function runInPySandbox(executor: Executor, code: string, request: PyWorkerRequest, wallClockMs: number): Promise<PyAnswer> {
+  const { answer, runtime } = await pySandboxAnswer(executor, code, request, wallClockMs);
+  return runtime ? { ...answer, runtime } : answer;
+}
+
+async function pySandboxAnswer(executor: Executor, code: string, request: PyWorkerRequest, wallClockMs: number): Promise<{ answer: PyAnswer; runtime?: ExecRuntime }> {
   const key = randomBytes(32).toString("hex"); // fresh per run; sent on stdin only
   const files: Record<string, string> = {};
   for (const f of SANDBOX_FILES) files[f] = own(f);
@@ -124,19 +134,28 @@ export async function runInPySandbox(executor: Executor, code: string, request: 
   try {
     res = await executor.exec({ files, cmd: ["python3", "boot.py"], stdin: `${key}\n`, wallClockMs, allowNetwork: false });
   } catch (e) {
-    return { ok: false, reason: `the sandbox could not start: ${(e as Error).message}`, kind: "notStarted" };
+    return { answer: { ok: false, reason: `the sandbox could not start: ${(e as Error).message}`, kind: "notStarted" } };
   }
+  const runtime = res.runtime;
+  const done = (answer: PyAnswer) => (runtime ? { answer, runtime } : { answer });
   if (res.timedOut) {
-    return { ok: false, reason: `the code ran past Atlas's ${wallClockMs} ms limit of REAL time (it may loop without ever handing control back), so Atlas stopped it`, kind: "noResult" };
+    return done({ ok: false, reason: `the code ran past Atlas's ${wallClockMs} ms limit of REAL time (it may loop without ever handing control back), so Atlas stopped it`, kind: "noResult" });
   }
+  // E4 review round 1 (F): a Modal sandbox went away under the running code. Nothing from it counts.
+  if (res.stopped !== undefined) return done({ ok: false, reason: res.stopped, kind: "noResult" });
   const parsed = parseCallWorkerOutput(res.stdout, key, request.runs.map((r) => r.id));
   const python = parsed.ok || parsed.kind === "wholeRun" ? pythonOf(res.stdout) : undefined;
-  if (parsed.ok && res.exitCode !== 0) return { ok: false, reason: `tampering: the sandbox wrote a result but exited with code ${res.exitCode}`, kind: "tampered" };
-  if (!parsed.ok && parsed.kind === "noResult") {
-    const err = res.stderr.trim().split("\n").filter((l) => /Error|error:|failed|harness/.test(l)).slice(-2).join(" | ").replaceAll(/\/[^\s'"]*atlas-pyexec-[^\s/'"]*\/?/g, "<sandbox>/");
-    return { ok: false, reason: `the sandbox exited with code ${res.exitCode} and no result${err ? ` (${err.slice(0, 300)})` : ""}`, kind: "noResult" };
+  if (parsed.ok && res.exitCode !== 0) return done({ ok: false, reason: `tampering: the sandbox wrote a result but exited with code ${res.exitCode}`, kind: "tampered" });
+  if (!parsed.ok && parsed.kind === "noResult" && res.exitCode === 137) {
+    // E4 review round 1 (E): killed from outside with no timeout: almost always the sandbox's memory limit.
+    return done({ ok: false, reason: "the sandbox killed the code (exit 137), most likely because it used more memory than the sandbox allows", kind: "noResult" });
   }
-  return python ? { ...parsed, python } : parsed;
+  if (!parsed.ok && parsed.kind === "noResult") {
+    // atlas-pyexec- is the macOS run folder, atlas-exec- the Modal one (E4); both become <sandbox>/.
+    const err = res.stderr.trim().split("\n").filter((l) => /Error|error:|failed|harness/.test(l)).slice(-2).join(" | ").replaceAll(/\/[^\s'"]*atlas-(?:py)?exec-[^\s/'"]*\/?/g, "<sandbox>/");
+    return done({ ok: false, reason: `the sandbox exited with code ${res.exitCode} and no result${err ? ` (${err.slice(0, 300)})` : ""}`, kind: "noResult" });
+  }
+  return done(python ? { ...parsed, python } : parsed);
 }
 
 function runRequest(id: string, p: CallShape): CallRunRequest {
@@ -286,7 +305,7 @@ export async function runPyCallControl(opts: { executor?: Executor; wallClockMs?
   const controlPassed = reasons.length === 0;
   const reason = controlPassed ? undefined : reasons.join("; ");
   if (reason && notMeasured.control === undefined) notMeasured.control = `the known-case check did not match: ${reason}`;
-  const checks = { harnessSha256: pyHarnessSha256(), language: "py", ...(res.python ? { python: res.python.version, implementation: res.python.implementation } : {}) };
+  const checks = { harnessSha256: pyHarnessSha256(), language: "py", ...(res.python ? { python: res.python.version, implementation: res.python.implementation } : {}), ...(res.runtime ? { runtime: res.runtime } : {}) };
   trace.push({ t: 0, event: controlPassed ? "control_matched" : "control_did_not_match", data: reason ? { reason, ...checks } : { cases: PY_CALL_CONTROL_CASES.map((c) => c.id), ...checks } });
   const run: Run = {
     id: nanoid(10),
@@ -302,6 +321,28 @@ export async function runPyCallControl(opts: { executor?: Executor; wallClockMs?
     controlPassed,
   };
   return reason ? { run, reason } : { run };
+}
+
+// ── D31: reusing a passed Python control ─────────────────────────────────────────────────────────
+
+/** The Python version a control on this executor runs with: the pinned image's on Modal, this Mac's otherwise. */
+export function pythonVersionFor(executor: Executor): string {
+  if (executor.kind === "modal") return MODAL_IMAGE.pythonVersion;
+  return findPython()?.version ?? "(no python)";
+}
+
+/**
+ * D31: what a Python control's result depends on: the Python harness files (boot.py, harness.py, exposed.py), the
+ * reference file and its known answers, the executor kind and fingerprint, and the Python version.
+ */
+export function pyControlKey(executor: Executor): string {
+  return sha256(JSON.stringify(["py", pyHarnessSha256(), sha256(pyReferenceSource()), PY_CALL_CONTROL_CASES, executor.kind, executor.fingerprint ?? "(no fingerprint)", pythonVersionFor(executor)]));
+}
+
+/** D31: the Python control to rely on, reused for up to 10 minutes when it passed (see reuseControl). */
+export function pyControlFor(opts: { executor?: Executor; wallClockMs?: number; now?: () => number } = {}): Promise<PyControlOutcome> {
+  const executor = opts.executor ?? pythonSandboxExecutor;
+  return reuseControl(pyControlKey(executor), () => runPyCallControl({ executor, ...(opts.wallClockMs ? { wallClockMs: opts.wallClockMs } : {}) }), opts.now);
 }
 
 // ── the experiment ───────────────────────────────────────────────────────────────────────────────
@@ -325,10 +366,12 @@ export async function runPyCallExperiment(exp: Experiment, ctl: Run, opts: { exe
   if (ctl.experimentId !== PY_CALL_CONTROL_ID) throw new Error(`the control run ${ctl.id} is not a Python call-function control`);
   const source = pastedPySource(exp.target);
   const executor = opts.executor ?? pythonSandboxExecutor;
+  if (ctl.executor !== executor.kind) throw new Error(`the control run ${ctl.id} ran on ${ctl.executor}, not on ${executor.kind}`);
   const startedAt = new Date().toISOString();
   let result: Run["result"];
   let trace: TraceEvent[] = [];
   let python: PythonInfo | undefined;
+  let runtime: ExecRuntime | undefined;
   const refused = staticRefusalPy(source);
   if (refused) {
     result = { measured: {}, notMeasured: { wholeRun: refused } };
@@ -337,6 +380,7 @@ export async function runPyCallExperiment(exp: Experiment, ctl: Run, opts: { exe
     const res = await runInPySandbox(executor, source, { runs: [runRequest(exp.id, exp.params)] }, opts.wallClockMs ?? DEFAULT_WALL_CLOCK_MS);
     if (!res.ok && res.kind === "notStarted") throw new Error(res.reason);
     python = res.python;
+    runtime = res.runtime;
     const out = res.ok ? res.runs.find((r) => r.id === exp.id) : undefined;
     if (out) {
       result = out.result;
@@ -350,7 +394,17 @@ export async function runPyCallExperiment(exp: Experiment, ctl: Run, opts: { exe
   trace.push({
     t: trace.length ? trace[trace.length - 1]!.t : 0,
     event: "call_checks",
-    data: { harnessSha256: pyHarnessSha256(), language: "py", controlRunId: ctl.id, controlPassed: ctl.controlPassed === true, ...(python ? { python: python.version, implementation: python.implementation } : {}) },
+    data: {
+      harnessSha256: pyHarnessSha256(),
+      language: "py",
+      controlRunId: ctl.id,
+      controlPassed: ctl.controlPassed === true,
+      // D31: the control this run relied on finished at this time (it may be up to 10 minutes old).
+      controlFinishedAt: ctl.finishedAt,
+      ...(python ? { python: python.version, implementation: python.implementation } : {}),
+      // E4: where it ran, as the executor measured it (local sandbox-exec has none; Modal names its sandbox).
+      ...(runtime ? { runtime } : {}),
+    },
   });
   if (ctl.controlPassed !== true) {
     const why = ctl.result.notMeasured.control;

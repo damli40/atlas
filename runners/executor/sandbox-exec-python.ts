@@ -113,6 +113,10 @@ function safePath(dir: string, p: string): string {
 
 export const pythonSandboxExecutor: Executor = {
   kind: "local",
+  /** E4 (D31): part of the Python control's reuse key. */
+  get fingerprint() {
+    return `local sandbox-exec python ${findPython()?.version ?? "(none)"}`;
+  },
   async exec(req: ExecRequest): Promise<ExecResult> {
     if (req.cmd[0] !== "python3") throw new Error(`the Python executor runs only "python3" commands; got "${req.cmd[0] ?? ""}"`);
     const scripts = req.cmd.slice(1);

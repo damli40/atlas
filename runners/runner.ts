@@ -8,6 +8,11 @@ import type { Change, Experiment, Run, Target } from "../src/types.ts";
 /** WHERE a command runs. One implementation per place (this machine, or a cloud sandbox); the Runner never knows which. */
 export interface Executor {
   kind: "local" | "modal";
+  /**
+   * Added E4 review round 1 (D31): what a control run's validity depends on besides Atlas's own files, e.g. the
+   * Node version, or the Modal backend and image. Part of the key a passed control is reused under.
+   */
+  fingerprint?: string;
   /** Run a command in an isolated working dir with the given files, no network unless allowNetwork, hard wall-clock limit. */
   exec(req: {
     files: Record<string, string>;          // path → contents
@@ -20,7 +25,38 @@ export interface Executor {
     stdin?: string;
     wallClockMs: number;                    // the harness's OWN limit; the code under test has none
     allowNetwork: false | { hosts: string[] };  // evm: only the anvil port on localhost
-  }): Promise<{ stdout: string; stderr: string; exitCode: number | null; timedOut: boolean; durationMs: number }>;
+  }): Promise<{
+    stdout: string;
+    stderr: string;
+    exitCode: number | null;
+    timedOut: boolean;
+    durationMs: number;
+    /**
+     * Added E4: where the command actually ran, as measured by the executor (not as configured). Optional so older
+     * fakes and executors still type-check; the call-function runner copies it into the run's trace.
+     */
+    runtime?: ExecRuntime;
+    /**
+     * Added E4 review round 1 (F): the command started, then the place it ran in went away under it (a Modal
+     * sandbox stopped, usually out of memory). Plain words, safe to show. There is no exit code then.
+     */
+    stopped?: string;
+  }>;
+}
+
+/** Added E4: the place and the exact versions a command ran with. */
+export interface ExecRuntime {
+  executor: "local" | "modal";
+  /** Modal's sandbox backend, pinned (review round 1, A). Modal only. */
+  backend?: "v2";
+  /** `process.version` of the node that ran the command, e.g. "v25.8.1". */
+  node: string;
+  /** `python3 --version` inside the Modal image, e.g. "Python 3.14.7" (Modal only). */
+  python?: string;
+  /** The Modal image the sandbox was made from (base image digest + the pinned Node tarball). */
+  image?: string;
+  /** Modal's id of the throwaway sandbox (one per exec). */
+  sandboxId?: string;
 }
 
 export type ExecRequest = Parameters<Executor["exec"]>[0];
