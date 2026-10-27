@@ -59,7 +59,7 @@ describe("one full retry round over app.request", () => {
     expect(events.map((e) => e.role)).toEqual(["human", "human", "human", "human", "gate", "seal", "runner", "judge"]);
     expect(events.slice(0, 3).map((e) => e.action)).toEqual(["seals a bet on calls", "seals a bet on outcome", "seals a bet on calls"]);
     expect(events[3]!.action).toBe(INVESTIGATOR_STUB_ACTION);
-    expect(events[4]!.action).toMatch(/^allowed \(stub/);
+    expect(events[4]!.action).toBe("allowed (src/gate.ts)");
     expect(events[5]!.action).toBe("verifies 3 seals");
     expect(events[6]!.action).toBe("runs withRpcRetry in the sandbox (S3)");
     expect(events[7]!.action).toBe("judges 3 bets: 2 matched, 1 didn't match");

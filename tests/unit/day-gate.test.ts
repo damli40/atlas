@@ -70,20 +70,38 @@ describe("D01-08 HTTP refusals", () => {
     }
   });
 
-  it("POST /runs: unknown target, misspelt or out-of-bounds params → 400", async () => {
+  it("POST /runs: unknown target or wrong runner → 400", async () => {
     const request = requester();
     const target = (await (await post(request, "/targets", { kind: "ts-fixture", ref: "tests/fixtures/with-rpc-retry.ts" })).json()) as Target;
-    const cases = [
-      exp({ ...target, codeSha256: "0".repeat(64) }),
-      exp(target, { shape: "retry-scenario", failtimes: 0, failure: "error" }),
-      exp(target, { shape: "retry-scenario", failTimes: 0, failure: "error", errorKind: "500" }),
-      exp(target, { shape: "retry-scenario", failTimes: 999, failure: "error" }),
-      { ...exp(target), runner: "evm" },
-    ];
+    const cases = [exp({ ...target, codeSha256: "0".repeat(64) }), { ...exp(target), runner: "evm" }];
     for (const experiment of cases) {
       const res = await post(request, "/runs", { experiment });
       expect(res.status, JSON.stringify(experiment.params)).toBe(400);
     }
+  });
+
+  it("POST /runs: misspelt, out-of-bounds or unknown-shape params → 422 from the gate, returned with its reason, never run", async () => {
+    let execs = 0;
+    const app = createApp({ executor: { kind: "local", exec: async () => { execs++; throw new Error("must not run"); } } });
+    const request: Requester = async (path, init) => app.request(path, init);
+    const target = (await (await post(request, "/targets", { kind: "ts-fixture", ref: "with-rpc-retry.ts" })).json()) as Target;
+    const cases: [unknown, RegExp][] = [
+      [{ shape: "retry-scenario", failtimes: 0, failure: "error" }, /no field "failtimes"/],
+      [{ shape: "retry-scenario", failTimes: 0, failure: "error", errorKind: "500" }, /errorKind must be one of/],
+      [{ shape: "retry-scenario", failTimes: 999, failure: "error" }, /failTimes 999 is outside/],
+      [{ shape: "retry-scenario", failTimes: 0, failure: "error", attempts: 1000 }, /attempts 1000 is outside/],
+      [{ shape: "concurrency-sweep", callers: 5, failTimes: 0, failure: "error" }, /cannot run on this target/],
+      [{ shape: "fetch-url", url: "https://example.com" }, /unknown shape/],
+    ];
+    for (const [params, why] of cases) {
+      const res = await post(request, "/runs", { experiment: exp(target, params) });
+      expect(res.status, JSON.stringify(params)).toBe(422);
+      const body = (await res.json()) as { error: string; experiment: { gate: { allowed: boolean; reason?: string }; params: unknown } };
+      expect(body.experiment.gate.allowed).toBe(false);
+      expect(body.experiment.gate.reason).toMatch(why);
+      expect(body.experiment.params).toEqual(params);
+    }
+    expect(execs).toBe(0);
   });
 
   it("POST /runs: a bet whose seal does not verify → 409, nothing judged, nothing run", async () => {

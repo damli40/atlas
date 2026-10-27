@@ -8,7 +8,7 @@ import type { Bet, Experiment, Run, Verdict } from "../../src/types";
 import type { SessionEmitter } from "./agentlog";
 
 export const INVESTIGATOR_STUB_ACTION = "uses a fixture finding, written by hand (Investigator arrives Oct 30)";
-export const GATE_STUB_ACTION = "allowed (stub: request bounds only, until src/gate.ts)";
+export const GATE_STUB_ACTION = "allowed (src/gate.ts)";
 
 /** What the screen calls the code under test. Today only the TS runner's one export exists. */
 function codeName(exp: Experiment): string {

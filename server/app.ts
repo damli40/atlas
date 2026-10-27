@@ -13,7 +13,8 @@
 // - Only the server's own copy of a target is used (from POST /targets), so the code hash and the
 //   "pre-existing" label come from the server, not from the request.
 // - Runs and targets live in memory only. Nothing is written to proofs/ (that folder is public).
-// - The experiment bounds below stand in for src/gate.ts until that exists.
+// - Every experiment passes src/gate.ts first. A refused experiment is returned (422) with the
+//   gate's reason and is never run.
 
 import { existsSync, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -23,12 +24,14 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { judge } from "../src/judge";
 import { verifySeal } from "../src/seal";
-import type { Bet, Experiment, JsonValue, Run, Target, Verdict } from "../src/types";
+import { gate, type GateContext } from "../src/gate";
+import type { Bet, Experiment, Run, Target, Verdict } from "../src/types";
 import type { Executor } from "../runners/runner";
 import { localExecutor } from "../runners/executor/local";
 import { createAgentLog, sessionEmitter, type AgentLog } from "./log/agentlog";
 import { roundLog } from "./log/round";
 import { BAD_SESSION, registerEventRoutes, sessionIdOf } from "./log/sse";
+import { DEFAULT_WATCH_LIMIT_MS } from "../runners/ts/harness";
 import { control as runTsControl, readFixture, runExperiment } from "../runners/ts/control";
 
 const REPO_ROOT = fileURLToPath(new URL("../", import.meta.url));
@@ -37,30 +40,14 @@ export const PRE_EXISTING_LABEL = { label: "Pre-existing: written before the hac
 
 // ---------- request schemas ----------
 
-const jsonValue: z.ZodType<JsonValue> = z.lazy(() =>
-  z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(jsonValue), z.record(z.string(), jsonValue)]),
-);
-
 const targetBody = z.object({ kind: z.literal("ts-fixture"), ref: z.string().min(1).max(200) });
-
-const retryScenario = z
-  .object({
-    shape: z.literal("retry-scenario"),
-    failTimes: z.union([z.number().int().min(0).max(20), z.literal("always")]),
-    failure: z.enum(["error", "never_settles"]),
-    attempts: z.number().int().min(1).max(20).optional(),
-    delayMs: z.number().int().min(0).max(60_000).optional(),
-    resolveAfterMs: z.number().int().min(0).max(120_000).optional(),
-    errorKind: z.enum(["seeded", "429"]).optional(),
-    resolvesWith: jsonValue.optional(),
-  })
-  .strict(); // a misspelt field is refused, not silently ignored
 
 const experimentBody = z.object({
   id: z.string().min(1).max(64),
   target: z.object({ kind: z.literal("ts-fixture"), ref: z.string().min(1), codeSha256: z.string().regex(/^[0-9a-f]{64}$/) }),
   runner: z.literal("ts"),
-  params: retryScenario,
+  // The params are checked by src/gate.ts below (not here), so a refusal carries the gate's plain reason.
+  params: z.unknown(),
   proposedBy: z.object({ role: z.enum(["claimant", "adversary", "human"]), model: z.string().optional() }),
 });
 
@@ -111,6 +98,9 @@ function listedAsPreExisting(fixturePath: string): boolean {
   // The path must stand alone: not part of a longer path such as "x.ts.bak" (a full stop ending a sentence is fine).
   return new RegExp(`(?<![\\w./-])${escaped}(?![\\w/-]|\\.\\w)`).test(text);
 }
+
+/** What the gate allows on a TS fixture today: only "retry-scenario" has a runner (no concurrency-sweep runner yet). */
+export const TS_GATE_CONTEXT: GateContext = { shapes: ["retry-scenario"], watchLimitMs: DEFAULT_WATCH_LIMIT_MS };
 
 // ---------- the app ----------
 
@@ -181,16 +171,30 @@ export function createApp(opts: { executor?: Executor; agentLog?: AgentLog } = {
     }
 
     const bets = (body.bets ?? []) as Bet[];
+    const log = roundLog(sessionEmitter(agentLog, sessionId));
+    const decision = gate(body.experiment.params, TS_GATE_CONTEXT);
+    if (!decision.allowed) {
+      const refused = {
+        id: body.experiment.id,
+        target,
+        runner: "ts" as const,
+        params: body.experiment.params,
+        proposedBy: body.experiment.proposedBy,
+        gate: { allowed: false as const, reason: decision.reason },
+      };
+      log.humanBets(bets);
+      log.gate(refused as Experiment);
+      return c.json({ error: `gate: rejected (${decision.reason}); nothing ran`, experiment: refused }, 422);
+    }
     const experiment: Experiment = {
       id: body.experiment.id,
       target,
       runner: "ts",
-      params: body.experiment.params,
+      params: decision.params,
       proposedBy: body.experiment.proposedBy,
-      gate: { allowed: true }, // stand-in: the zod bounds above; src/gate.ts replaces this in D02
+      gate: { allowed: true },
     };
     // D02-05: log order human → investigator stand-in → gate → seal → runner → judge.
-    const log = roundLog(sessionEmitter(agentLog, sessionId));
     log.humanBets(bets);
     log.investigatorStub(experiment);
     log.gate(experiment);
