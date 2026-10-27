@@ -19,7 +19,7 @@
 import type { Address, PublicClient } from "viem";
 import { chainlinkTo1e18, toUsd1e18, usdTimesRatio1e18 } from "../../src/units.ts";
 import { BASE_CHAIN_ID, CBETH_FEED, MARKETS, MOONWELL_WETH, MOONWELL_cbETH, RAW_FEED, USD_STABLECOINS } from "./moonwell-base.ts";
-import { redact } from "./anvil.ts";
+import { why } from "./redact.ts";
 import { feedDecimals, getFeed, latestRoundData, localClient, readMarketPrice, type MarketPriceRead } from "./reads.ts";
 
 /** 0.95 and 1.05 USD in USD 1e18: the stablecoin band from PASS-RULE.md. Inclusive at both ends. */
@@ -32,7 +32,7 @@ export const CBETH_REFERENCE_METHOD = (block: number) =>
 const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 
 /** An error's message with the remote RPC URL removed (anvil can echo it in a fork error). */
-export const why = (e: unknown): string => redact(e instanceof Error ? e.message : String(e), process.env.BASE_RPC_URL);
+export { why };
 
 export interface WethControl {
   /** The full price read of the WETH market (feedAddress is getFeed("WETH")). */
@@ -241,18 +241,28 @@ export async function cbEthReference(client: PublicClient, forkBlock: number): P
 export const PRE_EXECUTION_MIN_CBETH_USD1E18 = 10n ** 21n;
 
 /**
- * Guard for Level 2 (plan section 10, item 1): a fork meant to be "one block before the proposal"
+ * Guard for Level 2: a fork meant to be "one block before the proposal"
  * must still have the old cbETH feed and a cbETH price above 1e21 (USD 1e18). Otherwise applying
  * the proposal would be a no-op on already-changed state, and Level 2 would silently read the
  * after-the-fact numbers. Throws "fork is not pre-execution: ..." when either check fails.
  */
 export async function assertPreExecution(fork: { url: string }): Promise<{ cbEthFeed: Address; cbEthPriceUsd1e18: string }> {
   const client = localClient(fork.url);
-  const feed = await getFeed(client, "cbETH");
+  let feed: Address;
+  try {
+    feed = await getFeed(client, "cbETH");
+  } catch (e) {
+    throw new Error(`the pre-execution check could not read getFeed("cbETH"): ${why(e)}`);
+  }
   if (!same(feed, CBETH_FEED.before)) {
     throw new Error(`fork is not pre-execution: getFeed("cbETH") is ${feed}, not the pre-proposal feed ${CBETH_FEED.before}`);
   }
-  const read = await readMarketPrice(client, MOONWELL_cbETH);
+  let read: MarketPriceRead;
+  try {
+    read = await readMarketPrice(client, MOONWELL_cbETH);
+  } catch (e) {
+    throw new Error(`the pre-execution check could not read the cbETH price: ${why(e)}`);
+  }
   const price = toUsd1e18(BigInt(read.rawUnderlyingPrice), read.tokenDecimals);
   if (price <= PRE_EXECUTION_MIN_CBETH_USD1E18) {
     throw new Error(`fork is not pre-execution: cbETH reads ${price} USD 1e18, not above ${PRE_EXECUTION_MIN_CBETH_USD1E18}`);

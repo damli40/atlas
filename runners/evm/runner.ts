@@ -16,6 +16,7 @@ import { nanoid } from "nanoid";
 import type { Change, Experiment, Run, RunResult, Target, TraceEvent } from "../../src/types.ts";
 import type { Runner } from "../runner.ts";
 import { withAnvilFork } from "./anvil.ts";
+import { redactedError, redactRpc, scrubDeep } from "./redact.ts";
 import { cbEthReference, readControl, readNamedMarket, why, type EvmControlRecord } from "./control.ts";
 import { BASE_CHAIN_ID } from "./moonwell-base.ts";
 import { localClient } from "./reads.ts";
@@ -57,13 +58,27 @@ export function evmRunner(options: EvmRunnerOptions = {}): Runner {
   const forkOpts = (forkBlock: number) => ({ forkBlock, ...(options.rpcUrl ? { rpcUrl: options.rpcUrl } : {}) });
   const progress = (step: string) => {
     try {
-      options.onProgress?.(step);
+      options.onProgress?.(redactRpc(step, options.rpcUrl));
     } catch {
       // A progress line that could not be written never stops a run.
     }
   };
 
-  return {
+  /**
+   * S1: everything that leaves the runner is redacted here, in one place: a thrown error becomes a new
+   * Error with the RPC URL, host and key removed, and every string of a finished Run is scrubbed the same way.
+   */
+  const guarded = async (work: () => Promise<Run>): Promise<Run> => {
+    let run: Run;
+    try {
+      run = await work();
+    } catch (e) {
+      throw redactedError(e, options.rpcUrl);
+    }
+    return scrubDeep(run, options.rpcUrl);
+  };
+
+  const runner: Runner = {
     kind: "evm",
 
     async control(target: Target): Promise<Run> {
@@ -161,6 +176,11 @@ export function evmRunner(options: EvmRunnerOptions = {}): Runner {
     async replayWithChange(_run: Run, _change: Change): Promise<Run> {
       throw new Error("replayWithChange is not built yet for the EVM runner (Level 2 / change-and-replay task)");
     },
+  };
+  return {
+    ...runner,
+    control: (target) => guarded(() => runner.control(target)),
+    run: (exp, opts) => guarded(() => runner.run(exp, opts)),
   };
 }
 

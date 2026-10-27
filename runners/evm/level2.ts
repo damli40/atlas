@@ -91,7 +91,12 @@ export async function runLevel2OnFork(client: PublicClient, fork: { url: string 
     applied.flatMap((x) => x.feedSetEvents),
     actions.map((a) => ({ symbol: a.symbol, wrapper: a.wrapper })),
   );
-  const blockAfterApply = Number(await client.getBlockNumber());
+  let blockAfterApply: number;
+  try {
+    blockAfterApply = Number(await client.getBlockNumber());
+  } catch (e) {
+    throw new Error(`the fork's block number after applying could not be read: ${why(e)}`);
+  }
 
   // 5. Post-apply reads, reference, trace.
   progress(`reads ${actions.length} markets after applying`);

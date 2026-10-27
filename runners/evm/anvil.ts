@@ -14,6 +14,7 @@
 
 import { spawn, type ChildProcess } from "node:child_process";
 import { createServer } from "node:net";
+import { redact } from "./redact.ts";
 
 export interface AnvilFork {
   /** http://127.0.0.1:<port>: the only URL reads may use. */
@@ -61,20 +62,7 @@ export function liveAnvilCount(): number {
   return live.size;
 }
 
-/** Replace every occurrence of the secret (and its path part) with "<rpc>". */
-export function redact(text: string, secret: string | undefined): string {
-  if (!secret) return text;
-  let out = text.split(secret).join("<rpc>");
-  try {
-    const u = new URL(secret);
-    const path = u.pathname.replace(/^\/+|\/+$/g, "");
-    if (path.length >= 8) out = out.split(path).join("<rpc>");
-    if (u.host) out = out.split(u.host).join("<rpc-host>");
-  } catch {
-    /* not a URL: the whole value was already replaced */
-  }
-  return out;
-}
+export { redact } from "./redact.ts";
 
 /** Ask the OS for a free TCP port on 127.0.0.1. */
 export function freePort(): Promise<number> {

@@ -20,6 +20,7 @@ import { join } from "node:path";
 import { decodeEventLog, encodeFunctionData, parseAbi, toEventSelector, type Address, type Hex, type PublicClient } from "viem";
 import { CHAINLINK_ORACLE } from "./moonwell-base.ts";
 import { tokenSymbol } from "./reads.ts";
+import { why } from "./redact.ts";
 
 /** The byte-for-byte copies of PR #578's files at its merge commit (checked by D03-04). */
 export const MOONWELL_PR_COPY = join(import.meta.dirname, "..", "..", "contracts", "lib", "moonwell");
@@ -141,7 +142,15 @@ export interface FeedAction extends PlannedFeedAction {
 /** Read each token's symbol() on the fork, as mip-x43.sol does, to complete the actions. */
 export async function resolveSymbols(client: PublicClient, planned: PlannedFeedAction[]): Promise<FeedAction[]> {
   const out: FeedAction[] = [];
-  for (const p of planned) out.push({ ...p, symbol: await tokenSymbol(client, p.token) });
+  for (const p of planned) {
+    let symbol: string;
+    try {
+      symbol = await tokenSymbol(client, p.token);
+    } catch (e) {
+      throw new Error(`symbol() of ${p.token} (${p.config.tokenKey}) could not be read: ${why(e)}`);
+    }
+    out.push({ ...p, symbol });
+  }
   return out;
 }
 
@@ -227,12 +236,12 @@ export async function applyFeedActions(client: PublicClient, admin: Address, act
   try {
     await rpc("anvil_impersonateAccount", [admin]);
   } catch (e) {
-    throw new Error(`anvil_impersonateAccount(${admin}) failed: ${e instanceof Error ? e.message : String(e)}`);
+    throw new Error(`anvil_impersonateAccount(${admin}) failed: ${why(e)}`);
   }
   try {
     await rpc("anvil_setBalance", [admin, "0xde0b6b3a7640000"]);
   } catch (e) {
-    throw new Error(`anvil_setBalance(${admin}, 1 ETH) failed: ${e instanceof Error ? e.message : String(e)}`);
+    throw new Error(`anvil_setBalance(${admin}, 1 ETH) failed: ${why(e)}`);
   }
   const out: AppliedFeedAction[] = [];
   for (const a of actions) {
@@ -241,9 +250,14 @@ export async function applyFeedActions(client: PublicClient, admin: Address, act
     try {
       txHash = (await rpc("eth_sendTransaction", [{ from: admin, to: CHAINLINK_ORACLE, data }])) as Hex;
     } catch (e) {
-      throw new Error(`setFeed("${a.symbol}", ${a.wrapper}) from ${admin} was not accepted: ${e instanceof Error ? e.message : String(e)}`);
+      throw new Error(`setFeed("${a.symbol}", ${a.wrapper}) from ${admin} was not accepted: ${why(e)}`);
     }
-    const receipt = await client.waitForTransactionReceipt({ hash: txHash, pollingInterval: 50, timeout: 60_000 });
+    let receipt: Awaited<ReturnType<PublicClient["waitForTransactionReceipt"]>>;
+    try {
+      receipt = await client.waitForTransactionReceipt({ hash: txHash, pollingInterval: 50, timeout: 60_000 });
+    } catch (e) {
+      throw Object.assign(new Error(`setFeed("${a.symbol}", ${a.wrapper}) sent (tx ${txHash}) but its receipt could not be read: ${why(e)}`), { applied: out });
+    }
     const feedSetEvents = receipt.logs
       .filter((l) => l.address.toLowerCase() === CHAINLINK_ORACLE.toLowerCase() && l.topics[0] === FEED_SET_TOPIC)
       .map((l) => {
@@ -346,7 +360,7 @@ export async function traceUnderlyingPriceSources(client: PublicClient, mToken: 
   try {
     raw = await forkRpc(client)("debug_traceCall", [{ to: CHAINLINK_ORACLE, data }, "latest", { tracer: "callTracer" }]);
   } catch (e) {
-    return { ok: false, reason: `debug_traceCall failed: ${e instanceof Error ? e.message : String(e)}`, rawShape: null, calledAt: "latest" };
+    return { ok: false, reason: `debug_traceCall failed: ${why(e)}`, rawShape: null, calledAt: "latest" };
   }
   return { ...countPriceSources(raw), calledAt: "latest" };
 }

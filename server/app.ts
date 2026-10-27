@@ -84,6 +84,7 @@ import { BAD_SESSION, registerEventRoutes, sessionIdOf } from "./log/sse";
 import { DEFAULT_WATCH_LIMIT_MS } from "../runners/ts/harness";
 import { evmRunner } from "../runners/evm/runner";
 import { falseAlarmFromRun } from "../runners/evm/level2";
+import { redactRpc, scrubDeep } from "../runners/evm/redact";
 import { buildAtlasFile, resultDiff, sameJson, verifyAtlasFile } from "../src/atlasfile";
 import { ASKED_FIELD, createProofStore, EVM_GATE_CONTEXT, evmTargetRefusal, extraCaptionsFor, forkBlockFor, humanFinding, type ProofStore } from "./evm-round";
 import { control as runTsControl, readFixture, runExperiment } from "../runners/ts/control";
@@ -344,7 +345,7 @@ export function createApp(opts: AppOptions = {}) {
       const put = proofStore.put(file, run);
       return { ok: true as const, runId: run.id, captions: file.captions, published: put.published, ...(put.error ? { error: put.error } : {}) };
     } catch (e) {
-      return { ok: false as const, runId: run.id, reason: e instanceof Error ? e.message : String(e) };
+      return { ok: false as const, runId: run.id, reason: redactRpc(e instanceof Error ? e.message : String(e)) };
     }
   };
 
@@ -784,24 +785,26 @@ export function createApp(opts: AppOptions = {}) {
         // D04-04: a fork of Base at the block the shape names (30–90 s). Each step is a runner line on the
         // agent-log SSE, so the page shows progress instead of a blind wait.
         const forkBlock = forkBlockFor(experiment.params);
-        run = await evmRun(experiment, {
+        // S1: whatever the runner returns is scrubbed of the RPC URL again before it is kept, logged or sent.
+        run = scrubDeep(await evmRun(experiment, {
           forkBlock,
           onProgress: (step) => {
             try {
-              log.progress(experiment, step);
+              log.progress(experiment, redactRpc(step));
             } catch {
               // a progress line the log refused never stops the run
             }
           },
-        });
+        }));
       } else {
         const ctl = await getControl(experiment.target);
         run = await runExperiment(experiment, ctl, { executor });
       }
     } catch (e) {
       round.status = "stopped";
-      log.runnerStopped(experiment, (e as Error).message);
-      throw e;
+      const message = redactRpc(e instanceof Error ? e.message : String(e));
+      log.runnerStopped(experiment, message);
+      throw new Error(message);
     }
     keepRun(run);
     log.runner(experiment, run);
@@ -863,7 +866,7 @@ export function createApp(opts: AppOptions = {}) {
     const before = file.runs[0]!;
     let replay: Run;
     if (before.runner === "evm") {
-      replay = await evmRun(exp, { forkBlock: before.forkBlock!, onProgress: () => {} });
+      replay = scrubDeep(await evmRun(exp, { forkBlock: before.forkBlock!, onProgress: () => {} }));
     } else {
       const ctl = await getControl(exp.target);
       replay = await runExperiment(exp, ctl, { executor, ...(before.seed !== undefined ? { seed: before.seed } : {}) });
@@ -885,8 +888,9 @@ export function createApp(opts: AppOptions = {}) {
 
   app.onError((err, c) => {
     // A log line the agent log refused is a bug in Atlas, not in the request: say so plainly (S3).
-    if (err instanceof AgentEventError) return c.json({ error: `the server could not write its log line: ${err.message}` }, 500);
-    return c.json({ error: `the server could not finish the request: ${err.message}` }, 500);
+    // S1: no error body ever carries the RPC URL, its host or its key.
+    if (err instanceof AgentEventError) return c.json({ error: `the server could not write its log line: ${redactRpc(err.message)}` }, 500);
+    return c.json({ error: `the server could not finish the request: ${redactRpc(err.message)}` }, 500);
   });
 
   return app;
