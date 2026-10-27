@@ -83,8 +83,8 @@ type Tok =
 
 /** Keywords after which a "/" starts a regular expression, not a division. */
 const REGEX_AFTER_WORDS = new Set(["return", "typeof", "instanceof", "in", "of", "new", "delete", "void", "throw", "case", "do", "else", "yield", "await", "extends"]);
-const isIdStart = (c: string) => /[A-Za-z_$ -￿]/.test(c);
-const isIdPart = (c: string) => /[\w$ -￿]/.test(c);
+const isIdStart = (c: string) => /[A-Za-z_$\u00A0-\uFFFF]/.test(c);
+const isIdPart = (c: string) => /[\w$\u00A0-\uFFFF]/.test(c);
 
 /** Reasons the tokenizer could not read the text as code (an unclosed string or comment). */
 export interface TokenizeResult {
@@ -161,7 +161,7 @@ function tokenize(src: string): TokenizeResult {
       i++;
       continue;
     }
-    if (c === " " || c === "\t" || c === "\r" || c === "\f" || c === "\v" || c === " " || c === "﻿") {
+    if (c === " " || c === "\t" || c === "\r" || c === "\f" || c === "\v" || c === "\u00A0" || c === "\uFEFF") {
       i++;
       continue;
     }

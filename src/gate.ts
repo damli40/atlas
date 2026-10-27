@@ -415,6 +415,17 @@ export const VIRTUAL_MS_TOLERANCE_PCT = 10;
 
 // ---------- E1: the call-function question text (plain code, from the gate-checked params) ----------
 
+/**
+ * E1 review round 2 (MINOR-3): characters that could hide or reorder what a bettor reads are written as a visible
+ * escape (\u202e), so the bettor sees that something was there. Covered: C0 and C1 controls (newlines included),
+ * bidi embeddings, overrides, isolates and marks (U+200E-200F, U+202A-202E, U+2066-2069, U+061C), zero-width
+ * characters (U+200B-200D, U+2060-2064, U+FEFF) and line/paragraph separators (U+2028-2029).
+ */
+const HIDDEN_CHARS = /[\u0000-\u001F\u007F-\u009F\u061C\u200B-\u200F\u2028-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]/g;
+export function visibleText(s: string): string {
+  return s.replace(HIDDEN_CHARS, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
+}
+
 /** JSON as it appears in a question: compact, and cut at 60 characters with "…" (the full value is in the experiment). */
 function shortJson(v: JsonValue): string {
   const s = canonicalJson(v);
@@ -450,19 +461,19 @@ function standInWords(a: Extract<ArgSpec, { kind: "stand-in" }>): string {
 export function describeCall(params: Extract<ExperimentShape, { shape: "call-function" }>): string {
   const args = params.args.map((a) => (a.kind === "json" ? shortJson(a.value) : a.name)).join(", ");
   const standIns = params.args.filter((a): a is Extract<ArgSpec, { kind: "stand-in" }> => a.kind === "stand-in").map(standInWords);
-  return [`Atlas calls ${params.exportName}(${args}).`, ...standIns].join(" ");
+  return visibleText([`Atlas calls ${params.exportName}(${args}).`, ...standIns].join(" "));
 }
 
 /** The questions about one call-function experiment, every text written here. */
 function callFunctionQuestions(params: Extract<ExperimentShape, { shape: "call-function" }>): Question[] {
   const d = describeCall(params);
-  const fn = params.exportName;
+  const fn = visibleText(params.exportName);
   const out: Question[] = [
     q("outcome", `${d} What does ${fn} do?`, "enum", { options: CALL_OUTCOME_OPTIONS }),
     q("returnedJson", `${d} If ${fn} returns, what value does it return, as JSON?`, "json"),
     q("virtualMs", `${d} How long until ${fn} returns or throws, in ms of Atlas's virtual clock?`, "number", { tolerancePct: VIRTUAL_MS_TOLERANCE_PCT }),
   ];
-  for (const a of params.args) if (a.kind === "stand-in") out.push(q(`${STAND_IN_CALLS_PREFIX}${a.name}`, `${d} How many times does ${fn} call ${a.name}?`, "integer"));
+  for (const a of params.args) if (a.kind === "stand-in") out.push(q(`${STAND_IN_CALLS_PREFIX}${a.name}`, `${d} How many times does ${fn} call ${visibleText(a.name)}?`, "integer"));
   return out;
 }
 

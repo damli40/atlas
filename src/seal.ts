@@ -23,12 +23,65 @@ function isPlainObject(value: object): boolean {
 }
 
 /**
+ * E1 review round 2 (MAJOR-1): how deep JSON may nest (lists and objects inside each other). The same cap as the
+ * call-function harness (runners/ts/call-harness.ts MAX_JSON_DEPTH), so a value Atlas stores can always be written.
+ * Deeper values are refused with a TypeError instead of running JavaScript out of stack.
+ */
+export const MAX_JSON_DEPTH = 100;
+/**
+ * The deepest a BET value may nest: two less than MAX_JSON_DEPTH, because sealing writes the value inside
+ * {answer: {value: ...}}, two levels down.
+ */
+export const MAX_BET_JSON_DEPTH = MAX_JSON_DEPTH - 2;
+
+/**
+ * How deeply `value` nests, counted without recursion (so a hostile value cannot exhaust the stack), and
+ * stopping once it passes `limit` (so a cycle or a huge value cannot run long). Scalars are depth 0, [] is 1.
+ */
+export function jsonDepth(value: unknown, limit = MAX_JSON_DEPTH): number {
+  let deepest = 0;
+  const stack: [unknown, number][] = [[value, 0]];
+  let visits = 0;
+  while (stack.length > 0) {
+    const [v, d] = stack.pop()!;
+    if (v === null || typeof v !== "object") continue;
+    const here = d + 1;
+    if (here > deepest) deepest = here;
+    if (deepest > limit || ++visits > 1_000_000) return limit + 1;
+    const children = Array.isArray(v) ? v : Object.values(v as Record<string, unknown>);
+    for (const c of children) if (c !== null && typeof c === "object") stack.push([c, here]);
+  }
+  return deepest;
+}
+
+/** The longest a json bet's value may be as canonical JSON: the most a run stores for returnedJson (call-harness.ts). */
+export const MAX_BET_JSON_CHARS = 2_048;
+
+/**
+ * E1 review round 2 (MAJOR-1): why a json bet's value cannot be accepted, or null when it can. Checks the depth
+ * first without recursion, then that it is plain JSON, then its size (a longer value can never match a run).
+ */
+export function jsonBetValueProblem(value: unknown): string | null {
+  if (jsonDepth(value, MAX_BET_JSON_DEPTH) > MAX_BET_JSON_DEPTH) return `the value nests deeper than ${MAX_BET_JSON_DEPTH} levels`;
+  let text: string;
+  try {
+    text = canonicalJson(value);
+  } catch (e) {
+    return `the value is not plain JSON (${(e as Error).message.replace(/^canonicalJson: /, "")})`;
+  }
+  if (text.length > MAX_BET_JSON_CHARS) return `the value is ${text.length} characters as JSON; a run stores at most ${MAX_BET_JSON_CHARS}, so it could never match`;
+  return null;
+}
+
+/**
  * JSON with keys sorted (by UTF-16 code unit, recursively) and no whitespace.
  * Throws on undefined, NaN, Infinity, bigint, functions, symbols, non-plain objects
- * (Date, Map, class instances) and cycles, rather than silently dropping or changing them.
+ * (Date, Map, class instances), cycles and (review round 2) nesting deeper than MAX_JSON_DEPTH,
+ * rather than silently dropping or changing them, or overflowing the stack.
  */
 export function canonicalJson(value: unknown): string {
   const seen = new Set<object>();
+  let depth = 0;
   const write = (v: unknown, path: string): string => {
     if (v === null) return "null";
     switch (typeof v) {
@@ -43,6 +96,8 @@ export function canonicalJson(value: unknown): string {
         throw new TypeError(`canonicalJson: ${path} is undefined`);
       case "object": {
         if (seen.has(v)) throw new TypeError(`canonicalJson: ${path} is a cycle`);
+        if (depth >= MAX_JSON_DEPTH) throw new TypeError(`canonicalJson: the value nests deeper than ${MAX_JSON_DEPTH} levels`);
+        depth++;
         seen.add(v);
         let out: string;
         if (Array.isArray(v)) {
@@ -60,6 +115,7 @@ export function canonicalJson(value: unknown): string {
           throw new TypeError(`canonicalJson: ${path} is not a plain object or array`);
         }
         seen.delete(v);
+        depth--;
         return out;
       }
       default:

@@ -756,7 +756,7 @@ function canonical(v: unknown, depth: number, seen: Set<object>, budget: { left:
       throw new NotJson("symbol", "it is a symbol, which JSON cannot hold");
   }
   const o = v as object;
-  if (depth > MAX_JSON_DEPTH) throw new NotJson(typeOf(o), `it is nested deeper than ${MAX_JSON_DEPTH} levels`);
+  if (depth >= MAX_JSON_DEPTH) throw new NotJson(typeOf(o), `it is nested deeper than ${MAX_JSON_DEPTH} levels`); // same cap as src/seal.ts canonicalJson
   if (isProxy(o)) throw new NotJson("object (Proxy)", "it is a Proxy, whose contents Atlas does not read");
   if (seen.has(o)) throw new NotJson(typeOf(o), "it contains a cycle (an object inside itself)");
   seen.add(o);

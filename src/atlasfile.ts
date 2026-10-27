@@ -27,7 +27,7 @@ import { join } from "node:path";
 import { FORK_BLOCK, PR578_CODE_SHA256 } from "../runners/evm/moonwell-base";
 import { evaluateReplayRule, falseAlarmFromRun } from "./falsealarm";
 import { chainlinkTo1e18, usdTimesRatio1e18 } from "./units";
-import { canonicalJson, sha256Hex, verifySeal } from "./seal";
+import { canonicalJson, jsonDepth, sha256Hex, verifySeal } from "./seal";
 import { applyFileDiff, parseUnifiedDiff, type DiffFile } from "./diff";
 import { CHANGE_CAPTION, theoryCaptions, towardFromBets } from "./change";
 import { planChangedConfig } from "../runners/change";
@@ -521,8 +521,25 @@ function isLevel2(file: Pick<AtlasFile, "experiments" | "runs">): Run | undefine
 
 export type Verification = { ok: true; file: AtlasFile } | { ok: false; problems: string[] };
 
-/** Parse with zod, then check every cross-reference by plain code. Never throws. */
+/** How deep a proof file may nest. Real files nest about 10 levels; a json bet value at most MAX_BET_JSON_DEPTH more. */
+export const MAX_FILE_DEPTH = 200;
+
+/**
+ * Parse with zod, then check every cross-reference by plain code. Never throws (E1 review round 2, MAJOR-2): a
+ * hostile file nested thousands of levels deep is refused before zod walks it, and any other unexpected throw
+ * becomes { ok: false } with the reason. Verify RE-JUDGES the stored run with plain code; it does not re-run it.
+ */
 export function verifyAtlasFile(raw: unknown): Verification {
+  try {
+    if (jsonDepth(raw, MAX_FILE_DEPTH) > MAX_FILE_DEPTH) return { ok: false, problems: [`the file nests deeper than ${MAX_FILE_DEPTH} levels, so Atlas does not read it`] };
+    return verifyAtlasFileChecked(raw);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { ok: false, problems: [`the file could not be checked: ${msg.length > 200 ? `${msg.slice(0, 199)}…` : msg}`] };
+  }
+}
+
+function verifyAtlasFileChecked(raw: unknown): Verification {
   const parsed = atlasFileSchema.safeParse(raw);
   if (!parsed.success) {
     return { ok: false, problems: parsed.error.issues.slice(0, 10).map((i) => `${i.path.join(".") || "file"}: ${i.message}`) };

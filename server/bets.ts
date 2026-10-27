@@ -26,7 +26,8 @@
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import { extraQuestionsFor, questionsFor, type GateContext, type Question } from "../src/gate";
-import { sealBet } from "../src/seal";
+import { jsonBetValueProblem, sealBet } from "../src/seal";
+import type { JsonValue } from "../src/types";
 import type { Bet, BetAnswer, Experiment, Finding, Run, RunAttempt, Verdict } from "../src/types";
 import type { ClaimantMode } from "../src/claimants";
 import type { ChainFactsResult } from "../src/chain-facts";
@@ -250,6 +251,8 @@ const humanAnswer = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("number"), value: z.number(), unit: z.string().optional(), tolerancePct: z.number().optional() }).strict(),
   z.object({ kind: z.literal("enum"), value: z.string(), options: z.array(z.string()).optional() }).strict(),
   z.object({ kind: z.literal("declined"), reason: z.string().trim().min(1).max(300).regex(/\w/, "a declined bet needs a reason in words") }).strict(),
+  // E1: a json bet (returnedJson). The value is checked by plain code in checkAnswer (depth first, without recursion).
+  z.object({ kind: z.literal("json"), value: z.unknown() }).strict(),
 ]);
 
 /** What the browser sends for ONE bet. The server fills question, options, unit and tolerance from the question itself. */
@@ -305,6 +308,12 @@ export function checkAnswer(question: Question, answer: HumanBetBody["answer"]):
       const tolerancePct = question.tolerancePct ?? 0;
       if (answer.tolerancePct !== undefined && answer.tolerancePct !== tolerancePct) return bad(`"${question.measures}" uses a ${tolerancePct}% tolerance; the bet said ${answer.tolerancePct}%`);
       return { ok: true, answer: { kind: "number", value: answer.value, tolerancePct, unit: question.unit } };
+    }
+    case "json": {
+      // E1 review round 2 (MAJOR-1): a hostile value (nested thousands deep) is refused here, never crashes sealing.
+      const why = jsonBetValueProblem(answer.value);
+      if (why) return bad(`"${question.measures}" needs a JSON value Atlas can compare: ${why}`);
+      return { ok: true, answer: { kind: "json", value: answer.value as JsonValue } };
     }
   }
 }
