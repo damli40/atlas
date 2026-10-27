@@ -15,9 +15,10 @@
 // updates. Only the oracle-feed actions.
 
 import type { Address, PublicClient } from "viem";
+import type { Run } from "../../src/types.ts";
 import { usdTimesRatio1e18 } from "../../src/units.ts";
 import { CONTROL_FAILED_NOTE, withinPct, diffPpm, differsByMoreThan, FALSE_ALARM_PCT, FLAG_PCT, ppmToPct, type FalseAlarmRow } from "../../src/falsealarm.ts";
-import { applyFeedActions, comparePairs, planFromPrFiles, resolveSymbols, traceUnderlyingPriceSources, type AppliedFeedAction, type FeedAction, type PairComparison, type SourceCount } from "./apply.ts";
+import { applyFeedActions, comparePairs, planFromPrFiles, resolveSymbols, traceUnderlyingPriceSources, type AppliedFeedAction, type FeedAction, type PairComparison, type PlannedFeedAction, type SourceCount } from "./apply.ts";
 import { assertPreExecution, cbEthReference, inStablecoinBand, readControl, why, type EvmControlRecord, type ReferenceResult } from "./control.ts";
 import { MOONWELL_cbETH, TEMPORAL_GOVERNOR, TOUCHED_MARKETS, USD_STABLECOINS } from "./moonwell-base.ts";
 import { readMarketPrice, type MarketPriceRead } from "./reads.ts";
@@ -36,7 +37,10 @@ export interface Level2Record {
   forkBlock: number;
   preExecution: { cbEthFeed: Address; cbEthPriceUsd1e18: string };
   control: EvmControlRecord;
+  /** The actions applied (on a replay: re-derived from the changed config). */
   actions: FeedAction[];
+  /** D06-01 replay only: the markets read before and after (the PR's own 14), when they differ from `actions`. */
+  readMarkets?: FeedAction[];
   pre: Record<string, MarketRead>;
   applied: AppliedFeedAction[];
   /** The FeedSet events the fork itself emitted vs the derived actions (should be equal). */
@@ -65,7 +69,17 @@ async function readOne(client: PublicClient, action: FeedAction): Promise<Market
  * the guard fails, and throws on impersonation or a reverted setFeed (with the step that failed).
  * `markets`: the symbols to report ("touched" = all derived actions); all actions are applied anyway.
  */
-export async function runLevel2OnFork(client: PublicClient, fork: { url: string }, forkBlock: number, progress: (step: string) => void = () => {}): Promise<Level2Record> {
+export interface Level2Options {
+  /**
+   * D06-01 replay: the actions to apply, re-derived from a CHANGED config in a scratch copy
+   * (runners/change.ts). Absent: the actions are derived from the PR copy in contracts/lib/moonwell.
+   * The markets READ are always the PR's own 14 (from the unchanged PR files), so a change that
+   * stops re-wiring a market still has that market read before and after.
+   */
+  replayPlan?: PlannedFeedAction[];
+}
+
+export async function runLevel2OnFork(client: PublicClient, fork: { url: string }, forkBlock: number, progress: (step: string) => void = () => {}, opts: Level2Options = {}): Promise<Level2Record> {
   // 1. Guard first. Nothing is read or changed before it passes.
   progress(`checks the fork at ${forkBlock} is before the proposal ran`);
   const preExecution = await assertPreExecution(fork);
@@ -75,19 +89,22 @@ export async function runLevel2OnFork(client: PublicClient, fork: { url: string 
   const control = await readControl(client, forkBlock);
 
   // Derive the actions from the PR files; symbols are read on this fork, as mip-x43.sol does.
-  const actions = await resolveSymbols(client, planFromPrFiles());
+  const prActions = await resolveSymbols(client, planFromPrFiles());
   // The derived actions must be exactly the 14 markets PASS-RULE.md names (review M5); otherwise the
   // table would silently cover a different set.
-  const derived = [...actions.map((a) => a.symbol)].sort();
+  const derived = [...prActions.map((a) => a.symbol)].sort();
   const named = [...TOUCHED_MARKETS].sort();
   if (derived.length !== named.length || derived.some((s, i) => s !== named[i])) {
     throw new Error(`the actions derived from the PR files (${derived.join(", ")}) are not the ${named.length} markets PASS-RULE.md names (${named.join(", ")})`);
   }
+  // D06-01: on a replay the actions come from the changed config; the markets read stay the PR's 14.
+  const actions = opts.replayPlan ? await resolveSymbols(client, opts.replayPlan) : prActions;
+  const readSet = prActions;
 
   // 3. Pre-apply reads, and the cbETH trace before the change (the old feed, for comparison).
   const pre: Record<string, MarketRead> = {};
-  progress(`reads ${actions.length} markets before applying`);
-  for (const a of actions) pre[a.symbol] = await readOne(client, a);
+  progress(`reads ${readSet.length} markets before applying`);
+  for (const a of readSet) pre[a.symbol] = await readOne(client, a);
   const referencePre = await cbEthReference(client, forkBlock);
   const tracePre = await traceUnderlyingPriceSources(client, MOONWELL_cbETH);
 
@@ -106,9 +123,9 @@ export async function runLevel2OnFork(client: PublicClient, fork: { url: string 
   }
 
   // 5. Post-apply reads, reference, trace.
-  progress(`reads ${actions.length} markets after applying`);
+  progress(`reads ${readSet.length} markets after applying`);
   const post: Record<string, MarketRead> = {};
-  for (const a of actions) post[a.symbol] = await readOne(client, a);
+  for (const a of readSet) post[a.symbol] = await readOne(client, a);
   const postStablecoins = USD_STABLECOINS.map((symbol) => {
     const r = post[symbol];
     return r?.ok
@@ -124,6 +141,7 @@ export async function runLevel2OnFork(client: PublicClient, fork: { url: string 
     preExecution,
     control,
     actions,
+    ...(opts.replayPlan ? { readMarkets: readSet } : {}),
     pre,
     applied,
     forkEventsVsDerived,
@@ -228,7 +246,51 @@ export function evaluatePassRule(rec: Level2Record, table = falseAlarmTable(rec)
   lines.push({
     rule: "3. Replay rule (after a proposed change: cbETH within 2% of reference and 2 sources)",
     outcome: "can't check",
-    detail: "not run here: there is no proposed change yet (change-and-replay is a later task)",
+    detail: "not run here: rule 3 is checked on the replay after a proposed change (evaluateReplayRule, POST /changes)",
+  });
+  return lines;
+}
+
+/** PASS-RULE.md rule 3: the replay's cbETH must be within this many percent of the reference. */
+export const REPLAY_RULE_PCT = 2n;
+/** PASS-RULE.md rule 3: the number of distinct price sources while pricing cbETH on the replay. */
+export const REPLAY_RULE_SOURCES = 2;
+
+/**
+ * PASS-RULE.md rule 3 applied literally to a replay Run, one line per check. Reads only the replay's
+ * measured fields and reference (and the original's fork block). If the replay's control did not
+ * pass, both rule lines are "can't check".
+ */
+export function evaluateReplayRule(replay: Run, original: Pick<Run, "id" | "forkBlock">): PassRuleLine[] {
+  const lines: PassRuleLine[] = [];
+  const same = replay.forkBlock !== undefined && replay.forkBlock === original.forkBlock;
+  lines.push({
+    rule: "Same experiment at the same block (the replay's fork block equals the original run's)",
+    outcome: replay.forkBlock === undefined || original.forkBlock === undefined ? "can't check" : same ? "matched" : "didn't match",
+    detail: `original run ${original.id} forked at ${original.forkBlock ?? "no block"}; the replay forked at ${replay.forkBlock ?? "no block"}`,
+  });
+  const ok = replay.controlPassed === true && same;
+  const gateWhy = replay.controlPassed !== true ? `the replay's control did not pass: ${replay.result.notMeasured.control ?? "no reason given"}` : "the replay was not at the same block";
+  const m = replay.result.measured;
+  const nm = replay.result.notMeasured;
+  const post = m["priceUsd1e18:cbETH"];
+  const ref = replay.result.references?.["refUsd1e18:cbETH"];
+  let within: PassRuleLine;
+  if (!ok) within = { rule: "", outcome: "can't check", detail: gateWhy };
+  else if (typeof post !== "string" || !/^\d+$/.test(post)) within = { rule: "", outcome: "can't check", detail: `cbETH was not measured on the replay: ${nm["priceUsd1e18:cbETH"] ?? "no value"}` };
+  else if (!ref || !/^\d+$/.test(ref.value) || BigInt(ref.value) === 0n) within = { rule: "", outcome: "can't check", detail: `the reference was not measured on the replay: ${nm["refUsd1e18:cbETH"] ?? "no value"}` };
+  else {
+    const p = BigInt(post);
+    const r = BigInt(ref.value);
+    const inside = !differsByMoreThan(p, r, REPLAY_RULE_PCT);
+    within = { rule: "", outcome: inside ? "matched" : "didn't match", detail: `cbETH ${post} vs reference ${ref.value} (USD, 18 decimals): ${ppmToPct(diffPpm(p, r))}; within ${REPLAY_RULE_PCT}% = ${inside}` };
+  }
+  lines.push({ ...within, rule: `3a. Replay rule: cbETH within ${REPLAY_RULE_PCT}% of the reference (raw Chainlink ETH/USD × cbETH/ETH, same block)` });
+  const n = m["priceSources:cbETH"];
+  lines.push({
+    rule: `3b. Replay rule: ${REPLAY_RULE_SOURCES} distinct aggregators' latestRoundData called while pricing cbETH (two feeds multiplied)`,
+    outcome: !ok ? "can't check" : typeof n !== "number" ? "can't check" : n === REPLAY_RULE_SOURCES ? "matched" : "didn't match",
+    detail: !ok ? gateWhy : typeof n === "number" ? `${n} price source(s) counted by the call trace` : `not measured: ${nm["priceSources:cbETH"] ?? "no value"}`,
   });
   return lines;
 }

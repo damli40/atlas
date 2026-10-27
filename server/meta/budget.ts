@@ -34,6 +34,11 @@ export interface ModelBudget {
   startExperiment(sessionId: string): BudgetCheck;
   /** Wraps a chat function: each call is checked and counted, and its reported cost is added. */
   wrap(chat: (args: ChatArgs) => Promise<ChatResult>): (args: ChatArgs) => Promise<ChatResult>;
+  /**
+   * D06-01: the same check and count for a model call that is not a chat() (Muse Code via `muse exec`).
+   * `refused` builds the answer when a limit is reached (the call is then not made).
+   */
+  track<R extends { usage?: { usd: number } }>(call: () => Promise<R>, refused: (reason: string) => R): Promise<R>;
   /** Dollars spent: at start plus since. */
   spentUsd(): number;
   /** Calls made in the last hour. */
@@ -60,6 +65,17 @@ export function createModelBudget(opts: BudgetOptions = {}): ModelBudget {
     return callTimes.length >= callsPerHour ? { ok: false, reason: "call limit reached" } : { ok: true };
   };
 
+  const track: ModelBudget["track"] = async (call, refused) => {
+    const money = spendCheck();
+    if (!money.ok) return refused(money.reason);
+    const calls = callCheck();
+    if (!calls.ok) return refused(calls.reason);
+    callTimes.push(now());
+    const res = await call();
+    if (res.usage && Number.isFinite(res.usage.usd) && res.usage.usd > 0) spent += res.usage.usd;
+    return res;
+  };
+
   return {
     startExperiment(sessionId) {
       const money = spendCheck();
@@ -72,17 +88,9 @@ export function createModelBudget(opts: BudgetOptions = {}): ModelBudget {
       return { ok: true };
     },
     wrap(chat) {
-      return async (args) => {
-        const money = spendCheck();
-        if (!money.ok) return { ok: false, reason: money.reason };
-        const calls = callCheck();
-        if (!calls.ok) return { ok: false, reason: calls.reason };
-        callTimes.push(now());
-        const res = await chat(args);
-        if (res.usage && Number.isFinite(res.usage.usd) && res.usage.usd > 0) spent += res.usage.usd;
-        return res;
-      };
+      return (args) => track(() => chat(args), (reason): ChatResult => ({ ok: false, reason }));
     },
+    track,
     spentUsd: () => spent,
     callsLastHour: () => {
       prune();

@@ -6,8 +6,9 @@ import type { Question } from "../src/gate";
 import type { AtlasFile, Bet, Experiment, Finding, Run, Target, Verdict } from "../src/types";
 import type { FalseAlarmRow } from "../runners/evm/level2";
 import type { ModelSlotView, SealedOnly } from "../server/bets";
+import type { ChangeAnswer } from "../server/changes";
 
-export type { ModelSlotView, SealedOnly, FalseAlarmRow };
+export type { ModelSlotView, SealedOnly, FalseAlarmRow, ChangeAnswer };
 
 /** A pull request target as the server registered it, with its files (D04-04). */
 export type PrTarget = Target & { title: string; files: { path: string; text: string }[] };
@@ -154,6 +155,8 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
     modelBets: (experimentId: string) =>
       post<{ model: ModelSlotView | null }>(`/experiments/${encodeURIComponent(experimentId)}/model-bets`, {}).then((r) => r.model),
     run: (experimentId: string) => post<RunAnswer>("/runs", { experimentId }),
+    /** D06-01: Muse Code proposes a change toward the bets; the same experiment re-runs; the same bets are judged. */
+    change: (runId: string) => post<ChangeAnswer>("/changes", { runId }),
   };
 }
 

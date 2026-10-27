@@ -4,7 +4,7 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   plugins: [react()],
   server: {
-    proxy: { "/api": { target: "http://localhost:8787", rewrite: (p) => p.replace(/^\/api/, "") } },
+    proxy: { "/api": { target: `http://localhost:${process.env.ATLAS_API_PORT ?? 8787}`, rewrite: (p) => p.replace(/^\/api/, "") } },
   },
   test: {
     include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],

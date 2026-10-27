@@ -1,0 +1,118 @@
+{
+  "note": "Usage lines this task added to tests/evidence/usage/usage.jsonl (lines 43-51). Spark and muse-spark-1.3 prices are UNVERIFIED upper bounds ($4 in / $20 out per 1M; cached input counted at full price).",
+  "lines": [
+    {
+      "ts": "2026-10-27T08:52:59.831Z",
+      "role": "claimant",
+      "model": "muse-spark-1.3",
+      "promptTokens": 1463,
+      "completionTokens": 1259,
+      "reasoningTokens": 1082,
+      "usd": 0.031032,
+      "finishReason": "stop",
+      "priceVerified": false
+    },
+    {
+      "ts": "2026-10-27T08:53:51.861Z",
+      "role": "fixer",
+      "model": "muse-spark-1.3-contributor",
+      "via": "muse exec",
+      "promptTokens": 24273,
+      "completionTokens": 4871,
+      "reasoningTokens": 4222,
+      "usd": 0.194512,
+      "finishReason": "completed",
+      "priceVerified": false
+    },
+    {
+      "ts": "2026-10-27T08:54:14.976Z",
+      "role": "fixer",
+      "model": "muse-spark-1.3-contributor",
+      "via": "muse exec",
+      "promptTokens": 24832,
+      "completionTokens": 2292,
+      "reasoningTokens": 1758,
+      "usd": 0.145168,
+      "finishReason": "completed",
+      "priceVerified": false
+    },
+    {
+      "ts": "2026-10-27T08:55:54.929Z",
+      "role": "claimant",
+      "model": "muse-spark-1.3",
+      "promptTokens": 1463,
+      "completionTokens": 755,
+      "reasoningTokens": 568,
+      "usd": 0.020952,
+      "finishReason": "stop",
+      "priceVerified": false
+    },
+    {
+      "ts": "2026-10-27T08:56:07.601Z",
+      "role": "fixer",
+      "model": "muse-spark-1.3",
+      "via": "muse exec",
+      "promptTokens": 24272,
+      "completionTokens": 2512,
+      "reasoningTokens": 1841,
+      "usd": 0.147328,
+      "finishReason": "completed",
+      "priceVerified": false
+    },
+    {
+      "ts": "2026-10-27T08:57:59.329Z",
+      "role": "claimant",
+      "model": "muse-spark-1.3",
+      "promptTokens": 3379,
+      "completionTokens": 327,
+      "reasoningTokens": 243,
+      "usd": 0.020056,
+      "finishReason": "stop",
+      "priceVerified": false
+    },
+    {
+      "ts": "2026-10-27T08:58:10.778Z",
+      "role": "fixer",
+      "model": "muse-spark-1.3",
+      "via": "muse exec",
+      "promptTokens": 100596,
+      "completionTokens": 455,
+      "reasoningTokens": 131,
+      "usd": 0.411484,
+      "finishReason": "failed",
+      "priceVerified": false
+    },
+    {
+      "ts": "2026-10-27T08:58:15.267Z",
+      "role": "fixer",
+      "model": "muse-spark-1.3",
+      "promptTokens": 3139,
+      "completionTokens": 605,
+      "reasoningTokens": 441,
+      "usd": 0.024656,
+      "finishReason": "stop",
+      "priceVerified": false
+    },
+    {
+      "ts": "2026-10-27T08:58:28.379Z",
+      "role": "fixer",
+      "model": "muse-spark-1.3",
+      "promptTokens": 3361,
+      "completionTokens": 2049,
+      "reasoningTokens": 1890,
+      "usd": 0.054424,
+      "finishReason": "stop",
+      "priceVerified": false
+    }
+  ],
+  "totalUsd": 1.049612,
+  "notInUsageLog": [
+    {
+      "what": "one muse exec probe before the Fixer existed (read a 5-byte file), model reported muse-spark-1.3-contributor",
+      "promptTokens": 45534,
+      "completionTokens": 372,
+      "usdUpperBound": 0.189576
+    }
+  ],
+  "totalWithProbeUsd": 1.239188
+}

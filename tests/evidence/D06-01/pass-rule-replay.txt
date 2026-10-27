@@ -1,0 +1,20 @@
+PASS-RULE.md rule 3 (replay rule) on the live Moonwell round, Oct 27 2026
+
+Original run UQQlK8-2S5: fork of Base at 42194662, control passed, cbETH 1122662744874806300 (USD 1e18, about $1.12),
+reference 2206683650838065175827 (about $2,206.68), 1 price source.
+
+Live change: none replayed. Muse Code (muse exec, muse-spark-1.3) stopped at Atlas's 3-step cap with no answer;
+the muse-spark-1.3 chat fallback proposed two config names that chains/8453.json does not hold:
+  try 1: CHAINLINK_cbETH_USD_COMPOSITE_ORACLE  -> no CHAINLINK_cbETH_USD_COMPOSITE_ORACLE_OEV_WRAPPER
+  try 2: CHAINLINK_cbETH_USD                   -> no CHAINLINK_cbETH_USD_OEV_WRAPPER
+Result shown: "Muse Code (fallback muse-spark-1.3): no usable change (...)". Nothing replayed.
+
+So, literally:
+  Same block as the original run ......... can't check (no replay ran)
+  3a. cbETH within 2% of the reference ... can't check (no replay ran)
+  3b. 2 price sources while pricing cbETH  can't check (no replay ran)
+
+Mechanism check, NOT a model's change (test data in tests/unit/fixer.test.ts, needs BASE_RPC_URL; passed in
+test-output-rpc.txt): with the cbETH push in the config commented out, the replay re-derives 13 actions, forks a
+fresh copy at 42194662 (asserted equal to the original), and evaluateReplayRule gives
+matched / matched / matched (same block; cbETH within 2% of the reference; 2 price sources).

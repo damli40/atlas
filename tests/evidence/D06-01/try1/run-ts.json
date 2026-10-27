@@ -1,0 +1,245 @@
+{
+  "run": {
+    "id": "USwe9eYdzg",
+    "experimentId": "7-P3qSqEQW",
+    "runner": "ts",
+    "executor": "local",
+    "codeSha256": "f3d2c59f05151be85d8a950c009e63de8015e638d3af6f2fd1c2a729393ad101",
+    "seed": "p3MxsM0l5r",
+    "startedAt": "2026-10-27T08:52:59.992Z",
+    "finishedAt": "2026-10-27T08:53:00.088Z",
+    "trace": [
+      {
+        "t": 0,
+        "event": "start",
+        "data": {
+          "label": "atlas-read"
+        }
+      },
+      {
+        "t": 0,
+        "event": "call",
+        "data": {
+          "n": 1
+        }
+      },
+      {
+        "t": 0,
+        "event": "no_answer",
+        "data": {
+          "n": 1
+        }
+      },
+      {
+        "t": 0,
+        "event": "pending",
+        "data": {
+          "reason": "unsettled, no timers left, queue drained"
+        }
+      }
+    ],
+    "result": {
+      "measured": {
+        "calls": 1,
+        "waitCount": 0,
+        "waitsMs": "",
+        "logCount": 0,
+        "logAttempts": "",
+        "totalWaitMs": 0,
+        "outcome": "pending"
+      },
+      "notMeasured": {
+        "settledAtMs": "the function never settled: it was still waiting with nothing left that could wake it, so it has no settle time"
+      }
+    },
+    "controlPassed": true,
+    "controlRunId": "LmygT8XkRi"
+  },
+  "verdicts": [
+    {
+      "betId": "mXlzORUadm",
+      "runId": "USwe9eYdzg",
+      "judgedBy": "src/judge.ts",
+      "outcome": "not_matched",
+      "observed": 1
+    },
+    {
+      "betId": "uyb65N_Sab",
+      "runId": "USwe9eYdzg",
+      "judgedBy": "src/judge.ts",
+      "outcome": "not_matched",
+      "observed": 0
+    },
+    {
+      "betId": "Hb7SlXMMMh",
+      "runId": "USwe9eYdzg",
+      "judgedBy": "src/judge.ts",
+      "outcome": "not_matched",
+      "observed": "pending"
+    },
+    {
+      "betId": "f-POt7pHJX",
+      "runId": "USwe9eYdzg",
+      "judgedBy": "src/judge.ts",
+      "outcome": "matched",
+      "observed": 1
+    },
+    {
+      "betId": "SQuFiHtQ0S",
+      "runId": "USwe9eYdzg",
+      "judgedBy": "src/judge.ts",
+      "outcome": "matched",
+      "observed": 0
+    },
+    {
+      "betId": "bQqls6MZpP",
+      "runId": "USwe9eYdzg",
+      "judgedBy": "src/judge.ts",
+      "outcome": "matched",
+      "observed": "pending"
+    }
+  ],
+  "bets": [
+    {
+      "experimentId": "7-P3qSqEQW",
+      "who": "human",
+      "question": "How many times will the function call the RPC?",
+      "measures": "calls",
+      "answer": {
+        "kind": "integer",
+        "value": 5
+      },
+      "id": "mXlzORUadm",
+      "nonce": "b005a43c183d7ed5fb105510380ad3c3",
+      "sealedAt": "2026-10-27T08:52:51.565Z",
+      "sealedHash": "17eedbbca7085057e353fec156b907bc88ccf631d87a22e131a21f2af09ac688"
+    },
+    {
+      "experimentId": "7-P3qSqEQW",
+      "who": "human",
+      "question": "How long will it wait in total, in ms?",
+      "measures": "totalWaitMs",
+      "answer": {
+        "kind": "integer",
+        "value": 12000
+      },
+      "id": "uyb65N_Sab",
+      "nonce": "0522f3d603bcd80fd706e2fe3e1976d3",
+      "sealedAt": "2026-10-27T08:52:51.565Z",
+      "sealedHash": "4ffa2a15287f5705c9a12593e584d277c5cd3eca6b232f7e14b9dcc44b60522e"
+    },
+    {
+      "experimentId": "7-P3qSqEQW",
+      "who": "human",
+      "question": "How will it end: returns, throws, or pending (never settles)?",
+      "measures": "outcome",
+      "answer": {
+        "kind": "enum",
+        "value": "throws",
+        "options": [
+          "returns",
+          "throws",
+          "pending"
+        ]
+      },
+      "id": "Hb7SlXMMMh",
+      "nonce": "411ad85412e977c4098302f46255a381",
+      "sealedAt": "2026-10-27T08:52:51.565Z",
+      "sealedHash": "78f62005751a6b826858200c4f0deb7c56fc8b393923b60e5a4f91f918accd5d"
+    },
+    {
+      "experimentId": "7-P3qSqEQW",
+      "who": "model:muse-spark-1.3",
+      "question": "How many times will the function call the RPC?",
+      "measures": "calls",
+      "answer": {
+        "kind": "integer",
+        "value": 1
+      },
+      "rationale": "First fn() call never settles so await never returns to retry; only one RPC call is made.",
+      "id": "f-POt7pHJX",
+      "nonce": "6ea7e62b1d81c420fa37f76fafeb4c58",
+      "sealedAt": "2026-10-27T08:52:59.834Z",
+      "sealedHash": "3ddc9f5826338f5cc8da48fa8de2d51c65437d676ddcdbab3b1671d515675428"
+    },
+    {
+      "experimentId": "7-P3qSqEQW",
+      "who": "model:muse-spark-1.3",
+      "question": "How long will it wait in total, in ms?",
+      "measures": "totalWaitMs",
+      "answer": {
+        "kind": "integer",
+        "value": 0
+      },
+      "rationale": "Sleep only runs after a caught error, but a never-settling call never throws so no delay elapses.",
+      "id": "SQuFiHtQ0S",
+      "nonce": "d539dc7a40f2ad69cd573d3b90fb308b",
+      "sealedAt": "2026-10-27T08:52:59.834Z",
+      "sealedHash": "ec15e1d77c9b70e6165f86d11db197fa34ffbc3db97d050c765cdb07b2f450bb"
+    },
+    {
+      "experimentId": "7-P3qSqEQW",
+      "who": "model:muse-spark-1.3",
+      "question": "How will it end: returns, throws, or pending (never settles)?",
+      "measures": "outcome",
+      "answer": {
+        "kind": "enum",
+        "value": "pending",
+        "options": [
+          "returns",
+          "throws",
+          "pending"
+        ]
+      },
+      "rationale": "Awaiting a never-settling promise with no timers leaves nothing to wake it, so the run is provably pending.",
+      "id": "bQqls6MZpP",
+      "nonce": "0d8cc04db31c886360082a35a9707551",
+      "sealedAt": "2026-10-27T08:52:59.834Z",
+      "sealedHash": "e3045bc88c237c1ac788197389f8536758ba8a75948266e90a6e9930fc5e8736"
+    }
+  ],
+  "betsFrozenAt": "2026-10-27T08:52:59.898Z",
+  "model": {
+    "model": "muse-spark-1.3",
+    "who": "model:muse-spark-1.3",
+    "display": "Muse Spark 1.3 (muse-spark-1.3)",
+    "status": "sealed",
+    "sealed": [
+      {
+        "id": "f-POt7pHJX",
+        "experimentId": "7-P3qSqEQW",
+        "who": "model:muse-spark-1.3",
+        "question": "How many times will the function call the RPC?",
+        "measures": "calls",
+        "sealedAt": "2026-10-27T08:52:59.834Z",
+        "sealedHash": "3ddc9f5826338f5cc8da48fa8de2d51c65437d676ddcdbab3b1671d515675428"
+      },
+      {
+        "id": "SQuFiHtQ0S",
+        "experimentId": "7-P3qSqEQW",
+        "who": "model:muse-spark-1.3",
+        "question": "How long will it wait in total, in ms?",
+        "measures": "totalWaitMs",
+        "sealedAt": "2026-10-27T08:52:59.834Z",
+        "sealedHash": "ec15e1d77c9b70e6165f86d11db197fa34ffbc3db97d050c765cdb07b2f450bb"
+      },
+      {
+        "id": "bQqls6MZpP",
+        "experimentId": "7-P3qSqEQW",
+        "who": "model:muse-spark-1.3",
+        "question": "How will it end: returns, throws, or pending (never settles)?",
+        "measures": "outcome",
+        "sealedAt": "2026-10-27T08:52:59.834Z",
+        "sealedHash": "e3045bc88c237c1ac788197389f8536758ba8a75948266e90a6e9930fc5e8736"
+      }
+    ]
+  },
+  "proof": {
+    "ok": true,
+    "runId": "USwe9eYdzg",
+    "captions": [
+      "Pre-existing: written before the hackathon (listed in PRE-EXISTING.md)"
+    ],
+    "published": false
+  }
+}

@@ -98,7 +98,9 @@ import { createHourlyLimit, createReplayGate, createRunGate, type ReplayGate } f
 import { clientIpOf, trustProxyFromEnv } from "./client-ip";
 import { buildAtlasFile, resultDiff, sameJson, verifyAtlasFile } from "../src/atlasfile";
 import { ASKED_FIELD, createProofStore, EVM_GATE_CONTEXT, evmTargetRefusal, extraCaptionsFor, forkBlockFor, humanFinding, recordedFindings, type ProofStore } from "./evm-round";
-import { control as runTsControl, readFixture, runExperiment } from "../runners/ts/control";
+import { control as runTsControl, readFixture, runExperiment, tsRunner } from "../runners/ts/control";
+import { changeAndReplay, type ChangeAnswer, type ReplayFn } from "./changes";
+import { MUSE_CODE, type MuseExec } from "./meta/roles/fixer";
 
 const REPO_ROOT = fileURLToPath(new URL("../", import.meta.url));
 const PRE_EXISTING_PATH = resolve(REPO_ROOT, "PRE-EXISTING.md");
@@ -275,7 +277,20 @@ export interface AppOptions {
   trustProxy?: boolean;
   /** S5: model rounds (experiments that ask the model) and investigations one client address may start an hour. */
   perClientModelLimits?: { modelRoundsPerHour?: number; investigationsPerHour?: number };
+  /**
+   * D06-01, POST /changes: the Fixer (Muse Code via `muse exec`, chat fallback). Absent: no model is
+   * asked and the answer says so. `museExec: null` skips Muse Code (chat fallback only).
+   */
+  fixer?: { museExec?: MuseExec | null; chat: (args: ChatArgs) => Promise<ChatResult>; budget?: ModelBudget };
+  /** D06-01: replays a change on the TS runner. Default: tsRunner(executor).replayWithChange. */
+  tsReplay?: ReplayFn;
+  /** D06-01: replays a change on the EVM runner. Default: evmRunner().replayWithChange (spawns anvil; needs BASE_RPC_URL). */
+  evmReplay?: ReplayFn;
 }
+
+/** D06-01: changes one session may ask for (each is up to 4 paid model calls and one replay). */
+export const MAX_CHANGES_PER_SESSION = 3;
+const changeBody = z.object({ runId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/) }).strict();
 
 /** S5: per client address, an hour (env ATLAS_MODEL_ROUNDS_PER_IP_PER_HOUR, ATLAS_INVESTIGATIONS_PER_IP_PER_HOUR). */
 export const DEFAULT_MODEL_ROUNDS_PER_IP_PER_HOUR = 20;
@@ -988,6 +1003,66 @@ export function createApp(opts: AppOptions = {}) {
       // a refused log line never hides the run
     }
     return c.json({ experiment, run, control: { runId: ctl.id, passed: ctl.controlPassed } });
+  });
+
+  // D06-01: Muse Code proposes a change toward what the bettors expected; plain code checks it; the
+  // same experiment re-runs on the changed code (same seed / same fork block); the same bets are judged.
+  const changesByRun = new Map<string, Promise<ChangeAnswer>>();
+  const changesPerSession = new Map<string, number>();
+  const fixerBudget = opts.fixer ? (opts.fixer.budget ?? budget ?? createModelBudget()) : undefined;
+  app.post("/changes", async (c) => {
+    const sessionId = sessionIdOf(c);
+    if (sessionId === null) return c.json({ error: BAD_SESSION }, 400);
+    const raw = await readJson(c.req.raw);
+    if (!raw.ok) return c.json({ error: "the request body is not JSON" }, 400);
+    const parsed = changeBody.safeParse(raw.body);
+    if (!parsed.success) return c.json({ error: plainReason(parsed.error) }, 400);
+    const runId = parsed.data.runId;
+    const round = [...(betStore.peek(sessionId)?.values() ?? [])].find((r) => r.run?.id === runId);
+    if (!round || round.status !== "done" || !round.run) return c.json({ error: `this session has no finished run ${runId}` }, 404);
+    // One change per run: asking again returns the same answer (no new model call, no new replay).
+    const known = changesByRun.get(runId);
+    if (known) return c.json(await known);
+    if (!opts.fixer || !fixerBudget) {
+      return c.json({ ok: false, runId, reason: `${MUSE_CODE}: not asked (this server asks no Meta model for changes)`, fixer: null, toward: null } satisfies ChangeAnswer);
+    }
+    const used = changesPerSession.get(sessionId) ?? 0;
+    if (used >= MAX_CHANGES_PER_SESSION) return c.json({ ok: false, runId, reason: `${MUSE_CODE}: not asked (call limit reached: this session already asked for ${MAX_CHANGES_PER_SESSION} changes)`, fixer: null, toward: null } satisfies ChangeAnswer);
+    const byIp = modelRoundsByIp.take(clientOf(c));
+    if (!byIp.ok) return c.json({ ok: false, runId, reason: `${MUSE_CODE}: not asked (${byIp.reason})`, fixer: null, toward: null } satisfies ChangeAnswer);
+    let slot: { release: () => void } | undefined;
+    if (round.experiment.runner === "evm") {
+      // The replay forks Base (paid RPC reads): it takes a run slot like POST /runs.
+      const s = runGate.take(sessionId, clientOf(c));
+      if (!s.ok) return c.json({ error: `change not started: ${s.reason}` }, 429);
+      slot = s;
+    }
+    changesPerSession.set(sessionId, used + 1);
+    const emitter = sessionEmitter(agentLog, sessionId);
+    const exp = round.experiment;
+    const names = round.model && round.model.status !== "off" ? { [round.model.who]: round.model.display } : {};
+    const work = changeAndReplay(round, {
+      fixer: { chat: opts.fixer.chat, ...(opts.fixer.museExec !== undefined ? { museExec: opts.fixer.museExec } : {}), guard: fixerBudget.track },
+      tsReplay: opts.tsReplay ?? ((run, change, ctx) => tsRunner(executor).replayWithChange(run, change, ctx)),
+      evmReplay: opts.evmReplay ?? ((run, change, ctx) => evmRunner({ onProgress: ctx.onProgress }).replayWithChange(run, change, ctx)),
+      log: emitter,
+      names,
+    }).then(
+      (a) => scrubDeep(a) as ChangeAnswer, // S1: no RPC URL in any answer
+      (e: unknown) => {
+        const message = redactRpc(e instanceof Error ? e.message : String(e));
+        roundLog(emitter).runnerStopped(exp, message);
+        return { ok: false as const, runId, reason: `the replay could not finish: ${message}`, fixer: null, toward: null };
+      },
+    );
+    changesByRun.set(runId, work);
+    try {
+      const answer = await work;
+      if (answer.ok) keepRun(answer.replay);
+      return c.json(answer);
+    } finally {
+      slot?.release();
+    }
   });
 
   // D04-04: the round's .atlas.json, as kept (memory) or published (disk).

@@ -26,6 +26,17 @@ export interface Runner {
   /** Must pass before any verdict on this runner counts. Returns the control run. */
   control(target: Target): Promise<Run>;
   run(exp: Experiment, opts: { seed?: string; forkBlock?: number; replayOf?: Run["replayOf"] }): Promise<Run>;
-  /** Apply a Change in a scratch copy and run the SAME experiment with the SAME seed/forkBlock. */
-  replayWithChange(run: Run, change: Change): Promise<Run>;
+  /**
+   * Apply a Change in a scratch copy and run the SAME experiment with the SAME seed/forkBlock.
+   * Changed D06-01 (noted in tests/evidence/D06-01/README.md): a Run names its experiment only by
+   * id, so the caller passes the experiment itself in `ctx`. The runner asserts it is the run's.
+   */
+  replayWithChange(run: Run, change: Change, ctx: ReplayContext): Promise<Run>;
+}
+
+export interface ReplayContext {
+  /** The experiment `run` ran (run.experimentId must equal experiment.id). */
+  experiment: Experiment;
+  /** One short present-tense line per step (the server streams them to the agent log). */
+  onProgress?: (step: string) => void;
 }

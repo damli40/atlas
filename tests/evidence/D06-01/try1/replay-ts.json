@@ -1,0 +1,44 @@
+{
+  "ok": false,
+  "runId": "USwe9eYdzg",
+  "reason": "Muse Code: no usable change (the diff ends inside a hunk of tests/fixtures/with-rpc-retry.ts (it promised more lines))",
+  "fixer": {
+    "path": "muse-exec",
+    "model": "muse-spark-1.3-contributor",
+    "attempts": [
+      {
+        "attempt": 1,
+        "path": "muse-exec",
+        "model": "muse-spark-1.3-contributor",
+        "ok": false,
+        "reason": "the diff ends inside a hunk of tests/fixtures/with-rpc-retry.ts (it promised more lines)",
+        "usage": {
+          "promptTokens": 24273,
+          "completionTokens": 4871,
+          "reasoningTokens": 4222,
+          "usd": 0.194512
+        }
+      },
+      {
+        "attempt": 2,
+        "path": "muse-exec",
+        "model": "muse-spark-1.3-contributor",
+        "ok": false,
+        "reason": "the diff ends inside a hunk of tests/fixtures/with-rpc-retry.ts (it promised more lines)",
+        "usage": {
+          "promptTokens": 24832,
+          "completionTokens": 2292,
+          "reasoningTokens": 1758,
+          "usd": 0.145168
+        }
+      }
+    ],
+    "usage": {
+      "promptTokens": 49105,
+      "completionTokens": 7163,
+      "reasoningTokens": 5980,
+      "usd": 0.33968
+    }
+  },
+  "toward": "- The person bet on \"How many times will the function call the RPC?\" (calls): 5. The run measured: 1.\n- The person bet on \"How long will it wait in total, in ms?\" (totalWaitMs): 12000. The run measured: 0.\n- The person bet on \"How will it end: returns, throws, or pending (never settles)?\" (outcome): throws. The run measured: pending."
+}
