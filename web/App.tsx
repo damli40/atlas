@@ -11,7 +11,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Question } from "../src/gate";
 import type { Target } from "../src/types";
-import { createApi, type Api, type ClaimantMode, type HumanAnswer, type RunAnswer, type ShownBet } from "./api";
+import { createApi, didNotFinish, type Api, type ClaimantMode, type HumanAnswer, type RunAnswer, type ShownBet } from "./api";
+import { targetName } from "../src/target-name";
 import { ClaimantToggle, useModelSlots, verdictColumns } from "./screens/Claimant";
 import { DEFAULT_SCENARIO, FIXTURE_REF, SCENARIOS } from "./scenarios";
 import { Bets, TargetCard } from "./screens/Bets";
@@ -117,6 +118,8 @@ function FixtureFlow({ api, onRoundOpen }: { api: Api; onRoundOpen?: (open: bool
   const [busy, setBusy] = useState(false);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Final review S2: the last run attempt stopped before a result ("the run did not finish: …").
+  const [runFailed, setRunFailed] = useState<string | null>(null);
   // M4 (day-7 review): a round is open from its experiment until its run has finished.
   useEffect(() => onRoundOpen?.(experimentId !== null && result === null), [experimentId, result, onRoundOpen]);
 
@@ -186,9 +189,11 @@ function FixtureFlow({ api, onRoundOpen }: { api: Api; onRoundOpen?: (open: bool
       const r = await api.run(experimentId);
       // After the run, the server's slots are the truth (useModelSlots.fromRun explains the rule).
       models.fromRun(r);
+      setRunFailed(null);
       setResult(r);
     } catch (e) {
-      setError((e as Error).message);
+      if (didNotFinish(e)) setRunFailed((e as Error).message);
+      else setError((e as Error).message);
     } finally {
       setRunning(false);
     }
@@ -213,7 +218,7 @@ function FixtureFlow({ api, onRoundOpen }: { api: Api; onRoundOpen?: (open: bool
       {models.slots.map((slot) => (
         <ModelSlotCard key={slot.who} slot={slot} revealed={result ? result.bets.filter((b) => b.who === slot.who) : null} />
       ))}
-      <RunScreen canRun={sealed.length > 0 && !busy && !models.thinking} running={running} result={result} onBreak={breakIt} />
+      <RunScreen canRun={sealed.length > 0 && !busy && !models.thinking} running={running} result={result} onBreak={breakIt} failed={runFailed} {...(target ? { name: targetName(target) } : {})} />
       {result && <VerdictScreen shown={sealed} typed={answers} modelShown={[]} modelName={null} models={verdictColumns(models.slots)} result={result} />}
       {result && <WhyScreen run={result.run} finding={finding} modelTexts={modelTextsOf(result.bets, finding)} />}
       {result?.proof?.ok && <ProofLink runId={result.proof.runId} />}

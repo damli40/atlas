@@ -9,23 +9,44 @@ export interface RunProps {
   running: boolean;
   result: RunAnswer | null;
   onBreak: () => void;
+  /** Final review M6: the code under test, by the target's own name (src/target-name.ts). */
+  name?: string;
+  /** Final review S2: "the run did not finish: <reason>" when the last attempt stopped before a result. */
+  failed?: string | null;
 }
 
-export function RunScreen({ canRun, running, result, onBreak }: RunProps) {
+/**
+ * Final review S2: the run stopped before it measured anything (the machine, not the code). Nothing was
+ * judged; the sealed bets stay frozen; "Try the run again" runs the SAME experiment with the SAME bets.
+ */
+export function RunDidNotFinish({ message, onRetry, disabled }: { message: string; onRetry: () => void; disabled?: boolean }) {
+  return (
+    <div data-testid="run-failed" className="notice" role="alert">
+      <p>{message}</p>
+      <p className="small">Nothing was judged. Your sealed bets stay as they are; the same experiment runs again with them.</p>
+      <button type="button" className="primary" onClick={onRetry} disabled={disabled}>
+        Try the run again
+      </button>
+    </div>
+  );
+}
+
+export function RunScreen({ canRun, running, result, onBreak, name = "the code", failed = null }: RunProps) {
   const m = result?.run.result.measured;
   // B1: a run that may not be shown as fact prints its reason, never its numbers.
   const notShown = result ? notShownAsFact(result.run) : null;
   return (
     <section className="card" aria-label="run">
       <h2>3. Run it</h2>
-      {!result && (
+      {!result && failed === null && (
         <button type="button" className="primary" onClick={onBreak} disabled={!canRun || running}>
           Break it
         </button>
       )}
+      {!result && failed !== null && !running && <RunDidNotFinish message={failed} onRetry={onBreak} disabled={!canRun} />}
       {running && (
         <p className="running" role="status">
-          Running withRpcRetry in the sandbox…
+          Running {name} in the sandbox…
         </p>
       )}
       {result && m && (

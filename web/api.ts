@@ -107,6 +107,9 @@ export class ApiError extends Error {
   }
 }
 
+/** Final review S2: the server's 503 for a run that stopped before a result (the same experiment can run again). */
+export const didNotFinish = (e: unknown): boolean => e instanceof ApiError && e.status === 503 && e.message.startsWith("the run did not finish: ");
+
 /** D07-01: the slots an answer carries: `models` when present, else the single `model`. */
 export const slotsOf = (a: { model?: ModelSlotView | null; models?: ModelSlotView[] }): ModelSlotView[] => (a.models && a.models.length > 0 ? a.models : a.model ? [a.model] : []);
 

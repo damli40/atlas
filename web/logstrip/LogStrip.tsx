@@ -19,7 +19,8 @@ export const ROLE_LABEL: Record<AgentEvent["role"], string> = {
   investigator: "Investigator",
   claimant: "Claimant",
   adversary: "Adversary",
-  fixer: "Fixer",
+  // Final review M12: named by what it does (Muse Code proposes a change; it never "fixes" anything).
+  fixer: "Proposes a change",
   gate: "Gate",
   seal: "Seal check",
   runner: "Runner",

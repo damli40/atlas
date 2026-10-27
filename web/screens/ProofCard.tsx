@@ -15,6 +15,7 @@ import { DiffView } from "./Change";
 import { BettorCounts } from "./Claimant";
 import { bettorNames, changeProposer, orderModelBettors } from "../../src/claimants";
 import { AFTER_LABEL, BEFORE_LABEL, CHANGE_CAPTION, theoryCaptions } from "../../src/change";
+import { targetName } from "../../src/target-name";
 
 /** S6: the pre-existing label, from the file when it carries one. */
 const preExistingLabel = (file: AtlasFile) =>
@@ -100,7 +101,7 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
       <header className="pc-head">
         <div>
           <p className="pc-kicker">Atlas · proof card</p>
-          <h1 className="pc-title">{card.target.kind === "github-pr" ? card.target.ref : "withRpcRetry"}</h1>
+          <h1 className="pc-title">{targetName(card.target)}</h1>
           {card.target.kind === "ts-fixture" && (
             // S6 (day-6 review): mandatory label, this code was written before the hackathon (PRE-EXISTING.md).
             <span className="label" data-testid="pc-pre-existing">
@@ -187,6 +188,25 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
             {card.controlPassed ? "passed: " : ""}
             {card.controls.join("; ")}
           </dd>
+          {card.warning && (
+            <>
+              <dt>fork events</dt>
+              <dd className="notice" data-testid="pc-fork-events-warning">
+                {card.warning}
+              </dd>
+            </>
+          )}
+          {card.attempts.length > 0 && (
+            <>
+              <dt>earlier attempts</dt>
+              <dd data-testid="pc-attempts">
+                {card.attempts.map((a) => (
+                  <div key={a}>{a}</div>
+                ))}
+                <div className="muted">Not verdicts: nothing was judged on them; the same sealed bets ran above.</div>
+              </dd>
+            </>
+          )}
         </dl>
         <ul className="pc-captions" data-testid="pc-captions" aria-label="captions">
           {card.captions.map((c) => (

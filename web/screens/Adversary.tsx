@@ -69,8 +69,9 @@ export function AdversaryResult({ answer, format = asStored }: { answer: Adversa
             <>
               <dt>read with this run</dt>
               <dd data-testid="adversary-level-caption">
+                {/* Final review M2: no fork block in the run → no block number shown (never "block 0"). */}
                 {moonwellLevelOf(adv.proposed.params.shape) === "level1"
-                  ? `${level1Caption(run.forkBlock ?? 0)}. ${MOONWELL_LEVEL_SAYS.level1} So this read is after the proposal ran, not before it shipped.`
+                  ? `${run.forkBlock !== undefined ? `${level1Caption(run.forkBlock)}. ` : ""}${MOONWELL_LEVEL_SAYS.level1} So this read is after the proposal ran, not before it shipped.`
                   : `${LEVEL2_CAPTION}. ${MOONWELL_LEVEL_SAYS.level2}`}
               </dd>
             </>
@@ -79,7 +80,7 @@ export function AdversaryResult({ answer, format = asStored }: { answer: Adversa
             <>
               <dt>run</dt>
               <dd>
-                {run.id} · {run.runner === "evm" ? `fork of Base at block ${run.forkBlock}` : `sandbox, seed ${run.seed ?? "-"}`} · known-case check {run.controlPassed ? "passed" : "did not pass, so every verdict is can't check"}
+                {run.id} · {run.runner === "evm" ? (run.forkBlock !== undefined ? `fork of Base at block ${run.forkBlock}` : "fork of Base") : `sandbox, seed ${run.seed ?? "-"}`} · known-case check {run.controlPassed ? "passed" : "did not pass, so every verdict is can't check"}
               </dd>
             </>
           )}

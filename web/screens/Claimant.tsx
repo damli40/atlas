@@ -76,11 +76,24 @@ export function useModelSlots(api: Api) {
 /** The heading a model column carries, or null when the model was not asked. */
 export const shownName = (s: ModelSlotView) => (s.status !== "off" ? s.display : null);
 
+/**
+ * Final review S1: the short status a model column shows INSTEAD of counts when it sealed nothing: "network
+ * error" when the call or the page's request never got through, else "no usable answer". Never a number.
+ */
+export function slotStatusWord(reason: string | undefined): string {
+  return reason && /could not reach the server|network error|timed out|fetch failed/i.test(reason) ? "network error" : "no usable answer";
+}
+
 /** The Verdict screen's model columns, from the page's slots. */
 export const verdictColumns = (slots: ModelSlotView[]) =>
   slots
     .filter((s) => s.status !== "off")
-    .map((s) => ({ who: s.who, name: s.display, shown: s.sealed, ...(s.status === "no_usable_answer" ? { empty: `no usable answer (${s.reason ?? "no reason given"})` } : {}) }));
+    .map((s) => ({
+      who: s.who,
+      name: s.display,
+      shown: s.sealed,
+      ...(s.status === "no_usable_answer" ? { empty: `no usable answer (${s.reason ?? "no reason given"})`, status: slotStatusWord(s.reason) } : {}),
+    }));
 
 const SAY: Record<Outcome, string> = { matched: "matched", not_matched: "didn't match", cant_check: "can't check" };
 const ORDER: Outcome[] = ["matched", "not_matched", "cant_check"];

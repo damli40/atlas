@@ -109,6 +109,8 @@ export interface ModelColumn {
   name: string;
   shown: ShownBefore[];
   empty?: string;
+  /** Final review S1: the short status shown instead of counts when this bettor sealed nothing ("no usable answer", "network error"). */
+  status?: string;
 }
 
 /** The legacy single-model props as columns: the named model, plus any judged model the page did not name. */
@@ -134,13 +136,18 @@ export function VerdictScreen({ shown, typed, modelShown, modelName, modelEmpty,
   const measures = [...new Set([...shown.map((b) => b.measures), ...judgedYou.map((b) => b.measures), ...shownBefore.map((b) => b.measures), ...judgedModel.map((b) => b.measures)])];
   const label = (who: string) => (who === "human" ? "You" : (cols.find((c) => c.who === who)?.name ?? who));
   const names = Object.fromEntries(cols.filter((c) => c.who !== "").map((c) => [c.who, c.name]));
+  // Final review S1: a bettor with no judged bet shows its plain status, never "0 matched · 0 · 0 · bets placed 0"
+  // (as the proof card does): its own word, else "not asked" for a column that was named but sealed nothing.
+  const unseated = Object.fromEntries(
+    cols.filter((c) => c.who !== "" && !judgedModel.some((b) => b.who === c.who)).map((c) => [c.who, c.status ?? (c.empty !== undefined ? "no usable answer" : "not asked")]),
+  );
   // D04-04: a reference column when the runner computed one (EVM: the raw-Chainlink price, same block).
   const showReference = result.verdicts.some((v) => v.reference !== undefined);
   return (
     <section className="card" aria-label="verdicts">
       <h2>4. Whose bet matched</h2>
       <Scoreboard verdicts={result.verdicts} bets={result.bets} names={names} />
-      {cols.length > 1 && <BettorCounts verdicts={result.verdicts} bets={result.bets} names={names} columns={cols.map((c) => c.who)} />}
+      {cols.length > 1 && <BettorCounts verdicts={result.verdicts} bets={result.bets} names={names} columns={cols.map((c) => c.who)} unseated={unseated} />}
       <table className="verdicts">
         <thead>
           <tr>

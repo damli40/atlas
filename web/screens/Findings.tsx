@@ -10,6 +10,7 @@ import { useState } from "react";
 import type { Finding, Target } from "../../src/types";
 import type { Api, InvestigateAnswer, PrTarget } from "../api";
 import { fileLines } from "../../src/words";
+import { costText, priceConfirmed } from "../../src/cost";
 
 const MODEL_NAME: Record<string, string> = { "muse-wonder-1.0": "Muse Wonder 1.0 (muse-wonder-1.0)", "muse-spark-1.3": "Muse Spark 1.3 (muse-spark-1.3)" };
 const modelName = (m: string) => MODEL_NAME[m] ?? m;
@@ -70,7 +71,8 @@ export function FindingsPanel({ api, target, chosen, onChoose, locked, allowPick
           <p className="muted small">
             Found by {modelName(answer.model)}
             {answer.fellBack ? " (fallback model)" : ""}. Each place was checked by plain code against the file Atlas read.
-            {answer.usage ? ` Cost $${answer.usage.usd.toFixed(4)}.` : ""}
+            {/* Final review S7: a price Atlas has not confirmed (Muse Spark, used as the fallback) makes the figure an upper bound. */}
+            {answer.usage ? ` Cost ${costText(answer.usage.usd, priceConfirmed(answer.model) && !answer.fellBack)}.` : ""}
           </p>
           <ul className="findings" data-testid="findings-list">
             {answer.findings.map((f) => (

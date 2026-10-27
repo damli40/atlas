@@ -91,6 +91,12 @@ export function ChangeResult({ answer, format = asStored }: { answer: ChangeAnsw
         {answer.diff && (
           <>
             <h3>The change plain code accepted (it did not replay)</h3>
+            {theoryCaptions(answer.change).map((t) => (
+              // Final review M1: a theoretical-direct-wire change carries its D20 caption even when it did not replay.
+              <p key={t} className="caption label theory" data-testid="change-theory">
+                {t}
+              </p>
+            ))}
             <DiffView diff={answer.diff} />
           </>
         )}

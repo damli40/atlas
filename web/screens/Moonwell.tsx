@@ -11,7 +11,9 @@ import type { Question } from "../../src/gate";
 import type { Finding } from "../../src/types";
 import { formatUsd1e18 } from "../../src/units";
 import { rowWords, tableCounts } from "../../src/falsealarm";
-import type { Api, FalseAlarmRow, PrTarget, RunAnswer, ShownBet } from "../api";
+import { didNotFinish, type Api, type FalseAlarmRow, type PrTarget, type RunAnswer, type ShownBet } from "../api";
+import { appliedFeedActions, forkEventsWarning, level2Header } from "../../src/captions";
+import { RunDidNotFinish } from "./Run";
 import { useModelSlots, verdictColumns } from "./Claimant";
 import { useRunnerProgress } from "../progress";
 import { ShortHash } from "./Bets";
@@ -68,6 +70,8 @@ export function MoonwellFlow({ api, onRoundOpen }: { api: Api; onRoundOpen?: (op
   const [busy, setBusy] = useState(false);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Final review S2: the last run attempt stopped before a result ("the run did not finish: …").
+  const [runFailed, setRunFailed] = useState<string | null>(null);
   const progress = useRunnerProgress(api.session(), experimentId, running);
   // M4 (day-7 review): a round is open from its experiment until its run has finished (the claimant toggle is locked).
   useEffect(() => onRoundOpen?.(experimentId !== null && result === null), [experimentId, result, onRoundOpen]);
@@ -117,9 +121,11 @@ export function MoonwellFlow({ api, onRoundOpen }: { api: Api; onRoundOpen?: (op
     try {
       const r = await api.run(experimentId);
       models.fromRun(r);
+      setRunFailed(null);
       setResult(r);
     } catch (e) {
-      setError((e as Error).message);
+      if (didNotFinish(e)) setRunFailed((e as Error).message);
+      else setError((e as Error).message);
     } finally {
       setRunning(false);
     }
@@ -214,11 +220,12 @@ export function MoonwellFlow({ api, onRoundOpen }: { api: Api; onRoundOpen?: (op
       {sealed.length > 0 && (
         <section className="card" aria-label="run">
           <h2>Run it</h2>
-          {!result && (
+          {!result && runFailed === null && (
             <button type="button" className="primary" onClick={run} disabled={running || busy || models.thinking}>
               Run it on a fork of Base
             </button>
           )}
+          {!result && runFailed !== null && !running && <RunDidNotFinish message={runFailed} onRetry={run} disabled={busy || models.thinking} />}
           {running && (
             <div role="status" data-testid="run-progress">
               <p className="running">Running on a fork of Base. This takes 30–90 seconds.</p>
@@ -235,6 +242,22 @@ export function MoonwellFlow({ api, onRoundOpen }: { api: Api; onRoundOpen?: (op
               <dd>
                 {result.run.id} · fork of Base at block {result.run.forkBlock} · chain {result.run.chainId}
               </dd>
+              {level === "level2" && (
+                <>
+                  <dt>what ran</dt>
+                  {/* Final review S5: what Level 2 applied, and nothing more. */}
+                  <dd data-testid="run-level">{level2Header(appliedFeedActions(result.run))}</dd>
+                </>
+              )}
+              {forkEventsWarning(result.run) && (
+                <>
+                  <dt>fork events</dt>
+                  {/* Final review M5 */}
+                  <dd className="notice" data-testid="run-fork-events-warning">
+                    {forkEventsWarning(result.run)}
+                  </dd>
+                </>
+              )}
               <dt>known-case check first</dt>
               <dd>{result.run.controlPassed ? "passed (WETH exact, USD stablecoins about $1)" : "did not pass, so every verdict is can't check"}</dd>
               <dt>cbETH, read</dt>

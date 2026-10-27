@@ -12,6 +12,7 @@ import { notShownAsFact } from "../../src/trust";
 import type { AtlasFile, Bet, BettorSlot, Outcome, Run } from "../../src/types";
 import { AUTONOMOUS_PERSON_REASON, orderModelBettors } from "../../src/claimants";
 import { formatUsd1e18 } from "../../src/units";
+import { appliedFeedActions, forkEventsWarning, level2Header } from "../../src/captions";
 
 export const SAY: Record<Outcome, string> = { matched: "matched", not_matched: "didn't match", cant_check: "can't check" };
 
@@ -38,6 +39,10 @@ export interface ProofCardModel {
   where: string;
   /** Level 2 / Level 1 for a Moonwell round, from the experiment's shape; absent otherwise. */
   level?: string;
+  /** Final review M5: a plain warning when the fork's FeedSet events differ from the derived actions. */
+  warning?: string;
+  /** Final review S2: earlier attempts of this experiment that did not finish (never verdicts). */
+  attempts: string[];
   controlPassed: boolean;
   /** Plain lines about the known-case check, read from the run. */
   controls: string[];
@@ -127,7 +132,10 @@ export function proofCardModel(file: AtlasFile): ProofCardModel {
     createdAt: file.createdAt,
     target: { kind: file.target.kind, ref: file.target.ref, codeSha256: file.target.codeSha256, ...(file.target.commit ? { commit: file.target.commit } : {}) },
     where,
-    ...(level ? { level: level === "level2" ? "Level 2: fork one block before the proposal ran, proposal applied" : "Level 1: re-run after the fact" } : {}),
+    // Final review S5: the Level 2 header says what was applied (the proposal's oracle-feed actions only).
+    ...(level ? { level: level === "level2" ? level2Header(appliedFeedActions(run)) : "Level 1: re-run after the fact" } : {}),
+    ...(run.runner === "evm" && forkEventsWarning(run) ? { warning: forkEventsWarning(run)! } : {}),
+    attempts: (file.attempts ?? []).map((a) => `attempt ${a.attempt} did not finish (${a.stoppedAt}): ${a.reason}`),
     controlPassed: run.controlPassed === true,
     controls: controlLines(run),
     notShownAsFact: notShownAsFact(run),
