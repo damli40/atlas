@@ -26,6 +26,8 @@ export interface EvmRunnerOptions {
   controlForkBlock?: number;
   /** Defaults to process.env.BASE_RPC_URL (read by anvil.ts, never logged). */
   rpcUrl?: string;
+  /** Called with one short present-tense line per step of a run (the server streams them to the agent log). */
+  onProgress?: (step: string) => void;
 }
 
 function requireForkBlock(forkBlock: number | undefined, where: string): number {
@@ -53,6 +55,13 @@ function controlRun(target: Target, ctl: EvmControlRecord, startedAt: string): R
 
 export function evmRunner(options: EvmRunnerOptions = {}): Runner {
   const forkOpts = (forkBlock: number) => ({ forkBlock, ...(options.rpcUrl ? { rpcUrl: options.rpcUrl } : {}) });
+  const progress = (step: string) => {
+    try {
+      options.onProgress?.(step);
+    } catch {
+      // A progress line that could not be written never stops a run.
+    }
+  };
 
   return {
     kind: "evm",
@@ -71,8 +80,9 @@ export function evmRunner(options: EvmRunnerOptions = {}): Runner {
         const forkBlock = requireForkBlock(opts.forkBlock, "evmRunner.run");
         const params = exp.params;
         const startedAt = new Date().toISOString();
+        progress(`forks Base @ ${forkBlock}`);
         return withAnvilFork(forkOpts(forkBlock), async (fork) => {
-          const rec = await runLevel2OnFork(localClient(fork.url), fork, forkBlock);
+          const rec = await runLevel2OnFork(localClient(fork.url), fork, forkBlock, progress);
           return { ...level2Run(exp, rec, params.markets, startedAt), ...(opts.replayOf ? { replayOf: opts.replayOf } : {}) };
         });
       }
@@ -82,9 +92,11 @@ export function evmRunner(options: EvmRunnerOptions = {}): Runner {
       const forkBlock = requireForkBlock(opts.forkBlock, "evmRunner.run");
       const markets = exp.params.markets;
       const startedAt = new Date().toISOString();
+      progress(`forks Base @ ${forkBlock}`);
 
       return withAnvilFork(forkOpts(forkBlock), async (fork) => {
         const client = localClient(fork.url);
+        progress("runs the known-case control (WETH, stablecoins)");
         const trace: TraceEvent[] = [];
         let t = 0;
         const log = (event: string, data?: Record<string, unknown>) => trace.push({ t: t++, event, ...(data ? { data } : {}) });
@@ -98,6 +110,7 @@ export function evmRunner(options: EvmRunnerOptions = {}): Runner {
         const result: RunResult = { measured: {}, notMeasured: {}, references: {} };
         if (!ctl.passed) result.notMeasured.control = ctl.reasons.join("; ");
 
+        progress(`reads ${markets.length} ${markets.length === 1 ? "market" : "markets"}`);
         for (const sym of markets) {
           try {
             const r = await readNamedMarket(client, sym);

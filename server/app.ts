@@ -21,6 +21,19 @@
 //   read at its merge commit, with its title and description. The fixture's finding written by hand
 //   stays as the labelled fallback when no verified finding exists. Limited per session and by the
 //   model budget. The claim sentences are in the answer (model panel) only, never in a log line.
+// - D04-04, the Moonwell pull request on the EVM runner:
+//   POST /targets {kind: "github-pr", ref: "moonwell-fi/moonwell-contracts-v2#578"} reads the PR at its
+//   merge commit (server/targets/github.ts) and accepts it only when its files hash to the copy the
+//   EVM runner applies (server/evm-round.ts); the answer lists the PR's files so a person can pick lines.
+//   POST /investigate {target} works on it too. POST /findings {target, file, lineStart, lineEnd} records
+//   lines a person picked (proposedBy human, no claim). POST /experiments takes an optional findingId.
+//   On the PR, the gate allows apply-proposal-then-read (Level 2, fork 42194662) and price-read
+//   (Level 1, fork 42194663); the round asks the one cbETH question. POST /runs forks Base with anvil
+//   (30–90 s; each step is a runner line on the agent-log SSE), judges, and returns the false-alarm rows.
+// - Every completed round becomes an .atlas.json (src/atlasfile.ts), kept in memory and written to
+//   <proofs dir>/<runId>/.atlas.json + run.json only when the caller turns publishing on
+//   (server/index.ts: ATLAS_PUBLISH_PROOFS=1). GET /proofs/:runId returns it. GET /replay/:runId
+//   re-executes it (TS: same seed; EVM: same fork block) and says whether `measured` is deep-equal.
 // - GET /events/:sessionId (D02-05) → SSE of the session's agent events (server/log/). The session
 //   is the `x-atlas-session` header; the server makes one and returns it when absent. Experiments
 //   and bets belong to the session that made them.
@@ -62,13 +75,17 @@ import { FIXTURE_FILE, FIXTURE_FINDING_LABEL, fixtureContextRange, fixtureFindin
 import { INVESTIGATOR_FALLBACK_MODEL, INVESTIGATOR_MODEL, runInvestigator, type InvestigatorFile } from "./meta/roles/investigator";
 import { fetchGithubPr, type GithubPrTarget } from "./targets/github";
 import { gate, type GateContext } from "../src/gate";
-import type { Experiment, Finding, Run, Target, Verdict } from "../src/types";
+import type { Bet, Experiment, Finding, Run, Target, Verdict } from "../src/types";
 import type { Executor } from "../runners/runner";
 import { localExecutor } from "../runners/executor/local";
-import { AgentEventError, createAgentLog, sessionEmitter, type AgentLog } from "./log/agentlog";
+import { AgentEventError, createAgentLog, oneLine, sessionEmitter, type AgentLog } from "./log/agentlog";
 import { roundLog } from "./log/round";
 import { BAD_SESSION, registerEventRoutes, sessionIdOf } from "./log/sse";
 import { DEFAULT_WATCH_LIMIT_MS } from "../runners/ts/harness";
+import { evmRunner } from "../runners/evm/runner";
+import { falseAlarmFromRun } from "../runners/evm/level2";
+import { buildAtlasFile, resultDiff, sameJson, verifyAtlasFile } from "../src/atlasfile";
+import { ASKED_FIELD, createProofStore, EVM_GATE_CONTEXT, evmTargetRefusal, extraCaptionsFor, forkBlockFor, humanFinding, type ProofStore } from "./evm-round";
 import { control as runTsControl, readFixture, runExperiment } from "../runners/ts/control";
 
 const REPO_ROOT = fileURLToPath(new URL("../", import.meta.url));
@@ -77,13 +94,28 @@ export const PRE_EXISTING_LABEL = { label: "Pre-existing: written before the hac
 
 // ---------- request schemas ----------
 
-const targetBody = z.object({ kind: z.literal("ts-fixture"), ref: z.string().min(1).max(200) });
+const PR_REF = /^[A-Za-z0-9_.-]{1,100}\/[A-Za-z0-9_.-]{1,100}#[1-9]\d{0,6}$/;
+const targetBody = z.union([
+  z.object({ kind: z.literal("ts-fixture"), ref: z.string().min(1).max(200) }),
+  z.object({ kind: z.literal("github-pr"), ref: z.string().regex(PR_REF, "ref must look like owner/repo#123") }),
+]);
+
+const findingBody = z
+  .object({
+    target: z.object({ ref: z.string().min(1).max(200), codeSha256: z.string().regex(/^[0-9a-f]{64}$/) }),
+    file: z.string().min(1).max(300),
+    lineStart: z.number().int(),
+    lineEnd: z.number().int(),
+  })
+  .strict();
 
 const experimentBody = z.object({
   /** Optional: a caller-chosen id (letters, digits, _ or -). The server makes one when absent. */
   id: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/).optional(),
   target: z.object({ ref: z.string().min(1), codeSha256: z.string().regex(/^[0-9a-f]{64}$/) }),
-  runner: z.literal("ts").optional(),
+  runner: z.enum(["ts", "evm"]).optional(),
+  /** D04-04: the finding this round works on (from POST /investigate or POST /findings in this session). */
+  findingId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/).optional(),
   // The params are checked by src/gate.ts below (not here), so a refusal carries the gate's plain reason.
   params: z.unknown(),
   // Human-proposed only, for now (the Claimant's model bets arrive through the server, not this route).
@@ -183,7 +215,15 @@ export interface AppOptions {
   modelBets?: ModelBetsOptions;
   /** Receives a record for every gate refusal and every can't-check verdict (S7). Default: none (nothing is written). */
   refusals?: RefusalWriter;
+  /** Reads a merged PR (POST /targets for github-pr). Default: the investigator's fetchPr, else server/targets/github.ts. */
+  fetchPr?: (pr: { owner: string; repo: string; number: number }) => Promise<GithubPrTarget>;
+  /** Runs an EVM experiment at its fork block. Default: runners/evm/runner.ts (spawns anvil; needs BASE_RPC_URL). Tests pass a stand-in. */
+  evmRun?: (exp: Experiment, opts: { forkBlock: number; onProgress: (step: string) => void }) => Promise<Run>;
+  /** Where .atlas.json files go. Default: memory only (nothing written). */
+  proofs?: ProofStore;
 }
+
+const defaultEvmRun: NonNullable<AppOptions["evmRun"]> = (exp, opts) => evmRunner({ onProgress: opts.onProgress }).run(exp, { forkBlock: opts.forkBlock });
 
 export function createApp(opts: AppOptions = {}) {
   const executor = opts.executor ?? localExecutor;
@@ -204,6 +244,41 @@ export function createApp(opts: AppOptions = {}) {
     return s;
   };
   const prCache = new Map<string, Promise<GithubPrTarget>>();
+  const fetchPrFn = opts.fetchPr ?? opts.investigator?.fetchPr ?? ((p: { owner: string; repo: string; number: number }) => fetchGithubPr(p));
+  /** Reads a PR once (cached; a failed read is tried again next time). */
+  const readPr = (ref: { owner: string; repo: string; number: number }, fetchPr = fetchPrFn): Promise<GithubPrTarget> => {
+    const key = `${ref.owner}/${ref.repo}#${ref.number}`.toLowerCase();
+    let got = prCache.get(key);
+    if (!got) {
+      got = fetchPr(ref);
+      prCache.set(key, got);
+      got.catch(() => prCache.delete(key));
+      while (prCache.size > MAX_CACHED_PRS) prCache.delete(prCache.keys().next().value!);
+    }
+    return got;
+  };
+  /** github-pr targets Atlas registered, with their files, by codeSha256. */
+  const prTargets = new Map<string, GithubPrTarget>();
+  const prFiles = (pr: GithubPrTarget) => pr.files.filter((f) => f.content !== undefined).map((f) => ({ path: f.path, text: f.content! }));
+  /** Per session: every finding (Investigator's or a person's) by id. */
+  const sessionFindings = new Map<string, Map<string, Finding>>();
+  const findingsOf = (sessionId: string) => {
+    let m = sessionFindings.get(sessionId);
+    if (!m) {
+      m = new Map();
+      sessionFindings.set(sessionId, m);
+      while (sessionFindings.size > MAX_INVESTIGATED_SESSIONS) sessionFindings.delete(sessionFindings.keys().next().value!);
+    }
+    return m;
+  };
+  const evmRun = opts.evmRun ?? defaultEvmRun;
+  const proofStore = opts.proofs ?? createProofStore({ publish: false });
+  /** The text of one file of a target, as Atlas read it. */
+  const fileTextOf = (target: Target, file: string): string | undefined => {
+    if (target.kind === "ts-fixture") return file === target.ref ? readFixture(target) : undefined;
+    const pr = prTargets.get(target.codeSha256);
+    return pr?.files.find((f) => f.path === file)?.content;
+  };
   /**
    * The finding a round's model bets use: the session's first verified Investigator finding on this
    * exact code (a retry one first), else the fixture finding written by hand, with its label.
@@ -214,6 +289,12 @@ export function createApp(opts: AppOptions = {}) {
     if (pick) return { finding: pick, label: `found by ${pick.proposedBy.model}; file, lines and quote checked by plain code` };
     return { finding: fixtureFinding(fileText), label: FIXTURE_FINDING_LABEL };
   };
+  const findingLabel = (f: Finding): string =>
+    f.proposedBy.role === "human"
+      ? "picked by a person; file and lines checked by plain code"
+      : f.id === fixtureFinding("").id
+        ? FIXTURE_FINDING_LABEL
+        : `found by ${f.proposedBy.model}; file, lines and quote checked by plain code`;
   const targets = new Map<string, Target>(); // by codeSha256
   const controls = new Map<string, Promise<Run>>(); // passed controls only, by codeSha256
   const runs = new Map<string, Run>(); // in memory today; not published
@@ -244,6 +325,29 @@ export function createApp(opts: AppOptions = {}) {
     return p;
   };
 
+  /** Build (and verify) the round's .atlas.json, keep it, and write it when publishing is on. Never throws. */
+  const keepProof = (sessionId: string, round: Round, run: Run, bets: Bet[], verdicts: Verdict[]) => {
+    const exp = round.experiment;
+    const investigatorFindings = investigations.get(sessionId)?.findings.get(exp.target.codeSha256) ?? [];
+    try {
+      const file = buildAtlasFile({
+        target: exp.target,
+        experiment: exp,
+        bets,
+        run,
+        verdicts,
+        ...(round.finding ? { findings: [round.finding] } : {}),
+        agentLog: agentLog.history(sessionId).map((e) => e.event),
+        extraCaptions: extraCaptionsFor(round.finding, investigatorFindings),
+        createdAt: new Date().toISOString(),
+      });
+      const put = proofStore.put(file, run);
+      return { ok: true as const, runId: run.id, captions: file.captions, published: put.published, ...(put.error ? { error: put.error } : {}) };
+    } catch (e) {
+      return { ok: false as const, runId: run.id, reason: e instanceof Error ? e.message : String(e) };
+    }
+  };
+
   /** Ask the model for its bets on this round's experiment. Never throws; the slot records the outcome. */
   const startModelBets = (round: Round, sessionId: string): void => {
     const model = opts.modelBets?.model ?? CLAIMANT_MODEL;
@@ -254,8 +358,21 @@ export function createApp(opts: AppOptions = {}) {
       return;
     }
     const exp = round.experiment;
-    if (exp.target.ref !== FIXTURE_FILE) {
-      slot.reason = `no finding exists yet for ${exp.target.ref}`;
+    // The finding the model works on: the one the person chose for this round, else (fixture only)
+    // the session's Investigator finding or the hand-written one. D18: the model sees its file,
+    // lines and the code around them, never a claim sentence.
+    let picked: { finding: Finding; label: string; fileText: string } | undefined;
+    if (round.finding) {
+      const text = fileTextOf(exp.target, round.finding.file);
+      if (text !== undefined) picked = { finding: round.finding, label: findingLabel(round.finding), fileText: text };
+    } else if (exp.target.kind === "ts-fixture" && exp.target.ref === FIXTURE_FILE) {
+      const fileText = readFixture(exp.target);
+      const f = findingFor(sessionId, exp.target, fileText);
+      picked = { finding: f.finding, label: f.label, fileText };
+      round.finding = f.finding; // the finding this round worked on, for its .atlas.json
+    }
+    if (!picked) {
+      slot.reason = `no finding chosen yet for ${exp.target.ref}`;
       return;
     }
     const allowed = budget.startExperiment(sessionId);
@@ -263,8 +380,7 @@ export function createApp(opts: AppOptions = {}) {
       slot.reason = allowed.reason; // e.g. "call limit reached": the person's round goes on without the model
       return;
     }
-    const fileText = readFixture(exp.target);
-    const { finding, label: findingLabel } = findingFor(sessionId, exp.target, fileText);
+    const { finding, label: findingLabelText, fileText } = picked;
     // The retry defaults sit more than 20 lines above the loop, so for the fixture the model sees the
     // whole verbatim block whichever finding is used (fixture-finding.ts explains why).
     const contextRange = exp.target.ref === FIXTURE_FILE ? fixtureContextRange(fileText) : undefined;
@@ -280,7 +396,7 @@ export function createApp(opts: AppOptions = {}) {
     });
     slot.settled = Promise.race([
       runClaimantBets(
-        { experiment: exp, questions: round.questions, finding, findingLabel, ...(contextRange ? { contextRange } : {}), fileText, gateContext: TS_GATE_CONTEXT, model },
+        { experiment: exp, questions: round.questions, finding, findingLabel: findingLabelText, ...(contextRange ? { contextRange } : {}), fileText, gateContext: round.gateContext ?? TS_GATE_CONTEXT, model },
         { chat, log: sessionEmitter(agentLog, sessionId), ...(now ? { now } : {}) },
       ),
       late, // an answer after the deadline is never sealed into this round
@@ -320,6 +436,23 @@ export function createApp(opts: AppOptions = {}) {
     if (!raw.ok) return c.json({ error: "the request body is not JSON" }, 400);
     const parsed = targetBody.safeParse(raw.body);
     if (!parsed.success) return c.json({ error: plainReason(parsed.error) }, 400);
+    if (parsed.data.kind === "github-pr") {
+      // D04-04: a pull request. Read at its merge commit by the server; accepted for running only when
+      // its files are exactly the copy the EVM runner applies.
+      const m = /^([^/]+)\/([^#]+)#(\d+)$/.exec(parsed.data.ref)!;
+      let pr: GithubPrTarget;
+      try {
+        pr = await readPr({ owner: m[1]!, repo: m[2]!, number: Number(m[3]) });
+      } catch (e) {
+        return c.json({ error: `could not read pull request ${parsed.data.ref}: ${e instanceof Error ? e.message : String(e)}` }, 502);
+      }
+      const refusal = evmTargetRefusal(pr.target.ref, pr.target.codeSha256, pr.target.commit);
+      if (refusal) return c.json({ error: refusal, target: pr.target }, 422);
+      targets.set(pr.target.codeSha256, pr.target);
+      prTargets.set(pr.target.codeSha256, pr);
+      // The files go back with the target so a person can read them and pick lines (POST /findings).
+      return c.json({ ...pr.target, title: pr.title, files: prFiles(pr).map((f) => ({ path: f.path, text: f.text })) });
+    }
     const { kind, ref } = parsed.data;
     const inside = ref.startsWith("tests/fixtures/") ? ref.slice("tests/fixtures/".length) : ref;
     const fixturePath = relative(REPO_ROOT, resolve(REPO_ROOT, "tests/fixtures", inside)).split(sep).join("/");
@@ -353,6 +486,17 @@ export function createApp(opts: AppOptions = {}) {
     if (!target || target.ref !== body.target.ref) {
       return c.json({ error: "unknown target: register it with POST /targets first (same ref and codeSha256)" }, 400);
     }
+    // D04-04: the runner and the gate's allow-list follow the target, never the request.
+    const runnerKind = target.kind === "github-pr" ? ("evm" as const) : ("ts" as const);
+    const gateCtx = runnerKind === "evm" ? EVM_GATE_CONTEXT : TS_GATE_CONTEXT;
+    if (body.runner !== undefined && body.runner !== runnerKind) return c.json({ error: `${target.ref} runs on the ${runnerKind} runner, not ${body.runner}` }, 400);
+    let finding: Finding | undefined;
+    if (body.findingId !== undefined) {
+      finding = sessionFindings.get(sessionId)?.get(body.findingId);
+      if (!finding || fileTextOf(target, finding.file) === undefined) {
+        return c.json({ error: `this session has no finding ${body.findingId} on ${target.ref}: get one from POST /investigate or POST /findings first` }, 400);
+      }
+    }
     // The only route that creates a session (S4), and only after the request is otherwise valid.
     const opened = betStore.open(sessionId);
     if (!opened.ok) return c.json({ error: opened.reason }, 503);
@@ -362,20 +506,33 @@ export function createApp(opts: AppOptions = {}) {
     if (rounds.size >= MAX_EXPERIMENTS) return c.json({ error: `a session holds at most ${MAX_EXPERIMENTS} experiments; start a new session` }, 409);
 
     const log = roundLog(sessionEmitter(agentLog, sessionId));
-    const decision = gate(body.params, TS_GATE_CONTEXT);
+    const decision = gate(body.params, gateCtx);
     const experiment = {
       id,
       target,
-      runner: "ts" as const,
+      runner: runnerKind,
       params: decision.allowed ? decision.params : body.params,
       proposedBy: { role: "human" as const },
       gate: decision.allowed ? { allowed: true as const } : { allowed: false as const, reason: decision.reason },
     } as Experiment;
-    const round = newRound(experiment, TS_GATE_CONTEXT);
+    const round = newRound(experiment, gateCtx);
+    round.gateContext = gateCtx;
+    if (finding) round.finding = finding;
+    if (runnerKind === "evm" && decision.allowed) {
+      // One plain-code question per Moonwell round: cbETH's price (src/gate.ts's template). The other
+      // markets are still measured and shown in the false-alarm table; nobody bets on them.
+      const asked = round.questions.filter((q) => q.measures === ASKED_FIELD);
+      if (asked.length > 0) round.questions = asked;
+      round.extraQuestions = [];
+    }
     rounds.set(id, round); // a refused experiment is kept too (shown, never run)
     // The stand-in line only when the hand-written fixture finding is the one in use.
     const usesInvestigatorFinding = (investigations.get(sessionId)?.findings.get(target.codeSha256)?.length ?? 0) > 0;
-    if (decision.allowed && !usesInvestigatorFinding) log.investigatorStub(experiment);
+    if (decision.allowed && target.kind === "ts-fixture" && !finding && !usesInvestigatorFinding) log.investigatorStub(experiment);
+    if (decision.allowed && finding) {
+      const who = finding.proposedBy.role === "human" ? "picked by a person" : `found by ${finding.proposedBy.model}`;
+      agentLog.emit(sessionId, { role: "human", action: oneLine(`chooses ${finding.file} lines ${finding.lineStart}–${finding.lineEnd} (${who}) for ${id}`), ref: { kind: "finding", id: finding.id } });
+    }
     try {
       log.gate(experiment); // one flattened line; the 422 below keeps the full reason (S3)
     } catch (e) {
@@ -420,26 +577,24 @@ export function createApp(opts: AppOptions = {}) {
       const t = targets.get(body.target.codeSha256);
       if (!t || t.ref !== body.target.ref) return c.json({ error: "unknown target: register it with POST /targets first (same ref and codeSha256)" }, 400);
       target = t;
-      const text = readFixture(t);
-      files = [{ path: t.ref, text }];
-      if (t.ref === FIXTURE_FILE) fallbackFinding = { ...fixtureFinding(text), label: FIXTURE_FINDING_LABEL };
+      const known = t.kind === "github-pr" ? prTargets.get(t.codeSha256) : undefined;
+      if (known) {
+        // D04-04: a PR registered with POST /targets: the files the server read then, with the PR's title and description.
+        files = prFiles(known);
+        pr = { title: known.title, description: known.description };
+      } else {
+        const text = readFixture(t);
+        files = [{ path: t.ref, text }];
+        if (t.ref === FIXTURE_FILE) fallbackFinding = { ...fixtureFinding(text), label: FIXTURE_FINDING_LABEL };
+      }
     } else {
       if (!opts.investigator || !investigatorChat) return c.json({ ok: false, reason: "not asked (this server asks no Meta model to investigate)", findings: [], dropped: [], model });
       if (capped) return c.json({ ok: false, reason: `not asked (call limit reached: this session already asked for ${MAX_INVESTIGATIONS_PER_SESSION} investigations)`, findings: [], dropped: [], model });
       const m = /^([^/]+)\/([^#]+)#(\d+)$/.exec(body.pr)!;
       const ref = { owner: m[1]!, repo: m[2]!, number: Number(m[3]) };
-      const key = `${ref.owner}/${ref.repo}#${ref.number}`.toLowerCase();
-      const fetchPr = opts.investigator?.fetchPr ?? ((p: typeof ref) => fetchGithubPr(p));
-      let got = prCache.get(key);
-      if (!got) {
-        got = fetchPr(ref);
-        prCache.set(key, got);
-        got.catch(() => prCache.delete(key)); // a failed fetch is tried again next time
-        while (prCache.size > MAX_CACHED_PRS) prCache.delete(prCache.keys().next().value!);
-      }
       let prTarget: GithubPrTarget;
       try {
-        prTarget = await got;
+        prTarget = await readPr(ref, opts.investigator?.fetchPr ?? fetchPrFn);
       } catch (e) {
         return c.json({ error: `could not read pull request ${body.pr}: ${e instanceof Error ? e.message : String(e)}` }, 502);
       }
@@ -478,7 +633,29 @@ export function createApp(opts: AppOptions = {}) {
       return c.json({ ok: false, reason: r.reason, target, findings: [], dropped, model, usage: r.usage ?? null, ...(fallbackFinding ? { fallbackFinding } : {}) });
     }
     mine.findings.set(target.codeSha256, r.findings);
+    const byId = findingsOf(sessionId);
+    for (const f of r.findings) byId.set(f.id, f); // D04-04: a round may name one with findingId
     return c.json({ ok: true, target, findings: r.findings, dropped, model: r.model, fellBack: r.fellBack, usage: r.usage ?? null });
+  });
+
+  // D04-04: lines a person picked themselves. Checked against the file Atlas read; no claim.
+  app.post("/findings", async (c) => {
+    const sessionId = sessionIdOf(c);
+    if (sessionId === null) return c.json({ error: BAD_SESSION }, 400);
+    const raw = await readJson(c.req.raw);
+    if (!raw.ok) return c.json({ error: "the request body is not JSON" }, 400);
+    const parsed = findingBody.safeParse(raw.body);
+    if (!parsed.success) return c.json({ error: plainReason(parsed.error) }, 400);
+    const body = parsed.data;
+    const target = targets.get(body.target.codeSha256);
+    if (!target || target.ref !== body.target.ref) return c.json({ error: "unknown target: register it with POST /targets first (same ref and codeSha256)" }, 400);
+    const pr = target.kind === "github-pr" ? prTargets.get(target.codeSha256) : undefined;
+    const files = pr ? prFiles(pr) : [{ path: target.ref, text: readFixture(target) }];
+    const r = humanFinding(files, body.file, body.lineStart, body.lineEnd);
+    if (!r.ok) return c.json({ error: r.reason }, 400);
+    findingsOf(sessionId).set(r.finding.id, r.finding);
+    agentLog.emit(sessionId, { role: "human", action: oneLine(`picks ${r.finding.file} lines ${r.finding.lineStart}–${r.finding.lineEnd} (file and lines checked)`), ref: { kind: "finding", id: r.finding.id } });
+    return c.json({ finding: r.finding });
   });
 
   app.post("/experiments/:id/model-bets", async (c) => {
@@ -603,8 +780,24 @@ export function createApp(opts: AppOptions = {}) {
 
     let run: Run;
     try {
-      const ctl = await getControl(experiment.target);
-      run = await runExperiment(experiment, ctl, { executor });
+      if (experiment.runner === "evm") {
+        // D04-04: a fork of Base at the block the shape names (30–90 s). Each step is a runner line on the
+        // agent-log SSE, so the page shows progress instead of a blind wait.
+        const forkBlock = forkBlockFor(experiment.params);
+        run = await evmRun(experiment, {
+          forkBlock,
+          onProgress: (step) => {
+            try {
+              log.progress(experiment, step);
+            } catch {
+              // a progress line the log refused never stops the run
+            }
+          },
+        });
+      } else {
+        const ctl = await getControl(experiment.target);
+        run = await runExperiment(experiment, ctl, { executor });
+      }
     } catch (e) {
       round.status = "stopped";
       log.runnerStopped(experiment, (e as Error).message);
@@ -644,8 +837,50 @@ export function createApp(opts: AppOptions = {}) {
     round.status = "done";
     round.run = run;
     round.verdicts = verdicts;
+    const proof = keepProof(sessionId, round, run, bets, verdicts);
+    const falseAlarm = experiment.runner === "evm" && experiment.params.shape === "apply-proposal-then-read" ? falseAlarmFromRun(run) : undefined;
     // Reveal every bet in full (with its nonce) so the browser can recompute each hash itself.
-    return c.json({ run, verdicts, bets, betsFrozenAt: round.betsFrozenAt, model: modelSlotView(round) });
+    return c.json({ run, verdicts, bets, betsFrozenAt: round.betsFrozenAt, model: modelSlotView(round), proof, ...(falseAlarm ? { falseAlarm } : {}) });
+  });
+
+  // D04-04: the round's .atlas.json, as kept (memory) or published (disk).
+  app.get("/proofs/:runId", (c) => {
+    const file = proofStore.get(c.req.param("runId"));
+    if (!file) return c.json({ error: `no .atlas.json for run ${c.req.param("runId")}` }, 404);
+    return c.json(file);
+  });
+
+  // D04-04: re-execute a round from its .atlas.json. TS: the same seed; EVM: the same fork block.
+  // Answers whether the replay's `measured` is deep-equal to the file's, and which result fields differ.
+  app.get("/replay/:runId", async (c) => {
+    const runId = c.req.param("runId");
+    const stored = proofStore.get(runId);
+    if (!stored) return c.json({ error: `no .atlas.json for run ${runId}` }, 404);
+    const v = verifyAtlasFile(stored);
+    if (!v.ok) return c.json({ error: `the .atlas.json does not verify: ${v.problems.join("; ")}` }, 422);
+    const file = v.file;
+    const exp = file.experiments[0]!;
+    const before = file.runs[0]!;
+    let replay: Run;
+    if (before.runner === "evm") {
+      replay = await evmRun(exp, { forkBlock: before.forkBlock!, onProgress: () => {} });
+    } else {
+      const ctl = await getControl(exp.target);
+      replay = await runExperiment(exp, ctl, { executor, ...(before.seed !== undefined ? { seed: before.seed } : {}) });
+    }
+    const again = file.bets.map((b) => judge(b, replay));
+    return c.json({
+      runId,
+      replayRunId: replay.id,
+      runner: before.runner,
+      ...(before.forkBlock !== undefined ? { forkBlock: before.forkBlock, replayForkBlock: replay.forkBlock } : {}),
+      ...(before.seed !== undefined ? { seed: before.seed, replaySeed: replay.seed } : {}),
+      measuredEqual: sameJson(before.result.measured, replay.result.measured),
+      resultDiff: resultDiff(before.result, replay.result),
+      controlPassed: replay.controlPassed,
+      sameOutcomes: again.every((x) => file.verdicts.find((y) => y.betId === x.betId)?.outcome === x.outcome),
+      replay,
+    });
   });
 
   app.onError((err, c) => {

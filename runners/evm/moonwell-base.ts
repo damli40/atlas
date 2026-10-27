@@ -12,6 +12,14 @@ export const BASE_CHAIN_ID = 8453;
 /** Pull request #578's merge commit, the code Atlas tests. */
 export const MIP_X43_MERGE_COMMIT = "9a6738e189fa903bffa0abf10b9dd7ed2fe73a18";
 
+/**
+ * codeSha256 of pull request #578's 6 changed files at the merge commit (D03-04's rule in
+ * server/targets/github.ts). The EVM runner applies the committed copy in contracts/lib/moonwell;
+ * a PR target whose fetched files hash to anything else is refused, so the run always tests the
+ * exact bytes the person linked.
+ */
+export const PR578_CODE_SHA256 = "6c431aaec1a5631719cb0c90128b0b2b0f294bafb3634c775cb93fee0670f7c7";
+
 /** Fork blocks. A fork "at N" holds the state AFTER block N. MIP-X43 executed on Base in 42194663. */
 export const FORK_BLOCK = {
   /** One block before the proposal ran: Level 2 ("before ship"). */

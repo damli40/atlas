@@ -64,11 +64,13 @@ async function readOne(client: PublicClient, action: FeedAction): Promise<Market
  * the guard fails, and throws on impersonation or a reverted setFeed (with the step that failed).
  * `markets`: the symbols to report ("touched" = all derived actions); all actions are applied anyway.
  */
-export async function runLevel2OnFork(client: PublicClient, fork: { url: string }, forkBlock: number): Promise<Level2Record> {
+export async function runLevel2OnFork(client: PublicClient, fork: { url: string }, forkBlock: number, progress: (step: string) => void = () => {}): Promise<Level2Record> {
   // 1. Guard first. Nothing is read or changed before it passes.
+  progress(`checks the fork at ${forkBlock} is before the proposal ran`);
   const preExecution = await assertPreExecution(fork);
 
   // 2. Control on the untouched fork.
+  progress("runs the known-case control (WETH, stablecoins)");
   const control = await readControl(client, forkBlock);
 
   // Derive the actions from the PR files; symbols are read on this fork, as mip-x43.sol does.
@@ -76,11 +78,13 @@ export async function runLevel2OnFork(client: PublicClient, fork: { url: string 
 
   // 3. Pre-apply reads, and the cbETH trace before the change (the old feed, for comparison).
   const pre: Record<string, MarketRead> = {};
+  progress(`reads ${actions.length} markets before applying`);
   for (const a of actions) pre[a.symbol] = await readOne(client, a);
   const referencePre = await cbEthReference(client, forkBlock);
   const tracePre = await traceUnderlyingPriceSources(client, MOONWELL_cbETH);
 
   // 4. Apply as the governor.
+  progress(`applies ${actions.length} oracle-feed actions as the governor`);
   const applied = await applyFeedActions(client, TEMPORAL_GOVERNOR, actions.map((a) => ({ symbol: a.symbol, wrapper: a.wrapper })));
   const forkEventsVsDerived = comparePairs(
     applied.flatMap((x) => x.feedSetEvents),
@@ -89,6 +93,7 @@ export async function runLevel2OnFork(client: PublicClient, fork: { url: string 
   const blockAfterApply = Number(await client.getBlockNumber());
 
   // 5. Post-apply reads, reference, trace.
+  progress(`reads ${actions.length} markets after applying`);
   const post: Record<string, MarketRead> = {};
   for (const a of actions) post[a.symbol] = await readOne(client, a);
   const postStablecoins = USD_STABLECOINS.map((symbol) => {
@@ -97,6 +102,7 @@ export async function runLevel2OnFork(client: PublicClient, fork: { url: string 
       ? { symbol, priceUsd1e18: r.read.priceUsd1e18, inBand: inStablecoinBand(BigInt(r.read.priceUsd1e18)) }
       : { symbol, priceUsd1e18: null, inBand: false };
   });
+  progress("computes the cbETH reference from the raw Chainlink feeds and traces the price read");
   const referencePost = await cbEthReference(client, forkBlock);
   const tracePost = await traceUnderlyingPriceSources(client, MOONWELL_cbETH);
 
@@ -250,4 +256,38 @@ export function referenceRecomputes(ref: ReferenceResult): boolean {
   const eth = BigInt(ref.inputs.ethUsd.answer) * 10n ** BigInt(18 - ref.inputs.ethUsd.decimals);
   const ratio = BigInt(ref.inputs.cbEthEth.answer) * 10n ** BigInt(18 - ref.inputs.cbEthEth.decimals);
   return usdTimesRatio1e18(eth, ratio).toString() === ref.value;
+}
+
+/**
+ * The false-alarm table from a stored Level 2 Run alone (no Level2Record): the rows a replayer can
+ * rebuild from an .atlas.json. Same rule as falseAlarmTable: cbETH is compared with the raw-Chainlink
+ * reference, every other market with its own pre-apply price; flagged = differs by more than 50%.
+ * Market order is the order the run applied them (its "proposal_derived" trace event).
+ */
+export function falseAlarmFromRun(run: { result: { measured: Record<string, unknown>; references?: Record<string, { value: string }> }; trace: { event: string; data?: Record<string, unknown> }[] }): FalseAlarmRow[] {
+  const derived = run.trace.find((t) => t.event === "proposal_derived")?.data?.actions;
+  const markets = Array.isArray(derived) ? derived.map((a) => String((a as { symbol: unknown }).symbol)) : [];
+  const m = run.result.measured;
+  const str = (k: string) => (typeof m[k] === "string" ? (m[k] as string) : null);
+  return markets.map((sym) => {
+    const preS = str(`preApplyPriceUsd1e18:${sym}`);
+    const postS = str(`priceUsd1e18:${sym}`);
+    const preV = preS !== null ? BigInt(preS) : null;
+    const postV = postS !== null ? BigInt(postS) : null;
+    const isCbEth = sym === "cbETH";
+    const refS = isCbEth ? (run.result.references?.["refUsd1e18:cbETH"]?.value ?? null) : preS;
+    const ref = refS !== null ? BigInt(refS) : null;
+    return {
+      market: sym,
+      preUsd1e18: preS,
+      postUsd1e18: postS,
+      diffVsPrePct: preV !== null && postV !== null && preV > 0n ? ppmToPct(diffPpm(postV, preV)) : null,
+      flagReference: isCbEth ? "refUsd1e18:cbETH (raw Chainlink ETH/USD × cbETH/ETH)" : "pre-apply price, same fork block",
+      flagReferenceUsd1e18: refS,
+      diffVsFlagReferencePct: ref !== null && postV !== null && ref > 0n ? ppmToPct(diffPpm(postV, ref)) : null,
+      flagged: ref !== null && postV !== null && ref > 0n ? differsByMoreThan(postV, ref, FLAG_PCT) : null,
+      feedBefore: str(`preApplyFeedAddress:${sym}`),
+      feedAfter: str(`feedAddress:${sym}`),
+    } satisfies FalseAlarmRow;
+  });
 }

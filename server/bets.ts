@@ -27,7 +27,7 @@ import { nanoid } from "nanoid";
 import { z } from "zod";
 import { extraQuestionsFor, questionsFor, type GateContext, type Question } from "../src/gate";
 import { sealBet } from "../src/seal";
-import type { Bet, BetAnswer, Experiment, Run, Verdict } from "../src/types";
+import type { Bet, BetAnswer, Experiment, Finding, Run, Verdict } from "../src/types";
 
 export const MAX_SESSIONS = 500;
 export const MAX_EXPERIMENTS = 50;
@@ -120,6 +120,10 @@ export interface Round {
   verdicts?: Verdict[];
   /** The model's bets on this same experiment (D02-06). Absent when the server asks no model. */
   model?: ModelSlot;
+  /** D04-04: the finding the person chose for this round (an Investigator finding or lines they picked). */
+  finding?: Finding;
+  /** D04-04: what the gate allowed on this target (TS or EVM). */
+  gateContext?: GateContext;
 }
 
 /** How long a session holding sealed-but-unrun bets is kept safe from eviction, after its last use. */

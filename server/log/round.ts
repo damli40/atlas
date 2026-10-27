@@ -39,7 +39,12 @@ export function roundLog(emit: SessionEmitter) {
       emit.emit({ role: "seal", action: oneLine(action) });
     },
     runner(exp: Experiment, run: Run) {
-      emit.emit({ role: "runner", action: oneLine(`runs ${codeName(exp)} in the sandbox (${exp.id})`), ref: { kind: "run", id: run.id } });
+      const where = exp.runner === "evm" && run.forkBlock !== undefined ? `on a fork of Base @ ${run.forkBlock}` : "in the sandbox";
+      emit.emit({ role: "runner", action: oneLine(`runs ${codeName(exp)} ${where} (${exp.id})`), ref: { kind: "run", id: run.id } });
+    },
+    /** D04-04: one line per step of a long EVM run, so the page can show progress while it waits. */
+    progress(exp: Experiment, step: string) {
+      emit.emit({ role: "runner", action: oneLine(step), ref: { kind: "experiment", id: exp.id } });
     },
     runnerStopped(exp: Experiment, message: string) {
       emit.emit({ role: "runner", action: oneLine(`could not finish ${exp.id}: ${message}`), ref: { kind: "experiment", id: exp.id } });
