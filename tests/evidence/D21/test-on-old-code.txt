@@ -1,0 +1,57 @@
+
+ RUN  v5.0.5 <repo>
+
+ ❯ tests/unit/d21-mark-caption.test.tsx (6 tests | 4 failed) 44ms
+   ❯ D21: the pre-existing-logo caption under the scoreboard (6)
+     × verdict screen (fixture round): caption under the scoreboard 18ms
+     × proof card, the end frame (fixture round): caption under the scoreboard 17ms
+     × verdict screen (moonwell round): caption under the scoreboard 3ms
+     × proof card, the end frame (moonwell round): caption under the scoreboard 3ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/unit/d21-mark-caption.test.tsx > D21: the pre-existing-logo caption under the scoreboard > verdict screen (fixture round): caption under the scoreboard
+ FAIL  tests/unit/d21-mark-caption.test.tsx > D21: the pre-existing-logo caption under the scoreboard > verdict screen (moonwell round): caption under the scoreboard
+AssertionError: expected null to be 'sb-premark' // Object.is equality
+
+- Expected:
+"sb-premark"
+
++ Received:
+null
+
+ ❯ expectCaptionUnderScoreboard tests/unit/d21-mark-caption.test.tsx:34:47
+     32|   for (const sb of boards) {
+     33|     const next = sb.nextElementSibling;
+     34|     expect(next?.getAttribute("data-testid")).toBe("sb-premark");
+       |                                               ^
+     35|     expect(next?.textContent).toBe(MARK_PRE_EXISTING_CAPTION);
+     36|     expect(next?.hasAttribute("hidden")).toBe(false);
+ ❯ tests/unit/d21-mark-caption.test.tsx:51:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  tests/unit/d21-mark-caption.test.tsx > D21: the pre-existing-logo caption under the scoreboard > proof card, the end frame (fixture round): caption under the scoreboard
+ FAIL  tests/unit/d21-mark-caption.test.tsx > D21: the pre-existing-logo caption under the scoreboard > proof card, the end frame (moonwell round): caption under the scoreboard
+AssertionError: expected 'pc-bettors' to be 'sb-premark' // Object.is equality
+
+Expected: "sb-premark"
+Received: "pc-bettors"
+
+ ❯ expectCaptionUnderScoreboard tests/unit/d21-mark-caption.test.tsx:34:47
+     32|   for (const sb of boards) {
+     33|     const next = sb.nextElementSibling;
+     34|     expect(next?.getAttribute("data-testid")).toBe("sb-premark");
+       |                                               ^
+     35|     expect(next?.textContent).toBe(MARK_PRE_EXISTING_CAPTION);
+     36|     expect(next?.hasAttribute("hidden")).toBe(false);
+ ❯ tests/unit/d21-mark-caption.test.tsx:56:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 2 passed (6)
+   Start at  13:52:11
+   Duration  311ms (import 72%, tests 20%, transform 8%, worker 1%)
+

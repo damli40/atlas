@@ -5,6 +5,7 @@
 import { useSyncExternalStore } from "react";
 import type { Outcome, Verdict } from "../../../src/types";
 import { MARK, scoreboardMarks, type Bettor, type DotState, type MarkState } from "./marks";
+import { MARK_PRE_EXISTING_CAPTION } from "../../../src/captions";
 
 const SAY: Record<Outcome, string> = { matched: "matched", not_matched: "didn't match", cant_check: "can't check" };
 const STILLNESS = "(prefers-reduced-motion: reduce)";
@@ -104,6 +105,7 @@ export function Scoreboard({ verdicts, bets, names, still, who = true, size }: S
   const marks = scoreboardMarks(verdicts, bets);
   if (marks.length === 0) return null;
   return (
+    <>
     <div className="sb" data-testid="scoreboard" data-still={calm ? "" : undefined}>
       {marks.map((m) => (
         <figure key={m.key} className="sb-item">
@@ -122,5 +124,10 @@ export function Scoreboard({ verdicts, bets, names, still, who = true, size }: S
         </figure>
       ))}
     </div>
+    {/* D21: the mark is the pre-existing Atlas logo; the scoreboard that draws it is hackathon work. Always shown with it. */}
+    <p className="sb-premark muted small" data-testid="sb-premark">
+      {MARK_PRE_EXISTING_CAPTION}
+    </p>
+    </>
   );
 }

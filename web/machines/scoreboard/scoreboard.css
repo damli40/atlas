@@ -23,3 +23,6 @@
 @media (prefers-reduced-motion: reduce) {
   .sb-grow, .sb-fade, .sb-fill { animation: none; stroke-dashoffset: 0; opacity: initial; fill-opacity: 1; }
 }
+
+/* D21: the pre-existing-logo caption under the scoreboard. */
+.sb-premark { margin: 0 0 12px; max-width: 60ch; }

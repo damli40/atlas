@@ -32,3 +32,11 @@ export const FORK_EVENTS_WARNING =
   "warning: the oracle-feed changes the fork recorded are not the ones Atlas derived from the proposal's files, so this run may not show what the proposal does";
 export const forkEventsWarning = (run: { result: { measured: Record<string, unknown> } }): string | null =>
   run.result.measured.forkEventsEqualDerived === false ? FORK_EVENTS_WARNING : null;
+
+/**
+ * D21: shown under the scoreboard wherever it is drawn (verdict screens, proof card, any end frame). The mark is
+ * the Atlas logo, which existed before the hackathon (PRE-EXISTING.md); the code that draws it from the
+ * verdicts was built during it. Rendered by web/machines/scoreboard/Scoreboard.tsx, so no screen can leave it out.
+ */
+export const MARK_PRE_EXISTING_CAPTION =
+  "Mark: the Atlas logo, designed Oct 26 (pre-existing). The scoreboard that draws it from the verdicts was built during the hackathon.";
