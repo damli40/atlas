@@ -1,0 +1,44 @@
+
+ RUN  v5.0.5 <repo>
+
+ ✓ tests/unit/call-function-review1.test.ts > B1: the result channel cannot be forged by the code under test > the reviewer's attack: read the marker from process.report, write a result, reallyExit
+ ✓ tests/unit/call-function-review1.test.ts > B1: the result channel cannot be forged by the code under test > variant: no report, a forged line with a guessed key, then the call never settles (the real line follows)
+ ✓ tests/unit/call-function-review1.test.ts > B1: the result channel cannot be forged by the code under test > variant: a forged line through console.log, then the process is ended through process.reallyExit
+ ✓ tests/unit/call-function-review1.test.ts > B1: the result channel cannot be forged by the code under test > variant: a forged line, then an endless loop so the worker never writes (Atlas's real-time limit, not the forged line)
+ ✓ tests/unit/call-function-review1.test.ts > B1: the result channel cannot be forged by the code under test > variant: reading stdin for the key is refused, and the key is nowhere the code can look
+ ✓ tests/unit/call-function-review1.test.ts > B1: the result channel cannot be forged by the code under test > the parent accepts only a line whose HMAC verifies, with the requested run ids
+ ✓ tests/unit/call-function-review1.test.ts > B2: AbortSignal.timeout runs on the virtual clock > the reviewer's input 1: a call woken by AbortSignal.timeout(20) returns at 20 virtual ms (was: never settled)
+ ✓ tests/unit/call-function-review1.test.ts > B2: AbortSignal.timeout runs on the virtual clock > the reviewer's input 2: the race with setTimeout(1000) is won by the abort at 5 ms, as in real Node
+ ✓ tests/unit/call-function-review1.test.ts > B2: AbortSignal.timeout runs on the virtual clock > the abort reason is Node's TimeoutError; AbortSignal.any follows it; bad delays throw as in Node
+ ✓ tests/unit/call-function-review1.test.ts > B2: AbortSignal.timeout runs on the virtual clock > an AbortSignal.timeout made while the file loads is a load-time timer: whole run can't check
+ ✓ tests/unit/call-function-review1.test.ts > the sweep: every way a promise can wake without Atlas's clock > works: queueMicrotask chains (drained before every timer)
+ ✓ tests/unit/call-function-review1.test.ts > the sweep: every way a promise can wake without Atlas's clock > works: process.nextTick
+ ✓ tests/unit/call-function-review1.test.ts > the sweep: every way a promise can wake without Atlas's clock > works: Blob.text (native read, waited for)
+ ✓ tests/unit/call-function-review1.test.ts > the sweep: every way a promise can wake without Atlas's clock > works: ReadableStream (microtasks)
+ ✓ tests/unit/call-function-review1.test.ts > the sweep: every way a promise can wake without Atlas's clock > works: Response.json (stream over a Blob)
+ ✓ tests/unit/call-function-review1.test.ts > the sweep: every way a promise can wake without Atlas's clock > works: structuredClone, with an ArrayBuffer transfer (synchronous)
+ ✓ tests/unit/call-function-review1.test.ts > the sweep: every way a promise can wake without Atlas's clock > works: EventTarget dispatch by the code (synchronous)
+ ✓ tests/unit/call-function-review1.test.ts > the sweep: every way a promise can wake without Atlas's clock > works: CompressionStream (zlib job, waited for)
+ ✓ tests/unit/call-function-review1.test.ts > the sweep: every way a promise can wake without Atlas's clock > an endless microtask chain never hands control back: Atlas's real-time limit, whole run can't check
+ ✓ tests/unit/call-function-review1.test.ts > the sweep: every way a promise can wake without Atlas's clock > refused as whole-run can't check: MessageChannel (delivered on real time; an unref'd port is invisible)
+ ✓ tests/unit/call-function-review1.test.ts > the sweep: every way a promise can wake without Atlas's clock > refused as whole-run can't check: BroadcastChannel
+ ✓ tests/unit/call-function-review1.test.ts > the sweep: every way a promise can wake without Atlas's clock > refused as whole-run can't check: FinalizationRegistry (garbage-collector timing)
+ ✓ tests/unit/call-function-review1.test.ts > the sweep: every way a promise can wake without Atlas's clock > refused as whole-run can't check: WeakRef (garbage-collector timing)
+ ✓ tests/unit/call-function-review1.test.ts > the sweep: every way a promise can wake without Atlas's clock > refused as whole-run can't check: process.on('beforeExit') (fires when the loop runs empty)
+ ✓ tests/unit/call-function-review1.test.ts > the sweep: every way a promise can wake without Atlas's clock > refused as whole-run can't check: process.on('SIGTERM')
+ ✓ tests/unit/call-function-review1.test.ts > the sweep: every way a promise can wake without Atlas's clock > refused as whole-run can't check: navigator.locks
+ ✓ tests/unit/call-function-review1.test.ts > the sweep: every way a promise can wake without Atlas's clock > refused as whole-run can't check: Atomics.waitAsync
+ ✓ tests/unit/call-function-review1.test.ts > minor: real clocks are faked or refused > performance.timeOrigin + performance.now() is the virtual time; Intl formats the virtual date
+ ✓ tests/unit/call-function-review1.test.ts > minor: real clocks are faked or refused > refused: process.cpuUsage
+ ✓ tests/unit/call-function-review1.test.ts > minor: real clocks are faked or refused > refused: process.resourceUsage
+ ✓ tests/unit/call-function-review1.test.ts > minor: real clocks are faked or refused > refused: performance.eventLoopUtilization
+ ✓ tests/unit/call-function-review1.test.ts > minor: real clocks are faked or refused > refused: performance.mark
+ ✓ tests/unit/call-function-review1.test.ts > minor: real clocks are faked or refused > refused: performance.nodeTiming
+ ✓ tests/unit/call-function-review1.test.ts > the old retry harness: background work is no longer reported as pending > a changed withRpcRetry that awaits a hash before calling the RPC: S1 returns (was: pending)
+ ✓ tests/unit/call-function-review1.test.ts > the old retry harness: background work is no longer reported as pending > a hash racing the code's sleep: how it ends is can't check, not a guess
+
+ Test Files  1 passed (1)
+      Tests  35 passed (35)
+   Start at (removed)
+   Duration (removed)
+

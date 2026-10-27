@@ -158,9 +158,117 @@ Files: `test-output.txt` (every E1 test by name), `full-suite.txt` (3 full runs)
   firings) and the 10 s real-time limit bound it.
 - No separate adversarial review agent has looked at this yet. The spec plans one per batch.
 
-## Unsafe things noticed (not fixed here, outside E1's scope)
+## Unsafe things noticed
 
-- **The older retry harness has the same blind spot.** `runners/ts/harness.ts` decides "pending (never settles)"
-  from Node's live-resource list. Changed code that awaits `crypto.subtle.digest` (or another background job) while
-  no timer is set would be reported as `pending` though it finishes. The fixture never does this. A Fixer change
-  could. E1 left that harness untouched, as instructed.
+- **The older retry harness had the same blind spot.** Fixed in review round 1 (finding 4 below).
+- **The older retry worker (`runners/ts/worker.ts`) still uses the command-line marker** that review round 1 found
+  forgeable in the call-function worker (B1). Its code under test is the fixture or a Fixer change, not pasted code,
+  and it was left as it is to keep retry-scenario unchanged. It should get the same stdin key + HMAC channel.
+
+## Review round 1 (adversarial review of E1, same day)
+
+The reviewer found 2 confirmed blockers, 1 suspected major and 1 minor. Each one below is listed as the finding,
+the fix, and the test that proves the fix. The tests are in `tests/unit/call-function-review1.test.ts` (35 tests,
+`review1-test-output.txt`).
+
+**After the fixes:** 905 passed, 20 skipped, 81 files, the same in all 3 full runs (`review1-full-suite.txt`). The
+type check is clean. The one extra skip is the live GitHub fetch, which skips by design when GitHub's rate limit is
+hit. It is not a test I changed.
+
+### B1 BLOCKER: pasted code could write Atlas's result itself
+- **Finding:**
+  - `process.report.getReport().header.commandLine` showed the secret result marker, even though it had been
+    removed from `process.argv`.
+  - `process.reallyExit` was not guarded.
+  - Together they let pasted code write its own result line and exit. A call that never settles was recorded as
+    `returned "42"` with the control passed.
+- **Fix (the design is explained at the top of `runners/ts/call-worker.ts`):**
+  - The marker is gone. The parent makes a fresh 32-byte key per run and sends it **on stdin only**. The new
+    `stdin` field on the executor request carries it.
+  - The worker reads the key before the code under test exists, then closes stdin. So the key is never in argv,
+    env, a file or `process.report`.
+  - The result line carries HMAC-SHA256(key, json) (a code computed from the key and the result, which cannot be
+    made without the key). The parent recomputes it.
+  - The parent refuses the run as tampered when: any line mentions ATLAS_RESULT but does not verify; there is a
+    second such line; or the result holds run ids other than the ones requested.
+  - I chose a key over "the parent works the outcome out by itself". Everything the parent receives comes out of
+    the same process as the code, so there is nothing the parent could derive the outcome from.
+  - `process.report`, `process.reallyExit` and `process.stdin` are now whole-run "can't check". The worker exits
+    through its own copy of `reallyExit`, taken before the code is loaded.
+- **Tests:**
+  - The reviewer's exact attack.
+  - Variant: a line with a guessed key, after which the real line also arrives.
+  - Variant: a line through `console.log`, then `reallyExit`.
+  - Variant: a line, then an endless loop, so the worker never writes.
+  - Variant: argv, execArgv, env, title and argv0 are dumped, and the key is not in them. A spy executor confirms
+    the key is in neither the command nor any file.
+  - Reading `process.stdin` is refused.
+  - Unit tests of the HMAC check: wrong key, wrong run id, body edited after signing, an extra forged line, no line.
+
+### B2 BLOCKER: AbortSignal.timeout ran outside the virtual clock
+- **Finding:** `AbortSignal.timeout` uses Node's internal timer. That timer is unref'd (does not keep the process
+  alive) and its resource type `Timeout` was on the ignore list. Two wrong results followed:
+  - A call woken by it was reported `never_settled`.
+  - `Promise.race(abort after 5 ms, setTimeout 1000 ms)` was reported as `"timer"` at 1,000 ms. Real Node gives
+    `"abort"`.
+- **Fix:**
+  - `AbortSignal.timeout` now runs on the virtual clock. It aborts with Node's own TimeoutError and message, and
+    rejects bad delays with Node's own `ERR_OUT_OF_RANGE`.
+  - `Timeout` and `Immediate` resources are no longer ignored as a type. Only the ones Atlas creates itself (its
+    microtask drain and its 1 ms real waits, marked while they are made) are skipped. Every other one counts as
+    work Atlas does not control.
+- **Tests:**
+  - Input 1 now returns `"woke"` at 20 virtual ms.
+  - Input 2 now returns `"abort"` at 5 ms.
+  - `AbortSignal.any` follows it.
+  - A timeout created while the file loads is "can't check".
+
+### MAJOR (suspected): the whole class of "wakes a promise without Atlas's clock"
+Each API was either tested to work or refused as whole-run "can't check":
+
+| API | Decision | Why |
+|---|---|---|
+| queueMicrotask chains, process.nextTick | works (tested) | drained before every timer |
+| endless microtask chain | can't check (tested) | never hands control back; Atlas's real-time limit |
+| Blob.text, CompressionStream | works (tested) | native jobs are tracked and waited for |
+| ReadableStream, Response.json | works (tested) | microtasks only |
+| structuredClone, also with an ArrayBuffer transfer | works (tested) | synchronous |
+| EventTarget dispatched by the code | works (tested) | synchronous |
+| AbortSignal.timeout / AbortSignal.any | works (tested) | moved to the virtual clock (B2) |
+| crypto.subtle | works when alone, can't check when it races a timer (tested in E1) | real job time |
+| MessageChannel / MessagePort / BroadcastChannel | **refused** (tested) | delivered on real time; an unref'd port is invisible |
+| FinalizationRegistry / WeakRef | **refused** (tested) | depend on when garbage collection runs |
+| process.on/once(... "beforeExit", "exit", "message", "disconnect", "SIG*") | **refused** (tested) | fired by the process, not the code; "beforeExit" would wake a call Atlas calls never-settled |
+| navigator.locks | **refused** (tested) | granted on Node's own schedule |
+| Atomics.waitAsync, WebAssembly.compile/instantiate | **refused** (tested in E1) | finish on real time |
+| fetch, WebSocket, EventSource, imports, process.getBuiltinModule | **refused** (E1) | network/files/modules |
+
+### MINOR: real-clock reads
+- **Faked:** `performance.timeOrigin` is now the virtual epoch, so `timeOrigin + now()` is the virtual time.
+  `Intl.DateTimeFormat#format()` and `formatToParts()` with no date now use the virtual date. Tested: after
+  1,500 ms they read 2026-01-01T00:00:01.500Z.
+- **Refused, because no honest fake exists:** `process.cpuUsage`, `process.resourceUsage`,
+  `process.threadCpuUsage`, `performance.eventLoopUtilization`, `mark`, `measure`, `timerify`, `getEntries*`,
+  `toJSON` and `nodeTiming`. Five of these are tested one by one.
+
+### 4. The old retry harness's blind spot (reported in E1)
+- **Fix:** `runners/ts/harness.ts` got the same background-work tracker. `worker.ts` installs it before the code is
+  imported, so tests that call the harness directly, outside the sandbox, behave exactly as before.
+  - Real timers the code starts through Atlas's wrapped globals are still handled by the old real-timer check,
+    with the old wording.
+- **Proof the fixture's results did not change:**
+  - Every existing retry test passes, including the oracle rows, control, sweep and executor tests.
+  - The day-1 gate script (`tests/gate/six-cases.ts`) again gives **18 matched, 1 didn't match, 1 can't check**,
+    as in D01-08 (`review1-retry-gate-day1.txt`).
+- **Proof the blind spot is fixed:** a changed `withRpcRetry` that awaits a hash first.
+  - On the old harness (commit 429fed4) its row S1 read `pending`. I ran this by hand: the old harness files were
+    put back for one run, then restored.
+  - Now S1 reads `returns` with 1 call.
+  - The same hash racing the code's sleep is "can't check".
+
+### Still not covered after round 1
+- Math.random / crypto randomness is real, as before.
+- An internal Node *interval* (a repeating timer) is tracked only until its first firing. I found no global API
+  that creates one on the code's behalf.
+- The reviewer did not reach: json-bet edge cases (-0, unicode normalisation, large numbers), question text built
+  from odd export names, and seal/verify changes.
