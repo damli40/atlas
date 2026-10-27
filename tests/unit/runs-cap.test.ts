@@ -42,7 +42,7 @@ function server(evmRun: (exp: Experiment) => Promise<Run>, runGate = createRunGa
 
 describe("POST /runs: EVM runs are capped", () => {
   it("defaults, and the environment can set them (bad values keep the default)", () => {
-    expect(DEFAULT_RUN_LIMITS).toEqual({ globalConcurrent: 2, globalPerHour: 20, sessionConcurrent: 1, sessionPerHour: 6 });
+    expect(DEFAULT_RUN_LIMITS).toEqual({ globalConcurrent: 2, globalPerHour: 20, sessionConcurrent: 1, sessionPerHour: 6, ipConcurrent: 2, ipPerHour: 8, reservedForNewClients: 4 }); // day-5 S5 added the last three
     expect(runLimitsFromEnv({ ATLAS_RUNS_MAX_CONCURRENT: "3", ATLAS_RUNS_SESSION_MAX_PER_HOUR: "2", ATLAS_RUNS_MAX_PER_HOUR: "-1" })).toEqual({ ...DEFAULT_RUN_LIMITS, globalConcurrent: 3, sessionPerHour: 2 });
     // The replay variables do not move the run caps.
     expect(runLimitsFromEnv({ ATLAS_REPLAY_MAX_CONCURRENT: "9" })).toEqual(DEFAULT_RUN_LIMITS);

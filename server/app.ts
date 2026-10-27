@@ -90,7 +90,8 @@ import { DEFAULT_WATCH_LIMIT_MS } from "../runners/ts/harness";
 import { evmRunner } from "../runners/evm/runner";
 import { falseAlarmFromRun } from "../runners/evm/level2";
 import { redactRpc, scrubDeep } from "../runners/evm/redact";
-import { createReplayGate, createRunGate, type ReplayGate } from "./replay-limits";
+import { createHourlyLimit, createReplayGate, createRunGate, type ReplayGate } from "./replay-limits";
+import { clientIpOf, trustProxyFromEnv } from "./client-ip";
 import { buildAtlasFile, resultDiff, sameJson, verifyAtlasFile } from "../src/atlasfile";
 import { ASKED_FIELD, createProofStore, EVM_GATE_CONTEXT, evmTargetRefusal, extraCaptionsFor, forkBlockFor, humanFinding, recordedFindings, type ProofStore } from "./evm-round";
 import { control as runTsControl, readFixture, runExperiment } from "../runners/ts/control";
@@ -258,7 +259,16 @@ export interface AppOptions {
   replayGate?: ReplayGate;
   /** Caps on EVM runs (POST /runs). Default: createRunGate() with limits from the environment (ATLAS_RUNS_*). */
   runGate?: ReplayGate;
+  /** S5: read the client address from X-Forwarded-For's first hop (behind a proxy). Default: ATLAS_TRUST_PROXY=1. */
+  trustProxy?: boolean;
+  /** S5: model rounds (experiments that ask the model) and investigations one client address may start an hour. */
+  perClientModelLimits?: { modelRoundsPerHour?: number; investigationsPerHour?: number };
 }
+
+/** S5: per client address, an hour (env ATLAS_MODEL_ROUNDS_PER_IP_PER_HOUR, ATLAS_INVESTIGATIONS_PER_IP_PER_HOUR). */
+export const DEFAULT_MODEL_ROUNDS_PER_IP_PER_HOUR = 20;
+export const DEFAULT_INVESTIGATIONS_PER_IP_PER_HOUR = 6;
+const envCount = (raw: string | undefined, fallback: number) => (raw !== undefined && /^\d{1,4}$/.test(raw.trim()) ? Number(raw.trim()) : fallback);
 
 const defaultEvmRun: NonNullable<AppOptions["evmRun"]> = (exp, opts) => evmRunner({ onProgress: opts.onProgress }).run(exp, { forkBlock: opts.forkBlock });
 
@@ -311,6 +321,10 @@ export function createApp(opts: AppOptions = {}) {
   const evmRun = opts.evmRun ?? defaultEvmRun;
   const replayGate = opts.replayGate ?? createReplayGate();
   const runGate = opts.runGate ?? createRunGate();
+  const trustProxy = opts.trustProxy ?? trustProxyFromEnv();
+  const clientOf = (c: Context) => clientIpOf(c, trustProxy);
+  const modelRoundsByIp = createHourlyLimit(opts.perClientModelLimits?.modelRoundsPerHour ?? envCount(process.env.ATLAS_MODEL_ROUNDS_PER_IP_PER_HOUR, DEFAULT_MODEL_ROUNDS_PER_IP_PER_HOUR), "model rounds");
+  const investigationsByIp = createHourlyLimit(opts.perClientModelLimits?.investigationsPerHour ?? envCount(process.env.ATLAS_INVESTIGATIONS_PER_IP_PER_HOUR, DEFAULT_INVESTIGATIONS_PER_IP_PER_HOUR), "investigations");
   const proofStore = opts.proofs ?? createProofStore({ publish: false });
   /** The text of one file of a target, as Atlas read it. */
   const fileTextOf = (target: Target, file: string): string | undefined => {
@@ -389,7 +403,7 @@ export function createApp(opts: AppOptions = {}) {
   };
 
   /** Ask the model for its bets on this round's experiment. Never throws; the slot records the outcome. */
-  const startModelBets = (round: Round, sessionId: string): void => {
+  const startModelBets = (round: Round, sessionId: string, clientIp: string): void => {
     const model = opts.modelBets?.model ?? CLAIMANT_MODEL;
     const slot: ModelSlot = { model, who: `model:${model}`, display: modelDisplay(model), status: "off" };
     round.model = slot;
@@ -415,7 +429,8 @@ export function createApp(opts: AppOptions = {}) {
       slot.reason = `no finding chosen yet for ${exp.target.ref}`;
       return;
     }
-    const allowed = budget.startExperiment(sessionId);
+    const byIp = modelRoundsByIp.take(clientIp);
+    const allowed = byIp.ok ? budget.startExperiment(sessionId) : byIp;
     if (!allowed.ok) {
       slot.reason = allowed.reason; // e.g. "call limit reached": the person's round goes on without the model
       return;
@@ -594,7 +609,7 @@ export function createApp(opts: AppOptions = {}) {
       });
       return c.json({ error: `gate: rejected (${decision.reason}); nothing will run`, experiment }, 422);
     }
-    startModelBets(round, sessionId); // D02-06: the model bets on this SAME experiment, from the questions only
+    startModelBets(round, sessionId, clientOf(c)); // D02-06: the model bets on this SAME experiment, from the questions only
     return c.json({ experiment, questions: round.questions, extraQuestions: round.extraQuestions, model: modelSlotView(round) });
   });
 
@@ -658,6 +673,9 @@ export function createApp(opts: AppOptions = {}) {
     if (capped) {
       return notAsked(`call limit reached: this session already asked for ${MAX_INVESTIGATIONS_PER_SESSION} investigations`);
     }
+    // S5: sessions are free to make, so investigations are also counted per client address.
+    const byIp = investigationsByIp.take(clientOf(c));
+    if (!byIp.ok) return notAsked(byIp.reason);
     mine.count++;
 
     // 3. The model proposes; plain code verifies each place against the file.
@@ -791,7 +809,7 @@ export function createApp(opts: AppOptions = {}) {
     // and overall (server/replay-limits.ts). Checked before the bets freeze, so a refused run can be retried.
     let runSlot: { release: () => void } | undefined;
     if (experiment.runner === "evm") {
-      const slot = runGate.take(sessionId);
+      const slot = runGate.take(sessionId, clientOf(c));
       if (!slot.ok) return c.json({ error: `run not started: ${slot.reason}` }, 429);
       runSlot = slot;
     }
@@ -931,7 +949,7 @@ export function createApp(opts: AppOptions = {}) {
       if (c.req.header("x-atlas-session") === undefined) return c.json({ error: "an EVM replay needs the x-atlas-session header: replays are counted per session" }, 400);
       const sessionId = sessionIdOf(c);
       if (sessionId === null) return c.json({ error: BAD_SESSION }, 400);
-      const slot = replayGate.take(sessionId);
+      const slot = replayGate.take(sessionId, clientOf(c));
       if (!slot.ok) return c.json({ error: `replay not started: ${slot.reason}` }, 429);
       try {
         replay = scrubDeep(await evmRun(exp, { forkBlock: before.forkBlock!, onProgress: () => {} }));

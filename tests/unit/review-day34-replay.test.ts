@@ -23,7 +23,7 @@ const tick = () => new Promise((r) => setTimeout(r, 5));
 
 describe("S5: EVM replays are capped", () => {
   it("defaults are small, and the environment can set them (bad values keep the default)", () => {
-    expect(DEFAULT_REPLAY_LIMITS).toEqual({ globalConcurrent: 1, globalPerHour: 10, sessionConcurrent: 1, sessionPerHour: 3 });
+    expect(DEFAULT_REPLAY_LIMITS).toEqual({ globalConcurrent: 1, globalPerHour: 10, sessionConcurrent: 1, sessionPerHour: 3, ipConcurrent: 1, ipPerHour: 4, reservedForNewClients: 2 }); // day-5 S5 added the last three
     expect(replayLimitsFromEnv({ ATLAS_REPLAY_MAX_CONCURRENT: "2", ATLAS_REPLAY_SESSION_MAX_PER_HOUR: "5", ATLAS_REPLAY_MAX_PER_HOUR: "lots" })).toEqual({ ...DEFAULT_REPLAY_LIMITS, globalConcurrent: 2, sessionPerHour: 5 });
   });
 
