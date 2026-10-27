@@ -1,0 +1,70 @@
+
+ RUN  v5.0.5 .
+
+ ✓ tests/unit/gate.test.ts > gate: every shape inside its bounds is allowed > retry-scenario {"shape":"retry-scenario","failTimes":0,"failure":"error"} 1ms
+ ✓ tests/unit/gate.test.ts > gate: every shape inside its bounds is allowed > retry-scenario {"shape":"retry-scenario","failTimes":"always","failure":"never_settles"} 0ms
+ ✓ tests/unit/gate.test.ts > gate: every shape inside its bounds is allowed > retry-scenario {"shape":"retry-scenario","failTimes":10,"failure":"error","attempts":10,"delayMs":60000,"resolveAfterMs":60000,"errorKind":"429","resolvesWith":{"status":429}} 0ms
+ ✓ tests/unit/gate.test.ts > gate: every shape inside its bounds is allowed > retry-scenario {"shape":"retry-scenario","failTimes":1,"failure":"error","attempts":1,"delayMs":0,"resolveAfterMs":0,"errorKind":"seeded","resolvesWith":null} 0ms
+ ✓ tests/unit/gate.test.ts > gate: every shape inside its bounds is allowed > concurrency-sweep {"shape":"concurrency-sweep","callers":1,"failTimes":0,"failure":"error"} 0ms
+ ✓ tests/unit/gate.test.ts > gate: every shape inside its bounds is allowed > concurrency-sweep {"shape":"concurrency-sweep","callers":200,"failTimes":"always","failure":"error","delayMs":3000} 0ms
+ ✓ tests/unit/gate.test.ts > gate: every shape inside its bounds is allowed > price-read {"shape":"price-read","markets":["cbETH"]} 0ms
+ ✓ tests/unit/gate.test.ts > gate: every shape inside its bounds is allowed > price-read {"shape":"price-read","markets":["cbETH","WETH","USDC"]} 0ms
+ ✓ tests/unit/gate.test.ts > gate: every shape inside its bounds is allowed > apply-proposal-then-read {"shape":"apply-proposal-then-read","markets":"touched"} 0ms
+ ✓ tests/unit/gate.test.ts > gate: every shape inside its bounds is allowed > apply-proposal-then-read {"shape":"apply-proposal-then-read","markets":["WETH"]} 0ms
+ ✓ tests/unit/gate.test.ts > gate: every shape inside its bounds is allowed > liquidatable-at-price {"shape":"liquidatable-at-price","market":"cbETH","priceUsd1e18":"1120000000000000000"} 0ms
+ ✓ tests/unit/gate.test.ts > gate: every shape inside its bounds is allowed > liquidatable-at-price {"shape":"liquidatable-at-price","market":"USDC","priceUsd1e18":"1000000000000000000000000"} 0ms
+ ✓ tests/unit/gate.test.ts > gate: every shape inside its bounds is allowed > covers every shape in src/types.ts 0ms
+ ✓ tests/unit/gate.test.ts > gate: every shape inside its bounds is allowed > returns a copy, so a later change to the input does not reach the runner 0ms
+ ✓ tests/unit/gate.test.ts > gate: refusals carry plain reasons (plan D02-01 acceptance) > callers: 201 0ms
+ ✓ tests/unit/gate.test.ts > gate: refusals carry plain reasons (plan D02-01 acceptance) > unknown shape 0ms
+ ✓ tests/unit/gate.test.ts > gate: refusals carry plain reasons (plan D02-01 acceptance) > attempts: 1000 0ms
+ ✓ tests/unit/gate.test.ts > gate: refusals carry plain reasons (plan D02-01 acceptance) > markets not in the touched list 0ms
+ ✓ tests/unit/gate.test.ts > gate: refusals carry plain reasons (plan D02-01 acceptance) > markets when the target touches none 0ms
+ ✓ tests/unit/gate.test.ts > gate: more refusals > not an object 0ms
+ ✓ tests/unit/gate.test.ts > gate: more refusals > null 0ms
+ ✓ tests/unit/gate.test.ts > gate: more refusals > a list 0ms
+ ✓ tests/unit/gate.test.ts > gate: more refusals > no shape 0ms
+ ✓ tests/unit/gate.test.ts > gate: more refusals > extra key 0ms
+ ✓ tests/unit/gate.test.ts > gate: more refusals > misspelt key 0ms
+ ✓ tests/unit/gate.test.ts > gate: more refusals > missing required 0ms
+ ✓ tests/unit/gate.test.ts > gate: more refusals > failTimes 11 0ms
+ ✓ tests/unit/gate.test.ts > gate: more refusals > failTimes -1 0ms
+ ✓ tests/unit/gate.test.ts > gate: more refusals > failTimes 1.5 0ms
+ ✓ tests/unit/gate.test.ts > gate: more refusals > failTimes as text 0ms
+ ✓ tests/unit/gate.test.ts > gate: more refusals > failTimes never 0ms
+ ✓ tests/unit/gate.test.ts > gate: more refusals > attempts 0 0ms
+ ✓ tests/unit/gate.test.ts > gate: more refusals > delayMs 60001 0ms
+ ✓ tests/unit/gate.test.ts > gate: more refusals > resolveAfterMs huge 0ms
+ ✓ tests/unit/gate.test.ts > gate: more refusals > failure timeout 0ms
+ ✓ tests/unit/gate.test.ts > gate: more refusals > errorKind 500 0ms
+ ✓ tests/unit/gate.test.ts > gate: more refusals > resolvesWith too big 0ms
+ ✓ tests/unit/gate.test.ts > gate: more refusals > callers 0 0ms
+ ✓ tests/unit/gate.test.ts > gate: more refusals > sweep never_settles 0ms
+ ✓ tests/unit/gate.test.ts > gate: more refusals > empty markets 0ms
+ ✓ tests/unit/gate.test.ts > gate: more refusals > duplicate market 0ms
+ ✓ tests/unit/gate.test.ts > gate: more refusals > price-read touched word 0ms
+ ✓ tests/unit/gate.test.ts > gate: more refusals > price zero 0ms
+ ✓ tests/unit/gate.test.ts > gate: more refusals > price over $1M 0ms
+ ✓ tests/unit/gate.test.ts > gate: more refusals > price as number 0ms
+ ✓ tests/unit/gate.test.ts > gate: more refusals > price with decimals 0ms
+ ✓ tests/unit/gate.test.ts > gate: more refusals > a shape the target's runner cannot run is refused 0ms
+ ✓ tests/unit/gate.test.ts > gate: more refusals > never throws on hostile input 0ms
+ ✓ tests/unit/gate.test.ts > questions: one place, plain code > the day-1 gate reads the same text (not a copy) 0ms
+ ✓ tests/unit/gate.test.ts > questions: one place, plain code > retry-scenario asks calls (integer), totalWaitMs (integer), outcome (enum of the runner's words) 0ms
+ ✓ tests/unit/gate.test.ts > questions: one place, plain code > price questions: one per market, unit USD, tolerance fixed at 10%; 'touched' expands from the context 0ms
+ ✓ tests/unit/gate.test.ts > questions: one place, plain code > no questions for shapes nothing measures yet 0ms
+ ✓ tests/unit/gate.test.ts > rendered allow-list (text for the Claimant) > shows only the shapes allowed on the target, with the bounds the gate checks 0ms
+ ✓ tests/unit/gate.test.ts > rendered allow-list (text for the Claimant) > lists the touched markets for EVM shapes 0ms
+ ✓ tests/unit/gate.test.ts > rendered allow-list (text for the Claimant) > renders each question with the exact answer JSON it needs 0ms
+ ✓ tests/unit/day-gate.test.ts > D01-08 day gate: six known cases end to end > the hard-coded bets and experiments are the oracle table's rows 1ms
+ ✓ tests/unit/day-gate.test.ts > D01-08 day gate: six known cases end to end > every oracle bet matched; the off bet didn't match; the unmeasured bet can't be checked; under 5 s 653ms
+ ✓ tests/unit/day-gate.test.ts > D01-08 HTTP refusals > POST /targets: bad body or a path outside tests/fixtures → 400 with a reason 1ms
+ ✓ tests/unit/day-gate.test.ts > D01-08 HTTP refusals > POST /runs: unknown target or wrong runner → 400 0ms
+ ✓ tests/unit/day-gate.test.ts > D01-08 HTTP refusals > POST /runs: misspelt, out-of-bounds or unknown-shape params → 422 from the gate, returned with its reason, never run 1ms
+ ✓ tests/unit/day-gate.test.ts > D01-08 HTTP refusals > POST /runs: a bet whose seal does not verify → 409, nothing judged, nothing run 0ms
+
+ Test Files  2 passed (2)
+      Tests  61 passed (61)
+   Start at  05:44:27
+   Duration  779ms (tests 92%, import 6%, transform 2%)
+
