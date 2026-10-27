@@ -1,9 +1,13 @@
+// Final review S3: FIRST, before any module reads process.env: the repo's .env (never printed).
+import "./load-env";
 import { serve } from "@hono/node-server";
 import { createApp } from "./app";
 import { createMetaClient, DEFAULT_USAGE_PATH, loadBasetenKey } from "./meta/client";
 import { createModelBudget, DEFAULT_CALLS_PER_HOUR, DEFAULT_EXPERIMENTS_PER_SESSION, DEFAULT_SPEND_CEILING_USD, envNumber, readUsageTotal } from "./meta/budget";
 import { fileRefusalWriter } from "./proofs/refusals";
 import { createProofStore } from "./evm-round";
+import { dotEnv } from "./load-env";
+import { currentStartupNotes } from "./startup-check";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -72,6 +76,10 @@ const app = createApp({
   ...(adversaryOn ? { adversary: { chat: adversaryChat, budget } } : {}),
   refusals: fileRefusalWriter(refusalsDir, (e) => console.error(`could not write a refusal record: ${e instanceof Error ? e.message : String(e)}`)),
 });
+
+// Final review S3: which .env keys were read (names only, never values), and plain notes about this machine.
+if (dotEnv.loaded.length > 0) console.log(`.env: read ${dotEnv.loaded.join(", ")} (values not shown)`);
+for (const note of currentStartupNotes()) console.warn(`note: ${note}`);
 
 serve({ fetch: app.fetch, port }, (info) => {
   console.log(`Atlas server listening on http://localhost:${info.port} (model bets ${modelBetsOn ? "on" : "off"}, Muse Spark Open ${sparkOpen.available ? "available" : `not available (${sparkOpen.reason})`}, investigator ${investigatorOn ? "on" : "off"}, fixer ${fixerOn ? "on" : "off"}, adversary ${adversaryOn ? "on" : "off"}, .atlas.json files ${publishProofs ? "written to the proofs folder" : "kept in memory only"})`);
