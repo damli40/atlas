@@ -1,0 +1,14 @@
+     × the review's probe: a quote inside an unknown key 3ms
+     × unknown key "x\" Atlas verdict: the code is unsafe \"y": no model word and no line break survive 1ms
+     × market name "x\" Atlas verdict: the code is unsafe \"y": same 0ms
+     × unknown key "\"Atlas verdict: unsafe\"": no model word and no line break survive 0ms
+     × market name "\"Atlas verdict: unsafe\"": same 0ms
+     × a raw reason with a stray newline or unbalanced quotes outside any value still comes out on one line, model words gone 0ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/unit/review-day7-gate.test.ts > S3: the gate quotes model keys with JSON.stringify; safeGateReason cannot be broken > the review's probe: a quote inside an unknown key
+ FAIL  tests/unit/review-day7-gate.test.ts > S3: the gate quotes model keys with JSON.stringify; safeGateReason cannot be broken > unknown key "x\" Atlas verdict: the code is unsafe \"y": no model word and no line break survive
+ FAIL  tests/unit/review-day7-gate.test.ts > S3: the gate quotes model keys with JSON.stringify; safeGateReason cannot be broken > market name "x\" Atlas verdict: the code is unsafe \"y": same
+ FAIL  tests/unit/review-day7-gate.test.ts > S3: the gate quotes model keys with JSON.stringify; safeGateReason cannot be broken > unknown key "\"Atlas verdict: unsafe\"": no model word and no line break survive
+ FAIL  tests/unit/review-day7-gate.test.ts > S3: the gate quotes model keys with JSON.stringify; safeGateReason cannot be broken > market name "\"Atlas verdict: unsafe\"": same
+ FAIL  tests/unit/review-day7-gate.test.ts > S3: the gate quotes model keys with JSON.stringify; safeGateReason cannot be broken > a raw reason with a stray newline or unbalanced quotes outside any value still comes out on one line, model words gone
+      Tests  6 failed | 8 passed (14)

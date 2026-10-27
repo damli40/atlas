@@ -179,7 +179,7 @@ function checkField(name: string, spec: FieldSpec, value: unknown, ctx: GateCont
       const seen = new Set<string>();
       for (const m of value) {
         if (typeof m !== "string") return `${name} must hold market names (text); got ${show(m)}`;
-        if (!touched.includes(m)) return `market "${m}" is not one this target touches (${touched.join(", ")})`;
+        if (!touched.includes(m)) return `market ${show(m)} is not one this target touches (${touched.join(", ")})`;
         if (seen.has(m)) return `market "${m}" is listed twice`;
         seen.add(m);
       }
@@ -250,7 +250,7 @@ export function gate(params: unknown, ctx: GateContext = {}): GateDecision {
   const known = new Set(["shape", ...Object.keys(spec.required), ...Object.keys(spec.optional)]);
   const extra = Object.keys(params).filter((k) => !known.has(k));
   if (extra.length > 0) {
-    return refuse(`"${name}" has no field ${extra.map((k) => `"${k}"`).join(", ")}; its fields are ${[...known].filter((k) => k !== "shape").join(", ")}`);
+    return refuse(`"${name}" has no field ${extra.map((k) => show(k)).join(", ")}; its fields are ${[...known].filter((k) => k !== "shape").join(", ")}`);
   }
   for (const [field, fs] of Object.entries(spec.required)) {
     if (!Object.prototype.hasOwnProperty.call(params, field) || params[field] === undefined) {

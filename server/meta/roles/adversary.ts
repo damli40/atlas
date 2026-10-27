@@ -224,7 +224,9 @@ export function safeGateReason(reason: string, ctx: GateContext): string {
     out += words.has(inner) ? `"${inner}"` : MODEL_VALUE_PLACEHOLDER;
     i = j + 1;
   }
-  return out;
+  // Day-7 review S3: one line always. A line break or control character outside a quoted value (the gate
+  // never writes one) becomes a space, so nothing can start a second log line or look like a new sentence.
+  return out.replace(/[\u0000-\u001f\u007f\u2028\u2029]/g, " ");
 }
 
 export type AdversaryValidation =
