@@ -91,8 +91,21 @@ export interface ModelSlotView {
 }
 
 export function modelSlotView(round: Round): ModelSlotView | null {
-  const m = round.model;
-  if (!m) return null;
+  return round.model ? slotView(round, round.model) : null;
+}
+
+/** D07-01: every model slot of the round, in column order (one in "spark" or "spark-open" mode, two in "both"). */
+export function modelSlotViews(round: Round): ModelSlotView[] {
+  return modelSlotsOf(round).map((m) => slotView(round, m));
+}
+
+/** The round's model slots: `models` when set, else the single `model`, else none. */
+export function modelSlotsOf(round: Round): ModelSlot[] {
+  if (round.models && round.models.length > 0) return round.models;
+  return round.model ? [round.model] : [];
+}
+
+function slotView(round: Round, m: ModelSlot): ModelSlotView {
   return {
     model: m.model,
     who: m.who,
@@ -118,8 +131,10 @@ export interface Round {
   betsFrozenAt?: string;
   run?: Run;
   verdicts?: Verdict[];
-  /** The model's bets on this same experiment (D02-06). Absent when the server asks no model. */
+  /** The model's bets on this same experiment (D02-06). Absent when the server asks no model. In "both" mode, the first slot (Muse Spark). */
   model?: ModelSlot;
+  /** D07-01: every model slot, in column order. In "both" mode Muse Spark and Muse Spark Open each have one. */
+  models?: ModelSlot[];
   /** D04-04: the finding the person chose for this round (an Investigator finding or lines they picked). */
   finding?: Finding;
   /** D04-04: what the gate allowed on this target (TS or EVM). */

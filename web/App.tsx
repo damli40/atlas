@@ -5,11 +5,14 @@
 // questions. The page shows only "has sealed N bets" + hashes until the run, then both columns.
 // D04-04: a target switcher (the withRpcRetry fixture, or a pull request link: Moonwell PR #578 on
 // the EVM runner), and a findings panel (the Investigator's places, checked against the file).
+// D07-01: a toggle picks who bets with the person: Muse Spark, Muse Spark Open (open weights, via
+// Baseten) or both, each sealing its own bets on the same experiment.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Question } from "../src/gate";
 import type { Target } from "../src/types";
-import { createApi, type Api, type HumanAnswer, type ModelSlotView, type RunAnswer, type ShownBet } from "./api";
+import { createApi, type Api, type ClaimantMode, type HumanAnswer, type RunAnswer, type ShownBet } from "./api";
+import { ClaimantToggle, shownName, useModelSlots, verdictColumns } from "./screens/Claimant";
 import { DEFAULT_SCENARIO, FIXTURE_REF, SCENARIOS } from "./scenarios";
 import { Bets, TargetCard } from "./screens/Bets";
 import { RunScreen } from "./screens/Run";
@@ -44,6 +47,13 @@ function Rounds({ api: given }: { api?: Api }) {
   const fixtureApi = useMemo(() => given ?? createApi(), [given]);
   const prApi = useMemo(() => given ?? createApi(), [given]);
   const scaleApi = useMemo(() => given ?? createApi(), [given]);
+  // D07-01: who bets with the person on the next experiment (sent as the x-atlas-claimant header).
+  const [claimant, setClaimant] = useState<ClaimantMode>("spark");
+  const pickClaimant = (m: ClaimantMode) => {
+    setClaimant(m);
+    fixtureApi.setClaimant(m);
+    prApi.setClaimant(m);
+  };
   // D05-04: the agent log strip. A side panel on a wide screen (toggled), under the flow on a phone.
   const [stripOpen, setStripOpen] = useState(true);
   // D05-05: how many "Ask why" sentences were dropped (no run evidence), per target, for the strip.
@@ -73,6 +83,7 @@ function Rounds({ api: given }: { api?: Api }) {
             Many callers at once
           </button>
         </nav>
+        {mode !== "scale" && <ClaimantToggle api={mode === "fixture" ? fixtureApi : prApi} mode={claimant} onMode={pickClaimant} />}
         <WhyDroppedContext.Provider value={reportDropped}>{mode === "fixture" ? <FixtureFlow api={fixtureApi} /> : mode === "pr" ? <MoonwellFlow api={prApi} /> : <ScaleScreen api={scaleApi} />}</WhyDroppedContext.Provider>
       </main>
       <LiveLogStrip key={mode} api={mode === "fixture" ? fixtureApi : mode === "pr" ? prApi : scaleApi} dropped={mode === "scale" ? null : dropped[mode]} open={stripOpen} onToggle={() => setStripOpen((o) => !o)} />
@@ -95,7 +106,7 @@ function FixtureFlow({ api }: { api: Api }) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [sealed, setSealed] = useState<ShownBet[]>([]);
   const [result, setResult] = useState<RunAnswer | null>(null);
-  const [modelSlot, setModelSlot] = useState<ModelSlotView | null>(null);
+  const models = useModelSlots(api);
   const [busy, setBusy] = useState(false);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -130,15 +141,7 @@ function FixtureFlow({ api }: { api: Api }) {
       const out = await api.experiment(target, scenario.params, finding?.id);
       setExperimentId(out.experiment.id);
       setQuestions(out.questions);
-      setModelSlot(out.model);
-      if (out.model?.status === "thinking") {
-        // Not awaited: the person bets while the model thinks. Only hashes come back.
-        const thinking = out.model;
-        api.modelBets(out.experiment.id).then(
-          (m) => setModelSlot(m),
-          (e: Error) => setModelSlot({ ...thinking, status: "no_usable_answer", reason: `the page could not reach the server: ${e.message}`, sealed: [] }),
-        );
-      }
+      models.fromExperiment(out); // the person bets while the model(s) think; only hashes come back
     });
 
   const seal = () =>
@@ -172,11 +175,8 @@ function FixtureFlow({ api }: { api: Api }) {
     setError(null);
     try {
       const r = await api.run(experimentId);
-      // After the run, the server's slot is the truth (its bets were sealed even if the page's own
-      // model-bets request failed), so the model column is rebuilt from it. When the page already
-      // showed the model's hashes, it keeps its own copy: the seal check compares against what was
-      // on screen BEFORE the run, and any judged bet the page never showed is flagged there.
-      if (r.model && modelSlot?.status !== "sealed") setModelSlot({ ...r.model, sealed: [] });
+      // After the run, the server's slots are the truth (useModelSlots.fromRun explains the rule).
+      models.fromRun(r);
       setResult(r);
     } catch (e) {
       setError((e as Error).message);
@@ -201,21 +201,14 @@ function FixtureFlow({ api }: { api: Api }) {
         onSeal={seal}
         busy={busy || !target}
       />
-      <ModelSlotCard slot={modelSlot} revealed={result && modelSlot ? result.bets.filter((b) => b.who === modelSlot.who) : null} />
-      <RunScreen canRun={sealed.length > 0 && !busy && modelSlot?.status !== "thinking"} running={running} result={result} onBreak={breakIt} />
-      {result && (
-        <VerdictScreen
-          shown={sealed}
-          typed={answers}
-          modelShown={modelSlot?.sealed ?? []}
-          modelName={modelSlot && modelSlot.status !== "off" ? modelSlot.display : null}
-          modelEmpty={modelSlot?.status === "no_usable_answer" ? `no usable answer (${modelSlot.reason ?? "no reason given"})` : undefined}
-          result={result}
-        />
-      )}
+      {models.slots.map((slot) => (
+        <ModelSlotCard key={slot.who} slot={slot} revealed={result ? result.bets.filter((b) => b.who === slot.who) : null} />
+      ))}
+      <RunScreen canRun={sealed.length > 0 && !busy && !models.thinking} running={running} result={result} onBreak={breakIt} />
+      {result && <VerdictScreen shown={sealed} typed={answers} modelShown={[]} modelName={null} models={verdictColumns(models.slots)} result={result} />}
       {result && <WhyScreen run={result.run} finding={finding} modelTexts={modelTextsOf(result.bets, finding)} />}
       {result?.proof?.ok && <ProofLink runId={result.proof.runId} />}
-      {result && experimentId && <ChangePanel api={api} result={result} experimentId={experimentId} modelName={modelSlot && modelSlot.status !== "off" ? modelSlot.display : null} />}
+      {result && experimentId && <ChangePanel api={api} result={result} experimentId={experimentId} modelName={models.slots[0] ? shownName(models.slots[0]) : null} />}
       {error && (
         <p className="notice" role="alert">
           {error}

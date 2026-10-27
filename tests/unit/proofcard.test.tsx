@@ -40,7 +40,7 @@ describe("proof card (D06-03)", () => {
     const html = renderToStaticMarkup(<ProofCard file={fixture} />);
     const doc = new DOMParser().parseFromString(html, "text/html");
     const text = doc.body.textContent ?? "";
-    expect(text).toContain("muse-spark-1.3 · matched");
+    expect(text).toContain("Muse Spark 1.3 (muse-spark-1.3) · matched"); // D07-01: product name and id
     expect(text).toContain("You · didn't match");
     expect(text).toContain("seed tFjD64Wn2K");
     expect(doc.querySelector('[data-testid="pc-controls"]')?.textContent).toMatch(/^passed: known-case check matched/);
@@ -62,7 +62,7 @@ describe("proof card (D06-03)", () => {
     expect(card.controls).toEqual(["WETH read equals its Chainlink feed at the same block", "4 of 4 stablecoins inside the $1 band before", "4 of 4 inside the band after"]);
     const html = renderToStaticMarkup(<ProofCard file={moonwell} />);
     expect(html).toContain("$1.12");
-    expect(html).toContain("muse-spark-1.3 · can&#x27;t check");
+    expect(html).toContain("Muse Spark 1.3 (muse-spark-1.3) · can&#x27;t check"); // D07-01: product name and id
     expect(html).toContain("fork of Base one block before MIP-X43 ran");
     expect(html.replace(/<[^>]+>/g, " ")).not.toMatch(BANNED);
   });

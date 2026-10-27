@@ -11,7 +11,8 @@ import type { Question } from "../../src/gate";
 import type { Finding } from "../../src/types";
 import { formatUsd1e18 } from "../../src/units";
 import { rowWords, tableCounts } from "../../src/falsealarm";
-import type { Api, FalseAlarmRow, ModelSlotView, PrTarget, RunAnswer, ShownBet } from "../api";
+import type { Api, FalseAlarmRow, PrTarget, RunAnswer, ShownBet } from "../api";
+import { shownName, useModelSlots, verdictColumns } from "./Claimant";
 import { useRunnerProgress } from "../progress";
 import { ShortHash } from "./Bets";
 import { FindingsPanel } from "./Findings";
@@ -60,7 +61,7 @@ export function MoonwellFlow({ api }: { api: Api }) {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [answer, setAnswer] = useState("");
   const [sealed, setSealed] = useState<ShownBet[]>([]);
-  const [modelSlot, setModelSlot] = useState<ModelSlotView | null>(null);
+  const models = useModelSlots(api);
   const [result, setResult] = useState<RunAnswer | null>(null);
   const [busy, setBusy] = useState(false);
   const [running, setRunning] = useState(false);
@@ -92,14 +93,7 @@ export function MoonwellFlow({ api }: { api: Api }) {
       const out = await api.experiment(target, LEVELS[level].params, finding.id);
       setExperimentId(out.experiment.id);
       setQuestions(out.questions);
-      setModelSlot(out.model);
-      if (out.model?.status === "thinking") {
-        const thinking = out.model;
-        api.modelBets(out.experiment.id).then(
-          (m) => setModelSlot(m),
-          (e: Error) => setModelSlot({ ...thinking, status: "no_usable_answer", reason: `the page could not reach the server: ${e.message}`, sealed: [] }),
-        );
-      }
+      models.fromExperiment(out);
     });
 
   const seal = () =>
@@ -118,7 +112,7 @@ export function MoonwellFlow({ api }: { api: Api }) {
     setError(null);
     try {
       const r = await api.run(experimentId);
-      if (r.model && modelSlot?.status !== "sealed") setModelSlot({ ...r.model, sealed: [] });
+      models.fromRun(r);
       setResult(r);
     } catch (e) {
       setError((e as Error).message);
@@ -183,7 +177,7 @@ export function MoonwellFlow({ api }: { api: Api }) {
             >
               {finding && fileOf(finding.file) !== undefined && (
                 <details className="small">
-                  <summary>What you know before betting. Muse Spark gets exactly this text, nothing more (no prices).</summary>
+                  <summary>What you know before betting. Each Meta model that bets (Muse Spark, and Muse Spark Open when chosen) gets exactly this text, nothing more (no prices).</summary>
                   <pre className="code" data-testid="bet-context">
                     {moonwellBetContext({ level, question: q, finding, fileText: fileOf(finding.file)!, pr: { ref: target.ref, title: target.title, ...(target.commit !== undefined ? { commit: target.commit } : {}), fileCount: target.files.length, codeSha256: target.codeSha256 } })}
                   </pre>
@@ -191,7 +185,7 @@ export function MoonwellFlow({ api }: { api: Api }) {
               )}
               <div className="question">
                 <label htmlFor="bet-usd">{q.text}</label>
-                <p className="muted small">Written by plain code (src/gate.ts). Muse Spark answers the same question. Matched means within {q.tolerancePct}% of what the run reads.</p>
+                <p className="muted small">Written by plain code (src/gate.ts). Each Meta model that bets answers the same question. Matched means within {q.tolerancePct}% of what the run reads.</p>
                 <input id="bet-usd" data-testid="bet-usd" type="number" inputMode="decimal" min={0} step="any" value={answer} disabled={sealed.length > 0 || busy} onChange={(e) => setAnswer(e.target.value)} /> USD
                 {sealed[0] && (
                   <p className="sealed">
@@ -209,13 +203,15 @@ export function MoonwellFlow({ api }: { api: Api }) {
         </section>
       )}
 
-      <ModelSlotCard slot={modelSlot} revealed={result && modelSlot ? result.bets.filter((b) => b.who === modelSlot.who) : null} />
+      {models.slots.map((slot) => (
+        <ModelSlotCard key={slot.who} slot={slot} revealed={result ? result.bets.filter((b) => b.who === slot.who) : null} />
+      ))}
 
       {sealed.length > 0 && (
         <section className="card" aria-label="run">
           <h2>Run it</h2>
           {!result && (
-            <button type="button" className="primary" onClick={run} disabled={running || busy || modelSlot?.status === "thinking"}>
+            <button type="button" className="primary" onClick={run} disabled={running || busy || models.thinking}>
               Run it on a fork of Base
             </button>
           )}
@@ -256,9 +252,9 @@ export function MoonwellFlow({ api }: { api: Api }) {
         <VerdictScreen
           shown={sealed}
           typed={q ? { [q.measures]: answer } : undefined}
-          modelShown={modelSlot?.sealed ?? []}
-          modelName={modelSlot && modelSlot.status !== "off" ? modelSlot.display : null}
-          modelEmpty={modelSlot?.status === "no_usable_answer" ? `no usable answer (${modelSlot.reason ?? "no reason given"})` : undefined}
+          modelShown={[]}
+          modelName={null}
+          models={verdictColumns(models.slots)}
           result={result}
           format={usd}
         />
@@ -290,7 +286,7 @@ export function MoonwellFlow({ api }: { api: Api }) {
       {result && <WhyScreen run={result.run} finding={finding} modelTexts={modelTextsOf(result.bets, finding)} />}
 
       {result && experimentId && result.run.runner === "evm" && (
-        <ChangePanel api={api} result={result} experimentId={experimentId} modelName={modelSlot && modelSlot.status !== "off" ? modelSlot.display : null} format={usd} />
+        <ChangePanel api={api} result={result} experimentId={experimentId} modelName={models.slots[0] ? shownName(models.slots[0]) : null} format={usd} />
       )}
 
       {error && (

@@ -9,6 +9,7 @@ import type { Bet, Outcome, Verdict } from "../../src/types";
 import type { RunAnswer, SealedOnly } from "../api";
 import { ShortHash } from "./Bets";
 import { Scoreboard } from "../machines/scoreboard/Scoreboard";
+import { BettorCounts } from "./Claimant";
 
 const SAY: Record<Outcome, string> = { matched: "matched", not_matched: "didn't match", cant_check: "can't check" };
 
@@ -82,6 +83,11 @@ export interface VerdictProps {
   modelName: string | null;
   /** Shown in the model's column when it has no bets (e.g. "no usable answer (…)"). */
   modelEmpty?: string;
+  /**
+   * D07-01: one column per model, in order (Muse Spark, Muse Spark Open). When given, it replaces
+   * modelShown / modelName / modelEmpty. `shown`: that model's hashes as shown before the run.
+   */
+  models?: ModelColumn[];
   result: RunAnswer;
   /** How to show observed and reference values (default: as stored). */
   format?: FormatValue;
@@ -98,28 +104,51 @@ function Cell({ bet, verdict, testId }: { bet: Bet | undefined; verdict: Verdict
   );
 }
 
-export function VerdictScreen({ shown, typed, modelShown, modelName, modelEmpty, result, format = asStored }: VerdictProps) {
-  const shownBefore = [...shown, ...modelShown];
-  const checks = checkSeals(shownBefore, result);
+export interface ModelColumn {
+  who: string;
+  name: string;
+  shown: ShownBefore[];
+  empty?: string;
+}
+
+/** The legacy single-model props as columns: the named model, plus any judged model the page did not name. */
+function legacyColumns(modelShown: ShownBefore[], modelName: string | null, modelEmpty: string | undefined, judgedModel: Bet[]): ModelColumn[] {
+  const whos = [...new Set([...modelShown.map((b) => b.who), ...judgedModel.map((b) => b.who)])];
+  if (whos.length === 0) return modelName !== null ? [{ who: "", name: modelName, shown: [], ...(modelEmpty !== undefined ? { empty: modelEmpty } : {}) }] : [];
+  return whos.map((who, i) => ({ who, name: i === 0 ? (modelName ?? who) : who, shown: modelShown.filter((b) => b.who === who), ...(i === 0 && modelEmpty !== undefined ? { empty: modelEmpty } : {}) }));
+}
+
+/** testids: the first model keeps the original ids ("verdict-model-<field>"); later ones add their position. */
+const colTag = (i: number) => (i === 0 ? "model" : `model${i + 1}`);
+
+export function VerdictScreen({ shown, typed, modelShown, modelName, modelEmpty, models, result, format = asStored }: VerdictProps) {
   // The table shows the JUDGED bets (the run's revealed set), so the page and the server agree on it.
   const judgedYou = result.bets.filter((b) => b.who === "human");
   const judgedModel = result.bets.filter((b) => b.who !== "human");
+  const cols = models ?? legacyColumns(modelShown, modelName, modelEmpty, judgedModel);
+  // A judged model bet whose bettor has no column still gets one (never hidden).
+  for (const b of judgedModel) if (!cols.some((c) => c.who === b.who)) cols.push({ who: b.who, name: b.who, shown: [] });
+  const shownBefore = [...shown, ...cols.flatMap((c) => c.shown)];
+  const checks = checkSeals(shownBefore, result);
   const verdictOf = (id: string | undefined) => (id ? result.verdicts.find((v) => v.betId === id) : undefined);
-  const measures = [...new Set([...shown.map((b) => b.measures), ...judgedYou.map((b) => b.measures), ...modelShown.map((b) => b.measures), ...judgedModel.map((b) => b.measures)])];
-  const showModel = modelName !== null || judgedModel.length > 0;
-  const label = (who: string) => (who === "human" ? "You" : (modelName ?? who));
+  const measures = [...new Set([...shown.map((b) => b.measures), ...judgedYou.map((b) => b.measures), ...shownBefore.map((b) => b.measures), ...judgedModel.map((b) => b.measures)])];
+  const label = (who: string) => (who === "human" ? "You" : (cols.find((c) => c.who === who)?.name ?? who));
+  const names = Object.fromEntries(cols.filter((c) => c.who !== "").map((c) => [c.who, c.name]));
   // D04-04: a reference column when the runner computed one (EVM: the raw-Chainlink price, same block).
   const showReference = result.verdicts.some((v) => v.reference !== undefined);
   return (
     <section className="card" aria-label="verdicts">
       <h2>4. Whose bet matched</h2>
-      <Scoreboard verdicts={result.verdicts} bets={result.bets} names={modelName && judgedModel[0] ? { [judgedModel[0].who]: modelName } : {}} />
+      <Scoreboard verdicts={result.verdicts} bets={result.bets} names={names} />
+      {cols.length > 1 && <BettorCounts verdicts={result.verdicts} bets={result.bets} names={names} columns={cols.map((c) => c.who)} />}
       <table className="verdicts">
         <thead>
           <tr>
             <th>question</th>
             <th>You</th>
-            {showModel && <th>{modelName ?? judgedModel[0]?.who}</th>}
+            {cols.map((col) => (
+              <th key={col.who || col.name}>{col.name}</th>
+            ))}
             <th>observed</th>
             {showReference && <th>reference</th>}
           </tr>
@@ -127,20 +156,23 @@ export function VerdictScreen({ shown, typed, modelShown, modelName, modelEmpty,
         <tbody>
           {measures.map((m) => {
             const youBet = judgedYou.find((b) => b.measures === m);
-            const modelBet = judgedModel.find((b) => b.measures === m);
+            const modelBets = cols.map((col) => judgedModel.find((b) => b.who === col.who && b.measures === m));
+            const modelBet = modelBets.find((b) => b !== undefined);
             const v = verdictOf(youBet?.id) ?? verdictOf(modelBet?.id);
             return (
               <tr key={m} data-testid={`verdict-${m}`}>
                 <td>{youBet?.question ?? modelBet?.question ?? m}</td>
                 <Cell bet={youBet} verdict={verdictOf(youBet?.id)} testId={`verdict-you-${m}`} />
-                {showModel &&
-                  (modelBet ? (
-                    <Cell bet={modelBet} verdict={verdictOf(modelBet.id)} testId={`verdict-model-${m}`} />
+                {cols.map((col, i) => {
+                  const mb = modelBets[i];
+                  return mb ? (
+                    <Cell key={col.who || col.name} bet={mb} verdict={verdictOf(mb.id)} testId={`verdict-${colTag(i)}-${m}`} />
                   ) : (
-                    <td className="muted small" data-testid={`verdict-model-${m}`}>
-                      {modelEmpty ?? "no bet"}
+                    <td key={col.who || col.name} className="muted small" data-testid={`verdict-${colTag(i)}-${m}`}>
+                      {col.empty ?? "no bet"}
                     </td>
-                  ))}
+                  );
+                })}
                 <td data-testid={`observed-${m}`}>
                   {v?.observed === undefined ? "-" : format(m, v.observed)}
                   <div className="muted small">judged by {v?.judgedBy ?? "src/judge.ts"}</div>
@@ -160,7 +192,8 @@ export function VerdictScreen({ shown, typed, modelShown, modelName, modelEmpty,
       <ul className="seals">
         {checks.map((c) => {
           const b = shownBefore.find((x) => x.id === c.betId) ?? result.bets.find((x) => x.id === c.betId)!;
-          const testId = b.who === "human" ? `seal-check-${b.measures}` : `seal-check-model-${b.measures}`;
+          const ci = cols.findIndex((col) => col.who === b.who);
+          const testId = b.who === "human" ? `seal-check-${b.measures}` : `seal-check-${colTag(Math.max(0, ci))}-${b.measures}`;
           const revealed = result.bets.find((x) => x.id === c.betId);
           // The server sealed what the person typed? (The page kept its own copy of the answer.)
           const typedRaw = b.who === "human" && typed ? typed[b.measures]?.trim() : undefined;
