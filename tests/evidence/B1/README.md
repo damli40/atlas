@@ -1,25 +1,136 @@
 # B1: two benchmarks (D35), "Does Atlas tell the truth?" and "Do models know what code does?"
 
 Date: 2026-10-27/28 (WAT) · no model call ($0) · Node 25.8.1, CPython 3.14.7, macOS (Darwin 25), local executor only.
+Updated 2026-10-28 after the adversarial review of B1 (sections marked "After the review"). The earlier sections are
+kept as written; where the review changed what they mean, the new section says so.
 
 ## Where to look first
 
-- **Bench T result: 0 false facts on 88 tests.** Atlas's any-code runner was given 88 calls (48 small files: 30
-  JavaScript/TypeScript, 18 Python) whose facts were worked out by hand and committed before the run. It measured
-  all 70 measurable ones exactly as written (outcome, returned JSON, thrown name/type/message, virtual time, stand-in
-  counts) and said "can't check" on all 18 traps. Table: `bench/truth/results/2026-10-28.md`. This is 88 hand-picked
-  tests on one machine; it is not a claim that Atlas never reports a false fact.
-- **Bench M is built, not run.** 30 new functions x 3 tests = 90 prompts. The dry run (no model call) estimates
-  **$4.04** for Muse Spark + Muse Spark Open (high case $7.64) and **$7.34** with Muse Wonder too (high case
-  $13.91). The live run needs `--live` and is Dami's to start.
-- **A finding for E3 (not fixed here):** the product's model-bet check (`server/meta/schemas.ts` `betAnswerSchema`,
-  used by `validateBetOnlyOutput`) has no `json` answer kind. Every model bet on `returnedJson` (the question pasted
-  rounds ask) is refused as "does not match the schema". So, today, no model can bet on what pasted code returns
-  through the server. Bench M uses its own check (`bench/models/validate.ts`) that adds the `json` kind with the same
-  limits a person's json bet has. Test: `bench-models.test.ts` "FINDING for E3".
-- **A second gap for E3:** main has no bet-context builder for pasted rounds, and the server's "what the person sees"
-  prompt ends with the Moonwell sentence "Give your best estimate in USD". Bench M's builder (`bench/models/bet-context.ts`)
-  keeps the server's prompt frame and swaps only that sentence for a unit-free one.
+- **Approved wording (the only approved sentences for the README, the result page and the film) is the next
+  section.** "Atlas's false-fact count: 0" on its own is NOT approved: it is untrue as a general statement.
+- **Bench T (88 tests, 304 compared fields): 0 false facts, confirmed.** The reviewer re-derived all 70 fact tests in
+  plain Node and Python with no Atlas code and found no case where the expectation and Atlas agree on something wrong.
+- **What I told you before that was too strong.** My first report led with "0 false facts on 88 tests" and said the
+  bench shows "the documented contract held". Both are true for these 88 tests, but the review found false facts
+  within an hour just outside them. **Bench T2** pre-registers those 22 cases; its "before" run on main's runners:
+  **15 FALSE FACTS**, 6 correct facts, 1 correct can't-check (81 fields: 66 correct, 15 false). Atlas reports the
+  inner item's type for a list or object holding a non-JSON value (`[1n]` -> `bigint`), CPU time as 0, and orders,
+  random values, the host's time zone and unref'd-timer endings as plain facts. Runner fixes are a later batch (after
+  E3); T2's "after" run happens then.
+- **The order guarantee is hardened.** The review beat the old order test 4 ways; each attack now fails it (table
+  below).
+- **Bench M estimate went up** once the 32,000-token reasoning retry is counted: $6.28 for Muse Spark + Muse Spark
+  Open (high $13.24), $11.43 with Wonder. Above the $3-6 target; with the $8 cap a high-cost run stops partway.
+
+## Approved wording (after the review)
+
+Long form, for the README or the result page. The **last clause stays until the runner fixes land AND bench T2's
+"after" run has 0 false facts**:
+
+> "We wrote 88 test calls and their answers before running Atlas on them: 70 with an answer you can check, and 18
+> where the only honest answer is 'can't check'. On one run, on one laptop, on 28 October 2026, Atlas got none of
+> the 70 wrong and said 'can't check' on all 18. The tests were written by the same AI session that built Atlas's
+> runner. That shows Atlas keeps its stated rules on these cases; it does not show Atlas can never report a false
+> fact, and we have since found cases outside this set where it does."
+
+Short form, for the film, only if the qualifier stays on screen:
+
+> "70 checks we wrote before running. Atlas got 0 wrong, and said 'can't check' on all 18 traps. Our tests, one run."
+
+Never say "Atlas's false-fact count: 0" without "on these tests".
+
+## After the review: bench T2, the found failures (pre-registered, "before" run)
+
+```
+npx tsx bench/truth/run.ts --bench truth-2      # 17 s, main's runners (E4 merged into this branch), local executor
+```
+
+The 22 cases are the reviewer's, copied unchanged into `bench/truth-2/cases/`. Each expectation says what an
+**honest** Atlas should report: a plain fact; or `{ dependsOn: clock | randomness | scheduling | host |
+process-lifetime }` on a field, meaning reporting it as a plain measured value is a FALSE FACT and not measuring it
+(with a reason in that category) is correct; or a can't-check with a reason category. Committed alone (`0bd3922`)
+before the run; result `bench/truth-2/results/2026-10-28.md`.
+
+| Test | What it does | Atlas reported (as a fact) | Honest answer |
+|---|---|---|---|
+| h01a, q02c | times CPU work with the clock | 0 ms / false | depends on the clock: not a plain fact |
+| h03a, h03b | 0 ms timer vs setImmediate; nextTick vs promise | one fixed order | order not fixed: not a plain fact |
+| h04a | local hour and time zone | hour 1, Africa/Lagos | depends on the host |
+| h04b, h04c, q01a | Math.random, randomUUID, Python set order | one random value | random: not a plain fact |
+| h02a, h02b | waits on unref'd timers | returned / threw at 100 ms | depends on what keeps the process alive (the review rated this pair minor) |
+| q01c, h06a-d | a list/object holding a tuple, BigInt, NaN, undefined, Date | `tuple`, `bigint`, `number (NaN)`, `undefined`, `object (Date)` | `array` / `object` |
+| h01b | busy-wait 50 ms | can't check (real-time limit) | correct can't-check |
+| h05a, h05b, q01b, q01d, q02a, q02b | setInterval, refresh(), int keys, 2.0, blocking sleep, wait_for | | correct facts |
+
+How a fix could pass instead of refusing: by pinning the outside thing (fixed time zone, fixed hash seed, seeded
+random) AND saying so. The result format has no field for that label yet, so T2's pass rule requires an amendment
+defining the label before the "after" run; without one, a pinned value is still counted as a FALSE FACT.
+
+## After the review: the order test, hardened (`tests/unit/bench-order.test.ts`, 32 tests)
+
+The review's attacks, replayed on this branch's current head in throwaway clones:
+
+| Attack (review's clone) | Old test | Now |
+|---|---|---|
+| clone1: classifier changed to say "correct" for everything | passed | fails (h): a scoring change after a result without a `bench/TOOLING-CHANGES.md` entry; and (g): re-scoring T2's result gives "correct fact" where it stored "FALSE FACT" |
+| clone1, variant: the same, with a log entry added | (n/a) | fails (g) |
+| clone1: a result's classification hand-edited | passed | fails (e): result files are append-only |
+| clone1: `expected-v2.json` added and the runner pointed at it | passed | fails (i) twice (runner map differs from the registration; extra expectations file) and (h) |
+| clone2: whole branch squashed | failed (a), (c) | still fails (a), (c) for all three benches |
+| clone3: `--depth 1` clone | skipped, reported as passed | fails (j) with "this is a SHALLOW clone ... fails instead of skipping on purpose" |
+| clone4: rebased onto a newer main (every SHA changes) | passed, but evidence SHAs dangled | passes 32/32, because registrations, results and tooling are checked by content hash (`bench/REGISTRATIONS.json`) |
+
+What each result now records: the registration's content hash, the corpus path it read (only the registered one), the
+SHA-256 of every file under `runners/` plus the bench and `src/` files it uses (checked against the files at the
+result's own commit), the reason categories, and the number of fields compared. Bench T's first result predates the
+tooling record; it is allowed by name (never extendable) and re-scored instead.
+
+Bench T amendment 1 (`bench/truth/AMENDMENT-2026-10-28.md`): can't-check reasons are checked against reason
+categories (assigned after the first result, which the amendment says; the reviewer had checked all 18 by hand; the
+re-score is unchanged); "70 tests (304 compared fields)"; the pass rule names the wrong order-test file.
+
+**What this still does not prove:** order is proven by git history, which is local until pushed. Timestamps and
+unpushed commits can be rewritten by whoever holds the repo; pushing the registration commits (or a signed tag) before
+a run is what makes it checkable by others. I did not push (batch rule).
+
+## After the review: bench M
+
+- **Prompt freeze reads the committed dry run** (`latestCommittedDryRun`: the newest dry run added in git, read from
+  HEAD), not the newest file on disk. Dry runs are never overwritten.
+- **Overlap check** now compares every function body after removing comments and layout and renaming variables
+  (`bench/lib/normalize.ts`): no bench M body equals a bench T or T2 body.
+- **Cost estimate includes the overflow retry** (16,000 tokens wasted + up to 32,000 on the second try, assumed for
+  2% of calls central, 5% high). New dry run `bench/models/dry-run/2026-10-28-2.json`, same 90 prompts:
+
+  | | Central | High |
+  |---|---|---|
+  | Muse Spark + Muse Spark Open | **$6.28** | $13.24 |
+  | with Muse Wonder | **$11.43** | $24.14 |
+
+  So the first estimate ($4.04) was too low. Spark's price is unpublished; its share is an upper bound.
+- **Amendment 1** (`bench/models/AMENDMENT-1-e3-bet-context.md`, committed before any live run): the live run uses
+  E3's `pastedBetContext` (`src/paste-context.ts`) inside `buildBetOnlyMessages(..., seenInstruction: null)`, and E3's
+  answer check. `--live` refuses until E3 is on the branch, and needs a newly committed dry run built with E3's text.
+  Checked in a throwaway merge of `e3-paste`: the dry run switches to `builder: "e3"`, the prompt is the paste
+  screen's text, and E3's `validateBetOnlyOutput` accepts a json bet.
+
+## After the review: commands and counts
+
+```
+npx vitest run tests/unit/bench-corpus.test.ts tests/unit/bench-order.test.ts tests/unit/bench-classify.test.ts tests/unit/bench-models.test.ts --reporter=verbose
+npx vitest run --maxWorkers=4
+npx tsc -p .
+```
+
+- Bench tests: 265 passed (`test-output-after-review.txt`).
+- Full suite, after merging main (E4) into this branch: 96 files (94 passed, 2 skipped), **1,375 passed, 36 skipped**,
+  twice in a row (`full-suite-after-review.txt`). The skips are main's (Modal and RPC tests without credentials).
+- Type check clean; no-local-paths passes.
+- Merged main with a merge commit (no rebase, no squash). Do not squash this branch when merging it.
+
+---
+
+## Before the review (first report, kept as written)
 
 ## The commits, in order (the order is the point)
 
