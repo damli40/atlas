@@ -1,0 +1,4 @@
+aa567d6 Add PRE-EXISTING.md: everything Atlas uses that existed before Oct 27
+ .gitignore      | 67 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ PRE-EXISTING.md | 45 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 112 insertions(+)
