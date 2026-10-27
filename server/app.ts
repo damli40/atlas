@@ -42,6 +42,9 @@
 //   here (1..200 callers); the control runs first (once per code SHA-256); then that many callers each call
 //   the real function with the same failure pattern, on one virtual clock, in the sandbox. Returns the Run
 //   (call times per virtual moment). No bets: nobody is asked anything about a sweep. One at a time per session.
+// - X1, the code explorer (server/outline/routes.ts): POST /outline/jobs {repo, ref?, subfolder?} | {files} starts an
+//   outline job (repo intake ≤ 50 files / 300 KB, plain-code code map, one Muse Wonder outline + one repair at most,
+//   plain-code verification); GET /outline/jobs/:id, /outline, /parts/:partId, /atlas read it. Per session, per address.
 // - GET /events/:sessionId (D02-05) → SSE of the session's agent events (server/log/). The session
 //   is the `x-atlas-session` header; the server makes one and returns it when absent. Experiments
 //   and bets belong to the session that made them.
@@ -121,6 +124,7 @@ import { guardPastedChat } from "./meta/pasted-guard";
 import { pastedBetHead } from "../src/paste-context";
 import { pastedSeenCap } from "./meta/roles/claimant-bets";
 import { MAX_PASTED_PROMPT_CHARS } from "./meta/pasted-guard";
+import { createOutlineRoutes, DEFAULT_OUTLINES_PER_IP_PER_HOUR, OUTLINE_BODY_BYTES, type OutlineOptions } from "./outline/routes";
 
 const REPO_ROOT = fileURLToPath(new URL("../", import.meta.url));
 const PRE_EXISTING_PATH = resolve(REPO_ROOT, "PRE-EXISTING.md");
@@ -376,6 +380,11 @@ export interface AppOptions {
    * runners by language (default runners/pasted-registry.ts).
    */
   paste?: PasteOptions;
+  /**
+   * X1, the code explorer's outline jobs (server/outline/routes.ts): Muse Wonder's outline (`outliner`, absent = not
+   * asked; the code map is still built) and the GitHub reader (tests pass a stand-in).
+   */
+  outline?: OutlineOptions;
 }
 
 /** D07-02: "what else?" questions one session may ask (each is up to 2 Adversary calls, Spark's bets and one run). */
@@ -424,7 +433,7 @@ export function createApp(opts: AppOptions = {}) {
   const betStore = opts.betStore ?? createBetStore(); // D02-04: experiments and server-sealed bets, per session
   const agentLog = opts.agentLog ?? createAgentLog(); // D02-05: per-session agent events
   const refusals: RefusalWriter = opts.refusals ?? (() => {});
-  const budget = opts.modelBets?.budget ?? opts.investigator?.budget ?? opts.adversary?.budget ?? opts.paste?.proposer?.budget ?? (opts.modelBets || opts.investigator || opts.adversary || opts.paste?.proposer ? createModelBudget() : undefined);
+  const budget = opts.modelBets?.budget ?? opts.investigator?.budget ?? opts.adversary?.budget ?? opts.paste?.proposer?.budget ?? opts.outline?.outliner?.budget ?? (opts.modelBets || opts.investigator || opts.adversary || opts.paste?.proposer || opts.outline?.outliner ? createModelBudget() : undefined);
   const modelChat = opts.modelBets && budget ? budget.wrap(opts.modelBets.chat) : undefined;
   const investigatorChat = opts.investigator && budget ? budget.wrap(opts.investigator.chat) : undefined;
   const adversaryChat = opts.adversary && budget ? budget.wrap(opts.adversary.chat) : undefined;
@@ -595,6 +604,9 @@ export function createApp(opts: AppOptions = {}) {
     const ctl = await pastedControl(lang);
     return runner.run(exp, ctl, executor);
   };
+  // X1: outline jobs, per session, limited per client address (env ATLAS_OUTLINES_PER_IP_PER_HOUR) and by the model budget.
+  const outlinesByIp = createHourlyLimit(envCount(process.env.ATLAS_OUTLINES_PER_IP_PER_HOUR, DEFAULT_OUTLINES_PER_IP_PER_HOUR), "outlines");
+  const outline = createOutlineRoutes(opts.outline ?? {}, { agentLog, ...(budget ? { budget } : {}), takeOutline: (c) => outlinesByIp.take(clientOf(c)), takeModelRound: (c) => modelRoundsByIp.take(clientOf(c)) });
   /** The text of one file of a target, as Atlas read it. */
   const fileTextOf = (target: Target, file: string): string | undefined => {
     if (target.kind === "ts-fixture") return file === target.ref ? readFixture(target) : undefined;
@@ -815,11 +827,13 @@ export function createApp(opts: AppOptions = {}) {
 
   // One large POST must not be read whole into memory.
   // E3: POST /paste carries up to 64 KB of code, escaped as JSON, so it has its own (larger) limit.
+  // X1: POST /outline/jobs may carry up to 300 KB of uploaded code, escaped as JSON, so it has its own (larger) limit too.
   const defaultLimit = bodyLimit({ maxSize: MAX_BODY_BYTES, onError: (c) => c.json({ error: `the request body is larger than ${MAX_BODY_BYTES} bytes` }, 413) });
   const pasteLimit = bodyLimit({ maxSize: PASTE_BODY_BYTES, onError: (c) => c.json({ error: `the request body is larger than ${PASTE_BODY_BYTES} bytes; Atlas reads one file of at most 64 KB` }, 413) });
+  const outlineLimit = bodyLimit({ maxSize: OUTLINE_BODY_BYTES, onError: (c) => c.json({ error: `the request body is larger than ${OUTLINE_BODY_BYTES} bytes; Atlas reads at most 300 KB of code` }, 413) });
   app.use("*", (c, next) => {
     sweepSoon(); // E3 review r3 B1: nothing made from an expired paste is ever served
-    return c.req.path === "/paste" ? pasteLimit(c, next) : defaultLimit(c, next);
+    return c.req.path === "/paste" ? pasteLimit(c, next) : c.req.path === "/outline/jobs" ? outlineLimit(c, next) : defaultLimit(c, next);
   });
 
   app.get("/health", (c) => c.json({ ok: true }));
@@ -835,6 +849,7 @@ export function createApp(opts: AppOptions = {}) {
   });
   registerEventRoutes(app, agentLog); // D02-05: GET /events/:sessionId (SSE)
   paste.register(app); // E3: GET /paste/languages, POST /paste, /paste/proposals, /paste/claim
+  outline.register(app); // X1: POST /outline/jobs, GET /outline/jobs/:id[/outline|/parts/:partId|/atlas]
 
   app.post("/targets", async (c) => {
     if (sessionIdOf(c) === null) return c.json({ error: BAD_SESSION }, 400); // D02-05

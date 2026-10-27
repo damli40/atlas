@@ -78,14 +78,14 @@ describe("verifyOutline: parts", () => {
 
   it("hostile names (bidi controls, newlines) are shown with the hidden characters made visible", () => {
     const o = clone(GOOD);
-    o.parts[0]!.name = "Safe‮exe.txt\nfake: confirmed";
-    o.parts[0]!.purpose = "line one line two ​";
-    o.parts[0]!.patterns = ["retry‮"];
+    o.parts[0]!.name = "Safe\u202Eexe.txt\nfake: confirmed";
+    o.parts[0]!.purpose = "line one\u2028line two \u200B";
+    o.parts[0]!.patterns = ["retry\u202E"];
     const p = verify(o).parts[0]!;
     expect(p.name.text).toBe("Safe\\u202eexe.txt\\u000afake: confirmed");
     expect(p.purpose.text).toBe("line one\\u2028line two \\u200b");
     expect(p.patterns[0]).toEqual({ label: "retry\\u202e", known: false });
-    expect(p.name.text).not.toMatch(/[‮\n]/);
+    expect(p.name.text).not.toMatch(/[\u202E\n]/);
   });
 });
 
@@ -143,7 +143,7 @@ describe("parseWonderOutline: strict schema, size and depth guards", () => {
     expect(parseWonderOutline(JSON.stringify({ ...GOOD, joins: [{ ...GOOD.joins[0], kind: "maybe" }] }))).toMatchObject({ ok: false });
     expect(parseWonderOutline("not json")).toEqual({ ok: false, error: "the answer is not valid JSON" });
     const badId = clone(GOOD);
-    badId.parts[0]!.id = "a‮b";
+    badId.parts[0]!.id = "a\u202Eb";
     expect(parseWonderOutline(JSON.stringify(badId)).ok).toBe(false);
   });
 

@@ -29,6 +29,8 @@ export interface Switches {
   proposer: boolean;
   fixer: boolean;
   adversary: boolean;
+  /** X1: Muse Wonder's outline of a codebase (ATLAS_OUTLINER=off turns it off; the code map is still built). */
+  outliner: boolean;
 }
 
 export const switchesFromEnv = (env: Record<string, string | undefined> = process.env): Switches => ({
@@ -37,7 +39,11 @@ export const switchesFromEnv = (env: Record<string, string | undefined> = proces
   proposer: env.ATLAS_PROPOSER !== "off",
   fixer: env.ATLAS_FIXER !== "off",
   adversary: env.ATLAS_ADVERSARY !== "off",
+  outliner: env.ATLAS_OUTLINER !== "off",
 });
+
+/** X1: a whole small codebase can be ~100k tokens of prompt, so the outline call gets 5 minutes. */
+export const OUTLINER_TIMEOUT_MS = 300_000;
 
 export function serverOptions(env: Record<string, string | undefined>, deps: WiringDeps): AppOptions {
   const on = switchesFromEnv(env);
@@ -53,6 +59,8 @@ export function serverOptions(env: Record<string, string | undefined>, deps: Wir
     // ATLAS_FIXER_REPAIR_WITH=chat: when Muse Code's diff is refused, the one repair try is the muse-spark-1.3 chat.
     ...(on.fixer ? { fixer: { chat: deps.makeChat(), budget, ...(env.ATLAS_FIXER_REPAIR_WITH === "chat" ? { repairWith: "chat-fallback" as const } : {}) } } : {}),
     ...(on.adversary ? { adversary: { chat: deps.makeChat(), budget } } : {}),
+    // X1: the explorer's outline, on the same shared budget (spend ceiling and calls an hour) as every other role.
+    ...(on.outliner ? { outline: { outliner: { chat: deps.makeChat(OUTLINER_TIMEOUT_MS), budget } } } : {}),
     refusals: deps.refusals,
   };
 }
