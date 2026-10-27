@@ -15,17 +15,18 @@
 
 import { pathToFileURL } from "node:url";
 import { sealBet } from "../../src/seal.ts";
+import { OUTCOME_OPTIONS } from "../../src/units.ts";
 import type { Bet, BetAnswer, ExperimentShape, Outcome, Run, Target, Verdict } from "../../src/types.ts";
 
 export type Requester = (path: string, init: RequestInit) => Promise<Response>;
 
 const FIXTURE_REF = "tests/fixtures/with-rpc-retry.ts";
-const OUTCOMES = ["returns", "throws", "pending"];
+const OUTCOMES = [...OUTCOME_OPTIONS];
 
 export const QUESTIONS = {
   calls: "How many times will the function call the RPC?",
   totalWaitMs: "How long will it wait in total, in ms?",
-  outcome: "What will it do at the end: return, throw, or still be pending?",
+  outcome: "How will it end: returns, throws, or pending (never settles)?",
   settleTime: "How long until it settles, in ms?",
 } as const;
 

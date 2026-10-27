@@ -1,0 +1,16 @@
+     × number bet on a priceUsd1e18 field with a unit other than USD → cant_check 3ms
+     × controlPassed missing → cant_check (only a strict true counts) 0ms
+     × controlPassed as the string "false" → cant_check 0ms
+     × controlPassed false with a tampering reason in notMeasured.control shows that reason 0ms
+     × enum: an old-style 'throw' bet against a measured 'throws' → cant_check, not didn't match 0ms
+     × enum: observed value not one of the bet's options → cant_check 0ms
+     × enum: the bet's own answer not among its options → cant_check 0ms
+     × integer bet on a priceUsd1e18 field → cant_check (2205 is not 2205e18) 0ms
+     × enum bet on a priceUsd1e18 field → cant_check 0ms
+     × number bet in seconds on totalWaitMs → cant_check 0ms
+     × a field with no unit on file → cant_check 0ms
+     × integer bet against an observed 5.5 → cant_check, not didn't match 0ms
+     × a number bet whose value or tolerance arrives as text → cant_check 0ms
+     × a price bet never picks up a reference stored under the measured key itself 0ms
+⎯⎯⎯⎯⎯⎯ Failed Tests 14 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  14 failed | 22 passed (36)

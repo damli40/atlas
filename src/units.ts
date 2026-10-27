@@ -119,3 +119,40 @@ export function formatUsd1e18(value: bigint): string {
   const frac = (cents % 100n).toString().padStart(2, "0");
   return `${negative && cents !== 0n ? "-" : ""}$${whole}.${frac}`;
 }
+
+// ---------- the unit of every measured field ----------
+//
+// One place that says what each measured field counts in. The judge refuses (can't check) any bet
+// whose unit is not the field's unit, so "12 s" is never compared with 12000 ms, and "2205" is never
+// compared with a price stored in USD 1e18. A field missing from this table has no known unit, and
+// the judge will not compare a bet with it.
+
+/** "count" = a whole number of things; "ms" = milliseconds (virtual); "USD" = a price stored as USD 1e18; "enum" = one word from a fixed list. */
+export type MeasuredUnit = "count" | "ms" | "USD" | "enum";
+
+/** The outcome words, exactly as the TS harness writes them. Bets on `outcome` must use these. */
+export const OUTCOME_OPTIONS = ["returns", "throws", "pending"] as const;
+
+const PRICE_FIELD_PREFIX = "priceUsd1e18:";
+
+const FIELD_UNITS: Readonly<Record<string, MeasuredUnit>> = {
+  calls: "count",
+  waitCount: "count",
+  logCount: "count",
+  thrownFromCall: "count",
+  totalWaitMs: "ms",
+  settledAtMs: "ms",
+  settleTime: "ms",
+  outcome: "enum",
+};
+
+/** The fixed list of words an enum field can hold. */
+export const ENUM_FIELD_OPTIONS: Readonly<Record<string, readonly string[]>> = {
+  outcome: OUTCOME_OPTIONS,
+};
+
+/** The unit of a measured field, or undefined when Atlas has none on file for it. */
+export function measuredUnit(field: string): MeasuredUnit | undefined {
+  if (field.startsWith(PRICE_FIELD_PREFIX)) return "USD";
+  return Object.prototype.hasOwnProperty.call(FIELD_UNITS, field) ? FIELD_UNITS[field] : undefined;
+}

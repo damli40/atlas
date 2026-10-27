@@ -6,9 +6,17 @@
 //
 // Outcomes are only "matched", "not_matched" or "cant_check". When the judge cannot
 // compare honestly it says "cant_check" with a plain reason; it never guesses.
+//
+// It refuses (cant_check) when:
+// - the run's control did not pass, or there is no control result (only controlPassed === true counts);
+// - the bet's kind or unit is not the measured field's unit (src/units.ts holds the one table);
+// - an enum bet's answer, or the observed value, is not one of the bet's options.
+//
+// Tolerance is a share of the OBSERVED value. So when the observed value is 0, only a bet of
+// exactly 0 can match, at any tolerance; this follows from the rule and is intended.
 
 import type { Bet, Run, Verdict } from "./types";
-import { alignDecimals, parseExactDecimal, usdToUsd1e18, type ExactDecimal } from "./units";
+import { ENUM_FIELD_OPTIONS, alignDecimals, measuredUnit, parseExactDecimal, usdToUsd1e18, type ExactDecimal } from "./units";
 
 const USD_1E18_PREFIX = "priceUsd1e18:";
 const REF_USD_1E18_PREFIX = "refUsd1e18:";
@@ -24,10 +32,9 @@ function own<T>(record: Record<string, T> | undefined, key: string): T | undefin
 
 function findReference(run: Run, measures: string): Reference {
   const refs = run.result.references;
-  if (measures.startsWith(USD_1E18_PREFIX)) {
-    const ref = own(refs, REF_USD_1E18_PREFIX + measures.slice(USD_1E18_PREFIX.length));
-    if (ref) return ref;
-  }
+  // A price field's reference lives only under its refUsd1e18: key. No fallback to the measured
+  // key itself, which could attach a value that was never computed as an independent reference.
+  if (measures.startsWith(USD_1E18_PREFIX)) return own(refs, REF_USD_1E18_PREFIX + measures.slice(USD_1E18_PREFIX.length));
   return own(refs, measures);
 }
 
@@ -54,9 +61,12 @@ export function judge(bet: Bet, run: Run): Verdict {
     reason,
   });
 
-  // 1. The harness's known-true control did not reproduce: nothing from this run is trusted.
-  if (run.controlPassed === false) {
-    return cantCheck("control run did not match the known case");
+  // 1. Only a run whose known-true control passed is trusted. Anything other than a strict `true`
+  //    (false, missing, the string "false" from a reloaded file) means nothing from this run counts.
+  if (run.controlPassed !== true) {
+    const why = own(run.result?.notMeasured, "control");
+    if (typeof why === "string") return cantCheck(`the run is not trusted: ${why}`);
+    return cantCheck(run.controlPassed === false ? "control run did not match the known case" : "the run has no control result (controlPassed is not true)");
   }
   // 1b. A bet can only be judged against a run of the experiment it was placed on.
   if (bet.experimentId !== run.experimentId) {
@@ -91,10 +101,20 @@ export function judge(bet: Bet, run: Run): Verdict {
     cantCheck(`runner stored ${field} as ${observed === null ? "null" : typeof observed}, not ${what}`, observed, reference);
 
   const answer = bet.answer;
+  // 5. Units: the bet must be in the field's own unit (src/units.ts).
+  const unit = measuredUnit(field);
+  if (unit === undefined) return cantCheck(`Atlas has no unit on file for ${field}, so a bet on it cannot be compared`, observed, reference);
+  const betUnit = answer.kind === "integer" ? "whole number" : answer.kind === "enum" ? "enum" : answer.unit;
+  const unitFits = answer.kind === "integer" ? unit === "count" || unit === "ms" : betUnit === unit;
+  if (!unitFits) return cantCheck(`bet unit "${betUnit}" does not match measured unit "${unit}"`, observed, reference);
+
   switch (answer.kind) {
     case "integer": {
-      if (!Number.isSafeInteger(answer.value)) return cantCheck("the bet is not a whole number", observed, reference);
-      if (typeof observed === "number") return decided(observed === answer.value);
+      if (typeof answer.value !== "number" || !Number.isSafeInteger(answer.value)) return cantCheck("the bet is not a whole number", observed, reference);
+      if (typeof observed === "number") {
+        if (!Number.isSafeInteger(observed)) return unreadable("a whole number");
+        return decided(observed === answer.value);
+      }
       if (typeof observed === "string" && DECIMAL_INTEGER_RE.test(observed)) {
         return decided(BigInt(observed) === BigInt(answer.value));
       }
@@ -103,10 +123,21 @@ export function judge(bet: Bet, run: Run): Verdict {
 
     case "enum": {
       if (typeof observed !== "string") return unreadable("text");
+      const options = Array.isArray(answer.options) ? answer.options : [];
+      const allowed = own(ENUM_FIELD_OPTIONS, field);
+      const unknown = allowed ? options.find((o) => !allowed.includes(o)) : undefined;
+      if (unknown !== undefined) {
+        return cantCheck(`the bet's options include "${unknown}", which the runner never reports (it reports ${allowed!.join(", ")})`, observed, reference);
+      }
+      if (!options.includes(answer.value)) return cantCheck("the bet's answer is not one of its own options", observed, reference);
+      if (!options.includes(observed)) return cantCheck("observed value is not one of the options", observed, reference);
       return decided(observed === answer.value);
     }
 
     case "number": {
+      // The bet's value and tolerance must be JSON numbers, not text that happens to parse.
+      if (typeof answer.value !== "number") return cantCheck("the bet is not a number", observed, reference);
+      if (typeof answer.tolerancePct !== "number") return cantCheck("the bet's tolerance is not a number", observed, reference);
       let tolerance: ExactDecimal;
       try {
         tolerance = parseExactDecimal(answer.tolerancePct);
@@ -115,8 +146,7 @@ export function judge(bet: Bet, run: Run): Verdict {
       }
       if (tolerance.digits < 0n) return cantCheck("the bet's tolerance is below zero", observed, reference);
 
-      if (field.startsWith(USD_1E18_PREFIX)) {
-        if (answer.unit !== "USD") return cantCheck("bet unit is not USD", observed, reference);
+      if (unit === "USD") {
         if (typeof observed !== "string" || !DECIMAL_INTEGER_RE.test(observed)) {
           return unreadable("a whole-number string in USD 1e18");
         }
