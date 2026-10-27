@@ -31,6 +31,8 @@ export const GENERIC_PATTERNS = [
   { what: "a QuickNode URL with a token", re: /[a-z0-9.-]*\.(?:quiknode|quicknode)\.pro\/[A-Za-z0-9]{8,}/i },
   { what: "an Alchemy key URL", re: /alchemy\.com\/v2\/[A-Za-z0-9_-]{8,}/i },
   { what: "an Infura key URL", re: /infura\.io\/v3\/[0-9a-f]{16,}/i },
+  // E4 review round 1 (K): any Modal token, also one that is not in this machine's ~/.modal.toml.
+  { what: "a Modal token id or secret", re: /\b(?:ak|as)-[A-Za-z0-9]{20,}\b/ },
 ];
 
 /** Values of KEY=VALUE lines in a config file (no printing). */
@@ -46,7 +48,7 @@ function readEnvFile(path) {
 
 /**
  * E4: token_id / token_secret values of every [profile] in a Modal config file (TOML). Only `key = "value"` lines
- * are read, which is the shape Modal's CLI writes. Values are returned, never printed.
+ * are read (the key may be quoted, review round 1 K), which covers the shape Modal's CLI writes. Values are returned, never printed.
  */
 export function readModalToml(path) {
   if (!existsSync(path)) return [];
@@ -58,7 +60,7 @@ export function readModalToml(path) {
       profile = sec[1].replace(/^["']|["']$/g, "");
       continue;
     }
-    const m = line.match(/^\s*(token_id|token_secret)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s#]+))/);
+    const m = line.match(/^\s*["']?(token_id|token_secret)["']?\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s#]+))/);
     if (m) out.push({ profile, key: m[1], value: m[2] ?? m[3] ?? m[4] });
   }
   return out;

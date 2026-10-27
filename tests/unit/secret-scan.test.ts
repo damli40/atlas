@@ -17,9 +17,10 @@ describe("secret scan", () => {
       fake("https://x.base-mainnet.quik", "node.pro/", "c".repeat(20), "/"),
       fake("https://base-mainnet.g.alchemy", ".com/v2/", "d".repeat(20)),
       fake("https://mainnet.infura", ".io/v3/", "e".repeat(32)),
+      fake("a", "k-", "F".repeat(22)),
     ];
     for (const s of samples) expect(scanText(s, []).length, s.slice(0, 12)).toBe(1);
-    expect(GENERIC_PATTERNS).toHaveLength(5);
+    expect(GENERIC_PATTERNS).toHaveLength(6);
   });
 
   it("finds a real value it was given, and names it without printing it", () => {
@@ -58,6 +59,13 @@ describe("secret scan", () => {
       expect(modal.map((x) => x.value).sort()).toEqual([id, id2, secret].sort());
       expect(scanText(`MODAL_TOKEN_SECRET=${secret}`, secrets)).toContain("the real Modal token secret");
       expect(scanText(`token: ${id}`, secrets)).toContain("the real Modal token id");
+      // Review round 1 (K): a quoted key is read too, and a Modal token not on this machine is caught by its shape.
+      const quoted = join(dir, "quoted.toml");
+      const q = fake("as-", "quotedKeySecret", "000000");
+      writeFileSync(quoted, `[p]\r\n"token_secret" = "${q}"\r\n`);
+      expect(readModalToml(quoted)).toEqual([{ profile: "p", key: "token_secret", value: q }]);
+      expect(scanText(`x = "${fake("as-", "z".repeat(24))}"`, [])).toEqual(["a Modal token id or secret"]);
+      expect(scanText("as-is, ask-me, as-a-rule", [])).toEqual([]);
       // A missing file is no secret, not a crash.
       expect(readModalToml(join(dir, "missing.toml"))).toEqual([]);
     } finally {
