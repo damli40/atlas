@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { falseAlarmFromRun, falseAlarmTable, type Level2Record } from "../../runners/evm/level2.ts";
-import { buildAtlasFile, HUMAN_PICKED_CBETH_CAPTION, level1Caption, verifyAtlasFile } from "../../src/atlasfile";
+import { buildAtlasFile, CBETH_PICKED_BY_PERSON, chosenLineCaptions, level1Caption, verifyAtlasFile } from "../../src/atlasfile";
 import { judge } from "../../src/judge";
 import { checkFinding, matchesWholeLines } from "../../server/meta/roles/investigator";
 import type { AtlasFile, Run } from "../../src/types";
@@ -35,7 +35,9 @@ export function rebuild(run: Run, base = liveLevel2()): AtlasFile {
     verdicts: base.bets.map((b) => judge(b, run)),
     ...(base.findings ? { findings: base.findings } : {}),
     agentLog: base.agentLog,
-    extraCaptions: base.captions,
+    // M7: the chosen-line caption is recomputed from the findings (the old D04-04 file records no
+    // Investigator findings, so its "pointed elsewhere" half is no longer earned as stored).
+    extraCaptions: chosenLineCaptions(base.findings),
     createdAt: base.createdAt,
   });
 }
@@ -138,7 +140,7 @@ describe("S3: verify recomputes the file instead of trusting it", () => {
     expect(problems(f).join("\n")).toMatch(/caption "re-run after the fact, on a fork of Base at block 42194663" is not one this run earns/);
     const g = good();
     g.findings = g.findings!.map((x) => ({ ...x, proposedBy: { role: "investigator" as const, model: "muse-wonder-1.0" } }));
-    expect(g.captions).toContain(HUMAN_PICKED_CBETH_CAPTION);
+    expect(g.captions.some((c) => c.startsWith(CBETH_PICKED_BY_PERSON))).toBe(true);
     expect(problems(g).join("\n")).toMatch(/the cbETH line was picked by a person.*is not one this run earns/);
   });
 

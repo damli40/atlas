@@ -10,7 +10,8 @@
 // - the code fingerprint, fork block and seed agree everywhere they appear;
 // - the captions are exactly the ones this run earns: the required ones (pre-existing label, Level 2 at
 //   fork 42194662 with the apply shape, Level 1 at fork 42194663 with the price-read shape) plus, only
-//   when a person's finding quotes the cbETH config line, the "picked by a person" caption;
+//   when a person's finding quotes the cbETH config line, the "picked by a person" caption, whose second
+//   half (pointed elsewhere / also pointed here) is recomputed from the Investigator findings in the file;
 // - an EVM run's measured values equal its own trace (every price read, the reference, the call-trace
 //   counts, the applied actions), the reference recomputes from its recorded Chainlink inputs, and the
 //   trace's control event agrees with controlPassed;
@@ -31,8 +32,17 @@ import type { AgentEvent, AtlasFile, Bet, Experiment, Finding, Run, Target, Verd
 export const LEVEL2_CAPTION = "fork of Base one block before MIP-X43 ran; Atlas applied the proposal's oracle-feed actions as the governor";
 /** Caption for a Level 1 run (read after the proposal ran). Never "caught before shipping". */
 export const level1Caption = (forkBlock: number) => `re-run after the fact, on a fork of Base at block ${forkBlock}`;
-/** Caption when a person picked the cbETH line and no Investigator finding covered it. */
-export const HUMAN_PICKED_CBETH_CAPTION = "the cbETH line was picked by a person; the Investigator pointed elsewhere";
+/** M7: the two halves of the "chosen line" caption. Each half is earned from the file's findings (chosenLineCaptions). */
+export const CBETH_PICKED_BY_PERSON = "the cbETH line was picked by a person";
+export const INVESTIGATOR_POINTED_ELSEWHERE = "the Investigator pointed elsewhere";
+export const INVESTIGATOR_ALSO_POINTED_HERE = "the Investigator also pointed here";
+export const INVESTIGATOR_NO_CHECKED_PLACE = "the Investigator had no checked place on this code";
+/** Caption when a person picked the cbETH line and no verified Investigator finding covers it. */
+export const HUMAN_PICKED_CBETH_CAPTION = `${CBETH_PICKED_BY_PERSON}; ${INVESTIGATOR_POINTED_ELSEWHERE}`;
+/** Caption when a person picked the cbETH line and a verified Investigator finding covers it too. */
+export const HUMAN_PICKED_CBETH_ALSO_CAPTION = `${CBETH_PICKED_BY_PERSON}; ${INVESTIGATOR_ALSO_POINTED_HERE}`;
+/** Caption when a person picked the cbETH line and the file holds no verified Investigator finding at all. */
+export const HUMAN_PICKED_CBETH_ALONE_CAPTION = `${CBETH_PICKED_BY_PERSON}; ${INVESTIGATOR_NO_CHECKED_PLACE}`;
 /** Caption for a target written before the hackathon (PRE-EXISTING.md). */
 export const preExistingCaption = (t: Target) => (t.preExisting ? `${t.preExisting.label} (listed in ${t.preExisting.listedIn})` : undefined);
 
@@ -213,14 +223,33 @@ export function requiredCaptions(file: Pick<AtlasFile, "target" | "experiments" 
   return [...new Set(out)];
 }
 
+const CBETH_CONFIG = /OracleConfig\(\s*"cbETHETH_ORACLE"\s*,\s*"cbETH"\s*,\s*"MOONWELL_cbETH"\s*\)/;
+const overlaps = (a: Pick<Finding, "file" | "lineStart" | "lineEnd">, b: Pick<Finding, "file" | "lineStart" | "lineEnd">) =>
+  a.file === b.file && a.lineStart <= b.lineEnd && b.lineStart <= a.lineEnd;
+
 /**
- * Captions a file may carry beyond the required ones. The "picked by a person" caption needs a finding
- * a person picked that quotes the cbETH oracle-config line (OracleConfig(..., "MOONWELL_cbETH")).
- * Whether the Investigator pointed elsewhere is not stored in the file, so that half is the server's word.
+ * M7: the "chosen line" caption, decided by plain code from the findings alone (the server and verify
+ * call this same function, so neither half is the server's word).
+ * - `findings[0]` is the finding the round worked on; the rest are the Investigator's places on this code.
+ * - A caption exists only when the chosen finding quotes the cbETH oracle-config line
+ *   (OracleConfig(..., "MOONWELL_cbETH")) AND a person picked it (proposedBy.role "human").
+ * - Second half: "the Investigator also pointed here" when a VERIFIED Investigator finding's line range
+ *   includes the chosen lines (same file, ranges overlap); "the Investigator pointed elsewhere" when
+ *   there are verified Investigator findings and none does; "the Investigator had no checked place on
+ *   this code" when there is no verified Investigator finding at all (so "elsewhere" is never said
+ *   about a model that found nothing or was not asked).
  */
+export function chosenLineCaptions(findings: readonly Finding[] | undefined): string[] {
+  const chosen = findings?.[0];
+  if (!chosen || chosen.proposedBy.role !== "human" || !CBETH_CONFIG.test(chosen.quotedSnippet)) return [];
+  const byModel = findings!.slice(1).filter((f) => f.proposedBy.role === "investigator" && f.verified);
+  if (byModel.length === 0) return [HUMAN_PICKED_CBETH_ALONE_CAPTION];
+  return [byModel.some((f) => overlaps(f, chosen)) ? HUMAN_PICKED_CBETH_ALSO_CAPTION : HUMAN_PICKED_CBETH_CAPTION];
+}
+
+/** Captions a file may carry beyond the required ones: exactly the chosen-line caption its findings earn. */
 export function allowedExtraCaptions(file: Pick<AtlasFile, "findings">): string[] {
-  const human = (file.findings ?? []).some((f) => f.proposedBy.role === "human" && /OracleConfig\(\s*"cbETHETH_ORACLE"\s*,\s*"cbETH"\s*,\s*"MOONWELL_cbETH"\s*\)/.test(f.quotedSnippet));
-  return human ? [HUMAN_PICKED_CBETH_CAPTION] : [];
+  return chosenLineCaptions(file.findings);
 }
 
 const asRecord = (x: unknown): Record<string, unknown> => (x && typeof x === "object" && !Array.isArray(x) ? (x as Record<string, unknown>) : {});
@@ -413,9 +442,10 @@ export interface BuildInput {
   bets: Bet[];
   run: Run;
   verdicts: Verdict[];
+  /** findings[0] = the round's finding; the rest = the Investigator's verified places on this code (M7). */
   findings?: Finding[];
   agentLog: AgentEvent[];
-  /** Captions beyond the required ones (e.g. HUMAN_PICKED_CBETH_CAPTION). Required ones are added here. */
+  /** Captions beyond the required ones (e.g. chosenLineCaptions(findings)). Required ones are added here. */
   extraCaptions?: string[];
   createdAt: string;
 }

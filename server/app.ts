@@ -90,7 +90,7 @@ import { falseAlarmFromRun } from "../runners/evm/level2";
 import { redactRpc, scrubDeep } from "../runners/evm/redact";
 import { createReplayGate, type ReplayGate } from "./replay-limits";
 import { buildAtlasFile, resultDiff, sameJson, verifyAtlasFile } from "../src/atlasfile";
-import { ASKED_FIELD, createProofStore, EVM_GATE_CONTEXT, evmTargetRefusal, extraCaptionsFor, forkBlockFor, humanFinding, type ProofStore } from "./evm-round";
+import { ASKED_FIELD, createProofStore, EVM_GATE_CONTEXT, evmTargetRefusal, extraCaptionsFor, forkBlockFor, humanFinding, recordedFindings, type ProofStore } from "./evm-round";
 import { control as runTsControl, readFixture, runExperiment } from "../runners/ts/control";
 
 const REPO_ROOT = fileURLToPath(new URL("../", import.meta.url));
@@ -370,7 +370,7 @@ export function createApp(opts: AppOptions = {}) {
         bets,
         run,
         verdicts,
-        ...(round.finding ? { findings: [round.finding] } : {}),
+        ...(round.finding ? { findings: recordedFindings(round.finding, investigatorFindings) } : {}),
         agentLog: agentLog.history(sessionId).map((e) => e.event),
         extraCaptions: extraCaptionsFor(round.finding, investigatorFindings),
         createdAt: new Date().toISOString(),

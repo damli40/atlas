@@ -156,7 +156,8 @@ export interface AtlasFile {
   runs: Run[];
   verdicts: Verdict[];
   change?: Change;
-  /** Added D04-04: the finding(s) the round worked on, with who proposed them (investigator model or a person). */
+  /** Added D04-04: the finding the round worked on (findings[0]), with who proposed it. Since M7 the rest are the
+   *  Investigator's verified places on the same code, so the "pointed elsewhere / also pointed here" caption can be rechecked. */
   findings?: Finding[];
   /** Level 2 only: the false-alarm table, rebuilt from the run by src/falsealarm.ts (verify recomputes it). */
   falseAlarm?: FalseAlarmRow[];
