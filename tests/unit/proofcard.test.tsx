@@ -40,8 +40,9 @@ describe("proof card (D06-03)", () => {
     const html = renderToStaticMarkup(<ProofCard file={fixture} />);
     const doc = new DOMParser().parseFromString(html, "text/html");
     const text = doc.body.textContent ?? "";
-    expect(text).toContain("Muse Spark 1.3 (muse-spark-1.3) · matched"); // D07-01: product name and id
-    expect(text).toContain("You · didn't match");
+    // D07-04: one line per bettor under the mark, outcome words counted over its bets. D07-01: product name and id.
+    expect(text).toContain("Muse Spark 1.3 (muse-spark-1.3) · 3 matched");
+    expect(text).toContain("You · 2 matched, 1 didn't match");
     expect(text).toContain("seed tFjD64Wn2K");
     expect(doc.querySelector('[data-testid="pc-controls"]')?.textContent).toMatch(/^passed: known-case check matched/);
     expect([...doc.querySelectorAll('[data-testid="pc-captions"] li')].map((l) => l.textContent)).toEqual(fixture.captions);

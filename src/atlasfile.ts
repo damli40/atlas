@@ -31,7 +31,7 @@ import { canonicalJson, sha256Hex, verifySeal } from "./seal";
 import { applyFileDiff, parseUnifiedDiff, type DiffFile } from "./diff";
 import { CHANGE_CAPTION, theoryCaptions, towardFromBets } from "./change";
 import { planChangedConfig } from "../runners/change";
-import type { AgentEvent, AtlasFile, Bet, Change, Experiment, Finding, Run, Target, Verdict } from "./types";
+import type { AgentEvent, AtlasFile, Bet, BettorSlot, Change, Experiment, Finding, Run, Target, Verdict } from "./types";
 
 // The two level captions live in src/captions.ts (no Node imports), so the web page can use them
 // without loading this file, which reads the Moonwell copy from disk.
@@ -230,6 +230,17 @@ export const atlasFileSchema = z
     findings: z.array(findingSchema).optional(),
     falseAlarm: z.array(falseAlarmRowSchema).optional(),
     agentLog: z.array(agentEventSchema),
+    bettors: z
+      .array(
+        z
+          .object({
+            who: z.string().regex(/^(human|model:[A-Za-z0-9][A-Za-z0-9._:/-]{0,79})$/),
+            status: z.enum(["sealed", "no_usable_answer", "not_asked"]),
+            reason: z.string().min(1).max(300).optional(),
+          })
+          .strict(),
+      )
+      .optional(),
     captions: z.array(z.string().min(1)).min(1),
     createdAt: iso,
   })
@@ -518,6 +529,19 @@ export function verifyAtlasFile(raw: unknown): Verification {
     if (!sameJson(again, v)) say(`the verdict on bet ${b.id} is not what src/judge.ts gives for it (stored ${v.outcome}, judged ${again.outcome})`);
   }
   for (const v of file.verdicts) if (!file.bets.some((b) => b.id === v.betId)) say(`verdict names bet ${v.betId}, which is not in the file`);
+  if (file.bettors) {
+    // Day-7 review M3/M7: the bettor list must agree with the bets: sealed ⇔ has bets; every bettor of a bet is listed once.
+    const whos = file.bettors.map((s) => s.who);
+    if (new Set(whos).size !== whos.length) say("a bettor is listed twice in bettors");
+    for (const s of file.bettors) {
+      const has = file.bets.some((b) => b.who === s.who);
+      if (s.status === "sealed" && !has) say(`bettors says ${s.who} sealed bets, but the file has none from it`);
+      if (s.status !== "sealed" && has) say(`bettors says ${s.who} sealed nothing (${s.status}), but the file has its bets`);
+    }
+    for (const b of file.bets) if (!whos.includes(b.who)) say(`bet ${b.id} is from ${b.who}, who is not in bettors`);
+    const autonomous = file.experiments[0]!.proposedBy.role === "adversary";
+    if (autonomous && file.bets.some((b) => b.who === "human")) say("an autonomous round (proposed by the Adversary) cannot hold a person's bet");
+  }
   for (const p of findingProblems(file)) say(p);
   for (const p of changeProblems(file)) say(`change: ${p}`);
   const required = requiredCaptions(file);
@@ -732,6 +756,8 @@ export interface BuildInput {
   /** findings[0] = the round's finding; the rest = the Investigator's verified places on this code (M7). */
   findings?: Finding[];
   agentLog: AgentEvent[];
+  /** Day-7 review M3/M7: every bettor of the round, including those who sealed nothing. */
+  bettors?: BettorSlot[];
   /** Captions beyond the required ones (e.g. chosenLineCaptions(findings)). Required ones are added here. */
   extraCaptions?: string[];
   createdAt: string;
@@ -755,6 +781,7 @@ export function buildAtlasFile(input: BuildInput): AtlasFile {
     ...(input.findings && input.findings.length ? { findings: input.findings } : {}),
     ...(isLevel2(base) ? { falseAlarm: falseAlarmFromRun(input.run) } : {}),
     agentLog: input.agentLog,
+    ...(input.bettors && input.bettors.length ? { bettors: input.bettors } : {}),
     captions,
     createdAt: input.createdAt,
   };

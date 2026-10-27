@@ -12,6 +12,7 @@
 // - the autonomous round: Spark bets before the run, the person is "not asked" (their bets and POST /runs
 //   are refused), the run and judge happen with no click, and the log strip shows the handoff in order.
 
+import { AUTONOMOUS_PERSON_REASON } from "../../src/claimants";
 import { readFileSync } from "node:fs";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -275,7 +276,7 @@ describe("POST /adversary: one autonomous round, no click", () => {
     expect(a.ok).toBe(true);
     expect(a.adversary!.proposed!.name).toBe("retry-scenario · failTimes 2 · failure error");
     expect(a.adversary!.why).toBe(WHY);
-    expect(a.person).toEqual({ status: "not asked", reason: "autonomous round: Atlas asks no person and waits for no click" });
+    expect(a.person).toEqual({ status: "not asked", reason: AUTONOMOUS_PERSON_REASON });
     const round = a.round as { experiment: { id: string; proposedBy: unknown }; run: Run; verdicts: { outcome: string }[]; bets: { who: string; sealedAt: string }[] };
     expect(round.experiment.proposedBy).toEqual({ role: "adversary", model: "muse-spark-1.3" });
     expect(round.bets.every((b) => b.who === "model:muse-spark-1.3")).toBe(true);

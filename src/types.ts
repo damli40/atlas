@@ -154,6 +154,17 @@ export interface AgentEvent {   // one line of the on-screen agent log
   usage?: { promptTokens: number; completionTokens: number; reasoningTokens?: number; usd: number };
 }
 
+/**
+ * Day-7 review M3/M7: who was asked to bet in the round, and how each answered. "sealed": it has bets in the
+ * file. "no_usable_answer": a model was asked but sealed nothing (e.g. a network error): NOT a decline.
+ * "not_asked": the person in an autonomous round, or a model the server did not ask. `reason` is plain code's.
+ */
+export interface BettorSlot {
+  who: "human" | `model:${string}`;
+  status: "sealed" | "no_usable_answer" | "not_asked";
+  reason?: string;
+}
+
 export interface AtlasFile {
   version: 1;
   target: Target;
@@ -176,6 +187,8 @@ export interface AtlasFile {
   /** Level 2 only: the false-alarm table, rebuilt from the run by src/falsealarm.ts (verify recomputes it). */
   falseAlarm?: FalseAlarmRow[];
   agentLog: AgentEvent[];
+  /** Added day-7 review: every bettor of the round, including those who sealed nothing. Older files have none. */
+  bettors?: BettorSlot[];
   /** Text a replayer must show: pre-existing labels, "replayed on a fork", "mechanism, not an incident". */
   captions: string[];
   createdAt: string;

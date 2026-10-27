@@ -84,13 +84,13 @@ import { checkAnswer, createBetStore, humanBetBody, humanBetsBody, MAX_BETS, MAX
 import type { ChatArgs, ChatResult } from "./meta/client";
 import { CLAIMANT_MODEL } from "./meta/roles/claimant";
 import { modelDisplay, runClaimantBets } from "./meta/roles/claimant-bets";
-import { CLAIMANT_HEADER, CLAIMANT_MODES, DEFAULT_CLAIMANT_MODE, SPARK_OPEN_MODEL, modelsFor, parseClaimantMode, type ClaimantMode, type ClaimantsInfo } from "../src/claimants";
+import { AUTONOMOUS_PERSON_REASON, CLAIMANT_HEADER, CLAIMANT_MODES, DEFAULT_CLAIMANT_MODE, SPARK_OPEN_MODEL, modelsFor, parseClaimantMode, type ClaimantMode, type ClaimantsInfo } from "../src/claimants";
 import { moonwellBetContext, moonwellLevelOf } from "../src/bet-context";
 import { FIXTURE_FILE, FIXTURE_FINDING_LABEL, fixtureContextRange, fixtureFinding } from "./meta/roles/fixture-finding";
 import { INVESTIGATOR_FALLBACK_MODEL, INVESTIGATOR_MODEL, runInvestigator, type InvestigatorFile } from "./meta/roles/investigator";
 import { fetchGithubPr, type GithubPrTarget } from "./targets/github";
 import { SWEEP_GATE_CONTEXT, gate, type GateContext, type Question } from "../src/gate";
-import type { AtlasFile, Bet, Experiment, Finding, Run, Target, Verdict } from "../src/types";
+import type { AtlasFile, Bet, BettorSlot, Experiment, Finding, Run, Target, Verdict } from "../src/types";
 import type { Executor } from "../runners/runner";
 import { localExecutor } from "../runners/executor/local";
 import { AgentEventError, createAgentLog, oneLine, sessionEmitter, type AgentLog } from "./log/agentlog";
@@ -455,6 +455,23 @@ export function createApp(opts: AppOptions = {}) {
     return p;
   };
 
+  /**
+   * Day-7 review M3/M7: every bettor of the round for its file, including those who sealed nothing: the person
+   * ("not asked" in an autonomous round) and each model slot ("no usable answer" is never a decline).
+   */
+  const bettorSlotsOf = (round: Round, bets: Bet[]): BettorSlot[] => {
+    const out: BettorSlot[] = [];
+    if (round.autonomous) out.push({ who: "human", status: "not_asked", reason: AUTONOMOUS_PERSON_REASON });
+    else if (bets.some((b) => b.who === "human")) out.push({ who: "human", status: "sealed" });
+    for (const s of modelSlotsOf(round)) {
+      const who = s.who as BettorSlot["who"];
+      if (bets.some((b) => b.who === who)) out.push({ who, status: "sealed" });
+      else out.push({ who, status: s.status === "no_usable_answer" ? "no_usable_answer" : "not_asked", ...(s.reason ? { reason: oneLine(redactRpc(s.reason), 300) } : {}) });
+    }
+    for (const b of bets) if (!out.some((s) => s.who === b.who)) out.push({ who: b.who, status: "sealed" });
+    return out;
+  };
+
   /** Build (and verify) the round's .atlas.json, keep it, and write it when publishing is on. Never throws. */
   const keepProof = (sessionId: string, round: Round, run: Run, bets: Bet[], verdicts: Verdict[]) => {
     const exp = round.experiment;
@@ -469,6 +486,7 @@ export function createApp(opts: AppOptions = {}) {
         verdicts,
         ...(round.finding ? { findings: recordedFindings(round.finding, investigatorFindings) } : {}),
         agentLog: log,
+        bettors: bettorSlotsOf(round, bets),
         extraCaptions: extraCaptionsFor(round.finding, investigatorFindings, log),
         createdAt: new Date().toISOString(),
       });
@@ -497,6 +515,7 @@ export function createApp(opts: AppOptions = {}) {
     const slots: ModelSlot[] = wanted.map((model) => ({ model, who: `model:${model}`, display: modelDisplay(model), status: "off" }));
     round.models = slots;
     round.model = slots[0];
+    round.claimantMode = mode;
     const offAll = (reason: string) => {
       for (const s of slots) s.reason = reason;
     };
@@ -1290,7 +1309,7 @@ export function createApp(opts: AppOptions = {}) {
       next.autonomous = { fromRunId: runId, adversaryModel: model };
       rounds.set(id, next);
       const adversary = { model, display, proposed: { experimentId: id, name: a.name, params: recheck.params }, why: a.why, rejected, usd };
-      const person = { status: "not asked" as const, reason: "autonomous round: Atlas asks no person and waits for no click" };
+      const person = { status: "not asked" as const, reason: AUTONOMOUS_PERSON_REASON };
       try {
         emitter.emit({ role: "human", action: oneLine(`not asked: ${id} is an autonomous round (${a.name}); no person bets, no click`), ref: { kind: "experiment", id } });
       } catch {
@@ -1298,7 +1317,8 @@ export function createApp(opts: AppOptions = {}) {
       }
       // The claimant model(s) bet on the plain-code questions, sealed before the run. This round's model-bets
       // limits were counted once above, for the whole round (S4).
-      startModelBets(next, sessionId, clientIp, claimant.mode, true);
+      // M4 (day-7 review): the mode of the round it reads, never the page's current toggle.
+      startModelBets(next, sessionId, clientIp, round.claimantMode ?? claimant.mode, true);
       await modelsSettled(next);
       const seated = modelSlotsOf(next).filter((s) => s.status === "sealed");
       if (seated.length === 0) {

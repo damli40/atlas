@@ -9,7 +9,8 @@
 import { moonwellLevelOf } from "../../src/bet-context";
 import { verifySeal } from "../../src/seal";
 import { notShownAsFact } from "../../src/trust";
-import type { AtlasFile, Bet, Outcome, Run } from "../../src/types";
+import type { AtlasFile, Bet, BettorSlot, Outcome, Run } from "../../src/types";
+import { AUTONOMOUS_PERSON_REASON, orderModelBettors } from "../../src/claimants";
 import { formatUsd1e18 } from "../../src/units";
 
 export const SAY: Record<Outcome, string> = { matched: "matched", not_matched: "didn't match", cant_check: "can't check" };
@@ -159,3 +160,67 @@ export function replayWords(r: ReplayCheck & { changeReplay?: ReplayCheck | { er
   if (orig.same && ch.same) return { same: true, text: "replayed both runs (before and after the change): same result ✓" };
   return { same: false, text: `replayed both runs: before the change, ${orig.why}; after the change, ${ch.why}` };
 }
+
+/**
+ * Day-7 review M3/M7: one line per bettor of the round, including those who sealed nothing, for the
+ * card's names-and-outcomes list and its counts table.
+ * - A file with `bettors` (written since the day-7 review) says it directly.
+ * - An older file: the bettors of its bets; a model whose claimant line in the file's own agent log says
+ *   "no usable answer (…)" (plain code wrote that line; a network error is not a decline); and the person
+ *   is "not asked" when the Adversary proposed the experiment (an autonomous round takes no person's bet).
+ */
+export interface BettorLine {
+  who: string;
+  status: BettorSlot["status"];
+  /** Short plain reason for a bettor with no bets, e.g. "network error". */
+  reason?: string;
+  /** Outcome words for a bettor with bets, e.g. "didn't match" or "2 matched, 1 can't check". */
+  outcomes?: string;
+}
+
+/** "the model call failed: network error (TypeError: fetch failed)" → "network error". Any other reason as is. */
+export function shortSlotReason(reason: string): string {
+  const m = /^the model call failed: ([^()]+?) \(/.exec(reason);
+  return m ? m[1]!.trim() : reason;
+}
+
+/** The text inside the first balanced "(…)" that follows `prefix`, or null. */
+function insideParens(text: string, prefix: string): string | null {
+  if (!text.startsWith(prefix + "(")) return null;
+  let depth = 0;
+  for (let i = prefix.length; i < text.length; i++) {
+    if (text[i] === "(") depth++;
+    else if (text[i] === ")" && --depth === 0) return text.slice(prefix.length + 1, i);
+  }
+  return null;
+}
+
+const ORDER: Outcome[] = ["matched", "not_matched", "cant_check"];
+
+export function bettorLines(file: Pick<AtlasFile, "bets" | "verdicts" | "agentLog" | "experiments" | "bettors">): BettorLine[] {
+  const slots: BettorSlot[] = [];
+  if (file.bettors) slots.push(...file.bettors);
+  else {
+    if (file.experiments[0]?.proposedBy.role === "adversary" && !file.bets.some((b) => b.who === "human")) slots.push({ who: "human", status: "not_asked", reason: AUTONOMOUS_PERSON_REASON });
+    for (const e of file.agentLog) {
+      if (e.role !== "claimant" || !e.model) continue;
+      const inner = insideParens(e.action, "no usable answer ");
+      const who = `model:${e.model}` as const;
+      if (inner !== null && !file.bets.some((b) => b.who === who) && !slots.some((s) => s.who === who)) slots.push({ who, status: "no_usable_answer", reason: inner });
+    }
+  }
+  for (const b of file.bets) if (!slots.some((s) => s.who === b.who)) slots.push({ who: b.who, status: "sealed" });
+  const models = orderModelBettors(slots.filter((s) => s.who !== "human").map((s) => s.who));
+  const ordered = [...slots.filter((s) => s.who === "human"), ...models.map((w) => slots.find((s) => s.who === w)!)];
+  return ordered.map((s) => {
+    if (s.status !== "sealed") return { who: s.who, status: s.status, ...(s.reason ? { reason: shortSlotReason(s.reason) } : {}) };
+    const mine = file.bets.filter((b) => b.who === s.who).map((b) => file.verdicts.find((v) => v.betId === b.id)?.outcome);
+    const n = (o: Outcome) => mine.filter((x) => x === o).length;
+    const parts = ORDER.filter((o) => n(o) > 0).map((o) => (mine.length === 1 ? SAY[o] : `${n(o)} ${SAY[o]}`));
+    return { who: s.who, status: "sealed", outcomes: parts.join(", ") || "no verdict" };
+  });
+}
+
+/** What a bettor line says after its name. */
+export const bettorLineWords = (l: BettorLine): string =>
+  l.status === "sealed" ? l.outcomes ?? "no verdict" : `${l.status === "not_asked" ? "not asked" : "no usable answer"}${l.reason ? ` (${l.reason})` : ""}`;

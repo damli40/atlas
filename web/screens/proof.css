@@ -16,16 +16,28 @@
   width: 100%; max-width: 1760px; background: var(--card); border: 1px solid var(--line); border-radius: 14px;
   padding: 28px 32px; display: grid; gap: 20px 40px;
   grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
-  grid-template-areas: "head head" "score facts" "seals seals" "foot foot";
+  grid-template-areas: "head head" "hero hero" "score facts" "change change" "seals seals" "foot foot";
 }
+/* D07-04: the end frame. The scoreboard (the Atlas mark) large and centred, then who bet and how it came out. */
+.pc-hero { grid-area: hero; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; padding: 8px 0 4px; }
+.pc-hero .sb { justify-content: center; gap: 12px 48px; margin: 0; }
+.pc-hero .sb-item { max-width: none; }
+.pc-hero .sb-mark { width: clamp(96px, 26vw, 300px); height: auto; }
+.pc-hero .sb-item:only-child .sb-mark { width: clamp(180px, 50vw, 300px); }
+.pc-hero .sb-item figcaption { max-width: 300px; font-size: 15px; margin-top: 6px; }
+.pc-bettors { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 28px; font-size: 22px; line-height: 1.35; }
+.pc-bettors li { overflow-wrap: anywhere; }
+.pc-bettors li[data-status="no_usable_answer"], .pc-bettors li[data-status="not_asked"] { color: var(--muted); }
+.pc-change { grid-area: change; min-width: 0; border-top: 1px solid var(--line); padding-top: 16px; }
+.pc-change h2 { margin: 0 0 8px; font-size: 22px; }
+.pc-change .pc-bets th:nth-last-child(-n + 2) { color: var(--ink, inherit); font-weight: 700; font-size: 15px; }
+.pc-change .pc-bets td:nth-last-child(2) { border-right: 2px solid var(--line); }
 .pc-head { grid-area: head; display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; border-bottom: 1px solid var(--line); padding-bottom: 14px; }
 .pc-kicker { margin: 0; color: var(--muted); font-size: 15px; letter-spacing: 0.04em; text-transform: uppercase; }
 .pc-title { margin: 2px 0 0; font-size: 34px; overflow-wrap: anywhere; }
 .pc-level { margin: 4px 0 0; font-size: 17px; }
 .pc-judged { margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 17px; color: var(--muted); }
 .pc-score { grid-area: score; min-width: 0; }
-.pc-score .sb { justify-content: flex-start; }
-.pc-score .sb-mark { width: 120px; height: 120px; }
 .pc-bets { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 17px; }
 .pc-bets th, .pc-bets td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
 .pc-bets th { color: var(--muted); font-weight: 500; font-size: 14px; }
@@ -51,7 +63,9 @@
 
 @media (max-width: 900px) {
   .proof-page { padding: 12px 8px; }
-  .proof-card { grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "score" "facts" "seals" "foot"; padding: 16px; gap: 16px; }
+  .proof-card { grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "hero" "score" "change" "facts" "seals" "foot"; padding: 16px; gap: 16px; }
+  .pc-bettors { font-size: 17px; flex-direction: column; align-items: center; }
+  .pc-hero .sb { gap: 8px 12px; }
   .pc-title { font-size: 24px; }
   .pc-bets { font-size: 15px; }
   .pc-bets th:nth-child(2), .pc-bets td:nth-child(2) { display: none; }

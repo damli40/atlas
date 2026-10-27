@@ -50,6 +50,10 @@ function Rounds({ api: given }: { api?: Api }) {
   const scaleApi = useMemo(() => given ?? createApi(), [given]);
   // D07-01: who bets with the person on the next experiment (sent as the x-atlas-claimant header).
   const [claimant, setClaimant] = useState<ClaimantMode>("spark");
+  // M4 (day-7 review): while a round is open (its experiment exists, its run has not finished) the toggle is locked.
+  const [roundOpen, setRoundOpen] = useState<Record<"fixture" | "pr", boolean>>({ fixture: false, pr: false });
+  const reportFixtureOpen = useCallback((open: boolean) => setRoundOpen((r) => (r.fixture === open ? r : { ...r, fixture: open })), []);
+  const reportPrOpen = useCallback((open: boolean) => setRoundOpen((r) => (r.pr === open ? r : { ...r, pr: open })), []);
   const pickClaimant = (m: ClaimantMode) => {
     setClaimant(m);
     fixtureApi.setClaimant(m);
@@ -84,8 +88,10 @@ function Rounds({ api: given }: { api?: Api }) {
             Many callers at once
           </button>
         </nav>
-        {mode !== "scale" && <ClaimantToggle api={mode === "fixture" ? fixtureApi : prApi} mode={claimant} onMode={pickClaimant} />}
-        <WhyDroppedContext.Provider value={reportDropped}>{mode === "fixture" ? <FixtureFlow api={fixtureApi} /> : mode === "pr" ? <MoonwellFlow api={prApi} /> : <ScaleScreen api={scaleApi} />}</WhyDroppedContext.Provider>
+        {mode !== "scale" && <ClaimantToggle api={mode === "fixture" ? fixtureApi : prApi} mode={claimant} onMode={pickClaimant} locked={roundOpen[mode]} />}
+        <WhyDroppedContext.Provider value={reportDropped}>
+          {mode === "fixture" ? <FixtureFlow api={fixtureApi} onRoundOpen={reportFixtureOpen} /> : mode === "pr" ? <MoonwellFlow api={prApi} onRoundOpen={reportPrOpen} /> : <ScaleScreen api={scaleApi} />}
+        </WhyDroppedContext.Provider>
       </main>
       <LiveLogStrip key={mode} api={mode === "fixture" ? fixtureApi : mode === "pr" ? prApi : scaleApi} dropped={mode === "scale" ? null : dropped[mode]} open={stripOpen} onToggle={() => setStripOpen((o) => !o)} />
     </div>
@@ -98,7 +104,7 @@ function LiveLogStrip({ api, dropped, open, onToggle }: { api: Api; dropped: { c
   return <LogStrip events={events} dropped={dropped} open={open} onToggle={onToggle} />;
 }
 
-function FixtureFlow({ api }: { api: Api }) {
+function FixtureFlow({ api, onRoundOpen }: { api: Api; onRoundOpen?: (open: boolean) => void }) {
   const [finding, setFinding] = useState<Finding | null>(null);
   const [target, setTarget] = useState<Target | null>(null);
   const [scenarioId, setScenarioId] = useState(DEFAULT_SCENARIO);
@@ -111,6 +117,8 @@ function FixtureFlow({ api }: { api: Api }) {
   const [busy, setBusy] = useState(false);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // M4 (day-7 review): a round is open from its experiment until its run has finished.
+  useEffect(() => onRoundOpen?.(experimentId !== null && result === null), [experimentId, result, onRoundOpen]);
 
   useEffect(() => {
     let live = true;

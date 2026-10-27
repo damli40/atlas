@@ -10,7 +10,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { AtlasFile } from "../../src/types";
 import { ApiError, type Api, type ReplayAnswer } from "../api";
 import { Scoreboard, bettorName } from "../machines/scoreboard/Scoreboard";
-import { SAY, proofCardModel, replayWords } from "./proofcard-model";
+import { SAY, bettorLineWords, bettorLines, proofCardModel, replayWords } from "./proofcard-model";
 import { DiffView } from "./Change";
 import { BettorCounts } from "./Claimant";
 import { bettorNames, changeProposer, orderModelBettors } from "../../src/claimants";
@@ -71,8 +71,11 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
   const card = useMemo(() => proofCardModel(file), [file]);
   // D10 + D07-01: every model bettor by product name AND id (src/claimants.ts), e.g.
   // "Muse Spark Open (meta-models/muse-spark-open-1026) · via Baseten". An unknown id is shown as itself.
-  const names = useMemo(() => modelNames(file), [file]);
-  const modelBettors = orderModelBettors(file.bets.filter((b) => b.who !== "human").map((b) => b.who));
+  // Day-7 review M3/M7: every bettor of the round, including a model that sealed nothing and a person not asked.
+  const lines = useMemo(() => bettorLines(file), [file]);
+  const names = useMemo(() => bettorNames([...file.bets.map((b) => b.who), ...lines.map((l) => l.who)]), [file, lines]);
+  const modelBettors = orderModelBettors(lines.filter((l) => l.who !== "human").map((l) => l.who));
+  const unseated = Object.fromEntries(lines.filter((l) => l.status !== "sealed").map((l) => [l.who, l.status === "not_asked" ? "not asked" : "no usable answer"]));
   const [replay, setReplay] = useState<ReplayState>(given ? { kind: "done", answer: given } : { kind: "idle" });
   const download = useMemo(() => {
     if (typeof URL === "undefined" || typeof URL.createObjectURL !== "function" || typeof Blob === "undefined") return null;
@@ -115,16 +118,27 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
         </p>
       </header>
 
-      <section className="pc-score" aria-label="scoreboard">
+      {/* D07-04: the film's end frame. The scoreboard is the Atlas mark, large and centred, then who bet and how it came out. */}
+      <section className="pc-hero" aria-label="scoreboard">
         {card.notShownAsFact ? (
           <p className="notice" data-testid="pc-not-shown">
             {card.notShownAsFact}
           </p>
         ) : (
-          <>
-            <Scoreboard verdicts={file.verdicts} bets={file.bets} names={names} still />
-            {modelBettors.length > 1 && <BettorCounts verdicts={file.verdicts} bets={file.bets} names={names} columns={modelBettors} />}
-          </>
+          <Scoreboard verdicts={file.verdicts} bets={file.bets} names={names} still who={false} size={240} />
+        )}
+        <ul className="pc-bettors" data-testid="pc-bettors" aria-label="who bet and how it came out">
+          {lines.map((l) => (
+            <li key={l.who} data-bettor={l.who} data-status={l.status}>
+              {bettorName(l.who, names)} · {card.notShownAsFact && l.status === "sealed" ? "not shown" : bettorLineWords(l)}
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="pc-score" aria-label="bets">
+        {!card.notShownAsFact && (modelBettors.length > 1 || Object.keys(unseated).length > 0) && lines.length > 1 && (
+          <BettorCounts verdicts={file.verdicts} bets={file.bets} names={names} columns={modelBettors} unseated={unseated} />
         )}
         <table className="pc-bets" data-testid="pc-bets">
           <thead>
@@ -236,6 +250,9 @@ function ProofChange({ file, said }: { file: AtlasFile; said: Record<string, str
   const same = replay.run.runner === "ts" ? `same seed ${replay.run.seed}` : `same fork block ${replay.run.forkBlock}`;
   return (
     <section className="pc-change" aria-label="change and re-run" data-testid="pc-change">
+      <h2>
+        The same sealed bets, {BEFORE_LABEL.toLowerCase()} | {AFTER_LABEL.toLowerCase()}
+      </h2>
       <p className="caption label" data-testid="pc-change-caption">
         {CHANGE_CAPTION}
       </p>

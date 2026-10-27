@@ -28,6 +28,7 @@ import { z } from "zod";
 import { extraQuestionsFor, questionsFor, type GateContext, type Question } from "../src/gate";
 import { sealBet } from "../src/seal";
 import type { Bet, BetAnswer, Experiment, Finding, Run, Verdict } from "../src/types";
+import type { ClaimantMode } from "../src/claimants";
 
 export const MAX_SESSIONS = 500;
 export const MAX_EXPERIMENTS = 50;
@@ -144,6 +145,8 @@ export interface Round {
    * server refuses a person's bet on it and runs it itself (POST /runs refuses it too).
    */
   autonomous?: { fromRunId: string; adversaryModel: string };
+  /** D07-01 / day-7 review M4: who was asked to bet on this round (the x-atlas-claimant mode it started with). */
+  claimantMode?: ClaimantMode;
 }
 
 /** How long a session holding sealed-but-unrun bets is kept safe from eviction, after its last use. */

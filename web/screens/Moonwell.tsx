@@ -5,7 +5,7 @@
 // log) → verdicts by src/judge.ts → the false-alarm table → the captions this kind of run must carry.
 
 import { ProofLink } from "./ProofCard";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MOONWELL_FORK_BLOCKS, MOONWELL_LEVEL_CAPTION, MOONWELL_LEVEL_SAYS, MOONWELL_LICENCE_LINE, moonwellBetContext, type MoonwellLevel } from "../../src/bet-context";
 import type { Question } from "../../src/gate";
 import type { Finding } from "../../src/types";
@@ -53,7 +53,7 @@ export function prRefFromLink(link: string): string | null {
 const usd: FormatValue = (m, v) => (/^(priceUsd1e18|preApplyPriceUsd1e18|refUsd1e18):/.test(m) && typeof v === "string" && /^-?\d+$/.test(v) ? formatUsd1e18(BigInt(v)) : String(v));
 const usdOf = (v: string | null) => (v === null ? "not read" : formatUsd1e18(BigInt(v)));
 
-export function MoonwellFlow({ api }: { api: Api }) {
+export function MoonwellFlow({ api, onRoundOpen }: { api: Api; onRoundOpen?: (open: boolean) => void }) {
   const [link, setLink] = useState("");
   const [target, setTarget] = useState<PrTarget | null>(null);
   const [finding, setFinding] = useState<Finding | null>(null);
@@ -68,6 +68,8 @@ export function MoonwellFlow({ api }: { api: Api }) {
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const progress = useRunnerProgress(api.session(), experimentId, running);
+  // M4 (day-7 review): a round is open from its experiment until its run has finished (the claimant toggle is locked).
+  useEffect(() => onRoundOpen?.(experimentId !== null && result === null), [experimentId, result, onRoundOpen]);
 
   const step = async (fn: () => Promise<void>) => {
     setBusy(true);

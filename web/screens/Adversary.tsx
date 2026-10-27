@@ -184,6 +184,12 @@ export function AdversaryPanel({ api, runId, format }: { api: Api; runId: string
           {error}
         </p>
       )}
+      {/* M6 (day-7 review): an answer with no finished run, or a failed request, can be asked again (the server keeps no such answer; its session cap still applies). */}
+      {!busy && (error !== null || (answer !== null && !answer.ok && !(answer.round as AutonomousRound | undefined)?.run)) && (
+        <button type="button" onClick={ask} data-testid="adversary-ask-again">
+          Ask again
+        </button>
+      )}
     </section>
   );
 }

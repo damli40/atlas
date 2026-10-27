@@ -85,3 +85,6 @@ const PRODUCT: Record<string, string> = { [SPARK_MODEL]: "Muse Spark 1.3", [SPAR
  */
 export const changeProposer = (path: string, model: string): string =>
   path === "muse-exec" ? (model === "Muse Code" ? "Muse Code" : `Muse Code (${model})`) : `${PRODUCT[model] ?? model} (chat fallback)`;
+
+/** Day-7 review M3: why the person has no bet in an autonomous round (file, proof card, What else? panel). */
+export const AUTONOMOUS_PERSON_REASON = "autonomous round: the Adversary proposed it, Atlas ran it with no click";

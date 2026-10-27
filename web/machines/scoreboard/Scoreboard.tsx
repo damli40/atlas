@@ -91,10 +91,14 @@ export interface ScoreboardProps {
   names?: Record<string, string>;
   /** Force the end state (reduced motion). Defaults to the reader's setting. */
   still?: boolean;
+  /** D07-04: false hides the per-mark "who · outcome" list (the proof card prints one list for all marks). */
+  who?: boolean;
+  /** D07-04: the mark's drawn size in px (CSS may still scale it). */
+  size?: number;
 }
 
 /** One mark per question, each with its question underneath (the question text is the bet's own). */
-export function Scoreboard({ verdicts, bets, names, still }: ScoreboardProps) {
+export function Scoreboard({ verdicts, bets, names, still, who = true, size }: ScoreboardProps) {
   const asked = useStill();
   const calm = still ?? asked;
   const marks = scoreboardMarks(verdicts, bets);
@@ -103,15 +107,17 @@ export function Scoreboard({ verdicts, bets, names, still }: ScoreboardProps) {
     <div className="sb" data-testid="scoreboard" data-still={calm ? "" : undefined}>
       {marks.map((m) => (
         <figure key={m.key} className="sb-item">
-          <Mark mark={m} still={calm} names={names ?? {}} />
+          <Mark mark={m} still={calm} names={names ?? {}} {...(size ? { size } : {})} />
           {/* S6 (day-5 review): who bet and how it came out, as visible text, not only in aria-label. */}
-          <ul className="sb-who" data-testid="sb-who">
-            {m.dots.map((d) => (
-              <li key={d.who} data-bettor={d.who}>
-                {name(d.who, names ?? {})} · {d.outcome ? SAY[d.outcome] : "no bet"}
-              </li>
-            ))}
-          </ul>
+          {who && (
+            <ul className="sb-who" data-testid="sb-who">
+              {m.dots.map((d) => (
+                <li key={d.who} data-bettor={d.who}>
+                  {name(d.who, names ?? {})} · {d.outcome ? SAY[d.outcome] : "no bet"}
+                </li>
+              ))}
+            </ul>
+          )}
           <figcaption className="muted small">{m.question}</figcaption>
         </figure>
       ))}

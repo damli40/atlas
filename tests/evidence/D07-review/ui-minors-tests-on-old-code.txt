@@ -1,0 +1,14 @@
+     × D07-01 round 4: Muse Spark shows 'no usable answer (network error)', read from the file's own agent log 26ms
+     × a file whose experiment the Adversary proposed and only models bet on 7ms
+     × after the questions are shown (the experiment exists), the toggle cannot change who bets 48ms
+     × shows 'Ask again' after an answer with no run, and asks again 2ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: expected [] to include 'Muse Spark 1.3 (muse-spark-1.3) · no …'
+AssertionError: expected undefined to be 'You · not asked (autonomous round: th…' // Object.is equality
+AssertionError: expected false to be true // Object.is equality
+AssertionError: expected undefined to be 'Ask again' // Object.is equality
+      Tests  4 failed | 2 skipped (6)
+     × round run with Muse Spark only; the toggle is then flipped to 'both': the autonomous round still asks Muse Spark only 359ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: expected [ 'model:muse-spark-1.3', …(1) ] to deeply equal [ 'model:muse-spark-1.3' ]
+      Tests  1 failed | 5 skipped (6)

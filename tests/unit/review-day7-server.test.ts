@@ -120,3 +120,32 @@ describe("M6: a failed 'What else?' can be asked again", () => {
     expect(s.adv.calls.length).toBe(2);
   });
 });
+
+describe("M4 (server): 'What else?' uses the claimant mode of the round it reads, not the page's current toggle", () => {
+  it("round run with Muse Spark only; the toggle is then flipped to 'both': the autonomous round still asks Muse Spark only", async () => {
+    const s = server([answer({ shape: "retry-scenario", failTimes: 2, failure: "error" })], [bets(5, 12000, "throws"), bets(3, 6000, "returns"), bets(3, 6000, "returns")]);
+    const run1 = await first(s.post, { shape: "retry-scenario", failTimes: 5, failure: "error" });
+    const res = await s.app.request("/adversary", { method: "POST", headers: { "content-type": "application/json", "x-atlas-session": "r7", "x-atlas-claimant": "both" }, body: JSON.stringify({ runId: run1.id }) });
+    const a = (await res.json()) as AdversaryAnswer;
+    expect(a.ok).toBe(true);
+    expect((a.round as { models?: { who: string }[] }).models?.map((m) => m.who)).toEqual(["model:muse-spark-1.3"]);
+  });
+});
+
+describe("M3/M7 (file): the .atlas.json records every bettor, including those who sealed nothing", () => {
+  it("a round where Muse Spark gave no usable answer: its slot is in the file as no_usable_answer, and verify holds the list to the bets", async () => {
+    const { verifyAtlasFile } = await import("../../src/atlasfile");
+    const s = server([], ["not json", "still not json"]);
+    const run1 = await first(s.post, { shape: "retry-scenario", failTimes: 5, failure: "error" });
+    const file = (await (await s.app.request(`/proofs/${run1.id}`)).json()) as import("../../src/types").AtlasFile;
+    expect(file.bettors?.map((b) => [b.who, b.status])).toEqual([
+      ["human", "sealed"],
+      ["model:muse-spark-1.3", "no_usable_answer"],
+    ]);
+    expect(verifyAtlasFile(file).ok).toBe(true);
+    const lie = { ...file, bettors: [{ who: "human", status: "not_asked" }, { who: "model:muse-spark-1.3", status: "no_usable_answer" }] };
+    const v = verifyAtlasFile(lie);
+    expect(v.ok).toBe(false);
+    expect(v.ok ? [] : v.problems.join("; ")).toMatch(/bettors says human sealed nothing/);
+  });
+});

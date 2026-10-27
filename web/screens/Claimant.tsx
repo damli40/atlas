@@ -89,7 +89,20 @@ const ORDER: Outcome[] = ["matched", "not_matched", "cant_check"];
  * Per bettor, the count of each outcome, one column per bettor: You first, then each model in the
  * order given (bettors with no judged bet still get a column when named). Plain counts only.
  */
-export function BettorCounts({ verdicts, bets, names = {}, columns }: { verdicts: Verdict[]; bets: { id: string; who: string }[]; names?: Record<string, string>; columns?: string[] }) {
+export function BettorCounts({
+  verdicts,
+  bets,
+  names = {},
+  columns,
+  unseated = {},
+}: {
+  verdicts: Verdict[];
+  bets: { id: string; who: string }[];
+  names?: Record<string, string>;
+  columns?: string[];
+  /** Day-7 review M3/M7: bettors who sealed nothing, with their word ("not asked", "no usable answer"): no counts are shown for them. */
+  unseated?: Record<string, string>;
+}) {
   const who = [...new Set(["human", ...(columns ?? []), ...bets.map((b) => b.who)])];
   const count = (w: string, o: Outcome) => verdicts.filter((v) => v.outcome === o && bets.find((b) => b.id === v.betId)?.who === w).length;
   const total = (w: string) => bets.filter((b) => b.who === w).length;
@@ -112,7 +125,7 @@ export function BettorCounts({ verdicts, bets, names = {}, columns }: { verdicts
             <td>{SAY[o]}</td>
             {who.map((w) => (
               <td key={w} data-testid={`count-${o}-${w}`}>
-                {count(w, o)}
+                {unseated[w] !== undefined ? "-" : count(w, o)}
               </td>
             ))}
           </tr>
@@ -121,7 +134,7 @@ export function BettorCounts({ verdicts, bets, names = {}, columns }: { verdicts
           <td>bets placed</td>
           {who.map((w) => (
             <td key={w} data-testid={`count-total-${w}`}>
-              {total(w)}
+              {unseated[w] ?? total(w)}
             </td>
           ))}
         </tr>
