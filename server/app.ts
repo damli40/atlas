@@ -281,7 +281,7 @@ export interface AppOptions {
    * D06-01, POST /changes: the Fixer (Muse Code via `muse exec`, chat fallback). Absent: no model is
    * asked and the answer says so. `museExec: null` skips Muse Code (chat fallback only).
    */
-  fixer?: { museExec?: MuseExec | null; chat: (args: ChatArgs) => Promise<ChatResult>; budget?: ModelBudget };
+  fixer?: { museExec?: MuseExec | null; chat: (args: ChatArgs) => Promise<ChatResult>; budget?: ModelBudget; repairWith?: "same" | "chat-fallback" };
   /** D06-01: replays a change on the TS runner. Default: tsRunner(executor).replayWithChange. */
   tsReplay?: ReplayFn;
   /** D06-01: replays a change on the EVM runner. Default: evmRunner().replayWithChange (spawns anvil; needs BASE_RPC_URL). */
@@ -1042,7 +1042,7 @@ export function createApp(opts: AppOptions = {}) {
     const exp = round.experiment;
     const names = round.model && round.model.status !== "off" ? { [round.model.who]: round.model.display } : {};
     const work = changeAndReplay(round, {
-      fixer: { chat: opts.fixer.chat, ...(opts.fixer.museExec !== undefined ? { museExec: opts.fixer.museExec } : {}), guard: fixerBudget.track },
+      fixer: { chat: opts.fixer.chat, ...(opts.fixer.museExec !== undefined ? { museExec: opts.fixer.museExec } : {}), ...(opts.fixer.repairWith ? { repairWith: opts.fixer.repairWith } : {}), guard: fixerBudget.track },
       tsReplay: opts.tsReplay ?? ((run, change, ctx) => tsRunner(executor).replayWithChange(run, change, ctx)),
       evmReplay: opts.evmReplay ?? ((run, change, ctx) => evmRunner({ onProgress: ctx.onProgress }).replayWithChange(run, change, ctx)),
       log: emitter,

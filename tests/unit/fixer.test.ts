@@ -362,3 +362,17 @@ describe("Moonwell prompt: the address book's oracle names, as plain data", () =
     expect(p).not.toMatch(/bad debt|incident|exploit|loss|post-mortem/i);
   });
 });
+
+describe("repairWith: chat-fallback (one Muse Code try, then one Spark chat with the same inputs)", () => {
+  it("a refused Muse Code diff is followed by ONE chat call with the base prompt, not a second muse exec", async () => {
+    const other = TIME_LIMIT_DIFF.replaceAll(FIXTURE_REF, "server/app.ts");
+    const muse = museSays(other);
+    const prompts: string[] = [];
+    const chat = async (a: { messages: { content: string }[] }) => (prompts.push(a.messages[1]!.content), { ok: true as const, content: TIME_LIMIT_DIFF, finishReason: "stop", usage: fakeUsage });
+    const ctxIn = { context: tsChangeContext(FIXTURE_REF, code), finding: { file: FIXTURE_REF, lineStart: 49, lineEnd: 66 }, toward: "- x", experiment: s6 };
+    const r = await runFixer(ctxIn, { museExec: muse, chat: chat as never, usagePath, repairWith: "chat-fallback" });
+    expect(muse.calls).toBe(1);
+    expect(prompts).toEqual([muse.prompts[0]]);
+    expect(r.ok && r.path).toBe("chat-fallback");
+  });
+});

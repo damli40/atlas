@@ -103,6 +103,11 @@ export interface FixerDeps {
   /** Wraps each model call (the server passes its budget's track()). Default: the call runs as is. */
   guard?: <R extends { usage?: { usd: number } }>(call: () => Promise<R>, refused: (reason: string) => R) => Promise<R>;
   log?: Pick<SessionEmitter, "emit" | "model">;
+  /**
+   * Which path the one repair try uses when Muse Code answered but plain code refused the diff:
+   * "same" (default: Muse Code again) or "chat-fallback" (the muse-spark-1.3 chat, once).
+   */
+  repairWith?: "same" | "chat-fallback";
   /** Where the muse path's usage lines go. Default: ATLAS_USAGE_PATH, else tests/evidence/usage/usage.jsonl. */
   usagePath?: string;
   now?: () => Date;
@@ -415,6 +420,11 @@ export async function runFixer(input: FixerInput, deps: FixerDeps = {}): Promise
     attempts.push({ attempt, path, model, ok: false, reason: checked.reason, ...(r.usage ? { usage: r.usage } : {}), ...kept });
     say(model, `${pathLabel(path, model)}: answer refused by plain code (${checked.reason})${attempt === 1 ? "; one repair try" : ""}`, r.usage);
     prompt = repairPrompt(base, checked.reason, got?.diff ?? null);
+    if (deps.repairWith === "chat-fallback" && path === "muse-exec") {
+      // Same inputs for the fallback: the base prompt, not Muse Code's repair note.
+      prompt = base;
+      path = "chat-fallback";
+    }
   }
   const who = path === "muse-exec" ? MUSE_CODE : `${MUSE_CODE} (fallback ${FIXER_FALLBACK_MODEL})`;
   const reason = `${who}: no usable change (${lastReason})`;

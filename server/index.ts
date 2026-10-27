@@ -52,7 +52,8 @@ const app = createApp({
   proofs,
   ...(modelBetsOn ? { modelBets: { chat, budget } } : {}),
   ...(investigatorOn ? { investigator: { chat: investigatorChat, budget } } : {}),
-  ...(fixerOn ? { fixer: { chat: fixerChat, budget } } : {}),
+  // ATLAS_FIXER_REPAIR_WITH=chat: when Muse Code's diff is refused, the one repair try is the muse-spark-1.3 chat.
+  ...(fixerOn ? { fixer: { chat: fixerChat, budget, ...(process.env.ATLAS_FIXER_REPAIR_WITH === "chat" ? { repairWith: "chat-fallback" as const } : {}) } } : {}),
   refusals: fileRefusalWriter(refusalsDir, (e) => console.error(`could not write a refusal record: ${e instanceof Error ? e.message : String(e)}`)),
 });
 
