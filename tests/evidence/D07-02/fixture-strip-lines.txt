@@ -1,0 +1,18 @@
+10:54:05 Person: uses a fixture finding, written by hand (Investigator arrives Oct 30)
+10:54:05 Gate: allowed (src/gate.ts)
+10:54:05 Person: seals a bet on calls
+10:54:05 Person: seals a bet on totalWaitMs
+10:54:05 Person: seals a bet on outcome
+10:54:16 Claimant (muse-spark-1.3): no usable answer (the model call failed: network error (TypeError: fetch failed)) (cost unknown: the call reported no usage)
+10:54:16 Seal check: verifies 3 seals
+10:54:16 Runner: runs withRpcRetry in the sandbox (MWHWjyKSFo)
+10:54:16 Judge: judges 3 bets: 3 matched
+10:54:16 Person: asks what else, after run a1EFe8LL4U
+10:54:24 Adversary (muse-spark-1.3): proposes retry-scenario · failTimes 4 · failure error
+10:54:24 Gate: allowed (src/gate.ts)
+10:54:24 Person: not asked: 65tQ_r6i5O is an autonomous round (retry-scenario · failTimes 4 · failure error); no person bets, no click
+10:54:27 Claimant (muse-spark-1.3): bets on 65tQ_r6i5O (3 answers, hidden until the run)
+10:54:27 Seal check: seals 3 bets from muse-spark-1.3 at server time
+10:54:27 Seal check: verifies 3 seals
+10:54:27 Runner: runs withRpcRetry in the sandbox (65tQ_r6i5O)
+10:54:27 Judge: judges 3 bets: 3 matched

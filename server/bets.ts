@@ -139,6 +139,11 @@ export interface Round {
   finding?: Finding;
   /** D04-04: what the gate allowed on this target (TS or EVM). */
   gateContext?: GateContext;
+  /**
+   * D07-02: a round the Adversary proposed and Atlas ran with no human click. No person is asked: the
+   * server refuses a person's bet on it and runs it itself (POST /runs refuses it too).
+   */
+  autonomous?: { fromRunId: string; adversaryModel: string };
 }
 
 /** How long a session holding sealed-but-unrun bets is kept safe from eviction, after its last use. */

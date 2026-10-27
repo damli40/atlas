@@ -1,0 +1,28 @@
+10:56:16 Person: picks proposals/ChainlinkOracleConfigs.sol lines 42–42 (file and lines checked)
+10:56:16 Person: chooses proposals/ChainlinkOracleConfigs.sol lines 42–42 (picked by a person) for hE2fBKq3R0
+10:56:16 Gate: allowed (src/gate.ts)
+10:56:16 Person: seals a bet on priceUsd1e18:cbETH
+10:56:20 Claimant (muse-spark-1.3): bets on hE2fBKq3R0 (1 answers, hidden until the run)
+10:56:20 Seal check: seals 1 bets from muse-spark-1.3 at server time
+10:56:20 Seal check: verifies 2 seals
+10:56:20 Runner: forks Base @ 42194662
+10:56:21 Runner: checks the fork at 42194662 is before the proposal ran
+10:56:22 Runner: runs the known-case control (WETH, stablecoins)
+10:56:22 Runner: reads 14 markets before applying
+10:56:22 Runner: applies 14 oracle-feed actions as the governor
+10:56:24 Runner: reads 14 markets after applying
+10:56:24 Runner: computes the cbETH reference from the raw Chainlink feeds and traces the price read
+10:56:24 Runner: runs moonwell-fi/moonwell-contracts-v2#578 on a fork of Base @ 42194662 (hE2fBKq3R0)
+10:56:24 Judge: judges 2 bets: 1 didn't match, 1 can't check
+10:56:25 Person: asks what else, after run -pgWeZFo9d
+10:56:30 Adversary (muse-spark-1.3): proposes price-read · markets cbETH
+10:56:30 Gate: allowed (src/gate.ts)
+10:56:30 Person: not asked: tOIsssr_9N is an autonomous round (price-read · markets cbETH); no person bets, no click
+10:56:32 Claimant (muse-spark-1.3): bets on tOIsssr_9N (1 answers, hidden until the run)
+10:56:32 Seal check: seals 1 bets from muse-spark-1.3 at server time
+10:56:32 Seal check: verifies 1 seal
+10:56:32 Runner: forks Base @ 42194663
+10:56:34 Runner: runs the known-case control (WETH, stablecoins)
+10:56:34 Runner: reads 1 market
+10:56:34 Runner: runs moonwell-fi/moonwell-contracts-v2#578 on a fork of Base @ 42194663 (tOIsssr_9N)
+10:56:34 Judge: judges 1 bet: 1 can't check

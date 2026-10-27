@@ -48,6 +48,11 @@ const investigatorChat = createMetaClient().chat;
 const fixerOn = process.env.ATLAS_FIXER !== "off";
 const fixerChat = createMetaClient().chat;
 
+// D07-02: POST /adversary asks muse-spark-1.3 what else to run after a round, then runs it with no click.
+// ATLAS_ADVERSARY=off turns it off (the answer says no model is asked).
+const adversaryOn = process.env.ATLAS_ADVERSARY !== "off";
+const adversaryChat = createMetaClient().chat;
+
 // D04-04: each completed round's .atlas.json + run.json is written to <proofs dir>/<runId>/ ONLY when
 // ATLAS_PUBLISH_PROOFS=1 (default off: kept in memory, served by GET /proofs/:runId and /replay/:runId).
 // ATLAS_PROOFS_DIR moves the folder (and the refusal records with it) somewhere else, e.g. a scratch
@@ -64,11 +69,12 @@ const app = createApp({
   ...(investigatorOn ? { investigator: { chat: investigatorChat, budget } } : {}),
   // ATLAS_FIXER_REPAIR_WITH=chat: when Muse Code's diff is refused, the one repair try is the muse-spark-1.3 chat.
   ...(fixerOn ? { fixer: { chat: fixerChat, budget, ...(process.env.ATLAS_FIXER_REPAIR_WITH === "chat" ? { repairWith: "chat-fallback" as const } : {}) } } : {}),
+  ...(adversaryOn ? { adversary: { chat: adversaryChat, budget } } : {}),
   refusals: fileRefusalWriter(refusalsDir, (e) => console.error(`could not write a refusal record: ${e instanceof Error ? e.message : String(e)}`)),
 });
 
 serve({ fetch: app.fetch, port }, (info) => {
-  console.log(`Atlas server listening on http://localhost:${info.port} (model bets ${modelBetsOn ? "on" : "off"}, Muse Spark Open ${sparkOpen.available ? "available" : `not available (${sparkOpen.reason})`}, investigator ${investigatorOn ? "on" : "off"}, fixer ${fixerOn ? "on" : "off"}, .atlas.json files ${publishProofs ? "written to the proofs folder" : "kept in memory only"})`);
+  console.log(`Atlas server listening on http://localhost:${info.port} (model bets ${modelBetsOn ? "on" : "off"}, Muse Spark Open ${sparkOpen.available ? "available" : `not available (${sparkOpen.reason})`}, investigator ${investigatorOn ? "on" : "off"}, fixer ${fixerOn ? "on" : "off"}, adversary ${adversaryOn ? "on" : "off"}, .atlas.json files ${publishProofs ? "written to the proofs folder" : "kept in memory only"})`);
   if (modelBetsOn || investigatorOn) {
     console.log(`model budget: $${budget.spentUsd().toFixed(2)} already spent (usage log, ${spentAtStart.lines} lines${spentAtStart.skipped ? `, ${spentAtStart.skipped} unreadable` : ""})`);
   }

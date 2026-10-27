@@ -1,0 +1,4 @@
+claimant toggle rendered: true; text: Who bets with you Muse Spark Muse Spark Open Both Muse Spark Open: not available (this server asks no Meta model for bets)
+What else? panel rendered: true; button: true
+What else? answer (no Adversary configured): Adversary (muse-spark-1.3): not asked (this server asks no Meta model what else to run)
+page errors: none

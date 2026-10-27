@@ -21,6 +21,7 @@ import { ModelSlotCard } from "./screens/ModelPanel";
 import { FindingsPanel } from "./screens/Findings";
 import { MoonwellFlow } from "./screens/Moonwell";
 import { ChangePanel } from "./screens/Change";
+import { AdversaryPanel } from "./screens/Adversary";
 import { LogStrip, useAgentEvents } from "./logstrip/LogStrip";
 import { modelTextsOf, WhyDroppedContext, WhyScreen } from "./screens/Why";
 import { ScaleScreen } from "./screens/Scale";
@@ -209,6 +210,7 @@ function FixtureFlow({ api }: { api: Api }) {
       {result && <WhyScreen run={result.run} finding={finding} modelTexts={modelTextsOf(result.bets, finding)} />}
       {result?.proof?.ok && <ProofLink runId={result.proof.runId} />}
       {result && experimentId && <ChangePanel api={api} result={result} experimentId={experimentId} modelName={models.slots[0] ? shownName(models.slots[0]) : null} />}
+      {result && <AdversaryPanel api={api} runId={result.run.id} />}
       {error && (
         <p className="notice" role="alert">
           {error}

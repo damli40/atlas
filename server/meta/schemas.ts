@@ -37,6 +37,15 @@ export const claimantBetsOnlySchema = z.strictObject({
   bets: z.array(claimantBetSchema).min(1).max(20),
 });
 
+/**
+ * The Adversary's answer (D07-02): one experiment (checked by the gate, not here) and one or two
+ * sentences on what its run could show. `why` is model-panel text only.
+ */
+export const adversaryOutputSchema = z.strictObject({
+  experiment: z.record(z.string(), z.unknown()),
+  why: z.string().trim().min(1).max(600),
+});
+
 export type ClaimantOutput = z.infer<typeof claimantOutputSchema>;
 export type ClaimantBetOut = z.infer<typeof claimantBetSchema>;
 

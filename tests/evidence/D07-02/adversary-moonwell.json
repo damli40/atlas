@@ -1,0 +1,276 @@
+{
+  "ok": true,
+  "fromRunId": "-pgWeZFo9d",
+  "adversary": {
+    "model": "muse-spark-1.3",
+    "display": "Muse Spark 1.3 (muse-spark-1.3)",
+    "proposed": {
+      "experimentId": "tOIsssr_9N",
+      "name": "price-read · markets cbETH",
+      "params": {
+        "shape": "price-read",
+        "markets": [
+          "cbETH"
+        ]
+      }
+    },
+    "why": "Isolates the live cbETH price at the fork block without proposal changes, confirming the correct baseline that the post-apply value diverged from.",
+    "rejected": [],
+    "usd": 0.059648
+  },
+  "person": {
+    "status": "not asked",
+    "reason": "autonomous round: Atlas asks no person and waits for no click"
+  },
+  "round": {
+    "experiment": {
+      "id": "tOIsssr_9N",
+      "target": {
+        "kind": "github-pr",
+        "ref": "moonwell-fi/moonwell-contracts-v2#578",
+        "commit": "9a6738e189fa903bffa0abf10b9dd7ed2fe73a18",
+        "codeSha256": "6c431aaec1a5631719cb0c90128b0b2b0f294bafb3634c775cb93fee0670f7c7"
+      },
+      "runner": "evm",
+      "params": {
+        "shape": "price-read",
+        "markets": [
+          "cbETH"
+        ]
+      },
+      "proposedBy": {
+        "role": "adversary",
+        "model": "muse-spark-1.3"
+      },
+      "gate": {
+        "allowed": true
+      }
+    },
+    "questions": [
+      {
+        "measures": "priceUsd1e18:cbETH",
+        "text": "At the fork block, what will Moonwell's oracle report for 1 cbETH, in USD?",
+        "kind": "number",
+        "unit": "USD",
+        "tolerancePct": 10
+      }
+    ],
+    "run": {
+      "id": "6WcBUBJ1D0",
+      "experimentId": "tOIsssr_9N",
+      "runner": "evm",
+      "executor": "local",
+      "codeSha256": "6c431aaec1a5631719cb0c90128b0b2b0f294bafb3634c775cb93fee0670f7c7",
+      "forkBlock": 42194663,
+      "chainId": 8453,
+      "startedAt": "2026-10-27T10:56:32.774Z",
+      "finishedAt": "2026-10-27T10:56:34.058Z",
+      "trace": [
+        {
+          "t": 0,
+          "event": "fork_started",
+          "data": {
+            "forkBlock": 42194663,
+            "chainId": 8453
+          }
+        },
+        {
+          "t": 1,
+          "event": "control_matched",
+          "data": {
+            "control": {
+              "forkBlock": 42194663,
+              "chainId": 8453,
+              "blockNumberOnFork": 42194663,
+              "stablecoins": [
+                {
+                  "symbol": "USDC",
+                  "mToken": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22",
+                  "tokenDecimals": 6,
+                  "feedAddress": "0x7600b9068bB0aFEA6adf70eD6CD0f8492117236d",
+                  "rawUnderlyingPrice": "999900000000000000000000000000",
+                  "priceUsd1e18": "999900000000000000",
+                  "inBand": true
+                },
+                {
+                  "symbol": "USDbC",
+                  "mToken": "0x703843C3379b52F9FF486c9f5892218d2a065cC8",
+                  "tokenDecimals": 6,
+                  "feedAddress": "0x7600b9068bB0aFEA6adf70eD6CD0f8492117236d",
+                  "rawUnderlyingPrice": "999900000000000000000000000000",
+                  "priceUsd1e18": "999900000000000000",
+                  "inBand": true
+                },
+                {
+                  "symbol": "DAI",
+                  "mToken": "0x73b06D8d18De422E269645eaCe15400DE7462417",
+                  "tokenDecimals": 18,
+                  "feedAddress": "0x4916EC6773e14CA873be3d65022BB122CB8b89a2",
+                  "rawUnderlyingPrice": "999900000000000000",
+                  "priceUsd1e18": "999900000000000000",
+                  "inBand": true
+                },
+                {
+                  "symbol": "USDS",
+                  "mToken": "0xb6419c6C2e60c4025D6D06eE4F913ce89425a357",
+                  "tokenDecimals": 18,
+                  "feedAddress": "0x6621069673C61a143DaDF376389e82DA372BF405",
+                  "rawUnderlyingPrice": "999635870000000000",
+                  "priceUsd1e18": "999635870000000000",
+                  "inBand": true
+                }
+              ],
+              "weth": {
+                "read": {
+                  "mToken": "0x628ff693426583D9a7FB391E54366292F509D457",
+                  "underlying": "0x4200000000000000000000000000000000000006",
+                  "symbol": "WETH",
+                  "tokenDecimals": 18,
+                  "feedAddress": "0xeb083d234ec636A10325ea42bCbbE09Aa56d1547",
+                  "feedDecimals": 8,
+                  "feedDescription": "ETH / USD",
+                  "rawUnderlyingPrice": "1965580189520000000000",
+                  "priceUsd1e18": "1965580189520000000000"
+                },
+                "wiredFeedRound": {
+                  "roundId": "18446744073709762014",
+                  "answer": "196558018952",
+                  "updatedAt": "1771178585"
+                },
+                "expectedRawUnderlyingPrice": "1965580189520000000000",
+                "matched": true
+              },
+              "wiredVsRaw": {
+                "wiredFeed": "0xeb083d234ec636A10325ea42bCbbE09Aa56d1547",
+                "wiredFeedIsRawAggregator": false,
+                "wiredFeedAnswer": "196558018952",
+                "wiredFeedDecimals": 8,
+                "rawAggregator": "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70",
+                "rawAnswer": "196558018952",
+                "rawDecimals": 8,
+                "rawRoundId": "18446744073709762014",
+                "equalAt1e18": true
+              },
+              "passed": true,
+              "reasons": []
+            }
+          }
+        },
+        {
+          "t": 2,
+          "event": "price_read",
+          "data": {
+            "mToken": "0x3bf93770f2d4a794c3d9EBEfBAeBAE2a8f09A5E5",
+            "underlying": "0x2Ae3F1Ec7F1F5012CFEab0185bfc7aa3cf0DEc22",
+            "symbol": "cbETH",
+            "tokenDecimals": 18,
+            "feedAddress": "0x67996D1ff7a3711a91E2839d1059Fcb950C0495D",
+            "feedDecimals": 18,
+            "feedDescription": "CBETH / ETH",
+            "rawUnderlyingPrice": "1122662744874806300",
+            "priceUsd1e18": "1122662744874806300"
+          }
+        },
+        {
+          "t": 3,
+          "event": "reference",
+          "data": {
+            "key": "refUsd1e18:cbETH",
+            "value": "2206683650838065175827",
+            "method": "Chainlink ETH/USD × cbETH/ETH at block 42194663, decimals 8 and 18 read on-chain",
+            "inputs": {
+              "ethUsd": {
+                "address": "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70",
+                "decimals": 8,
+                "answer": "196558018952",
+                "roundId": "18446744073709762014"
+              },
+              "cbEthEth": {
+                "address": "0x806b4Ac04501c29769051e42783cF04dCE41440b",
+                "decimals": 18,
+                "answer": "1122662744874806300",
+                "roundId": "18446744073709552673"
+              }
+            }
+          }
+        }
+      ],
+      "result": {
+        "measured": {
+          "priceUsd1e18:cbETH": "1122662744874806300",
+          "rawUnderlyingPrice:cbETH": "1122662744874806300",
+          "feedAddress:cbETH": "0x67996D1ff7a3711a91E2839d1059Fcb950C0495D",
+          "feedDecimals:cbETH": 18,
+          "feedDescription:cbETH": "CBETH / ETH",
+          "tokenDecimals:cbETH": 18
+        },
+        "notMeasured": {},
+        "references": {
+          "refUsd1e18:cbETH": {
+            "value": "2206683650838065175827",
+            "method": "Chainlink ETH/USD × cbETH/ETH at block 42194663, decimals 8 and 18 read on-chain"
+          }
+        }
+      },
+      "controlPassed": true
+    },
+    "verdicts": [
+      {
+        "betId": "Fv8nnN78rL",
+        "runId": "6WcBUBJ1D0",
+        "judgedBy": "src/judge.ts",
+        "outcome": "cant_check",
+        "observed": "1122662744874806300",
+        "reference": {
+          "value": "2206683650838065175827",
+          "method": "Chainlink ETH/USD × cbETH/ETH at block 42194663, decimals 8 and 18 read on-chain"
+        },
+        "reason": "the bettor declined"
+      }
+    ],
+    "bets": [
+      {
+        "experimentId": "tOIsssr_9N",
+        "who": "model:muse-spark-1.3",
+        "question": "At the fork block, what will Moonwell's oracle report for 1 cbETH, in USD?",
+        "measures": "priceUsd1e18:cbETH",
+        "answer": {
+          "kind": "declined",
+          "reason": "unknown: no reliable cbETH USD price for Base block 42194663 on 2026-02-15"
+        },
+        "rationale": "Future fork block price depends on on-chain oracle state not available offline.",
+        "id": "Fv8nnN78rL",
+        "nonce": "e2c326d802d845b6bd88f7ae0bfab631",
+        "sealedAt": "2026-10-27T10:56:32.773Z",
+        "sealedHash": "123422757658ba803762f8b2b3d95c261d5b0579f549f1383fdc215441b4f415"
+      }
+    ],
+    "betsFrozenAt": "2026-10-27T10:56:32.774Z",
+    "model": {
+      "model": "muse-spark-1.3",
+      "who": "model:muse-spark-1.3",
+      "display": "Muse Spark 1.3 (muse-spark-1.3)",
+      "status": "sealed",
+      "sealed": [
+        {
+          "id": "Fv8nnN78rL",
+          "experimentId": "tOIsssr_9N",
+          "who": "model:muse-spark-1.3",
+          "question": "At the fork block, what will Moonwell's oracle report for 1 cbETH, in USD?",
+          "measures": "priceUsd1e18:cbETH",
+          "sealedAt": "2026-10-27T10:56:32.773Z",
+          "sealedHash": "123422757658ba803762f8b2b3d95c261d5b0579f549f1383fdc215441b4f415"
+        }
+      ]
+    },
+    "proof": {
+      "ok": true,
+      "runId": "6WcBUBJ1D0",
+      "captions": [
+        "re-run after the fact, on a fork of Base at block 42194663",
+        "the cbETH line was picked by a person; the Investigator was not asked"
+      ],
+      "published": false
+    }
+  }
+}

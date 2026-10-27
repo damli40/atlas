@@ -1,0 +1,10 @@
+$ vitest run
+
+ RUN  v5.0.5 <home>/Documents/Atlas-Meta
+
+
+ Test Files  66 passed (66)
+      Tests  681 passed | 17 skipped (698)
+   Start at  12:04:40
+   Duration  21.19s (tests 79%, import 20%, transform 1%)
+
