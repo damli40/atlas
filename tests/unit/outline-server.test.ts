@@ -117,7 +117,7 @@ describe("Outliner role (Muse Wonder mocked)", () => {
     expect(seen).toHaveLength(1);
     expect(seen[0]!.json).toBe(true);
     expect(seen[0]!.messages[1]!.content).toContain("=== src/api.ts (lines 1–6)");
-    expect(seen[0]!.messages[1]!.content).toContain("calls src/api.ts line 4 -> src/client.ts (fetchUser)");
+    expect(seen[0]!.messages[1]!.content).toContain("calls src/api.ts line 4 -> src/client.ts fetchUser (fetchUser)");
   });
 
   it("an invalid answer gets exactly one repair call; a second invalid answer is reported, never a third call", async () => {
@@ -202,7 +202,7 @@ describe("outline routes", () => {
     const part = (await (await a.get(`/outline/jobs/${jobId}/parts/retry`)).json()) as PartDetails;
     expect(part.definitions.map((d) => [d.name, d.params, d.returns, d.readFrom])).toEqual([["retry", ["fn: () => Promise<T>", "attempts = 3"], "Promise<T>", "the code"]]);
     expect(part.spans[0]!.lines![0]).toEqual({ n: 1, text: "export async function retry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {" });
-    expect(part.edgesIn.map((e) => e.id)).toContain("calls:src/client.ts->src/retry.ts@4:retry");
+    expect(part.edgesIn.map((e) => e.id)).toContain("calls:src/client.ts->src/retry.ts:retry");
     expect((await a.get(`/outline/jobs/${jobId}/parts/nope`)).status).toBe(404);
 
     const file = (await (await a.get(`/outline/jobs/${jobId}/atlas`)).json()) as OutlineAtlasFile;

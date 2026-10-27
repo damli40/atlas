@@ -59,19 +59,19 @@ describe("JS/TS code map (TypeScript compiler parser)", () => {
   });
 
   it("aliasing: `save as persist` → a call of persist is a call of db.ts#save", () => {
-    expect(m.edges.find((e) => e.id === "calls:a.ts->db.ts@8:persist")).toMatchObject({ toSymbol: "db.ts#save" });
+    expect(m.edges.find((e) => e.id === "calls:a.ts->db.ts:persist")).toMatchObject({ toSymbol: "db.ts#save" });
   });
 
   it("re-exports: q.push() through queue/index.ts reaches the file that defines push", () => {
-    expect(m.edges.find((e) => e.id === "calls:a.ts->queue/impl.ts@9:q.push")).toMatchObject({ toSymbol: "queue/impl.ts#push" });
-    expect(edgeIds(m)).toContain("imports:queue/index.ts->queue/impl.ts@1:./impl");
-    expect(edgeIds(m)).toContain("imports:queue/index.ts->queue/more.ts@2:./more");
+    expect(m.edges.find((e) => e.id === "calls:a.ts->queue/impl.ts:q.push")).toMatchObject({ toSymbol: "queue/impl.ts#push" });
+    expect(edgeIds(m)).toContain("imports:queue/index.ts->queue/impl.ts:./impl");
+    expect(edgeIds(m)).toContain("imports:queue/index.ts->queue/more.ts:./more");
     expect(fileOf(m, "queue/index.ts").imports.map((i) => i.kind)).toEqual(["re-export", "re-export", "re-export"]);
   });
 
   it("new Class() and <Component /> count as calls", () => {
-    expect(edgeIds(m)).toContain("calls:a.ts->def.js@10:new Def");
-    expect(edgeIds(m)).toContain("calls:ui.tsx->panel.tsx@3:<Panel>");
+    expect(edgeIds(m)).toContain("calls:a.ts->def.js:new Def");
+    expect(edgeIds(m)).toContain("calls:ui.tsx->panel.tsx:<Panel>");
   });
 
   it("CommonJS require (destructured, whole module, nested) is read", () => {
@@ -81,19 +81,19 @@ describe("JS/TS code map (TypeScript compiler parser)", () => {
       [2, "./queue/index", "require"],
       [4, "./def", "require"],
     ]);
-    expect(edgeIds(m)).toContain("calls:cjs.cjs->db.ts@3:save");
-    expect(edgeIds(m)).toContain("calls:cjs.cjs->queue/impl.ts@3:q.push");
+    expect(edgeIds(m)).toContain("calls:cjs.cjs->db.ts:save");
+    expect(edgeIds(m)).toContain("calls:cjs.cjs->queue/impl.ts:q.push");
   });
 
   it("circular imports (a.ts ↔ queue/impl.ts) terminate and give one edge each way", () => {
-    expect(edgeIds(m)).toContain("calls:queue/impl.ts->a.ts@3:run");
-    expect(edgeIds(m)).toContain("imports:a.ts->queue/index.ts@2:./queue/index.js");
-    expect(edgeIds(m)).toContain("imports:queue/impl.ts->a.ts@1:../a");
+    expect(edgeIds(m)).toContain("calls:queue/impl.ts->a.ts:run");
+    expect(edgeIds(m)).toContain("imports:a.ts->queue/index.ts:./queue/index.js");
+    expect(edgeIds(m)).toContain("imports:queue/impl.ts->a.ts:../a");
   });
 
   it("a self-referencing re-export cycle does not loop", () => {
     const loop = buildCodeMap([f("x.ts", `export * from "./y";\nexport { a } from "./y";\n`), f("y.ts", `export * from "./x";\nexport { a } from "./x";\n`), f("z.ts", `import { a } from "./x";\na();\n`)]);
-    expect(edgeIds(loop)).toContain("calls:z.ts->x.ts@2:a");
+    expect(edgeIds(loop)).toContain("calls:z.ts->x.ts:a");
   });
 
   it("is deterministic: the same files in any order give the same map, byte for byte", () => {
@@ -175,11 +175,11 @@ describe("Python code map (pure-TS scanner)", () => {
   });
 
   it("calls through `from pkg import handle`, `pkg.handle` and an aliased module reach the defining file", () => {
-    expect(m.edges.find((e) => e.id === "calls:main.py->pkg/core.py@7:handle")).toMatchObject({ toSymbol: "pkg/core.py#handle" });
-    expect(m.edges.find((e) => e.id === "calls:main.py->pkg/core.py@8:pkg.handle")).toMatchObject({ toSymbol: "pkg/core.py#handle" });
-    expect(m.edges.find((e) => e.id === "calls:main.py->pkg/util.py@9:pu.helper")).toMatchObject({ toSymbol: "pkg/util.py#helper" });
-    expect(edgeIds(m)).toContain("calls:pkg/core.py->pkg/util.py@11:util.helper");
-    expect(edgeIds(m)).toContain("calls:pkg/core.py->pkg/util.py@13:h");
+    expect(m.edges.find((e) => e.id === "calls:main.py->pkg/core.py:handle")).toMatchObject({ toSymbol: "pkg/core.py#handle" });
+    expect(m.edges.find((e) => e.id === "calls:main.py->pkg/core.py:pkg.handle")).toMatchObject({ toSymbol: "pkg/core.py#handle" });
+    expect(m.edges.find((e) => e.id === "calls:main.py->pkg/util.py:pu.helper")).toMatchObject({ toSymbol: "pkg/util.py#helper" });
+    expect(edgeIds(m)).toContain("calls:pkg/core.py->pkg/util.py:util.helper");
+    expect(edgeIds(m)).toContain("calls:pkg/core.py->pkg/util.py:h");
   });
 
   it("importlib.import_module is a dynamic import, listed unresolved", () => {
@@ -189,7 +189,7 @@ describe("Python code map (pure-TS scanner)", () => {
 
   it("circular Python imports terminate", () => {
     const c = buildCodeMap([f("a.py", "from b import g\ndef f():\n    return g()\n"), f("b.py", "from a import f\ndef g():\n    return f()\n")]);
-    expect(edgeIds(c)).toEqual(["calls:a.py->b.py@3:g", "calls:b.py->a.py@3:f", "imports:a.py->b.py@1:b", "imports:b.py->a.py@1:a"]);
+    expect(edgeIds(c)).toEqual(["calls:a.py->b.py:g", "calls:b.py->a.py:f", "imports:a.py->b.py:b", "imports:b.py->a.py:a"]);
   });
 
   it("an unclosed string is noted and what came before it is kept", () => {

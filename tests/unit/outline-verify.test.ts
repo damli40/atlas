@@ -19,8 +19,9 @@ describe("verifyOutline: parts", () => {
       ["client", "confirmed"],
       ["retry", "confirmed"],
     ]);
-    expect(v.joins.find((j) => j.id === "wonder:0")).toMatchObject({ status: "confirmed", codeEdges: ["calls:src/api.ts->src/client.ts@4:fetchUser"], wonderEvidence: { matches: true } });
-    expect(v.joins.find((j) => j.id === "code:client->retry")).toMatchObject({ status: "code-only", kind: "calls", codeEdges: ["calls:src/client.ts->src/retry.ts@4:retry", "imports:src/client.ts->src/retry.ts@1:./retry"] });
+    expect(v.joins.find((j) => j.id === "wonder:0")).toMatchObject({ status: "confirmed", codeEdges: ["calls:src/api.ts->src/client.ts:fetchUser"], wonderEvidence: { matches: true } });
+    expect(v.joins.find((j) => j.id === "code:client->retry")).toMatchObject({ status: "code-only", kind: "calls", codeEdges: ["calls:src/client.ts->src/retry.ts:retry"] });
+    // The import of ./retry is on line 1, outside client's lines 3–5, so it does not count (review B1).
     expect(v.notInAnyPart).toEqual(["src/log.ts"]);
     expect(v.counts).toEqual({ confirmedParts: 3, unconfirmedParts: 0, confirmedJoins: 1, modelOnlyJoins: 0, codeOnlyJoins: 1 });
   });
@@ -45,7 +46,10 @@ describe("verifyOutline: parts", () => {
     // Lines that exist but do not hold the quote.
     const o2 = clone(GOOD);
     o2.parts[0]!.files[0] = { ...o2.parts[0]!.files[0]!, lineStart: 5, lineEnd: 6 };
-    expect(verify(o2).parts[0]!.reasons[0]).toMatch(/not whole lines of 5–6/);
+    expect(verify(o2).parts[0]!.reasons[0]).toMatch(/line 5 is not the start of a definition/);
+    // On whole definitions, but the quote is not the range's first line.
+    o2.parts[0]!.files[0] = { ...o2.parts[0]!.files[0]!, lineStart: 3, lineEnd: 6 };
+    expect(verify(o2).parts[0]!.reasons[0]).toMatch(/not whole lines starting at the first line of 3–6/);
   });
 
   it("a fabricated snippet: unconfirmed", () => {
@@ -95,17 +99,18 @@ describe("verifyOutline: joins", () => {
     o.joins.push({ from: "retry", to: "api", kind: "calls", evidence: { path: "src/retry.ts", line: 5, quotedSnippet: "return await fn();" } });
     const j = verify(o).joins.find((x) => x.id === "wonder:1")!;
     expect(j).toMatchObject({ status: "model-only", codeEdges: [] });
-    expect(j.reason).toMatch(/no call from a file of retry to a file of api/);
+    expect(j.reason).toMatch(/no call from inside retry's lines reaching a definition inside api's lines/);
   });
 
   it("kind matters: 'calls' needs a call edge, 'imports' an import edge, 'data' either", () => {
     const o = clone(GOOD);
+    o.parts[1]!.files[0] = { path: "src/client.ts", lineStart: 1, lineEnd: 5, quotedSnippet: 'import { retry } from "./retry";' };
     o.joins = [
       { from: "client", to: "retry", kind: "imports", evidence: { path: "src/client.ts", line: 1, quotedSnippet: 'import { retry } from "./retry";' } },
       { from: "client", to: "retry", kind: "data", evidence: { path: "src/client.ts", line: 4, quotedSnippet: 'return retry(() => fetch("https://example.com/u/" + id), 3);' } },
     ];
     const v = verify(o);
-    expect(v.joins[0]).toMatchObject({ status: "confirmed", codeEdges: ["imports:src/client.ts->src/retry.ts@1:./retry"] });
+    expect(v.joins[0]).toMatchObject({ status: "confirmed", codeEdges: ["imports:src/client.ts->src/retry.ts:./retry"] });
     expect(v.joins[1]!.status).toBe("confirmed");
     expect(v.joins[1]!.codeEdges).toHaveLength(2);
   });
@@ -125,10 +130,10 @@ describe("verifyOutline: joins", () => {
   it("two parts sharing a file: an edge inside one part never confirms a join between them", () => {
     const o = clone(GOOD);
     // "client" now also covers retry.ts, so client.ts -> retry.ts is inside "client"; "retry" covers retry.ts only.
-    o.parts[1]!.files.push({ path: "src/retry.ts", lineStart: 1, lineEnd: 11, quotedSnippet: "for (let i = 0; i < attempts; i++) {" });
+    o.parts[1]!.files.push({ path: "src/retry.ts", lineStart: 1, lineEnd: 11, quotedSnippet: "export async function retry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {" });
     o.joins = [{ from: "client", to: "retry", kind: "calls", evidence: { path: "src/client.ts", line: 4, quotedSnippet: 'return retry(() => fetch("https://example.com/u/" + id), 3);' } }];
     const v = verify(o);
-    expect(v.joins[0]).toMatchObject({ status: "model-only", reason: expect.stringMatching(/between files only/) });
+    expect(v.joins[0]).toMatchObject({ status: "model-only", reason: expect.stringMatching(/no call from inside client's lines/) });
     expect(v.joins.filter((j) => j.status === "code-only").map((j) => j.id)).toEqual(["code:api->client"]);
   });
 
@@ -137,7 +142,7 @@ describe("verifyOutline: joins", () => {
     o.joins[0]!.evidence.quotedSnippet = "return fetchUser(somethingElse);";
     const j = verify(o).joins[0]!;
     expect(j).toMatchObject({ status: "confirmed", wonderEvidence: { matches: false } });
-    expect(j.reason).toMatch(/does not match/);
+    expect(j.reason).toMatch(/is not the line of an import or call/);
   });
 });
 
@@ -213,7 +218,7 @@ describe("outline section: re-judged without any model", () => {
   it("every other edit is caught: a model-only join promoted, a code edge added, a file's text, hash or codeSha256, the outline, the usage, a contributor model", () => {
     const cases: [string, (s: OutlineSection) => void, RegExp][] = [
       ["join promoted", (s) => void (s.verified!.joins[1]!.status = "confirmed"), /verified outline/],
-      ["edge added", (s) => void s.codeMap.edges.push({ ...s.codeMap.edges[0]!, id: "calls:src/retry.ts->src/api.ts@1:x", from: "src/retry.ts", to: "src/api.ts" }), /code map/],
+      ["edge added", (s) => void s.codeMap.edges.push({ ...s.codeMap.edges[0]!, id: "calls:src/retry.ts->src/api.ts:x", from: "src/retry.ts", to: "src/api.ts" }), /code map/],
       ["text changed", (s) => void (s.files[0]!.text += "\n// more"), /bytes|hash/],
       ["text + hash + size changed", (s) => {
         s.files[3]!.text = "export function log() {}\n";

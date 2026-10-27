@@ -17,9 +17,9 @@ export const MODEL = "muse-wonder-1.0";
 
 export const GOOD: WonderOutline = {
   parts: [
-    { id: "api", name: "HTTP handler", purpose: "Answers a user request.", files: [{ path: "src/api.ts", lineStart: 1, lineEnd: 6, quotedSnippet: "export async function handler(id: string) {" }], patterns: ["rpc-call"] },
+    { id: "api", name: "HTTP handler", purpose: "Answers a user request.", files: [{ path: "src/api.ts", lineStart: 1, lineEnd: 6, quotedSnippet: 'import { fetchUser } from "./client";' }], patterns: ["rpc-call"] },
     { id: "client", name: "User client", purpose: "Fetches a user over the network.", files: [{ path: "src/client.ts", lineStart: 3, lineEnd: 5, quotedSnippet: "export function fetchUser(id: string) {\n  return retry(() => fetch(\"https://example.com/u/\" + id), 3);" }], patterns: ["network", "Retry"] },
-    { id: "retry", name: "Retry helper", purpose: "Tries a call up to N times.", files: [{ path: "src/retry.ts", lineStart: 1, lineEnd: 11, quotedSnippet: "for (let i = 0; i < attempts; i++) {" }], patterns: ["retry", "backoff-ish free text"] },
+    { id: "retry", name: "Retry helper", purpose: "Tries a call up to N times.", files: [{ path: "src/retry.ts", lineStart: 1, lineEnd: 11, quotedSnippet: "export async function retry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {" }], patterns: ["retry", "backoff-ish free text"] },
   ],
   joins: [{ from: "api", to: "client", kind: "calls", evidence: { path: "src/api.ts", line: 4, quotedSnippet: "const user = await fetchUser(id);" } }],
 };
