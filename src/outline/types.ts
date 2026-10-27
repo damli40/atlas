@@ -23,6 +23,11 @@ export interface OutlineFile {
   bytes: number;
   /** The file's text. Kept in memory and in the outline proof file only; never written to the repo. */
   text: string;
+  /**
+   * Review minor 6: git's blob id for these bytes (SHA-1 of "blob <size>\0" + bytes), recorded for GitHub sources, so
+   * a checker can compare it online with the repo's tree at the named commit. Verify recomputes it from the text.
+   */
+  gitBlob?: string;
 }
 
 /** A file Atlas did not read, and why (plain code's words). */
@@ -105,19 +110,33 @@ export interface CodeMapFile {
   parseNotes: string[];
 }
 
-/** An edge between two DIFFERENT files of the codebase, found by plain code. */
+/**
+ * An edge between two DIFFERENT files, found by plain code. Review M1: every import or call of the same name from
+ * one file to another is ONE edge, with the lines where it happens (so 24,000 calls of `f()` are one edge, count
+ * 24,000), never one edge per line.
+ */
 export interface CodeEdge {
-  /** Stable id: "<kind>:<from>-><to>@<line>:<what>". */
+  /** Stable id: "<kind>:<from>-><to>:<what>" ("#type" added for a type-only import). */
   id: string;
   kind: "imports" | "calls";
   from: string;
   to: string;
-  /** The line in `from` where the import or the call is. */
+  /** The first line in `from` where it happens. */
   line: number;
-  /** imports: the specifier; calls: the name as called ("save", "db.save", "new Queue"). */
+  /** Every line in `from` where it happens, sorted, at most MAX_EDGE_LINES (src/outline/codemap.ts). */
+  lines: number[];
+  /** How many times it happens (calls on the same line count separately). */
+  count: number;
+  /** imports: the specifier as written (hidden characters made visible); calls: the name as called ("save", "db.save", "new Queue"). */
   what: string;
   /** calls: the symbol id in `to` the call reaches, when plain code can name it. */
   toSymbol?: string;
+  /** imports: the symbols of `to` the import names, when they are defined in `to` itself. */
+  toSymbols?: string[];
+  /** imports: `import type` / `export type`: no link at run time. */
+  typeOnly?: true;
+  /** Plain code's note on the target (for example an ambiguous re-export). */
+  note?: string;
 }
 
 export interface CodeMap {
@@ -128,6 +147,16 @@ export interface CodeMap {
   edges: CodeEdge[];
   /** Outside packages by name, with the files that import them; sorted. */
   externals: { name: string; importedBy: string[] }[];
+  /** How plain code read this codebase (the Python standard-library list used, the tsconfig files read). */
+  notes: string[];
+}
+
+/** A tsconfig.json / jsconfig.json of the codebase (read for its `paths` and `baseUrl`, never run). */
+export interface ConfigFile {
+  path: string;
+  sha256: string;
+  bytes: number;
+  text: string;
 }
 
 // ---------- Wonder's outline (the model's proposal, schema-checked) ----------
@@ -177,6 +206,8 @@ export interface SpanCheck {
   ok: boolean;
   /** Why the span did not match the bytes (absent when ok). */
   reason?: string;
+  /** Review M4: the span is the whole file (lines 1 to the last); the explorer says "whole file", not "these lines". */
+  wholeFile?: true;
 }
 
 export interface VerifiedPart {
@@ -211,11 +242,18 @@ export interface VerifiedJoin {
   reason?: string;
   /** Wonder's evidence quote checked against the bytes (absent for code-only). */
   wonderEvidence?: { path: string; line: number; matches: boolean };
+  /** Review minor 3: every edge that shows it is a type-only import (no link at run time). */
+  typeOnly?: true;
 }
 
 export interface VerifiedOutline {
   version: 1;
   model: string;
+  /**
+   * Review B3: set when the outline is too large to verify within Atlas's fixed work budget. Then every part is
+   * unconfirmed and every Wonder join model-only, with this reason. Deterministic: the same outline always gives it.
+   */
+  cantCheck?: string;
   parts: VerifiedPart[];
   joins: VerifiedJoin[];
   /** Files of the codebase no confirmed part covers ("not in any part"). Sorted. */
@@ -237,6 +275,8 @@ export interface OutlineSection {
   version: 1;
   source: OutlineSource;
   files: OutlineFile[];
+  /** Review M3: tsconfig.json / jsconfig.json files of the codebase, read for path aliases only. */
+  configFiles?: ConfigFile[];
   skipped: SkippedFile[];
   /** SHA-256 over the files in path order (server/targets/github.ts codeSha256Of rule). */
   codeSha256: string;

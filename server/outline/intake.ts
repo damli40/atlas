@@ -1,7 +1,7 @@
 // X1: reading a small codebase for the explorer, from a public GitHub repo or from files a person uploaded.
 //
 // Plain words:
-// - Limits (D29): at most 50 source files (.js .mjs .cjs .ts .tsx .py), 300 KB in total, 100 KB per file. Every
+// - Limits (D29): at most 50 source files (.js .jsx .mjs .cjs .ts .tsx .mts .cts .py), 300 KB in total, 100 KB per file. Every
 //   other file is skipped and listed with the reason (not a source file, a declaration file, minified, a symbolic
 //   link, a submodule, a dependency folder, over the per-file cap, not UTF-8 text, a path with odd characters).
 //   More than 50 source files, or more than 300 KB, is refused as a whole with the reason ("choose a subfolder"):
@@ -10,15 +10,16 @@
 //   repo's files at that commit in one call, picks the files under the chosen subfolder, and downloads each from
 //   raw.githubusercontent.com AT THAT COMMIT. Each download is checked against the git blob hash GitHub listed
 //   (SHA-1 of "blob <size>\0<bytes>"), so a file cannot change between the listing and the download.
+// - tsconfig.json / jsconfig.json (at most 5, 20 KB each) are kept beside the code, read for path aliases only.
 // - Nothing is written to disk: the files live in the server's memory for the job and in the outline proof file
 //   the person downloads. The code is never committed and never logged (log lines say counts and fingerprints).
 // - Token: optional GITHUB_TOKEN, sent only to api.github.com, never logged (as server/targets/github.ts).
 
 import { createHash } from "node:crypto";
 import { visibleText } from "../../src/gate";
-import { languageOf } from "../../src/outline/codemap";
-import { MAX_OUTLINE_FILE_BYTES, MAX_OUTLINE_FILES, MAX_OUTLINE_TOTAL_BYTES, pathProblem, sha256Text, utf8Length } from "../../src/outline/section";
-import type { OutlineFile, OutlineSource, SkippedFile } from "../../src/outline/types";
+import { isConfigFile, languageOf } from "../../src/outline/codemap";
+import { MAX_CONFIG_FILE_BYTES, MAX_CONFIG_FILES, MAX_OUTLINE_FILE_BYTES, MAX_OUTLINE_FILES, MAX_OUTLINE_TOTAL_BYTES, gitBlobOf, pathProblem, sha256Text, utf8Length } from "../../src/outline/section";
+import type { ConfigFile, OutlineFile, OutlineSource, SkippedFile } from "../../src/outline/types";
 import { decodeText } from "../targets/github";
 import { plural } from "../../src/words";
 
@@ -36,6 +37,8 @@ export class OutlineIntakeError extends Error {
 export interface Codebase {
   source: OutlineSource;
   files: OutlineFile[];
+  /** tsconfig.json / jsconfig.json files, read for path aliases only (review M3). */
+  configFiles: ConfigFile[];
   skipped: SkippedFile[];
 }
 
@@ -52,7 +55,7 @@ export function skipReason(path: string): string | null {
   if (pp) return `not read: ${pp}`;
   const dir = path.split("/").slice(0, -1).find((seg) => DEPENDENCY_DIRS.has(seg));
   if (dir) return `in ${dir}/ (dependencies or build output, not this code)`;
-  if (/\.d\.ts$/.test(path)) return "a type declaration file (.d.ts): no code runs from it";
+  if (/\.d\.(?:ts|mts|cts)$/.test(path)) return "a type declaration file (.d.ts): no code runs from it";
   if (/\.min\.(?:js|mjs|cjs)$/.test(path)) return "minified code";
   if (languageOf(path) === null) return `not a source file Atlas reads (${ext(path)})`;
   return null;
@@ -86,8 +89,16 @@ export function intakeUpload(entries: ReadonlyArray<{ path: string; text: string
   if (entries.length > MAX_UPLOAD_ENTRIES) throw new OutlineIntakeError("too_many", `${plural(entries.length, "file")} ${entries.length === 1 ? "was" : "were"} sent; Atlas takes at most ${MAX_UPLOAD_ENTRIES} in one upload (of which at most ${MAX_OUTLINE_FILES} source files)`);
   const seen = new Set<string>();
   const files: OutlineFile[] = [];
+  const configFiles: ConfigFile[] = [];
   const skipped: SkippedFile[] = [];
   for (const e of entries) {
+    if (!pathProblem(e.path) && isConfigFile(e.path) && !seen.has(e.path)) {
+      seen.add(e.path);
+      const bytes = utf8Length(e.text);
+      if (configFiles.length >= MAX_CONFIG_FILES || bytes > MAX_CONFIG_FILE_BYTES) skipped.push({ path: e.path, reason: `a config file over Atlas's limit (${MAX_CONFIG_FILES} files, ${MAX_CONFIG_FILE_BYTES / 1024} KB each)` });
+      else configFiles.push({ path: e.path, sha256: sha256Text(e.text), bytes, text: e.text });
+      continue;
+    }
     if (seen.has(e.path)) throw new OutlineIntakeError("bad_input", `two files have the path ${JSON.stringify(visibleText(e.path))}`);
     seen.add(e.path);
     const why = skipReason(e.path);
@@ -109,7 +120,7 @@ export function intakeUpload(entries: ReadonlyArray<{ path: string; text: string
   }
   checkTotals(files, "the upload");
   files.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
-  return { source: { kind: "upload" }, files, skipped: capSkipped(skipped) };
+  return { source: { kind: "upload" }, files, configFiles, skipped: capSkipped(skipped) };
 }
 
 // ---------- GitHub ----------
@@ -213,11 +224,13 @@ export async function intakeGithub(req: RepoRequest, opts: GithubIntakeOptions =
 
   const skipped: SkippedFile[] = [];
   const picked: { rel: string; full: string; sha: string; size: number }[] = [];
+  const configs: { rel: string; full: string; sha: string; size: number }[] = [];
   for (const e of entries) {
     const rel = e.path.slice(prefix.length);
     const shown = pathProblem(rel) ? visibleText(rel).slice(0, 200) : rel;
     if (e.type === "commit") skipped.push({ path: shown, reason: "a git submodule (another repository)" });
     else if (e.mode === "120000") skipped.push({ path: shown, reason: "a symbolic link" });
+    else if (!pathProblem(rel) && isConfigFile(rel) && configs.length < MAX_CONFIG_FILES && (e.size ?? 0) <= MAX_CONFIG_FILE_BYTES) configs.push({ rel, full: e.path, sha: e.sha, size: e.size ?? 0 });
     else {
       const why = skipReason(rel);
       if (why) skipped.push({ path: shown, reason: why });
@@ -239,12 +252,21 @@ export async function intakeGithub(req: RepoRequest, opts: GithubIntakeOptions =
       skipped.push({ path: p.rel, reason: "not UTF-8 text" });
       continue;
     }
-    files.push({ path: p.rel, language: languageOf(p.rel)!, sha256: sha256Text(text), bytes: bytes.length, text });
+    files.push({ path: p.rel, language: languageOf(p.rel)!, sha256: sha256Text(text), bytes: bytes.length, text, gitBlob: gitBlobOf(text) });
+  }
+  const configFiles: ConfigFile[] = [];
+  for (const p of configs.sort((a, b) => (a.rel < b.rel ? -1 : a.rel > b.rel ? 1 : 0))) {
+    const res = await get(`${RAW}/${req.owner}/${req.repo}/${commit}/${p.full.split("/").map(encodeURIComponent).join("/")}`);
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    const text = bytes.length === p.size && gitBlobSha1(bytes) === p.sha ? decodeText(bytes) : null;
+    if (text === null) skipped.push({ path: p.rel, reason: "a config file that did not match its listed blob or is not UTF-8 text" });
+    else configFiles.push({ path: p.rel, sha256: sha256Text(text), bytes: bytes.length, text });
   }
   checkTotals(files, where);
   return {
     source: { kind: "github", repo: name, ...(req.ref ? { requestedRef: req.ref } : {}), commit, subfolder: req.subfolder },
     files,
+    configFiles,
     skipped: capSkipped(skipped),
   };
 }

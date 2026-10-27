@@ -17,7 +17,7 @@
 
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { buildCodeMap, languageOf } from "./codemap";
+import { buildCodeMap, isConfigFile, languageOf } from "./codemap";
 import { checkOutlineValue, verifyOutline } from "./verify";
 import type { CodeMap, OutlineAtlasFile, OutlineSection } from "./types";
 import { canonicalJson, jsonDepth } from "../seal";
@@ -41,6 +41,14 @@ export function pathProblem(path: string): string | null {
 }
 
 export const utf8Length = (s: string) => Buffer.byteLength(s, "utf8");
+/** Git's blob id for a text's UTF-8 bytes: SHA-1 of "blob <size>\0" + bytes. */
+export const gitBlobOf = (s: string) => {
+  const bytes = Buffer.from(s, "utf8");
+  return createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");
+};
+/** Config files (tsconfig.json / jsconfig.json) a codebase may carry: at most this many, each at most this big. */
+export const MAX_CONFIG_FILES = 5;
+export const MAX_CONFIG_FILE_BYTES = 20 * 1024;
 export const sha256Text = (s: string) => createHash("sha256").update(s, "utf8").digest("hex");
 
 /** server/targets/github.ts codeSha256Of, on texts: for each file in path order, UTF-8(path) + "\n" + bytes + "\n". */
@@ -79,10 +87,15 @@ export const outlineSectionSchema = z.strictObject({
         sha256: sha,
         bytes: z.number().int().min(0).max(MAX_OUTLINE_FILE_BYTES),
         text: z.string().max(MAX_OUTLINE_FILE_BYTES),
+        gitBlob: z.string().regex(/^[0-9a-f]{40}$/).optional(),
       }),
     )
     .min(1)
     .max(MAX_OUTLINE_FILES),
+  configFiles: z
+    .array(z.strictObject({ path: z.string().min(1).max(MAX_PATH_CHARS), sha256: sha, bytes: z.number().int().min(0).max(MAX_CONFIG_FILE_BYTES), text: z.string().max(MAX_CONFIG_FILE_BYTES) }))
+    .max(MAX_CONFIG_FILES)
+    .optional(),
   skipped: z.array(z.strictObject({ path: z.string().max(1000), reason: z.string().min(1).max(500) })).max(5000),
   codeSha256: sha,
   // Recomputed and compared as a whole below, so its own shape is only bounded here.
@@ -131,6 +144,12 @@ function sectionProblems(raw: unknown): string[] {
     if (bytes !== f.bytes) say(`file ${f.path}: it is ${bytes} bytes, not the ${f.bytes} recorded`);
     if (bytes > MAX_OUTLINE_FILE_BYTES) say(`file ${f.path}: over the ${MAX_OUTLINE_FILE_BYTES}-byte limit for one file`);
     if (sha256Text(f.text) !== f.sha256) say(`file ${f.path}: its text does not hash to its recorded SHA-256`);
+    if (f.gitBlob !== undefined && gitBlobOf(f.text) !== f.gitBlob) say(`file ${f.path}: its text is not the git blob ${f.gitBlob.slice(0, 12)}… it records`);
+  }
+  for (const c of s.configFiles ?? []) {
+    const p = pathProblem(c.path);
+    if (p || !isConfigFile(c.path)) say(`config file ${JSON.stringify(c.path)}: ${p ?? "only tsconfig.json and jsconfig.json are read"}`);
+    if (sha256Text(c.text) !== c.sha256 || utf8Length(c.text) !== c.bytes) say(`config file ${c.path}: its text does not match its recorded SHA-256 and size`);
   }
   if (total > MAX_OUTLINE_TOTAL_BYTES) say(`the files total ${total} bytes, over the ${MAX_OUTLINE_TOTAL_BYTES}-byte limit`);
   if (s.source.kind === "github" && s.source.subfolder !== "" && pathProblem(s.source.subfolder)) say(`the subfolder is not a plain path (${pathProblem(s.source.subfolder)})`);
@@ -139,7 +158,7 @@ function sectionProblems(raw: unknown): string[] {
   if (codeSha !== s.codeSha256) say(`the files hash to ${codeSha.slice(0, 12)}…, not the recorded codeSha256 ${s.codeSha256.slice(0, 12)}…`);
 
   // The code map, rebuilt.
-  const map = buildCodeMap(s.files);
+  const map = buildCodeMap(s.files, s.configFiles ?? []);
   if (!sameJson(map, s.codeMap)) say("the code map is not what plain code (src/outline/codemap.ts) builds from these files");
 
   // Wonder's outline and plain code's verdict on it.
@@ -191,6 +210,7 @@ export function verifyOutlineFile(raw: unknown): OutlineVerification {
 export interface OutlineSectionInput {
   source: OutlineSection["source"];
   files: OutlineSection["files"];
+  configFiles?: OutlineSection["configFiles"];
   skipped: OutlineSection["skipped"];
   wonder: OutlineSection["wonder"];
   /** The code map, when the caller already built it from these same files (it is checked again below). */
@@ -204,7 +224,8 @@ export interface OutlineSectionInput {
  */
 export function makeOutlineSection(input: OutlineSectionInput): OutlineSection {
   const files = [...input.files].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
-  const codeMap = input.codeMap ?? buildCodeMap(files);
+  const configFiles = input.configFiles && input.configFiles.length ? [...input.configFiles].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0)) : undefined;
+  const codeMap = input.codeMap ?? buildCodeMap(files, configFiles ?? []);
   const used = input.wonder.attempts.map((a) => a.usage).filter((u): u is NonNullable<typeof u> => u !== undefined);
   const reasoning = used.some((u) => u.reasoningTokens !== undefined) ? { reasoningTokens: used.reduce((n, u) => n + (u.reasoningTokens ?? 0), 0) } : {};
   const usage = used.length
@@ -214,6 +235,7 @@ export function makeOutlineSection(input: OutlineSectionInput): OutlineSection {
     version: 1,
     source: input.source,
     files,
+    ...(configFiles ? { configFiles } : {}),
     skipped: input.skipped,
     codeSha256: codebaseSha256(files),
     codeMap,

@@ -14,8 +14,9 @@
 // JavaScript, synchronous and in-process, so the proof-file check (src/atlasfile.ts) can re-read a codebase
 // without starting anything. It only parses: no type checking, no module loading, no evaluation.
 //
-// Limits (said plainly in the evidence): a local variable that shadows an imported name is still counted as the
-// import; calls through a value passed around (const f = save; f()) are not followed.
+// Limits (said plainly in the evidence): calls through a value passed around (const f = save; f()), destructuring
+// (const {save} = db), and member chains three names deep are not followed. A name a function declares itself
+// (a parameter or a local) hides the import of the same name inside that function (review minor 1).
 
 import ts from "typescript-api";
 import type { CodeSymbol, ImportKind, ImportName, OutlineLanguage } from "./types";
@@ -51,7 +52,36 @@ const squash = (s: string) => s.replace(/\s+/g, " ").trim();
 const cap = (s: string, n = SIG_MAX) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
 const scriptKind = (path: string, language: OutlineLanguage): ts.ScriptKind =>
-  path.endsWith(".tsx") ? ts.ScriptKind.TSX : language === "ts" ? ts.ScriptKind.TS : ts.ScriptKind.JS;
+  path.endsWith(".tsx") ? ts.ScriptKind.TSX : path.endsWith(".jsx") ? ts.ScriptKind.JSX : language === "ts" ? ts.ScriptKind.TS : ts.ScriptKind.JS;
+
+const isFunctionLike = (n: ts.Node): n is ts.SignatureDeclarationBase =>
+  ts.isFunctionDeclaration(n) || ts.isFunctionExpression(n) || ts.isArrowFunction(n) || ts.isMethodDeclaration(n) || ts.isConstructorDeclaration(n) || ts.isGetAccessorDeclaration(n) || ts.isSetAccessorDeclaration(n);
+
+/** Names a binding pattern or identifier declares. */
+function boundNames(name: ts.BindingName, out: Set<string>): void {
+  if (ts.isIdentifier(name)) out.add(name.text);
+  else for (const el of name.elements) if (!ts.isOmittedExpression(el)) boundNames(el.name, out);
+}
+
+/**
+ * Review minor 1: the names a function declares for its own body (parameters, var/let/const, inner function and
+ * class names, catch variables), not looking inside nested functions. A call of such a name is not a call of the
+ * import with the same name. Block scope is not modelled: a name declared anywhere in the function counts for the
+ * whole function, which can only turn a real call into "not seen" (a join then shows as Wonder's), never the reverse.
+ */
+function localNames(fn: ts.SignatureDeclarationBase & { body?: ts.Node }): Set<string> {
+  const out = new Set<string>();
+  for (const p of fn.parameters) boundNames(p.name, out);
+  const walk = (n: ts.Node): void => {
+    if (ts.isVariableDeclaration(n)) boundNames(n.name, out);
+    else if ((ts.isFunctionDeclaration(n) || ts.isClassDeclaration(n)) && n.name) out.add(n.name.text);
+    else if (ts.isCatchClause(n) && n.variableDeclaration) boundNames(n.variableDeclaration.name, out);
+    if (isFunctionLike(n) || ts.isClassLike(n)) return; // their insides are their own scope
+    ts.forEachChild(n, walk);
+  };
+  if (fn.body) ts.forEachChild(fn.body, walk);
+  return out;
+}
 
 const hasModifier = (n: ts.Node, kind: ts.SyntaxKind) => !!(ts.canHaveModifiers(n) && ts.getModifiers(n)?.some((m) => m.kind === kind));
 
@@ -228,7 +258,15 @@ export function parseJsFile(path: string, text: string, language: OutlineLanguag
   for (const i of out.imports) for (const n of i.names) if (n.local !== "*" && i.kind !== "re-export") bindings.add(n.local);
 
   const topRequires = new Set(out.imports.filter((i) => i.kind === "require").map((i) => i.line));
+  const scopes: Set<string>[] = [];
+  const shadowed = (name: string) => scopes.some((sc) => sc.has(name));
   const visit = (n: ts.Node): void => {
+    if (isFunctionLike(n)) {
+      scopes.push(localNames(n as ts.SignatureDeclarationBase & { body?: ts.Node }));
+      ts.forEachChild(n, visit);
+      scopes.pop();
+      return;
+    }
     if (ts.isCallExpression(n)) {
       const callee = n.expression;
       if (callee.kind === ts.SyntaxKind.ImportKeyword) {
@@ -244,14 +282,14 @@ export function parseJsFile(path: string, text: string, language: OutlineLanguag
         }
       } else {
         const c = calleeOf(callee);
-        if (c && bindings.has(c.local)) out.calls.push({ line: startLine(n), ...c, form: "call" });
+        if (c && bindings.has(c.local) && !shadowed(c.local)) out.calls.push({ line: startLine(n), ...c, form: "call" });
       }
     } else if (ts.isNewExpression(n)) {
       const c = calleeOf(n.expression);
-      if (c && bindings.has(c.local)) out.calls.push({ line: startLine(n), ...c, form: "new" });
+      if (c && bindings.has(c.local) && !shadowed(c.local)) out.calls.push({ line: startLine(n), ...c, form: "new" });
     } else if (ts.isJsxOpeningElement(n) || ts.isJsxSelfClosingElement(n)) {
       const c = calleeOf(n.tagName as ts.Expression);
-      if (c && bindings.has(c.local)) out.calls.push({ line: startLine(n), ...c, form: "jsx" });
+      if (c && bindings.has(c.local) && !shadowed(c.local)) out.calls.push({ line: startLine(n), ...c, form: "jsx" });
     }
     ts.forEachChild(n, visit);
   };

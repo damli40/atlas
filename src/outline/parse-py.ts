@@ -22,8 +22,10 @@ type Tok = { t: "name" | "op" | "str" | "num"; v: string; line: number; start: n
 const SIG_MAX = 200;
 const squash = (s: string) => s.replace(/\s+/g, " ").trim();
 const cap = (s: string, n = SIG_MAX) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
-const isNameStart = (c: string) => /[A-Za-z_\u00A0-\uFFFF]/.test(c);
-const isNamePart = (c: string) => /[\w\u00A0-\uFFFF]/.test(c);
+/** Review minor 5: direction controls and zero-width characters are never part of a name. */
+const HIDDEN = /[\u061C\u200B-\u200F\u2028-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]/;
+const isNameStart = (c: string) => /[A-Za-z_\u00A0-\uFFFF]/.test(c) && !HIDDEN.test(c);
+const isNamePart = (c: string) => /[\w\u00A0-\uFFFF]/.test(c) && !HIDDEN.test(c);
 const STRING_PREFIX = /^(?:[rRbBuUfF]|[rR][bBfF]|[bBfF][rR])$/;
 const MAX_FSTRING_NESTING = 16;
 const MULTI_OPS = ["->", "**", ":=", "==", "!=", "<=", ">="];
@@ -383,6 +385,41 @@ export function parsePyFile(text: string): ParsedFile {
     for (const s of out.symbols) if (s.parent === undefined) s.exported = listed.has(s.name);
   }
 
+  // Review minor 1: names each function declares for itself (parameters, `x = ...`, `for x in`, `with ... as x`,
+  // `except E as x`, inner def/class). A call of such a name inside that function is not a call of the import.
+  const scopes: { from: number; to: number; names: Set<string> }[] = [];
+  lines.forEach((l, idx) => {
+    const t = l.toks;
+    const k = isName(t[0], "async") && isName(t[1], "def") ? 1 : 0;
+    if (!(isName(t[k], "def") && isName(t[k + 1]) && isOp(t[k + 2], "("))) return;
+    const names = new Set<string>();
+    let d = 0;
+    let close = t.length;
+    for (let j = k + 2; j < t.length; j++) {
+      if (t[j]!.t === "op" && "([{".includes(t[j]!.v)) d++;
+      if (t[j]!.t === "op" && ")]}".includes(t[j]!.v) && --d === 0) {
+        close = j;
+        break;
+      }
+    }
+    for (const part of splitTopCommas(t.slice(k + 3, close))) {
+      const n = part.find((x) => x.t === "name");
+      if (n) names.add(n.v);
+    }
+    const base = l.indent;
+    let end = lastLine(l);
+    for (let j = idx + 1; j < lines.length && lines[j]!.indent > base; j++) {
+      const b = lines[j]!.toks;
+      end = lastLine(lines[j]!);
+      if (isName(b[0]) && !KEYWORDS.has(b[0]!.v) && (isOp(b[1], "=") || isOp(b[1], ":") || isOp(b[1], ","))) names.add(b[0]!.v);
+      if ((isName(b[0], "def") || isName(b[0], "class")) && isName(b[1])) names.add(b[1]!.v);
+      if (isName(b[0], "for")) for (let q = 1; q < b.length && !isName(b[q], "in"); q++) if (isName(b[q])) names.add(b[q]!.v);
+      for (let q = 0; q + 1 < b.length; q++) if (isName(b[q], "as") && isName(b[q + 1]) && !(isName(b[0], "import") || isName(b[0], "from"))) names.add(b[q + 1]!.v);
+    }
+    scopes.push({ from: t[0]!.line, to: end, names });
+  });
+  const shadowed = (local: string, line: number) => scopes.some((sc) => sc.from <= line && line <= sc.to && sc.names.has(local.split(".")[0]!));
+
   // Calls of imported names: `f(` where f was imported by name, or `m.f(` / `pkg.mod.f(` through a module import.
   const bound = new Map<string, true>();
   for (const i of out.imports) for (const n of i.names) if (n.local !== "*") bound.set(n.local, true);
@@ -405,6 +442,7 @@ export function parsePyFile(text: string): ParsedFile {
           for (let p = parts.length; p >= 1; p--) {
             const local = parts.slice(0, p).join(".");
             if (!bound.has(local)) continue;
+            if (shadowed(local, tok.line)) break;
             const member = parts.slice(p).join(".");
             const call: RawCall = { line: tok.line, local, ...(member ? { member } : {}), form: "call" };
             out.calls.push(call);
