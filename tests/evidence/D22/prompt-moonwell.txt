@@ -1,0 +1,220 @@
+WHAT THE PERSON SEES BEFORE BETTING (you get exactly this; the person sees the same text on screen)
+Pull request: moonwell-fi/moonwell-contracts-v2#578 · Add MIP-X43: Activate OEV wrappers for all remaining markets · merge commit 9a6738e189 · 6 files · code fingerprint 6c431aaec1a5…
+Moonwell's files: BSD-3-Clause; mip-x43.sol GPL-3.0-or-later (notices kept in contracts/lib/moonwell).
+What will run: Fork Base at block 42194662, one block before the proposal ran, apply the proposal's oracle-feed actions as the governor, then read the prices.
+Read with this run: fork of Base one block before MIP-X43 ran; Atlas applied the proposal's oracle-feed actions as the governor
+Fork block: 42194662 on Base, made at 2026-02-15 18:04:31 UTC.
+Chain facts read by Atlas at block 42194662, before the proposal ran:
+- Block 42194662 timestamp: 1771178671 (2026-02-15 18:04:31 UTC).
+- Moonwell's oracle, getUnderlyingPrice(MOONWELL_cbETH 0x3bf93770f2d4a794c3d9EBEfBAeBAE2a8f09A5E5), normalised: $2,206.68 per cbETH (raw 2206683650838065175827).
+- The feed the oracle is wired to for cbETH, getFeed("cbETH"): 0xB0Ba0C5D7DA4ec400C1C3E5ef2485134F89918C5, no description().
+- Chainlink ETH/USD aggregator 0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70, description "ETH / USD": latestRoundData answer 196558018952 with 8 decimals (1965.58018952).
+- Chainlink cbETH/ETH aggregator 0x806b4Ac04501c29769051e42783cF04dCE41440b, description "CBETH / ETH": latestRoundData answer 1122662744874806300 with 18 decimals (1.122662744874806300).
+Nothing after the proposal is applied is shown here.
+Question: After this proposal is applied, what will Moonwell's oracle report for 1 cbETH, in USD?
+Answer in: USD.
+Matched means within 10% of what the run reads.
+How to bet: Give your best estimate in USD. Decline only if you cannot form any estimate at all; if you decline, say why.
+The code this round works on (picked by a person): proposals/ChainlinkOracleConfigs.sol, line 42, marked ">" below.
+The whole file, proposals/ChainlinkOracleConfigs.sol, numbered as on screen:
+  1| pragma solidity 0.8.19;
+  2| 
+  3| import "@forge-std/Test.sol";
+  4| import "@utils/ChainIds.sol";
+  5| 
+  6| abstract contract ChainlinkOracleConfigs is Test {
+  7|     struct OracleConfig {
+  8|         string oracleName; /// e.g., CHAINLINK_ETH_USD
+  9|         string symbol; /// e.g., as found in addresses
+  10|         string mTokenKey; /// e.g., MOONWELL_WETH (defaults to MOONWELL_[symbol] if not specified)
+  11|     }
+  12| 
+  13|     struct MorphoOracleConfig {
+  14|         string proxyName; /// e.g., CHAINLINK_stkWELL_USD (used for proxy identifier)
+  15|         string priceFeedName; /// e.g., CHAINLINK_WELL_USD (the actual price feed oracle)
+  16|     }
+  17| 
+  18|     /// oracle configurations per chain id
+  19|     mapping(uint256 => OracleConfig[]) internal _oracleConfigs;
+  20| 
+  21|     /// morpho market configurations per chain id
+  22|     mapping(uint256 => MorphoOracleConfig[]) internal _MorphoOracleConfigs;
+  23| 
+  24|     /// @dev oracles are listed in the order they are in the docs
+  25|     /// https://docs.moonwell.fi/moonwell/protocol-information/contracts#base-contract-addresses
+  26|     constructor() {
+  27|         /// Initialize oracle configurations for Base
+  28|         _oracleConfigs[BASE_CHAIN_ID].push(
+  29|             OracleConfig("DAI_ORACLE", "DAI", "MOONWELL_DAI")
+  30|         );
+  31|         _oracleConfigs[BASE_CHAIN_ID].push(
+  32|             OracleConfig("CHAINLINK_USDC_USD", "USDC", "MOONWELL_USDC")
+  33|         );
+  34|         _oracleConfigs[BASE_CHAIN_ID].push(
+  35|             OracleConfig("CHAINLINK_USDC_USD", "USDBC", "MOONWELL_USDBC")
+  36|         );
+  37|         // WETH already activated by MIP-X38
+  38|         // _oracleConfigs[BASE_CHAIN_ID].push(
+  39|         //     OracleConfig("CHAINLINK_ETH_USD", "WETH", "MOONWELL_WETH")
+  40|         // );
+  41|         _oracleConfigs[BASE_CHAIN_ID].push(
+> 42|             OracleConfig("cbETHETH_ORACLE", "cbETH", "MOONWELL_cbETH")
+  43|         );
+  44|         // Composite oracles don't support latestRound(), deferred to follow-up
+  45|         // _oracleConfigs[BASE_CHAIN_ID].push(
+  46|         //     OracleConfig("CHAINLINK_WSTETH_STETH_COMPOSITE_ORACLE", "wstETH", "MOONWELL_wstETH")
+  47|         // );
+  48|         // _oracleConfigs[BASE_CHAIN_ID].push(
+  49|         //     OracleConfig("CHAINLINK_RETH_ETH_EXCHANGE_RATE_ORACLE", "rETH", "MOONWELL_rETH")
+  50|         // );
+  51|         // _oracleConfigs[BASE_CHAIN_ID].push(
+  52|         //     OracleConfig("CHAINLINK_WEETH_USD_COMPOSITE_ORACLE", "weETH", "MOONWELL_weETH")
+  53|         // );
+  54|         _oracleConfigs[BASE_CHAIN_ID].push(
+  55|             OracleConfig("CHAINLINK_AERO_ORACLE", "AERO", "MOONWELL_AERO")
+  56|         );
+  57|         _oracleConfigs[BASE_CHAIN_ID].push(
+  58|             OracleConfig("CHAINLINK_BTC_USD", "cbBTC", "MOONWELL_cbBTC")
+  59|         );
+  60|         _oracleConfigs[BASE_CHAIN_ID].push(
+  61|             OracleConfig("CHAINLINK_EURC_USD", "EURC", "MOONWELL_EURC")
+  62|         );
+  63|         // _oracleConfigs[BASE_CHAIN_ID].push(
+  64|         //     OracleConfig("CHAINLINK_wrsETH_COMPOSITE_ORACLE", "wrsETH", "MOONWELL_wrsETH")
+  65|         // );
+  66|         _oracleConfigs[BASE_CHAIN_ID].push(
+  67|             OracleConfig("CHAINLINK_WELL_USD", "xWELL_PROXY", "MOONWELL_WELL")
+  68|         );
+  69|         _oracleConfigs[BASE_CHAIN_ID].push(
+  70|             OracleConfig("CHAINLINK_USDS_USD", "USDS", "MOONWELL_USDS")
+  71|         );
+  72|         _oracleConfigs[BASE_CHAIN_ID].push(
+  73|             OracleConfig("CHAINLINK_TBTC_USD", "TBTC", "MOONWELL_TBTC")
+  74|         );
+  75|         // _oracleConfigs[BASE_CHAIN_ID].push(
+  76|         //     OracleConfig("CHAINLINK_LBTC_BTC_COMPOSITE_ORACLE", "LBTC", "MOONWELL_LBTC")
+  77|         // );
+  78|         _oracleConfigs[BASE_CHAIN_ID].push(
+  79|             OracleConfig("CHAINLINK_VIRTUAL_USD", "VIRTUAL", "MOONWELL_VIRTUAL")
+  80|         );
+  81|         _oracleConfigs[BASE_CHAIN_ID].push(
+  82|             OracleConfig("CHAINLINK_MORPHO_USD", "MORPHO", "MOONWELL_MORPHO")
+  83|         );
+  84|         _oracleConfigs[BASE_CHAIN_ID].push(
+  85|             OracleConfig("CHAINLINK_cbXRP_USD", "cbXRP", "MOONWELL_cbXRP")
+  86|         );
+  87|         _oracleConfigs[BASE_CHAIN_ID].push(
+  88|             OracleConfig("CHAINLINK_MAMO_USD", "MAMO", "MOONWELL_MAMO")
+  89|         );
+  90| 
+  91|         /// Initialize oracle configurations for Optimism
+  92|         _oracleConfigs[OPTIMISM_CHAIN_ID].push(
+  93|             OracleConfig("CHAINLINK_USDC_USD", "USDC", "MOONWELL_USDC")
+  94|         );
+  95|         _oracleConfigs[OPTIMISM_CHAIN_ID].push(
+  96|             OracleConfig("CHAINLINK_USDT_USD", "USDT", "MOONWELL_USDT")
+  97|         );
+  98|         _oracleConfigs[OPTIMISM_CHAIN_ID].push(
+  99|             OracleConfig("CHAINLINK_DAI_USD", "DAI", "MOONWELL_DAI")
+  100|         );
+  101|         // WETH already activated by MIP-X38
+  102|         // _oracleConfigs[OPTIMISM_CHAIN_ID].push(
+  103|         //     OracleConfig("CHAINLINK_ETH_USD", "WETH", "MOONWELL_WETH")
+  104|         // );
+  105|         _oracleConfigs[OPTIMISM_CHAIN_ID].push(
+  106|             OracleConfig("CHAINLINK_WBTC_USD", "WBTC", "MOONWELL_WBTC")
+  107|         );
+  108|         // Composite oracles don't support latestRound(), deferred to follow-up
+  109|         // _oracleConfigs[OPTIMISM_CHAIN_ID].push(
+  110|         //     OracleConfig("CHAINLINK_WSTETH_USD_COMPOSITE_ORACLE", "wstETH", "MOONWELL_wstETH")
+  111|         // );
+  112|         // _oracleConfigs[OPTIMISM_CHAIN_ID].push(
+  113|         //     OracleConfig("CHAINLINK_cbETH_USD_COMPOSITE_ORACLE", "cbETH", "MOONWELL_cbETH")
+  114|         // );
+  115|         // _oracleConfigs[OPTIMISM_CHAIN_ID].push(
+  116|         //     OracleConfig("CHAINLINK_RETH_ETH_EXCHANGE_RATE_ORACLE", "rETH", "MOONWELL_rETH")
+  117|         // );
+  118|         // _oracleConfigs[OPTIMISM_CHAIN_ID].push(
+  119|         //     OracleConfig("CHAINLINK_WEETH_USD_COMPOSITE_ORACLE", "weETH", "MOONWELL_weETH")
+  120|         // );
+  121|         _oracleConfigs[OPTIMISM_CHAIN_ID].push(
+  122|             OracleConfig("CHAINLINK_OP_USD", "OP", "MOONWELL_OP")
+  123|         );
+  124|         _oracleConfigs[OPTIMISM_CHAIN_ID].push(
+  125|             OracleConfig("CHAINLINK_VELO_USD", "VELO", "MOONWELL_VELO")
+  126|         );
+  127|         // _oracleConfigs[OPTIMISM_CHAIN_ID].push(
+  128|         //     OracleConfig("CHAINLINK_wrsETH_COMPOSITE_ORACLE", "wrsETH", "MOONWELL_wrsETH")
+  129|         // );
+  130|         _oracleConfigs[OPTIMISM_CHAIN_ID].push(
+  131|             OracleConfig("CHAINLINK_USDT_USD", "USDT0", "MOONWELL_USDT0")
+  132|         );
+  133| 
+  134|         /// Initialize Morpho market configurations for Base
+  135|         // WELL already activated by MIP-X38
+  136|         // _MorphoOracleConfigs[BASE_CHAIN_ID].push(
+  137|         //     MorphoOracleConfig("CHAINLINK_WELL_USD", "CHAINLINK_WELL_USD")
+  138|         // );
+  139|         _MorphoOracleConfigs[BASE_CHAIN_ID].push(
+  140|             MorphoOracleConfig("CHAINLINK_MAMO_USD", "CHAINLINK_MAMO_USD")
+  141|         );
+  142|         _MorphoOracleConfigs[BASE_CHAIN_ID].push(
+  143|             MorphoOracleConfig("CHAINLINK_stkWELL_USD", "CHAINLINK_WELL_USD")
+  144|         );
+  145|     }
+  146| 
+  147|     function getOracleConfigurations(
+  148|         uint256 chainId
+  149|     ) public view returns (OracleConfig[] memory) {
+  150|         OracleConfig[] memory configs = new OracleConfig[](
+  151|             _oracleConfigs[chainId].length
+  152|         );
+  153| 
+  154|         unchecked {
+  155|             uint256 configLength = configs.length;
+  156|             for (uint256 i = 0; i < configLength; i++) {
+  157|                 configs[i] = OracleConfig({
+  158|                     oracleName: _oracleConfigs[chainId][i].oracleName,
+  159|                     symbol: _oracleConfigs[chainId][i].symbol,
+  160|                     mTokenKey: _oracleConfigs[chainId][i].mTokenKey
+  161|                 });
+  162|             }
+  163|         }
+  164| 
+  165|         return configs;
+  166|     }
+  167| 
+  168|     function getMorphoOracleConfigurations(
+  169|         uint256 chainId
+  170|     ) public view returns (MorphoOracleConfig[] memory) {
+  171|         MorphoOracleConfig[] memory configs = new MorphoOracleConfig[](
+  172|             _MorphoOracleConfigs[chainId].length
+  173|         );
+  174| 
+  175|         unchecked {
+  176|             uint256 configLength = configs.length;
+  177|             for (uint256 i = 0; i < configLength; i++) {
+  178|                 configs[i] = MorphoOracleConfig({
+  179|                     proxyName: _MorphoOracleConfigs[chainId][i].proxyName,
+  180|                     priceFeedName: _MorphoOracleConfigs[chainId][i]
+  181|                         .priceFeedName
+  182|                 });
+  183|             }
+  184|         }
+  185| 
+  186|         return configs;
+  187|     }
+  188| }
+
+QUESTIONS (written by plain code; a person answers the same ones)
+1. measures "priceUsd1e18:cbETH": After this proposal is applied, what will Moonwell's oracle report for 1 cbETH, in USD?
+   answer: {"kind":"number","value":<number>,"tolerancePct":10,"unit":"USD"}
+
+TASK
+Bet on what this experiment's run will measure:
+exactly one bet per question, using the answer JSON shown for it.
+Give your best estimate in USD. Decline only if you cannot form any estimate at all; if you decline, say why.
+To decline, bet {"kind":"declined","reason":"unknown: <why>"}.
+
+Return only this JSON object:
+{"bets": [{"measures": "<field>", "answer": {...}, "rationale": "<one or two sentences>"}]}

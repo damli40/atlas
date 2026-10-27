@@ -1,0 +1,7 @@
+Chain facts read by Atlas at block 42194662, before the proposal ran:
+- Block 42194662 timestamp: 1771178671 (2026-02-15 18:04:31 UTC).
+- Moonwell's oracle, getUnderlyingPrice(MOONWELL_cbETH 0x3bf93770f2d4a794c3d9EBEfBAeBAE2a8f09A5E5), normalised: $2,206.68 per cbETH (raw 2206683650838065175827).
+- The feed the oracle is wired to for cbETH, getFeed("cbETH"): 0xB0Ba0C5D7DA4ec400C1C3E5ef2485134F89918C5, no description().
+- Chainlink ETH/USD aggregator 0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70, description "ETH / USD": latestRoundData answer 196558018952 with 8 decimals (1965.58018952).
+- Chainlink cbETH/ETH aggregator 0x806b4Ac04501c29769051e42783cF04dCE41440b, description "CBETH / ETH": latestRoundData answer 1122662744874806300 with 18 decimals (1.122662744874806300).
+Nothing after the proposal is applied is shown here.

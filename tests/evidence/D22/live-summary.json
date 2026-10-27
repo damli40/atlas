@@ -1,0 +1,30 @@
+{
+  "at": "2026-10-27T13:00:14.875Z",
+  "spentUsd": {
+    "meta": 0.10744,
+    "baseten": 0.020814
+  },
+  "samePrompt": [
+    {
+      "round": 1,
+      "models": 2,
+      "identical": true
+    },
+    {
+      "round": 2,
+      "models": 2,
+      "identical": true
+    },
+    {
+      "round": 3,
+      "models": 2,
+      "identical": true
+    },
+    {
+      "round": 4,
+      "models": 2,
+      "identical": true
+    }
+  ],
+  "rounds": 4
+}

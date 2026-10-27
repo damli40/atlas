@@ -1,0 +1,58 @@
+round 1 (moonwell)
+  muse-spark-1.3: sealed, 1 sealed
+  meta-models/muse-spark-open-1026: sealed, 1 sealed
+  run 7hIZWPA7DY in 4 s, control passed
+  spark: priceUsd1e18:cbETH=2206.68 → not_matched
+  sparkOpen: priceUsd1e18:cbETH=1.1226627448748063 → matched
+  script: priceUsd1e18:cbETH=2200 → not_matched
+round 2 (moonwell)
+  muse-spark-1.3: sealed, 1 sealed
+  meta-models/muse-spark-open-1026: sealed, 1 sealed
+  run BVw4a3vqLF in 4 s, control passed
+  spark: priceUsd1e18:cbETH=2206.68 → not_matched
+  sparkOpen: priceUsd1e18:cbETH=1.1226627448748063 → matched
+  script: priceUsd1e18:cbETH=2200 → not_matched
+round 3 (moonwell)
+  muse-spark-1.3: sealed, 1 sealed
+  meta-models/muse-spark-open-1026: sealed, 1 sealed
+  run GeyY4SlMRr in 4 s, control passed
+  spark: priceUsd1e18:cbETH=2206.68 → not_matched
+  sparkOpen: priceUsd1e18:cbETH=1.1226627448748063 → matched
+  script: priceUsd1e18:cbETH=2200 → not_matched
+round 4 (fixture)
+  muse-spark-1.3: sealed, 3 sealed
+  meta-models/muse-spark-open-1026: sealed, 3 sealed
+  run YFTm3w1mqx in 0 s, control passed
+  spark: calls=5 → matched; totalWaitMs=12000 → matched; outcome="throws" → matched
+  sparkOpen: calls=5 → matched; totalWaitMs=12000 → matched; outcome="throws" → matched
+  script: calls=3 → not_matched; totalWaitMs=3000 → not_matched; outcome="throws" → matched
+{
+  "at": "2026-10-27T13:00:14.875Z",
+  "spentUsd": {
+    "meta": 0.10744,
+    "baseten": 0.020814
+  },
+  "samePrompt": [
+    {
+      "round": 1,
+      "models": 2,
+      "identical": true
+    },
+    {
+      "round": 2,
+      "models": 2,
+      "identical": true
+    },
+    {
+      "round": 3,
+      "models": 2,
+      "identical": true
+    },
+    {
+      "round": 4,
+      "models": 2,
+      "identical": true
+    }
+  ],
+  "rounds": 4
+}

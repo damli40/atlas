@@ -62,9 +62,11 @@ describe("M5: every usage line names its provider; the dollars are unchanged", (
   it("each line's provider is the one its model goes to", () => {
     for (const l of lines) expect(l.provider).toBe(providerFor(l.model));
   });
-  it("72 lines, $5.82752 in all, as before", () => {
-    expect(lines).toHaveLength(72);
-    expect(Math.round(lines.reduce((a, l) => a + l.usd, 0) * 1e6) / 1e6).toBe(5.82752);
+  // The migration touched the first 72 lines; their dollars must stay as they were. Later live calls append
+  // lines (D22 added 8), so the file's total length is not pinned: that made the test fail on every new call.
+  it("the first 72 lines (the ones the migration touched): $5.82752 in all, as before", () => {
+    expect(lines.length).toBeGreaterThanOrEqual(72);
+    expect(Math.round(lines.slice(0, 72).reduce((a, l) => a + l.usd, 0) * 1e6) / 1e6).toBe(5.82752);
   });
 });
 

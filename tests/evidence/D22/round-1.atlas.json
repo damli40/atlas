@@ -1,0 +1,1635 @@
+{
+  "version": 1,
+  "target": {
+    "kind": "github-pr",
+    "ref": "moonwell-fi/moonwell-contracts-v2#578",
+    "codeSha256": "6c431aaec1a5631719cb0c90128b0b2b0f294bafb3634c775cb93fee0670f7c7",
+    "commit": "9a6738e189fa903bffa0abf10b9dd7ed2fe73a18"
+  },
+  "codeSha256": "6c431aaec1a5631719cb0c90128b0b2b0f294bafb3634c775cb93fee0670f7c7",
+  "forkBlock": 42194662,
+  "chainId": 8453,
+  "experiments": [
+    {
+      "id": "F7rr3Q1OUU",
+      "target": {
+        "kind": "github-pr",
+        "ref": "moonwell-fi/moonwell-contracts-v2#578",
+        "codeSha256": "6c431aaec1a5631719cb0c90128b0b2b0f294bafb3634c775cb93fee0670f7c7",
+        "commit": "9a6738e189fa903bffa0abf10b9dd7ed2fe73a18"
+      },
+      "runner": "evm",
+      "params": {
+        "shape": "apply-proposal-then-read",
+        "markets": "touched"
+      },
+      "proposedBy": {
+        "role": "human"
+      },
+      "gate": {
+        "allowed": true
+      }
+    }
+  ],
+  "bets": [
+    {
+      "id": "SzbO3Ez6U9",
+      "experimentId": "F7rr3Q1OUU",
+      "who": "human",
+      "question": "After this proposal is applied, what will Moonwell's oracle report for 1 cbETH, in USD?",
+      "measures": "priceUsd1e18:cbETH",
+      "answer": {
+        "kind": "number",
+        "value": 2200,
+        "tolerancePct": 10,
+        "unit": "USD"
+      },
+      "nonce": "9488d2e6f98d44567a3fda24c1f3edf6",
+      "sealedAt": "2026-10-27T12:59:44.432Z",
+      "sealedHash": "39b60057416fec6577e6266fbc6fc489def5dfb9170eecd84762029878f2bdc0"
+    },
+    {
+      "id": "W8FMiaHYch",
+      "experimentId": "F7rr3Q1OUU",
+      "who": "model:meta-models/muse-spark-open-1026",
+      "question": "After this proposal is applied, what will Moonwell's oracle report for 1 cbETH, in USD?",
+      "measures": "priceUsd1e18:cbETH",
+      "answer": {
+        "kind": "number",
+        "value": 1.1226627448748063,
+        "tolerancePct": 10,
+        "unit": "USD"
+      },
+      "nonce": "d9e193e889ce74059ddc2ddfb7986060",
+      "sealedAt": "2026-10-27T12:59:48.328Z",
+      "sealedHash": "124c2d6aed847ad215869db541c7be61bcd9fd0b50dcea02f4d229871c7947b5",
+      "rationale": "Config switches cbETH to cbETHETH_ORACLE (cbETH/ETH feed 0x806b... with answer 1.12266e18); if oracle reports feed answer directly as USD 1e18 price, it will read ~1.12 instead of composite ~2206"
+    },
+    {
+      "id": "tzuAPeltmr",
+      "experimentId": "F7rr3Q1OUU",
+      "who": "model:muse-spark-1.3",
+      "question": "After this proposal is applied, what will Moonwell's oracle report for 1 cbETH, in USD?",
+      "measures": "priceUsd1e18:cbETH",
+      "answer": {
+        "kind": "number",
+        "value": 2206.68,
+        "tolerancePct": 10,
+        "unit": "USD"
+      },
+      "nonce": "30a57b6ecfb1394c1095c2f9615e4f39",
+      "sealedAt": "2026-10-27T12:59:50.172Z",
+      "sealedHash": "9dc4dad10d13d52efce92e911991ecdfd6eb7c412ce4b46e19664b753d981905",
+      "rationale": "OEV wrapper preserves underlying price; before price equals ETH/USD 1965.58 * cbETH/ETH 1.12266 = ~2206.68, so after wrapping same."
+    }
+  ],
+  "runs": [
+    {
+      "id": "7hIZWPA7DY",
+      "experimentId": "F7rr3Q1OUU",
+      "runner": "evm",
+      "executor": "local",
+      "codeSha256": "6c431aaec1a5631719cb0c90128b0b2b0f294bafb3634c775cb93fee0670f7c7",
+      "forkBlock": 42194662,
+      "chainId": 8453,
+      "startedAt": "2026-10-27T12:59:50.177Z",
+      "finishedAt": "2026-10-27T12:59:54.188Z",
+      "trace": [
+        {
+          "t": 0,
+          "event": "fork_started",
+          "data": {
+            "forkBlock": 42194662,
+            "chainId": 8453
+          }
+        },
+        {
+          "t": 1,
+          "event": "pre_execution_checked",
+          "data": {
+            "cbEthFeed": "0xB0Ba0C5D7DA4ec400C1C3E5ef2485134F89918C5",
+            "cbEthPriceUsd1e18": "2206683650838065175827"
+          }
+        },
+        {
+          "t": 2,
+          "event": "control_matched",
+          "data": {
+            "control": {
+              "forkBlock": 42194662,
+              "chainId": 8453,
+              "blockNumberOnFork": 42194662,
+              "stablecoins": [
+                {
+                  "symbol": "USDC",
+                  "mToken": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22",
+                  "tokenDecimals": 6,
+                  "feedAddress": "0x7e860098F58bBFC8648a4311b374B1D669a2bc6B",
+                  "rawUnderlyingPrice": "999900000000000000000000000000",
+                  "priceUsd1e18": "999900000000000000",
+                  "inBand": true
+                },
+                {
+                  "symbol": "USDbC",
+                  "mToken": "0x703843C3379b52F9FF486c9f5892218d2a065cC8",
+                  "tokenDecimals": 6,
+                  "feedAddress": "0x7e860098F58bBFC8648a4311b374B1D669a2bc6B",
+                  "rawUnderlyingPrice": "999900000000000000000000000000",
+                  "priceUsd1e18": "999900000000000000",
+                  "inBand": true
+                },
+                {
+                  "symbol": "DAI",
+                  "mToken": "0x73b06D8d18De422E269645eaCe15400DE7462417",
+                  "tokenDecimals": 18,
+                  "feedAddress": "0x591e79239a7d679378eC8c847e5038150364C78F",
+                  "rawUnderlyingPrice": "999900000000000000",
+                  "priceUsd1e18": "999900000000000000",
+                  "inBand": true
+                },
+                {
+                  "symbol": "USDS",
+                  "mToken": "0xb6419c6C2e60c4025D6D06eE4F913ce89425a357",
+                  "tokenDecimals": 18,
+                  "feedAddress": "0xAeC8E8E3696fc5fcd954eb3ebC26B72FC2FE8E8e",
+                  "rawUnderlyingPrice": "999635870000000000",
+                  "priceUsd1e18": "999635870000000000",
+                  "inBand": true
+                }
+              ],
+              "weth": {
+                "read": {
+                  "mToken": "0x628ff693426583D9a7FB391E54366292F509D457",
+                  "underlying": "0x4200000000000000000000000000000000000006",
+                  "symbol": "WETH",
+                  "tokenDecimals": 18,
+                  "feedAddress": "0xeb083d234ec636A10325ea42bCbbE09Aa56d1547",
+                  "feedDecimals": 8,
+                  "feedDescription": "ETH / USD",
+                  "rawUnderlyingPrice": "1965580189520000000000",
+                  "priceUsd1e18": "1965580189520000000000"
+                },
+                "wiredFeedRound": {
+                  "roundId": "18446744073709762014",
+                  "answer": "196558018952",
+                  "updatedAt": "1771178585"
+                },
+                "expectedRawUnderlyingPrice": "1965580189520000000000",
+                "matched": true
+              },
+              "wiredVsRaw": {
+                "wiredFeed": "0xeb083d234ec636A10325ea42bCbbE09Aa56d1547",
+                "wiredFeedIsRawAggregator": false,
+                "wiredFeedAnswer": "196558018952",
+                "wiredFeedDecimals": 8,
+                "rawAggregator": "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70",
+                "rawAnswer": "196558018952",
+                "rawDecimals": 8,
+                "rawRoundId": "18446744073709762014",
+                "equalAt1e18": true
+              },
+              "passed": true,
+              "reasons": []
+            },
+            "postStablecoins": [
+              {
+                "symbol": "USDC",
+                "priceUsd1e18": "999900000000000000",
+                "inBand": true
+              },
+              {
+                "symbol": "USDbC",
+                "priceUsd1e18": "999900000000000000",
+                "inBand": true
+              },
+              {
+                "symbol": "DAI",
+                "priceUsd1e18": "999900000000000000",
+                "inBand": true
+              },
+              {
+                "symbol": "USDS",
+                "priceUsd1e18": "999635870000000000",
+                "inBand": true
+              }
+            ]
+          }
+        },
+        {
+          "t": 3,
+          "event": "proposal_derived",
+          "data": {
+            "count": 14,
+            "actions": [
+              {
+                "symbol": "DAI",
+                "wrapper": "0x4916EC6773e14CA873be3d65022BB122CB8b89a2",
+                "line": 28
+              },
+              {
+                "symbol": "USDC",
+                "wrapper": "0x7600b9068bB0aFEA6adf70eD6CD0f8492117236d",
+                "line": 31
+              },
+              {
+                "symbol": "USDbC",
+                "wrapper": "0x7600b9068bB0aFEA6adf70eD6CD0f8492117236d",
+                "line": 34
+              },
+              {
+                "symbol": "cbETH",
+                "wrapper": "0x67996D1ff7a3711a91E2839d1059Fcb950C0495D",
+                "line": 41
+              },
+              {
+                "symbol": "AERO",
+                "wrapper": "0xdC79C7D5D4dA3b237D2d078a1ee06F2FD1FfEf98",
+                "line": 54
+              },
+              {
+                "symbol": "cbBTC",
+                "wrapper": "0x6a3c960Bcfb69BAe78f706c9c6B168bB7693E119",
+                "line": 57
+              },
+              {
+                "symbol": "EURC",
+                "wrapper": "0xd5669e0175D01cc5F6Be9607129668D0833DcbEC",
+                "line": 60
+              },
+              {
+                "symbol": "WELL",
+                "wrapper": "0xBA5220805E43194Ff12A434fBb745f3a2E1a09db",
+                "line": 66
+              },
+              {
+                "symbol": "USDS",
+                "wrapper": "0x6621069673C61a143DaDF376389e82DA372BF405",
+                "line": 69
+              },
+              {
+                "symbol": "tBTC",
+                "wrapper": "0xBfAaA8B347dA80B909504d403CB4C8F245e921ab",
+                "line": 72
+              },
+              {
+                "symbol": "VIRTUAL",
+                "wrapper": "0x12EC8CfEbCF5728774925feC1502733f906CB6e3",
+                "line": 78
+              },
+              {
+                "symbol": "MORPHO",
+                "wrapper": "0x09793267120dbF519B2B0e8Ea77A689e2Ba453F0",
+                "line": 81
+              },
+              {
+                "symbol": "cbXRP",
+                "wrapper": "0xf2Ac6F14A094A82A6f9489364CdE9e1ba2548d49",
+                "line": 84
+              },
+              {
+                "symbol": "MAMO",
+                "wrapper": "0xfbA86a013f7FD93B5454e147242CF2Bf419e120D",
+                "line": 87
+              }
+            ]
+          }
+        },
+        {
+          "t": 4,
+          "event": "price_read",
+          "data": {
+            "phase": "pre-apply",
+            "mToken": "0x73b06D8d18De422E269645eaCe15400DE7462417",
+            "underlying": "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb",
+            "symbol": "DAI",
+            "tokenDecimals": 18,
+            "feedAddress": "0x591e79239a7d679378eC8c847e5038150364C78F",
+            "feedDecimals": 8,
+            "feedDescription": "DAI / USD",
+            "rawUnderlyingPrice": "999900000000000000",
+            "priceUsd1e18": "999900000000000000"
+          }
+        },
+        {
+          "t": 5,
+          "event": "price_read",
+          "data": {
+            "phase": "pre-apply",
+            "mToken": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22",
+            "underlying": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+            "symbol": "USDC",
+            "tokenDecimals": 6,
+            "feedAddress": "0x7e860098F58bBFC8648a4311b374B1D669a2bc6B",
+            "feedDecimals": 8,
+            "feedDescription": "USDC / USD",
+            "rawUnderlyingPrice": "999900000000000000000000000000",
+            "priceUsd1e18": "999900000000000000"
+          }
+        },
+        {
+          "t": 6,
+          "event": "price_read",
+          "data": {
+            "phase": "pre-apply",
+            "mToken": "0x703843C3379b52F9FF486c9f5892218d2a065cC8",
+            "underlying": "0xd9aAEc86B65D86f6A7B5B1b0c42FFA531710b6CA",
+            "symbol": "USDbC",
+            "tokenDecimals": 6,
+            "feedAddress": "0x7e860098F58bBFC8648a4311b374B1D669a2bc6B",
+            "feedDecimals": 8,
+            "feedDescription": "USDC / USD",
+            "rawUnderlyingPrice": "999900000000000000000000000000",
+            "priceUsd1e18": "999900000000000000"
+          }
+        },
+        {
+          "t": 7,
+          "event": "price_read",
+          "data": {
+            "phase": "pre-apply",
+            "mToken": "0x3bf93770f2d4a794c3d9EBEfBAeBAE2a8f09A5E5",
+            "underlying": "0x2Ae3F1Ec7F1F5012CFEab0185bfc7aa3cf0DEc22",
+            "symbol": "cbETH",
+            "tokenDecimals": 18,
+            "feedAddress": "0xB0Ba0C5D7DA4ec400C1C3E5ef2485134F89918C5",
+            "feedDecimals": 18,
+            "feedDescription": null,
+            "rawUnderlyingPrice": "2206683650838065175827",
+            "priceUsd1e18": "2206683650838065175827"
+          }
+        },
+        {
+          "t": 8,
+          "event": "price_read",
+          "data": {
+            "phase": "pre-apply",
+            "mToken": "0x73902f619CEB9B31FD8EFecf435CbDf89E369Ba6",
+            "underlying": "0x940181a94A35A4569E4529A3CDfB74e38FD98631",
+            "symbol": "AERO",
+            "tokenDecimals": 18,
+            "feedAddress": "0x4EC5970fC728C5f65ba413992CD5fF6FD70fcfF0",
+            "feedDecimals": 8,
+            "feedDescription": "AERO / USD",
+            "rawUnderlyingPrice": "310865530000000000",
+            "priceUsd1e18": "310865530000000000"
+          }
+        },
+        {
+          "t": 9,
+          "event": "price_read",
+          "data": {
+            "phase": "pre-apply",
+            "mToken": "0xF877ACaFA28c19b96727966690b2f44d35aD5976",
+            "underlying": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+            "symbol": "cbBTC",
+            "tokenDecimals": 8,
+            "feedAddress": "0x6F0cC02e5a7640B28F538fcc06bCA3BdFA57d1BB",
+            "feedDecimals": 8,
+            "feedDescription": "BTC / USD",
+            "rawUnderlyingPrice": "684897400000000000000000000000000",
+            "priceUsd1e18": "68489740000000000000000"
+          }
+        },
+        {
+          "t": 10,
+          "event": "price_read",
+          "data": {
+            "phase": "pre-apply",
+            "mToken": "0xb682c840B5F4FC58B20769E691A6fa1305A501a2",
+            "underlying": "0x60a3E35Cc302bFA44Cb288Bc5a4F316Fdb1adb42",
+            "symbol": "EURC",
+            "tokenDecimals": 6,
+            "feedAddress": "0x48F86A23aDE243F7a1028108aA65274FC84f382F",
+            "feedDecimals": 8,
+            "feedDescription": "EURC / USD",
+            "rawUnderlyingPrice": "1184823110000000000000000000000",
+            "priceUsd1e18": "1184823110000000000"
+          }
+        },
+        {
+          "t": 11,
+          "event": "price_read",
+          "data": {
+            "phase": "pre-apply",
+            "mToken": "0xdC7810B47eAAb250De623F0eE07764afa5F71ED1",
+            "underlying": "0xA88594D404727625A9437C3f886C7643872296AE",
+            "symbol": "WELL",
+            "tokenDecimals": 18,
+            "feedAddress": "0x1E0E8bcFb5FFa86749B8b89fb6e055337Ba74A39",
+            "feedDecimals": 8,
+            "feedDescription": "WELL / USD",
+            "rawUnderlyingPrice": "5012000000000000",
+            "priceUsd1e18": "5012000000000000"
+          }
+        },
+        {
+          "t": 12,
+          "event": "price_read",
+          "data": {
+            "phase": "pre-apply",
+            "mToken": "0xb6419c6C2e60c4025D6D06eE4F913ce89425a357",
+            "underlying": "0x820C137fa70C8691f0e44Dc420a5e53c168921Dc",
+            "symbol": "USDS",
+            "tokenDecimals": 18,
+            "feedAddress": "0xAeC8E8E3696fc5fcd954eb3ebC26B72FC2FE8E8e",
+            "feedDecimals": 8,
+            "feedDescription": "USDS / USD",
+            "rawUnderlyingPrice": "999635870000000000",
+            "priceUsd1e18": "999635870000000000"
+          }
+        },
+        {
+          "t": 13,
+          "event": "price_read",
+          "data": {
+            "phase": "pre-apply",
+            "mToken": "0x9A858ebfF1bEb0D3495BB0e2897c1528eD84A218",
+            "underlying": "0x236aa50979D5f3De3Bd1Eeb40E81137F22ab794b",
+            "symbol": "tBTC",
+            "tokenDecimals": 18,
+            "feedAddress": "0x94423903EaAf8638bDE262c417fEEf5E2Ec507E5",
+            "feedDecimals": 8,
+            "feedDescription": "TBTC / USD",
+            "rawUnderlyingPrice": "68265908984780000000000",
+            "priceUsd1e18": "68265908984780000000000"
+          }
+        },
+        {
+          "t": 14,
+          "event": "price_read",
+          "data": {
+            "phase": "pre-apply",
+            "mToken": "0xdE8Df9d942D78edE3Ca06e60712582F79CFfFC64",
+            "underlying": "0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b",
+            "symbol": "VIRTUAL",
+            "tokenDecimals": 18,
+            "feedAddress": "0x6aa41dF8FB0deC976B59bf0824FC5fFB88ccA958",
+            "feedDecimals": 8,
+            "feedDescription": "VIRTUAL / USD",
+            "rawUnderlyingPrice": "627045790000000000",
+            "priceUsd1e18": "627045790000000000"
+          }
+        },
+        {
+          "t": 15,
+          "event": "price_read",
+          "data": {
+            "phase": "pre-apply",
+            "mToken": "0x6308204872BdB7432dF97b04B42443c714904F3E",
+            "underlying": "0xBAa5CC21fd487B8Fcc2F632f3F4E8D37262a0842",
+            "symbol": "MORPHO",
+            "tokenDecimals": 18,
+            "feedAddress": "0xe95e258bb6615d47515Fc849f8542dA651f12bF6",
+            "feedDecimals": 8,
+            "feedDescription": "MORPHO / USD",
+            "rawUnderlyingPrice": "1323195190000000000",
+            "priceUsd1e18": "1323195190000000000"
+          }
+        },
+        {
+          "t": 16,
+          "event": "price_read",
+          "data": {
+            "phase": "pre-apply",
+            "mToken": "0xb4fb8fed5b3AaA8434f0B19b1b623d977e07e86d",
+            "underlying": "0xcb585250f852C6c6bf90434AB21A00f02833a4af",
+            "symbol": "cbXRP",
+            "tokenDecimals": 6,
+            "feedAddress": "0x9f0C1dD78C4CBdF5b9cf923a549A201EdC676D34",
+            "feedDecimals": 8,
+            "feedDescription": "XRP / USD",
+            "rawUnderlyingPrice": "1493697000000000000000000000000",
+            "priceUsd1e18": "1493697000000000000"
+          }
+        },
+        {
+          "t": 17,
+          "event": "price_read",
+          "data": {
+            "phase": "pre-apply",
+            "mToken": "0x2F90Bb22eB3979f5FfAd31EA6C3F0792ca66dA32",
+            "underlying": "0x7300B37DfdfAb110d83290A29DfB31B1740219fE",
+            "symbol": "MAMO",
+            "tokenDecimals": 18,
+            "feedAddress": "0xeF7541b388a77C1709a3d44BfBfC5c1ED3F0Ac94",
+            "feedDecimals": 8,
+            "feedDescription": "MAMO / USD",
+            "rawUnderlyingPrice": "14376590000000000",
+            "priceUsd1e18": "14376590000000000"
+          }
+        },
+        {
+          "t": 18,
+          "event": "feed_set",
+          "data": {
+            "symbol": "DAI",
+            "wrapper": "0x4916EC6773e14CA873be3d65022BB122CB8b89a2",
+            "txHash": "0xac9fdb8e75f66d90a441a75bbff49693dbd9d1ef3ef33d02d134265b53227fd5",
+            "status": "success",
+            "blockNumber": 42194663,
+            "gasUsed": "31991",
+            "feedSetEvents": [
+              {
+                "symbol": "DAI",
+                "wrapper": "0x4916EC6773e14CA873be3d65022BB122CB8b89a2"
+              }
+            ]
+          }
+        },
+        {
+          "t": 19,
+          "event": "feed_set",
+          "data": {
+            "symbol": "USDC",
+            "wrapper": "0x7600b9068bB0aFEA6adf70eD6CD0f8492117236d",
+            "txHash": "0x6ab5e5a439057de3ce0650cd0d1d429ec59ceacc9c1043311a3b4dcaadfaa63d",
+            "status": "success",
+            "blockNumber": 42194664,
+            "gasUsed": "31991",
+            "feedSetEvents": [
+              {
+                "symbol": "USDC",
+                "wrapper": "0x7600b9068bB0aFEA6adf70eD6CD0f8492117236d"
+              }
+            ]
+          }
+        },
+        {
+          "t": 20,
+          "event": "feed_set",
+          "data": {
+            "symbol": "USDbC",
+            "wrapper": "0x7600b9068bB0aFEA6adf70eD6CD0f8492117236d",
+            "txHash": "0xb2e7e9a2c2fb5f369dc145929a914692041a71e29608b4f8bb544120bcee3c50",
+            "status": "success",
+            "blockNumber": 42194665,
+            "gasUsed": "32003",
+            "feedSetEvents": [
+              {
+                "symbol": "USDbC",
+                "wrapper": "0x7600b9068bB0aFEA6adf70eD6CD0f8492117236d"
+              }
+            ]
+          }
+        },
+        {
+          "t": 21,
+          "event": "feed_set",
+          "data": {
+            "symbol": "cbETH",
+            "wrapper": "0x67996D1ff7a3711a91E2839d1059Fcb950C0495D",
+            "txHash": "0xc7f41d2302cc782298da7142147aea46204063a2ae8226592a740e4366403eff",
+            "status": "success",
+            "blockNumber": 42194666,
+            "gasUsed": "32015",
+            "feedSetEvents": [
+              {
+                "symbol": "cbETH",
+                "wrapper": "0x67996D1ff7a3711a91E2839d1059Fcb950C0495D"
+              }
+            ]
+          }
+        },
+        {
+          "t": 22,
+          "event": "feed_set",
+          "data": {
+            "symbol": "AERO",
+            "wrapper": "0xdC79C7D5D4dA3b237D2d078a1ee06F2FD1FfEf98",
+            "txHash": "0xc299ae68b5576259b76f16c1afd1d388b61cf31c68ed0d64e8fc485d498e12a4",
+            "status": "success",
+            "blockNumber": 42194667,
+            "gasUsed": "32003",
+            "feedSetEvents": [
+              {
+                "symbol": "AERO",
+                "wrapper": "0xdC79C7D5D4dA3b237D2d078a1ee06F2FD1FfEf98"
+              }
+            ]
+          }
+        },
+        {
+          "t": 23,
+          "event": "feed_set",
+          "data": {
+            "symbol": "cbBTC",
+            "wrapper": "0x6a3c960Bcfb69BAe78f706c9c6B168bB7693E119",
+            "txHash": "0x4d69a8288e4aba124620846300bcc4711952a3ed2ba0377abf5635f41a146540",
+            "status": "success",
+            "blockNumber": 42194668,
+            "gasUsed": "32015",
+            "feedSetEvents": [
+              {
+                "symbol": "cbBTC",
+                "wrapper": "0x6a3c960Bcfb69BAe78f706c9c6B168bB7693E119"
+              }
+            ]
+          }
+        },
+        {
+          "t": 24,
+          "event": "feed_set",
+          "data": {
+            "symbol": "EURC",
+            "wrapper": "0xd5669e0175D01cc5F6Be9607129668D0833DcbEC",
+            "txHash": "0x51007943964d4af7c5df778931d5fdb69997db317c53ed0f28b4de6393d618cc",
+            "status": "success",
+            "blockNumber": 42194669,
+            "gasUsed": "32003",
+            "feedSetEvents": [
+              {
+                "symbol": "EURC",
+                "wrapper": "0xd5669e0175D01cc5F6Be9607129668D0833DcbEC"
+              }
+            ]
+          }
+        },
+        {
+          "t": 25,
+          "event": "feed_set",
+          "data": {
+            "symbol": "WELL",
+            "wrapper": "0xBA5220805E43194Ff12A434fBb745f3a2E1a09db",
+            "txHash": "0x8eb5a65570e86f88ee5b39d9e4d49605e63d1810e89e2b27382dca2cb2e7b99e",
+            "status": "success",
+            "blockNumber": 42194670,
+            "gasUsed": "32003",
+            "feedSetEvents": [
+              {
+                "symbol": "WELL",
+                "wrapper": "0xBA5220805E43194Ff12A434fBb745f3a2E1a09db"
+              }
+            ]
+          }
+        },
+        {
+          "t": 26,
+          "event": "feed_set",
+          "data": {
+            "symbol": "USDS",
+            "wrapper": "0x6621069673C61a143DaDF376389e82DA372BF405",
+            "txHash": "0x71bb0e24beb8a39ffdd14b9e811e0bab6a4ddb8ed8270472befbbc0e83ef0cf7",
+            "status": "success",
+            "blockNumber": 42194671,
+            "gasUsed": "32003",
+            "feedSetEvents": [
+              {
+                "symbol": "USDS",
+                "wrapper": "0x6621069673C61a143DaDF376389e82DA372BF405"
+              }
+            ]
+          }
+        },
+        {
+          "t": 27,
+          "event": "feed_set",
+          "data": {
+            "symbol": "tBTC",
+            "wrapper": "0xBfAaA8B347dA80B909504d403CB4C8F245e921ab",
+            "txHash": "0xe461810609e7691a11108109132e2c1ee534711f6593c2374abbac2809410c31",
+            "status": "success",
+            "blockNumber": 42194672,
+            "gasUsed": "32003",
+            "feedSetEvents": [
+              {
+                "symbol": "tBTC",
+                "wrapper": "0xBfAaA8B347dA80B909504d403CB4C8F245e921ab"
+              }
+            ]
+          }
+        },
+        {
+          "t": 28,
+          "event": "feed_set",
+          "data": {
+            "symbol": "VIRTUAL",
+            "wrapper": "0x12EC8CfEbCF5728774925feC1502733f906CB6e3",
+            "txHash": "0x4fec6739556cd42fa0a2e39f80994317dab59462df7fef9e1ba829a0f74f133b",
+            "status": "success",
+            "blockNumber": 42194673,
+            "gasUsed": "32039",
+            "feedSetEvents": [
+              {
+                "symbol": "VIRTUAL",
+                "wrapper": "0x12EC8CfEbCF5728774925feC1502733f906CB6e3"
+              }
+            ]
+          }
+        },
+        {
+          "t": 29,
+          "event": "feed_set",
+          "data": {
+            "symbol": "MORPHO",
+            "wrapper": "0x09793267120dbF519B2B0e8Ea77A689e2Ba453F0",
+            "txHash": "0x2b4ce2f1085ba4ea36ada3ae705c340d66998f68063cfaf63aa8318cceb553e2",
+            "status": "success",
+            "blockNumber": 42194674,
+            "gasUsed": "32027",
+            "feedSetEvents": [
+              {
+                "symbol": "MORPHO",
+                "wrapper": "0x09793267120dbF519B2B0e8Ea77A689e2Ba453F0"
+              }
+            ]
+          }
+        },
+        {
+          "t": 30,
+          "event": "feed_set",
+          "data": {
+            "symbol": "cbXRP",
+            "wrapper": "0xf2Ac6F14A094A82A6f9489364CdE9e1ba2548d49",
+            "txHash": "0x9007445164a759c62a320438d5ec1f75a0eb0845ebf9b06bf05b6f2f0d87cca6",
+            "status": "success",
+            "blockNumber": 42194675,
+            "gasUsed": "32015",
+            "feedSetEvents": [
+              {
+                "symbol": "cbXRP",
+                "wrapper": "0xf2Ac6F14A094A82A6f9489364CdE9e1ba2548d49"
+              }
+            ]
+          }
+        },
+        {
+          "t": 31,
+          "event": "feed_set",
+          "data": {
+            "symbol": "MAMO",
+            "wrapper": "0xfbA86a013f7FD93B5454e147242CF2Bf419e120D",
+            "txHash": "0xc12d277969edd87fad30008da9b2c4366a56cd5edddfd36472cfb6b0679b16a5",
+            "status": "success",
+            "blockNumber": 42194676,
+            "gasUsed": "32003",
+            "feedSetEvents": [
+              {
+                "symbol": "MAMO",
+                "wrapper": "0xfbA86a013f7FD93B5454e147242CF2Bf419e120D"
+              }
+            ]
+          }
+        },
+        {
+          "t": 32,
+          "event": "price_read",
+          "data": {
+            "phase": "post-apply",
+            "mToken": "0x73b06D8d18De422E269645eaCe15400DE7462417",
+            "underlying": "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb",
+            "symbol": "DAI",
+            "tokenDecimals": 18,
+            "feedAddress": "0x4916EC6773e14CA873be3d65022BB122CB8b89a2",
+            "feedDecimals": 8,
+            "feedDescription": "DAI / USD",
+            "rawUnderlyingPrice": "999900000000000000",
+            "priceUsd1e18": "999900000000000000"
+          }
+        },
+        {
+          "t": 33,
+          "event": "price_read",
+          "data": {
+            "phase": "post-apply",
+            "mToken": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22",
+            "underlying": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+            "symbol": "USDC",
+            "tokenDecimals": 6,
+            "feedAddress": "0x7600b9068bB0aFEA6adf70eD6CD0f8492117236d",
+            "feedDecimals": 8,
+            "feedDescription": "USDC / USD",
+            "rawUnderlyingPrice": "999900000000000000000000000000",
+            "priceUsd1e18": "999900000000000000"
+          }
+        },
+        {
+          "t": 34,
+          "event": "price_read",
+          "data": {
+            "phase": "post-apply",
+            "mToken": "0x703843C3379b52F9FF486c9f5892218d2a065cC8",
+            "underlying": "0xd9aAEc86B65D86f6A7B5B1b0c42FFA531710b6CA",
+            "symbol": "USDbC",
+            "tokenDecimals": 6,
+            "feedAddress": "0x7600b9068bB0aFEA6adf70eD6CD0f8492117236d",
+            "feedDecimals": 8,
+            "feedDescription": "USDC / USD",
+            "rawUnderlyingPrice": "999900000000000000000000000000",
+            "priceUsd1e18": "999900000000000000"
+          }
+        },
+        {
+          "t": 35,
+          "event": "price_read",
+          "data": {
+            "phase": "post-apply",
+            "mToken": "0x3bf93770f2d4a794c3d9EBEfBAeBAE2a8f09A5E5",
+            "underlying": "0x2Ae3F1Ec7F1F5012CFEab0185bfc7aa3cf0DEc22",
+            "symbol": "cbETH",
+            "tokenDecimals": 18,
+            "feedAddress": "0x67996D1ff7a3711a91E2839d1059Fcb950C0495D",
+            "feedDecimals": 18,
+            "feedDescription": "CBETH / ETH",
+            "rawUnderlyingPrice": "1122662744874806300",
+            "priceUsd1e18": "1122662744874806300"
+          }
+        },
+        {
+          "t": 36,
+          "event": "price_read",
+          "data": {
+            "phase": "post-apply",
+            "mToken": "0x73902f619CEB9B31FD8EFecf435CbDf89E369Ba6",
+            "underlying": "0x940181a94A35A4569E4529A3CDfB74e38FD98631",
+            "symbol": "AERO",
+            "tokenDecimals": 18,
+            "feedAddress": "0xdC79C7D5D4dA3b237D2d078a1ee06F2FD1FfEf98",
+            "feedDecimals": 8,
+            "feedDescription": "AERO / USD",
+            "rawUnderlyingPrice": "310865530000000000",
+            "priceUsd1e18": "310865530000000000"
+          }
+        },
+        {
+          "t": 37,
+          "event": "price_read",
+          "data": {
+            "phase": "post-apply",
+            "mToken": "0xF877ACaFA28c19b96727966690b2f44d35aD5976",
+            "underlying": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+            "symbol": "cbBTC",
+            "tokenDecimals": 8,
+            "feedAddress": "0x6a3c960Bcfb69BAe78f706c9c6B168bB7693E119",
+            "feedDecimals": 8,
+            "feedDescription": "BTC / USD",
+            "rawUnderlyingPrice": "684897400000000000000000000000000",
+            "priceUsd1e18": "68489740000000000000000"
+          }
+        },
+        {
+          "t": 38,
+          "event": "price_read",
+          "data": {
+            "phase": "post-apply",
+            "mToken": "0xb682c840B5F4FC58B20769E691A6fa1305A501a2",
+            "underlying": "0x60a3E35Cc302bFA44Cb288Bc5a4F316Fdb1adb42",
+            "symbol": "EURC",
+            "tokenDecimals": 6,
+            "feedAddress": "0xd5669e0175D01cc5F6Be9607129668D0833DcbEC",
+            "feedDecimals": 8,
+            "feedDescription": "EURC / USD",
+            "rawUnderlyingPrice": "1184823110000000000000000000000",
+            "priceUsd1e18": "1184823110000000000"
+          }
+        },
+        {
+          "t": 39,
+          "event": "price_read",
+          "data": {
+            "phase": "post-apply",
+            "mToken": "0xdC7810B47eAAb250De623F0eE07764afa5F71ED1",
+            "underlying": "0xA88594D404727625A9437C3f886C7643872296AE",
+            "symbol": "WELL",
+            "tokenDecimals": 18,
+            "feedAddress": "0xBA5220805E43194Ff12A434fBb745f3a2E1a09db",
+            "feedDecimals": 8,
+            "feedDescription": "WELL / USD",
+            "rawUnderlyingPrice": "5012000000000000",
+            "priceUsd1e18": "5012000000000000"
+          }
+        },
+        {
+          "t": 40,
+          "event": "price_read",
+          "data": {
+            "phase": "post-apply",
+            "mToken": "0xb6419c6C2e60c4025D6D06eE4F913ce89425a357",
+            "underlying": "0x820C137fa70C8691f0e44Dc420a5e53c168921Dc",
+            "symbol": "USDS",
+            "tokenDecimals": 18,
+            "feedAddress": "0x6621069673C61a143DaDF376389e82DA372BF405",
+            "feedDecimals": 8,
+            "feedDescription": "USDS / USD",
+            "rawUnderlyingPrice": "999635870000000000",
+            "priceUsd1e18": "999635870000000000"
+          }
+        },
+        {
+          "t": 41,
+          "event": "price_read",
+          "data": {
+            "phase": "post-apply",
+            "mToken": "0x9A858ebfF1bEb0D3495BB0e2897c1528eD84A218",
+            "underlying": "0x236aa50979D5f3De3Bd1Eeb40E81137F22ab794b",
+            "symbol": "tBTC",
+            "tokenDecimals": 18,
+            "feedAddress": "0xBfAaA8B347dA80B909504d403CB4C8F245e921ab",
+            "feedDecimals": 8,
+            "feedDescription": "TBTC / USD",
+            "rawUnderlyingPrice": "68265908984780000000000",
+            "priceUsd1e18": "68265908984780000000000"
+          }
+        },
+        {
+          "t": 42,
+          "event": "price_read",
+          "data": {
+            "phase": "post-apply",
+            "mToken": "0xdE8Df9d942D78edE3Ca06e60712582F79CFfFC64",
+            "underlying": "0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b",
+            "symbol": "VIRTUAL",
+            "tokenDecimals": 18,
+            "feedAddress": "0x12EC8CfEbCF5728774925feC1502733f906CB6e3",
+            "feedDecimals": 8,
+            "feedDescription": "VIRTUAL / USD",
+            "rawUnderlyingPrice": "627045790000000000",
+            "priceUsd1e18": "627045790000000000"
+          }
+        },
+        {
+          "t": 43,
+          "event": "price_read",
+          "data": {
+            "phase": "post-apply",
+            "mToken": "0x6308204872BdB7432dF97b04B42443c714904F3E",
+            "underlying": "0xBAa5CC21fd487B8Fcc2F632f3F4E8D37262a0842",
+            "symbol": "MORPHO",
+            "tokenDecimals": 18,
+            "feedAddress": "0x09793267120dbF519B2B0e8Ea77A689e2Ba453F0",
+            "feedDecimals": 8,
+            "feedDescription": "MORPHO / USD",
+            "rawUnderlyingPrice": "1323195190000000000",
+            "priceUsd1e18": "1323195190000000000"
+          }
+        },
+        {
+          "t": 44,
+          "event": "price_read",
+          "data": {
+            "phase": "post-apply",
+            "mToken": "0xb4fb8fed5b3AaA8434f0B19b1b623d977e07e86d",
+            "underlying": "0xcb585250f852C6c6bf90434AB21A00f02833a4af",
+            "symbol": "cbXRP",
+            "tokenDecimals": 6,
+            "feedAddress": "0xf2Ac6F14A094A82A6f9489364CdE9e1ba2548d49",
+            "feedDecimals": 8,
+            "feedDescription": "XRP / USD",
+            "rawUnderlyingPrice": "1493697000000000000000000000000",
+            "priceUsd1e18": "1493697000000000000"
+          }
+        },
+        {
+          "t": 45,
+          "event": "price_read",
+          "data": {
+            "phase": "post-apply",
+            "mToken": "0x2F90Bb22eB3979f5FfAd31EA6C3F0792ca66dA32",
+            "underlying": "0x7300B37DfdfAb110d83290A29DfB31B1740219fE",
+            "symbol": "MAMO",
+            "tokenDecimals": 18,
+            "feedAddress": "0xfbA86a013f7FD93B5454e147242CF2Bf419e120D",
+            "feedDecimals": 8,
+            "feedDescription": "MAMO / USD",
+            "rawUnderlyingPrice": "14376590000000000",
+            "priceUsd1e18": "14376590000000000"
+          }
+        },
+        {
+          "t": 46,
+          "event": "reference",
+          "data": {
+            "key": "refUsd1e18:cbETH",
+            "value": "2206683650838065175827",
+            "method": "Chainlink ETH/USD × cbETH/ETH at block 42194662, decimals 8 and 18 read on-chain",
+            "inputs": {
+              "ethUsd": {
+                "address": "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70",
+                "decimals": 8,
+                "answer": "196558018952",
+                "roundId": "18446744073709762014"
+              },
+              "cbEthEth": {
+                "address": "0x806b4Ac04501c29769051e42783cF04dCE41440b",
+                "decimals": 18,
+                "answer": "1122662744874806300",
+                "roundId": "18446744073709552673"
+              }
+            }
+          }
+        },
+        {
+          "t": 47,
+          "event": "call_trace",
+          "data": {
+            "phase": "pre-apply",
+            "ok": true,
+            "sources": [
+              "0x57d2d46fc7ff2a7142d479f2f59e1e3f95447077",
+              "0x08f9654349b33b955133b28e35dbecce9950c219"
+            ],
+            "count": 2,
+            "latestRoundDataCallees": [
+              "0xb0ba0c5d7da4ec400c1c3e5ef2485134f89918c5",
+              "0x71041dddad3595f9ced3dccfbe3d1f4b0a16bb70",
+              "0x57d2d46fc7ff2a7142d479f2f59e1e3f95447077",
+              "0x806b4ac04501c29769051e42783cf04dce41440b",
+              "0x08f9654349b33b955133b28e35dbecce9950c219"
+            ],
+            "method": "debug_traceCall with callTracer on getUnderlyingPrice; walk the call tree; keep calls whose input starts with latestRoundData() (0xfeaf968c); if any call reads a price another way (latestAnswer, getRoundData, getAnswer) the count is not measured; count the distinct callee addresses that make no further latestRoundData() call themselves (the aggregators the numbers come from; wrappers and Chainlink proxies pass a call through and are not counted)",
+            "calledAt": "latest"
+          }
+        },
+        {
+          "t": 48,
+          "event": "call_trace",
+          "data": {
+            "phase": "post-apply",
+            "ok": true,
+            "sources": [
+              "0x08f9654349b33b955133b28e35dbecce9950c219"
+            ],
+            "count": 1,
+            "latestRoundDataCallees": [
+              "0x67996d1ff7a3711a91e2839d1059fcb950c0495d",
+              "0x806b4ac04501c29769051e42783cf04dce41440b",
+              "0x08f9654349b33b955133b28e35dbecce9950c219"
+            ],
+            "method": "debug_traceCall with callTracer on getUnderlyingPrice; walk the call tree; keep calls whose input starts with latestRoundData() (0xfeaf968c); if any call reads a price another way (latestAnswer, getRoundData, getAnswer) the count is not measured; count the distinct callee addresses that make no further latestRoundData() call themselves (the aggregators the numbers come from; wrappers and Chainlink proxies pass a call through and are not counted)",
+            "calledAt": "latest"
+          }
+        }
+      ],
+      "result": {
+        "measured": {
+          "preApplyPriceUsd1e18:DAI": "999900000000000000",
+          "preApplyFeedAddress:DAI": "0x591e79239a7d679378eC8c847e5038150364C78F",
+          "preApplyPriceUsd1e18:USDC": "999900000000000000",
+          "preApplyFeedAddress:USDC": "0x7e860098F58bBFC8648a4311b374B1D669a2bc6B",
+          "preApplyPriceUsd1e18:USDbC": "999900000000000000",
+          "preApplyFeedAddress:USDbC": "0x7e860098F58bBFC8648a4311b374B1D669a2bc6B",
+          "preApplyPriceUsd1e18:cbETH": "2206683650838065175827",
+          "preApplyFeedAddress:cbETH": "0xB0Ba0C5D7DA4ec400C1C3E5ef2485134F89918C5",
+          "preApplyPriceUsd1e18:AERO": "310865530000000000",
+          "preApplyFeedAddress:AERO": "0x4EC5970fC728C5f65ba413992CD5fF6FD70fcfF0",
+          "preApplyPriceUsd1e18:cbBTC": "68489740000000000000000",
+          "preApplyFeedAddress:cbBTC": "0x6F0cC02e5a7640B28F538fcc06bCA3BdFA57d1BB",
+          "preApplyPriceUsd1e18:EURC": "1184823110000000000",
+          "preApplyFeedAddress:EURC": "0x48F86A23aDE243F7a1028108aA65274FC84f382F",
+          "preApplyPriceUsd1e18:WELL": "5012000000000000",
+          "preApplyFeedAddress:WELL": "0x1E0E8bcFb5FFa86749B8b89fb6e055337Ba74A39",
+          "preApplyPriceUsd1e18:USDS": "999635870000000000",
+          "preApplyFeedAddress:USDS": "0xAeC8E8E3696fc5fcd954eb3ebC26B72FC2FE8E8e",
+          "preApplyPriceUsd1e18:tBTC": "68265908984780000000000",
+          "preApplyFeedAddress:tBTC": "0x94423903EaAf8638bDE262c417fEEf5E2Ec507E5",
+          "preApplyPriceUsd1e18:VIRTUAL": "627045790000000000",
+          "preApplyFeedAddress:VIRTUAL": "0x6aa41dF8FB0deC976B59bf0824FC5fFB88ccA958",
+          "preApplyPriceUsd1e18:MORPHO": "1323195190000000000",
+          "preApplyFeedAddress:MORPHO": "0xe95e258bb6615d47515Fc849f8542dA651f12bF6",
+          "preApplyPriceUsd1e18:cbXRP": "1493697000000000000",
+          "preApplyFeedAddress:cbXRP": "0x9f0C1dD78C4CBdF5b9cf923a549A201EdC676D34",
+          "preApplyPriceUsd1e18:MAMO": "14376590000000000",
+          "preApplyFeedAddress:MAMO": "0xeF7541b388a77C1709a3d44BfBfC5c1ED3F0Ac94",
+          "appliedFeedActions": 14,
+          "forkEventsEqualDerived": true,
+          "blockAfterApply": 42194676,
+          "priceUsd1e18:DAI": "999900000000000000",
+          "rawUnderlyingPrice:DAI": "999900000000000000",
+          "feedAddress:DAI": "0x4916EC6773e14CA873be3d65022BB122CB8b89a2",
+          "feedDecimals:DAI": 8,
+          "feedDescription:DAI": "DAI / USD",
+          "tokenDecimals:DAI": 18,
+          "priceUsd1e18:USDC": "999900000000000000",
+          "rawUnderlyingPrice:USDC": "999900000000000000000000000000",
+          "feedAddress:USDC": "0x7600b9068bB0aFEA6adf70eD6CD0f8492117236d",
+          "feedDecimals:USDC": 8,
+          "feedDescription:USDC": "USDC / USD",
+          "tokenDecimals:USDC": 6,
+          "priceUsd1e18:USDbC": "999900000000000000",
+          "rawUnderlyingPrice:USDbC": "999900000000000000000000000000",
+          "feedAddress:USDbC": "0x7600b9068bB0aFEA6adf70eD6CD0f8492117236d",
+          "feedDecimals:USDbC": 8,
+          "feedDescription:USDbC": "USDC / USD",
+          "tokenDecimals:USDbC": 6,
+          "priceUsd1e18:cbETH": "1122662744874806300",
+          "rawUnderlyingPrice:cbETH": "1122662744874806300",
+          "feedAddress:cbETH": "0x67996D1ff7a3711a91E2839d1059Fcb950C0495D",
+          "feedDecimals:cbETH": 18,
+          "feedDescription:cbETH": "CBETH / ETH",
+          "tokenDecimals:cbETH": 18,
+          "priceUsd1e18:AERO": "310865530000000000",
+          "rawUnderlyingPrice:AERO": "310865530000000000",
+          "feedAddress:AERO": "0xdC79C7D5D4dA3b237D2d078a1ee06F2FD1FfEf98",
+          "feedDecimals:AERO": 8,
+          "feedDescription:AERO": "AERO / USD",
+          "tokenDecimals:AERO": 18,
+          "priceUsd1e18:cbBTC": "68489740000000000000000",
+          "rawUnderlyingPrice:cbBTC": "684897400000000000000000000000000",
+          "feedAddress:cbBTC": "0x6a3c960Bcfb69BAe78f706c9c6B168bB7693E119",
+          "feedDecimals:cbBTC": 8,
+          "feedDescription:cbBTC": "BTC / USD",
+          "tokenDecimals:cbBTC": 8,
+          "priceUsd1e18:EURC": "1184823110000000000",
+          "rawUnderlyingPrice:EURC": "1184823110000000000000000000000",
+          "feedAddress:EURC": "0xd5669e0175D01cc5F6Be9607129668D0833DcbEC",
+          "feedDecimals:EURC": 8,
+          "feedDescription:EURC": "EURC / USD",
+          "tokenDecimals:EURC": 6,
+          "priceUsd1e18:WELL": "5012000000000000",
+          "rawUnderlyingPrice:WELL": "5012000000000000",
+          "feedAddress:WELL": "0xBA5220805E43194Ff12A434fBb745f3a2E1a09db",
+          "feedDecimals:WELL": 8,
+          "feedDescription:WELL": "WELL / USD",
+          "tokenDecimals:WELL": 18,
+          "priceUsd1e18:USDS": "999635870000000000",
+          "rawUnderlyingPrice:USDS": "999635870000000000",
+          "feedAddress:USDS": "0x6621069673C61a143DaDF376389e82DA372BF405",
+          "feedDecimals:USDS": 8,
+          "feedDescription:USDS": "USDS / USD",
+          "tokenDecimals:USDS": 18,
+          "priceUsd1e18:tBTC": "68265908984780000000000",
+          "rawUnderlyingPrice:tBTC": "68265908984780000000000",
+          "feedAddress:tBTC": "0xBfAaA8B347dA80B909504d403CB4C8F245e921ab",
+          "feedDecimals:tBTC": 8,
+          "feedDescription:tBTC": "TBTC / USD",
+          "tokenDecimals:tBTC": 18,
+          "priceUsd1e18:VIRTUAL": "627045790000000000",
+          "rawUnderlyingPrice:VIRTUAL": "627045790000000000",
+          "feedAddress:VIRTUAL": "0x12EC8CfEbCF5728774925feC1502733f906CB6e3",
+          "feedDecimals:VIRTUAL": 8,
+          "feedDescription:VIRTUAL": "VIRTUAL / USD",
+          "tokenDecimals:VIRTUAL": 18,
+          "priceUsd1e18:MORPHO": "1323195190000000000",
+          "rawUnderlyingPrice:MORPHO": "1323195190000000000",
+          "feedAddress:MORPHO": "0x09793267120dbF519B2B0e8Ea77A689e2Ba453F0",
+          "feedDecimals:MORPHO": 8,
+          "feedDescription:MORPHO": "MORPHO / USD",
+          "tokenDecimals:MORPHO": 18,
+          "priceUsd1e18:cbXRP": "1493697000000000000",
+          "rawUnderlyingPrice:cbXRP": "1493697000000000000000000000000",
+          "feedAddress:cbXRP": "0xf2Ac6F14A094A82A6f9489364CdE9e1ba2548d49",
+          "feedDecimals:cbXRP": 8,
+          "feedDescription:cbXRP": "XRP / USD",
+          "tokenDecimals:cbXRP": 6,
+          "priceUsd1e18:MAMO": "14376590000000000",
+          "rawUnderlyingPrice:MAMO": "14376590000000000",
+          "feedAddress:MAMO": "0xfbA86a013f7FD93B5454e147242CF2Bf419e120D",
+          "feedDecimals:MAMO": 8,
+          "feedDescription:MAMO": "MAMO / USD",
+          "tokenDecimals:MAMO": 18,
+          "preApplyPriceSources:cbETH": 2,
+          "priceSources:cbETH": 1
+        },
+        "notMeasured": {},
+        "references": {
+          "refUsd1e18:cbETH": {
+            "value": "2206683650838065175827",
+            "method": "Chainlink ETH/USD × cbETH/ETH at block 42194662, decimals 8 and 18 read on-chain"
+          }
+        }
+      },
+      "controlPassed": true
+    }
+  ],
+  "verdicts": [
+    {
+      "betId": "SzbO3Ez6U9",
+      "runId": "7hIZWPA7DY",
+      "outcome": "not_matched",
+      "observed": "1122662744874806300",
+      "reference": {
+        "value": "2206683650838065175827",
+        "method": "Chainlink ETH/USD × cbETH/ETH at block 42194662, decimals 8 and 18 read on-chain"
+      },
+      "judgedBy": "src/judge.ts"
+    },
+    {
+      "betId": "W8FMiaHYch",
+      "runId": "7hIZWPA7DY",
+      "outcome": "matched",
+      "observed": "1122662744874806300",
+      "reference": {
+        "value": "2206683650838065175827",
+        "method": "Chainlink ETH/USD × cbETH/ETH at block 42194662, decimals 8 and 18 read on-chain"
+      },
+      "judgedBy": "src/judge.ts"
+    },
+    {
+      "betId": "tzuAPeltmr",
+      "runId": "7hIZWPA7DY",
+      "outcome": "not_matched",
+      "observed": "1122662744874806300",
+      "reference": {
+        "value": "2206683650838065175827",
+        "method": "Chainlink ETH/USD × cbETH/ETH at block 42194662, decimals 8 and 18 read on-chain"
+      },
+      "judgedBy": "src/judge.ts"
+    }
+  ],
+  "findings": [
+    {
+      "id": "baOe_O8IKp",
+      "file": "proposals/ChainlinkOracleConfigs.sol",
+      "lineStart": 42,
+      "lineEnd": 42,
+      "kind": "other",
+      "claim": "",
+      "verified": true,
+      "quotedSnippet": "            OracleConfig(\"cbETHETH_ORACLE\", \"cbETH\", \"MOONWELL_cbETH\")",
+      "proposedBy": {
+        "role": "human",
+        "model": "none: picked by a person"
+      }
+    }
+  ],
+  "falseAlarm": [
+    {
+      "market": "DAI",
+      "preUsd1e18": "999900000000000000",
+      "postUsd1e18": "999900000000000000",
+      "diffVsPrePct": "0.0000%",
+      "flagReference": "pre-apply price, same fork block",
+      "flagReferenceUsd1e18": "999900000000000000",
+      "diffVsFlagReferencePct": "0.0000%",
+      "flagged": false,
+      "withinFalseAlarmPct": true,
+      "controlPassed": true,
+      "feedBefore": "0x591e79239a7d679378eC8c847e5038150364C78F",
+      "feedAfter": "0x4916EC6773e14CA873be3d65022BB122CB8b89a2"
+    },
+    {
+      "market": "USDC",
+      "preUsd1e18": "999900000000000000",
+      "postUsd1e18": "999900000000000000",
+      "diffVsPrePct": "0.0000%",
+      "flagReference": "pre-apply price, same fork block",
+      "flagReferenceUsd1e18": "999900000000000000",
+      "diffVsFlagReferencePct": "0.0000%",
+      "flagged": false,
+      "withinFalseAlarmPct": true,
+      "controlPassed": true,
+      "feedBefore": "0x7e860098F58bBFC8648a4311b374B1D669a2bc6B",
+      "feedAfter": "0x7600b9068bB0aFEA6adf70eD6CD0f8492117236d"
+    },
+    {
+      "market": "USDbC",
+      "preUsd1e18": "999900000000000000",
+      "postUsd1e18": "999900000000000000",
+      "diffVsPrePct": "0.0000%",
+      "flagReference": "pre-apply price, same fork block",
+      "flagReferenceUsd1e18": "999900000000000000",
+      "diffVsFlagReferencePct": "0.0000%",
+      "flagged": false,
+      "withinFalseAlarmPct": true,
+      "controlPassed": true,
+      "feedBefore": "0x7e860098F58bBFC8648a4311b374B1D669a2bc6B",
+      "feedAfter": "0x7600b9068bB0aFEA6adf70eD6CD0f8492117236d"
+    },
+    {
+      "market": "cbETH",
+      "preUsd1e18": "2206683650838065175827",
+      "postUsd1e18": "1122662744874806300",
+      "diffVsPrePct": "-99.9491%",
+      "flagReference": "refUsd1e18:cbETH (raw Chainlink ETH/USD × cbETH/ETH)",
+      "flagReferenceUsd1e18": "2206683650838065175827",
+      "diffVsFlagReferencePct": "-99.9491%",
+      "flagged": true,
+      "withinFalseAlarmPct": false,
+      "controlPassed": true,
+      "feedBefore": "0xB0Ba0C5D7DA4ec400C1C3E5ef2485134F89918C5",
+      "feedAfter": "0x67996D1ff7a3711a91E2839d1059Fcb950C0495D"
+    },
+    {
+      "market": "AERO",
+      "preUsd1e18": "310865530000000000",
+      "postUsd1e18": "310865530000000000",
+      "diffVsPrePct": "0.0000%",
+      "flagReference": "pre-apply price, same fork block",
+      "flagReferenceUsd1e18": "310865530000000000",
+      "diffVsFlagReferencePct": "0.0000%",
+      "flagged": false,
+      "withinFalseAlarmPct": true,
+      "controlPassed": true,
+      "feedBefore": "0x4EC5970fC728C5f65ba413992CD5fF6FD70fcfF0",
+      "feedAfter": "0xdC79C7D5D4dA3b237D2d078a1ee06F2FD1FfEf98"
+    },
+    {
+      "market": "cbBTC",
+      "preUsd1e18": "68489740000000000000000",
+      "postUsd1e18": "68489740000000000000000",
+      "diffVsPrePct": "0.0000%",
+      "flagReference": "pre-apply price, same fork block",
+      "flagReferenceUsd1e18": "68489740000000000000000",
+      "diffVsFlagReferencePct": "0.0000%",
+      "flagged": false,
+      "withinFalseAlarmPct": true,
+      "controlPassed": true,
+      "feedBefore": "0x6F0cC02e5a7640B28F538fcc06bCA3BdFA57d1BB",
+      "feedAfter": "0x6a3c960Bcfb69BAe78f706c9c6B168bB7693E119"
+    },
+    {
+      "market": "EURC",
+      "preUsd1e18": "1184823110000000000",
+      "postUsd1e18": "1184823110000000000",
+      "diffVsPrePct": "0.0000%",
+      "flagReference": "pre-apply price, same fork block",
+      "flagReferenceUsd1e18": "1184823110000000000",
+      "diffVsFlagReferencePct": "0.0000%",
+      "flagged": false,
+      "withinFalseAlarmPct": true,
+      "controlPassed": true,
+      "feedBefore": "0x48F86A23aDE243F7a1028108aA65274FC84f382F",
+      "feedAfter": "0xd5669e0175D01cc5F6Be9607129668D0833DcbEC"
+    },
+    {
+      "market": "WELL",
+      "preUsd1e18": "5012000000000000",
+      "postUsd1e18": "5012000000000000",
+      "diffVsPrePct": "0.0000%",
+      "flagReference": "pre-apply price, same fork block",
+      "flagReferenceUsd1e18": "5012000000000000",
+      "diffVsFlagReferencePct": "0.0000%",
+      "flagged": false,
+      "withinFalseAlarmPct": true,
+      "controlPassed": true,
+      "feedBefore": "0x1E0E8bcFb5FFa86749B8b89fb6e055337Ba74A39",
+      "feedAfter": "0xBA5220805E43194Ff12A434fBb745f3a2E1a09db"
+    },
+    {
+      "market": "USDS",
+      "preUsd1e18": "999635870000000000",
+      "postUsd1e18": "999635870000000000",
+      "diffVsPrePct": "0.0000%",
+      "flagReference": "pre-apply price, same fork block",
+      "flagReferenceUsd1e18": "999635870000000000",
+      "diffVsFlagReferencePct": "0.0000%",
+      "flagged": false,
+      "withinFalseAlarmPct": true,
+      "controlPassed": true,
+      "feedBefore": "0xAeC8E8E3696fc5fcd954eb3ebC26B72FC2FE8E8e",
+      "feedAfter": "0x6621069673C61a143DaDF376389e82DA372BF405"
+    },
+    {
+      "market": "tBTC",
+      "preUsd1e18": "68265908984780000000000",
+      "postUsd1e18": "68265908984780000000000",
+      "diffVsPrePct": "0.0000%",
+      "flagReference": "pre-apply price, same fork block",
+      "flagReferenceUsd1e18": "68265908984780000000000",
+      "diffVsFlagReferencePct": "0.0000%",
+      "flagged": false,
+      "withinFalseAlarmPct": true,
+      "controlPassed": true,
+      "feedBefore": "0x94423903EaAf8638bDE262c417fEEf5E2Ec507E5",
+      "feedAfter": "0xBfAaA8B347dA80B909504d403CB4C8F245e921ab"
+    },
+    {
+      "market": "VIRTUAL",
+      "preUsd1e18": "627045790000000000",
+      "postUsd1e18": "627045790000000000",
+      "diffVsPrePct": "0.0000%",
+      "flagReference": "pre-apply price, same fork block",
+      "flagReferenceUsd1e18": "627045790000000000",
+      "diffVsFlagReferencePct": "0.0000%",
+      "flagged": false,
+      "withinFalseAlarmPct": true,
+      "controlPassed": true,
+      "feedBefore": "0x6aa41dF8FB0deC976B59bf0824FC5fFB88ccA958",
+      "feedAfter": "0x12EC8CfEbCF5728774925feC1502733f906CB6e3"
+    },
+    {
+      "market": "MORPHO",
+      "preUsd1e18": "1323195190000000000",
+      "postUsd1e18": "1323195190000000000",
+      "diffVsPrePct": "0.0000%",
+      "flagReference": "pre-apply price, same fork block",
+      "flagReferenceUsd1e18": "1323195190000000000",
+      "diffVsFlagReferencePct": "0.0000%",
+      "flagged": false,
+      "withinFalseAlarmPct": true,
+      "controlPassed": true,
+      "feedBefore": "0xe95e258bb6615d47515Fc849f8542dA651f12bF6",
+      "feedAfter": "0x09793267120dbF519B2B0e8Ea77A689e2Ba453F0"
+    },
+    {
+      "market": "cbXRP",
+      "preUsd1e18": "1493697000000000000",
+      "postUsd1e18": "1493697000000000000",
+      "diffVsPrePct": "0.0000%",
+      "flagReference": "pre-apply price, same fork block",
+      "flagReferenceUsd1e18": "1493697000000000000",
+      "diffVsFlagReferencePct": "0.0000%",
+      "flagged": false,
+      "withinFalseAlarmPct": true,
+      "controlPassed": true,
+      "feedBefore": "0x9f0C1dD78C4CBdF5b9cf923a549A201EdC676D34",
+      "feedAfter": "0xf2Ac6F14A094A82A6f9489364CdE9e1ba2548d49"
+    },
+    {
+      "market": "MAMO",
+      "preUsd1e18": "14376590000000000",
+      "postUsd1e18": "14376590000000000",
+      "diffVsPrePct": "0.0000%",
+      "flagReference": "pre-apply price, same fork block",
+      "flagReferenceUsd1e18": "14376590000000000",
+      "diffVsFlagReferencePct": "0.0000%",
+      "flagged": false,
+      "withinFalseAlarmPct": true,
+      "controlPassed": true,
+      "feedBefore": "0xeF7541b388a77C1709a3d44BfBfC5c1ED3F0Ac94",
+      "feedAfter": "0xfbA86a013f7FD93B5454e147242CF2Bf419e120D"
+    }
+  ],
+  "agentLog": [
+    {
+      "t": "2026-10-27T12:59:42.401Z",
+      "role": "human",
+      "action": "picks proposals/ChainlinkOracleConfigs.sol line 42 (file and lines checked)",
+      "ref": {
+        "kind": "finding",
+        "id": "baOe_O8IKp"
+      }
+    },
+    {
+      "t": "2026-10-27T12:59:42.406Z",
+      "role": "human",
+      "action": "chooses proposals/ChainlinkOracleConfigs.sol line 42 (picked by a person) for F7rr3Q1OUU",
+      "ref": {
+        "kind": "finding",
+        "id": "baOe_O8IKp"
+      }
+    },
+    {
+      "t": "2026-10-27T12:59:42.407Z",
+      "role": "gate",
+      "action": "allowed (src/gate.ts)",
+      "ref": {
+        "kind": "experiment",
+        "id": "F7rr3Q1OUU"
+      }
+    },
+    {
+      "t": "2026-10-27T12:59:44.433Z",
+      "role": "human",
+      "action": "seals a bet on priceUsd1e18:cbETH",
+      "ref": {
+        "kind": "bet",
+        "id": "SzbO3Ez6U9"
+      }
+    },
+    {
+      "t": "2026-10-27T12:59:48.329Z",
+      "role": "claimant",
+      "model": "meta-models/muse-spark-open-1026",
+      "action": "bets on F7rr3Q1OUU (1 answer, hidden until the run)",
+      "ref": {
+        "kind": "experiment",
+        "id": "F7rr3Q1OUU"
+      },
+      "usage": {
+        "promptTokens": 3870,
+        "completionTokens": 685,
+        "reasoningTokens": 556,
+        "usd": 0.00746715
+      }
+    },
+    {
+      "t": "2026-10-27T12:59:48.330Z",
+      "role": "seal",
+      "action": "seals 1 bet from meta-models/muse-spark-open-1026 at server time",
+      "ref": {
+        "kind": "experiment",
+        "id": "F7rr3Q1OUU"
+      }
+    },
+    {
+      "t": "2026-10-27T12:59:50.173Z",
+      "role": "claimant",
+      "model": "muse-spark-1.3",
+      "action": "bets on F7rr3Q1OUU (1 answer, hidden until the run)",
+      "ref": {
+        "kind": "experiment",
+        "id": "F7rr3Q1OUU"
+      },
+      "usage": {
+        "promptTokens": 3737,
+        "completionTokens": 930,
+        "reasoningTokens": 827,
+        "usd": 0.033548
+      }
+    },
+    {
+      "t": "2026-10-27T12:59:50.173Z",
+      "role": "seal",
+      "action": "seals 1 bet from muse-spark-1.3 at server time",
+      "ref": {
+        "kind": "experiment",
+        "id": "F7rr3Q1OUU"
+      }
+    },
+    {
+      "t": "2026-10-27T12:59:50.177Z",
+      "role": "seal",
+      "action": "verifies 3 seals"
+    },
+    {
+      "t": "2026-10-27T12:59:50.178Z",
+      "role": "runner",
+      "action": "forks Base @ 42194662",
+      "ref": {
+        "kind": "experiment",
+        "id": "F7rr3Q1OUU"
+      }
+    },
+    {
+      "t": "2026-10-27T12:59:51.443Z",
+      "role": "runner",
+      "action": "checks the fork at 42194662 is before the proposal ran",
+      "ref": {
+        "kind": "experiment",
+        "id": "F7rr3Q1OUU"
+      }
+    },
+    {
+      "t": "2026-10-27T12:59:51.457Z",
+      "role": "runner",
+      "action": "runs the known-case control (WETH, stablecoins)",
+      "ref": {
+        "kind": "experiment",
+        "id": "F7rr3Q1OUU"
+      }
+    },
+    {
+      "t": "2026-10-27T12:59:51.489Z",
+      "role": "runner",
+      "action": "reads 14 markets before applying",
+      "ref": {
+        "kind": "experiment",
+        "id": "F7rr3Q1OUU"
+      }
+    },
+    {
+      "t": "2026-10-27T12:59:51.519Z",
+      "role": "runner",
+      "action": "applies 14 oracle-feed actions as the governor",
+      "ref": {
+        "kind": "experiment",
+        "id": "F7rr3Q1OUU"
+      }
+    },
+    {
+      "t": "2026-10-27T12:59:53.538Z",
+      "role": "runner",
+      "action": "reads 14 markets after applying",
+      "ref": {
+        "kind": "experiment",
+        "id": "F7rr3Q1OUU"
+      }
+    },
+    {
+      "t": "2026-10-27T12:59:53.582Z",
+      "role": "runner",
+      "action": "computes the cbETH reference from the raw Chainlink feeds and traces the price read",
+      "ref": {
+        "kind": "experiment",
+        "id": "F7rr3Q1OUU"
+      }
+    },
+    {
+      "t": "2026-10-27T12:59:54.218Z",
+      "role": "runner",
+      "action": "runs moonwell-fi/moonwell-contracts-v2#578 on a fork of Base @ 42194662 (F7rr3Q1OUU)",
+      "ref": {
+        "kind": "run",
+        "id": "7hIZWPA7DY"
+      }
+    },
+    {
+      "t": "2026-10-27T12:59:54.218Z",
+      "role": "judge",
+      "action": "judges 3 bets: 1 matched, 2 didn't match",
+      "ref": {
+        "kind": "run",
+        "id": "7hIZWPA7DY"
+      }
+    }
+  ],
+  "bettors": [
+    {
+      "who": "human",
+      "status": "sealed"
+    },
+    {
+      "who": "model:muse-spark-1.3",
+      "status": "sealed"
+    },
+    {
+      "who": "model:meta-models/muse-spark-open-1026",
+      "status": "sealed"
+    }
+  ],
+  "captions": [
+    "fork of Base one block before MIP-X43 ran; Atlas applied the proposal's oracle-feed actions as the governor",
+    "the cbETH line was picked by a person; the Investigator was not asked"
+  ],
+  "createdAt": "2026-10-27T12:59:54.219Z"
+}

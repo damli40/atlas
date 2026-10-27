@@ -1,0 +1,26 @@
+{
+  "ok": true,
+  "facts": {
+    "block": 42194662,
+    "blockTimestamp": 1771178671,
+    "cbEthOracle": {
+      "market": "0x3bf93770f2d4a794c3d9EBEfBAeBAE2a8f09A5E5",
+      "feed": "0xB0Ba0C5D7DA4ec400C1C3E5ef2485134F89918C5",
+      "feedDescription": null,
+      "rawUnderlyingPrice": "2206683650838065175827",
+      "priceUsd1e18": "2206683650838065175827"
+    },
+    "ethUsd": {
+      "address": "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70",
+      "description": "ETH / USD",
+      "decimals": 8,
+      "answer": "196558018952"
+    },
+    "cbEthEth": {
+      "address": "0x806b4Ac04501c29769051e42783cF04dCE41440b",
+      "description": "CBETH / ETH",
+      "decimals": 18,
+      "answer": "1122662744874806300"
+    }
+  }
+}

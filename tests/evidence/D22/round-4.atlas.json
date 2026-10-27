@@ -1,0 +1,612 @@
+{
+  "version": 1,
+  "target": {
+    "kind": "ts-fixture",
+    "ref": "tests/fixtures/with-rpc-retry.ts",
+    "codeSha256": "f3d2c59f05151be85d8a950c009e63de8015e638d3af6f2fd1c2a729393ad101",
+    "preExisting": {
+      "label": "Pre-existing: written before the hackathon",
+      "listedIn": "PRE-EXISTING.md"
+    }
+  },
+  "codeSha256": "f3d2c59f05151be85d8a950c009e63de8015e638d3af6f2fd1c2a729393ad101",
+  "seed": "O7_k1YnLyF",
+  "experiments": [
+    {
+      "id": "457Cp8hXXQ",
+      "target": {
+        "kind": "ts-fixture",
+        "ref": "tests/fixtures/with-rpc-retry.ts",
+        "codeSha256": "f3d2c59f05151be85d8a950c009e63de8015e638d3af6f2fd1c2a729393ad101",
+        "preExisting": {
+          "label": "Pre-existing: written before the hackathon",
+          "listedIn": "PRE-EXISTING.md"
+        }
+      },
+      "runner": "ts",
+      "params": {
+        "shape": "retry-scenario",
+        "failTimes": 5,
+        "failure": "error"
+      },
+      "proposedBy": {
+        "role": "human"
+      },
+      "gate": {
+        "allowed": true
+      }
+    }
+  ],
+  "bets": [
+    {
+      "id": "MzMGKVprNg",
+      "experimentId": "457Cp8hXXQ",
+      "who": "human",
+      "question": "How many times will the function call the RPC?",
+      "measures": "calls",
+      "answer": {
+        "kind": "integer",
+        "value": 3
+      },
+      "nonce": "a79e10c550ea5f22a1312a696569d505",
+      "sealedAt": "2026-10-27T13:00:11.742Z",
+      "sealedHash": "baeb44062340e9b83deca348d786bf6358900655179fd8e9247141717d0e41f9"
+    },
+    {
+      "id": "yNw2CCMeBx",
+      "experimentId": "457Cp8hXXQ",
+      "who": "human",
+      "question": "How long will it wait in total, in ms?",
+      "measures": "totalWaitMs",
+      "answer": {
+        "kind": "integer",
+        "value": 3000
+      },
+      "nonce": "462112b53ad0a15b23e5ad8788b1b8eb",
+      "sealedAt": "2026-10-27T13:00:11.742Z",
+      "sealedHash": "3f06660199a87da9ec9a7e347658b7c0b053c61911148906697bf4c58dcb9a94"
+    },
+    {
+      "id": "7mDSUXGLgQ",
+      "experimentId": "457Cp8hXXQ",
+      "who": "human",
+      "question": "How will it end: returns, throws, or pending (never settles)?",
+      "measures": "outcome",
+      "answer": {
+        "kind": "enum",
+        "value": "throws",
+        "options": [
+          "returns",
+          "throws",
+          "pending"
+        ]
+      },
+      "nonce": "b708b611be045f71167d6aa73cbb2ca3",
+      "sealedAt": "2026-10-27T13:00:11.742Z",
+      "sealedHash": "2d04cdda159ee75537ada75091fa6dc56c7ac6ae002f047e1338922d56cf0fb2"
+    },
+    {
+      "id": "Vjzts4sR74",
+      "experimentId": "457Cp8hXXQ",
+      "who": "model:meta-models/muse-spark-open-1026",
+      "question": "How many times will the function call the RPC?",
+      "measures": "calls",
+      "answer": {
+        "kind": "integer",
+        "value": 5
+      },
+      "nonce": "992fb4e0f3be58583b4831fd68ba8e13",
+      "sealedAt": "2026-10-27T13:00:13.709Z",
+      "sealedHash": "d5cb3170d30b58ed73597d44dd5019bde695fccd23d2c766ca991cfc30bd5df8",
+      "rationale": "attempts defaults to 5 and failTimes=5 means all 5 attempts fail, so fn is invoked 5 times before throwing."
+    },
+    {
+      "id": "jdx2ASs_LW",
+      "experimentId": "457Cp8hXXQ",
+      "who": "model:meta-models/muse-spark-open-1026",
+      "question": "How long will it wait in total, in ms?",
+      "measures": "totalWaitMs",
+      "answer": {
+        "kind": "integer",
+        "value": 12000
+      },
+      "nonce": "cbd5506acb05e02e10e346a513dfc4fe",
+      "sealedAt": "2026-10-27T13:00:13.709Z",
+      "sealedHash": "571f73909a5c2cbb59543a1a8442d93e805b09ee84294aea7b9d9f70777d6b99",
+      "rationale": "code sleeps delayMs=3000 after each failure except the last; 4 sleeps *3000=12000ms total wait."
+    },
+    {
+      "id": "YGkhpTnbhW",
+      "experimentId": "457Cp8hXXQ",
+      "who": "model:meta-models/muse-spark-open-1026",
+      "question": "How will it end: returns, throws, or pending (never settles)?",
+      "measures": "outcome",
+      "answer": {
+        "kind": "enum",
+        "value": "throws",
+        "options": [
+          "returns",
+          "throws",
+          "pending"
+        ]
+      },
+      "nonce": "386c2d9bf7aa6b17051ef21ca8fa0e85",
+      "sealedAt": "2026-10-27T13:00:13.709Z",
+      "sealedHash": "c186532370d0123ffb8a96ce1239f336bc6be1b32c5741942de0ac31c1272e47",
+      "rationale": "all 5 attempts throw, loop exhausts and rethrows last error, so outcome is throws."
+    },
+    {
+      "id": "RPNLGZIiAQ",
+      "experimentId": "457Cp8hXXQ",
+      "who": "model:muse-spark-1.3",
+      "question": "How many times will the function call the RPC?",
+      "measures": "calls",
+      "answer": {
+        "kind": "integer",
+        "value": 5
+      },
+      "nonce": "250371ec2e8172a25492fffa8114de13",
+      "sealedAt": "2026-10-27T13:00:14.650Z",
+      "sealedHash": "530ffd75ffaf1f74a8c926290f730f7dd4c51839484da37789a3763880fa401e",
+      "rationale": "Default attempts is 5, each iteration calls fn once, and all 5 fail so no early return."
+    },
+    {
+      "id": "fWju7KEYAD",
+      "experimentId": "457Cp8hXXQ",
+      "who": "model:muse-spark-1.3",
+      "question": "How long will it wait in total, in ms?",
+      "measures": "totalWaitMs",
+      "answer": {
+        "kind": "integer",
+        "value": 12000
+      },
+      "nonce": "54af6e09c55e336d3cd30112e7d81cfd",
+      "sealedAt": "2026-10-27T13:00:14.650Z",
+      "sealedHash": "7b5d965701217f3f2be6e96036be4ed44390d8d8bf01d4694df175554ef36233",
+      "rationale": "Sleep occurs after each failed attempt except the last: 4 sleeps times default 3000ms."
+    },
+    {
+      "id": "VgouYJg_r_",
+      "experimentId": "457Cp8hXXQ",
+      "who": "model:muse-spark-1.3",
+      "question": "How will it end: returns, throws, or pending (never settles)?",
+      "measures": "outcome",
+      "answer": {
+        "kind": "enum",
+        "value": "throws",
+        "options": [
+          "returns",
+          "throws",
+          "pending"
+        ]
+      },
+      "nonce": "b423a870e82fc9c09e7cc4a9ef4bfb91",
+      "sealedAt": "2026-10-27T13:00:14.650Z",
+      "sealedHash": "069e4b97da1118392babdc9ed2268b95c56427ec2b77f54118fb5c3b1bdc4394",
+      "rationale": "All 5 attempts fail and failTimes 5 requires a 6th call to succeed, so loop exhausts and rethrows last error."
+    }
+  ],
+  "runs": [
+    {
+      "id": "YFTm3w1mqx",
+      "experimentId": "457Cp8hXXQ",
+      "runner": "ts",
+      "executor": "local",
+      "codeSha256": "f3d2c59f05151be85d8a950c009e63de8015e638d3af6f2fd1c2a729393ad101",
+      "seed": "O7_k1YnLyF",
+      "startedAt": "2026-10-27T13:00:14.777Z",
+      "finishedAt": "2026-10-27T13:00:14.873Z",
+      "trace": [
+        {
+          "t": 0,
+          "event": "start",
+          "data": {
+            "label": "atlas-read"
+          }
+        },
+        {
+          "t": 0,
+          "event": "call",
+          "data": {
+            "n": 1
+          }
+        },
+        {
+          "t": 0,
+          "event": "reject",
+          "data": {
+            "n": 1,
+            "error": "InternalRpcError: An internal error was received. (code -32603) (call 1)"
+          }
+        },
+        {
+          "t": 0,
+          "event": "log",
+          "data": {
+            "msg": "atlas-read: chain read failed (attempt 1/5, likely RPC lag) — retrying in 3s"
+          }
+        },
+        {
+          "t": 0,
+          "event": "sleep",
+          "data": {
+            "ms": 3000
+          }
+        },
+        {
+          "t": 3000,
+          "event": "wake",
+          "data": {
+            "ms": 3000
+          }
+        },
+        {
+          "t": 3000,
+          "event": "call",
+          "data": {
+            "n": 2
+          }
+        },
+        {
+          "t": 3000,
+          "event": "reject",
+          "data": {
+            "n": 2,
+            "error": "HttpRequestError: HTTP request failed. Status: 502 (call 2)"
+          }
+        },
+        {
+          "t": 3000,
+          "event": "log",
+          "data": {
+            "msg": "atlas-read: chain read failed (attempt 2/5, likely RPC lag) — retrying in 3s"
+          }
+        },
+        {
+          "t": 3000,
+          "event": "sleep",
+          "data": {
+            "ms": 3000
+          }
+        },
+        {
+          "t": 6000,
+          "event": "wake",
+          "data": {
+            "ms": 3000
+          }
+        },
+        {
+          "t": 6000,
+          "event": "call",
+          "data": {
+            "n": 3
+          }
+        },
+        {
+          "t": 6000,
+          "event": "reject",
+          "data": {
+            "n": 3,
+            "error": "HttpRequestError: HTTP request failed. Status: 502 (call 3)"
+          }
+        },
+        {
+          "t": 6000,
+          "event": "log",
+          "data": {
+            "msg": "atlas-read: chain read failed (attempt 3/5, likely RPC lag) — retrying in 3s"
+          }
+        },
+        {
+          "t": 6000,
+          "event": "sleep",
+          "data": {
+            "ms": 3000
+          }
+        },
+        {
+          "t": 9000,
+          "event": "wake",
+          "data": {
+            "ms": 3000
+          }
+        },
+        {
+          "t": 9000,
+          "event": "call",
+          "data": {
+            "n": 4
+          }
+        },
+        {
+          "t": 9000,
+          "event": "reject",
+          "data": {
+            "n": 4,
+            "error": "TimeoutError: The request took too long to respond. (call 4)"
+          }
+        },
+        {
+          "t": 9000,
+          "event": "log",
+          "data": {
+            "msg": "atlas-read: chain read failed (attempt 4/5, likely RPC lag) — retrying in 3s"
+          }
+        },
+        {
+          "t": 9000,
+          "event": "sleep",
+          "data": {
+            "ms": 3000
+          }
+        },
+        {
+          "t": 12000,
+          "event": "wake",
+          "data": {
+            "ms": 3000
+          }
+        },
+        {
+          "t": 12000,
+          "event": "call",
+          "data": {
+            "n": 5
+          }
+        },
+        {
+          "t": 12000,
+          "event": "reject",
+          "data": {
+            "n": 5,
+            "error": "BlockNotFoundError: Block at number 42194663 could not be found. (call 5)"
+          }
+        },
+        {
+          "t": 12000,
+          "event": "throws",
+          "data": {
+            "error": "BlockNotFoundError: Block at number 42194663 could not be found. (call 5)"
+          }
+        }
+      ],
+      "result": {
+        "measured": {
+          "calls": 5,
+          "waitCount": 4,
+          "waitsMs": "3000,3000,3000,3000",
+          "logCount": 4,
+          "logAttempts": "1/5,2/5,3/5,4/5",
+          "totalWaitMs": 12000,
+          "outcome": "throws",
+          "settledAtMs": 12000,
+          "thrown": "BlockNotFoundError: Block at number 42194663 could not be found. (call 5)",
+          "thrownFromCall": 5
+        },
+        "notMeasured": {}
+      },
+      "controlPassed": true,
+      "controlRunId": "RP-7dNts2I"
+    }
+  ],
+  "verdicts": [
+    {
+      "betId": "MzMGKVprNg",
+      "runId": "YFTm3w1mqx",
+      "outcome": "not_matched",
+      "observed": 5,
+      "judgedBy": "src/judge.ts"
+    },
+    {
+      "betId": "yNw2CCMeBx",
+      "runId": "YFTm3w1mqx",
+      "outcome": "not_matched",
+      "observed": 12000,
+      "judgedBy": "src/judge.ts"
+    },
+    {
+      "betId": "7mDSUXGLgQ",
+      "runId": "YFTm3w1mqx",
+      "outcome": "matched",
+      "observed": "throws",
+      "judgedBy": "src/judge.ts"
+    },
+    {
+      "betId": "Vjzts4sR74",
+      "runId": "YFTm3w1mqx",
+      "outcome": "matched",
+      "observed": 5,
+      "judgedBy": "src/judge.ts"
+    },
+    {
+      "betId": "jdx2ASs_LW",
+      "runId": "YFTm3w1mqx",
+      "outcome": "matched",
+      "observed": 12000,
+      "judgedBy": "src/judge.ts"
+    },
+    {
+      "betId": "YGkhpTnbhW",
+      "runId": "YFTm3w1mqx",
+      "outcome": "matched",
+      "observed": "throws",
+      "judgedBy": "src/judge.ts"
+    },
+    {
+      "betId": "RPNLGZIiAQ",
+      "runId": "YFTm3w1mqx",
+      "outcome": "matched",
+      "observed": 5,
+      "judgedBy": "src/judge.ts"
+    },
+    {
+      "betId": "fWju7KEYAD",
+      "runId": "YFTm3w1mqx",
+      "outcome": "matched",
+      "observed": 12000,
+      "judgedBy": "src/judge.ts"
+    },
+    {
+      "betId": "VgouYJg_r_",
+      "runId": "YFTm3w1mqx",
+      "outcome": "matched",
+      "observed": "throws",
+      "judgedBy": "src/judge.ts"
+    }
+  ],
+  "findings": [
+    {
+      "id": "fixture-retry-1",
+      "file": "tests/fixtures/with-rpc-retry.ts",
+      "lineStart": 49,
+      "lineEnd": 66,
+      "kind": "retry",
+      "claim": "People expect withRpcRetry to turn a flaky chain read into a dependable one within a short, predictable time; the code repeats the read in a loop whose number of calls, waits between them and final result depend on its attempt and delay settings and on how each call behaves.",
+      "verified": true,
+      "quotedSnippet": "for (let i = 1; i <= attempts; i++) {\n    try { return await fn(); }",
+      "proposedBy": {
+        "role": "investigator",
+        "model": "none: written by hand"
+      }
+    }
+  ],
+  "agentLog": [
+    {
+      "t": "2026-10-27T13:00:11.741Z",
+      "role": "human",
+      "action": "uses a fixture finding, written by hand (Investigator arrives Oct 30)",
+      "ref": {
+        "kind": "experiment",
+        "id": "457Cp8hXXQ"
+      }
+    },
+    {
+      "t": "2026-10-27T13:00:11.741Z",
+      "role": "gate",
+      "action": "allowed (src/gate.ts)",
+      "ref": {
+        "kind": "experiment",
+        "id": "457Cp8hXXQ"
+      }
+    },
+    {
+      "t": "2026-10-27T13:00:11.743Z",
+      "role": "human",
+      "action": "seals a bet on calls",
+      "ref": {
+        "kind": "bet",
+        "id": "MzMGKVprNg"
+      }
+    },
+    {
+      "t": "2026-10-27T13:00:11.743Z",
+      "role": "human",
+      "action": "seals a bet on totalWaitMs",
+      "ref": {
+        "kind": "bet",
+        "id": "yNw2CCMeBx"
+      }
+    },
+    {
+      "t": "2026-10-27T13:00:11.743Z",
+      "role": "human",
+      "action": "seals a bet on outcome",
+      "ref": {
+        "kind": "bet",
+        "id": "7mDSUXGLgQ"
+      }
+    },
+    {
+      "t": "2026-10-27T13:00:13.709Z",
+      "role": "claimant",
+      "model": "meta-models/muse-spark-open-1026",
+      "action": "bets on 457Cp8hXXQ (3 answers, hidden until the run)",
+      "ref": {
+        "kind": "experiment",
+        "id": "457Cp8hXXQ"
+      },
+      "usage": {
+        "promptTokens": 1577,
+        "completionTokens": 490,
+        "reasoningTokens": 304,
+        "usd": 0.00391295
+      }
+    },
+    {
+      "t": "2026-10-27T13:00:13.709Z",
+      "role": "seal",
+      "action": "seals 3 bets from meta-models/muse-spark-open-1026 at server time",
+      "ref": {
+        "kind": "experiment",
+        "id": "457Cp8hXXQ"
+      }
+    },
+    {
+      "t": "2026-10-27T13:00:14.651Z",
+      "role": "claimant",
+      "model": "muse-spark-1.3",
+      "action": "bets on 457Cp8hXXQ (3 answers, hidden until the run)",
+      "ref": {
+        "kind": "experiment",
+        "id": "457Cp8hXXQ"
+      },
+      "usage": {
+        "promptTokens": 1444,
+        "completionTokens": 456,
+        "reasoningTokens": 275,
+        "usd": 0.014896
+      }
+    },
+    {
+      "t": "2026-10-27T13:00:14.651Z",
+      "role": "seal",
+      "action": "seals 3 bets from muse-spark-1.3 at server time",
+      "ref": {
+        "kind": "experiment",
+        "id": "457Cp8hXXQ"
+      }
+    },
+    {
+      "t": "2026-10-27T13:00:14.653Z",
+      "role": "seal",
+      "action": "verifies 9 seals"
+    },
+    {
+      "t": "2026-10-27T13:00:14.873Z",
+      "role": "runner",
+      "action": "runs withRpcRetry in the sandbox (457Cp8hXXQ)",
+      "ref": {
+        "kind": "run",
+        "id": "YFTm3w1mqx"
+      }
+    },
+    {
+      "t": "2026-10-27T13:00:14.873Z",
+      "role": "judge",
+      "action": "judges 9 bets: 7 matched, 2 didn't match",
+      "ref": {
+        "kind": "run",
+        "id": "YFTm3w1mqx"
+      }
+    }
+  ],
+  "bettors": [
+    {
+      "who": "human",
+      "status": "sealed"
+    },
+    {
+      "who": "model:muse-spark-1.3",
+      "status": "sealed"
+    },
+    {
+      "who": "model:meta-models/muse-spark-open-1026",
+      "status": "sealed"
+    }
+  ],
+  "captions": [
+    "Pre-existing: written before the hackathon (listed in PRE-EXISTING.md)"
+  ],
+  "createdAt": "2026-10-27T13:00:14.873Z"
+}

@@ -1,0 +1,479 @@
+[
+  {
+    "round": 1,
+    "kind": "moonwell",
+    "experimentId": "F7rr3Q1OUU",
+    "runId": "7hIZWPA7DY",
+    "claimantHeader": "both",
+    "postExperimentMs": 2027,
+    "chainFactsOk": true,
+    "parity": {
+      "screenSha256": "304f788aa8616fa6f0a4a677ca1e9798594fe91ef9cdc6779b5856a22387ff88",
+      "models": [
+        {
+          "model": "muse-spark-1.3",
+          "samePromptBlock": true
+        },
+        {
+          "model": "meta-models/muse-spark-open-1026",
+          "samePromptBlock": true
+        }
+      ]
+    },
+    "slotsBeforeRun": [
+      {
+        "model": "muse-spark-1.3",
+        "status": "sealed",
+        "reason": null,
+        "sealedHashes": 1
+      },
+      {
+        "model": "meta-models/muse-spark-open-1026",
+        "status": "sealed",
+        "reason": null,
+        "sealedHashes": 1
+      }
+    ],
+    "slotsAfterRun": [
+      {
+        "model": "muse-spark-1.3",
+        "status": "sealed",
+        "reason": null,
+        "detail": null
+      },
+      {
+        "model": "meta-models/muse-spark-open-1026",
+        "status": "sealed",
+        "reason": null,
+        "detail": null
+      }
+    ],
+    "controlPassed": true,
+    "forkBlock": 42194662,
+    "reference": "2206683650838065175827",
+    "script": [
+      {
+        "measures": "priceUsd1e18:cbETH",
+        "bet": {
+          "kind": "number",
+          "value": 2200,
+          "tolerancePct": 10,
+          "unit": "USD"
+        },
+        "measured": "1122662744874806300",
+        "verdict": "not_matched",
+        "reason": null,
+        "rationale": null,
+        "sealedHash": "39b60057416fec6577e6266fbc6fc489def5dfb9170eecd84762029878f2bdc0"
+      }
+    ],
+    "spark": [
+      {
+        "measures": "priceUsd1e18:cbETH",
+        "bet": {
+          "kind": "number",
+          "value": 2206.68,
+          "tolerancePct": 10,
+          "unit": "USD"
+        },
+        "measured": "1122662744874806300",
+        "verdict": "not_matched",
+        "reason": null,
+        "rationale": "OEV wrapper preserves underlying price; before price equals ETH/USD 1965.58 * cbETH/ETH 1.12266 = ~2206.68, so after wrapping same.",
+        "sealedHash": "9dc4dad10d13d52efce92e911991ecdfd6eb7c412ce4b46e19664b753d981905"
+      }
+    ],
+    "sparkOpen": [
+      {
+        "measures": "priceUsd1e18:cbETH",
+        "bet": {
+          "kind": "number",
+          "value": 1.1226627448748063,
+          "tolerancePct": 10,
+          "unit": "USD"
+        },
+        "measured": "1122662744874806300",
+        "verdict": "matched",
+        "reason": null,
+        "rationale": "Config switches cbETH to cbETHETH_ORACLE (cbETH/ETH feed 0x806b... with answer 1.12266e18); if oracle reports feed answer directly as USD 1e18 price, it will read ~1.12 instead of composite ~2206",
+        "sealedHash": "124c2d6aed847ad215869db541c7be61bcd9fd0b50dcea02f4d229871c7947b5"
+      }
+    ],
+    "scriptSealed": 1
+  },
+  {
+    "round": 2,
+    "kind": "moonwell",
+    "experimentId": "KrVFNOKXJe",
+    "runId": "BVw4a3vqLF",
+    "claimantHeader": "both",
+    "postExperimentMs": 1,
+    "chainFactsOk": true,
+    "parity": {
+      "screenSha256": "304f788aa8616fa6f0a4a677ca1e9798594fe91ef9cdc6779b5856a22387ff88",
+      "models": [
+        {
+          "model": "muse-spark-1.3",
+          "samePromptBlock": true
+        },
+        {
+          "model": "meta-models/muse-spark-open-1026",
+          "samePromptBlock": true
+        }
+      ]
+    },
+    "slotsBeforeRun": [
+      {
+        "model": "muse-spark-1.3",
+        "status": "sealed",
+        "reason": null,
+        "sealedHashes": 1
+      },
+      {
+        "model": "meta-models/muse-spark-open-1026",
+        "status": "sealed",
+        "reason": null,
+        "sealedHashes": 1
+      }
+    ],
+    "slotsAfterRun": [
+      {
+        "model": "muse-spark-1.3",
+        "status": "sealed",
+        "reason": null,
+        "detail": null
+      },
+      {
+        "model": "meta-models/muse-spark-open-1026",
+        "status": "sealed",
+        "reason": null,
+        "detail": null
+      }
+    ],
+    "controlPassed": true,
+    "forkBlock": 42194662,
+    "reference": "2206683650838065175827",
+    "script": [
+      {
+        "measures": "priceUsd1e18:cbETH",
+        "bet": {
+          "kind": "number",
+          "value": 2200,
+          "tolerancePct": 10,
+          "unit": "USD"
+        },
+        "measured": "1122662744874806300",
+        "verdict": "not_matched",
+        "reason": null,
+        "rationale": null,
+        "sealedHash": "0260c307a9e22596e2671c0c652aac84460a668060c24deb11538cb17cbb84b8"
+      }
+    ],
+    "spark": [
+      {
+        "measures": "priceUsd1e18:cbETH",
+        "bet": {
+          "kind": "number",
+          "value": 2206.68,
+          "tolerancePct": 10,
+          "unit": "USD"
+        },
+        "measured": "1122662744874806300",
+        "verdict": "not_matched",
+        "reason": null,
+        "rationale": "Pre-proposal price $2206.68 equals ETH/USD 1965.58 * cbETH/ETH 1.12266, OEV wrapper activation preserves same underlying feeds so price unchanged.",
+        "sealedHash": "c856753ba9b5cde0583cd583198cbdb7cc60a141cf32075a201a98c4f8e63451"
+      }
+    ],
+    "sparkOpen": [
+      {
+        "measures": "priceUsd1e18:cbETH",
+        "bet": {
+          "kind": "number",
+          "value": 1.1226627448748063,
+          "tolerancePct": 10,
+          "unit": "USD"
+        },
+        "measured": "1122662744874806300",
+        "verdict": "matched",
+        "reason": null,
+        "rationale": "Config switches cbETH to cbETHETH_ORACLE which is cbETH/ETH ~1.122, so if wired directly as USD price the oracle will report ~1.12 instead of ~2206",
+        "sealedHash": "3494ddafcbc05fc15b2f9ed1e95921e81ac42efbcb4dd254ab34dde7d5d99e17"
+      }
+    ],
+    "scriptSealed": 1
+  },
+  {
+    "round": 3,
+    "kind": "moonwell",
+    "experimentId": "7YKe1dDuPn",
+    "runId": "GeyY4SlMRr",
+    "claimantHeader": "both",
+    "postExperimentMs": 1,
+    "chainFactsOk": true,
+    "parity": {
+      "screenSha256": "304f788aa8616fa6f0a4a677ca1e9798594fe91ef9cdc6779b5856a22387ff88",
+      "models": [
+        {
+          "model": "muse-spark-1.3",
+          "samePromptBlock": true
+        },
+        {
+          "model": "meta-models/muse-spark-open-1026",
+          "samePromptBlock": true
+        }
+      ]
+    },
+    "slotsBeforeRun": [
+      {
+        "model": "muse-spark-1.3",
+        "status": "sealed",
+        "reason": null,
+        "sealedHashes": 1
+      },
+      {
+        "model": "meta-models/muse-spark-open-1026",
+        "status": "sealed",
+        "reason": null,
+        "sealedHashes": 1
+      }
+    ],
+    "slotsAfterRun": [
+      {
+        "model": "muse-spark-1.3",
+        "status": "sealed",
+        "reason": null,
+        "detail": null
+      },
+      {
+        "model": "meta-models/muse-spark-open-1026",
+        "status": "sealed",
+        "reason": null,
+        "detail": null
+      }
+    ],
+    "controlPassed": true,
+    "forkBlock": 42194662,
+    "reference": "2206683650838065175827",
+    "script": [
+      {
+        "measures": "priceUsd1e18:cbETH",
+        "bet": {
+          "kind": "number",
+          "value": 2200,
+          "tolerancePct": 10,
+          "unit": "USD"
+        },
+        "measured": "1122662744874806300",
+        "verdict": "not_matched",
+        "reason": null,
+        "rationale": null,
+        "sealedHash": "5fd8a74be582c5d1fedc91ea91f28e7aa3bf57b6e62dffbbc0f47775fd3c22fd"
+      }
+    ],
+    "spark": [
+      {
+        "measures": "priceUsd1e18:cbETH",
+        "bet": {
+          "kind": "number",
+          "value": 2206.68,
+          "tolerancePct": 10,
+          "unit": "USD"
+        },
+        "measured": "1122662744874806300",
+        "verdict": "not_matched",
+        "reason": null,
+        "rationale": "Current oracle $2206.68 equals ETH/USD 1965.58 times cbETH/ETH 1.12266, and OEV wrapper activation preserves the underlying price.",
+        "sealedHash": "5345caa12f0e383037256d62b488d27d0d66091e600b05a7c9da3195632ae5b5"
+      }
+    ],
+    "sparkOpen": [
+      {
+        "measures": "priceUsd1e18:cbETH",
+        "bet": {
+          "kind": "number",
+          "value": 1.1226627448748063,
+          "tolerancePct": 10,
+          "unit": "USD"
+        },
+        "measured": "1122662744874806300",
+        "verdict": "matched",
+        "reason": null,
+        "rationale": "Config line 42 sets cbETH to cbETHETH_ORACLE which is the cbETH/ETH feed (1.12266e18) not USD; if wired directly as USD price the oracle will report ~1.12 instead of ~2206",
+        "sealedHash": "4c75f115120f6be23bbd012f1eabed4869e0176d0d50bdf0e39955462805e0e3"
+      }
+    ],
+    "scriptSealed": 1
+  },
+  {
+    "round": 4,
+    "kind": "fixture",
+    "experimentId": "457Cp8hXXQ",
+    "runId": "YFTm3w1mqx",
+    "claimantHeader": "both",
+    "postExperimentMs": 1,
+    "chainFactsOk": null,
+    "parity": null,
+    "slotsBeforeRun": [
+      {
+        "model": "muse-spark-1.3",
+        "status": "sealed",
+        "reason": null,
+        "sealedHashes": 3
+      },
+      {
+        "model": "meta-models/muse-spark-open-1026",
+        "status": "sealed",
+        "reason": null,
+        "sealedHashes": 3
+      }
+    ],
+    "slotsAfterRun": [
+      {
+        "model": "muse-spark-1.3",
+        "status": "sealed",
+        "reason": null,
+        "detail": null
+      },
+      {
+        "model": "meta-models/muse-spark-open-1026",
+        "status": "sealed",
+        "reason": null,
+        "detail": null
+      }
+    ],
+    "controlPassed": true,
+    "forkBlock": null,
+    "reference": null,
+    "script": [
+      {
+        "measures": "calls",
+        "bet": {
+          "kind": "integer",
+          "value": 3
+        },
+        "measured": 5,
+        "verdict": "not_matched",
+        "reason": null,
+        "rationale": null,
+        "sealedHash": "baeb44062340e9b83deca348d786bf6358900655179fd8e9247141717d0e41f9"
+      },
+      {
+        "measures": "totalWaitMs",
+        "bet": {
+          "kind": "integer",
+          "value": 3000
+        },
+        "measured": 12000,
+        "verdict": "not_matched",
+        "reason": null,
+        "rationale": null,
+        "sealedHash": "3f06660199a87da9ec9a7e347658b7c0b053c61911148906697bf4c58dcb9a94"
+      },
+      {
+        "measures": "outcome",
+        "bet": {
+          "kind": "enum",
+          "value": "throws",
+          "options": [
+            "returns",
+            "throws",
+            "pending"
+          ]
+        },
+        "measured": "throws",
+        "verdict": "matched",
+        "reason": null,
+        "rationale": null,
+        "sealedHash": "2d04cdda159ee75537ada75091fa6dc56c7ac6ae002f047e1338922d56cf0fb2"
+      }
+    ],
+    "spark": [
+      {
+        "measures": "calls",
+        "bet": {
+          "kind": "integer",
+          "value": 5
+        },
+        "measured": 5,
+        "verdict": "matched",
+        "reason": null,
+        "rationale": "Default attempts is 5, each iteration calls fn once, and all 5 fail so no early return.",
+        "sealedHash": "530ffd75ffaf1f74a8c926290f730f7dd4c51839484da37789a3763880fa401e"
+      },
+      {
+        "measures": "totalWaitMs",
+        "bet": {
+          "kind": "integer",
+          "value": 12000
+        },
+        "measured": 12000,
+        "verdict": "matched",
+        "reason": null,
+        "rationale": "Sleep occurs after each failed attempt except the last: 4 sleeps times default 3000ms.",
+        "sealedHash": "7b5d965701217f3f2be6e96036be4ed44390d8d8bf01d4694df175554ef36233"
+      },
+      {
+        "measures": "outcome",
+        "bet": {
+          "kind": "enum",
+          "value": "throws",
+          "options": [
+            "returns",
+            "throws",
+            "pending"
+          ]
+        },
+        "measured": "throws",
+        "verdict": "matched",
+        "reason": null,
+        "rationale": "All 5 attempts fail and failTimes 5 requires a 6th call to succeed, so loop exhausts and rethrows last error.",
+        "sealedHash": "069e4b97da1118392babdc9ed2268b95c56427ec2b77f54118fb5c3b1bdc4394"
+      }
+    ],
+    "sparkOpen": [
+      {
+        "measures": "calls",
+        "bet": {
+          "kind": "integer",
+          "value": 5
+        },
+        "measured": 5,
+        "verdict": "matched",
+        "reason": null,
+        "rationale": "attempts defaults to 5 and failTimes=5 means all 5 attempts fail, so fn is invoked 5 times before throwing.",
+        "sealedHash": "d5cb3170d30b58ed73597d44dd5019bde695fccd23d2c766ca991cfc30bd5df8"
+      },
+      {
+        "measures": "totalWaitMs",
+        "bet": {
+          "kind": "integer",
+          "value": 12000
+        },
+        "measured": 12000,
+        "verdict": "matched",
+        "reason": null,
+        "rationale": "code sleeps delayMs=3000 after each failure except the last; 4 sleeps *3000=12000ms total wait.",
+        "sealedHash": "571f73909a5c2cbb59543a1a8442d93e805b09ee84294aea7b9d9f70777d6b99"
+      },
+      {
+        "measures": "outcome",
+        "bet": {
+          "kind": "enum",
+          "value": "throws",
+          "options": [
+            "returns",
+            "throws",
+            "pending"
+          ]
+        },
+        "measured": "throws",
+        "verdict": "matched",
+        "reason": null,
+        "rationale": "all 5 attempts throw, loop exhausts and rethrows last error, so outcome is throws.",
+        "sealedHash": "c186532370d0123ffb8a96ce1239f336bc6be1b32c5741942de0ac31c1272e47"
+      }
+    ],
+    "scriptSealed": 3
+  }
+]
