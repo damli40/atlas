@@ -118,7 +118,8 @@ describe("POST /changes", () => {
     const run = await round(post);
     const a = (await (await post("/changes", { runId: run.id })).json()) as ChangeAnswer;
     expect(a.ok).toBe(false);
-    expect(!a.ok && a.reason).toMatch(/^Muse Code: no usable change \(the diff touches chains\/8453\.json/);
+    // S5 (day-6): a path the model wrote that is not a file of this target is described, never quoted.
+    expect(!a.ok && a.reason).toMatch(/^Muse Code: no usable change \(the diff touches a file outside this target/);
     expect(a).not.toHaveProperty("replay");
   });
 });

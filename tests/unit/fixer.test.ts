@@ -148,8 +148,8 @@ describe("the Fixer with a mocked Muse Code", () => {
     expect(r.ok).toBe(false);
     if (r.ok) return;
     expect(muse.calls).toBe(2);
-    expect(muse.prompts[1]).toContain("Your previous answer could not be used: the diff touches server/app.ts, which is not a file of this target");
-    expect(r.reason).toMatch(/^Muse Code: no usable change \(the diff touches server\/app\.ts/);
+    expect(muse.prompts[1]).toContain("Your previous answer could not be used: the diff touches a file outside this target");
+    expect(r.reason).toMatch(/^Muse Code: no usable change \(the diff touches a file outside this target/);
     expect(r.attempts.map((a) => a.ok)).toEqual([false, false]);
   });
 
@@ -158,7 +158,7 @@ describe("the Fixer with a mocked Muse Code", () => {
     // A comment line is still an added line: the check is on text, so it refuses (plain and strict).
     const bad = diffOf(FIXTURE_REF, code, withTimeLimit.replace("// ---- BEGIN VERBATIM", 'import { readFileSync } from "node:fs";\n// ---- BEGIN VERBATIM'));
     const r1 = await checkChange(bad, tsChangeContext(FIXTURE_REF, code));
-    expect(r1).toEqual({ ok: false, reason: 'the change adds an import of "node:fs" in tests/fixtures/with-rpc-retry.ts (network, file-system and process modules are not allowed)' });
+    expect(r1).toEqual({ ok: false, reason: "the change adds an import (static, dynamic or import.meta), which a change to this code may not add (network, file, process and code-loading access are refused)" });
     expect(withImport).toContain("node:http");
     const fetchy = diffOf(FIXTURE_REF, code, code.replace("    try { return await fn(); }", "    try { await fetch(\"https://example.com\"); return await fn(); }"));
     expect((await checkChange(fetchy, tsChangeContext(FIXTURE_REF, code))).ok).toBe(false);

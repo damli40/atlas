@@ -12,6 +12,9 @@
 // until the next hunk or file header, and the counts are inferred. The diff's text is never changed.
 // Blank lines at the very end of the text are ignored; a blank line inside a hunk is an empty
 // context line (as git reads it).
+//
+// S5 (day-6 review): no reason written here quotes a path from the diff. A path is text the model
+// wrote; Atlas's sentences name lines and files it knows, never the model's words.
 
 export interface DiffFile {
   /** Path after stripping "a/"; null for /dev/null (a created file). */
@@ -81,7 +84,9 @@ export function parseUnifiedDiff(text: string): DiffParse {
       // Read until the next hunk, the next file header, or the end (the counts are inferred, see above).
       while (i < lines.length) {
         const l = lines[i]!;
-        if (HUNK.test(l) || l.startsWith("diff --git ") || (l.startsWith("--- ") && (lines[i + 1] ?? "").startsWith("+++ "))) break;
+        // M4 (day-6 review): like `git apply --recount`, a hunk ends only at the next "@@ " or "diff "
+        // line. A "--- a/x" line inside a hunk is a removed line, exactly as git reads it.
+        if (l.startsWith("@@ ") || l.startsWith("diff ")) break;
         if (l.startsWith("\\")) {
           i++; // "\ No newline at end of file"
           continue;
@@ -91,11 +96,11 @@ export function parseUnifiedDiff(text: string): DiffParse {
         else if (tag === "+") file.added.push(l.slice(1));
         if (tag === "-" || tag === "+") hunk.lines.push({ tag, text: l.slice(1) });
         else if (tag === " " || l === "") hunk.lines.push({ tag: " ", text: l.slice(1) });
-        if (tag !== "-" && tag !== "+" && tag !== " " && l !== "") return { ok: false, reason: `line ${i + 1} inside a hunk of ${file.newPath ?? file.oldPath} does not start with " ", "-" or "+"` };
+        if (tag !== "-" && tag !== "+" && tag !== " " && l !== "") return { ok: false, reason: `line ${i + 1} of the diff is inside a hunk but does not start with " ", "-" or "+"` };
         body++;
         i++;
       }
-      if (body === 0) return { ok: false, reason: `a hunk of ${file.newPath ?? file.oldPath} has no lines` };
+      if (body === 0) return { ok: false, reason: `the hunk at line ${i} of the diff has no lines` };
       continue;
     }
     if (line.trim() === "") {
@@ -105,7 +110,7 @@ export function parseUnifiedDiff(text: string): DiffParse {
     return { ok: false, reason: `line ${i + 1} is not part of a unified diff` };
   }
   if (files.length === 0) return { ok: false, reason: "the text holds no file in unified diff form (no \"--- a/…\" / \"+++ b/…\" lines)" };
-  for (const f of files) if (f.hunks === 0) return { ok: false, reason: `the diff names ${f.newPath ?? f.oldPath} but changes no lines in it` };
+  for (const f of files) if (f.hunks === 0) return { ok: false, reason: "the diff names a file but changes no lines in it" };
   return { ok: true, files };
 }
 
@@ -144,27 +149,59 @@ export function changedLineCount(files: DiffFile[]): number {
 }
 
 /**
- * Apply one file's hunks to its text, by plain code, with no I/O (used by .atlas.json verify to
- * recompute the changed code). Each hunk's old lines (kept + removed) must appear exactly, at or after
- * the end of the previous hunk; the occurrence nearest the header's line wins. Returns null when a
- * hunk does not fit (then the change cannot be re-checked here).
+ * S3 (day-6 review): place one file's hunks in its text, by plain code, with no I/O. This is THE way
+ * Atlas applies a change: runners/change.ts uses it to build the changed code (and refuses the change
+ * when `git apply` in the scratch copy gives different bytes), and .atlas.json verify uses it to
+ * recompute the changed code. So both place every line identically.
+ *
+ * Rules, each hunk in order:
+ * - Its old lines (kept + removed) must appear exactly, at or after the end of the previous hunk.
+ * - A hunk with no old line at all (only "+" lines, the `--unidiff-zero` insert) is refused: nothing
+ *   in the file says where it goes except the header's number, which models often get wrong.
+ * - A hunk with no kept line (only "-" and "+") must match exactly ONE place in the rest of the file.
+ * - A hunk whose header starts past the end of the file is refused.
+ * - Otherwise the place nearest the header's line wins; two places equally near are refused.
  */
-export function applyFileDiff(text: string, file: DiffFile): string | null {
-  const lines = text.split("\n");
+export function placeHunks(text: string, file: DiffFile): { ok: true; text: string } | { ok: false; reason: string } {
+  const endsWithNewline = text.endsWith("\n");
+  const lines = (endsWithNewline ? text.slice(0, -1) : text).split("\n");
   const out: string[] = [];
   let at = 0;
-  for (const h of file.hunkLines) {
+  for (let n = 0; n < file.hunkLines.length; n++) {
+    const h = file.hunkLines[n]!;
+    const which = file.hunkLines.length === 1 ? "the hunk" : `hunk ${n + 1}`;
     const old = h.lines.filter((l) => l.tag !== "+").map((l) => l.text);
     const neu = h.lines.filter((l) => l.tag !== "-").map((l) => l.text);
-    const fits = (k: number) => old.every((o, j) => lines[k + j] === o);
-    let best = -1;
-    for (let k = at; k + old.length <= lines.length; k++) {
-      if (fits(k) && (best === -1 || Math.abs(k - (h.oldStart - 1)) < Math.abs(best - (h.oldStart - 1)))) best = k;
+    const hasContext = h.lines.some((l) => l.tag === " ");
+    if (old.length === 0) {
+      return { ok: false, reason: `${which} only adds lines, with no unchanged or removed line around it, so where it goes in the file is not certain` };
     }
-    if (best === -1) return null;
+    if (h.oldStart - 1 > lines.length) {
+      return { ok: false, reason: `${which} starts at line ${h.oldStart}, past the end of the file (${lines.length} lines)` };
+    }
+    const fits = (k: number) => old.every((o, j) => lines[k + j] === o);
+    const places: number[] = [];
+    for (let k = at; k + old.length <= lines.length; k++) if (fits(k)) places.push(k);
+    if (places.length === 0) return { ok: false, reason: `${which}'s unchanged and removed lines do not appear in the file as written` };
+    let best: number;
+    if (!hasContext) {
+      if (places.length !== 1) return { ok: false, reason: `${which} has no unchanged lines around it and its removed lines appear ${places.length} times, so where it goes is not certain` };
+      best = places[0]!;
+    } else {
+      const want = h.oldStart - 1;
+      const dist = (k: number) => Math.abs(k - want);
+      best = places.reduce((a, b) => (dist(b) < dist(a) ? b : a));
+      if (places.filter((k) => dist(k) === dist(best)).length > 1) return { ok: false, reason: `${which} fits two places equally near line ${h.oldStart}, so where it goes is not certain` };
+    }
     out.push(...lines.slice(at, best), ...neu);
     at = best + old.length;
   }
   out.push(...lines.slice(at));
-  return out.join("\n");
+  return { ok: true, text: out.join("\n") + (endsWithNewline ? "\n" : "") };
+}
+
+/** placeHunks, as text or null (used by .atlas.json verify to recompute the changed code). */
+export function applyFileDiff(text: string, file: DiffFile): string | null {
+  const r = placeHunks(text, file);
+  return r.ok ? r.text : null;
 }

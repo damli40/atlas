@@ -1,0 +1,27 @@
+     × refuses: const m = await import("node:" + "fs"); 46ms
+     × refuses: const fs = process.getBuiltinModule("fs"); 41ms
+     × refuses: const r = globalThis["req"+"uire"]("fs"); 41ms
+     × refuses: eval("imp"+"ort('node:net')"); 39ms
+     × refuses: const f = globalThis["fet"+"ch"]; 41ms
+     × refuses: const x = new Function("return 1")(); 42ms
+     × refuses: import * as m from "node:module"; m.createRequire(import.meta.url)("child_process"); 40ms
+     × refuses: import { spawn } from "node:child_process"; 0ms
+     × refuses: const w = globalThis.fetch; w("http://x") 41ms
+     × refuses: import("node:inspector") 41ms
+     × refuses: import("node:vm") 40ms
+     × refuses: import("node:os") 40ms
+     × refuses: const C = (() => 0).constructor; C("return 1")(); 41ms
+     × refuses: const k = (globalThis as any)?.["pro"+"cess"]; 41ms
+     × refuses: const meta = import.meta.url; 40ms
+     × the comments say the screen is not the boundary 4ms
+     × a zero-context insert (only + lines) is refused: its place is not certain 41ms
+     × a hunk past the end of the file is refused with a reason 43ms
+     × a zero-context replace is accepted only when its removed line appears once 43ms
+     × a path that is not a file of this target is described, not quoted 0ms
+     × parse reasons name lines of the diff, never its paths 0ms
+     × an oracle name the model wrote in the config is quoted only when it reads like an address-book name 45ms
+     × git's own error text is not shown: only a known file and a line number 30ms
+     × M3: an added line with a lone carriage return is refused 42ms
+     × M4: inside a hunk, '--- a/x' / '+++ b/x' lines are a removed and an added line, as git --recount reads them 0ms
+⎯⎯⎯⎯⎯⎯ Failed Tests 25 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  25 failed | 2 passed (27)

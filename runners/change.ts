@@ -11,8 +11,20 @@
 //      (which oracle name is wired for which market). Never Moonwell's contracts, never mip-x43.sol,
 //      never chains/8453.json (the address book).
 // 3. It changes at most 200 lines (added + removed).
-// 4. TS only: no added line imports a network, file-system or process module, and none calls fetch.
-// 5. `git apply --check` accepts it in a scratch copy of the target's exact bytes.
+// 4. TS only (S9, day-6 review): no added line may load or reach code from outside the file: no
+//    import of any kind (static, dynamic import(), import.meta), no require / createRequire /
+//    getBuiltinModule, no eval, no Function constructor (Function(...), .constructor), no computed
+//    access on global / self / window / process, no globalThis at all (globalThis["fe"+"tch"]), no process.*
+//    and no fetch. This is a strict SCREEN on the text, not the security boundary: text can always be
+//    disguised in ways a screen misses. The boundary is the sandbox the code runs in
+//    (runners/executor/local.ts: Node's permission model, no network, no file writes, no child
+//    processes, only its own temp folder readable), and runners/ts/primordials.ts guards the record.
+//    No added line may hold a lone carriage return either (M3): JavaScript runs the text after a "\r"
+//    as code while a diff view can show it inside a comment.
+// 5. Atlas's own reader places every hunk (src/diff.ts placeHunks: no hunk without an unchanged or
+//    removed line, no hunk past the end of the file, no ambiguous place), and `git apply` in a scratch
+//    copy of the target's exact bytes must give exactly the same bytes (S3). .atlas.json verify uses the
+//    same placeHunks, so the file and the run always agree on the changed code.
 // 6. Moonwell only: the changed config still parses by the same parser the runner uses
 //    (runners/evm/apply.ts), and every name it uses resolves in the PR's own chains/8453.json
 //    (the wrapper name is <oracle name>_OEV_WRAPPER, as mip-x43.sol's _wireCoreFeeds builds it).
@@ -20,7 +32,7 @@
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { changedLineCount, parseUnifiedDiff, type DiffFile } from "../src/diff.ts";
+import { changedLineCount, parseUnifiedDiff, placeHunks, type DiffFile } from "../src/diff.ts";
 import { loadAddressBook, MOONWELL_PR_COPY, parseBaseOracleConfigs, planFeedActions, type PlannedFeedAction } from "./evm/apply.ts";
 import { applyInScratch } from "./scratch.ts";
 
@@ -31,10 +43,23 @@ export const MOONWELL_CONFIG_FILE = "proposals/ChainlinkOracleConfigs.sol";
 /** The PR files the scratch copy holds (paths as in the PR). Only the config is editable. */
 export const MOONWELL_SCRATCH_FILES = [MOONWELL_CONFIG_FILE, "proposals/mips/mip-x43/mip-x43.sol", "chains/8453.json"] as const;
 
-/** Module names an added TS line may not import (with or without "node:"). */
-const FORBIDDEN_MODULE = /^(node:)?(fetch|https?|http2|net|tls|dgram|dns|child_process|cluster|worker_threads|fs|fs\/promises|undici)(\/.*)?$/;
-/** Import forms: static import/export-from, side-effect import, dynamic import(), require(). */
-const IMPORT_SPECIFIERS = /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+|\brequire\s*\(\s*)["'`]([^"'`]+)["'`]/g;
+/**
+ * S9 (day-6 review): what an added TS line may not contain. A strict screen on the text (see rule 4 above);
+ * the sandbox is the boundary. Each entry: the pattern, and what Atlas says in plain words.
+ */
+const FORBIDDEN_TS: [RegExp, string][] = [
+  [/\bimport\b/, "an import (static, dynamic or import.meta)"],
+  [/\brequire\b/, "a require"],
+  [/\bcreateRequire\b/, "createRequire"],
+  [/\bgetBuiltinModule\b/, "getBuiltinModule"],
+  [/\beval\b/, "eval"],
+  [/\bFunction\s*\(/, "the Function constructor"],
+  [/\.\s*constructor\b|\[\s*["'`]constructor["'`]\s*\]/, "a .constructor access (it reaches the Function constructor)"],
+  [/\bglobalThis\b/, "a use of globalThis"],
+  [/\b(?:global|self|window|process)\s*\)?\s*(?:as\s+\w+\s*\)?\s*)?(?:\?\.)?\s*\[/, "a computed property access on a global object"],
+  [/\bprocess\s*(?:\?\.|\.)/, "a use of process"],
+  [/\bfetch\b/, "fetch"],
+];
 
 export interface ChangeContext {
   kind: "ts" | "evm";
@@ -68,19 +93,20 @@ export function moonwellChangeContext(dir = MOONWELL_PR_COPY): ChangeContext {
   return { kind: "evm", files, editable: [MOONWELL_CONFIG_FILE] };
 }
 
-/** Rule 4: the first added line that imports a forbidden module or calls fetch, in plain words. */
+/** Rule 4: the first added line that holds something the TS screen refuses, in plain words. */
 export function forbiddenImport(files: DiffFile[]): string | null {
   for (const f of files) {
     for (const line of f.added) {
-      for (const m of line.matchAll(IMPORT_SPECIFIERS)) {
-        if (FORBIDDEN_MODULE.test(m[1]!)) return `the change adds an import of "${m[1]}" in ${f.newPath} (network, file-system and process modules are not allowed)`;
+      for (const [re, what] of FORBIDDEN_TS) {
+        if (re.test(line)) return `the change adds ${what}, which a change to this code may not add (network, file, process and code-loading access are refused)`;
       }
-      if (/\bfetch\s*\(/.test(line)) return `the change adds a call to fetch in ${f.newPath} (network calls are not allowed)`;
-      if (/\bprocess\s*\.\s*(binding|dlopen)\b/.test(line)) return `the change reaches into process internals in ${f.newPath}`;
     }
   }
   return null;
 }
+
+/** S5: a path from the diff is named only when it is a file of this target; otherwise it is described. */
+const pathName = (p: string | null, ctx: ChangeContext) => (p !== null && p in ctx.files ? p : "a file outside this target");
 
 /** Rules 1–6, in that order. The first that fails is the reason. */
 export async function checkChange(diff: string, ctx: ChangeContext): Promise<CheckedChange> {
@@ -88,26 +114,38 @@ export async function checkChange(diff: string, ctx: ChangeContext): Promise<Che
   if (!parsed.ok) return parsed;
   const files = parsed.files;
   for (const f of files) {
-    if (f.oldPath !== f.newPath) return { ok: false, reason: `the diff moves ${f.oldPath ?? "/dev/null"} to ${f.newPath ?? "/dev/null"}; only edits to existing files are allowed` };
+    if (f.oldPath !== f.newPath) return { ok: false, reason: `the diff moves ${pathName(f.oldPath, ctx)} to ${pathName(f.newPath, ctx)}; only edits to existing files are allowed` };
     if (!ctx.editable.includes(f.newPath!)) {
       const known = f.newPath! in ctx.files;
       return {
         ok: false,
         reason: known
           ? `the diff touches ${f.newPath}, which may not change (only ${ctx.editable.join(", ")} may)`
-          : `the diff touches ${f.newPath}, which is not a file of this target (only ${ctx.editable.join(", ")} may change)`,
+          : `the diff touches a file outside this target (only ${ctx.editable.join(", ")} may change)`,
       };
     }
   }
+  if (new Set(files.map((f) => f.newPath)).size !== files.length) return { ok: false, reason: "the diff names the same file twice" };
   const changedLines = changedLineCount(files);
   if (changedLines === 0) return { ok: false, reason: "the diff changes no lines" };
   if (changedLines > MAX_CHANGED_LINES) return { ok: false, reason: `the diff changes ${changedLines} lines; at most ${MAX_CHANGED_LINES} are allowed` };
+  if (files.some((f) => f.added.some((l) => l.includes("\r")))) return { ok: false, reason: "an added line holds a carriage return on its own, which can hide code after it" };
   if (ctx.kind === "ts") {
     const bad = forbiddenImport(files);
     if (bad) return { ok: false, reason: bad };
   }
+  // S3: Atlas's own reader places the change; git must give the same bytes.
+  const placed: Record<string, string> = { ...ctx.files };
+  for (const f of files) {
+    const r = placeHunks(ctx.files[f.newPath!]!, f);
+    if (!r.ok) return { ok: false, reason: `${f.newPath}: ${r.reason}` };
+    placed[f.newPath!] = r.text;
+  }
   const applied = await applyInScratch(ctx.files, diff);
   if (!applied.ok) return applied;
+  for (const rel of Object.keys(ctx.files)) {
+    if (applied.files[rel] !== placed[rel]) return { ok: false, reason: `git apply and Atlas's own reader place the change in ${rel} differently, so it is not tried` };
+  }
   // The files that may not change must be byte-identical after `git apply` (belt and braces).
   for (const [rel, text] of Object.entries(ctx.files)) {
     if (!ctx.editable.includes(rel) && applied.files[rel] !== text) return { ok: false, reason: `${rel} changed in the scratch copy, and it may not` };

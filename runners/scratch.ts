@@ -59,21 +59,32 @@ function git(cwd: string, args: string[], input?: string): Promise<{ code: numbe
   });
 }
 
+/**
+ * S5 (day-6 review): git's error text names paths and lines from the diff, which a model wrote. Only a
+ * "patch failed: <file>:<line>" naming a file of this target is kept; nothing else from git is shown.
+ */
+export function gitReason(stderr: string, known: readonly string[]): string {
+  for (const line of stderr.split("\n")) {
+    const m = /patch failed: (.+):(\d+)\s*$/.exec(line.trim());
+    if (m && known.includes(m[1]!)) return `it does not fit ${m[1]} as written (the hunk at line ${m[2]})`;
+  }
+  return "it does not fit the code as written";
+}
+
 /** `git apply --check`: does the diff apply to the scratch copy's exact bytes? Never changes a file. */
-export async function applyCheck(scratch: Scratch, diff: string): Promise<{ ok: true } | { ok: false; reason: string }> {
+export async function applyCheck(scratch: Scratch, diff: string, known: readonly string[] = []): Promise<{ ok: true } | { ok: false; reason: string }> {
   const r = await git(scratch.dir, ["apply", "--check", "--recount", "--unidiff-zero", "--whitespace=nowarn", "-"], diff);
   if (r.code === 0) return { ok: true };
-  const why = r.stderr.trim().split("\n").slice(0, 3).join(" | ").replaceAll(scratch.dir, "<scratch>");
-  return { ok: false, reason: `git apply --check refused the diff: ${why || `exit ${r.code}`}` };
+  return { ok: false, reason: `git apply --check refused the diff: ${gitReason(r.stderr, known)}` };
 }
 
 /** Apply the diff in the scratch copy (after applyCheck passed). */
-export async function applyDiff(scratch: Scratch, diff: string): Promise<{ ok: true } | { ok: false; reason: string }> {
-  const check = await applyCheck(scratch, diff);
+export async function applyDiff(scratch: Scratch, diff: string, known: readonly string[] = []): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const check = await applyCheck(scratch, diff, known);
   if (!check.ok) return check;
   const r = await git(scratch.dir, ["apply", "--recount", "--unidiff-zero", "--whitespace=nowarn", "-"], diff);
   if (r.code === 0) return { ok: true };
-  return { ok: false, reason: `git apply failed: ${r.stderr.trim().split("\n")[0]?.replaceAll(scratch.dir, "<scratch>") ?? `exit ${r.code}`}` };
+  return { ok: false, reason: `git apply failed: ${gitReason(r.stderr, known)}` };
 }
 
 export function readScratch(scratch: Scratch, rel: string): string {
@@ -87,7 +98,7 @@ export function readScratch(scratch: Scratch, rel: string): string {
 export async function applyInScratch(files: Record<string, string>, diff: string): Promise<{ ok: true; files: Record<string, string> } | { ok: false; reason: string }> {
   const s = await makeScratch(files);
   try {
-    const r = await applyDiff(s, diff);
+    const r = await applyDiff(s, diff, Object.keys(files));
     if (!r.ok) return r;
     const out: Record<string, string> = {};
     for (const rel of Object.keys(files)) out[rel] = readScratch(s, rel);

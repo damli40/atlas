@@ -104,9 +104,15 @@ export function loadAddressBook(json: string): Map<string, Address> {
   return book;
 }
 
+/**
+ * S5 (day-6 review): a name from a changed config is text a model wrote. It is quoted in Atlas's sentence
+ * only when it reads like an address-book name (letters, digits, underscores); otherwise it is described.
+ */
+export const safeName = (name: string) => (/^[A-Za-z0-9_]{1,64}$/.test(name) ? name : "a name that is not written like an address-book name");
+
 function lookup(book: Map<string, Address>, name: string, why: string): Address {
   const a = book.get(name);
-  if (!a) throw new Error(`chains/8453.json has no address named ${name} (${why})`);
+  if (!a) throw new Error(`chains/8453.json has no address named ${safeName(name)} (${why})`);
   return a;
 }
 
@@ -126,7 +132,7 @@ export function planFeedActions(configs: OracleConfig[], book: Map<string, Addre
     return {
       config,
       wrapperName,
-      wrapper: lookup(book, wrapperName, `wrapper for ${config.oracleName}`),
+      wrapper: lookup(book, wrapperName, `wrapper for ${safeName(config.oracleName)}`),
       token: lookup(book, config.tokenKey, "token"),
       mToken: lookup(book, config.mTokenKey, "market"),
     };
