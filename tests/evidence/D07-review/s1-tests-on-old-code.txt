@@ -1,4 +1,4 @@
- RUN  v5.0.5 /Users/Admin/Documents/Atlas-Meta
+ RUN  v5.0.5 <repo>
  ❯ tests/unit/review-day7-ui.test.tsx (2 tests | 2 failed) 21ms
    ❯ S1: the Change screen labels each model bettor by its own name (2)
      × 'both' mode (D07-01 round 1): Spark's rows say Spark, Spark Open's rows say Spark Open via Baseten 17ms
