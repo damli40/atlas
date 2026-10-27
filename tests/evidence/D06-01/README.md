@@ -99,5 +99,9 @@ results on those rows are recorded in the `replay_checks` trace event, never use
 - The first TS try (`try1/`) reported model `muse-spark-1.3-contributor` although `--contributor-mode off` was
   passed. The fixture code and the prompt went to a model Meta may train on. `--model muse-spark-1.3` was added;
   the next runs reported `muse-spark-1.3`. Attempts answered by a contributor model are now flagged.
+  In one plain sentence: on Oct 27 (08:53–08:54 UTC) two Muse Code calls, $0.34 together (lines 44–45 of
+  `tests/evidence/usage/usage.jsonl`), sent the withRpcRetry fixture and the change prompt to
+  `muse-spark-1.3-contributor`, a model Meta may train on; the fixture is public code, and since then Atlas
+  refuses any contributor model id before and after every call.
 - The replay is not yet written into `.atlas.json` (the proof file belongs to the D06-03 work).
 - Cached input tokens are billed in `cost.json` at the full input price, so the cost is an upper bound.

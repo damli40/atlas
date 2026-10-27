@@ -1,0 +1,12 @@
+
+ RUN  v5.0.5 <repo>
+
+
+ Test Files  75 passed (75)
+      Tests  753 passed | 18 skipped (771)
+   Start at  13:36:52
+   Duration  11.25s (tests 79%, import 20%, transform 1%)
+
+    Isolate  75 workers spawned · ~124ms startup each (spawn + environment, per file)
+             at least ~910ms faster with isolate: false — reuses workers across files instead of one per file
+

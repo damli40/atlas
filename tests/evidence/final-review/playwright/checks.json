@@ -1,0 +1,158 @@
+{
+  "axe": {
+    "drop-fixture": {
+      "violations": [],
+      "passes": 30,
+      "incomplete": 1
+    },
+    "verdict-fixture": {
+      "violations": [],
+      "passes": 47,
+      "incomplete": 2
+    },
+    "drop-moonwell": {
+      "violations": [],
+      "passes": 30,
+      "incomplete": 1
+    },
+    "verdict-moonwell": {
+      "violations": [],
+      "passes": 49,
+      "incomplete": 2
+    },
+    "change-moonwell": {
+      "violations": [],
+      "passes": 49,
+      "incomplete": 2
+    },
+    "proof-card-fixture": {
+      "violations": [],
+      "passes": 38,
+      "incomplete": 0
+    },
+    "proof-card-moonwell": {
+      "violations": [],
+      "passes": 39,
+      "incomplete": 1
+    }
+  },
+  "overflow": {
+    "proof-card-fixture": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "noScroll": true,
+      "wide": []
+    },
+    "proof-card-moonwell": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "noScroll": true,
+      "wide": []
+    },
+    "drop-fixture": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "noScroll": true,
+      "wide": []
+    },
+    "verdict-fixture": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "noScroll": true,
+      "wide": []
+    },
+    "drop-moonwell": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "noScroll": true,
+      "wide": []
+    },
+    "scale": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "noScroll": true,
+      "wide": []
+    }
+  },
+  "motion": {
+    "drop-fixture": {
+      "running": 0,
+      "which": []
+    },
+    "verdict-fixture": {
+      "running": 0,
+      "which": []
+    },
+    "verdict-moonwell": {
+      "running": 0,
+      "which": []
+    },
+    "change-moonwell": {
+      "running": 0,
+      "which": []
+    },
+    "proof-card-fixture": {
+      "running": 0,
+      "which": []
+    },
+    "proof-card-moonwell": {
+      "running": 0,
+      "which": []
+    }
+  },
+  "errors": [],
+  "overlap": {
+    "verdict-moonwell": {
+      "textBoxes": 76,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "cardWidth": 728
+    },
+    "proof-card-fixture-1920": {
+      "textBoxes": 114,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "cardWidth": 1600
+    },
+    "proof-card-fixture-390": {
+      "textBoxes": 125,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "cardWidth": 358
+    },
+    "proof-card-moonwell-1920": {
+      "textBoxes": 123,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "cardWidth": 1600
+    },
+    "proof-card-moonwell-390": {
+      "textBoxes": 162,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "cardWidth": 358
+    }
+  },
+  "markSize-fixture": {
+    "x": 233.1875,
+    "y": 195.5,
+    "width": 240,
+    "height": 240
+  },
+  "markSize-moonwell": {
+    "x": 491.1875,
+    "y": 201,
+    "width": 300,
+    "height": 300
+  }
+}
