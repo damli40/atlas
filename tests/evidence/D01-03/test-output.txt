@@ -1,0 +1,16 @@
+
+ RUN  v5.0.5 /Users/Admin/Documents/Atlas-Meta
+
+ ✓ tests/unit/fixture.test.ts > withRpcRetry fixture > original file still has the pinned SHA-256 1ms
+ ✓ tests/unit/fixture.test.ts > withRpcRetry fixture > fixture block equals lines 31–86 of the original 1ms
+ ✓ tests/unit/fixture.test.ts > withRpcRetry fixture > fixture block is 56 lines and exports withRpcRetry 0ms
+ ✓ tests/unit/fixture.test.ts > retry oracle table > has S1–S6, H1, H2 in order 0ms
+ ✓ tests/unit/fixture.test.ts > retry oracle table > each case is internally consistent 0ms
+ ✓ tests/unit/health.test.ts > GET /health > returns ok: true 22ms
+
+ Test Files  2 passed (2)
+      Tests  6 passed (6)
+   Start at  05:07:00
+   Duration  114ms (tests 51%, import 32%, transform 10%, worker 7%)
+
+exit 0

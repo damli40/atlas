@@ -1,0 +1,70 @@
+{
+  "about": "PRE-EXISTING (listed in PRE-EXISTING.md): what withRpcRetry must do in each scenario, written Oct 22, 2026 as test data. Read from the code with its defaults: 5 attempts, 3000 ms between failed attempts, no timer, no error filtering, rethrows the last error.",
+  "function": "withRpcRetry",
+  "fixture": "tests/fixtures/with-rpc-retry.ts",
+  "defaults": { "attempts": 5, "delayMs": 3000 },
+  "logFormat": "${label}: chain read failed (attempt ${i}/${attempts}, likely RPC lag) — retrying in ${delayMs / 1000}s",
+  "logNote": "\"likely RPC lag\" is a guess written into the log, not a diagnosis.",
+  "harnessWatchLimitMs": 30000,
+  "cases": [
+    {
+      "id": "S1",
+      "fn": "resolves the first time",
+      "input": { "failTimes": 0, "failure": "error" },
+      "expected": { "calls": 1, "waitsMs": [], "totalWaitMs": 0, "logCount": 0, "logAttempts": [], "outcome": "returns", "returns": "the value" },
+      "targetsGuess": "it always waits first"
+    },
+    {
+      "id": "S2",
+      "fn": "rejects once, then resolves",
+      "input": { "failTimes": 1, "failure": "error" },
+      "expected": { "calls": 2, "waitsMs": [3000], "totalWaitMs": 3000, "logCount": 1, "logAttempts": ["1/5"], "outcome": "returns", "returns": "the value" },
+      "targetsGuess": "it waits 15 s regardless"
+    },
+    {
+      "id": "S3",
+      "fn": "rejects 5 times, each error different",
+      "input": { "failTimes": 5, "failure": "error", "distinctErrors": true },
+      "expected": { "calls": 5, "waitsMs": [3000, 3000, 3000, 3000], "totalWaitMs": 12000, "logCount": 4, "logAttempts": ["1/5", "2/5", "3/5", "4/5"], "outcome": "throws", "throws": "the 5th error" },
+      "targetsGuess": "it throws the first error / 5 waits"
+    },
+    {
+      "id": "S4",
+      "fn": "rejects with a 429 error, then resolves",
+      "input": { "failTimes": 1, "failure": "error", "error": "429" },
+      "expected": { "calls": 2, "waitsMs": [3000], "totalWaitMs": 3000, "logCount": 1, "logAttempts": ["1/5"], "outcome": "returns", "returns": "the value" },
+      "targetsGuess": "it honours Retry-After / backs off"
+    },
+    {
+      "id": "S5",
+      "fn": "resolves with {status: 429}",
+      "input": { "failTimes": 0, "failure": "error", "resolvesWith": { "status": 429 } },
+      "expected": { "calls": 1, "waitsMs": [], "totalWaitMs": 0, "logCount": 0, "logAttempts": [], "outcome": "returns", "returns": { "status": 429 } },
+      "targetsGuess": "a 429 always triggers a retry"
+    },
+    {
+      "id": "S6",
+      "fn": "never settles",
+      "input": { "failTimes": "always", "failure": "never_settles" },
+      "expected": { "calls": 1, "waitsMs": [], "totalWaitMs": 0, "logCount": 0, "logAttempts": [], "outcome": "pending", "note": "still pending; the harness stops watching at 30 s" },
+      "targetsGuess": "5 retries, so it's safe (no retry ever fires)",
+      "demoOpensHere": true
+    },
+    {
+      "id": "H1",
+      "heldOut": true,
+      "fn": "resolves after 20 s",
+      "input": { "failTimes": 0, "failure": "error", "resolveAfterMs": 20000 },
+      "expected": { "calls": 1, "waitsMs": [], "totalWaitMs": 0, "logCount": 0, "logAttempts": [], "outcome": "returns", "returns": "the value", "returnsAfterMs": 20000 },
+      "targetsGuess": "tests whether S6's lesson (no timeout) transferred"
+    },
+    {
+      "id": "H2",
+      "spare": true,
+      "fn": "attempts: 3, rejects every time",
+      "input": { "failTimes": "always", "failure": "error", "attempts": 3 },
+      "expected": { "calls": 3, "waitsMs": [3000, 3000], "totalWaitMs": 6000, "logCount": 2, "logAttempts": ["1/3", "2/3"], "outcome": "throws", "throws": "the 3rd error" },
+      "targetsGuess": "tests whether S3 transferred"
+    }
+  ]
+}

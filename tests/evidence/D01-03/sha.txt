@@ -1,0 +1,6 @@
+$ shasum -a 256 <original chain-reads.ts>
+bf2d018c092deba95fb40fc6c4a934e2b2992b58bcde2b83d08590d197059fb6
+expected: bf2d018c092deba95fb40fc6c4a934e2b2992b58bcde2b83d08590d197059fb6
+
+$ diff <(sed -n 31,86p <original>) <(fixture verbatim block)
+no differences
