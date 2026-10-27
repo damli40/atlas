@@ -1,5 +1,5 @@
 
- RUN  v5.0.5 /Users/Admin/Documents/Atlas-wt/pipe
+ RUN  v5.0.5 <repo>
 
  ✓ tests/unit/machines-pricepipe.test.tsx > D05-03 price pipe > model.ts imports nothing but its input types and the USD formatter from src/units.ts 2ms
  ✓ tests/unit/machines-pricepipe.test.tsx > D05-03 price pipe > parts manifest: 40–80 parts, every drawn part is listed, every listed part is drawn in some case, none named after a judgement 66ms

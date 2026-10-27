@@ -1,6 +1,6 @@
 $ vitest run
 
- RUN  v5.0.5 /Users/Admin/Documents/Atlas-wt/pipe
+ RUN  v5.0.5 <repo>
 
 
  Test Files  44 passed (44)

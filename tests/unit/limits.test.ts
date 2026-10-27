@@ -128,7 +128,7 @@ describe("S7 refusal records", () => {
 
   it("scrubs local paths, URLs, long secret-looking strings and the live key; keeps a 64-hex code fingerprint", () => {
     const env = { META_API_KEY: "sekrit-value-123456" } as NodeJS.ProcessEnv;
-    const text = `at /Users/admin/x.ts and C:\\a\\b via https://rpc.example/abc key sekrit-value-123456 sk-ABCDEFGHIJKLMNOPQRSTUV ${"a".repeat(64)}`; // secret-scan: allow (obviously fake values)
+    const text = `at /Users/admin/x.ts and C:\\a\\b via https://rpc.example/abc key sekrit-value-123456 sk-ABCDEFGHIJKLMNOPQRSTUV ${"a".repeat(64)}`; // secret-scan: allow (obviously fake values) // path-check: allow (fake path)
     const out = scrubText(text, env);
     expect(out).not.toMatch(/\/Users\/|C:\\|https:|sekrit|sk-ABC/);
     expect(out).toContain("a".repeat(64));
@@ -136,7 +136,7 @@ describe("S7 refusal records", () => {
 
   it("writeRefusal writes only known fields, scrubbed, into the given folder; the memory writer writes nothing", () => {
     const dir = mkdtempSync(join(tmpdir(), "atlas-refusals-"));
-    const path = writeRefusal({ kind: "cant_check", id: "b1", betId: "b1", runId: "r1", time: "2026-10-28T10:00:00.000Z", role: "human", experiment: { resolvesWith: "/Users/me/secret.txt" }, reason: "x", secret: "nope" } as never, dir);
+    const path = writeRefusal({ kind: "cant_check", id: "b1", betId: "b1", runId: "r1", time: "2026-10-28T10:00:00.000Z", role: "human", experiment: { resolvesWith: "/Users/me/secret.txt" }, reason: "x", secret: "nope" } as never, dir); // path-check: allow (fake path)
     expect(readdirSync(dir)).toEqual(["2026-10-28-r1-b1.json"]);
     const rec = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
     expect(rec).not.toHaveProperty("secret");
