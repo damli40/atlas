@@ -368,6 +368,7 @@ export function createApp(opts: AppOptions = {}) {
   const keepProof = (sessionId: string, round: Round, run: Run, bets: Bet[], verdicts: Verdict[]) => {
     const exp = round.experiment;
     const investigatorFindings = investigations.get(sessionId)?.findings.get(exp.target.codeSha256) ?? [];
+    const log = agentLog.history(sessionId).map((e) => e.event);
     try {
       const file = buildAtlasFile({
         target: exp.target,
@@ -376,8 +377,8 @@ export function createApp(opts: AppOptions = {}) {
         run,
         verdicts,
         ...(round.finding ? { findings: recordedFindings(round.finding, investigatorFindings) } : {}),
-        agentLog: agentLog.history(sessionId).map((e) => e.event),
-        extraCaptions: extraCaptionsFor(round.finding, investigatorFindings),
+        agentLog: log,
+        extraCaptions: extraCaptionsFor(round.finding, investigatorFindings, log),
         createdAt: new Date().toISOString(),
       });
       const put = proofStore.put(file, run);

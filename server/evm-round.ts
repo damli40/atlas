@@ -17,8 +17,8 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { nanoid } from "nanoid";
 import type { GateContext } from "../src/gate";
-import { chosenLineCaptions } from "../src/atlasfile";
-import type { AtlasFile, ExperimentShape, Finding } from "../src/types";
+import { chosenLineCaptions, investigatorWasAsked } from "../src/atlasfile";
+import type { AgentEvent, AtlasFile, ExperimentShape, Finding } from "../src/types";
 import { FORK_BLOCK, PR578_CODE_SHA256, TOUCHED_MARKETS } from "../runners/evm/moonwell-base";
 import { planFromPrFiles } from "../runners/evm/apply";
 import { MOONWELL_PR_578 } from "./targets/github";
@@ -67,7 +67,9 @@ export function recordedFindings(finding: Finding | undefined, investigatorFindi
   return [finding, ...investigatorFindings.filter((f) => f.id !== finding.id && f.proposedBy.role === "investigator" && f.verified)];
 }
 
-export const extraCaptionsFor = (finding: Finding | undefined, investigatorFindings: readonly Finding[]) => chosenLineCaptions(recordedFindings(finding, investigatorFindings));
+/** `agentLog` is the log the .atlas.json will carry: "the Investigator was not asked" is read from it, as verify reads it. */
+export const extraCaptionsFor = (finding: Finding | undefined, investigatorFindings: readonly Finding[], agentLog: readonly Pick<AgentEvent, "role" | "model">[]) =>
+  chosenLineCaptions(recordedFindings(finding, investigatorFindings), investigatorWasAsked(agentLog));
 
 /** The most lines a person may pick (the same limit the Investigator's places have). */
 export const MAX_PICKED_LINES = 41;

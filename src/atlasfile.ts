@@ -22,7 +22,9 @@
 
 import { z } from "zod";
 import { judge } from "./judge";
-import { FORK_BLOCK } from "../runners/evm/moonwell-base";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { FORK_BLOCK, PR578_CODE_SHA256 } from "../runners/evm/moonwell-base";
 import { falseAlarmFromRun } from "./falsealarm";
 import { chainlinkTo1e18, usdTimesRatio1e18 } from "./units";
 import { canonicalJson, verifySeal } from "./seal";
@@ -37,6 +39,13 @@ export const CBETH_PICKED_BY_PERSON = "the cbETH line was picked by a person";
 export const INVESTIGATOR_POINTED_ELSEWHERE = "the Investigator pointed elsewhere";
 export const INVESTIGATOR_ALSO_POINTED_HERE = "the Investigator also pointed here";
 export const INVESTIGATOR_NO_CHECKED_PLACE = "the Investigator had no checked place on this code";
+/** m5: said instead of "no checked place" when the file's agent log shows no Investigator call at all. */
+export const INVESTIGATOR_NOT_ASKED = "the Investigator was not asked";
+/** S3: the first half when a person picked several lines that hold the cbETH line (never "the cbETH line was picked"). */
+export const personPickedLinesCaption = (lineStart: number, lineEnd: number, cbEth: { from: number; to: number } | null) =>
+  cbEth
+    ? `the person picked lines ${lineStart}–${lineEnd}, which hold the cbETH line (${cbEth.from === cbEth.to ? `line ${cbEth.from}` : `lines ${cbEth.from}–${cbEth.to}`})`
+    : `the person picked lines ${lineStart}–${lineEnd}`;
 /** Caption when a person picked the cbETH line and no verified Investigator finding covers it. */
 export const HUMAN_PICKED_CBETH_CAPTION = `${CBETH_PICKED_BY_PERSON}; ${INVESTIGATOR_POINTED_ELSEWHERE}`;
 /** Caption when a person picked the cbETH line and a verified Investigator finding covers it too. */
@@ -228,28 +237,59 @@ const overlaps = (a: Pick<Finding, "file" | "lineStart" | "lineEnd">, b: Pick<Fi
   a.file === b.file && a.lineStart <= b.lineEnd && b.lineStart <= a.lineEnd;
 
 /**
+ * S3: the exact line(s) of the cbETH oracle-config push inside the chosen finding, located by plain code in
+ * its quoted snippet. A person's snippet is exactly lines lineStart..lineEnd of the file (server/evm-round.ts
+ * humanFinding), so the match's line offset in the snippet is its line in the file. null when the snippet
+ * does not have one line per picked line (then the line cannot be placed).
+ */
+export function cbEthLineIn(f: Pick<Finding, "lineStart" | "lineEnd" | "quotedSnippet">): { from: number; to: number } | null {
+  const m = CBETH_CONFIG.exec(f.quotedSnippet);
+  if (!m) return null;
+  if (f.quotedSnippet.split("\n").length !== f.lineEnd - f.lineStart + 1) return null;
+  const before = f.quotedSnippet.slice(0, m.index).split("\n").length - 1;
+  const inside = m[0].split("\n").length - 1;
+  return { from: f.lineStart + before, to: f.lineStart + before + inside };
+}
+
+/**
  * M7: the "chosen line" caption, decided by plain code from the findings alone (the server and verify
- * call this same function, so neither half is the server's word).
+ * call this same function, with the same inputs from the file).
  * - `findings[0]` is the finding the round worked on; the rest are the Investigator's places on this code.
  * - A caption exists only when the chosen finding quotes the cbETH oracle-config line
  *   (OracleConfig(..., "MOONWELL_cbETH")) AND a person picked it (proposedBy.role "human").
- * - Second half: "the Investigator also pointed here" when a VERIFIED Investigator finding's line range
- *   includes the chosen lines (same file, ranges overlap); "the Investigator pointed elsewhere" when
- *   there are verified Investigator findings and none does; "the Investigator had no checked place on
- *   this code" when there is no verified Investigator finding at all (so "elsewhere" is never said
- *   about a model that found nothing or was not asked).
+ * - First half: "the cbETH line was picked by a person" when the person picked that one line; when they
+ *   picked several lines, "the person picked lines A–B, which hold the cbETH line (line N)" (S3).
+ * - Second half, compared against the cbETH line ITSELF (located by plain code, S3), never against the
+ *   person's whole range: "the Investigator also pointed here" when a VERIFIED Investigator place covers
+ *   that line (same file); "the Investigator pointed elsewhere" when there are verified places and none
+ *   does; "the Investigator had no checked place on this code" when there is none; "the Investigator was
+ *   not asked" when `investigatorAsked` is false (m5). If the cbETH line cannot be placed inside a
+ *   several-line pick, the caption says only "the person picked lines A–B".
  */
-export function chosenLineCaptions(findings: readonly Finding[] | undefined): string[] {
+export function chosenLineCaptions(findings: readonly Finding[] | undefined, investigatorAsked = true): string[] {
   const chosen = findings?.[0];
   if (!chosen || chosen.proposedBy.role !== "human" || !CBETH_CONFIG.test(chosen.quotedSnippet)) return [];
+  const single = chosen.lineStart === chosen.lineEnd;
+  const line = single ? { from: chosen.lineStart, to: chosen.lineEnd } : cbEthLineIn(chosen);
+  const first = single ? CBETH_PICKED_BY_PERSON : personPickedLinesCaption(chosen.lineStart, chosen.lineEnd, line);
+  if (!line) return [first];
   const byModel = findings!.slice(1).filter((f) => f.proposedBy.role === "investigator" && f.verified);
-  if (byModel.length === 0) return [HUMAN_PICKED_CBETH_ALONE_CAPTION];
-  return [byModel.some((f) => overlaps(f, chosen)) ? HUMAN_PICKED_CBETH_ALSO_CAPTION : HUMAN_PICKED_CBETH_CAPTION];
+  const second = !investigatorAsked
+    ? INVESTIGATOR_NOT_ASKED
+    : byModel.length === 0
+      ? INVESTIGATOR_NO_CHECKED_PLACE
+      : byModel.some((f) => overlaps(f, { file: chosen.file, lineStart: line.from, lineEnd: line.to }))
+        ? INVESTIGATOR_ALSO_POINTED_HERE
+        : INVESTIGATOR_POINTED_ELSEWHERE;
+  return [`${first}; ${second}`];
 }
 
+/** m5: the file's agent log shows the Investigator (a Meta model) was called in this session. */
+export const investigatorWasAsked = (agentLog: readonly Pick<AgentEvent, "role" | "model">[]) => agentLog.some((e) => e.role === "investigator" && typeof e.model === "string" && e.model.length > 0);
+
 /** Captions a file may carry beyond the required ones: exactly the chosen-line caption its findings earn. */
-export function allowedExtraCaptions(file: Pick<AtlasFile, "findings">): string[] {
-  return chosenLineCaptions(file.findings);
+export function allowedExtraCaptions(file: Pick<AtlasFile, "findings" | "agentLog">): string[] {
+  return chosenLineCaptions(file.findings, investigatorWasAsked(file.agentLog));
 }
 
 const asRecord = (x: unknown): Record<string, unknown> => (x && typeof x === "object" && !Array.isArray(x) ? (x as Record<string, unknown>) : {});
@@ -406,6 +446,7 @@ export function verifyAtlasFile(raw: unknown): Verification {
     if (!sameJson(again, v)) say(`the verdict on bet ${b.id} is not what src/judge.ts gives for it (stored ${v.outcome}, judged ${again.outcome})`);
   }
   for (const v of file.verdicts) if (!file.bets.some((b) => b.id === v.betId)) say(`verdict names bet ${v.betId}, which is not in the file`);
+  for (const p of findingProblems(file)) say(p);
   const required = requiredCaptions(file);
   for (const c of required) if (!file.captions.includes(c)) say(`missing caption: "${c}"`);
   const allowed = new Set([...required, ...allowedExtraCaptions(file)]);
@@ -419,6 +460,54 @@ export function verifyAtlasFile(raw: unknown): Verification {
   if (!level2Run && file.falseAlarm) say("only a Level 2 file carries a false-alarm table");
   if (level2Run && file.falseAlarm && !sameJson(falseAlarmFromRun(level2Run), file.falseAlarm)) say("the false-alarm table is not what src/falsealarm.ts rebuilds from the run");
   return problems.length ? { ok: false, problems } : { ok: true, file };
+}
+
+// m6 (day-5 review): a finding in the file is checked where plain code can check it.
+// - Every Investigator finding (a model id, not "none: …") must be one the server's gate verified in this
+//   session: the agent log carries "verifies finding <id> …" with that finding as its ref, and an
+//   Investigator call by that model. A finding added to the file by hand has neither.
+// - When the target is MIP-X43 (#578), the finding's lines are re-read from the committed copy Atlas
+//   applies (contracts/lib/moonwell, the same bytes the EVM runner uses): the lines must exist, a person's
+//   quote must be exactly those lines, and an Investigator's quote must sit inside them.
+// What this cannot catch: someone who also forges the matching agent-log lines AND quotes the real line.
+// The file is not signed; the README says so.
+const MOONWELL_COPY = join(import.meta.dirname, "..", "contracts", "lib", "moonwell");
+const MOONWELL_COPY_FILES = ["chains/8453.json", "proposals/ChainlinkOracleConfigs.sol", "proposals/mips/mip-x43/mip-x43.sol"];
+const squashWs = (s: string) => s.replace(/\s+/g, " ").trim();
+const unprefixed = (q: string) => {
+  const lines = q.split("\n");
+  const nonEmpty = lines.filter((l) => l.trim() !== "");
+  return nonEmpty.length > 0 && nonEmpty.every((l) => /^\s*\d+\| ?/.test(l)) ? lines.map((l) => l.replace(/^\s*\d+\| ?/, "")).join("\n") : q;
+};
+
+function findingProblems(file: AtlasFile): string[] {
+  const out: string[] = [];
+  const copy = file.target.codeSha256 === PR578_CODE_SHA256 && file.target.kind === "github-pr";
+  for (const f of file.findings ?? []) {
+    const byModel = f.proposedBy.role === "investigator" && !f.proposedBy.model.startsWith("none:");
+    if (byModel) {
+      const gate = file.agentLog.some((e) => e.ref?.kind === "finding" && e.ref.id === f.id && e.action.startsWith(`verifies finding ${f.id} `));
+      const called = file.agentLog.some((e) => e.role === "investigator" && e.model === f.proposedBy.model);
+      if (!gate || !called) out.push(`finding ${f.id} says ${f.proposedBy.model} proposed it, but the agent log shows no ${!called ? "call to that model" : "gate check of that finding"}`);
+    }
+    if (!copy || !MOONWELL_COPY_FILES.includes(f.file)) continue;
+    let text: string;
+    try {
+      text = readFileSync(join(MOONWELL_COPY, f.file), "utf8");
+    } catch {
+      continue; // the copy is not on this machine: cannot check, so not checked
+    }
+    const lines = text.split("\n");
+    const count = text.endsWith("\n") ? lines.length - 1 : lines.length;
+    if (f.lineStart < 1 || f.lineEnd < f.lineStart || f.lineEnd > count) {
+      out.push(`finding ${f.id}: lines ${f.lineStart}–${f.lineEnd} are not inside 1–${count} of ${f.file}`);
+      continue;
+    }
+    const range = lines.slice(f.lineStart - 1, f.lineEnd);
+    if (f.proposedBy.role === "human" && f.quotedSnippet !== range.join("\n")) out.push(`finding ${f.id}: its quote is not lines ${f.lineStart}–${f.lineEnd} of ${f.file}`);
+    if (byModel && !squashWs(range.join("\n")).includes(squashWs(unprefixed(f.quotedSnippet)))) out.push(`finding ${f.id}: its quote is not inside lines ${f.lineStart}–${f.lineEnd} of ${f.file}`);
+  }
+  return out;
 }
 
 /** Parse a .atlas.json text. Throws with the problems listed when it does not verify. */
