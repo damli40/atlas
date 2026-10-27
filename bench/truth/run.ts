@@ -118,7 +118,7 @@ function short(v: unknown, max = 70): string {
 
 function expectedCell(e: TruthExpect): string {
   if (e.cantCheck) return "can't check";
-  const parts: string[] = [e.outcome];
+  const parts: string[] = [typeof e.outcome === "string" ? e.outcome : `outcome depends on ${e.outcome.dependsOn}`];
   if (e.returnedJson !== undefined) parts.push(`json ${short(JSON.stringify(e.returnedJson), 40)}`);
   if (e.returnedNotJson) parts.push(`not JSON (${e.returnedNotJson.type})`);
   if (e.thrownName !== undefined) parts.push(`name ${e.thrownName ?? "(none)"}`);

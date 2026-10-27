@@ -15,3 +15,9 @@ in the same commit. `tests/unit/bench-order.test.ts` checks this. Earlier entrie
   file under `runners/` and the bench and src files it uses), reason categories and fields compared; executor chosen
   by E4's `executorFromEnv`.
 - `bench/lib/registration.ts` (new): the registered paths and content hashes.
+
+## 2026-10-28: before bench T2's registration
+
+- `bench/truth/classify.ts`: `outcome` may also be `{ dependsOn }` (bench T2's unref'd-timer cases, where whether the
+  call ever ends depends on what keeps the process alive). Type change only; bench T's re-score is unchanged.
+- `bench/truth/run.ts`: the table prints such an outcome as "outcome depends on <category>".

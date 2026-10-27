@@ -33,7 +33,8 @@ export type TruthExpect =
   | { cantCheck: true; because: string; reasonCategory?: string | string[] }
   | {
       cantCheck?: undefined;
-      outcome: "returned" | "threw" | "never_settled" | "still_running_at_watch_limit";
+      /** How the call ends; { dependsOn } when even that depends on something outside the code (bench T2, h02). */
+      outcome: "returned" | "threw" | "never_settled" | "still_running_at_watch_limit" | DependsOn;
       /** The returned value; compared as canonical JSON text (keys sorted, JavaScript number forms). */
       returnedJson?: JsonValue | DependsOn;
       returnedType?: string;

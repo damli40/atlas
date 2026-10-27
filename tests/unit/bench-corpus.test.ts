@@ -49,13 +49,31 @@ describe("bench/truth corpus (hand-written expected facts)", () => {
         return;
       }
       for (const k of Object.keys(x)) expect(FACT_KEYS.has(k), `unknown expectation key ${k}`).toBe(true);
-      expect(OUTCOMES).toContain(x.outcome);
+      if (typeof x.outcome === "string") expect(OUTCOMES).toContain(x.outcome);
+      else expect(typeof x.outcome.dependsOn).toBe("string");
       // Every stand-in has an expected count (a number, or null = must not be claimed).
       expect(Object.keys(x.calls ?? {}).sort()).toEqual(standInNames(t).sort());
       if (x.outcome === "returned") expect("returnedJson" in x || "returnedNotJson" in x).toBe(true);
       if (x.outcome === "threw") expect("thrownName" in x && "thrownType" in x).toBe(true);
       expect("virtualMs" in x).toBe(true);
     });
+  }
+});
+
+const TRUTH2 = join(ROOT, "bench/truth-2/expected.json");
+describe.skipIf(!existsSync(TRUTH2))("bench/truth-2 corpus (the found failures, expectations written before any run)", () => {
+  const loaded = existsSync(TRUTH2) ? loadCorpus<TruthExpect>(TRUTH2) : { functions: [], corpus: { bench: "", functions: [] } };
+  const cats = (loaded.corpus as unknown as { reasonCategories?: Record<string, string[]> }).reasonCategories ?? {};
+  for (const f of loaded.functions) {
+    for (const t of f.tests) {
+      it(`${t.id}: the gate allows it; every category it names is registered`, () => {
+        const e = experimentFor(f, t);
+        expect(e.ok, e.ok ? "" : e.reason).toBe(true);
+        const named = JSON.stringify(t.expect).match(/"(?:dependsOn|reasonCategory|wholeRunCantCheckOk)":(?:"([^"]+)"|\[([^\]]*)\])/g) ?? [];
+        for (const m of named) for (const c of m.replace(/^[^:]+:/, "").replace(/[[\]"]/g, "").split(",")) expect(cats[c], `category ${c}`).toBeDefined();
+        expect(standInNames(t).sort()).toEqual(t.expect!.cantCheck ? standInNames(t).sort() : Object.keys(t.expect!.calls ?? {}).sort());
+      });
+    }
   }
 });
 
