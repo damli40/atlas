@@ -1,0 +1,70 @@
+
+ RUN  v5.0.5 /Users/Admin/Documents/Atlas-wt/judge
+
+ ✓ tests/unit/units.test.ts > usdToUsd1e18 (no float drift) > converts whole and decimal USD exactly 1ms
+ ✓ tests/unit/units.test.ts > usdToUsd1e18 (no float drift) > does not equal the floating-point product where that drifts 0ms
+ ✓ tests/unit/units.test.ts > usdToUsd1e18 (no float drift) > rejects NaN, Infinity, junk and more than 18 decimal places 0ms
+ ✓ tests/unit/units.test.ts > toUsd1e18 (oracle raw price → USD 1e18) > brings a 6-decimal stablecoin raw price of about 1e30 to about 1e18 0ms
+ ✓ tests/unit/units.test.ts > toUsd1e18 (oracle raw price → USD 1e18) > leaves an 18-decimal token unchanged 0ms
+ ✓ tests/unit/units.test.ts > toUsd1e18 (oracle raw price → USD 1e18) > rejects nonsense decimals 0ms
+ ✓ tests/unit/units.test.ts > chainlinkTo1e18 > scales an 8-decimal answer by 10^10 0ms
+ ✓ tests/unit/units.test.ts > chainlinkTo1e18 > leaves an 18-decimal answer unchanged 0ms
+ ✓ tests/unit/units.test.ts > formatUsd1e18 > formats with thousands separators and cents 0ms
+ ✓ tests/unit/units.test.ts > formatUsd1e18 > rounds half a cent up 0ms
+ ✓ tests/unit/units.test.ts > parseExactDecimal > reads exponent forms that String(number) produces 0ms
+ ✓ tests/unit/wording.test.ts > wording lint: the extractor > flags string literals but not comments 1ms
+ ✓ tests/unit/wording.test.ts > wording lint: the extractor > flags JSX text in .tsx 0ms
+ ✓ tests/unit/wording.test.ts > wording lint: the codebase > no string in src/, server/, web/, runners/ uses verdict words other than matched / didn't match / can't check 3ms
+ ✓ tests/unit/judge.test.ts > judge: can't check branches > control failed → cant_check, even when the value matches 1ms
+ ✓ tests/unit/judge.test.ts > judge: can't check branches > bet declined → cant_check 0ms
+ ✓ tests/unit/judge.test.ts > judge: can't check branches > field listed in notMeasured → cant_check with the runner's reason 0ms
+ ✓ tests/unit/judge.test.ts > judge: can't check branches > field absent → cant_check naming the field 0ms
+ ✓ tests/unit/judge.test.ts > judge: can't check branches > inherited object keys like 'constructor' count as absent, not measured 0ms
+ ✓ tests/unit/judge.test.ts > judge: can't check branches > bet on a different experiment → cant_check 0ms
+ ✓ tests/unit/judge.test.ts > judge: can't check branches > number bet on a priceUsd1e18 field with a unit other than USD → cant_check 0ms
+ ✓ tests/unit/judge.test.ts > judge: can't check branches > observed stored in a type the bet cannot be compared with → cant_check 0ms
+ ✓ tests/unit/judge.test.ts > judge: can't check branches > order: control check wins over declined and notMeasured 0ms
+ ✓ tests/unit/judge.test.ts > judge: exact matches > integer: exact 0ms
+ ✓ tests/unit/judge.test.ts > judge: exact matches > enum: exact, case-sensitive 0ms
+ ✓ tests/unit/judge.test.ts > judge: exact matches > verdict carries observed and judgedBy 0ms
+ ✓ tests/unit/judge.test.ts > judge: plain numbers, tolerance relative to the observed value > matches inside the band and not outside 0ms
+ ✓ tests/unit/judge.test.ts > judge: plain numbers, tolerance relative to the observed value > zero tolerance means exact 0ms
+ ✓ tests/unit/judge.test.ts > judge: plain numbers, tolerance relative to the observed value > no float drift: 0.1 + 0.2 vs 0.3 at 0% is not_matched, at a tiny tolerance matched 0ms
+ ✓ tests/unit/judge.test.ts > judge: plain numbers, tolerance relative to the observed value > negative tolerance → cant_check 0ms
+ ✓ tests/unit/judge.test.ts > judge: USD 1e18 prices in bigint > bet 2200 USD vs observed $1.12 at 10% → not_matched 0ms
+ ✓ tests/unit/judge.test.ts > judge: USD 1e18 prices in bigint > bet 2250 USD vs observed $2,205 at 10% → matched 0ms
+ ✓ tests/unit/judge.test.ts > judge: USD 1e18 prices in bigint > bet 1.0 USD vs observed $1.12 at 10% → not_matched (tolerance is a share of the observed value) 0ms
+ ✓ tests/unit/judge.test.ts > judge: USD 1e18 prices in bigint > $1.12 observed is not_matched against 2200 at any tolerance under 100% 0ms
+ ✓ tests/unit/judge.test.ts > judge: USD 1e18 prices in bigint > uses exact decimal conversion of the bet (2205.05 at 0% matches 2205.05e18 exactly) 0ms
+ ✓ tests/unit/judge.test.ts > judge: USD 1e18 prices in bigint > attaches the same-block reference when present 0ms
+ ✓ tests/unit/judge.test.ts > judge is pure > does not mutate its inputs and returns the same verdict twice 0ms
+ ✓ tests/unit/seal.test.ts > sha256Hex matches node:crypto > agrees on "" 1ms
+ ✓ tests/unit/seal.test.ts > sha256Hex matches node:crypto > agrees on "abc" 0ms
+ ✓ tests/unit/seal.test.ts > sha256Hex matches node:crypto > agrees on "aaaaaaaaaaaaaaaaaaaa…(55)" 0ms
+ ✓ tests/unit/seal.test.ts > sha256Hex matches node:crypto > agrees on "aaaaaaaaaaaaaaaaaaaa…(56)" 0ms
+ ✓ tests/unit/seal.test.ts > sha256Hex matches node:crypto > agrees on "aaaaaaaaaaaaaaaaaaaa…(64)" 0ms
+ ✓ tests/unit/seal.test.ts > sha256Hex matches node:crypto > agrees on "aaaaaaaaaaaaaaaaaaaa…(1000)" 0ms
+ ✓ tests/unit/seal.test.ts > sha256Hex matches node:crypto > agrees on "héllo wörld" 0ms
+ ✓ tests/unit/seal.test.ts > sha256Hex matches node:crypto > agrees on "日本語のテキスト" 0ms
+ ✓ tests/unit/seal.test.ts > sha256Hex matches node:crypto > agrees on "emoji 🎲🧮 and \u0000 nul" 0ms
+ ✓ tests/unit/seal.test.ts > sha256Hex matches node:crypto > agrees on "{\"answer\":{\"kind\":\"integer\",\"value\":5}}" 0ms
+ ✓ tests/unit/seal.test.ts > sha256Hex matches node:crypto > agrees on the empty string's known hash 0ms
+ ✓ tests/unit/seal.test.ts > sha256Hex matches node:crypto > agrees on random byte arrays of many lengths 1ms
+ ✓ tests/unit/seal.test.ts > canonicalJson > sorts keys at every level, no whitespace 0ms
+ ✓ tests/unit/seal.test.ts > canonicalJson > key order does not change the output 0ms
+ ✓ tests/unit/seal.test.ts > canonicalJson > keeps array order 0ms
+ ✓ tests/unit/seal.test.ts > canonicalJson > rejects undefined, NaN, Infinity, bigint, Date, cycles and holes 1ms
+ ✓ tests/unit/seal.test.ts > canonicalJson > allows the same object twice when it is not a cycle 0ms
+ ✓ tests/unit/seal.test.ts > sealBet / verifySeal > adds a 16-byte hex nonce, an ISO time and a 64-hex hash, and verifies 1ms
+ ✓ tests/unit/seal.test.ts > sealBet / verifySeal > two seals of the same bet differ (fresh nonce) 0ms
+ ✓ tests/unit/seal.test.ts > sealBet / verifySeal > the hash covers exactly who, experimentId, question, measures, answer, nonce, sealedAt 0ms
+ ✓ tests/unit/seal.test.ts > sealBet / verifySeal > verifySeal detects a changed answer 0ms
+ ✓ tests/unit/seal.test.ts > sealBet / verifySeal > verifySeal detects changes to every other sealed field 0ms
+ ✓ tests/unit/seal.test.ts > sealBet / verifySeal > the rationale and id are not sealed (changing them keeps the seal valid) 0ms
+ ✓ tests/unit/seal.test.ts > sealBet / verifySeal > verifySeal returns false (does not throw) on a malformed bet 0ms
+
+ Test Files  4 passed (4)
+      Tests  61 passed (61)
+   Start at  05:13:29
+   Duration  111ms (import 40%, tests 29%, transform 20%, worker 11%)
+
