@@ -1,0 +1,46 @@
+=== withRpcRetry (S3): verdict and retry machine
+axe drop-fixture: 0 violations (none), 30 rules passed
+reduced motion drop-fixture: 0 running animations
+toggle locked while the round is open: true
+toggle unlocked after the run: true
+run facts: run Eejn_2IWog (seed R_V8Wdu18B, local sandbox) started 2026-10-27T13:01:36.784Z known-case check first passed measured calls 5 · total wait 12000 ms · outcome throws
+fixture run id: Eejn_2IWog
+axe verdict-fixture: 0 violations (none), 47 rules passed
+reduced motion verdict-fixture: 0 running animations
+=== Moonwell PR #578, Level 2: verdict, price pipe, market table; then the change and replay
+axe drop-moonwell: 0 violations (none), 30 rules passed
+chosen: This round works on proposals/ChainlinkOracleConfigs.sol line 42 (picked by you).
+chain facts: Chain facts read by Atlas at block 42194662, before the proposal ran: - Block 42194662 timestamp: 1771178671 (2026-02-15 18:04:31 UTC). - Moonwell's oracle, getUnderlyingPrice(MOONWELL_cbETH 0x3bf93770f2d4a794c3d9EBEfBAeBAE2a8f09A5E5), normalised: $2,206.68 per cbETH (raw 2206683650838065175827). - The feed the oracle is wired to for cbETH, getFeed("cbETH"): 0xB0Ba0C5D7DA4ec400C1C3E5ef2485134F89918C5, no description(). - Chainlink ETH/USD aggregator 0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70, description "ETH / USD": latestRoundData answer 196558018952 with 8 decimals (1965.58018952). - Chainlink cbETH/ETH aggregator 0x806b4Ac04501c29769051e42783cF04dCE41440b, description "CBETH / ETH": latestRoundData answer 1122662744874806300 with 18 decimals (1.122662744874806300). Nothing after the proposal is applied is shown here.
+overlap bet-moonwell: card 728 px wide, 56 text boxes, 19 overlapping pairs ("Pull request: moonwell-fi/moonwell-contr" × "After this proposal is applied, what wil"; "Pull request: moonwell-fi/moonwell-contr" × "Written by plain code (src/gate.ts). Eac"; "Pull request: moonwell-fi/moonwell-contr" × "Written by plain code (src/gate.ts). Eac"; "Pull request: moonwell-fi/moonwell-contr" × "10"; "Pull request: moonwell-fi/moonwell-contr" × "% of what the run reads."; "Pull request: moonwell-fi/moonwell-contr" × "Give your best estimate in USD. Decline "; "Pull request: moonwell-fi/moonwell-contr" × "Give your best estimate in USD. Decline "; "Pull request: moonwell-fi/moonwell-contr" × "USD"; "Pull request: moonwell-fi/moonwell-contr" × "USD"; "Pull request: moonwell-fi/moonwell-contr" × "sealed at"), 0 outside the card
+run facts: run R95cAK37Q7 · fork of Base at block 42194662 · chain 8453 what ran Level 2: fork one block before the proposal ran; the proposal's 14 oracle-feed actions applied known-case check first passed (WETH exact, USD stablecoins about $1) cbETH, read $1.12 price sources cbETH's read touched 1 price source (call trace). Observed, not part of the pre-registered rule: PASS-RULE.md counts sources only after a proposed change.
+moonwell run id: R95cAK37Q7
+overlap verdict-moonwell: card 728 px wide, 78 text boxes, 0 overlapping pairs, 0 outside the card
+axe verdict-moonwell: 0 violations (none), 49 rules passed
+reduced motion verdict-moonwell: 0 running animations
+change: 5. Change it toward what you expected changed toward what you expected, then re-run In theory: Atlas wired cbETH_ORACLE directly; the real proposal would first need a new cbETH_ORACLE_OEV_WRAPPER contract deployed. Change proposed by Muse Code (muse-spark-1.3). Checked by plain code before it ran: only the allowed file, at most 200 lines, placed by Atlas's own reader and by git apply in a scratch copy (both must agree). File changed: proposals/ChainlinkOracleConfigs.sol --- a/proposals/ChainlinkOracleConfigs.sol +++ b/proposals/ChainlinkOracleConfigs.sol @@ -39,7 +39,7 @@ // OracleConfig("CHAINLINK_ETH_USD", "WETH", "MOONWELL_WETH") // ); _oracleConfigs[BASE_CHAIN_ID].push( - OracleConfig("cbETHETH_ORACLE", "cbETH", "MOONWELL_cbETH") + OracleConfig("cbETH_ORACLE", "cbETH", "MOONWELL_cbETH") ); // Composite oracles don't support latestRound(), deferred to follow-up // _oracleConfigs[BASE_CHAIN_ID].push( question bettor sealed bet Before change After change After this proposal is applied, what will Moonwell's oracle report for 1 cbETH, in USD? Muse Spark 1.3 (muse-spark-1.3) declined can't check observed $1.12 (the bettor declined) can't check observed $2,206.68 (the bettor declined) After this proposal is applied, what will Moonwell's oracle report for 1 cbETH, in USD? You 2200 USD (±10%) didn't match observed $1.12 matched observed $2,206.68 Same experiment, same block (fork of Base at 42194662 → 42194662), on a fresh fork. Judged by src/judge.ts. Run R95cAK37Q7 → replay EBRK
+axe change-moonwell: 0 violations (none), 49 rules passed
+reduced motion change-moonwell: 0 running animations
+=== proof card (fixture, run Eejn_2IWog)
+fixture proof card: each mark is 240×240 px at 1920×1080; the marks' group is centred at x 641 of 1920, top at y 196
+fixture bettors: You · 3 matched Muse Spark 1.3 (muse-spark-1.3) · 1 matched, 2 didn't match
+overlap proof-card-fixture-1920: card 1600 px wide, 116 text boxes, 0 overlapping pairs, 0 outside the card
+axe proof-card-fixture: 0 violations (none), 38 rules passed
+reduced motion proof-card-fixture: 0 running animations
+390px proof-card-fixture: scrollWidth 390 vs 390 → no horizontal scroll
+overlap proof-card-fixture-390: card 358 px wide, 128 text boxes, 0 overlapping pairs, 0 outside the card
+=== proof card (moonwell, run R95cAK37Q7)
+moonwell proof card: each mark is 300×300 px at 1920×1080; the marks' group is centred at x 641 of 1920, top at y 201
+moonwell bettors: You · didn't match Muse Spark 1.3 (muse-spark-1.3) · can't check
+overlap proof-card-moonwell-1920: card 1600 px wide, 125 text boxes, 0 overlapping pairs, 0 outside the card
+axe proof-card-moonwell: 0 violations (none), 39 rules passed
+reduced motion proof-card-moonwell: 0 running animations
+390px proof-card-moonwell: scrollWidth 390 vs 390 → no horizontal scroll
+overlap proof-card-moonwell-390: card 358 px wide, 165 text boxes, 0 overlapping pairs, 0 outside the card
+=== 390 px width, every screen
+390px drop-fixture: scrollWidth 390 vs 390 → no horizontal scroll
+390px verdict-fixture: scrollWidth 390 vs 390 → no horizontal scroll
+390px drop-moonwell: scrollWidth 390 vs 390 → no horizontal scroll
+overlap bet-moonwell-390: card 358 px wide, 77 text boxes, 23 overlapping pairs ("Pull request: moonwell-fi/moonwell-contr" × "After this proposal is applied, what wil"; "Pull request: moonwell-fi/moonwell-contr" × "After this proposal is applied, what wil"; "Pull request: moonwell-fi/moonwell-contr" × "After this proposal is applied, what wil"; "Pull request: moonwell-fi/moonwell-contr" × "After this proposal is applied, what wil"; "Pull request: moonwell-fi/moonwell-contr" × "After this proposal is applied, what wil"; "Pull request: moonwell-fi/moonwell-contr" × "Written by plain code (src/gate.ts). Eac"; "Pull request: moonwell-fi/moonwell-contr" × "Written by plain code (src/gate.ts). Eac"; "Pull request: moonwell-fi/moonwell-contr" × "Written by plain code (src/gate.ts). Eac"; "Pull request: moonwell-fi/moonwell-contr" × "Written by plain code (src/gate.ts). Eac"; "Pull request: moonwell-fi/moonwell-contr" × "Written by plain code (src/gate.ts). Eac"), 0 outside the card
+390px bet-moonwell: scrollWidth 390 vs 390 → no horizontal scroll
+390px scale: scrollWidth 390 vs 390 → no horizontal scroll
+page errors: none

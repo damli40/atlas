@@ -88,6 +88,9 @@ async function overlap(page, name, root) {
       if (!n.textContent.trim()) continue;
       const el = n.parentElement;
       if (!el || el.closest("svg")) continue;
+      // D21 re-run: text inside a CLOSED <details> is not shown (only its summary is), but Chrome still gives it
+      // layout boxes. Counting it reported 19 "overlaps" that were not on screen (browser-output-before-checker-fix.txt).
+      if (el.closest("details:not([open])") && !el.closest("summary")) continue;
       const st = getComputedStyle(el);
       if (st.visibility === "hidden" || st.display === "none") continue;
       const range = document.createRange();
@@ -190,6 +193,10 @@ await mw.getByRole("button", { name: "Show the question" }).click();
 await mw.getByTestId("bet-usd").fill("2200");
 await mw.getByRole("button", { name: "Seal my bet" }).click();
 await mw.getByTestId("hash-usd").waitFor();
+// D22: the chain facts sit in the bet section above the question; D21 re-run: check that section too.
+say("chain facts:", flat(await mw.getByTestId("chain-facts").innerText()));
+await overlap(mw, "bet-moonwell", 'section[aria-label="bet"]');
+await mw.locator('section[aria-label="bet"]').screenshot({ path: `${outDir}/moonwell-bet-chain-facts.png` });
 await mw.waitForFunction(() => document.querySelector('[data-testid="model-slot"]')?.getAttribute("data-status") !== "thinking", null, { timeout: 60000 });
 await mw.getByRole("button", { name: "Run it on a fork of Base" }).click();
 await mw.getByTestId("price-pipe").first().waitFor({ timeout: 400000 });
@@ -259,6 +266,19 @@ await at390("", "drop-moonwell", async (p) => {
   await p.getByTestId("pr-target").waitFor({ timeout: 60000 });
   await p.getByRole("button", { name: "Read the files and pick lines" }).click();
   await p.getByTestId("pick-file").selectOption("proposals/ChainlinkOracleConfigs.sol");
+});
+await at390("", "bet-moonwell", async (p) => {
+  await p.getByTestId("mode-pr").click();
+  await p.getByTestId("pr-link").fill("https://github.com/moonwell-fi/moonwell-contracts-v2/pull/578");
+  await p.getByRole("button", { name: "Read it" }).click();
+  await p.getByTestId("pr-target").waitFor({ timeout: 60000 });
+  await p.getByRole("button", { name: "Read the files and pick lines" }).click();
+  await p.getByTestId("pick-file").selectOption("proposals/ChainlinkOracleConfigs.sol");
+  await p.locator('[data-testid="pick-code"] [data-line="42"]').click();
+  await p.getByTestId("pick-use").click();
+  await p.getByRole("button", { name: "Show the question" }).click();
+  await p.getByTestId("chain-facts").waitFor({ timeout: 120000 });
+  await overlap(p, "bet-moonwell-390", 'section[aria-label="bet"]');
 });
 await at390("", "scale", async (p) => {
   await p.getByTestId("mode-scale").click();
