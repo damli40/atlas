@@ -8,6 +8,8 @@
 // lines of the span (not a fragment from the middle of a line). A quote with fewer than 12 letters or digits pins
 // nothing (a run of "}" appears everywhere) and never matches.
 
+import { lineSpan } from "../words";
+
 export const MIN_QUOTE_WORD_CHARS = 12;
 
 const squash = (s: string) => s.replace(/\s+/g, " ").trim();
@@ -37,7 +39,7 @@ export function matchesWholeLines(quote: string, lines: readonly string[]): bool
 /** Why `quote` is not whole lines lineStart..lineEnd of `text` (null when it is). Lines are 1-based, inclusive. */
 export function quoteProblem(text: string, lineCount: number, lineStart: number, lineEnd: number, quote: string): string | null {
   if (!Number.isInteger(lineStart) || !Number.isInteger(lineEnd) || lineStart < 1 || lineEnd < lineStart || lineEnd > lineCount) {
-    return `lines ${lineStart}–${lineEnd} are not inside 1–${lineCount}`;
+    return `${lineSpan(lineStart, lineEnd)} ${lineStart === lineEnd ? "is" : "are"} not inside 1–${lineCount}`;
   }
   const q = normaliseQuote(quote);
   const wordChars = (q.match(/[\p{L}\p{N}_]/gu) ?? []).length;

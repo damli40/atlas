@@ -20,6 +20,7 @@ import { languageOf } from "../../src/outline/codemap";
 import { MAX_OUTLINE_FILE_BYTES, MAX_OUTLINE_FILES, MAX_OUTLINE_TOTAL_BYTES, pathProblem, sha256Text, utf8Length } from "../../src/outline/section";
 import type { OutlineFile, OutlineSource, SkippedFile } from "../../src/outline/types";
 import { decodeText } from "../targets/github";
+import { plural } from "../../src/words";
 
 export type IntakeErrorKind = "bad_input" | "not_found" | "rate_limited" | "too_many" | "too_large" | "empty" | "network" | "http" | "integrity";
 
@@ -82,7 +83,7 @@ export const MAX_UPLOAD_ENTRIES = 200;
 
 /** A codebase from uploaded or pasted files ({path, text} each). Throws OutlineIntakeError with a plain reason. */
 export function intakeUpload(entries: ReadonlyArray<{ path: string; text: string }>): Codebase {
-  if (entries.length > MAX_UPLOAD_ENTRIES) throw new OutlineIntakeError("too_many", `${entries.length} files were sent; Atlas takes at most ${MAX_UPLOAD_ENTRIES} in one upload (of which at most ${MAX_OUTLINE_FILES} source files)`);
+  if (entries.length > MAX_UPLOAD_ENTRIES) throw new OutlineIntakeError("too_many", `${plural(entries.length, "file")} ${entries.length === 1 ? "was" : "were"} sent; Atlas takes at most ${MAX_UPLOAD_ENTRIES} in one upload (of which at most ${MAX_OUTLINE_FILES} source files)`);
   const seen = new Set<string>();
   const files: OutlineFile[] = [];
   const skipped: SkippedFile[] = [];

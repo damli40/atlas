@@ -14,6 +14,7 @@
 
 import { parseJsFile, type ParsedFile, type RawImport } from "./parse-js";
 import { parsePyFile } from "./parse-py";
+import { plural } from "../words";
 import type { CodeEdge, CodeImport, CodeMap, CodeMapFile, CodeSymbol, ImportTarget, OutlineFile, OutlineLanguage } from "./types";
 
 /** Brackets nested deeper than this are not parsed (a hostile file must not exhaust the parser's stack). */
@@ -155,7 +156,7 @@ export function resolvePy(importer: string, imp: RawImport, files: ReadonlySet<s
       target = { kind: "file", path: hit.path };
       pkgDir = hit.path.endsWith("/__init__.py") || hit.path === "__init__.py" ? dirOf(hit.path) : hit.path.replace(/\.py$/, "");
     } else if (hit && "ambiguous" in hit) {
-      target = { kind: "unresolved", reason: `"${mod}" matches ${hit.ambiguous.length} files (${hit.ambiguous.slice(0, 3).join(", ")}), so plain code does not pick one` };
+      target = { kind: "unresolved", reason: `"${mod}" matches ${plural(hit.ambiguous.length, "file")} (${hit.ambiguous.slice(0, 3).join(", ")}), so plain code does not pick one` };
       pkgDir = null;
     } else {
       target = { kind: "external", name: mod.split(".")[0]! };
