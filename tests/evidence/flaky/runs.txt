@@ -1,0 +1,23 @@
+# Before the fix (clean copy of commit bb2a329, RPC loaded)
+run 1 exit 0 secs 22
+run 2 exit 0 secs 15
+run 3 exit 0 secs 15
+run 4 exit 1 secs 15
+run 5 exit 0 secs 15
+run 1 passed 768 failed 0 skipped 3 
+run 2 passed 768 failed 0 skipped 3 
+run 3 passed 768 failed 0 skipped 3 
+run 4 passed 767 failed 1 skipped 3 FAILED: review-final-server.test.ts > S2 on a real Base fork (needs BASE_RPC_URL and anvil) first attempt: forced anvil failure; second attempt: the real fork at 42194662; the file verifies with its attempt
+run 5 passed 767 failed 0 skipped 4 
+
+# After the fix (commit af4305d, RPC loaded)
+run 1 exit 0 secs 15
+run 2 exit 0 secs 54
+run 3 exit 0 secs 14
+run 4 exit 0 secs 56
+run 5 exit 0 secs 15
+run 1 passed 782 failed 0 skipped 3
+run 2 passed 782 failed 0 skipped 3
+run 3 passed 782 failed 0 skipped 3
+run 4 passed 782 failed 0 skipped 3
+run 5 passed 782 failed 0 skipped 3

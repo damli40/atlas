@@ -1,5 +1,5 @@
 
- RUN  v5.0.5 ~/Documents/Atlas-Meta
+ RUN  v5.0.5 <repo>
 
 stdout | tests/unit/attempt-order.test.ts > a re-run after an attempt that did not finish starts strictly after that attempt stopped > same-millisecond retry: the .atlas.json is still kept and verifies
 proof reason: the round's .atlas.json does not verify: attempt 1 did not stop before run rv1xmvqmveo5 started
