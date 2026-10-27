@@ -135,6 +135,13 @@ export function checkOutlineValue(json: unknown): ParsedAnswer {
 const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 const shown = (s: string) => visibleText(s.length > 80 ? `${s.slice(0, 79)}…` : s);
 
+/**
+ * The code-map edges that lead from part A's files to part B's files. An edge whose two files both belong to A, or
+ * both to B, is inside one part (two parts can share a file), so it never shows a join between them.
+ */
+const edgesBetween = (map: CodeMap, a: VerifiedPart, b: VerifiedPart) =>
+  map.edges.filter((e) => a.files.includes(e.from) && b.files.includes(e.to) && !(a.files.includes(e.to) && a.files.includes(e.from)) && !(b.files.includes(e.from) && b.files.includes(e.to)));
+
 /** Does this code-map edge show a join of this kind? */
 const edgeFits = (kind: JoinKind, e: CodeEdge) => (kind === "calls" ? e.kind === "calls" : kind === "imports" ? e.kind === "imports" : true);
 
@@ -181,10 +188,10 @@ export function verifyOutline(files: ReadonlyArray<Pick<OutlineFile, "path" | "t
     if (!b) return modelOnly(`part ${shown(j.to)} is not in Wonder's outline`);
     if (a.status !== "confirmed") return modelOnly(`part ${shown(j.from)} is unconfirmed, so plain code does not know its files`);
     if (b.status !== "confirmed") return modelOnly(`part ${shown(j.to)} is unconfirmed, so plain code does not know its files`);
-    const edges = codeMap.edges.filter((e) => a.files.includes(e.from) && b.files.includes(e.to) && edgeFits(j.kind, e));
+    const edges = edgesBetween(codeMap, a, b).filter((e) => edgeFits(j.kind, e));
     if (edges.length === 0) {
       const what = j.kind === "calls" ? "call" : j.kind === "imports" ? "import" : "import or call";
-      return modelOnly(`plain code found no ${what} from a file of ${shown(j.from)} to a file of ${shown(j.to)}`);
+      return modelOnly(`plain code found no ${what} from a file of ${shown(j.from)} to a file of ${shown(j.to)} (it sees imports and calls between files only)`);
     }
     return {
       ...base,
@@ -200,7 +207,7 @@ export function verifyOutline(files: ReadonlyArray<Pick<OutlineFile, "path" | "t
   for (const a of confirmedParts) {
     for (const b of confirmedParts) {
       if (a.id === b.id || joinedPairs.has(`${a.id}\u0000${b.id}`)) continue;
-      const edges = codeMap.edges.filter((e) => a.files.includes(e.from) && b.files.includes(e.to));
+      const edges = edgesBetween(codeMap, a, b);
       if (edges.length === 0) continue;
       joins.push({ id: `code:${a.id}->${b.id}`, from: a.id, to: b.id, kind: edges.some((e) => e.kind === "calls") ? "calls" : "imports", status: "code-only", codeEdges: edges.map((e) => e.id).sort(cmp) });
     }

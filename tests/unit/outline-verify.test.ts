@@ -122,6 +122,16 @@ describe("verifyOutline: joins", () => {
     expect(v.notInAnyPart).toEqual(["src/client.ts", "src/log.ts"]);
   });
 
+  it("two parts sharing a file: an edge inside one part never confirms a join between them", () => {
+    const o = clone(GOOD);
+    // "client" now also covers retry.ts, so client.ts -> retry.ts is inside "client"; "retry" covers retry.ts only.
+    o.parts[1]!.files.push({ path: "src/retry.ts", lineStart: 1, lineEnd: 11, quotedSnippet: "for (let i = 0; i < attempts; i++) {" });
+    o.joins = [{ from: "client", to: "retry", kind: "calls", evidence: { path: "src/client.ts", line: 4, quotedSnippet: 'return retry(() => fetch("https://example.com/u/" + id), 3);' } }];
+    const v = verify(o);
+    expect(v.joins[0]).toMatchObject({ status: "model-only", reason: expect.stringMatching(/between files only/) });
+    expect(v.joins.filter((j) => j.status === "code-only").map((j) => j.id)).toEqual(["code:api->client"]);
+  });
+
   it("a confirmed join whose quoted evidence is wrong stays confirmed by the code map's own edges, and says so", () => {
     const o = clone(GOOD);
     o.joins[0]!.evidence.quotedSnippet = "return fetchUser(somethingElse);";
