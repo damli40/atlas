@@ -1,0 +1,30 @@
+import { chromium } from "playwright-core";
+const [exe, out] = process.argv.slice(2);
+const browser = await chromium.launch({ executablePath: exe });
+const page = await browser.newPage({ viewport: { width: 900, height: 1300 }, deviceScaleFactor: 2, reducedMotion: "reduce" });
+const errors = [];
+page.on("pageerror", (e) => errors.push(e.message));
+await page.goto("http://localhost:5173/");
+await page.getByTestId("pre-existing").waitFor();
+console.log("label:", await page.getByTestId("pre-existing").textContent());
+console.log("default scenario:", await page.locator('input[name="scenario"]:checked').getAttribute("value"));
+await page.getByRole("button", { name: "Show the questions" }).click();
+await page.getByTestId("bet-calls").fill("5");
+await page.getByTestId("bet-totalWaitMs").fill("12000");
+await page.getByTestId("bet-outcome").selectOption("returns");
+await page.getByRole("button", { name: "Seal my bets" }).click();
+await page.getByTestId("hash-outcome").waitFor();
+const before = {};
+for (const m of ["calls", "totalWaitMs", "outcome"]) before[m] = await page.getByTestId(`hash-${m}`).getAttribute("data-hash");
+console.log("hashes shown before Break it:", JSON.stringify(before));
+console.log("inputs disabled:", await page.getByTestId("bet-calls").isDisabled(), await page.getByTestId("bet-outcome").isDisabled());
+await page.screenshot({ path: out.replace(".png", "-1-sealed.png"), fullPage: true });
+await page.getByRole("button", { name: "Break it" }).click();
+await page.getByTestId("seal-check-outcome").waitFor({ timeout: 15000 });
+for (const m of ["calls", "totalWaitMs", "outcome"]) {
+  console.log(`verdict ${m}:`, (await page.getByTestId(`verdict-${m}`).innerText()).replace(/\s+/g, " "));
+  console.log(`seal check ${m}:`, await page.getByTestId(`seal-check-${m}`).getAttribute("data-match"), "|", (await page.getByTestId(`seal-check-${m}`).innerText()).replace(/\s+/g, " "));
+}
+await page.screenshot({ path: out, fullPage: true });
+console.log("page errors:", errors.length ? errors : "none");
+await browser.close();

@@ -1,0 +1,45 @@
+# D02-04 seal proof — 2026-10-27T05:00:41Z
+
+$ pnpm exec vitest run --reporter=verbose tests/unit/bets-ui.test.tsx tests/unit/bets-server.test.ts
+
+ RUN  v5.0.5 /Users/Admin/Documents/Atlas-wt/betsui
+
+ ✓ tests/unit/bets-server.test.ts > POST /experiments > returns the gate decision and the plain-code questions; the id is made by the server when absent 24ms
+ ✓ tests/unit/bets-server.test.ts > POST /bets > seals with server time and a server nonce; returns the hash but not the nonce 2ms
+ ✓ tests/unit/bets-server.test.ts > POST /bets > checks the answer against the question: kind, options, whole numbers, known fields 2ms
+ ✓ tests/unit/bets-server.test.ts > POST /bets > an experiment belongs to its session: another session gets 404 1ms
+ ✓ tests/unit/bets-server.test.ts > POST /runs > refuses to run with no bets (409) 0ms
+ ✓ tests/unit/bets-server.test.ts > POST /runs > reveals each bet in full; sha256(canonicalJson(revealed)) equals the hash shown before; sealedAt < run.startedAt 199ms
+ ✓ tests/unit/bets-ui.test.tsx > D02-04 bets UI: sealed hash before the run, checked by the browser after > one S3 round end to end 276ms
+ ✓ tests/unit/bets-ui.test.tsx > D02-04 bets UI: sealed hash before the run, checked by the browser after > a hash that was tampered with shows ✗ mismatch (the check can fail) 0ms
+ ✓ tests/unit/bets-server.test.ts > POST /runs > a bet posted WHILE the run is going is refused with 409 (bets freeze at run start) 203ms
+ ✓ tests/unit/bets-server.test.ts > POST /runs > asserts sealedAt < startedAt: a stored bet sealed in the future stops the run with 409; nothing runs 2ms
+ ✓ tests/unit/bets-server.test.ts > POST /runs > sealedAfter compares as times, and treats an unreadable time as late 0ms
+
+ Test Files  2 passed (2)
+      Tests  11 passed (11)
+   Start at  06:00:42
+   Duration  607ms (tests 70%, import 21%, transform 8%)
+
+
+$ pnpm test (summary)
+ Test Files  18 passed (18)
+      Tests  239 passed | 3 skipped (242)
+   Start at  06:00:42
+   Duration  1.28s (tests 80%, import 13%, transform 7%, worker 1%)
+
+
+$ pnpm exec tsc --noEmit
+(no output: types check)
+
+$ pnpm gate:day1 (last 4 lines)
+verdicts: 18 matched, 1 didn't match, 1 can't check
+new shape fields reached the sandbox: S4 call 1 rejected with "HttpRequestError: HTTP request failed. Status: 429 Too Many Requests (call 1)"; S5 returned {"status":429}
+control passed on every run: yes; one control run (KsyPPyISBY) reused for all six
+total real time: 709 ms (limit 5000 ms)
+
+$ pnpm exec vite build (last 4 lines)
+dist/assets/index-C0MtbbA5.css    3.06 kB │ gzip:  1.23 kB
+dist/assets/index-C0BS3QMy.js   231.64 kB │ gzip: 73.49 kB
+
+✓ built in 66ms

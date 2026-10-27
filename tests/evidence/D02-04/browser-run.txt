@@ -1,0 +1,13 @@
+# Headless Chromium (playwright-core 1.56.1, cached chrome-headless-shell, reducedMotion: "reduce")
+# driving `pnpm dev:all` (Hono on 8787, Vite on 5173 proxying /api) through one S3 round. Script: drive.mjs
+label: Pre-existing: written before the hackathon (listed in PRE-EXISTING.md)
+default scenario: S3
+hashes shown before Break it: {"calls":"a38ab483274f6d683790ce147829386a581d9551d746759da696439e39da3524","totalWaitMs":"a528f4a89a18d03af42ca93bc452b1bdb7dd0bb8616b69895419fa03c849b94e","outcome":"de17f4e44ad4c85e7806c660673f70312db1043ad286caaaa740133882589889"}
+inputs disabled: true true
+verdict calls: How many times will the function call the RPC? 5 5 matched judged by src/judge.ts
+seal check calls: yes | calls: shown a38ab483274f… · recomputed a38ab483274f… · ✓ match · sealed before the run started
+verdict totalWaitMs: How long will it wait in total, in ms? 12000 12000 matched judged by src/judge.ts
+seal check totalWaitMs: yes | totalWaitMs: shown a528f4a89a18… · recomputed a528f4a89a18… · ✓ match · sealed before the run started
+verdict outcome: How will it end: returns, throws, or pending (never settles)? returns throws didn't match judged by src/judge.ts
+seal check outcome: yes | outcome: shown de17f4e44ad4… · recomputed de17f4e44ad4… · ✓ match · sealed before the run started
+page errors: none
