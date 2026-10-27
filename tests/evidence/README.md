@@ -12,3 +12,4 @@ were run, the raw output, what the check proves, and what it does not.
 | [D01-07](D01-07/README.md) | Meta API client: mocked tests, one live Spark call with usage logged, key absent from evidence, `muse exec` is the headless mode |
 | [D01-04](D01-04/README.md) | TS harness: real withRpcRetry on a virtual clock matches oracle rows S1–S6 and H2; same seed gives the same trace |
 | [D01-05](D01-05/README.md) | Local executor (Node `--permission`: no network, read-only own folder, wall-clock kill); control S1+S3 passes on the fixture, does not pass with attempts edited to 3 |
+| [D01-08](D01-08/README.md) | Day gate: S1–S6 over HTTP, 18 oracle bets matched + 1 didn't match + 1 can't check from real runs, 690 ms; `retry-scenario` gained `errorKind` and `resolvesWith` |

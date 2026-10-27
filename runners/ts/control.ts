@@ -188,6 +188,50 @@ export async function control(target: Target, executor: Executor = localExecutor
   return (await runControl(readFixture(target), { executor, expectedSha256: target.codeSha256 })).run;
 }
 
+/**
+ * Runs one experiment in the sandbox, given a control Run that was already made on the same code.
+ * Exists so a caller (the server) can run the control once per code SHA-256 and reuse it.
+ * The run counts only if that control passed AND it was made on exactly the bytes read now
+ * AND those bytes are the target's; otherwise `controlPassed` is false and every verdict is "can't check".
+ */
+export async function runExperiment(
+  exp: Experiment,
+  ctl: Run,
+  opts: { executor?: Executor; seed?: string; replayOf?: Run["replayOf"] } = {},
+): Promise<Run> {
+  if (!exp.gate.allowed) throw new Error(`experiment ${exp.id} was rejected by the gate: ${exp.gate.reason}`);
+  const executor = opts.executor ?? localExecutor;
+  const code = readFixture(exp.target);
+  const codeSha256 = sha256(code);
+  const seed = opts.seed ?? nanoid(10);
+  const startedAt = new Date().toISOString();
+  const oracle = loadOracle();
+  const res = await execInSandbox(
+    executor,
+    code,
+    { exportName: EXPORT_NAME, runs: [{ id: exp.id, scenario: scenarioFromShape(exp.params), seed, watchLimitMs: oracle.harnessWatchLimitMs }] },
+    DEFAULT_WALL_CLOCK_MS,
+  );
+  const out = res.ok ? res.runs[0] : undefined;
+  const result: Run["result"] = out ? out.result : { measured: {}, notMeasured: { run: res.ok ? "the sandbox returned no result" : res.reason } };
+  const sameCode = ctl.codeSha256 === codeSha256 && exp.target.codeSha256 === codeSha256;
+  return {
+    id: nanoid(10),
+    experimentId: exp.id,
+    runner: "ts",
+    executor: executor.kind,
+    codeSha256,
+    seed,
+    startedAt,
+    finishedAt: new Date().toISOString(),
+    trace: out ? out.trace : [],
+    result,
+    controlPassed: ctl.controlPassed && sameCode,
+    controlRunId: ctl.id,
+    ...(opts.replayOf ? { replayOf: opts.replayOf } : {}),
+  };
+}
+
 /** The TS Runner: every run is preceded by a control on the same code through the same executor. */
 export function tsRunner(executor: Executor = localExecutor): Runner {
   return {
@@ -195,34 +239,12 @@ export function tsRunner(executor: Executor = localExecutor): Runner {
     control: (target) => control(target, executor),
     async run(exp: Experiment, opts): Promise<Run> {
       if (!exp.gate.allowed) throw new Error(`experiment ${exp.id} was rejected by the gate: ${exp.gate.reason}`);
-      const code = readFixture(exp.target);
-      const ctl = await runControl(code, { executor, expectedSha256: exp.target.codeSha256 });
-      const seed = opts.seed ?? nanoid(10);
-      const startedAt = new Date().toISOString();
-      const oracle = loadOracle();
-      const res = await execInSandbox(
+      const ctl = await runControl(readFixture(exp.target), { executor, expectedSha256: exp.target.codeSha256 });
+      return runExperiment(exp, ctl.run, {
         executor,
-        code,
-        { exportName: EXPORT_NAME, runs: [{ id: exp.id, scenario: scenarioFromShape(exp.params), seed, watchLimitMs: oracle.harnessWatchLimitMs }] },
-        DEFAULT_WALL_CLOCK_MS,
-      );
-      const out = res.ok ? res.runs[0] : undefined;
-      const result: Run["result"] = out ? out.result : { measured: {}, notMeasured: { run: res.ok ? "the sandbox returned no result" : res.reason } };
-      return {
-        id: nanoid(10),
-        experimentId: exp.id,
-        runner: "ts",
-        executor: executor.kind,
-        codeSha256: ctl.run.codeSha256,
-        seed,
-        startedAt,
-        finishedAt: new Date().toISOString(),
-        trace: out ? out.trace : [],
-        result,
-        controlPassed: ctl.run.controlPassed,
-        controlRunId: ctl.run.id,
+        ...(opts.seed !== undefined ? { seed: opts.seed } : {}),
         ...(opts.replayOf ? { replayOf: opts.replayOf } : {}),
-      };
+      });
     },
     async replayWithChange(_run: Run, _change: Change): Promise<Run> {
       throw new Error("replayWithChange is not built yet (change-and-replay task)");

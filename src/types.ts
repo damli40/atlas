@@ -53,9 +53,18 @@ export interface Bet {
   rationale?: string;
 }
 
+/** A plain JSON value (what a fake RPC call may resolve with). */
+export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
 export type ExperimentShape =
   // TS runner
-  | { shape: "retry-scenario"; failTimes: number | "always"; failure: "error" | "never_settles"; attempts?: number; delayMs?: number; resolveAfterMs?: number }
+  | {
+      shape: "retry-scenario"; failTimes: number | "always"; failure: "error" | "never_settles"; attempts?: number; delayMs?: number; resolveAfterMs?: number;
+      /** Added D01-08 (oracle row S4). How a failing call fails: "seeded" (default) = an error picked by the seed; "429" = an HTTP 429 error every time. */
+      errorKind?: "seeded" | "429";
+      /** Added D01-08 (oracle row S5). What a successful call resolves with. Default: the string "the value". */
+      resolvesWith?: JsonValue;
+    }
   | { shape: "concurrency-sweep"; callers: number; failTimes: number | "always"; failure: "error"; delayMs?: number }  // callers 1..200
   // EVM runner
   | { shape: "price-read"; markets: string[] }                                   // read getUnderlyingPrice at the fork block

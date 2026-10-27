@@ -7,9 +7,8 @@
 
 import type { ExperimentShape } from "../../src/types.ts";
 
-/** What the fake RPC does. A superset of the "retry-scenario" shape in src/types.ts:
- *  `errorKind` and `resolvesWith` exist because oracle rows S4 and S5 need them and the
- *  shared shape has no field for either. */
+/** What the fake RPC does. Mirrors the "retry-scenario" shape in src/types.ts (which gained
+ *  `errorKind` and `resolvesWith` in D01-08 so oracle rows S4 and S5 can be sent over HTTP). */
 export interface RetryScenario {
   /** How many calls fail before one succeeds. "always" = every call fails. */
   failTimes: number | "always";
@@ -68,6 +67,8 @@ export function scenarioFromShape(shape: ExperimentShape): RetryScenario {
   if (shape.attempts !== undefined) s.attempts = shape.attempts;
   if (shape.delayMs !== undefined) s.delayMs = shape.delayMs;
   if (shape.resolveAfterMs !== undefined) s.resolveAfterMs = shape.resolveAfterMs;
+  if (shape.errorKind !== undefined) s.errorKind = shape.errorKind;
+  if ("resolvesWith" in shape && shape.resolvesWith !== undefined) s.resolvesWith = shape.resolvesWith;
   return s;
 }
 

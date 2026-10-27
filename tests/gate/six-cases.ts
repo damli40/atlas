@@ -1,0 +1,195 @@
+// Day-1 gate (D01-08): the six known withRpcRetry cases, end to end over HTTP.
+//
+// What it does, in plain words:
+// 1. Registers the withRpcRetry fixture with POST /targets.
+// 2. For each oracle row S1–S6, seals human bets (calls, total wait, outcome) whose answers are
+//    the oracle table's expected values, then POSTs the experiment and the sealed bets to /runs.
+//    The server runs the control once, runs the real function in the sandbox, and judges.
+// 3. Adds two extra bets to show the other verdicts from real runs:
+//    - S3 calls = 4 (the run makes 5 calls) → didn't match
+//    - S6 settle time (the run never settles, so it is not measured) → can't check
+// 4. Prints one line per bet, and the total real time.
+//
+// Run: `pnpm gate:day1` (starts the server on a free local port and talks to it over HTTP),
+// or ATLAS_URL=http://localhost:8787 pnpm gate:day1 (a server you started with `pnpm server`).
+
+import { pathToFileURL } from "node:url";
+import { sealBet } from "../../src/seal.ts";
+import type { Bet, BetAnswer, ExperimentShape, Outcome, Run, Target, Verdict } from "../../src/types.ts";
+
+export type Requester = (path: string, init: RequestInit) => Promise<Response>;
+
+const FIXTURE_REF = "tests/fixtures/with-rpc-retry.ts";
+const OUTCOMES = ["returns", "throws", "pending"];
+
+export const QUESTIONS = {
+  calls: "How many times will the function call the RPC?",
+  totalWaitMs: "How long will it wait in total, in ms?",
+  outcome: "What will it do at the end: return, throw, or still be pending?",
+  settleTime: "How long until it settles, in ms?",
+} as const;
+
+interface CaseSpec {
+  id: string;
+  params: ExperimentShape;
+  /** Hard-coded from tests/oracle/retry-oracle.json (the vitest test checks they still equal it). */
+  expected: { calls: number; totalWaitMs: number; outcome: string };
+  extraBets?: { measures: keyof typeof QUESTIONS; answer: BetAnswer; note: string }[];
+}
+
+export const CASES: CaseSpec[] = [
+  { id: "S1", params: { shape: "retry-scenario", failTimes: 0, failure: "error" }, expected: { calls: 1, totalWaitMs: 0, outcome: "returns" } },
+  { id: "S2", params: { shape: "retry-scenario", failTimes: 1, failure: "error" }, expected: { calls: 2, totalWaitMs: 3000, outcome: "returns" } },
+  {
+    id: "S3",
+    params: { shape: "retry-scenario", failTimes: 5, failure: "error" },
+    expected: { calls: 5, totalWaitMs: 12000, outcome: "throws" },
+    extraBets: [{ measures: "calls", answer: { kind: "integer", value: 4 }, note: "deliberately off by one" }],
+  },
+  { id: "S4", params: { shape: "retry-scenario", failTimes: 1, failure: "error", errorKind: "429" }, expected: { calls: 2, totalWaitMs: 3000, outcome: "returns" } },
+  { id: "S5", params: { shape: "retry-scenario", failTimes: 0, failure: "error", resolvesWith: { status: 429 } }, expected: { calls: 1, totalWaitMs: 0, outcome: "returns" } },
+  {
+    id: "S6",
+    params: { shape: "retry-scenario", failTimes: "always", failure: "never_settles" },
+    expected: { calls: 1, totalWaitMs: 0, outcome: "pending" },
+    extraBets: [{ measures: "settleTime", answer: { kind: "integer", value: 30000 }, note: "a field the run cannot measure" }],
+  },
+];
+
+export interface BetRow {
+  caseId: string;
+  measures: string;
+  bet: string;
+  observed: string;
+  verdict: Outcome;
+  reason?: string;
+  note?: string;
+}
+
+export interface CaseResult {
+  caseId: string;
+  run: Run;
+  verdicts: Verdict[];
+  rows: BetRow[];
+}
+
+async function postJson<T>(request: Requester, path: string, body: unknown): Promise<T> {
+  const res = await request(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const json = (await res.json()) as T & { error?: string };
+  if (!res.ok) throw new Error(`${path} answered ${res.status}: ${json.error ?? "no reason given"}`);
+  return json;
+}
+
+function betText(a: BetAnswer): string {
+  return a.kind === "declined" ? "declined" : String(a.value);
+}
+
+/** Runs the whole gate through `request` (app.request in-process, or fetch against a server). */
+export async function runSixCases(request: Requester): Promise<{ target: Target; results: CaseResult[]; totalMs: number }> {
+  const started = performance.now();
+  const target = await postJson<Target>(request, "/targets", { kind: "ts-fixture", ref: FIXTURE_REF });
+  const results: CaseResult[] = [];
+
+  for (const c of CASES) {
+    const experimentId = `gate-${c.id}`;
+    const specs: { measures: string; answer: BetAnswer; note?: string }[] = [
+      { measures: "calls", answer: { kind: "integer", value: c.expected.calls } },
+      { measures: "totalWaitMs", answer: { kind: "integer", value: c.expected.totalWaitMs } },
+      { measures: "outcome", answer: { kind: "enum", value: c.expected.outcome, options: OUTCOMES } },
+      ...(c.extraBets ?? []),
+    ];
+    const bets: Bet[] = specs.map((s) =>
+      sealBet({ experimentId, who: "human", question: QUESTIONS[s.measures as keyof typeof QUESTIONS], measures: s.measures, answer: s.answer }),
+    );
+    const { run, verdicts } = await postJson<{ run: Run; verdicts: Verdict[] }>(request, "/runs", {
+      experiment: { id: experimentId, target, runner: "ts", params: c.params, proposedBy: { role: "human" } },
+      bets,
+    });
+    const rows: BetRow[] = verdicts.map((v, i) => {
+      const s = specs[i]!;
+      return {
+        caseId: c.id,
+        measures: s.measures,
+        bet: betText(s.answer),
+        observed: v.observed === undefined ? "-" : String(v.observed),
+        verdict: v.outcome,
+        ...(v.reason ? { reason: v.reason } : {}),
+        ...(s.note ? { note: s.note } : {}),
+      };
+    });
+    results.push({ caseId: c.id, run, verdicts, rows });
+  }
+  return { target, results, totalMs: Math.round(performance.now() - started) };
+}
+
+const SAY: Record<Outcome, string> = { matched: "matched", not_matched: "didn't match", cant_check: "can't check" };
+
+export function formatTable(out: Awaited<ReturnType<typeof runSixCases>>): string {
+  const lines: string[] = [];
+  const pre = out.target.preExisting ? ` (${out.target.preExisting.label}, listed in ${out.target.preExisting.listedIn})` : "";
+  lines.push(`target: ${out.target.ref}${pre}`);
+  lines.push(`sha256: ${out.target.codeSha256}`);
+  lines.push("");
+  const head = ["case", "measured calls / wait ms / outcome", "bet on", "bet", "observed", "verdict"];
+  const body: string[][] = [];
+  for (const r of out.results) {
+    const m = r.run.result.measured;
+    const measured = `${m.calls ?? "-"} / ${m.totalWaitMs ?? "-"} / ${m.outcome ?? "-"}`;
+    r.rows.forEach((row, i) => {
+      const verdict = SAY[row.verdict] + (row.reason ? ` (${row.reason})` : "") + (row.note ? `  <- ${row.note}` : "");
+      body.push([i === 0 ? r.caseId : "", i === 0 ? measured : "", row.measures, row.bet, row.observed, verdict]);
+    });
+  }
+  const widths = head.map((h, i) => Math.max(h.length, ...body.map((b) => b[i]!.length)));
+  const fmt = (cells: string[]) => cells.map((cell, i) => (i === cells.length - 1 ? cell : cell.padEnd(widths[i]!))).join("  ");
+  lines.push(fmt(head));
+  lines.push(fmt(widths.map((w) => "-".repeat(w))));
+  for (const b of body) lines.push(fmt(b));
+  lines.push("");
+  const all = out.results.flatMap((r) => r.rows);
+  const count = (o: Outcome) => all.filter((x) => x.verdict === o).length;
+  lines.push(`verdicts: ${count("matched")} matched, ${count("not_matched")} didn't match, ${count("cant_check")} can't check`);
+  const s4 = out.results.find((r) => r.caseId === "S4")?.run.trace.find((t) => t.event === "reject")?.data?.error;
+  const s5 = out.results.find((r) => r.caseId === "S5")?.run.result.measured.returned;
+  lines.push(`new shape fields reached the sandbox: S4 call 1 rejected with ${JSON.stringify(s4 ?? "-")}; S5 returned ${s5 ?? "-"}`);
+  const controlIds = new Set(out.results.map((r) => r.run.controlRunId));
+  const reused = controlIds.size === 1 ? `one control run (${[...controlIds][0]}) reused for all six` : `${controlIds.size} different control runs`;
+  lines.push(`control passed on every run: ${out.results.every((r) => r.run.controlPassed) ? "yes" : "no"}; ${reused}`);
+  lines.push(`total real time: ${out.totalMs} ms (limit 5000 ms)`);
+  return lines.join("\n");
+}
+
+async function main(): Promise<void> {
+  let base = process.env.ATLAS_URL;
+  let close = () => {};
+  let mode = `HTTP against a running server at ${base}`;
+  if (!base) {
+    // Start the real server on a free local port, so the requests below go over real HTTP.
+    const { createApp } = await import("../../server/app.ts");
+    const { serve } = await import("@hono/node-server");
+    const app = createApp();
+    const port = await new Promise<number>((ok) => {
+      const server = serve({ fetch: app.fetch, port: 0, hostname: "127.0.0.1" }, (info) => ok(info.port));
+      close = () => server.close();
+    });
+    base = `http://127.0.0.1:${port}`;
+    mode = "HTTP against an in-process server on 127.0.0.1 (started by this script)";
+  }
+  const request: Requester = (path, init) => fetch(new URL(path, base), init);
+  try {
+    const out = await runSixCases(request);
+    console.log(`mode: ${mode}`);
+    console.log(formatTable(out));
+    const expectedOk = out.results.every((r) => r.rows.every((row) => (row.note ? true : row.verdict === "matched")));
+    if (!expectedOk || out.totalMs >= 5000) process.exitCode = 1;
+  } finally {
+    close();
+  }
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((e: unknown) => {
+    console.error(e instanceof Error ? e.message : String(e));
+    process.exit(1);
+  });
+}
