@@ -760,15 +760,15 @@ def main(key_text):
                     answer = ("ret", fresh(step[1]), after / 1000.0)
                 msg = yield answer
             except GeneratorExit:
-                ctx["broken"] = "a stand-in was closed from outside"
+                ctx["interfered"] = "a stand-in was closed from outside"
                 return
             except BaseException:
-                ctx["broken"] = "a stand-in was interrupted from outside"
+                ctx["interfered"] = "a stand-in was interrupted from outside"
                 msg = yield ("throw", make_error("AtlasStandInBroken", "Atlas's stand-in was interrupted"))
 
     runs = []
     for r in req["runs"]:
-        ctx = {"trace": [], "settled": False, "clock": 0.0, "broken": None}
+        ctx = {"trace": [], "settled": False, "clock": 0.0, "interfered": None}
         args = []
         gens = []
         for a in r["args"]:
@@ -910,7 +910,7 @@ def main(key_text):
         limit = False
         settled = None
         while True:
-            if whole[0] is not None or ctx["broken"] is not None:
+            if whole[0] is not None or ctx["interfered"] is not None:
                 break
             now = read_clock(ctx)
             if settled is None and task.done():
@@ -1045,9 +1045,9 @@ def main(key_text):
                 settled = ("returned", value)
         set_recursion_limit(base_recursion_limit)  # the code may have lowered it to break Atlas's own readers
         side_checks()
-        if whole[0] is not None or ctx["broken"] is not None:
-            if ctx["broken"] is not None:
-                tamper(ctx["broken"])
+        if whole[0] is not None or ctx["interfered"] is not None:
+            if ctx["interfered"] is not None:
+                tamper(ctx["interfered"])
             return None
 
         # A settle after the watch limit (a blocking sleep carried the clock past it) is "still running" at the limit.

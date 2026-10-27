@@ -36,7 +36,7 @@ EPOCH = 1767225600.0
 
 
 def cant(code, what=""):
-    """Tell harness.py that nothing in this run can be trusted (it shows its own fixed sentence for `code`)."""
+    """Tell harness.py that nothing in this run can be trusted (it shows its own sentence for `code`)."""
     _audit("atlas.cantcheck", code, what)
 
 

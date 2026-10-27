@@ -22,7 +22,7 @@ export const pyNeedsPackageReason = (name: string) =>
 
 /** The code imports a standard-library module Atlas does not load into its sandbox. */
 export const pyStdlibNotLoadedReason = (name: string) =>
-  `the code imports the standard-library module ${describePyModule(name)}, which Atlas does not load into its Python sandbox (it loads a fixed list before the code runs)`;
+  `the code imports the standard-library module ${describePyModule(name)}, which Atlas does not load into its Python sandbox (it loads a list chosen in advance, before the code runs)`;
 
 export const pyMissingFunctionReason = (name: string) => `the code has no top-level function named "${name}"`;
 export const pyNotAFunctionReason = (name: string, type: string) => `"${name}" is defined but is not a function (it is ${type})`;
