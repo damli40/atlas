@@ -13,7 +13,8 @@ import { fileURLToPath } from "node:url";
 import { nanoid } from "nanoid";
 import type { Change, Experiment, Run, Target, TraceEvent } from "../../src/types.ts";
 import { localExecutor } from "../executor/local.ts";
-import type { Executor, Runner } from "../runner.ts";
+import type { Executor, ReplayContext, Runner } from "../runner.ts";
+import { checkChange, tsChangeContext } from "../change.ts";
 import { RESULT_MARKER, type HarnessOutput, type WorkerRequest, type WorkerResponse } from "./harness.ts";
 import { SUCCESS_VALUE, scenarioFromOracleInput, scenarioFromShape, type OracleInput } from "./shapes.ts";
 
@@ -301,8 +302,122 @@ export function tsRunner(executor: Executor = localExecutor): Runner {
         ...(opts.replayOf ? { replayOf: opts.replayOf } : {}),
       });
     },
-    async replayWithChange(_run: Run, _change: Change): Promise<Run> {
-      throw new Error("replayWithChange is not built yet (change-and-replay task)");
-    },
+    replayWithChange: (run: Run, change: Change, ctx: ReplayContext) => replayTsWithChange(run, change, ctx, executor),
   };
+}
+
+// ── Change and replay (D06-01) ──────────────────────────────────────────────────────────────────
+//
+// Plain words: the change is applied to a scratch copy of the fixture's exact bytes, and the SAME
+// experiment runs on the changed code through the SAME sandbox and harness with the SAME seed (so
+// the fake RPC throws the same errors in the same order).
+//
+// What the control means on a replay. The control's rows (S1, S3, S6) are known answers of the
+// ORIGINAL function. A change toward what the bettors expected is meant to make the function do
+// something else, so those rows can stop matching the changed code BECAUSE the change did what it
+// was asked (adding a time limit changes S6 by design). Gating the replay on them would mark the
+// replay "can't check" exactly when the change worked, and writing new expected rows for the
+// changed code would need someone to decide what it "should" do, which Atlas never does.
+// So the replay's gate is a check of the HARNESS, not of the function: the same control rows, run
+// on the ORIGINAL bytes, through the same harness files and executor, right before the replay. It
+// proves the harness still measures the known cases exactly, whatever the change does. The changed
+// code is also run on the same rows and the result is RECORDED (which rows it still matches), never
+// used as a gate. Both are in the replay's last trace event, "replay_checks".
+
+export const REPLAY_CHECKS_EVENT = "replay_checks";
+
+function harnessSha256(): string {
+  const own = (name: string) => readFileSync(new URL(`./${name}`, import.meta.url), "utf8");
+  return sha256(["worker.ts", "harness.ts", "shapes.ts"].map(own).join("\n"));
+}
+
+/** Throws when the replay would not be the same experiment with the same inputs. */
+export function assertSameTsReplay(original: Run, exp: Experiment, change: Change): void {
+  if (original.runner !== "ts") throw new Error(`run ${original.id} is an ${original.runner} run, not a TS run`);
+  if (original.experimentId !== exp.id) throw new Error(`run ${original.id} ran experiment ${original.experimentId}, not ${exp.id}`);
+  if (change.runId !== original.id) throw new Error(`change ${change.id} is for run ${change.runId}, not ${original.id}`);
+  if (original.seed === undefined || original.seed === "") throw new Error(`run ${original.id} has no seed, so a same-seed replay is impossible`);
+  if (!exp.gate.allowed) throw new Error(`experiment ${exp.id} was rejected by the gate: ${exp.gate.reason}`);
+}
+
+async function replayTsWithChange(original: Run, change: Change, ctx: ReplayContext, executor: Executor): Promise<Run> {
+  const exp = ctx.experiment;
+  const progress = (s: string) => {
+    try {
+      ctx.onProgress?.(s);
+    } catch {
+      // a progress line that could not be written never stops a replay
+    }
+  };
+  assertSameTsReplay(original, exp, change);
+  const code = readFixture(exp.target);
+  const originalSha = sha256(code);
+  if (originalSha !== original.codeSha256 || originalSha !== exp.target.codeSha256) {
+    throw new Error(`the fixture's bytes (${originalSha}) are not the bytes run ${original.id} ran (${original.codeSha256}); the change cannot be replayed on them`);
+  }
+  progress("applies the change in a scratch copy");
+  const checked = await checkChange(change.diff, tsChangeContext(exp.target.ref, code));
+  if (!checked.ok) throw new Error(`the change cannot be replayed: ${checked.reason}`);
+  const changed = checked.changedFiles[exp.target.ref]!;
+  const changedSha = sha256(changed);
+  const seed = original.seed!;
+
+  progress("checks the harness on the original code (S1, S3, S6)");
+  const harness = await runControl(code, { executor, expectedSha256: originalSha });
+  const onChanged = await runControl(changed, { executor });
+
+  progress(`re-runs ${exp.id} on the changed code with the same seed (${seed})`);
+  const startedAt = new Date().toISOString();
+  const oracle = loadOracle();
+  const res = await execInSandbox(
+    executor,
+    changed,
+    { exportName: EXPORT_NAME, runs: [{ id: exp.id, scenario: scenarioFromShape(exp.params), seed, watchLimitMs: oracle.harnessWatchLimitMs }] },
+    DEFAULT_WALL_CLOCK_MS,
+  );
+  const out = res.ok ? res.runs.find((r) => r.id === exp.id) : undefined;
+  const result: Run["result"] = out ? out.result : { measured: {}, notMeasured: { run: res.ok ? "the sandbox returned no result for this experiment" : res.reason } };
+  const tampered = !res.ok && res.tampered;
+  if (tampered) result.notMeasured.control = res.reason;
+  if (harness.run.controlPassed !== true) result.notMeasured.control = `the harness check on the original code did not match: ${harness.reason ?? "no reason given"}`;
+  const trace: TraceEvent[] = out ? [...out.trace] : [];
+  trace.push({
+    t: trace.length ? trace[trace.length - 1]!.t : 0,
+    event: REPLAY_CHECKS_EVENT,
+    data: {
+      replayOf: original.id,
+      changeId: change.id,
+      sameSeed: true,
+      seed,
+      originalSeed: original.seed,
+      originalCodeSha256: originalSha,
+      changedCodeSha256: changedSha,
+      changedLines: checked.changedLines,
+      harnessSha256: harnessSha256(),
+      harnessCheck: { on: "original code", rows: [...CONTROL_CASES], passed: harness.run.controlPassed, runId: harness.run.id, ...(harness.reason ? { reason: harness.reason } : {}) },
+      changedCodeOnKnownRows: {
+        note: "recorded only, not a gate: these rows are known answers of the original function",
+        rows: [...CONTROL_CASES],
+        allStillMatch: onChanged.run.controlPassed,
+        ...(onChanged.reason ? { differences: onChanged.reason } : {}),
+      },
+    },
+  });
+  const run: Run = {
+    id: nanoid(10),
+    experimentId: exp.id,
+    runner: "ts",
+    executor: executor.kind,
+    codeSha256: changedSha,
+    seed,
+    startedAt,
+    finishedAt: new Date().toISOString(),
+    trace,
+    result,
+    controlPassed: harness.run.controlPassed === true && !tampered,
+    controlRunId: harness.run.id,
+    replayOf: { runId: original.id, changeId: change.id },
+  };
+  if (run.seed !== original.seed) throw new Error(`replay seed ${run.seed} is not the original seed ${original.seed}`);
+  return run;
 }

@@ -14,7 +14,9 @@
 
 import { nanoid } from "nanoid";
 import type { Change, Experiment, Run, RunResult, Target, TraceEvent } from "../../src/types.ts";
-import type { Runner } from "../runner.ts";
+import { createHash } from "node:crypto";
+import type { ReplayContext, Runner } from "../runner.ts";
+import { checkChange, moonwellChangeContext, MOONWELL_CONFIG_FILE, MOONWELL_SCRATCH_FILES } from "../change.ts";
 import { withAnvilFork } from "./anvil.ts";
 import { redactedError, redactRpc, scrubDeep } from "./redact.ts";
 import { cbEthReference, readControl, readNamedMarket, why, type EvmControlRecord } from "./control.ts";
@@ -173,15 +175,83 @@ export function evmRunner(options: EvmRunnerOptions = {}): Runner {
       });
     },
 
-    async replayWithChange(_run: Run, _change: Change): Promise<Run> {
-      throw new Error("replayWithChange is not built yet for the EVM runner (Level 2 / change-and-replay task)");
+    /**
+     * D06-01: the change edits the PR's config (proposals/ChainlinkOracleConfigs.sol) in a scratch
+     * copy; the actions are re-derived from the CHANGED config by the same parser (apply.ts), every
+     * name resolved in the PR's own chains/8453.json; then the SAME experiment runs on a FRESH fork at
+     * the SAME block as the original run (copied from it, asserted equal), and the same reads follow.
+     */
+    async replayWithChange(original: Run, change: Change, ctx: ReplayContext): Promise<Run> {
+      const exp = ctx.experiment;
+      const say = (s: string) => {
+        progress(s);
+        try {
+          ctx.onProgress?.(redactRpc(s, options.rpcUrl));
+        } catch {
+          // a progress line that could not be written never stops a replay
+        }
+      };
+      assertSameEvmReplay(original, exp, change);
+      const forkBlock = requireForkBlock(original.forkBlock, "evmRunner.replayWithChange");
+      if (exp.params.shape !== "apply-proposal-then-read") throw new Error(`a change can be replayed on apply-proposal-then-read only, not "${exp.params.shape}"`);
+      const params = exp.params;
+      say("applies the change to the proposal's config in a scratch copy");
+      const ctxFiles = moonwellChangeContext();
+      const checked = await checkChange(change.diff, ctxFiles);
+      if (!checked.ok) throw new Error(`the change cannot be replayed: ${checked.reason}`);
+      const planned = checked.planned!;
+      const changedConfig = checked.changedFiles[MOONWELL_CONFIG_FILE]!;
+      const readSha = sha256(MOONWELL_SCRATCH_FILES.map((f) => checked.changedFiles[f]!).join("\n"));
+      say(`re-derives ${planned.length} oracle-feed actions from the changed config`);
+      const startedAt = new Date().toISOString();
+      say(`forks Base @ ${forkBlock} (the original run's block)`);
+      const run = await withAnvilFork(forkOpts(forkBlock), async (fork) => {
+        const rec = await runLevel2OnFork(localClient(fork.url), fork, forkBlock, say, { replayPlan: planned });
+        if (rec.forkBlock !== original.forkBlock) throw new Error(`the replay forked at ${rec.forkBlock}, not the original run's ${original.forkBlock}`);
+        const r = level2Run(exp, rec, params.markets, startedAt);
+        const wired = new Set(rec.actions.map((a) => a.symbol));
+        r.trace.push({
+          t: r.trace.length,
+          event: REPLAY_CHECKS_EVENT,
+          data: {
+            replayOf: original.id,
+            changeId: change.id,
+            sameForkBlock: true,
+            forkBlock,
+            originalForkBlock: original.forkBlock,
+            originalCodeSha256: original.codeSha256,
+            changedFilesSha256: readSha,
+            changedConfigSha256: sha256(changedConfig),
+            changedLines: checked.changedLines,
+            derivedActions: rec.actions.map((a) => ({ symbol: a.symbol, oracleName: a.config.oracleName, wrapperName: a.wrapperName, wrapper: a.wrapper, line: a.config.line })),
+            marketsNotRewired: (rec.readMarkets ?? []).map((a) => a.symbol).filter((s) => !wired.has(s)),
+          },
+        });
+        return { ...r, codeSha256: readSha, replayOf: { runId: original.id, changeId: change.id } };
+      });
+      if (run.forkBlock !== original.forkBlock) throw new Error(`replay fork block ${run.forkBlock} is not the original ${original.forkBlock}`);
+      return run;
     },
   };
   return {
     ...runner,
     control: (target) => guarded(() => runner.control(target)),
     run: (exp, opts) => guarded(() => runner.run(exp, opts)),
+    replayWithChange: (run, change, ctx) => guarded(() => runner.replayWithChange(run, change, ctx)),
   };
+}
+
+export const REPLAY_CHECKS_EVENT = "replay_checks";
+
+const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
+
+/** Throws when the replay would not be the same experiment as the original EVM run. */
+export function assertSameEvmReplay(original: Run, exp: Experiment, change: Change): void {
+  if (original.runner !== "evm") throw new Error(`run ${original.id} is a ${original.runner} run, not an EVM run`);
+  if (original.experimentId !== exp.id) throw new Error(`run ${original.id} ran experiment ${original.experimentId}, not ${exp.id}`);
+  if (change.runId !== original.id) throw new Error(`change ${change.id} is for run ${change.runId}, not ${original.id}`);
+  if (!exp.gate.allowed) throw new Error(`experiment ${exp.id} was rejected by the gate: ${exp.gate.reason}`);
+  requireForkBlock(original.forkBlock, "evmRunner.replayWithChange");
 }
 
 /** Turn a Level 2 record into a Run. `priceUsd1e18:<sym>` is the POST-apply price (what the bets ask about). */
@@ -202,7 +272,7 @@ export function level2Run(exp: Experiment, rec: Level2Record, markets: string[] 
   }
 
   log("proposal_derived", { count: rec.actions.length, actions: rec.actions.map((a) => ({ symbol: a.symbol, wrapper: a.wrapper, line: a.config.line })) });
-  const wanted = markets === "touched" ? rec.actions.map((a) => a.symbol) : markets;
+  const wanted = markets === "touched" ? (rec.readMarkets ?? rec.actions).map((a) => a.symbol) : markets;
   for (const sym of wanted) {
     const pre = rec.pre[sym];
     if (pre?.ok) {
