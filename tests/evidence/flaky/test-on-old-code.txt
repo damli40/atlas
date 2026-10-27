@@ -1,0 +1,40 @@
+
+ RUN  v5.0.5 ~/Documents/Atlas-Meta
+
+stdout | tests/unit/attempt-order.test.ts > a re-run after an attempt that did not finish starts strictly after that attempt stopped > same-millisecond retry: the .atlas.json is still kept and verifies
+proof reason: the round's .atlas.json does not verify: attempt 1 did not stop before run rv1xmvqmveo5 started
+
+ ❯ tests/unit/attempt-order.test.ts (1 test | 1 failed) 39ms
+   ❯ a re-run after an attempt that did not finish starts strictly after that attempt stopped (1)
+     × same-millisecond retry: the .atlas.json is still kept and verifies 38ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/unit/attempt-order.test.ts > a re-run after an attempt that did not finish starts strictly after that attempt stopped > same-millisecond retry: the .atlas.json is still kept and verifies
+AssertionError: expected { ok: false, …(2) } to match object { ok: true }
+(2 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "ok": true,
++   "ok": false,
+  }
+
+ ❯ tests/unit/attempt-order.test.ts:61:27
+     59|     expect(ok.status).toBe(200);
+     60|     if (!ok.body.proof?.ok) console.log("proof reason:", ok.body.proof…
+     61|     expect(ok.body.proof).toMatchObject({ ok: true });
+       |                           ^
+     62|     expect(Date.parse(ok.body.run.startedAt)).toBeGreaterThan(Date.par…
+     63|     const file = (await ask(`/proofs/${ok.body.run.id}`)).body as Atla…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  13:49:58
+   Duration  280ms (import 62%, tests 20%, transform 17%, worker 1%)
+

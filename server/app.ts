@@ -991,9 +991,14 @@ export function createApp(opts: AppOptions = {}) {
     // The run must start strictly after the last seal. Two requests can land in the same
     // millisecond, so wait (a few ms at most) until the clock has moved past the last seal. A seal
     // further in the future than that is not waited for: the check below refuses it.
+    // The same holds for an earlier attempt that did not finish (final review S2): the .atlas.json check
+    // requires that attempt to have stopped strictly before this run starts. A retry that lands in the same
+    // millisecond as the 503 made the file fail to verify, so no proof was kept (tests/evidence/flaky).
     const reach = Date.now() + 20;
     const lastSeal = Math.max(0, ...bets.map((b) => Date.parse(b.sealedAt)).filter((t) => t <= reach));
-    while (Date.now() <= lastSeal) await new Promise((ok) => setTimeout(ok, 1));
+    const lastStop = Math.max(0, ...(round.attempts ?? []).map((a) => Date.parse(a.stoppedAt)).filter((t) => t <= reach));
+    const waitPast = Math.max(lastSeal, lastStop);
+    while (Date.now() <= waitPast) await new Promise((ok) => setTimeout(ok, 1));
     const frozenAt = new Date().toISOString();
     round.betsFrozenAt = frozenAt;
 
