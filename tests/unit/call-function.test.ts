@@ -278,7 +278,8 @@ describe("the code reaches outside the sandbox: whole run can't check, never out
     ["fetch", `export async function f() { try { await fetch("http://127.0.0.1:8787/health"); } catch {} return "caught"; }`, /network\/files \(fetch\)/],
     ["fs via process.getBuiltinModule", `export function f() { try { return process.getBuiltinModule("fs").readFileSync("/etc/hosts", "utf8"); } catch { return "caught"; } }`, /needs Node's built-in module fs/],
     ["a file read the sandbox refuses (ERR_ACCESS_DENIED), caught by the code", `export function f() { try { process.loadEnvFile("/etc/hosts"); } catch (e) { return e.code; } }`, /network\/files \(process\.loadEnvFile\)/],
-    ["process.report (a file write)", `export function f() { try { process.report.writeReport("r.json"); } catch {} return 1; }`, /process\.report\.writeReport/],
+    // Review round 1 (B1): process.report is refused outright (it showed the command line).
+    ["process.report (a file write)", `export function f() { try { process.report.writeReport("r.json"); } catch {} return 1; }`, /Node's internals \(process\.report\)/],
     ["process.exit", `export function f() { process.exit(0); }`, /end or control the process \(process\.exit\)/],
     ["process.binding", `export function f() { try { process.binding("fs"); } catch {} return 1; }`, /Node's internals \(process\.binding\)/],
     ["eval", `export function f() { try { return eval("1 + 1"); } catch { return 2; } }`, /code made from text \(eval\)/],

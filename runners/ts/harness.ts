@@ -25,6 +25,7 @@
 // built-ins every time the code hands control back. A run whose code changed a built-in is returned
 // with nothing measured and BUILTINS_CHANGED_REASON, and the worker sends no result for it at all.
 
+import { createHook } from "node:async_hooks";
 import type { RunResult, TraceEvent } from "../../src/types.ts";
 import { FAKE_RPC_ERRORS, HTTP_429_ERROR, SUCCESS_VALUE, seededRandom, type RetryScenario } from "./shapes.ts";
 import {
@@ -40,7 +41,6 @@ import {
   activeResourcesInfo,
   append,
   builtinWatch,
-  drainMicrotasks,
   plain,
   promiseReject,
   promiseResolve,
@@ -126,6 +126,16 @@ let trackerInstalled = false;
  * wrapped here; it is still caught by Node's resource list unless it is created with ref: false.
  * The wrappers record with captured Map functions, so a replaced Map.prototype.set cannot hide a timer.
  */
+/** Starts a real timer the tracker below already watches (realTimers), so the job tracker does not count it twice. */
+function coveredStart(start: Starter, args: unknown[]): object {
+  atlasMaking = true;
+  try {
+    return ReflectApply(start, globalThis, args) as object;
+  } finally {
+    atlasMaking = false;
+  }
+}
+
 export function installRealTimerTracker(): void {
   if (trackerInstalled) return;
   trackerInstalled = true;
@@ -141,7 +151,7 @@ export function installRealTimerTracker(): void {
   g.setTimeout = function (cb: unknown, ...rest: unknown[]) {
     if (typeof cb !== "function") return ReflectApply(nativeSetTimeout, globalThis, [cb, ...rest]);
     let done = () => {};
-    const h = ReflectApply(nativeSetTimeout, globalThis, [
+    const h = coveredStart(nativeSetTimeout, [
       (...a: unknown[]) => {
         done();
         return ReflectApply(cb as LooseFn, undefined, a);
@@ -152,14 +162,14 @@ export function installRealTimerTracker(): void {
     return h;
   };
   g.setInterval = function (cb: unknown, ...rest: unknown[]) {
-    const h = ReflectApply(nativeSetInterval, globalThis, [cb, ...rest]) as object;
+    const h = coveredStart(nativeSetInterval, [cb, ...rest]) as object;
     track("setInterval", h, true);
     return h;
   };
   g.setImmediate = function (cb: unknown, ...rest: unknown[]) {
     if (typeof cb !== "function") return ReflectApply(nativeSetImmediate, globalThis, [cb, ...rest]);
     let done = () => {};
-    const h = ReflectApply(nativeSetImmediate, globalThis, [
+    const h = coveredStart(nativeSetImmediate, [
       (...a: unknown[]) => {
         done();
         return ReflectApply(cb as LooseFn, undefined, a);
@@ -186,6 +196,75 @@ export function installRealTimerTracker(): void {
     ReflectApply(nativeClearImmediate, globalThis, [h]);
   };
 }
+
+// ---- background work (E1 review round 1, the blind spot reported in E1) ----
+// Node's list of live resources does not show one-shot background jobs (crypto.subtle.digest, a key derivation,
+// compression) or a timer Node makes internally (AbortSignal.timeout). Code waiting on one looked like "pending,
+// nothing left that could wake it", which is false. In the sandbox (worker.ts installs this before the import),
+// every async resource except promises, ticks, microtasks and the ones ATLAS makes is tracked from creation until
+// its callback starts. While one is pending and no virtual timer is waiting, Atlas waits for it for real (what a
+// real run does); when one overlaps a virtual timer, which finishes first depends on real speed, so the run stops
+// with "can't check". Outside the sandbox (tests calling runScenario directly) nothing is tracked: behaviour as before.
+const IGNORED_ASYNC_TYPES = new Set(["PROMISE", "TickObject", "Microtask"]);
+const outsideJobs = new Map<number, string>();
+let atlasMaking = false;
+let jobTrackerOn = false;
+/** The current run's "is a virtual timer waiting?" check; null outside a run. */
+let timersWaiting: (() => boolean) | null = null;
+let jobRaced = "";
+const OUTSIDE_WAIT_STEPS = 2_000;
+
+/** Installs the background-work tracker (idempotent). The sandbox worker calls it before importing the code. */
+export function installOutsideWorkTracker(): void {
+  if (jobTrackerOn) return;
+  jobTrackerOn = true;
+  createHook({
+    init(id: number, type: string) {
+      if (IGNORED_ASYNC_TYPES.has(type) || atlasMaking) return;
+      ReflectApply(MapSet, outsideJobs, [id, type]);
+      if (timersWaiting?.() && jobRaced === "") jobRaced = type;
+    },
+    before(id: number) {
+      ReflectApply(MapDelete, outsideJobs, [id]);
+    },
+    destroy(id: number) {
+      ReflectApply(MapDelete, outsideJobs, [id]);
+    },
+  }).enable();
+}
+function pendingJobs(): string[] {
+  const out: string[] = [];
+  for (const k of outsideJobs.values()) if (out.indexOf(k) === -1) out.push(k);
+  return out;
+}
+/** A virtual timer is being set: if background work is in flight, the two race. */
+function noteTimerSet(): void {
+  if (jobRaced === "" && outsideJobs.size > 0) jobRaced = outsideJobs.values().next().value as string;
+}
+/** Resolves after every queued promise reaction has run (a native setImmediate, marked as Atlas's own). */
+function harnessDrain(): Promise<void> {
+  return new PromiseCtor<void>((r) => {
+    atlasMaking = true;
+    try {
+      ReflectApply(nativeSetImmediate, globalThis, [r]);
+    } finally {
+      atlasMaking = false;
+    }
+  });
+}
+/** About 1 ms of real time (a native setTimeout, marked as Atlas's own). */
+function realPause(): Promise<void> {
+  return new PromiseCtor<void>((r) => {
+    atlasMaking = true;
+    try {
+      ReflectApply(nativeSetTimeout, globalThis, [r, 1]);
+    } finally {
+      atlasMaking = false;
+    }
+  });
+}
+const raceReason = (kind: string) =>
+  `the code ran background work (${kind}) while a timer was also waiting, so which finished first depends on real speed, not on the code; Atlas did not guess`;
 
 /**
  * B1 (day-6 review). The one sentence for a run whose code changed JavaScript's built-in objects
@@ -272,7 +351,10 @@ export async function runScenario(withRpcRetry: RetryFn, scenarioIn: RetryScenar
   let now = 0;
   let seq = 0;
   const timers: { at: number; seq: number; fire: () => void }[] = [];
-  const schedule = (at: number, fire: () => void) => append(timers, { at, seq: seq++, fire });
+  const schedule = (at: number, fire: () => void) => {
+    noteTimerSet();
+    append(timers, { at, seq: seq++, fire });
+  };
   const emit = (event: string, data?: Record<string, unknown>) => append(trace, data ? { t: now, event, data } : { t: now, event });
 
   const waits: number[] = [];
@@ -384,10 +466,17 @@ export async function runScenario(withRpcRetry: RetryFn, scenarioIn: RetryScenar
   // did not see the end, so the counts so far are partial and are not reported as measured.
   let stop: { kind: "outside" | "watch" | "steps"; outcomeReason: string } | null = null;
   let steps = 0;
+  let jobWaits = 0;
+  jobRaced = "";
+  timersWaiting = () => timers.length > 0;
   try {
     for (;;) {
-      await drainMicrotasks();
+      await harnessDrain();
       if (watch() !== null) break; // B1: the record is not trusted; nothing below runs on changed built-ins
+      if (jobRaced !== "") {
+        stop = { kind: "outside", outcomeReason: raceReason(jobRaced) };
+        break;
+      }
       if (settled) break;
       // Real timers the code started. A setImmediate always runs on the next turn, so Atlas waits for
       // those (counted as steps). Any other real timer is time Atlas does not control: stop, can't check.
@@ -408,6 +497,15 @@ export async function runScenario(withRpcRetry: RetryFn, scenarioIn: RetryScenar
         stop = { kind: "outside", outcomeReason: `the code is waiting on something Atlas does not control (${outside.join(", ")}); Atlas did not wait for it` };
         break;
       }
+      const jobs = pendingJobs();
+      if (jobs.length > 0) {
+        if (timers.length === 0 && jobWaits++ < OUTSIDE_WAIT_STEPS) {
+          await realPause();
+          continue;
+        }
+        stop = { kind: "outside", outcomeReason: `the code is waiting on something Atlas does not control (${jobs.join(", ")}); Atlas did not wait for it` };
+        break;
+      }
       if (timers.length === 0) break; // unsettled, nothing scheduled, queue drained: it can never settle
       timers.sort((a, b) => a.at - b.at || a.seq - b.seq);
       const next = timers[0]!;
@@ -426,6 +524,7 @@ export async function runScenario(withRpcRetry: RetryFn, scenarioIn: RetryScenar
   } finally {
     currentRunTimers = previousRunTimers;
     currentWatch = previousWatch;
+    timersWaiting = null;
   }
   const changed = watch();
   if (changed !== null) return untrusted(trace, changed);
@@ -530,7 +629,10 @@ export async function runSweep(withRpcRetry: RetryFn, sweepIn: SweepScenario, op
   let now = 0;
   let seq = 0;
   const timers: { at: number; seq: number; fire: () => void }[] = [];
-  const schedule = (at: number, fire: () => void) => append(timers, { at, seq: seq++, fire });
+  const schedule = (at: number, fire: () => void) => {
+    noteTimerSet();
+    append(timers, { at, seq: seq++, fire });
+  };
 
   /** Virtual time of every call, per caller, in call order. */
   const callTimes: number[][] = Array.from({ length: n }, () => []);
@@ -594,10 +696,17 @@ export async function runSweep(withRpcRetry: RetryFn, sweepIn: SweepScenario, op
   // The same virtual event loop as runScenario, for all callers at once.
   let stop: string | null = null;
   let steps = 0;
+  let jobWaits = 0;
+  jobRaced = "";
+  timersWaiting = () => timers.length > 0;
   try {
     for (;;) {
-      await drainMicrotasks();
+      await harnessDrain();
       if (watch() !== null) break; // B1: the record is not trusted
+      if (jobRaced !== "") {
+        stop = raceReason(jobRaced);
+        break;
+      }
       if (settledCount === n) break;
       if (realTimers.size > 0) {
         const kinds = [...new Set(realTimers.values())].sort();
@@ -614,6 +723,15 @@ export async function runSweep(withRpcRetry: RetryFn, sweepIn: SweepScenario, op
       const outside = grownResources(before);
       if (outside.length > 0) {
         stop = `the code is waiting on something Atlas does not control (${outside.join(", ")}); Atlas did not wait for it`;
+        break;
+      }
+      const jobs = pendingJobs();
+      if (jobs.length > 0) {
+        if (timers.length === 0 && jobWaits++ < OUTSIDE_WAIT_STEPS) {
+          await realPause();
+          continue;
+        }
+        stop = `the code is waiting on something Atlas does not control (${jobs.join(", ")}); Atlas did not wait for it`;
         break;
       }
       if (timers.length === 0) break; // some callers can never settle: nothing left that could wake them
@@ -634,6 +752,7 @@ export async function runSweep(withRpcRetry: RetryFn, sweepIn: SweepScenario, op
   } finally {
     currentRunTimers = previousRunTimers;
     currentWatch = previousWatch;
+    timersWaiting = null;
   }
   const changed = watch();
   if (changed !== null) return untrusted([{ t: 0, event: "start", data: { label, callers: n } }], changed);

@@ -3,9 +3,24 @@
 // The executor copies these files into an empty temp folder: this worker, call-harness.ts, call-words.ts,
 // primordials.ts, harness.ts and shapes.ts (for the shared result marker and tamper sentence), the code under
 // test as target.ts or target.mjs, and request.json. The worker writes ONE line to stdout:
-//   ATLAS_RESULT <marker> {"runs":[...]}   or   {"wholeRun":"<why nothing counts>"}   or   {"tampered":...}
-// <marker> is random per run, passed as this script's first argument and removed from process.argv before the
-// code under test is imported (the same protection as runners/ts/worker.ts).
+//   ATLAS_RESULT <mac> {"runs":[...]}   or   {"wholeRun":"<why nothing counts>"}   or   {"tampered":...}
+//
+// Why the result cannot be forged (review round 1, B1). The code under test runs in THIS process, so it can see
+// whatever this process can see: argv (also through process.report), env, every file in the sandbox folder, and
+// it can write to stdout or guess fd numbers. The first version put a secret marker on the command line and
+// trusted any line that carried it; process.report.getReport() showed the command line, so pasted code wrote its
+// own result and exited. Two designs were possible: (a) a per-run key the code can never reach, used to
+// authenticate the result, or (b) the parent working the outcome out from something the child cannot fake. (b)
+// does not exist here: everything the parent receives comes from this process. So (a):
+// - The parent sends a fresh 32-byte key on STDIN. The worker reads it before the code under test exists and
+//   CLOSES stdin, so the key is never in argv, env, a file or process.report, and no stream can read it again.
+//   It lives only in a closure variable of this module, which the code cannot import (the module hook refuses
+//   every import) or reach (ES modules are strict, so stack-trace callbacks cannot hand out our functions).
+// - The result line carries HMAC-SHA256(key, json). The parent recomputes it; a line it does not verify, a second
+//   line, or no line at all means the run is not trusted. Writing to stdout or to any fd gives the code nothing:
+//   without the key it cannot make a line that verifies.
+// - process.report and process.reallyExit are refused as whole-run reasons too (call-harness.ts), and this worker
+//   ends the process through its own copy of reallyExit.
 //
 // Order, in plain words:
 // 1. Keep our own copies of what writes the result (fs.writeSync, JSON.stringify, Buffer.from, process.exit,
@@ -17,7 +32,8 @@
 // 4. Snapshot the built-ins (B1), then import the target. Then call each requested export through runCall.
 // 5. Write the result. A whole-run reason replaces every measurement; changed built-ins replace everything.
 
-import { readFileSync, writeSync } from "node:fs";
+import { createHmac } from "node:crypto";
+import { closeSync, readFileSync, writeSync } from "node:fs";
 import { registerHooks } from "node:module";
 import { fileURLToPath } from "node:url";
 import { BUILTINS_CHANGED_REASON, RESULT_MARKER } from "./harness.ts";
@@ -41,13 +57,24 @@ import { ACCESS_REASON, LOAD_TIMER_REASON, missingExportReason, needsPackageReas
 const nativeWriteSync = writeSync;
 const nativeStringify = JSON.stringify;
 const nativeBufferFrom = Buffer.from.bind(Buffer);
-const nativeExit = process.exit.bind(process);
+const nativeReallyExit = (process as unknown as { reallyExit: (code: number) => never }).reallyExit;
+const nativeExit = (code: number): never => Reflect.apply(nativeReallyExit, process, [code]) as never;
+const nativeCreateHmac = createHmac;
 const nativeWait = Atomics.wait;
 const nativeOn = process.on.bind(process);
 const nativeStderrWrite = process.stderr.write.bind(process.stderr);
-// ---- the marker: read it, then take it out of process.argv ----
-const marker = process.argv[2] ?? "";
-process.argv.splice(2);
+// ---- the result key: read from stdin, then stdin is closed for good ----
+let resultKey = "";
+try {
+  resultKey = readFileSync(0, "utf8").trim();
+} catch {
+  resultKey = "";
+}
+try {
+  closeSync(0);
+} catch {
+  // already closed: nothing can read it either way
+}
 
 const workerUrl = import.meta.url;
 const sandboxDir = fileURLToPath(new URL(".", workerUrl));
@@ -118,12 +145,16 @@ function loadFailure(e: unknown): string {
 }
 
 async function main(): Promise<void> {
-  if (!/^[0-9a-f]{32}$/.test(marker)) throw new Error("the worker was started without a valid result marker");
+  if (!/^[0-9a-f]{64}$/.test(resultKey)) throw new Error("the worker was started without a valid result key");
   const req = parseOwn(readFileSync(new URL("./request.json", workerUrl), "utf8")) as CallWorkerRequest;
   const targetFile = req.targetFile;
   if (targetFile !== "target.ts" && targetFile !== "target.mjs") throw new Error("the request names no target file Atlas writes");
   setRedactions([sandboxDir, sandboxDir.replace(/\/$/, ""), new URL(".", workerUrl).href]);
 
+  // Create the stdout/stderr streams now, before the background-work tracker starts (installSandboxGuards):
+  // Node makes them lazily, and a stream made later by console.log would look like outside work forever.
+  void process.stdout;
+  void process.stderr;
   installVirtualClock();
   installSandboxGuards();
   nativeOn("unhandledRejection", (r: unknown) => noteUncaught("rejection", r));
@@ -181,7 +212,9 @@ async function main(): Promise<void> {
   } else {
     put(payload, "runs", runs);
   }
-  writeAll(`\n${RESULT_MARKER}${marker} ${nativeStringify(payload)}\n`);
+  const json = nativeStringify(payload);
+  const mac = nativeCreateHmac("sha256", resultKey).update(json, "utf8").digest("hex");
+  writeAll(`\n${RESULT_MARKER}${mac} ${json}\n`);
   nativeExit(0);
 }
 

@@ -30,7 +30,7 @@
 //   still do things the snapshot does not look at (it would then be caught only if it changed the record).
 
 import { readFileSync, writeSync } from "node:fs";
-import { BUILTINS_CHANGED_REASON, RESULT_MARKER, installRealTimerTracker, runScenario, runSweep, type RetryFn, type WorkerRequest, type WorkerResponse } from "./harness.ts";
+import { BUILTINS_CHANGED_REASON, RESULT_MARKER, installOutsideWorkTracker, installRealTimerTracker, runScenario, runSweep, type RetryFn, type WorkerRequest, type WorkerResponse } from "./harness.ts";
 import { JSONParse, ObjectGetOwnPropertyDescriptor, append, armBuiltinCheck, builtinsChanged, put, record } from "./primordials.ts";
 
 // ---- native references, captured before the code under test exists ----
@@ -73,6 +73,10 @@ async function main(): Promise<void> {
   if (!/^[0-9a-f]{32}$/.test(marker)) throw new Error("the worker was started without a valid result marker");
   const req = parseOwn(readFileSync(new URL("./request.json", import.meta.url), "utf8")) as WorkerRequest;
   installRealTimerTracker();
+  // stdout/stderr are made lazily; make them before the tracker starts, so console.log is not "outside work".
+  void process.stdout;
+  void process.stderr;
+  installOutsideWorkTracker(); // E1 review round 1: background jobs are not "nothing left that could wake it"
   armBuiltinCheck(); // B1: the snapshot of the built-ins, taken before the code under test exists
   // A variable specifier keeps the type checker from resolving a file that exists only in the sandbox.
   const targetPath = "./target.ts";

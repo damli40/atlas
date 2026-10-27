@@ -16,7 +16,7 @@
 // - Node runs with --disallow-code-generation-from-strings, so eval / new Function cannot run text as code even
 //   on a path the guards in call-harness.ts miss.
 
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { nanoid } from "nanoid";
 import { gate } from "../../src/gate.ts";
@@ -84,17 +84,31 @@ function isRun(r: unknown): r is NonNullable<CallWorkerResponse["runs"]>[number]
   return typeof x.id === "string" && Array.isArray(x.trace) && !!x.result && typeof x.result.measured === "object" && x.result.measured !== null && typeof x.result.notMeasured === "object" && x.result.notMeasured !== null;
 }
 
-/** Reads the worker's stdout (same rules as runners/ts/control.ts parseWorkerOutput, plus `wholeRun`). Never throws. */
-export function parseCallWorkerOutput(stdout: string, marker: string): CallAnswer {
-  const lines = stdout.split("\n").filter((l) => l.includes(marker));
+/** HMAC-SHA256 of the result JSON under the run's key, as the worker writes it (call-worker.ts explains why). */
+export function resultMac(key: string, json: string): string {
+  return createHmac("sha256", key).update(json, "utf8").digest("hex");
+}
+
+/**
+ * Reads the worker's stdout. Review round 1 (B1): a result counts only when its HMAC verifies under this run's key,
+ * which only the worker ever held. EVERY line that mentions ATLAS_RESULT must be that one verified line: a second
+ * line, a line that does not verify, or one with run ids other than the request's means the code under test tried
+ * to write a result itself, and nothing from the run is trusted. Never throws.
+ */
+export function parseCallWorkerOutput(stdout: string, key: string, expectedIds?: readonly string[]): CallAnswer {
+  const lines = stdout.split("\n").filter((l) => l.includes(RESULT_MARKER.trim()));
   if (lines.length === 0) return { ok: false, reason: "the sandbox gave no result line", kind: "noResult" };
-  if (lines.length > 1) return { ok: false, reason: `tampering: ${lines.length} result lines carry this run's marker (only the worker writes one)`, kind: "tampered" };
-  const prefix = `${RESULT_MARKER}${marker} `;
+  if (lines.length > 1) return { ok: false, reason: `tampering: ${lines.length} result lines (only the worker writes one)`, kind: "tampered" };
   const line = lines[0]!;
-  if (!line.startsWith(prefix)) return { ok: false, reason: "tampering: the result line was changed", kind: "tampered" };
+  const m = /^ATLAS_RESULT ([0-9a-f]{64}) (.*)$/.exec(line);
+  if (!m) return { ok: false, reason: "tampering: a result line not in the worker's form", kind: "tampered" };
+  const want = Buffer.from(resultMac(key, m[2]!), "hex");
+  const got = Buffer.from(m[1]!, "hex");
+  if (want.length !== got.length || !timingSafeEqual(want, got)) return { ok: false, reason: "tampering: a result line that does not carry this run's key (the worker did not write it)", kind: "tampered" };
+  const body = m[2]!;
   let p: CallWorkerResponse;
   try {
-    p = JSON.parse(line.slice(prefix.length)) as CallWorkerResponse;
+    p = JSON.parse(body) as CallWorkerResponse;
   } catch {
     return { ok: false, reason: "tampering or a cut-off write: the result line is not valid JSON", kind: "tampered" };
   }
@@ -112,12 +126,16 @@ export function parseCallWorkerOutput(stdout: string, marker: string): CallAnswe
     return { ok: false, reason: r, kind: "wholeRun" };
   }
   if (!Array.isArray(p?.runs) || !p.runs.every(isRun)) return { ok: false, reason: "tampering: the result line does not have the shape the worker writes", kind: "tampered" };
+  // The worker answers exactly the runs it was asked, in order (it may stop early only with a whole-run reason).
+  if (expectedIds && (p.runs.length !== expectedIds.length || p.runs.some((r, i) => r.id !== expectedIds[i]))) {
+    return { ok: false, reason: "tampering: the result's runs are not the runs Atlas asked for", kind: "tampered" };
+  }
   return { ok: true, runs: p.runs };
 }
 
 /** Runs the worker on `code` in the sandbox. */
 export async function runInSandbox(executor: Executor, code: string, language: "js" | "ts", request: Omit<CallWorkerRequest, "targetFile">, wallClockMs: number): Promise<CallAnswer> {
-  const marker = randomBytes(16).toString("hex");
+  const key = randomBytes(32).toString("hex"); // fresh per run; sent on stdin only
   const targetFile = language === "ts" ? "target.ts" : "target.mjs";
   const files: Record<string, string> = {};
   for (const f of SANDBOX_FILES) files[f] = own(f);
@@ -127,7 +145,8 @@ export async function runInSandbox(executor: Executor, code: string, language: "
   try {
     res = await executor.exec({
       files,
-      cmd: ["node", "--permission", "--allow-fs-read=.", "--disallow-code-generation-from-strings", "call-worker.ts", marker],
+      cmd: ["node", "--permission", "--allow-fs-read=.", "--disallow-code-generation-from-strings", "call-worker.ts"],
+      stdin: `${key}\n`,
       wallClockMs,
       allowNetwork: false,
     });
@@ -137,7 +156,7 @@ export async function runInSandbox(executor: Executor, code: string, language: "
   if (res.timedOut) {
     return { ok: false, reason: `the code ran past Atlas's ${wallClockMs} ms limit of REAL time (it may loop without ever handing control back), so Atlas stopped it`, kind: "noResult" };
   }
-  const parsed = parseCallWorkerOutput(res.stdout, marker);
+  const parsed = parseCallWorkerOutput(res.stdout, key, request.runs.map((r) => r.id));
   if (parsed.ok && res.exitCode !== 0) return { ok: false, reason: `tampering: the sandbox wrote a result but exited with code ${res.exitCode}`, kind: "tampered" };
   if (!parsed.ok && parsed.kind === "noResult") {
     const err = res.stderr.trim().split("\n").filter((l) => /Error|error:|failed/.test(l)).slice(0, 2).join(" | ").replaceAll(/\/[^\s'"]*atlas-exec-[^\s/'"]*\/?/g, "<sandbox>/");

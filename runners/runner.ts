@@ -13,6 +13,11 @@ export interface Executor {
     files: Record<string, string>;          // path → contents
     cmd: string[];                          // e.g. ["node", "--permission", "--allow-fs-read=.", "worker.mjs"]
     env?: Record<string, string>;
+    /**
+     * Added E1 review round 1: text written to the child's stdin, then stdin is closed. The call-function worker
+     * reads its per-run result key from here, so the key is never on the command line or in a file.
+     */
+    stdin?: string;
     wallClockMs: number;                    // the harness's OWN limit; the code under test has none
     allowNetwork: false | { hosts: string[] };  // evm: only the anvil port on localhost
   }): Promise<{ stdout: string; stderr: string; exitCode: number | null; timedOut: boolean; durationMs: number }>;

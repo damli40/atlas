@@ -73,15 +73,19 @@ export const localExecutor: Executor = {
         const child = spawn(process.execPath, args, {
           cwd: dir,
           env: { ...(req.env ?? {}) },
-          stdio: ["ignore", "pipe", "pipe"],
+          stdio: [req.stdin !== undefined ? "pipe" : "ignore", "pipe", "pipe"],
         });
+        if (req.stdin !== undefined && child.stdin) {
+          child.stdin.on("error", () => {}); // the child may exit before reading it; that is its answer, not ours
+          child.stdin.end(req.stdin);
+        }
         let stdout = "";
         let stderr = "";
         let timedOut = false;
-        child.stdout.on("data", (b: Buffer) => {
+        child.stdout!.on("data", (b: Buffer) => {
           if (stdout.length < MAX_OUTPUT_BYTES) stdout += b.toString("utf8");
         });
-        child.stderr.on("data", (b: Buffer) => {
+        child.stderr!.on("data", (b: Buffer) => {
           if (stderr.length < MAX_OUTPUT_BYTES) stderr += b.toString("utf8");
         });
         const timer = setTimeout(() => {

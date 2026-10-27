@@ -50,7 +50,6 @@ import {
   activeResourcesInfo,
   append,
   builtinWatch,
-  drainMicrotasks,
   plain,
   promiseReject,
   promiseResolve,
@@ -366,7 +365,65 @@ export function installVirtualClock(): void {
   ObjectDefineProperty(RealDate.prototype, "constructor", { __proto__: null, value: FakeDate, writable: true, enumerable: false, configurable: true } as PropertyDescriptor);
   g.Date = FakeDate;
   const perf = g.performance as Record<string, unknown> | undefined;
-  if (perf) ObjectDefineProperty(perf, "now", { __proto__: null, value: function now() { return active ? active.now : 0; }, writable: true, enumerable: true, configurable: true } as PropertyDescriptor);
+  if (perf) {
+    ObjectDefineProperty(perf, "now", { __proto__: null, value: function now() { return active ? active.now : 0; }, writable: true, enumerable: true, configurable: true } as PropertyDescriptor);
+    // Review round 1 (minor): timeOrigin + now() must give the virtual time, as in real Node it gives the real one.
+    ObjectDefineProperty(perf, "timeOrigin", { __proto__: null, value: VIRTUAL_EPOCH_MS, writable: false, enumerable: true, configurable: true } as PropertyDescriptor);
+  }
+  // Review round 1 (B2): AbortSignal.timeout runs on Node's INTERNAL timer (not the global setTimeout), unref'd and
+  // invisible to every list Atlas reads, so a call waiting on it looked like "never settles". It now runs on the
+  // virtual clock: a signal that aborts with the same TimeoutError Node uses, after `ms` virtual ms.
+  const RealAbortController = g.AbortController as typeof AbortController | undefined;
+  const RealDOMException = g.DOMException as typeof DOMException | undefined;
+  const RealAbortSignal = g.AbortSignal as Record<string, unknown> | undefined;
+  if (RealAbortController && RealDOMException && RealAbortSignal) {
+    ObjectDefineProperty(RealAbortSignal, "timeout", {
+      __proto__: null,
+      value: function timeout(ms: unknown) {
+        const delay = NumberCtor(ms);
+        // Node's own check: a whole number from 0 up; anything else throws ERR_OUT_OF_RANGE / ERR_INVALID_ARG_TYPE.
+        if (!(delay >= 0 && delay <= Number.MAX_SAFE_INTEGER) || MathTrunc(delay) !== delay) {
+          const e = new RangeError(`The value of "delay" is out of range. It must be >= 0 && <= ${Number.MAX_SAFE_INTEGER}. Received ${StringCtor(ms)}`);
+          ObjectDefineProperty(e, "code", { __proto__: null, value: "ERR_OUT_OF_RANGE", writable: true, enumerable: false, configurable: true } as PropertyDescriptor);
+          throw e;
+        }
+        const c = new RealAbortController();
+        startTimer(() => c.abort(new RealDOMException("The operation was aborted due to timeout", "TimeoutError")), [], delay, false);
+        return c.signal;
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    } as PropertyDescriptor);
+  }
+  // Intl.DateTimeFormat#format() and formatToParts() with no date read the REAL clock; give them the virtual one.
+  const dtf = (g.Intl as { DateTimeFormat?: { prototype: object } } | undefined)?.DateTimeFormat?.prototype;
+  if (dtf) {
+    const fmtGet = ObjectGetOwnPropertyDescriptor(dtf, "format")?.get;
+    const toParts = ObjectGetOwnPropertyDescriptor(dtf, "formatToParts")?.value as ((d?: unknown) => unknown) | undefined;
+    if (fmtGet) {
+      ObjectDefineProperty(dtf, "format", {
+        __proto__: null,
+        get() {
+          const real = ReflectApply(fmtGet, this, []) as (d?: unknown) => string;
+          return (d?: unknown) => real(d === undefined ? virtualNow() : d);
+        },
+        enumerable: false,
+        configurable: true,
+      } as PropertyDescriptor);
+    }
+    if (toParts) {
+      ObjectDefineProperty(dtf, "formatToParts", {
+        __proto__: null,
+        value: function formatToParts(this: unknown, d?: unknown) {
+          return ReflectApply(toParts, this, [d === undefined ? virtualNow() : d]);
+        },
+        writable: true,
+        enumerable: false,
+        configurable: true,
+      } as PropertyDescriptor);
+    }
+  }
   const hrtime = function hrtime(prev?: [number, number]) {
     const ms = active ? active.now : 0;
     let s = MathTrunc(ms / 1000);
@@ -415,15 +472,61 @@ export function installSandboxGuards(): void {
   for (const name of ["binding", "_linkedBinding", "dlopen"]) def(proc, name, function blocked() {
     return refuse(INTERNALS_REASON(`process.${name}`));
   });
-  // process.reallyExit is left alone: Node's own process.exit (which the worker keeps a copy of) calls it.
-  // Code that calls it directly ends the process with no result, which is "can't check" as well.
-  for (const name of ["exit", "abort", "kill", "execve"]) def(proc, name, function blocked() {
+  // Review round 1 (B1): reallyExit too. The worker ends the process through its own copy, taken before this runs.
+  for (const name of ["exit", "reallyExit", "abort", "kill", "execve"]) def(proc, name, function blocked() {
     return refuse(PROCESS_REASON(`process.${name}`));
   });
   // Every other function on `process` (process.loadEnvFile, process.chdir, process.report.writeReport, ...) may
   // hit the sandbox's file rules. Each is wrapped so a refusal (ERR_ACCESS_DENIED) marks the whole run even when
   // the code catches the error and carries on. The wrapper changes nothing else: same this, same arguments.
-  const guarded = new Set(["require", "getBuiltinModule", "binding", "_linkedBinding", "dlopen", "exit", "abort", "kill", "execve", "hrtime", "uptime"]);
+  // Review round 1: refused outright. process.report shows the command line, host and paths (B1); process.stdin
+  // is real input; cpuUsage / resourceUsage / threadCpuUsage are real clocks the virtual one cannot stand in for.
+  const getterBlocked = (obj: object, key: string, reason: string) =>
+    ObjectDefineProperty(obj, key, { __proto__: null, get() { return refuse(reason); }, set() { refuse(reason); }, enumerable: false, configurable: true } as PropertyDescriptor);
+  getterBlocked(proc, "report", INTERNALS_REASON("process.report"));
+  getterBlocked(proc, "stdin", ACCESS_REASON("process.stdin"));
+  for (const name of ["cpuUsage", "resourceUsage", "threadCpuUsage"]) def(proc, name, function blocked() {
+    return refuse(REAL_TIME_REASON(`process.${name}`));
+  });
+  // Listening for the process's own events: 'beforeExit' fires when the event loop runs empty, which in a real run
+  // can wake a call Atlas would call "never settles". Signals, IPC messages and exit come from outside the code.
+  const outsideEvent = (ev: unknown) => typeof ev === "string" && (ev === "beforeExit" || ev === "exit" || ev === "message" || ev === "disconnect" || ev.startsWith("SIG"));
+  for (const name of ["on", "once", "addListener", "prependListener", "prependOnceListener"]) {
+    const orig = proc[name] as (...a: unknown[]) => unknown;
+    if (typeof orig !== "function") continue;
+    def(proc, name, function (this: unknown, ev: unknown, ...rest: unknown[]) {
+      if (outsideEvent(ev)) return refuse(REAL_TIME_REASON(`process.${name}("${String(ev)}")`));
+      return ReflectApply(orig, this, [ev, ...rest]);
+    });
+  }
+  // performance: everything that reads Node's real clock or its real event-loop timings.
+  const perf = g.performance as Record<string, unknown> | undefined;
+  if (perf) {
+    for (const name of ["mark", "measure", "timerify", "eventLoopUtilization", "getEntries", "getEntriesByName", "getEntriesByType", "toJSON", "markResourceTiming"]) {
+      def(perf, name, function blocked() {
+        return refuse(REAL_TIME_REASON(`performance.${name}`));
+      });
+    }
+    getterBlocked(perf, "nodeTiming", REAL_TIME_REASON("performance.nodeTiming"));
+  }
+  // Work that can wake a promise without Atlas's clock and without a resource Atlas can see:
+  // - MessageChannel / BroadcastChannel: messages are delivered by another part of Node on real time, and an
+  //   unref'd port is invisible to the resource list.
+  // - FinalizationRegistry / WeakRef: what they do depends on when the garbage collector runs.
+  // - navigator.locks: a lock is granted by Node on its own schedule.
+  for (const name of ["MessageChannel", "MessagePort", "BroadcastChannel"]) {
+    if (name in g) def(globalThis, name, function blocked() {
+      return refuse(REAL_TIME_REASON(name));
+    });
+  }
+  for (const name of ["FinalizationRegistry", "WeakRef"]) {
+    if (name in g) def(globalThis, name, function blocked() {
+      return refuse(REAL_TIME_REASON(`${name} (garbage-collector timing)`));
+    });
+  }
+  const nav = g.navigator as object | undefined;
+  if (nav) getterBlocked(nav, "locks", REAL_TIME_REASON("navigator.locks"));
+  const guarded = new Set(["require", "getBuiltinModule", "binding", "_linkedBinding", "dlopen", "exit", "reallyExit", "abort", "kill", "execve", "hrtime", "uptime", "report", "stdin", "cpuUsage", "resourceUsage", "threadCpuUsage", "on", "once", "addListener", "prependListener", "prependOnceListener"]);
   const watchAccess = (obj: Record<string, unknown>, key: string, label: string) => {
     const d = ObjectGetOwnPropertyDescriptor(obj, key);
     if (!d || !ObjectHasOwn(d, "value") || typeof d.value !== "function" || !d.configurable) return;
@@ -442,8 +545,6 @@ export function installSandboxGuards(): void {
     const k = procKeys[i];
     if (typeof k === "string" && !guarded.has(k)) watchAccess(proc, k, `process.${k}`);
   }
-  const report = proc.report as Record<string, unknown> | undefined;
-  if (report && typeof report === "object") for (const k of ["writeReport", "getReport"]) watchAccess(report, k, `process.report.${k}`);
   // Code made from text. The worker also runs Node with --disallow-code-generation-from-strings, so even a path
   // missed here cannot run text as code; these make sure the attempt is seen.
   def(globalThis, "eval", function evalBlocked() {
@@ -481,7 +582,34 @@ export function installSandboxGuards(): void {
 // wakes it. So every async resource Node creates (except promises and Atlas's own drain) is tracked from
 // creation until its callback starts or it is destroyed; while any is pending, a quiet run is not "never
 // settled" but "waiting on something Atlas does not control" (can't check).
-const OWN_ASYNC_TYPES = new Set(["PROMISE", "Immediate", "TickObject", "Microtask", "Timeout"]);
+// Review round 1 (B2): "Timeout" and "Immediate" are no longer ignored as a type. Only the ones ATLAS creates (its
+// microtask drain and its 1 ms real waits, made while `atlasCreating` is set) are skipped; a Timeout made by Node
+// on the code's behalf (AbortSignal.timeout before it was moved to the virtual clock, a stream's internals) counts.
+const OWN_ASYNC_TYPES = new Set(["PROMISE", "TickObject", "Microtask"]);
+let atlasCreating = false;
+const nativeSetImmediateFn = g.setImmediate as (...a: unknown[]) => unknown;
+/** Resolves after every queued promise reaction has run, through a native setImmediate marked as Atlas's own. */
+function drain(): Promise<void> {
+  return new PromiseCtor<void>((r) => {
+    atlasCreating = true;
+    try {
+      ReflectApply(nativeSetImmediateFn, globalThis, [r]);
+    } finally {
+      atlasCreating = false;
+    }
+  });
+}
+/** Waits about 1 ms of real time, through a native setTimeout marked as Atlas's own. */
+function realPause(): Promise<void> {
+  return new PromiseCtor<void>((r) => {
+    atlasCreating = true;
+    try {
+      ReflectApply(nativeSetTimeout, globalThis, [r, 1]);
+    } finally {
+      atlasCreating = false;
+    }
+  });
+}
 const outsideWork = new Map<number, string>();
 /**
  * Set when background work and a virtual timer were in flight at the same time (the work started while a timer
@@ -503,7 +631,7 @@ function installOutsideWorkTracker(): void {
   trackerOn = true;
   createHook({
     init(id: number, type: string) {
-      if (OWN_ASYNC_TYPES.has(type)) return;
+      if (OWN_ASYNC_TYPES.has(type) || atlasCreating) return;
       ReflectApply(MapSetFn, outsideWork, [id, type]);
       if (active && active.byId.size > 0) markRaced(type);
     },
@@ -885,7 +1013,7 @@ export async function runCall(fn: unknown, req: CallRunRequest, opts: CallHarnes
   racedWith = "";
   try {
     for (;;) {
-      await drainMicrotasks();
+      await drain();
       if (watch() !== null) break;
       if (wholeRunReason !== null) break;
       if (raced) {
@@ -900,7 +1028,7 @@ export async function runCall(fn: unknown, req: CallRunRequest, opts: CallHarnes
         // waiting, which finishes first would be a guess, so Atlas stops there (can't check).
         if (!next && realWaitMs < OUTSIDE_WAIT_MS) {
           realWaitMs += 1;
-          await new PromiseCtor<void>((r) => void ReflectApply(nativeSetTimeout, globalThis, [r, 1]));
+          await realPause();
           continue;
         }
         stop = `the code is waiting on something Atlas does not control (${outside.join(", ")})${next ? " while a timer is also waiting, so which comes first is not known" : ""}; Atlas did not wait for it`;
