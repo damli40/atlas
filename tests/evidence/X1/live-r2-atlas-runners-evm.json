@@ -1,0 +1,922 @@
+{
+  "ranAt": "2026-10-27T23:33:46.491Z",
+  "rejudgedFrom": "a saved section of the live run: same files and Wonder answer, today's plain code, no model call",
+  "seconds": 0,
+  "source": {
+    "kind": "github",
+    "repo": "damli40/atlas",
+    "requestedRef": "5f28a6c8a25607b7a055899c462d72797c960854",
+    "commit": "5f28a6c8a25607b7a055899c462d72797c960854",
+    "subfolder": "runners/evm"
+  },
+  "codeSha256": "5f5f4d681c5b2605de831ac0503b9bfcdcf7f368c9d2458b62db3acdc35882a1",
+  "files": [
+    {
+      "path": "anvil.ts",
+      "language": "ts",
+      "bytes": 7338,
+      "sha256": "75cd4604975705b34a121d8a6ce87183dbbac08dd14c9eb1a83625bcfcdf584e"
+    },
+    {
+      "path": "apply.ts",
+      "language": "ts",
+      "bytes": 19300,
+      "sha256": "5d7c1a320bfa2a02fca2164c8b4dbe3325a64ab4080c8a9d010391d349f1d535"
+    },
+    {
+      "path": "chain-facts.ts",
+      "language": "ts",
+      "bytes": 6770,
+      "sha256": "dcefb9fec20a99996b57d332e6bd04e43edb71989daa27a194e02d22e26e8627"
+    },
+    {
+      "path": "control.ts",
+      "language": "ts",
+      "bytes": 13196,
+      "sha256": "30da73c9d9c5692c916c37c18a9c95af87ab32f4fbe60be6afcf5dcbc06b8f4b"
+    },
+    {
+      "path": "level2.ts",
+      "language": "ts",
+      "bytes": 15304,
+      "sha256": "d928430ec7fe2561a35e1d45f34338d667c3885f775cc3a7f57b824def2d7ca3"
+    },
+    {
+      "path": "moonwell-base.ts",
+      "language": "ts",
+      "bytes": 5354,
+      "sha256": "65d058c034b5b258002ab5cbcd6e1645819a24ccdaa640d074c5efb7a67c027b"
+    },
+    {
+      "path": "reads.ts",
+      "language": "ts",
+      "bytes": 5805,
+      "sha256": "8f5a241d753aaacf9109c3e57392f5bb9e0a65bcc47f99230564bb2a4e7c66cc"
+    },
+    {
+      "path": "redact.ts",
+      "language": "ts",
+      "bytes": 4936,
+      "sha256": "b28d9f25db2c55c566d26dd28265142e00bab40a672f2ba3a4088a9ddfb063c7"
+    },
+    {
+      "path": "runner.ts",
+      "language": "ts",
+      "bytes": 18454,
+      "sha256": "6e2eeb8c88df101d095aea4d7e04a1e904aa6e25c7ac35401555a337244751e5"
+    }
+  ],
+  "skipped": [],
+  "codeMap": {
+    "files": 9,
+    "edges": 120,
+    "callEdges": 76,
+    "externals": [
+      "nanoid",
+      "node:child_process",
+      "node:crypto",
+      "node:fs",
+      "node:net",
+      "node:path",
+      "viem"
+    ],
+    "unresolved": [
+      "chain-facts.ts:17 ../../src/chain-facts.ts",
+      "chain-facts.ts:18 ../../src/units.ts",
+      "control.ts:20 ../../src/units.ts",
+      "level2.ts:18 ../../src/units.ts",
+      "level2.ts:19 ../../src/falsealarm.ts",
+      "level2.ts:24 ../../src/words",
+      "level2.ts:159 ../../src/falsealarm.ts",
+      "level2.ts:161 ../../src/falsealarm.ts",
+      "level2.ts:162 ../../src/falsealarm.ts",
+      "moonwell-base.ts:9 ../../src/moonwell-blocks.ts",
+      "reads.ts:10 ../../src/units.ts",
+      "runner.ts:16 ../../src/types.ts",
+      "runner.ts:18 ../runner.ts",
+      "runner.ts:19 ../change.ts",
+      "runner.ts:20 ../../src/change.ts"
+    ],
+    "parseNotes": []
+  },
+  "wonder": {
+    "model": "muse-wonder-1.0",
+    "attempts": [
+      {
+        "attempt": 1,
+        "finishReason": "stop",
+        "usage": {
+          "promptTokens": 35253,
+          "completionTokens": 4792,
+          "reasoningTokens": 1783,
+          "usd": 0.236852
+        }
+      }
+    ]
+  },
+  "counts": {
+    "confirmedParts": 15,
+    "unconfirmedParts": 0,
+    "confirmedJoins": 19,
+    "modelOnlyJoins": 1,
+    "codeOnlyJoins": 19
+  },
+  "parts": [
+    {
+      "id": "anvil-fork",
+      "status": "confirmed",
+      "name": "Local Anvil fork lifecycle",
+      "purposeByModel": "Starts, monitors, redacts output from, and reliably stops a local Base fork process.",
+      "files": [
+        "anvil.ts"
+      ],
+      "ranges": [
+        "anvil.ts:1-201 (whole file)"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "network",
+          "known": true
+        },
+        {
+          "label": "timer",
+          "known": true
+        },
+        {
+          "label": "error-handling",
+          "known": true
+        },
+        {
+          "label": "state",
+          "known": true
+        },
+        {
+          "label": "config",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "apply-parse-plan",
+      "status": "confirmed",
+      "name": "Proposal config parsing and planning",
+      "purposeByModel": "Parses Moonwell oracle configs and the Base address book into planned feed actions without guessing.",
+      "files": [
+        "apply.ts"
+      ],
+      "ranges": [
+        "apply.ts:1-158"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "parsing",
+          "known": true
+        },
+        {
+          "label": "validation",
+          "known": true
+        },
+        {
+          "label": "file-io",
+          "known": true
+        },
+        {
+          "label": "error-handling",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "apply-resolve-compare",
+      "status": "confirmed",
+      "name": "Symbol resolution and pair comparison",
+      "purposeByModel": "Reads token symbols on-chain, plans actions from PR files, and compares derived and real feed pairs.",
+      "files": [
+        "apply.ts"
+      ],
+      "ranges": [
+        "apply.ts:167-224"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "rpc-call",
+          "known": true
+        },
+        {
+          "label": "file-io",
+          "known": true
+        },
+        {
+          "label": "validation",
+          "known": true
+        },
+        {
+          "label": "error-handling",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "apply-onchain",
+      "status": "confirmed",
+      "name": "Applying feed actions on fork",
+      "purposeByModel": "Impersonates the oracle admin on the fork and sends each setFeed transaction, recording receipts and FeedSet events.",
+      "files": [
+        "apply.ts"
+      ],
+      "ranges": [
+        "apply.ts:228-300"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "rpc-call",
+          "known": true
+        },
+        {
+          "label": "auth",
+          "known": true
+        },
+        {
+          "label": "events",
+          "known": true
+        },
+        {
+          "label": "error-handling",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "apply-trace",
+      "status": "confirmed",
+      "name": "Price-source call tracing",
+      "purposeByModel": "Counts distinct latestRoundData price sources in a debug_traceCall call tree and refuses unmeasurable traces.",
+      "files": [
+        "apply.ts"
+      ],
+      "ranges": [
+        "apply.ts:305-407"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "rpc-call",
+          "known": true
+        },
+        {
+          "label": "parsing",
+          "known": true
+        },
+        {
+          "label": "validation",
+          "known": true
+        },
+        {
+          "label": "error-handling",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "chain-facts",
+      "status": "confirmed",
+      "name": "Pinned chain facts reader",
+      "purposeByModel": "Reads fixed Moonwell and Chainlink facts only from a local fork pinned to the pre-proposal block, with caching.",
+      "files": [
+        "chain-facts.ts"
+      ],
+      "ranges": [
+        "chain-facts.ts:1-122 (whole file)"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "rpc-call",
+          "known": true
+        },
+        {
+          "label": "cache",
+          "known": true
+        },
+        {
+          "label": "validation",
+          "known": true
+        },
+        {
+          "label": "network",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "control-checks",
+      "status": "confirmed",
+      "name": "Known-case controls",
+      "purposeByModel": "Checks fork chain and block, exact WETH pricing against wired and raw feeds, and stablecoin price bands.",
+      "files": [
+        "control.ts"
+      ],
+      "ranges": [
+        "control.ts:1-189"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "rpc-call",
+          "known": true
+        },
+        {
+          "label": "validation",
+          "known": true
+        },
+        {
+          "label": "error-handling",
+          "known": true
+        },
+        {
+          "label": "config",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "reference-guard",
+      "status": "confirmed",
+      "name": "cbETH reference and pre-execution guard",
+      "purposeByModel": "Computes the cbETH reference from raw Chainlink aggregators and refuses forks that are not pre-execution.",
+      "files": [
+        "control.ts"
+      ],
+      "ranges": [
+        "control.ts:206-275"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "rpc-call",
+          "known": true
+        },
+        {
+          "label": "validation",
+          "known": true
+        },
+        {
+          "label": "error-handling",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "level2-run",
+      "status": "confirmed",
+      "name": "Level 2 fork run",
+      "purposeByModel": "Guards, controls, reads, applies proposal feed actions, and re-reads markets on a pre-proposal fork.",
+      "files": [
+        "level2.ts"
+      ],
+      "ranges": [
+        "level2.ts:1-155"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "rpc-call",
+          "known": true
+        },
+        {
+          "label": "validation",
+          "known": true
+        },
+        {
+          "label": "events",
+          "known": true
+        },
+        {
+          "label": "error-handling",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "level2-passrule",
+      "status": "confirmed",
+      "name": "Level 2 pass rule",
+      "purposeByModel": "Builds the false-alarm table and evaluates the pre-registered pass, flag, and replay rules as plain code.",
+      "files": [
+        "level2.ts"
+      ],
+      "ranges": [
+        "level2.ts:165-257"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "validation",
+          "known": true
+        },
+        {
+          "label": "state",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "moonwell-constants",
+      "status": "confirmed",
+      "name": "Moonwell Base constants",
+      "purposeByModel": "Holds every Base chain, oracle, market, token, feed, and fork-block address or constant used by the runner.",
+      "files": [
+        "moonwell-base.ts"
+      ],
+      "ranges": [
+        "moonwell-base.ts:1-101 (whole file)"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "config",
+          "known": true
+        },
+        {
+          "label": "validation",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "fork-reads",
+      "status": "confirmed",
+      "name": "Local fork price reads",
+      "purposeByModel": "Provides local-only viem clients and read-only oracle, feed, token, and market price reads.",
+      "files": [
+        "reads.ts"
+      ],
+      "ranges": [
+        "reads.ts:1-130 (whole file)"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "rpc-call",
+          "known": true
+        },
+        {
+          "label": "network",
+          "known": true
+        },
+        {
+          "label": "validation",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "redaction",
+      "status": "confirmed",
+      "name": "RPC secret redaction",
+      "purposeByModel": "Removes RPC URLs, hosts, keys, and credentials from every error, string, and run leaving the EVM runner.",
+      "files": [
+        "redact.ts"
+      ],
+      "ranges": [
+        "redact.ts:1-91 (whole file)"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "auth",
+          "known": true
+        },
+        {
+          "label": "parsing",
+          "known": true
+        },
+        {
+          "label": "error-handling",
+          "known": true
+        },
+        {
+          "label": "logging",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "runner-main",
+      "status": "confirmed",
+      "name": "EVM runner orchestration",
+      "purposeByModel": "Runs controls, Level 1 price reads, Level 2 experiments, and change replays on forks while guarding all outputs.",
+      "files": [
+        "runner.ts"
+      ],
+      "ranges": [
+        "runner.ts:1-251"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "rpc-call",
+          "known": true
+        },
+        {
+          "label": "network",
+          "known": true
+        },
+        {
+          "label": "error-handling",
+          "known": true
+        },
+        {
+          "label": "logging",
+          "known": true
+        },
+        {
+          "label": "validation",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "runner-runbuild",
+      "status": "confirmed",
+      "name": "Replay checks and Run building",
+      "purposeByModel": "Validates replay identity and converts a Level 2 record into a stored Run with traces and results.",
+      "files": [
+        "runner.ts"
+      ],
+      "ranges": [
+        "runner.ts:253-346"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "validation",
+          "known": true
+        },
+        {
+          "label": "events",
+          "known": true
+        },
+        {
+          "label": "state",
+          "known": true
+        }
+      ]
+    }
+  ],
+  "splitFiles": [
+    "apply.ts",
+    "control.ts",
+    "level2.ts",
+    "runner.ts"
+  ],
+  "joins": [
+    {
+      "id": "wonder:0",
+      "from": "anvil-fork",
+      "to": "redaction",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 3,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:1",
+      "from": "apply-resolve-compare",
+      "to": "fork-reads",
+      "kind": "calls",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:2",
+      "from": "apply-resolve-compare",
+      "to": "apply-parse-plan",
+      "kind": "calls",
+      "status": "confirmed",
+      "codeEdges": 3,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:3",
+      "from": "apply-onchain",
+      "to": "moonwell-constants",
+      "kind": "calls",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "reason": "Wonder's quoted evidence is not the line of an import, call or use it names (apply.ts line 275); the code map's own edges are listed instead",
+      "wonderEvidenceMatches": false
+    },
+    {
+      "id": "wonder:4",
+      "from": "apply-onchain",
+      "to": "redaction",
+      "kind": "calls",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:5",
+      "from": "chain-facts",
+      "to": "anvil-fork",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 2,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:6",
+      "from": "chain-facts",
+      "to": "moonwell-constants",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 7,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:7",
+      "from": "control-checks",
+      "to": "fork-reads",
+      "kind": "calls",
+      "status": "confirmed",
+      "codeEdges": 3,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:8",
+      "from": "control-checks",
+      "to": "redaction",
+      "kind": "calls",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:9",
+      "from": "reference-guard",
+      "to": "fork-reads",
+      "kind": "calls",
+      "status": "confirmed",
+      "codeEdges": 5,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:10",
+      "from": "level2-run",
+      "to": "reference-guard",
+      "kind": "calls",
+      "status": "confirmed",
+      "codeEdges": 2,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:11",
+      "from": "level2-run",
+      "to": "apply-onchain",
+      "kind": "calls",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:12",
+      "from": "level2-run",
+      "to": "apply-resolve-compare",
+      "kind": "calls",
+      "status": "confirmed",
+      "codeEdges": 3,
+      "reason": "Wonder's quoted evidence is not the line of an import, call or use it names (level2.ts line 114); the code map's own edges are listed instead",
+      "wonderEvidenceMatches": false
+    },
+    {
+      "id": "wonder:13",
+      "from": "level2-run",
+      "to": "fork-reads",
+      "kind": "calls",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:14",
+      "from": "fork-reads",
+      "to": "moonwell-constants",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 2,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:15",
+      "from": "runner-main",
+      "to": "anvil-fork",
+      "kind": "calls",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:16",
+      "from": "runner-main",
+      "to": "level2-run",
+      "kind": "calls",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:17",
+      "from": "runner-main",
+      "to": "redaction",
+      "kind": "calls",
+      "status": "confirmed",
+      "codeEdges": 4,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:18",
+      "from": "runner-main",
+      "to": "reference-guard",
+      "kind": "calls",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:19",
+      "from": "runner-runbuild",
+      "to": "moonwell-constants",
+      "kind": "calls",
+      "status": "model-only",
+      "codeEdges": 0,
+      "reason": "Wonder says this; plain code could not check it: it found no call inside runner-runbuild's lines reaching moonwell-constants's lines, and it does not see every kind of link",
+      "wonderEvidenceMatches": false
+    },
+    {
+      "id": "code:apply-resolve-compare->redaction",
+      "from": "apply-resolve-compare",
+      "to": "redaction",
+      "kind": "calls",
+      "status": "code-only",
+      "codeEdges": 1
+    },
+    {
+      "id": "code:apply-trace->apply-onchain",
+      "from": "apply-trace",
+      "to": "apply-onchain",
+      "kind": "calls",
+      "status": "code-only",
+      "codeEdges": 1
+    },
+    {
+      "id": "code:apply-trace->moonwell-constants",
+      "from": "apply-trace",
+      "to": "moonwell-constants",
+      "kind": "imports",
+      "status": "code-only",
+      "codeEdges": 1
+    },
+    {
+      "id": "code:apply-trace->redaction",
+      "from": "apply-trace",
+      "to": "redaction",
+      "kind": "calls",
+      "status": "code-only",
+      "codeEdges": 1
+    },
+    {
+      "id": "code:control-checks->moonwell-constants",
+      "from": "control-checks",
+      "to": "moonwell-constants",
+      "kind": "imports",
+      "status": "code-only",
+      "codeEdges": 5
+    },
+    {
+      "id": "code:reference-guard->control-checks",
+      "from": "reference-guard",
+      "to": "control-checks",
+      "kind": "calls",
+      "status": "code-only",
+      "codeEdges": 2
+    },
+    {
+      "id": "code:reference-guard->moonwell-constants",
+      "from": "reference-guard",
+      "to": "moonwell-constants",
+      "kind": "imports",
+      "status": "code-only",
+      "codeEdges": 4
+    },
+    {
+      "id": "code:reference-guard->redaction",
+      "from": "reference-guard",
+      "to": "redaction",
+      "kind": "calls",
+      "status": "code-only",
+      "codeEdges": 1
+    },
+    {
+      "id": "code:level2-run->apply-trace",
+      "from": "level2-run",
+      "to": "apply-trace",
+      "kind": "calls",
+      "status": "code-only",
+      "codeEdges": 1
+    },
+    {
+      "id": "code:level2-run->control-checks",
+      "from": "level2-run",
+      "to": "control-checks",
+      "kind": "calls",
+      "status": "code-only",
+      "codeEdges": 2
+    },
+    {
+      "id": "code:level2-run->moonwell-constants",
+      "from": "level2-run",
+      "to": "moonwell-constants",
+      "kind": "calls",
+      "status": "code-only",
+      "codeEdges": 4
+    },
+    {
+      "id": "code:level2-run->redaction",
+      "from": "level2-run",
+      "to": "redaction",
+      "kind": "calls",
+      "status": "code-only",
+      "codeEdges": 1
+    },
+    {
+      "id": "code:level2-passrule->moonwell-constants",
+      "from": "level2-passrule",
+      "to": "moonwell-constants",
+      "kind": "calls",
+      "status": "code-only",
+      "codeEdges": 2
+    },
+    {
+      "id": "code:runner-main->control-checks",
+      "from": "runner-main",
+      "to": "control-checks",
+      "kind": "calls",
+      "status": "code-only",
+      "codeEdges": 2
+    },
+    {
+      "id": "code:runner-main->moonwell-constants",
+      "from": "runner-main",
+      "to": "moonwell-constants",
+      "kind": "imports",
+      "status": "code-only",
+      "codeEdges": 1
+    },
+    {
+      "id": "code:runner-main->fork-reads",
+      "from": "runner-main",
+      "to": "fork-reads",
+      "kind": "calls",
+      "status": "code-only",
+      "codeEdges": 1
+    },
+    {
+      "id": "code:runner-main->runner-runbuild",
+      "from": "runner-main",
+      "to": "runner-runbuild",
+      "kind": "calls",
+      "status": "code-only",
+      "codeEdges": 3
+    },
+    {
+      "id": "code:runner-runbuild->moonwell-constants",
+      "from": "runner-runbuild",
+      "to": "moonwell-constants",
+      "kind": "imports",
+      "status": "code-only",
+      "codeEdges": 1
+    },
+    {
+      "id": "code:runner-runbuild->runner-main",
+      "from": "runner-runbuild",
+      "to": "runner-main",
+      "kind": "calls",
+      "status": "code-only",
+      "codeEdges": 1
+    }
+  ],
+  "notInAnyPart": [],
+  "usage": {
+    "promptTokens": 35253,
+    "completionTokens": 4792,
+    "reasoningTokens": 1783,
+    "usd": 0.236852
+  },
+  "verifyOutlineFile": "ok"
+}

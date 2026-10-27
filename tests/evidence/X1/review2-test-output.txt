@@ -1,0 +1,113 @@
+
+ RUN  v5.0.5 <repo>
+
+ ✓ tests/unit/outline-codemap.test.ts > JS/TS code map (TypeScript compiler parser) > lists exports, top-level functions and classes with line spans and signatures 1ms
+ ✓ tests/unit/outline-codemap.test.ts > JS/TS code map (TypeScript compiler parser) > default exports: `export default name` and CommonJS `module.exports = D` 0ms
+ ✓ tests/unit/outline-codemap.test.ts > JS/TS code map (TypeScript compiler parser) > resolves imports: relative, .js written for .ts, index files, packages by name 0ms
+ ✓ tests/unit/outline-codemap.test.ts > JS/TS code map (TypeScript compiler parser) > dynamic imports and computed names are listed as unresolved, never followed 0ms
+ ✓ tests/unit/outline-codemap.test.ts > JS/TS code map (TypeScript compiler parser) > aliasing: `save as persist` → a call of persist is a call of db.ts#save 0ms
+ ✓ tests/unit/outline-codemap.test.ts > JS/TS code map (TypeScript compiler parser) > re-exports: q.push() through queue/index.ts reaches the file that defines push 0ms
+ ✓ tests/unit/outline-codemap.test.ts > JS/TS code map (TypeScript compiler parser) > new Class() and <Component /> count as calls 0ms
+ ✓ tests/unit/outline-codemap.test.ts > JS/TS code map (TypeScript compiler parser) > CommonJS require (destructured, whole module, nested) is read 0ms
+ ✓ tests/unit/outline-codemap.test.ts > JS/TS code map (TypeScript compiler parser) > circular imports (a.ts ↔ queue/impl.ts) terminate and give one edge each way 0ms
+ ✓ tests/unit/outline-codemap.test.ts > JS/TS code map (TypeScript compiler parser) > a self-referencing re-export cycle does not loop 1ms
+ ✓ tests/unit/outline-codemap.test.ts > JS/TS code map (TypeScript compiler parser) > is deterministic: the same files in any order give the same map, byte for byte 7ms
+ ✓ tests/unit/outline-codemap.test.ts > JS/TS code map (TypeScript compiler parser) > a path climbing out of the codebase or an alias is unresolved 0ms
+ ✓ tests/unit/outline-codemap.test.ts > JS/TS code map (TypeScript compiler parser) > a file with syntax errors still maps, with a parse note 1ms
+ ✓ tests/unit/outline-codemap.test.ts > JS/TS code map (TypeScript compiler parser) > a bracket bomb is not parsed (deterministic note), and nothing throws 0ms
+ ✓ tests/unit/outline-codemap.test.ts > Python code map (pure-TS scanner) > top-level defs (decorated, async), classes and their methods, with line spans and signatures 0ms
+ ✓ tests/unit/outline-codemap.test.ts > Python code map (pure-TS scanner) > __all__ decides what a module exports 0ms
+ ✓ tests/unit/outline-codemap.test.ts > Python code map (pure-TS scanner) > relative imports: `.`, `.util`, `..` from a subpackage, `...` climbing out 0ms
+ ✓ tests/unit/outline-codemap.test.ts > Python code map (pure-TS scanner) > absolute imports resolve inside the codebase; others are outside packages by top-level name 0ms
+ ✓ tests/unit/outline-codemap.test.ts > Python code map (pure-TS scanner) > calls through `from pkg import handle`, `pkg.handle` and an aliased module reach the defining file 0ms
+ ✓ tests/unit/outline-codemap.test.ts > Python code map (pure-TS scanner) > importlib.import_module is a dynamic import, listed unresolved 0ms
+ ✓ tests/unit/outline-codemap.test.ts > Python code map (pure-TS scanner) > circular Python imports terminate 0ms
+ ✓ tests/unit/outline-codemap.test.ts > Python code map (pure-TS scanner) > an unclosed string is noted and what came before it is kept 0ms
+ ✓ tests/unit/outline-verify.test.ts > verifyOutline: parts > a correct outline: every part confirmed; the join Wonder gave is confirmed; the one it missed is code-only 2ms
+ ✓ tests/unit/outline-verify.test.ts > verifyOutline: parts > purpose, name and patterns are labelled as the model's; known patterns are marked, free text kept 0ms
+ ✓ tests/unit/outline-verify.test.ts > verifyOutline: parts > wrong line numbers: the part is unconfirmed, with the reason 0ms
+ ✓ tests/unit/outline-verify.test.ts > verifyOutline: parts > a fabricated snippet: unconfirmed 0ms
+ ✓ tests/unit/outline-verify.test.ts > verifyOutline: parts > a part pointing outside the codebase, or by path traversal, is unconfirmed: nothing outside the held files is read 0ms
+ ✓ tests/unit/outline-verify.test.ts > verifyOutline: parts > one bad span out of two makes the whole part unconfirmed 0ms
+ ✓ tests/unit/outline-verify.test.ts > verifyOutline: parts > hostile names (bidi controls, newlines) are shown with the hidden characters made visible 0ms
+ ✓ tests/unit/outline-verify.test.ts > verifyOutline: joins > a join with no code evidence is model-only, with the reason 0ms
+ ✓ tests/unit/outline-verify.test.ts > verifyOutline: joins > kind matters: 'calls' needs a call edge, 'imports' an import or a call made through one, 'data' either 0ms
+ ✓ tests/unit/outline-verify.test.ts > verifyOutline: joins > a join to an unconfirmed part, to a part not in the outline, or to itself is model-only 0ms
+ ✓ tests/unit/outline-verify.test.ts > verifyOutline: joins > two parts sharing a file: an edge inside one part never confirms a join between them 0ms
+ ✓ tests/unit/outline-verify.test.ts > verifyOutline: joins > a confirmed join whose quoted evidence is wrong stays confirmed by the code map's own edges, and says so 0ms
+ ✓ tests/unit/outline-verify.test.ts > parseWonderOutline: strict schema, size and depth guards > accepts the good outline and refuses extra keys, duplicate ids and bad kinds 3ms
+ ✓ tests/unit/outline-verify.test.ts > parseWonderOutline: strict schema, size and depth guards > a depth bomb, a huge answer and a flood of parts are refused without throwing 14ms
+ ✓ tests/unit/outline-verify.test.ts > quote rule is the Investigator's rule > normaliseQuote and matchesWholeLines agree with server/meta/roles/investigator.ts 0ms
+ ✓ tests/unit/outline-verify.test.ts > outline section: re-judged without any model > round trip: a fresh section verifies, as an outline-only file too; a failed Wonder call verifies as 'no outline' 28ms
+ ✓ tests/unit/outline-verify.test.ts > outline section: re-judged without any model > editing an unconfirmed part to confirmed fails verify 8ms
+ ✓ tests/unit/outline-verify.test.ts > outline section: re-judged without any model > every other edit is caught: a model-only join promoted, a code edge added, a file's text, hash or codeSha256, the outline, the usage, a contributor model 39ms
+ ✓ tests/unit/outline-verify.test.ts > outline section: re-judged without any model > verify never throws: depth bomb, huge text, wrong types, cycles 12ms
+ ✓ tests/unit/outline-server.test.ts > intake: uploads > reads source files, skips the rest with reasons, refuses bad paths and duplicates 4ms
+ ✓ tests/unit/outline-server.test.ts > intake: uploads > limits: more than 50 source files or 300 KB is refused as a whole; one file over 100 KB is skipped 1ms
+ ✓ tests/unit/outline-server.test.ts > intake: GitHub (mocked) > pins one commit, reads only the subfolder's source files, checks each blob, lists the skipped 33ms
+ ✓ tests/unit/outline-server.test.ts > intake: GitHub (mocked) > a download that does not match its listed blob is refused; a missing folder is not_found 2ms
+ ✓ tests/unit/outline-server.test.ts > intake: GitHub (mocked) > reads owner/repo, URLs with /tree/<ref>/<folder>, and refuses odd input 1ms
+ ✓ tests/unit/outline-server.test.ts > Outliner role (Muse Wonder mocked) > a valid answer: one call, usage returned; the prompt carries the numbered files and the code map 3ms
+ ✓ tests/unit/outline-server.test.ts > Outliner role (Muse Wonder mocked) > an invalid answer gets exactly one repair call; a second invalid answer is reported, never a third call 1ms
+ ✓ tests/unit/outline-server.test.ts > Outliner role (Muse Wonder mocked) > a depth-bomb or huge answer is refused without throwing 13ms
+ ✓ tests/unit/outline-server.test.ts > Outliner role (Muse Wonder mocked) > code never reaches a contributor model, even with ATLAS_ALLOW_CONTRIBUTOR=1: nothing is sent 0ms
+ ✓ tests/unit/outline-review1.test.ts > B1: a join counts only calls and imports made inside the part's lines, reaching inside the other part's lines > the reviewer's case: fmt (lines 1–3, calls nothing) → db is NOT confirmed; no code-only join from fmt 3ms
+ ✓ tests/unit/outline-review1.test.ts > B1: a join counts only calls and imports made inside the part's lines, reaching inside the other part's lines > the part that really calls (persistAll, lines 8–10) is confirmed; Wonder's evidence must be the call's line 0ms
+ ✓ tests/unit/outline-review1.test.ts > B1: a join counts only calls and imports made inside the part's lines, reaching inside the other part's lines > each import statement keeps its own names: two `from .timed import …` lines reach two different parts 1ms
+ ✓ tests/unit/outline-review1.test.ts > B1: a join counts only calls and imports made inside the part's lines, reaching inside the other part's lines > the target must lie inside the other part: a call of saveUser does not join to a part holding only dropAll 0ms
+ ✓ tests/unit/outline-review1.test.ts > B2: Python standard library and outside packages never reach a local file by name > stdlib names (CPython 3.14.7 list) stay outside even with myapp/logging.py and tools/json.py present 1ms
+ ✓ tests/unit/outline-review1.test.ts > B2: Python standard library and outside packages never reach a local file by name > a stub tests/requests.py is not `import requests` (the pip package) 0ms
+ ✓ tests/unit/outline-review1.test.ts > B2: Python standard library and outside packages never reach a local file by name > absolute imports resolve from the root, from a src/ layout, and from a script's own folder; never by path suffix 0ms
+ ✓ tests/unit/outline-review1.test.ts > B3: quote checks take linear time; a too-large outline is 'can't check', never a hang > the reviewer's worst case (8,000 lines, 2,000-character quote) answers in well under a second, both rules 7ms
+ ✓ tests/unit/outline-review1.test.ts > B3: quote checks take linear time; a too-large outline is 'can't check', never a hang > matchesWholeLines gives the first version's answers 0ms
+ ✓ tests/unit/outline-review1.test.ts > B3: quote checks take linear time; a too-large outline is 'can't check', never a hang > an outline whose checks would exceed the work budget is 'can't check: too large to verify' (same answer every time) 178ms
+ ✓ tests/unit/outline-review1.test.ts > B3: quote checks take linear time; a too-large outline is 'can't check', never a hang > schema caps: more than 200 ranges, or more than 100,000 quoted characters, is refused 2ms
+ ✓ tests/unit/outline-review1.test.ts > M1: the code map, the prompt and the worst-case cost are bounded before any paid call > 24,000 calls of one name are one edge with a count, not 24,000 edges 63ms
+ ✓ tests/unit/outline-review1.test.ts > M1: the code map, the prompt and the worst-case cost are bounded before any paid call > a code map over the edge cap is refused with a reason; the rendered map is cut; a huge prompt is never sent 159ms
+ ✓ tests/unit/outline-atlasfile.test.ts > the .atlas.json outline section > an older file (no outline) still verifies; with an outline it verifies; editing a part to confirmed fails 403ms
+ ✓ tests/unit/outline-review1.test.ts > M1: the code map, the prompt and the worst-case cost are bounded before any paid call > Wonder's spend is logged under its own role, 'outliner' 25ms
+ ✓ tests/unit/outline-review2.test.ts > R2-B1: an import line alone never links a part that does not use the name > the reviewer's B1a: fmt (lines 1–5, the import plus a pure function) → db is never imports/data-confirmed, never code-only 5ms
+ ✓ tests/unit/outline-review2.test.ts > R2-B1: an import line alone never links a part that does not use the name > a part holding the whole importing file links through its import statement 2ms
+ ✓ tests/unit/outline-review2.test.ts > R2-B1: an import line alone never links a part that does not use the name > the live itsdangerous case: a protocol part at the top of serializer.py gets no join from the imports above it 2ms
+ ✓ tests/unit/outline-review2.test.ts > R2-B1: an import line alone never links a part that does not use the name > the live runners/evm case: apply-parse-plan (lines 1–N of apply.ts) gets no join from a constant imported for another part 3ms
+ ✓ tests/unit/outline-review2.test.ts > R2-B2: star re-export chains cost files × links, never the number of paths > the reviewer's N=14 (TS and Python) and N=40 build in well under a second each 44ms
+ ✓ tests/unit/outline-review2.test.ts > R2-B2: star re-export chains cost files × links, never the number of paths > the outline-only proof file of the reviewer's 3 KB input checks fast 31ms
+ ✓ tests/unit/outline-review2.test.ts > R2-B2: star re-export chains cost files × links, never the number of paths > past the counted work budget the map is given up the same way every time: 'can't check: too complex to map' 821ms
+ ✓ tests/unit/outline-server.test.ts > outline routes (the code map and the check run in a child process) > upload → job → verified outline, part details from the code, an outline file that verifies 1035ms
+ ✓ tests/unit/outline-review2.test.ts > R2-B2: star re-export chains cost files × links, never the number of paths > the code map runs off the event loop, in a child process with a wall-clock limit 480ms
+ ✓ tests/unit/outline-review2.test.ts > R2-B2: star re-export chains cost files × links, never the number of paths > while one job's code map is still running, the server answers other requests 29ms
+ ✓ tests/unit/outline-review2.test.ts > R2-M1: Cls.method() reaches the method's own lines when the code map knows the method > JS static call and Python Cls.method() 2ms
+ ✓ tests/unit/outline-review2.test.ts > R2-M2: honest labels; calls inside one file and base classes are real edges > the itsdangerous Wonder-only joins (same-file call, base class, class reference) are now confirmed 1ms
+ ✓ tests/unit/outline-review2.test.ts > R2-M2: honest labels; calls inside one file and base classes are real edges > a Wonder-only join never says 'the code doesn't show it'; 'found no import or call' only when plain code positively looked 2ms
+ ✓ tests/unit/outline-review2.test.ts > R2-M3: names resolve in their real scope; when unsure, nothing is confirmed > a Python import inside one function applies only to that function 0ms
+ ✓ tests/unit/outline-review2.test.ts > R2-M3: names resolve in their real scope; when unsure, nothing is confirmed > lambda parameters, comprehension variables and a module-level redefinition hide the import 0ms
+ ✓ tests/unit/outline-review2.test.ts > R2-M3: names resolve in their real scope; when unsure, nothing is confirmed > Python type annotations are types, not uses (as TypeScript types are skipped) 0ms
+ ✓ tests/unit/outline-review2.test.ts > R2-M3: names resolve in their real scope; when unsure, nothing is confirmed > JS: a top-level for-of or block variable hides the import (TypeScript's binder decides) 1ms
+ ✓ tests/unit/outline-review2.test.ts > R2-M4: the work budget counts real comparisons > the reviewer's 7-second input (233 KB, 1,515 edges, 40 parts × 5 ranges, 200 data joins) finishes under a second 185ms
+ ✓ tests/unit/outline-review2.test.ts > round-2 minors > 1: relative imports Python itself refuses are unresolved, with the reason 0ms
+ ✓ tests/unit/outline-review2.test.ts > round-2 minors > 2: a namespace package is not an outside package; its submodule still resolves 1ms
+ ✓ tests/unit/outline-review2.test.ts > round-2 minors > 4: removing a GitHub section's blob ids, or editing the reasoning-token total, fails verify 6ms
+ ✓ tests/unit/outline-review2.test.ts > round-2 minors > 5: a tsconfig that only `extends` another one is followed; one with no options says so (not 'not JSON') 2ms
+ ✓ tests/unit/outline-server.test.ts > outline routes (the code map and the check run in a child process) > another session cannot see, open or download a job (404); a missing session header is refused 994ms
+ ✓ tests/unit/outline-server.test.ts > outline routes (the code map and the check run in a child process) > limits: per address an hour (429), one running job per session (409), bad uploads answered at once 946ms
+ ✓ tests/unit/outline-server.test.ts > outline routes (the code map and the check run in a child process) > Wonder giving nothing usable: the job is done with the code map and the failure, no verified outline 1558ms
+ ✓ tests/unit/outline-server.test.ts > outline routes (the code map and the check run in a child process) > a GitHub job (reader stubbed): source recorded; an intake error fails the job with its reason 1292ms
+ ✓ tests/unit/outline-review1.test.ts > M1: the code map, the prompt and the worst-case cost are bounded before any paid call > jobs: each session keeps a fair share; a flood from one session never evicts another's job 6590ms
+ ✓ tests/unit/outline-review1.test.ts > M2/M3: .jsx .mts .cts are read; tsconfig paths resolve; aliases are never called packages > reads .jsx, .mts and .cts and resolves ./a.mjs to a.mts 3ms
+ ✓ tests/unit/outline-review1.test.ts > M2/M3: .jsx .mts .cts are read; tsconfig paths resolve; aliases are never called packages > tsconfig `paths` and `baseUrl` resolve to files; a bare src/x without a config is 'may be a path alias' 2ms
+ ✓ tests/unit/outline-review1.test.ts > M2/M3: .jsx .mts .cts are read; tsconfig paths resolve; aliases are never called packages > an uploaded tsconfig.json is kept as a config file, and the section re-checks it 3ms
+ ✓ tests/unit/outline-review1.test.ts > M4: ranges sit on whole definitions, the quote starts the range, long ranges are whole files > the reviewer's 'wipe' part (quote from the middle) is unconfirmed; 'wipe2' is confirmed only as 'whole file' 0ms
+ ✓ tests/unit/outline-review1.test.ts > M4: ranges sit on whole definitions, the quote starts the range, long ranges are whole files > a range that starts or ends inside a definition is unconfirmed 0ms
+ ✓ tests/unit/outline-review1.test.ts > M4: ranges sit on whole definitions, the quote starts the range, long ranges are whole files > a range over 400 lines must be the whole file 5ms
+ ✓ tests/unit/outline-review1.test.ts > M4: ranges sit on whole definitions, the quote starts the range, long ranges are whole files > the shared fixture's correct outline still confirms (Wonder can follow the rule) 1ms
+ ✓ tests/unit/outline-review1.test.ts > minors > 1: a parameter or local that shadows an import is not a call of it (JS and Python) 1ms
+ ✓ tests/unit/outline-review1.test.ts > minors > 3: a type-only import never confirms a 'data' join; an 'imports' join it confirms is labelled type-only 1ms
+ ✓ tests/unit/outline-review1.test.ts > minors > 4: two `export *` giving the same name: no symbol is picked, and the edge says why; a barrel's private import is not followed 1ms
+ ✓ tests/unit/outline-review1.test.ts > minors > 5: hidden characters never reach a field raw: import strings, Python names, join part ids, span paths 2ms
+ ✓ tests/unit/outline-review1.test.ts > minors > 6: GitHub files carry their git blob id, and the section re-checks it 1ms
+
+ Test Files  6 passed (6)
+      Tests  104 passed (104)
+   Start at  00:41:15
+   Duration  7.69s (tests 84%, import 12%, transform 4%)
+
