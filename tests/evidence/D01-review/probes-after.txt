@@ -1,0 +1,45 @@
+=== head-big-probe.mts
+attempts=50: controlPassed=true measured= {"calls":50,"waitCount":49,"waitsMs":"0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0","logCount":49,"logAttempts":"1/50,2/50,3/50,4/50,5/50,6/50,7/50 notMeasured= {} traceLen 249
+attempts=100: controlPassed=true measured= {"calls":100,"waitCount":99,"waitsMs":"0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 notMeasured= {} traceLen 499
+attempts=200: controlPassed=true measured= {"calls":200,"waitCount":199,"waitsMs":"0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, notMeasured= {} traceLen 999
+attempts=400: controlPassed=true measured= {"calls":400,"waitCount":399,"waitsMs":"0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, notMeasured= {} traceLen 1999
+=== head-harness-probe.mts
+1 unref timer: {"measured":{},"notMeasured":{"outcome":"the code is waiting on a real timer Atlas does not control (setTimeout); Atlas did not wait for it, so how it ends was not seen","settleTime":"the code is waiting on a real timer Atlas does not control (setTimeout); Atlas did not wait for it","settledAtMs":"the code is waiting on a real timer Atlas does not control (setTimeout); Atlas did not wait for it","calls":"the code is waiting on a real timer Atlas does not control (setTimeout); Atla
+2 attempts=20: {"measured":{},"notMeasured":{"outcome":"Atlas's watch limit (30000 ms of virtual time, Atlas's limit, not the code's) ended the run before the function finished, so how it ends was not seen","settleTime":"Atlas's watch limit (30000 ms of virtual time, Atlas's limit, not the code's) ended the run before the function finished","settledAtMs":"Atlas's watch limit (30000 ms of virtual time, Atlas's limit, not the code's) ended the run before the function finished","calls":"Atlas's wat
+3 resolveAfter 40s: {"measured":{},"notMeasured":{"outcome":"Atlas's watch limit (30000 ms of virtual time, Atlas's limit, not the code's) ended the run before the function finished, so how it ends was not seen","settleTime":"Atlas's watch limit (30000 ms of virtual time, Atlas's limit, not the code's) ended the run before the function finished","settledAtMs":"Atlas's watch limit (30000 ms of virtual time, Atlas's limit, not the code's) ended the run before the function finished","calls":"Atlas'
+4 100k microtask hops: returns
+5 two setImmediates: "returns"
+6 delayMs -3000: {"calls":2,"waitCount":1,"waitsMs":"-3000","logCount":1,"logAttempts":"1/5","outcome":"returns","settledAtMs":0,"returned":"\"the value\""}
+=== head-judge-probe2.ts
+integer bet 2205 on priceUsd1e18 field observed $2205          {"betId":"b","runId":"r","judgedBy":"src/judge.ts","outcome":"cant_check","observed":"2205000000000000000000","reason":"bet unit \"whole number\" does not match measured unit \"USD\""}
+enum bet on priceUsd1e18 field                                 {"betId":"b","runId":"r","judgedBy":"src/judge.ts","outcome":"cant_check","observed":"2205000000000000000000","reason":"bet unit \"enum\" does not match measured unit \"USD\""}
+number bet 12 unit 's' on totalWaitMs=12000                    {"betId":"b","runId":"r","judgedBy":"src/judge.ts","outcome":"cant_check","observed":12000,"reason":"bet unit \"s\" does not match measured unit \"ms\""}
+fallback ref under measured key                                {"betId":"b","runId":"r","judgedBy":"src/judge.ts","outcome":"matched","observed":"1000000000000000000"}
+controlPassed missing                                          {"betId":"b","runId":"r","judgedBy":"src/judge.ts","outcome":"cant_check","reason":"the run has no control result (controlPassed is not true)"}
+controlPassed 'false' string (JSON from a form)                {"betId":"b","runId":"r","judgedBy":"src/judge.ts","outcome":"cant_check","reason":"the run has no control result (controlPassed is not true)"}
+the control run itself, judged (experimentId control:S1+S3)    {"betId":"b","runId":"r","judgedBy":"src/judge.ts","outcome":"cant_check","observed":5,"reason":"Atlas has no unit on file for S3.calls, so a bet on it cannot be compared"}
+=== head-spoof-probe.mts
+broken target that rewrites stdout -> controlPassed = false S1: calls was 0, the oracle row says 1; S1: returned value was "\"nope\"", the oracle row says "\"the value\""; S3: calls was 0, the oracle row says 5; S3: waits (ms) was "", the oracle row says "3000,3000,3000,3000"; S3: total wait (ms) was 0, the oracle row says 12000; S3: log lines was 0, the oracle row says 4; S3: log attempts was "", the oracle row says "1/5,2/5,3/5,4/5"; S3: outcome was "returns", the oracle row says "throws"; S3:
+exit-handler forgery on real code -> controlPassed = true 
+malformed marker -> controlPassed = true undefined
+=== meta-probe.mts
+unwritable usage path -> {"ok":true,"content":"{}","finishReason":"stop","usage":{"promptTokens":10,"completionTokens":10,"usd":0.00024},"warning":"the usage line could not be written (ENOENT); this call's usage is in the result only"}
+200 with usage but no choices -> {"ok":false,"reason":"response had no choices","usage":{"promptTokens":500,"completionTokens":9000,"usd":0.182}}
+usage line written for that billed call? true
+=== sandbox-probe.mts
+dns.lookup ERR ERR_ACCESS_DENIED
+dns.resolve ERR ERR_ACCESS_DENIED
+fetch ERR TypeError
+inspector ERR ERR_ACCESS_DENIED
+read own dir 1
+hrtime/realtime number
+ 
+=== seal-probe.mts
+rationale rewritten after the run still verifies: false
+-0 and 0 same canonical: true
+NFC vs NFD question hash equal? false false
+extra unsealed field in answer still verifies? true
+uppercase-hex nonce rejected even if hash ok? false
+=== unref-probe.mjs
+unref timer target (would return after 20 real ms): {"measured":{},"notMeasured":{"outcome":"the code is waiting on a real timer Atlas does not control (setTimeout); Atlas did not wait for it, so how it ends was not seen","settleTime":"the code is waiting on a real timer Atlas does not control (setTimeout); Atlas did not wait for it","settledAtMs":"the code is waiting on a real timer Atlas does not control (setTimeout); Atlas did not wait for it","calls":"the code is waiting on a real timer Atla
+ref timer target: {"outcome":"the code is waiting on a real timer Atlas does not control (setTimeout); Atlas did not wait for it, so how it ends was not seen","settleTime":"the code is waiting on a real timer Atlas does not control (setTimeout); Atlas did not wait for it","settledAtMs":"the code is waiting on a real timer Atlas does not control (setTimeout); Atlas did not wait for it","calls":"the code is waiting on a real timer Atlas does not control (setTimeout); Atlas did not wait for it; the

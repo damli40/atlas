@@ -121,7 +121,7 @@ export function createApp(opts: { executor?: Executor } = {}) {
     const p = runTsControl(target, executor).then((run) => {
       runs.set(run.id, run);
       // A control that did not pass is not kept: the next request tries again (it may have been a timeout).
-      if (!run.controlPassed) controls.delete(target.codeSha256);
+      if (run.controlPassed !== true) controls.delete(target.codeSha256);
       return run;
     });
     p.catch(() => controls.delete(target.codeSha256));

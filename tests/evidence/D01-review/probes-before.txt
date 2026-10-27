@@ -1,0 +1,45 @@
+=== head-big-probe.mts
+attempts=50: controlPassed=true measured= {"calls":50,"waitCount":49,"waitsMs":"0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0","logCount":49,"logAttempts":"1/50,2/50,3/50,4/50,5/50,6/50,7/50 notMeasured= {} traceLen 249
+attempts=100: controlPassed=true measured= {"calls":100,"waitCount":99,"waitsMs":"0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 notMeasured= {} traceLen 499
+attempts=200: THREW SyntaxError Expected ',' or '}' after property value in JSON at position 65152 (line 1 column 65153)
+attempts=400: THREW SyntaxError Expected ',' or '}' after property value in JSON at position 65152 (line 1 column 65153)
+=== head-harness-probe.mts
+1 unref timer: {"measured":{"calls":0,"waitCount":0,"waitsMs":"","logCount":0,"logAttempts":"","totalWaitMs":0},"notMeasured":{"outcome":"the code is waiting on something Atlas does not control (FSReqCallback, FSReqPromise); Atlas did not wait for it","settleTime":"the code is waiting on something Atlas does not control (FSReqCallback, FSReqPromise); Atlas did not wait for it"}}
+2 attempts=20: {"measured":{"calls":11,"waitCount":11,"waitsMs":"3000,3000,3000,3000,3000,3000,3000,3000,3000,3000,3000","logCount":11,"logAttempts":"1/20,2/20,3/20,4/20,5/20,6/20,7/20,8/20,9/20,10/20,11/20","totalWaitMs":33000,"outcome":"pending"},"notMeasured":{"settleTime":"not settled within 30000 ms of virtual time; Atlas stopped watching (harness limit, not the code's)"}}
+3 resolveAfter 40s: {"measured":{"calls":1,"waitCount":0,"waitsMs":"","logCount":0,"logAttempts":"","totalWaitMs":0,"outcome":"pending"},"notMeasured":{"settleTime":"not settled within 30000 ms of virtual time; Atlas stopped watching (harness limit, not the code's)"}}
+4 100k microtask hops: returns
+5 two setImmediates: "the code is waiting on something Atlas does not control (Immediate); Atlas did not wait for it"
+6 delayMs -3000: {"calls":2,"waitCount":1,"waitsMs":"-3000","logCount":1,"logAttempts":"1/5","totalWaitMs":-3000,"outcome":"returns","settledAtMs":0,"returned":"\"the value\""}
+=== head-judge-probe2.ts
+integer bet 2205 on priceUsd1e18 field observed $2205          {"betId":"b","runId":"r","judgedBy":"src/judge.ts","outcome":"not_matched","observed":"2205000000000000000000"}
+enum bet on priceUsd1e18 field                                 {"betId":"b","runId":"r","judgedBy":"src/judge.ts","outcome":"not_matched","observed":"2205000000000000000000"}
+number bet 12 unit 's' on totalWaitMs=12000                    {"betId":"b","runId":"r","judgedBy":"src/judge.ts","outcome":"not_matched","observed":12000}
+fallback ref under measured key                                {"betId":"b","runId":"r","judgedBy":"src/judge.ts","outcome":"matched","observed":"1000000000000000000","reference":{"value":"9","method":"m"}}
+controlPassed missing                                          {"betId":"b","runId":"r","judgedBy":"src/judge.ts","outcome":"matched","observed":5}
+controlPassed 'false' string (JSON from a form)                {"betId":"b","runId":"r","judgedBy":"src/judge.ts","outcome":"matched","observed":5}
+the control run itself, judged (experimentId control:S1+S3)    {"betId":"b","runId":"r","judgedBy":"src/judge.ts","outcome":"matched","observed":5}
+=== head-spoof-probe.mts
+broken target that rewrites stdout -> controlPassed = true 
+exit-handler forgery on real code -> controlPassed = false S1: the sandbox returned no result for this row; S3: the sandbox returned no result for this row
+malformed marker -> runControl THREW: SyntaxError Expected property name or '}' in JSON at position 1 (line 1 column 2)
+=== meta-probe.mts
+unwritable usage path -> chat() THREW (after the call was billed): ENOENT
+200 with usage but no choices -> {"ok":false,"reason":"response had no choices"}
+usage line written for that billed call? false
+=== sandbox-probe.mts
+dns.lookup ERR ERR_ACCESS_DENIED
+dns.resolve ERR ERR_ACCESS_DENIED
+fetch ERR TypeError
+inspector ERR ERR_ACCESS_DENIED
+read own dir 1
+hrtime/realtime number
+ 
+=== seal-probe.mts
+rationale rewritten after the run still verifies: true
+-0 and 0 same canonical: true
+NFC vs NFD question hash equal? false false
+extra unsealed field in answer still verifies? true
+uppercase-hex nonce rejected even if hash ok? false
+=== unref-probe.mjs
+unref timer target (would return after 20 real ms): {"measured":{"calls":0,"waitCount":0,"waitsMs":"","logCount":0,"logAttempts":"","totalWaitMs":0,"outcome":"pending"},"notMeasured":{"settleTime":"the function never settled; Atlas stopped watching (harness limit, not the code's)"}}
+ref timer target: {"outcome":"the code is waiting on something Atlas does not control (Timeout); Atlas did not wait for it","settleTime":"the code is waiting on something Atlas does not control (Timeout); Atlas did not wait for it"}
