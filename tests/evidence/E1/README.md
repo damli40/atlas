@@ -307,3 +307,73 @@ Each API was either tested to work or refused as whole-run "can't check":
   - The day-1 gate script again gives **18 matched, 1 didn't match, 1 can't check**, with the control passed on
     every run (`review1-retry-gate-day1.txt`).
 - **Counts:** 909 passed, 20 skipped, 81 files, 3 of 3 full runs. Type check clean.
+
+## Review round 2 (0 blockers; 2 majors and 1 minor fixed)
+
+The round-1 fixes held against real attacks: the result channels, the virtual clock and the background-work
+tracker. The reviewer also ran more than 10 kinds of ordinary code, and all of them gave correct facts. Their notes
+are in the review file; the fixes below are in `tests/unit/review2-e1.test.ts` (10 tests).
+
+**Counts:** 920 passed, 19 skipped, 82 files, in one full run (`review2-full-suite.txt`). The type check is clean.
+The live GitHub fetch ran this time instead of skipping, so there are 19 skips instead of 20.
+
+### MAJOR-1: a deeply nested bet value crashed sealing
+- **Finding:** `canonicalJson` (`src/seal.ts`) calls itself once per nesting level, with no limit. A json bet value
+  nested 100,000 levels deep ran JavaScript out of stack (RangeError) inside `sealBet`.
+- **Fix:**
+  - `canonicalJson` now refuses nesting deeper than 100 levels with a TypeError. That is the same cap as the
+    call-function harness, which I aligned to exactly 100 levels.
+  - Where a person's bet is accepted (`server/bets.ts` `checkAnswer`, which now also takes the `json` kind), the
+    value is checked by `jsonBetValueProblem`. In order, it checks:
+    - depth, measured by `jsonDepth`, which walks the value without calling itself and stops past its limit;
+    - that the value is plain JSON;
+    - size: at most 2,048 characters, the most a run ever stores, so a longer bet could never match.
+  - The depth limit for a bet value is 98, because sealing wraps the value two levels deeper.
+- **Tests:**
+  - 100 levels are written and 101 are refused.
+  - 100,000 levels give a TypeError (not a RangeError) from both `canonicalJson` and `sealBet`.
+  - `checkAnswer` seals 98 levels and refuses 99 and 100,000 levels, NaN, and 3,000 characters.
+  - `jsonDepth` stops on a 1,000,000-deep value and on a cycle.
+
+### MAJOR-2: verifyAtlasFile could throw
+- **Fix:**
+  - A file nested deeper than 200 levels is refused (`{ ok: false }` with the reason) before zod reads it. Real
+    files nest about 10 levels.
+  - The whole check is wrapped, so any unexpected throw becomes `{ ok: false, problems: ["the file could not be
+    checked: ..."] }`.
+- **Tests:** a proof file holding a 100,000-deep bet value; a raw object whose getter throws; a Proxy whose traps
+  throw; plain garbage. All four answer `{ ok: false }` and none throws.
+
+### MINOR-3: hidden characters in question text
+- **Fix:**
+  - `visibleText` (`src/gate.ts`) writes each of these as a visible escape such as `\u202e`, so the bettor sees
+    something was there:
+    - C0 and C1 control characters, newlines included;
+    - bidi marks, embeddings, overrides and isolates (U+061C, U+200E–200F, U+202A–202E, U+2066–2069);
+    - zero-width characters (U+200B–200D, U+2060–2064, U+FEFF);
+    - line and paragraph separators (U+2028–2029).
+  - It is applied to the whole call description and to every question, so it covers JSON values, error messages,
+    export names and stand-in names. The gate already refuses such names; this is the second line of defence.
+- **Tests:**
+  - A JSON value and a message carrying U+202E, U+200B, U+2066, U+0085, U+0007, U+FEFF and a newline: no raw one
+    reaches any question, and each appears as its escape.
+  - Odd export and stand-in names passed straight to `questionsFor` are escaped too.
+  - Accents and emoji are left alone.
+- **Found while doing this:** the files I wrote held some characters raw instead of as `\u` escapes:
+  - `src/pasted-code.ts` had a no-break space, a byte-order mark, and the identifier range written as raw
+    characters;
+  - my first draft of the new test held bidi characters.
+
+  A public file must not hide such characters, so both now use escapes only. A scan of every file this branch
+  changed finds none left.
+
+## Known limits (logged, not fixed)
+- **Stack-trace hook:** `Error.prepareStackTrace` lets the code under test see its own stack frames. The reviewer
+  showed it gives no access to Atlas's functions or the result key: ES modules are strict, so `getFunction()`
+  returns nothing for Atlas's frames. It does show Atlas's frame NAMES and file positions inside the sandbox.
+- **Text is compared byte for byte:** a json bet matches only if its text is code-unit-identical to what was
+  returned. "é" written as one character (NFC) and as "e" plus an accent (NFD) do NOT match. This is plain and
+  repeatable, but a bettor could be surprised by it.
+- **Verify re-judges, it does not re-run:** `verifyAtlasFile` recomputes the seals, re-judges every bet against the
+  STORED run, and checks the run against its own trace. It does not run the code again. Public wording must say
+  "re-judged", never "re-proven". Running again is what "Re-run it" (replay) does, as a separate step.
