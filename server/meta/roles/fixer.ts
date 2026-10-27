@@ -32,7 +32,7 @@ import { formatUsd1e18 } from "../../../src/units";
 import type { Bet, Experiment, Verdict } from "../../../src/types";
 import { checkChange, MAX_CHANGED_LINES, type ChangeContext, type CheckedChange } from "../../../runners/change";
 import { makeScratch } from "../../../runners/scratch";
-import { chat as realChat, costUsd, DEFAULT_USAGE_PATH, loadApiKey, priceFor, type ChatArgs, type ChatResult, type Usage } from "../client";
+import { chat as realChat, contributorRefusal, costUsd, DEFAULT_USAGE_PATH, loadApiKey, priceFor, type ChatArgs, type ChatResult, type Usage } from "../client";
 import { oneLine, type SessionEmitter } from "../../log/agentlog";
 import { addUsage, COST_UNKNOWN, NO_USAGE, numbered } from "./claimant";
 import { DEFAULT_WATCH_LIMIT_MS } from "../../../runners/ts/harness";
@@ -358,8 +358,13 @@ export async function runFixer(input: FixerInput, deps: FixerDeps = {}): Promise
     log?.model({ role: "fixer", model: m, action: oneLine(usage ? action : `${action} (${COST_UNKNOWN})`), usage: usage ?? NO_USAGE });
 
   const askMuse = async (): Promise<MuseExecResult> => {
+    const before = contributorRefusal(FIXER_MUSE_MODEL);
+    if (before) return { ok: false, reason: `not asked (${before})` };
     const r = await guard(() => museExec!({ files: input.context.files, prompt, timeoutMs: MUSE_TIMEOUT_MS }), (reason): MuseExecResult => ({ ok: false, reason: `not asked (${reason})` }));
+    // The model id muse exec REPORTS is logged as is; a contributor model's answer is not used.
     if (r.usage && r.model) logMuseUsage(usagePath, r.model, r.usage, r.ok ? "completed" : "failed", now());
+    const after = r.model ? contributorRefusal(r.model) : null;
+    if (after) return { ok: false, reason: `muse exec answered with ${after}`, model: r.model!, ...(r.usage ? { usage: r.usage } : {}) };
     return r;
   };
   const askChat = async (): Promise<MuseExecResult> => {

@@ -310,3 +310,42 @@ describe.skipIf(!HAS_RPC || !HAS_ANVIL)("EVM replayWithChange on a real Base for
     expect(evaluateReplayRule(replay, original).map((l) => l.outcome)).toEqual(["matched", "matched", "matched"]);
   }, 400_000);
 });
+
+describe("contributor models are refused unless ATLAS_ALLOW_CONTRIBUTOR=1", () => {
+  it("contributorRefusal: refuses '-contributor' ids by default, allows them only with the env set", async () => {
+    const { contributorRefusal } = await import("../../server/meta/client.ts");
+    expect(contributorRefusal("muse-spark-1.3", {})).toBeNull();
+    expect(contributorRefusal("muse-spark-1.3-contributor", {})).toMatch(/is a contributor model .* unless ATLAS_ALLOW_CONTRIBUTOR=1/);
+    expect(contributorRefusal("muse-spark-1.3-contributor", { ATLAS_ALLOW_CONTRIBUTOR: "1" })).toBeNull();
+    expect(contributorRefusal("muse-spark-1.3-contributor", { ATLAS_ALLOW_CONTRIBUTOR: "true" })).not.toBeNull();
+  });
+
+  it("chat() never sends a request for a contributor model", async () => {
+    const { createMetaClient } = await import("../../server/meta/client.ts");
+    let sent = 0;
+    const client = createMetaClient({ apiKey: "k", usagePath, fetchImpl: (async () => (sent++, new Response("{}"))) as unknown as typeof fetch });
+    const r = await client.chat({ role: "claimant", model: "muse-spark-1.3-contributor", messages: [{ role: "user", content: "x" }] });
+    expect(r.ok).toBe(false);
+    expect(sent).toBe(0);
+  });
+
+  it("the Fixer does not use an answer that muse exec reports from a contributor model, logs that model id, and falls back", async () => {
+    const before = process.env.ATLAS_ALLOW_CONTRIBUTOR;
+    delete process.env.ATLAS_ALLOW_CONTRIBUTOR;
+    try {
+      const events: { model?: string; action: string }[] = [];
+      const log = { emit: (e: never) => e, model: (e: { model: string; action: string }) => (events.push(e), e) } as never;
+      const contrib: MuseExec = async () => ({ ok: true, text: TIME_LIMIT_DIFF, model: "muse-spark-1.3-contributor", usage: fakeUsage });
+      const chat = async () => ({ ok: true as const, content: TIME_LIMIT_DIFF, finishReason: "stop", usage: fakeUsage });
+      const ctxIn = { context: tsChangeContext(FIXTURE_REF, code), finding: { file: FIXTURE_REF, lineStart: 49, lineEnd: 66 }, toward: "- x", experiment: s6 };
+      const r = await runFixer(ctxIn, { museExec: contrib, chat, log, usagePath });
+      expect(r.path).toBe("chat-fallback");
+      expect(r.attempts[0]).toMatchObject({ ok: false, model: "muse-spark-1.3-contributor", reason: expect.stringMatching(/contributor model/) });
+      expect(events[0]!.model).toBe("muse-spark-1.3-contributor");
+      const lines = readFileSync(usagePath, "utf8").trim().split("\n").map((l) => JSON.parse(l));
+      expect(lines.some((l) => l.model === "muse-spark-1.3-contributor" && l.via === "muse exec")).toBe(true);
+    } finally {
+      if (before !== undefined) process.env.ATLAS_ALLOW_CONTRIBUTOR = before;
+    }
+  });
+});

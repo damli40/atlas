@@ -90,6 +90,17 @@ export function loadApiKey(): string | undefined {
   return m?.[1];
 }
 
+/**
+ * "-contributor" models are cheaper, but Meta may train on their inputs. Atlas refuses them unless the
+ * environment says ATLAS_ALLOW_CONTRIBUTOR=1 (a deliberate choice, for public code only).
+ * Returns the refusal sentence, or null when the model may be used.
+ */
+export function contributorRefusal(model: string, env: NodeJS.ProcessEnv = process.env): string | null {
+  if (!/-contributor$/i.test(model.trim())) return null;
+  if (env.ATLAS_ALLOW_CONTRIBUTOR === "1") return null;
+  return `${model} is a contributor model (Meta may train on its inputs); Atlas does not use it unless ATLAS_ALLOW_CONTRIBUTOR=1 is set`;
+}
+
 export function costUsd(model: string, promptTokens: number, completionTokens: number): number {
   const { price } = priceFor(model);
   return (promptTokens * price.inPerM + completionTokens * price.outPerM) / 1_000_000;
@@ -217,6 +228,8 @@ export function createMetaClient(opts: ClientOptions = {}) {
   }
 
   async function chat(args: ChatArgs): Promise<ChatResult> {
+    const refused = contributorRefusal(args.model);
+    if (refused) return { ok: false, reason: refused };
     const key = opts.apiKey ?? loadApiKey();
     if (!key) return { ok: false, reason: "no Meta API key: set META_API_KEY or ~/.config/meta-model-api/env" };
 
