@@ -1,0 +1,16 @@
+run 1: ok, retry-scenario {"shape":"retry-scenario","failTimes":1,"failure":"never_settles"}; model calls 1; gate rejections 0; $0.026712
+run 2: ok, retry-scenario {"shape":"retry-scenario","failTimes":1,"failure":"never_settles"}; model calls 1; gate rejections 0; $0.051892
+run 3: ok, retry-scenario {"shape":"retry-scenario","failTimes":"always","failure":"never_settles"}; model calls 1; gate rejections 0; $0.041792
+run 4: ok, retry-scenario {"shape":"retry-scenario","failTimes":1,"failure":"never_settles"}; model calls 1; gate rejections 0; $0.049612
+run 5: ok, retry-scenario {"shape":"retry-scenario","failTimes":1,"failure":"never_settles"}; model calls 1; gate rejections 0; $0.039152
+judged run 1 (control passed): calls bet 1 vs 1 → matched; totalWaitMs bet 0 vs 0 → matched; outcome bet pending vs pending → matched
+judged run 2 (control passed): calls bet 1 vs 1 → matched; totalWaitMs bet declined vs 0 → can't check; outcome bet pending vs pending → matched
+judged run 3 (control passed): calls bet declined vs 1 → can't check; totalWaitMs bet declined vs 0 → can't check; outcome bet declined vs pending → can't check
+judged run 4 (control passed): calls bet 1 vs 1 → matched; totalWaitMs bet 0 vs 0 → matched; outcome bet pending vs pending → matched
+judged run 5 (control passed): calls bet 1 vs 1 → matched; totalWaitMs bet 0 vs 0 → matched; outcome bet pending vs pending → matched
+usable: 5/5; first-try usable: 5/5; cost (upper bound, Spark price unverified): $0.209160
+refusal files written: 4
+  proofs/refusals/2026-10-27-Re2hbNHSHm.json
+  proofs/refusals/2026-10-27-CgQ-s5T_8A.json
+  proofs/refusals/2026-10-27-TO58tDFURq.json
+  proofs/refusals/2026-10-27-P6S9Ur6a0G.json

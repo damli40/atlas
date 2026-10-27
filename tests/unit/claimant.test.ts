@@ -9,8 +9,8 @@ import { judge } from "../../src/judge.ts";
 import { verifySeal } from "../../src/seal.ts";
 import type { AgentEvent, Run, Target } from "../../src/types.ts";
 import type { ChatArgs, ChatResult } from "../../server/meta/client.ts";
-import { FIXTURE_FINDING_LABEL, FIXTURE_FILE, fixtureFinding, snippetMatches } from "../../server/meta/roles/fixture-finding.ts";
-import { SYSTEM_PREAMBLE, runClaimant, validateClaimantOutput } from "../../server/meta/roles/claimant.ts";
+import { FIXTURE_FINDING_LABEL, FIXTURE_FILE, fixtureContextRange, fixtureFinding, snippetMatches } from "../../server/meta/roles/fixture-finding.ts";
+import { PICK_INSTRUCTION, SYSTEM_PREAMBLE, buildClaimantMessages, runClaimant, validateClaimantOutput } from "../../server/meta/roles/claimant.ts";
 import { writeRefusal, type RefusalRecord } from "../../server/proofs/refusals.ts";
 import { TS_GATE_CONTEXT } from "../../server/app.ts";
 
@@ -56,6 +56,14 @@ describe("the fixture finding", () => {
     expect(lines[10]).toContain("Retry budget"); // fixture line 11 = original line 31
     expect(finding.verified).toBe(true);
   });
+  it("its claim is neutral: 'People expect X; the code does Y', naming no one scenario", () => {
+    expect(finding.claim).toMatch(/^People expect .+; the code .+/);
+    expect(finding.claim).not.toMatch(/never|hang|settle|pending|forever|time limit/i);
+  });
+  it("its context is the whole verbatim block: constants on 14–15 through the function's last line", () => {
+    expect(fixtureContextRange(FILE_TEXT)).toEqual({ from: 11, to: 66 });
+    expect(fixtureContextRange("no markers here")).toBeUndefined();
+  });
   it("is unverified when the quote is not in its lines", () => {
     expect(snippetMatches(FILE_TEXT, { lineStart: 11, lineEnd: 20, quotedSnippet: finding.quotedSnippet })).toBe(false);
     expect(snippetMatches(FILE_TEXT, { lineStart: 60, lineEnd: 999, quotedSnippet: "x" })).toBe(false);
@@ -95,20 +103,61 @@ describe("Claimant: valid path", () => {
     expect(h.events[0]!.usage).toEqual(usage);
   });
 
-  it("the prompt: preamble, label, finding lines ±20 with numbers, allow-list, questions; never a hash or nonce", async () => {
+  it("the prompt: preamble, label, the whole verbatim block with numbers, allow-list, questions, pick rule; never a hash or nonce", async () => {
     const h = harness([JSON.stringify(GOOD)]);
     await h.run();
     const [sys, user] = h.calls[0]!.messages;
     expect(sys!.content).toBe(SYSTEM_PREAMBLE);
     expect(user!.content).toContain(FIXTURE_FINDING_LABEL);
     expect(user!.content).toContain("lines 49-66");
-    expect(user!.content).toContain("29| ");
-    expect(user!.content).toContain("67| ");
-    expect(user!.content).not.toMatch(/^28\| /m);
+    expect(user!.content).toContain("lines 11-66):");
+    expect(user!.content).toMatch(/^11\| \/\*\* Retry budget/m);
+    expect(user!.content).toMatch(/^14\| export const RPC_RETRY_ATTEMPTS = 5;$/m);
+    expect(user!.content).toMatch(/^15\| export const RPC_RETRY_DELAY_MS = 3000;$/m);
+    expect(user!.content).toMatch(/^66\| \}$/m);
+    expect(user!.content).not.toMatch(/^10\| /m); // the BEGIN marker line
+    expect(user!.content).not.toMatch(/^67\| /m); // the END marker line
+    expect(user!.content).toContain(PICK_INSTRUCTION);
+    expect(user!.content).not.toMatch(/never_settles is|choose never|choose error/i);
     expect(user!.content).toContain('shape "retry-scenario"');
     expect(user!.content).not.toContain("concurrency-sweep");
     expect(user!.content).toContain(QUESTION_TEXT.outcome);
     expect(user!.content).not.toMatch(/sealedHash|nonce/);
+  });
+
+  it("a finding that is not the fixture still gets lines ±20", () => {
+    const other = { ...finding, id: "investigator-1" };
+    const [, user] = buildClaimantMessages({ target: TARGET, finding: other, fileText: FILE_TEXT, gateContext: TS_GATE_CONTEXT });
+    expect(user!.content).toContain("lines 29-68):");
+    expect(user!.content).not.toMatch(/^28\| /m);
+  });
+
+  it("rationale text stays model-panel data: never in a verdict, an event or a refusal record", async () => {
+    const R = "It stays pending forever and hangs.";
+    const withRationale = { ...GOOD, bets: [
+      { ...GOOD.bets[0]!, rationale: R },
+      { ...GOOD.bets[1]!, rationale: R },
+      { measures: "outcome", answer: { kind: "declined", reason: "unknown: depends on fn" }, rationale: R },
+    ] };
+    const h = harness([JSON.stringify(withRationale)]);
+    const r = await h.run();
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.bets.every((b) => b.rationale === R)).toBe(true); // kept on the bet, sealed
+    const base = { id: "r1", experimentId: r.experiment.id, result: { measured: { calls: 5, totalWaitMs: 1, outcome: "throws" }, notMeasured: {} } };
+    const runs = [
+      { ...base, controlPassed: true },
+      { ...base, controlPassed: false },
+      { ...base, controlPassed: true, experimentId: "other" },
+    ] as unknown as Run[];
+    // matched (calls), didn't match (totalWaitMs), can't check (declined, failed control, wrong experiment)
+    for (const run of runs) for (const b of r.bets) {
+      const text = JSON.stringify(judge(b, run));
+      expect(text).not.toContain(R);
+      expect(text).not.toMatch(/forever|hangs/);
+    }
+    expect(JSON.stringify(h.events)).not.toContain(R);
+    expect(JSON.stringify(h.refusals)).not.toContain(R);
   });
 
   it("a declined bet is kept, sealed, reported as a refusal, and judged can't check", async () => {

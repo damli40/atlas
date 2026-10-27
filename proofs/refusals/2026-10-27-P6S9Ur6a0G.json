@@ -1,0 +1,15 @@
+{
+  "kind": "declined_bet",
+  "id": "P6S9Ur6a0G",
+  "time": "2026-10-27T04:54:01.929Z",
+  "role": "claimant",
+  "model": "muse-spark-1.3",
+  "experiment": {
+    "shape": "retry-scenario",
+    "failTimes": "always",
+    "failure": "never_settles"
+  },
+  "reason": "unknown: pending versus can't-check after 30000ms virtual limit cannot be distinguished from code alone",
+  "measures": "outcome",
+  "question": "How will it end: returns, throws, or pending (never settles)?"
+}

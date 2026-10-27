@@ -19,7 +19,7 @@ import type { AgentEvent, Bet, BetAnswer, Experiment, ExperimentShape, Finding, 
 import { chat as realChat, type ChatArgs, type ChatMessage, type ChatResult, type Usage } from "../client";
 import { claimantOutputSchema, zodReason, type ClaimantBetOut } from "../schemas";
 import type { RefusalRecord } from "../../proofs/refusals";
-import { FIXTURE_FINDING_LABEL } from "./fixture-finding";
+import { FIXTURE_FINDING_ID, FIXTURE_FINDING_LABEL, fixtureContextRange } from "./fixture-finding";
 
 export const CLAIMANT_MODEL = "muse-spark-1.3";
 
@@ -27,8 +27,16 @@ export const CLAIMANT_MODEL = "muse-spark-1.3";
 export const SYSTEM_PREAMBLE =
   "You propose. You never decide. Plain code will run the code and judge. Say 'unknown' instead of guessing. Return only JSON matching the schema.";
 
-/** Lines of context shown above and below the finding. */
+/** Lines of context shown above and below the finding (when no wider context range is given). */
 export const CONTEXT_LINES = 20;
+
+/**
+ * The plain instruction on which experiment to pick. The model is asked for the experiment it is
+ * least sure about, not the easiest to predict, so the bets test something a reader could get
+ * wrong. It says nothing about which experiment or what result that is.
+ */
+export const PICK_INSTRUCTION =
+  "Pick ONE allowed experiment that tests the finding. Choose the experiment whose result you are LEAST sure about: the one most likely to surprise a reader of this code. Do not choose the experiment that is easiest to predict.";
 
 export interface ClaimantInput {
   target: Target;
@@ -39,6 +47,11 @@ export interface ClaimantInput {
   gateContext: GateContext;
   /** Shown beside the finding in the prompt (for the hand-written fixture finding). */
   findingLabel?: string;
+  /**
+   * Lines of the file to show, when wider than the finding ±CONTEXT_LINES (always widened to cover
+   * the finding's own lines). Defaults to the whole verbatim block for the fixture finding.
+   */
+  contextRange?: { from: number; to: number };
   model?: string;
 }
 
@@ -98,10 +111,23 @@ function questionsByShape(ctx: GateContext): { shape: string; questions: Questio
   return out;
 }
 
+/**
+ * Which lines the Claimant sees: the given range, else the fixture's verbatim block for the fixture
+ * finding, else the finding ±CONTEXT_LINES. Always widened to include the finding's own lines.
+ */
+export function contextRangeFor(input: Pick<ClaimantInput, "finding" | "fileText" | "contextRange">): { from: number; to: number } {
+  const f = input.finding;
+  const given = input.contextRange ?? (f.id === FIXTURE_FINDING_ID ? fixtureContextRange(input.fileText) : undefined);
+  if (!given) return { from: Math.max(1, f.lineStart - CONTEXT_LINES), to: f.lineEnd + CONTEXT_LINES };
+  return { from: Math.min(given.from, f.lineStart), to: Math.max(given.to, f.lineEnd) };
+}
+
 export function buildClaimantMessages(input: ClaimantInput): ChatMessage[] {
   const f = input.finding;
-  const from = Math.max(1, f.lineStart - CONTEXT_LINES);
-  const to = f.lineEnd + CONTEXT_LINES;
+  const lineCount = input.fileText.split("\n").length;
+  const range = contextRangeFor(input);
+  const from = Math.max(1, range.from);
+  const to = Math.min(range.to, lineCount);
   const qs = questionsByShape(input.gateContext)
     .map((x) => `For shape "${x.shape}" (one bet per question, in this order):\n${renderQuestions(x.questions)}`)
     .join("\n\n");
@@ -110,7 +136,7 @@ export function buildClaimantMessages(input: ClaimantInput): ChatMessage[] {
     `file: ${f.file}, lines ${f.lineStart}-${f.lineEnd}, kind: ${f.kind}`,
     `claim: ${f.claim}`,
     "",
-    `CODE (${f.file}, lines ${from}-${Math.min(to, input.fileText.split("\n").length)}):`,
+    `CODE (${f.file}, lines ${from}-${to}):`,
     numbered(input.fileText, from, to),
     "",
     "EXPERIMENTS",
@@ -121,7 +147,8 @@ export function buildClaimantMessages(input: ClaimantInput): ChatMessage[] {
     qs,
     "",
     "TASK",
-    "Pick ONE allowed experiment that tests the finding. Then bet on what its run will measure:",
+    PICK_INSTRUCTION,
+    "Then bet on what its run will measure:",
     "exactly one bet per question of the shape you picked, using the answer JSON shown for it.",
     'If you do not know an answer, bet {"kind":"declined","reason":"unknown: <why>"} instead of guessing.',
     "",

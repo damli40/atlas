@@ -1,0 +1,15 @@
+{
+  "kind": "declined_bet",
+  "id": "CgQ-s5T_8A",
+  "time": "2026-10-27T04:54:01.929Z",
+  "role": "claimant",
+  "model": "muse-spark-1.3",
+  "experiment": {
+    "shape": "retry-scenario",
+    "failTimes": "always",
+    "failure": "never_settles"
+  },
+  "reason": "unknown: code has no timeout so harness virtual-time accounting for a never-settling call is unclear",
+  "measures": "calls",
+  "question": "How many times will the function call the RPC?"
+}
