@@ -43,6 +43,9 @@ export interface StripLine {
 export const timeOf = (iso: string) => (/T(\d\d:\d\d:\d\d)/.exec(iso)?.[1] ?? "--:--:--");
 
 /** The rows the strip shows, oldest first. `dropped` adds the "Ask why" line at the end. */
+/** m8 (day-5 review): the page keeps the last 500 events, as the server does (server/log/agentlog.ts). */
+export const MAX_STRIP_EVENTS = 500;
+
 export function stripLines(events: readonly AgentEvent[], dropped?: { count: number; at: string } | null): StripLine[] {
   const rows: StripLine[] = events.map((e, i) => ({
     key: `${i}`,
@@ -127,7 +130,7 @@ export function useAgentEvents(session: () => string | null, base = "/api"): Age
     es.addEventListener("agent-event", (m) => {
       try {
         const e = JSON.parse((m as MessageEvent).data) as AgentEvent;
-        if (typeof e.action === "string" && typeof e.role === "string") setEvents((l) => [...l, e]);
+        if (typeof e.action === "string" && typeof e.role === "string") setEvents((l) => [...l, e].slice(-MAX_STRIP_EVENTS));
       } catch {
         // a line the page cannot read is skipped
       }
