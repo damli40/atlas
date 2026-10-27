@@ -1,0 +1,32 @@
+$ tsx tests/gate/six-cases.ts
+mode: HTTP against an in-process server on 127.0.0.1 (started by this script)
+target: tests/fixtures/with-rpc-retry.ts (Pre-existing: written before the hackathon, listed in PRE-EXISTING.md)
+sha256: f3d2c59f05151be85d8a950c009e63de8015e638d3af6f2fd1c2a729393ad101
+
+case  measured calls / wait ms / outcome  bet on       bet      observed  verdict
+----  ----------------------------------  -----------  -------  --------  -------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+S1    1 / 0 / returns                     calls        1        1         matched
+                                          totalWaitMs  0        0         matched
+                                          outcome      returns  returns   matched
+S2    2 / 3000 / returns                  calls        2        2         matched
+                                          totalWaitMs  3000     3000      matched
+                                          outcome      returns  returns   matched
+S3    5 / 12000 / throws                  calls        4        5         didn't match  <- deliberately off by one (replaces the bet of 5)
+                                          totalWaitMs  12000    12000     matched
+                                          outcome      throws   throws    matched
+                                          settledAtMs  12000    12000     matched  <- settle time of a run that settles
+S4    2 / 3000 / returns                  calls        2        2         matched
+                                          totalWaitMs  3000     3000      matched
+                                          outcome      returns  returns   matched
+S5    1 / 0 / returns                     calls        1        1         matched
+                                          totalWaitMs  0        0         matched
+                                          outcome      returns  returns   matched
+S6    1 / 0 / pending                     calls        1        1         matched
+                                          totalWaitMs  0        0         matched
+                                          outcome      pending  pending   matched
+                                          settledAtMs  30000    -         can't check (the function never settled: it was still waiting with nothing left that could wake it, so it has no settle time)  <- settle time of a run that never settles
+
+verdicts: 18 matched, 1 didn't match, 1 can't check
+new shape fields reached the sandbox: S4 call 1 rejected with "HttpRequestError: HTTP request failed. Status: 429 Too Many Requests (call 1)"; S5 returned {"status":429}
+control passed on every run: yes; one control run (Bj4yMu20CU) reused for all six
+total real time: 795 ms (limit 5000 ms)
