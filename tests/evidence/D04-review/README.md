@@ -36,6 +36,7 @@ The review found 1 blocker (B1), 6 should-fix items (S1–S6) and 10 minors (M1�
 | M9 | Level 1 no longer sets a `controlRunId` that points at nothing. The control is in the run's own trace | none: a field removed |
 | M10 | The signal hook exits only when no other handler owns shutdown (exit 130 for SIGINT, 143 for SIGTERM). Query-string keys are now redacted (S1) | none |
 | **M7, skipped** | The caption "the cbETH line was picked by a person; the Investigator pointed elsewhere" can also appear when the Investigator did point at cbETH but plain code dropped that place. Fixing it means changing a caption the demo shows, or storing the dropped places. That is a wording decision for Dami (pitch), so it is not done here | — |
+| **M7, done later (Oct 27)** | Each half of the caption is now decided by plain code from the findings (`chosenLineCaptions` in `src/atlasfile.ts`): "picked by a person" only when the round's finding was a person's; "the Investigator pointed elsewhere" only when no **verified** Investigator place includes the chosen lines, else "the Investigator also pointed here"; with no verified place at all, "the Investigator had no checked place on this code". The `.atlas.json` records the verified places, so verify recomputes the caption. A place plain code removed still does not count as pointing here | `m7-caption.test.ts` |
 
 ## Probes (the review's own scripts, re-run)
 
@@ -69,6 +70,6 @@ The tamper probe after uses [`tamper-probe-rebuilt.mts`](probes/tamper-probe-reb
 
 ## What I did not do, and what I am unsure about
 
-- The `/runs` route still has no cap on concurrent EVM runs. The review mentioned it, but S5 asked only for `/replay`. A round needs an experiment and a sealed bet first, so `/runs` is harder to abuse, but it is still uncapped.
+- The `/runs` route had no cap on concurrent EVM runs when this review closed. Done Oct 27 (`runs-cap.test.ts`): EVM runs are capped at once and per hour like replays (env `ATLAS_RUNS_*`), 429 with the reason, checked before the bets freeze.
 - The page text "Anyone can replay it at /replay/…" is still true, but an EVM replay now needs the `x-atlas-session` header. A plain browser link answers 400 with that reason.
 - No live Investigator call was made. The S6 rule was checked against the 39 recorded live findings, and none was dropped. A future model answer that quotes a partial line will now be dropped, and the model gets one repair try with the reason.

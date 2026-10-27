@@ -3,6 +3,23 @@
 Date: 2026-10-27 (WAT) · models `muse-wonder-1.0` (Investigator), `muse-spark-1.3` (bets) · `mida` not run ·
 nothing written to the public `proofs/` (the live rounds wrote to a scratch folder; two example files are copied here).
 
+## Update, Oct 27: the two example files were regenerated
+
+The original files below are kept as recorded. `moonwell-level2-fKqHGIIi2_.atlas.json` no longer verifies with
+today's `src/atlasfile.ts`: it predates the false-alarm table (S3, days 3–4 review), and it does not record the
+Investigator's places, so its "pointed elsewhere" caption can no longer be checked (M7). Two new example files
+were made by real rounds with the current code (the D05-04 browser run, 07:29 UTC):
+
+- [`fixture-eRopGsrp2a.atlas.json`](fixture-eRopGsrp2a.atlas.json): withRpcRetry, Spark **live** (3 bets, all
+  matched), hand-written finding, seed `tFjD64Wn2K`. Verifies.
+- [`moonwell-level2-mwTaxvHFzB.atlas.json`](moonwell-level2-mwTaxvHFzB.atlas.json): PR #578 Level 2, Base RPC
+  at runtime (fork 42194662), Wonder **live** (3 places, none on cbETH, all recorded in the file), the person
+  picked line 42, Spark **live** (declined → can't check), false-alarm table included. Verifies.
+
+Spark was asked live on both (not mocked as "not asked"): $0.0290 + $0.0243, plus Wonder $0.2499.
+[`validate.ts`](validate.ts) now checks all four; [`validate-output.txt`](validate-output.txt) shows the two new
+ones valid and the old Level 2 file refused with its two reasons. `GET /replay` was not re-run on the new files.
+
 ## Where to look first
 
 - **Both rounds ran end to end in headless Chromium** against `pnpm dev:all` (real server, real Meta
