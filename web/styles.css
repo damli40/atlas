@@ -94,3 +94,41 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .caption { display: inline-block; margin: 8px 0 12px; }
 .progress { margin: 4px 0 0; padding-left: 20px; color: var(--muted); }
 tr.flagged td { background: var(--label-bg); color: var(--label-ink); }
+
+/* D05-04: the agent log strip. Under the flow by default (phone); a side panel on a wide screen. */
+.logstrip { max-width: 760px; margin: 0 auto 48px; padding: 0 16px; }
+.logstrip-head { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+.logstrip-head h2 { margin: 0; }
+.logstrip-note { color: var(--muted); font-size: 13px; flex: 1 1 auto; }
+.logstrip-lines { list-style: none; margin: 10px 0 0; padding: 0; background: var(--card); border: 1px solid var(--line); border-radius: 10px; max-height: 70vh; overflow-y: auto; font-size: 15px; }
+.logstrip-lines li { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0 12px; padding: 5px 12px; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.logstrip-lines li .act { grid-column: 1 / -1; }
+.logstrip-lines li:last-child { border-bottom: 0; background: var(--bg); }
+.logstrip-lines .t { color: var(--muted); font-variant-numeric: tabular-nums; }
+.logstrip-lines .who { font-weight: 600; }
+.logstrip-lines .mid { color: var(--accent); font-weight: 600; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; }
+.logstrip-lines .pc { color: var(--muted); font-weight: 400; font-size: 0.8em; }
+.logstrip-lines li.model { border-left: 4px solid var(--accent); }
+.logstrip-lines li.plain { border-left: 4px solid var(--line); }
+.logstrip-lines li.person { border-left: 4px solid var(--label-ink); }
+.logstrip-empty { color: var(--muted); white-space: normal !important; display: block !important; }
+@media (min-width: 1200px) {
+  .shell.with-strip { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 50vw); align-items: start; }
+  .shell.with-strip main { margin: 0 auto; }
+  .shell.with-strip .logstrip { position: sticky; top: 0; height: 100vh; max-width: none; margin: 0; padding: 20px 20px 20px 0; display: flex; flex-direction: column; }
+  .shell.with-strip .logstrip-lines { flex: 1 1 auto; max-height: none; font-size: 22px; line-height: 1.35; }
+  /* One line per event on the wide screen: time, who, action side by side; an action too long for the panel ends in "…" (full text on hover). */
+  .shell.with-strip .logstrip-lines li { grid-template-columns: max-content minmax(0, max-content) minmax(0, 1fr); white-space: nowrap; overflow-wrap: normal; }
+  .shell.with-strip .logstrip-lines li .act { grid-column: auto; }
+  .shell.with-strip .logstrip-lines li > span { overflow: hidden; text-overflow: ellipsis; }
+  .shell.with-strip .logstrip-head h2 { font-size: 24px; }
+  .shell.with-strip .logstrip-note { font-size: 18px; }
+  .shell:not(.with-strip) .logstrip { position: fixed; right: 16px; bottom: 16px; margin: 0; padding: 0; max-width: none; }
+  .shell:not(.with-strip) .logstrip-head h2, .shell:not(.with-strip) .logstrip-note { display: none; }
+}
+
+/* D05-05: "Ask why" */
+.why { padding-left: 18px; font-size: 14px; }
+.why li { margin: 6px 0; }
+/* The 14-market table is wider than a 390 px phone: it scrolls inside its card instead of widening the page. */
+section[data-testid="false-alarm"] { overflow-x: auto; }

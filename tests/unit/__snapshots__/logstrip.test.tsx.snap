@@ -1,0 +1,26 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`the log strip with a real Moonwell round's events > snapshot: one row per event, time · who · model id · action 1`] = `
+[
+  "07:29:46 | Investigator (muse-wonder-1.0) | reads 6 files (4016 lines, about 53437 tokens, effort medium); proposes 3 places",
+  "07:29:46 | Gate [plain code] | verifies finding JU1hB2RLY_ from muse-wonder-1.0: proposals/ChainlinkOracleConfigs.sol lines 44–53, quoted snippet found there",
+  "07:29:46 | Gate [plain code] | verifies finding xeSjUgKkaD from muse-wonder-1.0: proposals/ChainlinkOracleConfigs.sol lines 142–144, quoted snippet found there",
+  "07:29:46 | Gate [plain code] | verifies finding UXppN2ku6S from muse-wonder-1.0: proposals/mips/mip-x43/mip-x43.sol lines 147–169, quoted snippet found there",
+  "07:29:47 | Person | picks proposals/ChainlinkOracleConfigs.sol lines 42–42 (file and lines checked)",
+  "07:29:47 | Person | chooses proposals/ChainlinkOracleConfigs.sol lines 42–42 (picked by a person) for Tu6JFyOQKF",
+  "07:29:47 | Gate [plain code] | allowed (src/gate.ts)",
+  "07:29:47 | Person | seals a bet on priceUsd1e18:cbETH",
+  "07:29:51 | Claimant (muse-spark-1.3) | bets on Tu6JFyOQKF (1 answers, hidden until the run)",
+  "07:29:51 | Seal check [plain code] | seals 1 bets from muse-spark-1.3 at server time",
+  "07:29:51 | Seal check [plain code] | verifies 2 seals",
+  "07:29:51 | Runner [plain code] | forks Base @ 42194662",
+  "07:29:53 | Runner [plain code] | checks the fork at 42194662 is before the proposal ran",
+  "07:29:53 | Runner [plain code] | runs the known-case control (WETH, stablecoins)",
+  "07:29:53 | Runner [plain code] | reads 14 markets before applying",
+  "07:29:53 | Runner [plain code] | applies 14 oracle-feed actions as the governor",
+  "07:29:55 | Runner [plain code] | reads 14 markets after applying",
+  "07:29:55 | Runner [plain code] | computes the cbETH reference from the raw Chainlink feeds and traces the price read",
+  "07:29:56 | Runner [plain code] | runs moonwell-fi/moonwell-contracts-v2#578 on a fork of Base @ 42194662 (Tu6JFyOQKF)",
+  "07:29:56 | Judge [plain code] | judges 2 bets: 1 didn't match, 1 can't check",
+]
+`;

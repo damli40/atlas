@@ -6,7 +6,7 @@
 // D04-04: a target switcher (the withRpcRetry fixture, or a pull request link: Moonwell PR #578 on
 // the EVM runner), and a findings panel (the Investigator's places, checked against the file).
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Question } from "../src/gate";
 import type { Target } from "../src/types";
 import { createApi, type Api, type HumanAnswer, type ModelSlotView, type RunAnswer, type ShownBet } from "./api";
@@ -17,6 +17,8 @@ import { VerdictScreen } from "./screens/Verdict";
 import { ModelSlotCard } from "./screens/ModelPanel";
 import { FindingsPanel } from "./screens/Findings";
 import { MoonwellFlow } from "./screens/Moonwell";
+import { LogStrip, useAgentEvents } from "./logstrip/LogStrip";
+import { modelTextsOf, WhyDroppedContext, WhyScreen } from "./screens/Why";
 import type { Finding } from "../src/types";
 
 type Mode = "fixture" | "pr";
@@ -26,23 +28,40 @@ export function App({ api: given }: { api?: Api } = {}) {
   // One API client (one session) per target, so switching starts a clean round.
   const fixtureApi = useMemo(() => given ?? createApi(), [given]);
   const prApi = useMemo(() => given ?? createApi(), [given]);
-  return (
-    <main>
-      <header>
-        <h1>Atlas</h1>
-        <p className="muted">Know what your AI-written code does before you trust it.</p>
-      </header>
-      <nav className="switch" aria-label="what to test">
-        <button type="button" className={mode === "fixture" ? "on" : undefined} aria-pressed={mode === "fixture"} onClick={() => setMode("fixture")}>
-          withRpcRetry (TypeScript)
-        </button>
-        <button type="button" className={mode === "pr" ? "on" : undefined} aria-pressed={mode === "pr"} onClick={() => setMode("pr")} data-testid="mode-pr">
-          A pull request link (Solidity, Base fork)
-        </button>
-      </nav>
-      {mode === "fixture" ? <FixtureFlow api={fixtureApi} /> : <MoonwellFlow api={prApi} />}
-    </main>
+  // D05-04: the agent log strip. A side panel on a wide screen (toggled), under the flow on a phone.
+  const [stripOpen, setStripOpen] = useState(true);
+  // D05-05: how many "Ask why" sentences were dropped (no run evidence), per target, for the strip.
+  const [dropped, setDropped] = useState<Record<Mode, { count: number; at: string } | null>>({ fixture: null, pr: null });
+  const reportDropped = useCallback(
+    (count: number) => setDropped((d) => (d[mode]?.count === count ? d : { ...d, [mode]: { count, at: new Date().toISOString() } })),
+    [mode],
   );
+  return (
+    <div className={`shell${stripOpen ? " with-strip" : ""}`}>
+      <main>
+        <header>
+          <h1>Atlas</h1>
+          <p className="muted">Know what your AI-written code does before you trust it.</p>
+        </header>
+        <nav className="switch" aria-label="what to test">
+          <button type="button" className={mode === "fixture" ? "on" : undefined} aria-pressed={mode === "fixture"} onClick={() => setMode("fixture")}>
+            withRpcRetry (TypeScript)
+          </button>
+          <button type="button" className={mode === "pr" ? "on" : undefined} aria-pressed={mode === "pr"} onClick={() => setMode("pr")} data-testid="mode-pr">
+            A pull request link (Solidity, Base fork)
+          </button>
+        </nav>
+        <WhyDroppedContext.Provider value={reportDropped}>{mode === "fixture" ? <FixtureFlow api={fixtureApi} /> : <MoonwellFlow api={prApi} />}</WhyDroppedContext.Provider>
+      </main>
+      <LiveLogStrip key={mode} api={mode === "fixture" ? fixtureApi : prApi} dropped={dropped[mode]} open={stripOpen} onToggle={() => setStripOpen((o) => !o)} />
+    </div>
+  );
+}
+
+/** The strip for one API client's session (keyed per client by App, so a switch starts a fresh stream). */
+function LiveLogStrip({ api, dropped, open, onToggle }: { api: Api; dropped: { count: number; at: string } | null; open: boolean; onToggle: () => void }) {
+  const events = useAgentEvents(api.session);
+  return <LogStrip events={events} dropped={dropped} open={open} onToggle={onToggle} />;
 }
 
 function FixtureFlow({ api }: { api: Api }) {
@@ -172,6 +191,7 @@ function FixtureFlow({ api }: { api: Api }) {
           result={result}
         />
       )}
+      {result && <WhyScreen run={result.run} finding={finding} modelTexts={modelTextsOf(result.bets, finding)} />}
       {error && (
         <p className="notice" role="alert">
           {error}
