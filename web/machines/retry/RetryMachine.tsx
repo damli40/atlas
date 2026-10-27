@@ -6,6 +6,7 @@ import { useMemo, useSyncExternalStore } from "react";
 import { Plate } from "../iso/react/draw";
 import { stillNow as asksForStillness } from "../env";
 import { RetryLive } from "./live";
+import { SLOTS } from "./geometry";
 import { grouped, poseAt, retryModel, type RetryInput } from "./model";
 
 const DARK = "(prefers-color-scheme: dark)";
@@ -47,6 +48,18 @@ export function RetryMachine({ run, bets, verdicts, still, theme, at }: RetryMac
           <p className="label">Fig 1 · The retry machine · can't check</p>
           <p>{model.notShown}</p>
           <p className="muted small">Run {run.id}. Every verdict on this run is "can't check".</p>
+        </div>
+      </div>
+    );
+  }
+  if (model.calls.length > SLOTS || model.waits.length > SLOTS) {
+    // S4: the machine has SLOTS call slots and counter holes (the gate's most attempts). A run that made
+    // more is never squeezed onto fewer parts: it is not drawn, and the card says why.
+    return (
+      <div className="iso rm" data-theme={shown === "light" ? "light" : undefined} data-testid="retry-machine">
+        <div className="card notice" role="note" data-testid="retry-too-many">
+          <p className="label">Fig 1 · The retry machine · not drawn</p>
+          <p>{`Run ${run.id} made ${model.calls.length} calls and ${model.waits.length} waits; the machine has ${SLOTS} slots, so it is not drawn. ${model.readout}.`}</p>
         </div>
       </div>
     );

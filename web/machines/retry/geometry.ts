@@ -65,12 +65,17 @@ export const RACK: Plan = { x: -50, y: -34, w: 150, d: 30, r: 4 };
 export const RACK_TOP = 7;
 export const LANE_Y = -22;
 export const SLOT_Y = -12;
-export const SLOT_STEP = 13;
-/** Slot k (0 = the landing under the chute, 1 … 8 = the call slots). */
+export const SLOT_STEP = 12;
+/**
+ * Call slots on the rack, one per call. Equal to the gate's most attempts (src/gate.ts BOUNDS.attempts.max,
+ * 10), so every call a run can make has its own slot; tests/unit/review-day5-machine.test.tsx checks the two
+ * stay equal and that the slots, the pull counter and the turn counter all fit their parts.
+ */
+export const SLOTS = 10;
+/** Slot k (0 = the landing under the chute, 1 … SLOTS = the call slots). */
 export const slotX = (k: number) => CHUTE[0] + SLOT_STEP * k;
-export const SLOTS = 8;
 
-export const RULER: Plan = { x: -42, y: -2, w: 118, d: 9, r: 1 };
+export const RULER: Plan = { x: -42, y: -2, w: slotX(SLOTS) + 7 + 42, d: 9, r: 1 };
 export const RULER_Z = 0.6;
 
 export const DRUM: Plane = [-106, 43];
@@ -177,9 +182,10 @@ export const MAST_ART = {
 // ---- dispatch station ----
 const GATE: Plan = { x: LEVER[0] - 6, y: LEVER[1] - 5, w: 12, d: LEVER_TRAVEL + 10, r: 2 };
 const GATE_SLOT: Plan = { x: LEVER[0] - 1.8, y: LEVER[1] - 2, w: 3.6, d: LEVER_TRAVEL + 4, r: 1.8 };
-const COUNTER: Plan = { x: STATION.x + 8, y: 10, w: 40, d: 10, r: 2 };
+export const COUNTER: Plan = { x: STATION.x + 8, y: 10, w: 40, d: 10, r: 2 };
 export const COUNTER_Z = STATION_TOP + 0.8;
-export const counterHole = (k: number): Point3 => [COUNTER.x + 5.5 + k * 4.1, COUNTER.y + COUNTER.d / 2, COUNTER_Z];
+/** One hole per possible pull (SLOTS of them; a run pulls at most SLOTS − 1 times). */
+export const counterHole = (k: number): Point3 => [COUNTER.x + 4.5 + k * 3.4, COUNTER.y + COUNTER.d / 2, COUNTER_Z];
 const STATION_SCREWS: Plane[] = [
   [STATION.x + 5, STATION.y + 5],
   [STATION.x + STATION.w - 5, STATION.y + 5],
@@ -279,9 +285,13 @@ export const ghostAt = (k: number, row: number): Flat => at([slotX(k), RULER.y +
 
 // ---- wait drum ----
 const DRUM_INDEX: Plan = { x: DRUM[0] + DRUM_R + 1.2, y: DRUM[1] - 1.4, w: 4, d: 2.8, r: 0.6 };
-const TURN_COUNTER: Plan = { x: DRUM_STAND.x + DRUM_STAND.w - 9, y: DRUM_STAND.y + 2.5, w: 5, d: DRUM_STAND.d - 5, r: 1.2 };
+export const TURN_COUNTER: Plan = { x: DRUM_STAND.x + DRUM_STAND.w - 13, y: DRUM_STAND.y + 2.5, w: 9, d: DRUM_STAND.d - 5, r: 1.2 };
 export const TURN_Z = DRUM_Z + 0.6;
-export const turnHole = (k: number): Point3 => [TURN_COUNTER.x + TURN_COUNTER.w / 2, TURN_COUNTER.y + 2.6 + k * 3.2, TURN_Z];
+/** One hole per possible wait (SLOTS of them), in two columns of SLOTS / 2: the first column fills first. */
+export const turnHole = (k: number): Point3 => {
+  const rows = Math.ceil(SLOTS / 2);
+  return [TURN_COUNTER.x + 2.5 + Math.floor(k / rows) * 4, TURN_COUNTER.y + 2.6 + (k % rows) * 3.2, TURN_Z];
+};
 const STAND_SCREWS: Plane[] = [
   [DRUM_STAND.x + 4, DRUM_STAND.y + 4],
   [DRUM_STAND.x + 4, DRUM_STAND.y + DRUM_STAND.d - 4],

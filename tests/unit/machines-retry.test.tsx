@@ -146,7 +146,7 @@ describe("D05-02 retry machine", () => {
     expect((html.match(/data-kind="model"/g) ?? []).length).toBe(1);
     // A bet off the ruler is kept at the ruler's end and the caption says so.
     const far = { ...r, bets: r.bets.map((b) => (b.who === "human" && b.measures === "calls" ? { ...b, answer: { kind: "integer" as const, value: 12 } } : b)) };
-    expect(retryModel(far).ghosts[0]).toMatchObject({ value: 12, slot: 8, offScale: true });
+    expect(retryModel(far).ghosts[0]).toMatchObject({ value: 12, slot: 10, offScale: true }); // day-5 S4: the ruler has 10 slots (was 8)
   });
 
   it("reduced motion: the first paint is the end state (every capsule in its slot, final readout)", () => {

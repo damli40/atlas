@@ -87,8 +87,8 @@ export interface RetryModel {
   notShown: string | null;
 }
 
-/** The rack's ruler holds this many call slots. */
-export const RULER_SLOTS = 8;
+/** The rack's ruler holds this many call slots: the gate's most attempts (geometry.ts SLOTS; a test keeps them equal). */
+export const RULER_SLOTS = 10;
 
 const DUR = { pull: 0.55, send: 1.0, back: 1.15, lost: 0.9, wait: 1.25 } as const;
 
