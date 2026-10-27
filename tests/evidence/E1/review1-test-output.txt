@@ -1,9 +1,24 @@
 
  RUN  v5.0.5 <repo>
 
+ ✓ tests/unit/runner-integrity.test.ts > result size: a big result arrives whole > 300 attempts with no delay: 300 calls measured, not a parse error
  ✓ tests/unit/call-function-review1.test.ts > B1: the result channel cannot be forged by the code under test > the reviewer's attack: read the marker from process.report, write a result, reallyExit
  ✓ tests/unit/call-function-review1.test.ts > B1: the result channel cannot be forged by the code under test > variant: no report, a forged line with a guessed key, then the call never settles (the real line follows)
+ ✓ tests/unit/runner-integrity.test.ts > tampering: the code under test cannot rewrite its own result > a broken target that patches process.stdout.write to print the oracle's numbers does not pass the control
  ✓ tests/unit/call-function-review1.test.ts > B1: the result channel cannot be forged by the code under test > variant: a forged line through console.log, then the process is ended through process.reallyExit
+ ✓ tests/unit/runner-integrity.test.ts > tampering: the code under test cannot rewrite its own result > a forged result line printed from an exit handler is ignored (it lacks the per-run marker)
+ ✓ tests/unit/runner-integrity.test.ts > tampering: the code under test cannot rewrite its own result > a malformed forged line makes runControl return controlPassed=false or ignore it, never throw
+ ✓ tests/unit/runner-integrity.test.ts > tampering: the code under test cannot rewrite its own result > a target that defines Object.prototype.toJSON (to rewrite the result as it is written) does not pass
+ ✓ tests/unit/runner-integrity.test.ts > tampering: the code under test cannot rewrite its own result > the parser counts only lines signed with the run's key; two signed lines or bad JSON count as tampering
+ ✓ tests/unit/runner-integrity.test.ts > tampering: the code under test cannot rewrite its own result > a changed withRpcRetry that forges a result from process.report and exits early does not pass the control
+ ✓ tests/unit/runner-integrity.test.ts > tampering: the code under test cannot rewrite its own result > variant: a forged line with a guessed 64-hex key from an exit handler, after the real result, changes nothing
+ ✓ tests/unit/runner-integrity.test.ts > tampering: the code under test cannot rewrite its own result > variant: the key is not anywhere the changed code can read (argv, execArgv, env)
+ ✓ tests/unit/runner-integrity.test.ts > real timers: 'never settles' only when nothing at all is pending > an UNREF'd real timer the code waits on is can't check, not 'pending'
+ ✓ tests/unit/runner-integrity.test.ts > real timers: 'never settles' only when nothing at all is pending > an unref'd setInterval is can't check too
+ ✓ tests/unit/runner-integrity.test.ts > real timers: 'never settles' only when nothing at all is pending > the code's own setImmediate is waited for (it always runs on the next turn), so the outcome is measured
+ ✓ tests/unit/runner-integrity.test.ts > real timers: 'never settles' only when nothing at all is pending > negative waits are not added up as if time passed
+ ✓ tests/unit/runner-integrity.test.ts > control covers the never-settles path > CONTROL_CASES includes S6 alongside S1 and S3
+ ✓ tests/unit/runner-integrity.test.ts > control covers the never-settles path > code that gives up on a call that never answers passes S1 and S3 but fails the control on S6
  ✓ tests/unit/call-function-review1.test.ts > B1: the result channel cannot be forged by the code under test > variant: a forged line, then an endless loop so the worker never writes (Atlas's real-time limit, not the forged line)
  ✓ tests/unit/call-function-review1.test.ts > B1: the result channel cannot be forged by the code under test > variant: reading stdin for the key is refused, and the key is nowhere the code can look
  ✓ tests/unit/call-function-review1.test.ts > B1: the result channel cannot be forged by the code under test > the parent accepts only a line whose HMAC verifies, with the requested run ids
@@ -11,6 +26,7 @@
  ✓ tests/unit/call-function-review1.test.ts > B2: AbortSignal.timeout runs on the virtual clock > the reviewer's input 2: the race with setTimeout(1000) is won by the abort at 5 ms, as in real Node
  ✓ tests/unit/call-function-review1.test.ts > B2: AbortSignal.timeout runs on the virtual clock > the abort reason is Node's TimeoutError; AbortSignal.any follows it; bad delays throw as in Node
  ✓ tests/unit/call-function-review1.test.ts > B2: AbortSignal.timeout runs on the virtual clock > an AbortSignal.timeout made while the file loads is a load-time timer: whole run can't check
+ ✓ tests/unit/call-function-review1.test.ts > the sweep: every way a promise can wake without Atlas's clock > console.log and process.stdout.write do not count as outside work (the call and its counts are measured)
  ✓ tests/unit/call-function-review1.test.ts > the sweep: every way a promise can wake without Atlas's clock > works: queueMicrotask chains (drained before every timer)
  ✓ tests/unit/call-function-review1.test.ts > the sweep: every way a promise can wake without Atlas's clock > works: process.nextTick
  ✓ tests/unit/call-function-review1.test.ts > the sweep: every way a promise can wake without Atlas's clock > works: Blob.text (native read, waited for)
@@ -37,8 +53,8 @@
  ✓ tests/unit/call-function-review1.test.ts > the old retry harness: background work is no longer reported as pending > a changed withRpcRetry that awaits a hash before calling the RPC: S1 returns (was: pending)
  ✓ tests/unit/call-function-review1.test.ts > the old retry harness: background work is no longer reported as pending > a hash racing the code's sleep: how it ends is can't check, not a guess
 
- Test Files  1 passed (1)
-      Tests  35 passed (35)
+ Test Files  2 passed (2)
+      Tests  51 passed (51)
    Start at (removed)
    Duration (removed)
 

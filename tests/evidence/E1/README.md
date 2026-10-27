@@ -161,17 +161,15 @@ Files: `test-output.txt` (every E1 test by name), `full-suite.txt` (3 full runs)
 ## Unsafe things noticed
 
 - **The older retry harness had the same blind spot.** Fixed in review round 1 (finding 4 below).
-- **The older retry worker (`runners/ts/worker.ts`) still uses the command-line marker** that review round 1 found
-  forgeable in the call-function worker (B1). Its code under test is the fixture or a Fixer change, not pasted code,
-  and it was left as it is to keep retry-scenario unchanged. It should get the same stdin key + HMAC channel.
+- **The older retry worker had the same forgeable marker.** Fixed after review round 1 (see "The retry worker's result channel" below).
 
 ## Review round 1 (adversarial review of E1, same day)
 
 The reviewer found 2 confirmed blockers, 1 suspected major and 1 minor. Each one below is listed as the finding,
-the fix, and the test that proves the fix. The tests are in `tests/unit/call-function-review1.test.ts` (35 tests,
-`review1-test-output.txt`).
+the fix, and the test that proves the fix. The tests are in `tests/unit/call-function-review1.test.ts` (36 tests) and `tests/unit/runner-integrity.test.ts`
+(the retry path, 15 tests). Both files' output is in `review1-test-output.txt`.
 
-**After the fixes:** 905 passed, 20 skipped, 81 files, the same in all 3 full runs (`review1-full-suite.txt`). The
+**After the fixes:** 909 passed, 20 skipped, 81 files, the same in all 3 full runs (`review1-full-suite.txt`). The
 type check is clean. The one extra skip is the live GitHub fetch, which skips by design when GitHub's rate limit is
 hit. It is not a test I changed.
 
@@ -272,3 +270,40 @@ Each API was either tested to work or refused as whole-run "can't check":
   that creates one on the code's behalf.
 - The reviewer did not reach: json-bet edge cases (-0, unicode normalisation, large numbers), question text built
   from odd export names, and seal/verify changes.
+
+### Found while squashing: console.log looked like outside work
+- **Finding:** Node creates the stdout stream lazily, the first time code writes to it. The background-work tracker
+  saw that stream being created and counted it as pending work that never finished. So code that called
+  `console.log` or `process.stdout.write`:
+  - waited 2 s for nothing;
+  - and, after the call settled, had its stand-in counts left unclaimed.
+  - The reviewer's "guessed key" forge test hit this and timed out under load.
+- **Fix:** both workers create stdout and stderr before the tracker starts.
+- **Test:** "console.log and process.stdout.write do not count as outside work". It fails with the fix removed
+  (checked) and passes with it. This fix is folded into the squashed round-1 commit, so that commit passes on its own.
+
+### The retry worker's result channel (asked for after round 1)
+- **Finding:** the retry worker (`runners/ts/worker.ts`) still had the argv marker. The code it runs includes Fixer
+  changes, which are AI-written. I confirmed the forge works there: a changed `withRpcRetry` that read the marker from
+  `process.report`, wrote a line holding the oracle's answers for S1, S3 and S6, and called `reallyExit`, **passed the
+  control** on the old channel. I checked this by putting the old worker and control back for one run.
+- **Fix:** the same channel as call-function.
+  - A per-run 32-byte key goes on stdin only. The worker reads it, closes stdin, and signs its result with
+    HMAC-SHA256.
+  - The parent (`parseWorkerOutput`, `runners/ts/control.ts`) counts only lines whose signature verifies. An unsigned
+    or wrongly signed line is the code's own output and is ignored, as before.
+  - Two signed lines, or a signed line that does not parse, still count as tampering.
+  - Nothing else in the retry worker changed. Its process exit, its guards and its harness behave as before.
+- **Tests** (`tests/unit/runner-integrity.test.ts`):
+  - The forge above, with complete oracle values. The control now fails with "no result".
+  - A guessed-key line written from an exit handler, after the real result: ignored, and the control still passes
+    with S3 = 5 calls.
+  - A `withRpcRetry` that returns its own argv, execArgv, env and title: the returned text holds `worker.ts` but not
+    the key.
+  - The parser unit test, rewritten for signed lines: one signed line counts; two are tampering; bad JSON is
+    tampering; unsigned, guessed or wrong-key lines are ignored.
+- **Fixture results unchanged:**
+  - Every retry test passes.
+  - The day-1 gate script again gives **18 matched, 1 didn't match, 1 can't check**, with the control passed on
+    every run (`review1-retry-gate-day1.txt`).
+- **Counts:** 909 passed, 20 skipped, 81 files, 3 of 3 full runs. Type check clean.
