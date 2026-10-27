@@ -34,6 +34,8 @@
 //   <proofs dir>/<runId>/.atlas.json + run.json only when the caller turns publishing on
 //   (server/index.ts: ATLAS_PUBLISH_PROOFS=1). GET /proofs/:runId returns it. GET /replay/:runId
 //   re-executes it (TS: same seed; EVM: same fork block) and says whether `measured` is deep-equal.
+//   EVM replays need the x-atlas-session header and are capped at once and per hour, per session and
+//   overall (server/replay-limits.ts; env ATLAS_REPLAY_*); over a cap the answer is 429 with the reason.
 // - GET /events/:sessionId (D02-05) → SSE of the session's agent events (server/log/). The session
 //   is the `x-atlas-session` header; the server makes one and returns it when absent. Experiments
 //   and bets belong to the session that made them.
@@ -85,6 +87,7 @@ import { DEFAULT_WATCH_LIMIT_MS } from "../runners/ts/harness";
 import { evmRunner } from "../runners/evm/runner";
 import { falseAlarmFromRun } from "../runners/evm/level2";
 import { redactRpc, scrubDeep } from "../runners/evm/redact";
+import { createReplayGate, type ReplayGate } from "./replay-limits";
 import { buildAtlasFile, resultDiff, sameJson, verifyAtlasFile } from "../src/atlasfile";
 import { ASKED_FIELD, createProofStore, EVM_GATE_CONTEXT, evmTargetRefusal, extraCaptionsFor, forkBlockFor, humanFinding, type ProofStore } from "./evm-round";
 import { control as runTsControl, readFixture, runExperiment } from "../runners/ts/control";
@@ -222,6 +225,8 @@ export interface AppOptions {
   evmRun?: (exp: Experiment, opts: { forkBlock: number; onProgress: (step: string) => void }) => Promise<Run>;
   /** Where .atlas.json files go. Default: memory only (nothing written). */
   proofs?: ProofStore;
+  /** Caps on EVM replays (S5). Default: createReplayGate() with limits from the environment (server/replay-limits.ts). */
+  replayGate?: ReplayGate;
 }
 
 const defaultEvmRun: NonNullable<AppOptions["evmRun"]> = (exp, opts) => evmRunner({ onProgress: opts.onProgress }).run(exp, { forkBlock: opts.forkBlock });
@@ -273,6 +278,7 @@ export function createApp(opts: AppOptions = {}) {
     return m;
   };
   const evmRun = opts.evmRun ?? defaultEvmRun;
+  const replayGate = opts.replayGate ?? createReplayGate();
   const proofStore = opts.proofs ?? createProofStore({ publish: false });
   /** The text of one file of a target, as Atlas read it. */
   const fileTextOf = (target: Target, file: string): string | undefined => {
@@ -866,7 +872,18 @@ export function createApp(opts: AppOptions = {}) {
     const before = file.runs[0]!;
     let replay: Run;
     if (before.runner === "evm") {
-      replay = scrubDeep(await evmRun(exp, { forkBlock: before.forkBlock!, onProgress: () => {} }));
+      // S5: an EVM replay forks Base and makes paid RPC reads, so it is capped per session and overall.
+      // The session must be sent (not made up by the server), or the per-session cap would mean nothing.
+      if (c.req.header("x-atlas-session") === undefined) return c.json({ error: "an EVM replay needs the x-atlas-session header: replays are counted per session" }, 400);
+      const sessionId = sessionIdOf(c);
+      if (sessionId === null) return c.json({ error: BAD_SESSION }, 400);
+      const slot = replayGate.take(sessionId);
+      if (!slot.ok) return c.json({ error: `replay not started: ${slot.reason}` }, 429);
+      try {
+        replay = scrubDeep(await evmRun(exp, { forkBlock: before.forkBlock!, onProgress: () => {} }));
+      } finally {
+        slot.release();
+      }
     } else {
       const ctl = await getControl(exp.target);
       replay = await runExperiment(exp, ctl, { executor, ...(before.seed !== undefined ? { seed: before.seed } : {}) });
