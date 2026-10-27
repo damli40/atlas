@@ -1,0 +1,13 @@
+ RUN  v5.0.5 /Users/Admin/Documents/Atlas-wt/agentlog
+ ✓ tests/unit/agentlog.test.ts > agent log bus > refuses a model-role event without model or usage, and accepts it with both 4ms
+ ✓ tests/unit/agentlog.test.ts > agent log bus > refuses a model name on a plain-code role, bad actions, unknown roles and extra fields 1ms
+ ✓ tests/unit/agentlog.test.ts > agent log bus > keeps a bounded history and evicts idle sessions 0ms
+ ✓ tests/unit/agentlog.test.ts > one full retry round over app.request > emits human → investigator stand-in (human) → gate → seal → runner → judge, each well formed 208ms
+ ✓ tests/unit/agentlog.test.ts > one full retry round over app.request > returns a generated session id, keeps a sent one, and refuses a malformed one 1ms
+ ✓ tests/unit/agentlog.test.ts > one full retry round over app.request > logs a refused seal and runs nothing 1ms
+ ✓ tests/unit/agentlog.test.ts > GET /events/:sessionId (SSE) > replays history, then streams live events, then cleans up on disconnect 228ms
+ ✓ tests/unit/agentlog.test.ts > GET /events/:sessionId (SSE) > sends only events after Last-Event-ID, and refuses a malformed session id 1ms
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  05:43:53
+   Duration  562ms (tests 91%, import 7%, transform 2%)

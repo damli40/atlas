@@ -4,6 +4,8 @@
 // - POST /targets {kind: "ts-fixture", ref} → the Target: which file, and the SHA-256 of its exact bytes.
 // - POST /runs {experiment, bets?} → runs the control (once per code SHA-256), then the experiment
 //   in the sandbox, then lets src/judge.ts compare each sealed bet to what the run measured.
+// - GET /events/:sessionId (D02-05) → SSE of the session's agent events (server/log/). The session
+//   is the `x-atlas-session` header; the server makes one and returns it when absent.
 //
 // Plain words on trust:
 // - Every bet must arrive sealed (src/seal.ts). If any bet's hash does not match its fields, the
@@ -24,6 +26,9 @@ import { verifySeal } from "../src/seal";
 import type { Bet, Experiment, JsonValue, Run, Target, Verdict } from "../src/types";
 import type { Executor } from "../runners/runner";
 import { localExecutor } from "../runners/executor/local";
+import { createAgentLog, sessionEmitter, type AgentLog } from "./log/agentlog";
+import { roundLog } from "./log/round";
+import { BAD_SESSION, registerEventRoutes, sessionIdOf } from "./log/sse";
 import { control as runTsControl, readFixture, runExperiment } from "../runners/ts/control";
 
 const REPO_ROOT = fileURLToPath(new URL("../", import.meta.url));
@@ -109,8 +114,9 @@ function listedAsPreExisting(fixturePath: string): boolean {
 
 // ---------- the app ----------
 
-export function createApp(opts: { executor?: Executor } = {}) {
+export function createApp(opts: { executor?: Executor; agentLog?: AgentLog } = {}) {
   const executor = opts.executor ?? localExecutor;
+  const agentLog = opts.agentLog ?? createAgentLog(); // D02-05: per-session agent events
   const targets = new Map<string, Target>(); // by codeSha256
   const controls = new Map<string, Promise<Run>>(); // passed controls only, by codeSha256
   const runs = new Map<string, Run>(); // in memory today; not published
@@ -132,8 +138,10 @@ export function createApp(opts: { executor?: Executor } = {}) {
   const app = new Hono();
 
   app.get("/health", (c) => c.json({ ok: true }));
+  registerEventRoutes(app, agentLog); // D02-05: GET /events/:sessionId (SSE)
 
   app.post("/targets", async (c) => {
+    if (sessionIdOf(c) === null) return c.json({ error: BAD_SESSION }, 400); // D02-05
     const raw = await readJson(c.req.raw);
     if (!raw.ok) return c.json({ error: "the request body is not JSON" }, 400);
     const parsed = targetBody.safeParse(raw.body);
@@ -159,6 +167,8 @@ export function createApp(opts: { executor?: Executor } = {}) {
   });
 
   app.post("/runs", async (c) => {
+    const sessionId = sessionIdOf(c); // D02-05
+    if (sessionId === null) return c.json({ error: BAD_SESSION }, 400);
     const raw = await readJson(c.req.raw);
     if (!raw.ok) return c.json({ error: "the request body is not JSON" }, 400);
     const parsed = runBody.safeParse(raw.body);
@@ -170,16 +180,7 @@ export function createApp(opts: { executor?: Executor } = {}) {
       return c.json({ error: "unknown target: register it with POST /targets first (same ref and codeSha256)" }, 400);
     }
 
-    // Seals first: a bet whose hash does not match its fields is never judged, and nothing runs.
     const bets = (body.bets ?? []) as Bet[];
-    const unsealed = bets.filter((b) => !verifySeal(b)).map((b) => b.id);
-    if (unsealed.length > 0) {
-      return c.json(
-        { error: `the seal did not verify for bet ${unsealed.join(", ")}: its fields do not hash to its sealedHash, so it was not judged and nothing ran`, betIds: unsealed },
-        409,
-      );
-    }
-
     const experiment: Experiment = {
       id: body.experiment.id,
       target,
@@ -188,11 +189,34 @@ export function createApp(opts: { executor?: Executor } = {}) {
       proposedBy: body.experiment.proposedBy,
       gate: { allowed: true }, // stand-in: the zod bounds above; src/gate.ts replaces this in D02
     };
+    // D02-05: log order human → investigator stand-in → gate → seal → runner → judge.
+    const log = roundLog(sessionEmitter(agentLog, sessionId));
+    log.humanBets(bets);
+    log.investigatorStub(experiment);
+    log.gate(experiment);
 
-    const ctl = await getControl(target);
-    const run = await runExperiment(experiment, ctl, { executor });
+    // Seals before anything runs: a bet whose hash does not match its fields is never judged, and nothing runs.
+    const unsealed = bets.filter((b) => !verifySeal(b)).map((b) => b.id);
+    log.seals(bets.length, unsealed);
+    if (unsealed.length > 0) {
+      return c.json(
+        { error: `the seal did not verify for bet ${unsealed.join(", ")}: its fields do not hash to its sealedHash, so it was not judged and nothing ran`, betIds: unsealed },
+        409,
+      );
+    }
+
+    let run: Run;
+    try {
+      const ctl = await getControl(target);
+      run = await runExperiment(experiment, ctl, { executor });
+    } catch (e) {
+      log.runnerStopped(experiment, (e as Error).message);
+      throw e;
+    }
     runs.set(run.id, run);
+    log.runner(experiment, run);
     const verdicts: Verdict[] = bets.map((b) => judge(b, run));
+    log.judge(verdicts, run);
     return c.json({ run, verdicts });
   });
 

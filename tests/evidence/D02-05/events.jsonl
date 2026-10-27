@@ -1,0 +1,8 @@
+{"t":"2026-10-27T04:43:53.053Z","role":"human","action":"seals a bet on calls","ref":{"kind":"bet","id":"gN5emsmm8T"}}
+{"t":"2026-10-27T04:43:53.053Z","role":"human","action":"seals a bet on outcome","ref":{"kind":"bet","id":"XMU303UEZE"}}
+{"t":"2026-10-27T04:43:53.053Z","role":"human","action":"seals a bet on calls","ref":{"kind":"bet","id":"_X03py-c4Z"}}
+{"t":"2026-10-27T04:43:53.053Z","role":"human","action":"uses a fixture finding, written by hand (Investigator arrives Oct 30)","ref":{"kind":"experiment","id":"S3"}}
+{"t":"2026-10-27T04:43:53.053Z","role":"gate","action":"allowed (stub: request bounds only, until src/gate.ts)","ref":{"kind":"experiment","id":"S3"}}
+{"t":"2026-10-27T04:43:53.053Z","role":"seal","action":"verifies 3 seals"}
+{"t":"2026-10-27T04:43:53.236Z","role":"runner","action":"runs withRpcRetry in the sandbox (S3)","ref":{"kind":"run","id":"Rj0pQLqgJS"}}
+{"t":"2026-10-27T04:43:53.237Z","role":"judge","action":"judges 3 bets: 2 matched, 1 didn't match","ref":{"kind":"run","id":"Rj0pQLqgJS"}}
