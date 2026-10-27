@@ -109,6 +109,7 @@ import { changeAndReplay, type ChangeAnswer, type ReplayFn } from "./changes";
 import { MUSE_CODE, type MuseExec } from "./meta/roles/fixer";
 import { ADVERSARY_MODEL, runAdversary } from "./meta/roles/adversary";
 import { functionDefaults } from "../src/experiment-name";
+import { fileLines } from "../src/words";
 
 const REPO_ROOT = fileURLToPath(new URL("../", import.meta.url));
 const PRE_EXISTING_PATH = resolve(REPO_ROOT, "PRE-EXISTING.md");
@@ -726,7 +727,7 @@ export function createApp(opts: AppOptions = {}) {
     if (decision.allowed && target.kind === "ts-fixture" && !finding && !usesInvestigatorFinding) log.investigatorStub(experiment);
     if (decision.allowed && finding) {
       const who = finding.proposedBy.role === "human" ? "picked by a person" : `found by ${finding.proposedBy.model}`;
-      agentLog.emit(sessionId, { role: "human", action: oneLine(`chooses ${finding.file} lines ${finding.lineStart}–${finding.lineEnd} (${who}) for ${id}`), ref: { kind: "finding", id: finding.id } });
+      agentLog.emit(sessionId, { role: "human", action: oneLine(`chooses ${fileLines(finding.file, finding.lineStart, finding.lineEnd)} (${who}) for ${id}`), ref: { kind: "finding", id: finding.id } });
     }
     try {
       log.gate(experiment); // one flattened line; the 422 below keeps the full reason (S3)
@@ -852,7 +853,7 @@ export function createApp(opts: AppOptions = {}) {
     const r = humanFinding(files, body.file, body.lineStart, body.lineEnd);
     if (!r.ok) return c.json({ error: r.reason }, 400);
     findingsOf(sessionId).set(r.finding.id, r.finding);
-    agentLog.emit(sessionId, { role: "human", action: oneLine(`picks ${r.finding.file} lines ${r.finding.lineStart}–${r.finding.lineEnd} (file and lines checked)`), ref: { kind: "finding", id: r.finding.id } });
+    agentLog.emit(sessionId, { role: "human", action: oneLine(`picks ${fileLines(r.finding.file, r.finding.lineStart, r.finding.lineEnd)} (file and lines checked)`), ref: { kind: "finding", id: r.finding.id } });
     return c.json({ finding: r.finding });
   });
 

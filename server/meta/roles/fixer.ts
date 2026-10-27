@@ -47,6 +47,7 @@ import { redactRpc } from "../../../runners/evm/redact";
 import { oneLine, type SessionEmitter } from "../../log/agentlog";
 import { addUsage, COST_UNKNOWN, NO_USAGE, numbered } from "./claimant";
 import { DEFAULT_WATCH_LIMIT_MS } from "../../../runners/ts/harness";
+import { lineSpan, plural } from "../../../src/words";
 
 export const FIXER_INSTRUCTION = "Change the code toward what the bettors expected. Do not explain whether the original was right. Output a unified diff only.";
 /** What the screen calls the agent (D10: Meta's names stay visible). */
@@ -188,7 +189,7 @@ export function buildFixerPrompt(input: FixerInput): string {
           ...oracleNamesSection(ctx),
         ]),
     "",
-    `The place in the code (${finding.file}, lines ${finding.lineStart}–${finding.lineEnd}):`,
+    `The place in the code (${finding.file}, ${lineSpan(finding.lineStart, finding.lineEnd)}):`,
     findingText !== undefined ? numbered(findingText, finding.lineStart, finding.lineEnd) : "(not in the workspace)",
     "",
     "What the bettors expected (written by plain code from their sealed bets; each of these did not match the run):",
@@ -550,7 +551,7 @@ export async function runFixer(input: FixerInput, deps: FixerDeps = {}): Promise
     if (checked.ok) {
       attempts.push({ attempt, path, model, ok: true, ...(r.usage ? { usage: r.usage } : {}), ...kept });
       const files = checked.diffFiles.map((f) => f.newPath).join(", ");
-      say(model, `${pathLabel(path, model)} proposes a change to ${files} (${checked.changedLines} lines); plain code accepted it${checked.mode ? ` in ${checked.mode} mode (in theory only)` : ""}`, r.usage);
+      say(model, `${pathLabel(path, model)} proposes a change to ${files} (${plural(checked.changedLines, "line")}); plain code accepted it${checked.mode ? ` in ${checked.mode} mode (in theory only)` : ""}`, r.usage);
       return { ok: true, diff: got!.diff, path, model, attempts, ...(total ? { usage: total } : {}), checked };
     }
     lastReason = checked.reason;

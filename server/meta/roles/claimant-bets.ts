@@ -31,6 +31,7 @@ import type { SessionEmitter } from "../../log/agentlog";
 import { oneLine } from "../../log/agentlog";
 import { CLAIMANT_MODEL, COST_UNKNOWN, NO_USAGE, SYSTEM_PREAMBLE, addUsage, zodSafeReason, contextRangeFor, numbered, repairMessage, validateBetsFor, type ClaimantAttempt } from "./claimant";
 import { FIXTURE_FINDING_LABEL } from "./fixture-finding";
+import { plural } from "../../../src/words";
 
 /**
  * How the screen names the model: its product name AND its id (D10: model names stay visible).
@@ -204,8 +205,8 @@ export async function runClaimantBets(input: BetOnlyInput, deps: BetOnlyDeps = {
           sealedAt,
         ),
       );
-      say(`bets on ${exp.id} (${bets.length} answers, hidden until the run)`, res.usage);
-      deps.log?.emit({ role: "seal", action: oneLine(`seals ${bets.length} bets from ${model} at server time`), ref });
+      say(`bets on ${exp.id} (${plural(bets.length, "answer")}, hidden until the run)`, res.usage);
+      deps.log?.emit({ role: "seal", action: oneLine(`seals ${plural(bets.length, "bet")} from ${model} at server time`), ref });
       return { ok: true, bets, attempts, ...(usage ? { usage } : {}) };
     }
     // Before the run, the log names only the kind of problem, never the model's values (S2).

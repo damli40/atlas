@@ -61,7 +61,7 @@ describe("the linker (src/why.ts)", () => {
     const run = MOONWELL.runs[0]!;
     const t = templatedSentences(run, MOONWELL.findings![0]).map((s) => s.text);
     expect(t).toEqual([
-      "a person chose proposals/ChainlinkOracleConfigs.sol lines 42–42 for this round",
+      "a person chose proposals/ChainlinkOracleConfigs.sol line 42 for this round",
       "the known-case control matched before anything was judged (trace #2)",
       "Atlas set cbETH's oracle feed as the governor, as the proposal does (trace #21)",
       "cbETH's price read after the change was $1.12 (trace #35)",

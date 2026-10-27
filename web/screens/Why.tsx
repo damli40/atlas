@@ -15,6 +15,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { Bet, Finding, Run } from "../../src/types";
 import { notShownAsFact } from "../../src/trust";
 import { linkSentences, templatedSentences, type LinkedSentence, type WhyLink, type WhySentence } from "../../src/why";
+import { fileLines } from "../../src/words";
 
 /** Where "Ask why" reports how many sentences it dropped (App passes it to the log strip). */
 export const WhyDroppedContext = createContext<(count: number) => void>(() => {});
@@ -47,7 +48,7 @@ export function whySentences(run: Run, finding: Finding | null | undefined): Why
   return templatedSentences(run, finding ?? undefined);
 }
 
-const linkWords = (l: WhyLink) => (l.kind === "trace" ? `trace #${l.index}: ${l.event}` : `${l.file} lines ${l.lineStart}–${l.lineEnd}`);
+const linkWords = (l: WhyLink) => (l.kind === "trace" ? `trace #${l.index}: ${l.event}` : fileLines(l.file, l.lineStart, l.lineEnd));
 
 export function WhyScreen({ run, finding, findings, modelTexts = [] }: WhyProps) {
   const [asked, setAsked] = useState(false);

@@ -22,6 +22,7 @@ import type { AgentEvent, AtlasFile, ExperimentShape, Finding } from "../src/typ
 import { FORK_BLOCK, PR578_CODE_SHA256, TOUCHED_MARKETS } from "../runners/evm/moonwell-base";
 import { planFromPrFiles } from "../runners/evm/apply";
 import { MOONWELL_PR_578 } from "./targets/github";
+import { lineSpan } from "../src/words";
 
 export const MOONWELL_PR_REF = `${MOONWELL_PR_578.owner}/${MOONWELL_PR_578.repo}#${MOONWELL_PR_578.number}`;
 
@@ -81,7 +82,7 @@ export function humanFinding(files: ReadonlyArray<{ path: string; text: string }
   const lines = f.text.split("\n");
   const count = f.text.endsWith("\n") ? lines.length - 1 : lines.length;
   if (!Number.isSafeInteger(lineStart) || !Number.isSafeInteger(lineEnd) || lineStart < 1 || lineEnd < lineStart || lineEnd > count) {
-    return { ok: false, reason: `lines ${lineStart}–${lineEnd} are not inside 1–${count} of ${file}` };
+    return { ok: false, reason: `${lineSpan(lineStart, lineEnd)} ${lineStart === lineEnd ? "is" : "are"} not inside 1–${count} of ${file}` };
   }
   if (lineEnd - lineStart + 1 > MAX_PICKED_LINES) return { ok: false, reason: `pick at most ${MAX_PICKED_LINES} lines` };
   const quoted = lines.slice(lineStart - 1, lineEnd).join("\n");

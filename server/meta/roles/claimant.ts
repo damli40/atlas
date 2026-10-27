@@ -23,6 +23,7 @@ import { claimantOutputSchema, zodReason, type ClaimantBetOut } from "../schemas
 import type { RefusalRecord } from "../../proofs/refusals";
 import { oneLine } from "../../log/agentlog";
 import { FIXTURE_FINDING_ID, FIXTURE_FINDING_LABEL, fixtureContextRange } from "./fixture-finding";
+import { plural } from "../../../src/words";
 
 export const CLAIMANT_MODEL = "muse-spark-1.3";
 
@@ -362,7 +363,7 @@ export async function runClaimant(input: ClaimantInput, deps: ClaimantDeps = {})
       const bets = v.bets.map(({ question, out }) =>
         sealBet({ experimentId: experiment.id, who: `model:${model}`, question: question.text, measures: question.measures, answer: out.answer as BetAnswer, rationale: out.rationale }, sealedAt),
       );
-      sayPlain("seal", `seals ${bets.length} bets from ${model}`, { kind: "experiment", id: experiment.id });
+      sayPlain("seal", `seals ${plural(bets.length, "bet")} from ${model}`, { kind: "experiment", id: experiment.id });
       for (const b of bets) {
         if (b.answer.kind === "declined") {
           onRefusal({ kind: "declined_bet", id: b.id, time: b.sealedAt, role: "claimant", model, experiment: v.params, reason: b.answer.reason, measures: b.measures, question: b.question });

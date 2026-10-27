@@ -21,6 +21,7 @@ import { applyFeedActions, comparePairs, planFromPrFiles, resolveSymbols, traceU
 import { assertPreExecution, cbEthReference, inStablecoinBand, readControl, why, type EvmControlRecord, type ReferenceResult } from "./control.ts";
 import { MOONWELL_cbETH, TEMPORAL_GOVERNOR, TOUCHED_MARKETS, USD_STABLECOINS } from "./moonwell-base.ts";
 import { readMarketPrice, type MarketPriceRead } from "./reads.ts";
+import { plural } from "../../src/words";
 
 export const LEVEL2_CAPTION = "fork of Base one block before MIP-X43 ran; Atlas applied the proposal's oracle-feed actions as the governor";
 export const LEVEL2_NOT_APPLIED = [
@@ -94,7 +95,7 @@ export async function runLevel2OnFork(client: PublicClient, fork: { url: string 
   const derived = [...prActions.map((a) => a.symbol)].sort();
   const named = [...TOUCHED_MARKETS].sort();
   if (derived.length !== named.length || derived.some((s, i) => s !== named[i])) {
-    throw new Error(`the actions derived from the PR files (${derived.join(", ")}) are not the ${named.length} markets PASS-RULE.md names (${named.join(", ")})`);
+    throw new Error(`the actions derived from the PR files (${derived.join(", ")}) are not the ${plural(named.length, "market")} PASS-RULE.md names (${named.join(", ")})`);
   }
   // D06-01: on a replay the actions come from the changed config; the markets read stay the PR's 14.
   const actions = opts.replayPlan ? await resolveSymbols(client, opts.replayPlan) : prActions;
@@ -102,7 +103,7 @@ export async function runLevel2OnFork(client: PublicClient, fork: { url: string 
 
   // 3. Pre-apply reads, and the cbETH trace before the change (the old feed, for comparison).
   const pre: Record<string, MarketRead> = {};
-  progress(`reads ${readSet.length} markets before applying`);
+  progress(`reads ${plural(readSet.length, "market")} before applying`);
   for (const a of readSet) pre[a.symbol] = await readOne(client, a);
   const referencePre = await cbEthReference(client, forkBlock);
   const tracePre = await traceUnderlyingPriceSources(client, MOONWELL_cbETH);
@@ -122,7 +123,7 @@ export async function runLevel2OnFork(client: PublicClient, fork: { url: string 
   }
 
   // 5. Post-apply reads, reference, trace.
-  progress(`reads ${readSet.length} markets after applying`);
+  progress(`reads ${plural(readSet.length, "market")} after applying`);
   const post: Record<string, MarketRead> = {};
   for (const a of readSet) post[a.symbol] = await readOne(client, a);
   const postStablecoins = USD_STABLECOINS.map((symbol) => {

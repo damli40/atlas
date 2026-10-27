@@ -21,6 +21,7 @@ import type { SessionEmitter } from "../../log/agentlog";
 import { oneLine } from "../../log/agentlog";
 import { countLines } from "../../targets/github";
 import { COST_UNKNOWN, NO_USAGE, SYSTEM_PREAMBLE, addUsage, numbered, repairMessage, zodSafeReason } from "./claimant";
+import { fileLines, lineSpan, plural } from "../../../src/words";
 
 export const INVESTIGATOR_MODEL = "muse-wonder-1.0";
 export const INVESTIGATOR_FALLBACK_MODEL = "muse-spark-1.3";
@@ -228,10 +229,10 @@ export function checkFinding(raw: unknown, files: ReadonlyMap<string, string>): 
   if (text === undefined) return { ok: false, reason: "removed: the file is not in the target" };
   const lineCount = countLines(text);
   if (f.lineStart < 1 || f.lineEnd < f.lineStart || f.lineEnd > lineCount) {
-    return { ok: false, reason: `${LINES_DID_NOT_MATCH} (lines ${f.lineStart}–${f.lineEnd} are not inside 1–${lineCount})` };
+    return { ok: false, reason: `${LINES_DID_NOT_MATCH} (${lineSpan(f.lineStart, f.lineEnd)} ${f.lineStart === f.lineEnd ? "is" : "are"} not inside 1–${lineCount})` };
   }
   if (f.lineEnd - f.lineStart > MAX_SPAN) {
-    return { ok: false, reason: `${LINES_DID_NOT_MATCH} (lines ${f.lineStart}–${f.lineEnd} span more than ${MAX_SPAN + 1} lines)` };
+    return { ok: false, reason: `${LINES_DID_NOT_MATCH} (${lineSpan(f.lineStart, f.lineEnd)} span more than ${MAX_SPAN + 1} lines)` };
   }
   const quote = normaliseQuote(f.quotedSnippet);
   const wordChars = (quote.match(/[\p{L}\p{N}_]/gu) ?? []).length;
@@ -364,19 +365,19 @@ export async function runInvestigator(input: InvestigatorInput, deps: Investigat
         dropped: a.dropped.length,
         ...(a.error ? { error: a.error } : a.kept.length === 0 ? { error: allDroppedError(a.dropped) } : {}),
       });
-      const read = `reads ${input.files.length} files (${totalLines} lines, about ${tokens} tokens, effort ${effort})`;
+      const read = `reads ${plural(input.files.length, "file")} (${plural(totalLines, "line")}, about ${tokens} tokens, effort ${effort})`;
       if (a.error) {
         sayModel(model, `${read}; answer not usable (${a.error})${attempt === 1 ? "; one repair try" : ""}`, res.usage);
       } else {
-        sayModel(model, `${read}; proposes ${a.kept.length + a.dropped.length} places`, res.usage);
+        sayModel(model, `${read}; proposes ${plural(a.kept.length + a.dropped.length, "place")}`, res.usage);
       }
       for (const d of thisDropped) {
-        const where = d.file !== null && files.has(d.file) ? `${d.file} lines ${d.lineStart ?? "?"}–${d.lineEnd ?? "?"}` : "a file not in the target";
+        const where = d.file !== null && files.has(d.file) ? (d.lineStart !== null && d.lineStart !== undefined && d.lineEnd !== null && d.lineEnd !== undefined ? fileLines(d.file, d.lineStart, d.lineEnd) : `${d.file} lines ${d.lineStart ?? "?"} to ${d.lineEnd ?? "?"}`) : "a file not in the target";
         sayPlain(`${d.reason.replace(/^removed: /, `removes a place from ${model} in ${where}: `)}`);
       }
       if (a.kept.length > 0) {
         const findings: Finding[] = a.kept.map((k) => ({ id: newId(), ...k, verified: true, proposedBy: { role: "investigator", model } }));
-        for (const f of findings) sayPlain(`verifies finding ${f.id} from ${model}: ${f.file} lines ${f.lineStart}–${f.lineEnd}, quoted snippet found there`, { kind: "finding", id: f.id });
+        for (const f of findings) sayPlain(`verifies finding ${f.id} from ${model}: ${fileLines(f.file, f.lineStart, f.lineEnd)}, quoted snippet found there`, { kind: "finding", id: f.id });
         return { ok: true, findings };
       }
       const error = a.error ?? allDroppedError(a.dropped);

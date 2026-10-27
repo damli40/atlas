@@ -120,6 +120,6 @@ describe("m6: verify rejects a forged Investigator finding where it can", () => 
   it("a person's quote that is not the file's lines is rejected", () => {
     const bad = structuredClone(mw);
     bad.findings![0]!.quotedSnippet = "OracleConfig(\"cbETHETH_ORACLE\", \"cbETH\", \"MOONWELL_cbETH\")";
-    expect(JSON.stringify(verifyAtlasFile(bad))).toMatch(/its quote is not lines 42–42/);
+    expect(JSON.stringify(verifyAtlasFile(bad))).toMatch(/its quote is not line 42 of/);
   });
 });

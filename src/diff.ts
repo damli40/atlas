@@ -15,6 +15,7 @@
 //
 // S5 (day-6 review): no reason written here quotes a path from the diff. A path is text the model
 // wrote; Atlas's sentences name lines and files it knows, never the model's words.
+import { plural } from "./words";
 
 export interface DiffFile {
   /** Path after stripping "a/"; null for /dev/null (a created file). */
@@ -177,7 +178,7 @@ export function placeHunks(text: string, file: DiffFile): { ok: true; text: stri
       return { ok: false, reason: `${which} only adds lines, with no unchanged or removed line around it, so where it goes in the file is not certain` };
     }
     if (h.oldStart - 1 > lines.length) {
-      return { ok: false, reason: `${which} starts at line ${h.oldStart}, past the end of the file (${lines.length} lines)` };
+      return { ok: false, reason: `${which} starts at line ${h.oldStart}, past the end of the file (${plural(lines.length, "line")})` };
     }
     const fits = (k: number) => old.every((o, j) => lines[k + j] === o);
     const places: number[] = [];

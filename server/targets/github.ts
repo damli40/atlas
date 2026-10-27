@@ -20,6 +20,7 @@
 
 import { createHash } from "node:crypto";
 import type { Target } from "../../src/types";
+import { plural } from "../../src/words";
 
 /**
  * The fingerprint rule (codeSha256), exactly:
@@ -198,7 +199,7 @@ export async function fetchGithubPr(opts: FetchPrOptions): Promise<GithubPrTarge
   if (listed.length !== changedFiles) {
     throw new GithubTargetError(
       "incomplete_list",
-      `GitHub listed ${listed.length} files for ${ref} but the pull request says it changed ${changedFiles}. Refusing a partial fingerprint.`,
+      `GitHub listed ${plural(listed.length, "file")} for ${ref} but the pull request says it changed ${changedFiles}. Refusing a partial fingerprint.`,
     );
   }
 

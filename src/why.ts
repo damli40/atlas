@@ -15,6 +15,7 @@
 import { notShownAsFact } from "./trust";
 import { formatUsd1e18 } from "./units";
 import type { Finding, Run } from "./types";
+import { fileLines, lineSpan, plural } from "./words";
 
 export const DROPPED_LABEL = "dropped: no run evidence";
 
@@ -94,19 +95,19 @@ export function referencesOf(text: string, run: Pick<Run, "trace">, findings: re
   for (const m of rest.matchAll(BARE_RANGE)) ranges.push([Number(m[1]), Number(m[2])]);
   for (const [a, b] of ranges) {
     if (b < a) {
-      bad.push(`lines ${a}–${b} run backwards`);
+      bad.push(`lines ${a} to ${b} run backwards`);
       continue;
     }
     if (files.length > 1) {
-      bad.push(`lines ${a}–${b}: the sentence names ${files.length} files, so which one is unclear`);
+      bad.push(`${lineSpan(a, b)}: the sentence names ${plural(files.length, "file")}, so which one is unclear`);
       continue;
     }
     const pool = files.length === 1 ? checked.filter((f) => fileMatches(files[0]!, f)) : checked;
     const fits = pool.filter((x) => x.lineStart <= a && b <= x.lineEnd);
     const inFiles = new Set(fits.map((f) => f.file));
     if (inFiles.size === 1) links.push({ kind: "lines", file: fits[0]!.file, lineStart: a, lineEnd: b, findingId: fits[0]!.id });
-    else if (inFiles.size === 0) bad.push(`${files[0] ? `${files[0]} ` : ""}lines ${a}–${b} are not inside a checked finding of this round`);
-    else bad.push(`lines ${a}–${b} fit findings in ${inFiles.size} files, so which one is unclear`);
+    else if (inFiles.size === 0) bad.push(`${files[0] ? `${files[0]} ` : ""}${lineSpan(a, b)} ${a === b ? "is" : "are"} not inside a checked finding of this round`);
+    else bad.push(`${lineSpan(a, b)} fit${a === b ? "s" : ""} findings in ${plural(inFiles.size, "file")}, so which one is unclear`);
   }
   return { links, bad };
 }
@@ -143,7 +144,6 @@ export function modelSentences(text: string, by: Extract<WhyAuthor, { kind: "mod
 const PLAIN: WhyAuthor = { kind: "plain-code" };
 const rec = (x: unknown): Record<string, unknown> => (x && typeof x === "object" && !Array.isArray(x) ? (x as Record<string, unknown>) : {});
 const refs = (ix: number[]) => `trace ${ix.map((i) => `#${i}`).join(", ")}`;
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /** The TS runner (withRpcRetry): how it ended, and how it waited. Each sentence names its trace events. */
 function tsSentences(run: Run): WhySentence[] {
@@ -211,9 +211,9 @@ function evmSentences(run: Run): WhySentence[] {
 /** The round's finding, said by plain code: who chose which lines. Links to the finding itself. */
 function findingSentence(f: Finding): WhySentence {
   // A model id starting "none:" is not a model: the finding was written by hand (the fixture finding).
-  if (f.proposedBy.role !== "human" && f.proposedBy.model.startsWith("none:")) return { text: `${f.file} lines ${f.lineStart}–${f.lineEnd} were chosen for this round by hand (a fixture finding written by hand, not a model)`, by: PLAIN };
+  if (f.proposedBy.role !== "human" && f.proposedBy.model.startsWith("none:")) return { text: `${fileLines(f.file, f.lineStart, f.lineEnd)} ${f.lineStart === f.lineEnd ? "was" : "were"} chosen for this round by hand (a fixture finding written by hand, not a model)`, by: PLAIN };
   const who = f.proposedBy.role === "human" ? "a person" : f.proposedBy.model;
-  return { text: `${who} chose ${f.file} lines ${f.lineStart}–${f.lineEnd} for this round`, by: PLAIN };
+  return { text: `${who} chose ${fileLines(f.file, f.lineStart, f.lineEnd)} for this round`, by: PLAIN };
 }
 
 /**

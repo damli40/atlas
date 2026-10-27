@@ -18,6 +18,7 @@
 import { LEVEL2_CAPTION, level1Caption } from "./captions";
 import { MOONWELL_LEVEL1_BLOCK, MOONWELL_LEVEL2_BLOCK } from "./moonwell-blocks";
 import type { Finding } from "./types";
+import { plural } from "./words";
 
 export type MoonwellLevel = "level2" | "level1";
 
@@ -97,7 +98,7 @@ export function moonwellBetContext(input: BetContextInput): string {
   const unit = input.question.unit ?? "USD";
   const commit = p.commit ? ` · merge commit ${p.commit.slice(0, 10)}` : "";
   return [
-    `Pull request: ${p.ref} · ${p.title}${commit} · ${p.fileCount} files · code fingerprint ${p.codeSha256.slice(0, 12)}…`,
+    `Pull request: ${p.ref} · ${p.title}${commit} · ${plural(p.fileCount, "file")} · code fingerprint ${p.codeSha256.slice(0, 12)}…`,
     MOONWELL_LICENCE_LINE,
     `What will run: ${MOONWELL_LEVEL_SAYS[input.level]}`,
     `Read with this run: ${MOONWELL_LEVEL_CAPTION[input.level]}`,

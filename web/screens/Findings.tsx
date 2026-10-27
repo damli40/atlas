@@ -9,12 +9,13 @@
 import { useState } from "react";
 import type { Finding, Target } from "../../src/types";
 import type { Api, InvestigateAnswer, PrTarget } from "../api";
+import { fileLines } from "../../src/words";
 
 const MODEL_NAME: Record<string, string> = { "muse-wonder-1.0": "Muse Wonder 1.0 (muse-wonder-1.0)", "muse-spark-1.3": "Muse Spark 1.3 (muse-spark-1.3)" };
 const modelName = (m: string) => MODEL_NAME[m] ?? m;
 
 export function placeOf(f: Pick<Finding, "file" | "lineStart" | "lineEnd">): string {
-  return f.lineStart === f.lineEnd ? `${f.file} line ${f.lineStart}` : `${f.file} lines ${f.lineStart}–${f.lineEnd}`;
+  return fileLines(f.file, f.lineStart, f.lineEnd);
 }
 
 export interface FindingsProps {

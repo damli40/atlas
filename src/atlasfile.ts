@@ -36,6 +36,7 @@ import type { AgentEvent, AtlasFile, Bet, BettorSlot, Change, Experiment, Findin
 // The two level captions live in src/captions.ts (no Node imports), so the web page can use them
 // without loading this file, which reads the Moonwell copy from disk.
 import { LEVEL2_CAPTION, level1Caption } from "./captions";
+import { lineSpan } from "./words";
 export { LEVEL2_CAPTION, level1Caption };
 /** M7: the two halves of the "chosen line" caption. Each half is earned from the file's findings (chosenLineCaptions). */
 export const CBETH_PICKED_BY_PERSON = "the cbETH line was picked by a person";
@@ -47,8 +48,8 @@ export const INVESTIGATOR_NOT_ASKED = "the Investigator was not asked";
 /** S3: the first half when a person picked several lines that hold the cbETH line (never "the cbETH line was picked"). */
 export const personPickedLinesCaption = (lineStart: number, lineEnd: number, cbEth: { from: number; to: number } | null) =>
   cbEth
-    ? `the person picked lines ${lineStart}–${lineEnd}, which hold the cbETH line (${cbEth.from === cbEth.to ? `line ${cbEth.from}` : `lines ${cbEth.from}–${cbEth.to}`})`
-    : `the person picked lines ${lineStart}–${lineEnd}`;
+    ? `the person picked ${lineSpan(lineStart, lineEnd)}, which hold${lineStart === lineEnd ? "s" : ""} the cbETH line (${lineSpan(cbEth.from, cbEth.to)})`
+    : `the person picked ${lineSpan(lineStart, lineEnd)}`;
 /** Caption when a person picked the cbETH line and no verified Investigator finding covers it. */
 export const HUMAN_PICKED_CBETH_CAPTION = `${CBETH_PICKED_BY_PERSON}; ${INVESTIGATOR_POINTED_ELSEWHERE}`;
 /** Caption when a person picked the cbETH line and a verified Investigator finding covers it too. */
@@ -597,12 +598,12 @@ function findingProblems(file: AtlasFile): string[] {
     const lines = text.split("\n");
     const count = text.endsWith("\n") ? lines.length - 1 : lines.length;
     if (f.lineStart < 1 || f.lineEnd < f.lineStart || f.lineEnd > count) {
-      out.push(`finding ${f.id}: lines ${f.lineStart}–${f.lineEnd} are not inside 1–${count} of ${f.file}`);
+      out.push(`finding ${f.id}: ${lineSpan(f.lineStart, f.lineEnd)} ${f.lineStart === f.lineEnd ? "is" : "are"} not inside 1–${count} of ${f.file}`);
       continue;
     }
     const range = lines.slice(f.lineStart - 1, f.lineEnd);
-    if (f.proposedBy.role === "human" && f.quotedSnippet !== range.join("\n")) out.push(`finding ${f.id}: its quote is not lines ${f.lineStart}–${f.lineEnd} of ${f.file}`);
-    if (byModel && !squashWs(range.join("\n")).includes(squashWs(unprefixed(f.quotedSnippet)))) out.push(`finding ${f.id}: its quote is not inside lines ${f.lineStart}–${f.lineEnd} of ${f.file}`);
+    if (f.proposedBy.role === "human" && f.quotedSnippet !== range.join("\n")) out.push(`finding ${f.id}: its quote is not ${lineSpan(f.lineStart, f.lineEnd)} of ${f.file}`);
+    if (byModel && !squashWs(range.join("\n")).includes(squashWs(unprefixed(f.quotedSnippet)))) out.push(`finding ${f.id}: its quote is not inside ${lineSpan(f.lineStart, f.lineEnd)} of ${f.file}`);
   }
   return out;
 }
