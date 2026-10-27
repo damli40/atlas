@@ -4,6 +4,8 @@
 // 1. The REAL Meta API key, the REAL Base RPC URL and the REAL Baseten key, loaded at run time from the environment or
 //    from their config files (~/.config/meta-model-api/env, ~/.config/atlas/rpc.env, ~/.config/baseten/env). Their values
 //    are never printed: a hit is reported as "<file>: contains a secret (<which one>)".
+//    Added E4: the REAL Modal token id and token secret of every profile in ~/.modal.toml (or MODAL_CONFIG_PATH), and
+//    MODAL_TOKEN_ID / MODAL_TOKEN_SECRET from the environment.
 // 2. Generic shapes of secrets: sk-... API keys, Bearer tokens, QuickNode URLs with a token,
 //    Alchemy /v2/ keys, Infura /v3/ keys.
 // A line may opt out of the generic shapes (never of the real values) with the comment
@@ -42,8 +44,28 @@ function readEnvFile(path) {
   return out;
 }
 
+/**
+ * E4: token_id / token_secret values of every [profile] in a Modal config file (TOML). Only `key = "value"` lines
+ * are read, which is the shape Modal's CLI writes. Values are returned, never printed.
+ */
+export function readModalToml(path) {
+  if (!existsSync(path)) return [];
+  const out = [];
+  let profile = "";
+  for (const line of readFileSync(path, "utf8").split("\n")) {
+    const sec = line.match(/^\s*\[\s*([^\]]*?)\s*\]\s*$/);
+    if (sec) {
+      profile = sec[1].replace(/^["']|["']$/g, "");
+      continue;
+    }
+    const m = line.match(/^\s*(token_id|token_secret)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s#]+))/);
+    if (m) out.push({ profile, key: m[1], value: m[2] ?? m[3] ?? m[4] });
+  }
+  return out;
+}
+
 /** The real secret values on this machine, by a name that is safe to print. */
-export function loadRealSecrets() {
+export function loadRealSecrets(opts = {}) {
   const meta = readEnvFile(join(homedir(), ".config", "meta-model-api", "env"));
   const rpc = readEnvFile(join(homedir(), ".config", "atlas", "rpc.env"));
   const baseten = readEnvFile(join(homedir(), ".config", "baseten", "env"));
@@ -54,7 +76,13 @@ export function loadRealSecrets() {
     { what: "the real Meta API key", value: process.env[metaName] || meta[metaName] },
     { what: "the real Base RPC URL", value: process.env[rpcName] || rpc[rpcName] },
     { what: "the real Baseten API key", value: process.env[basetenName] || baseten[basetenName] },
+    { what: "the real Modal token id", value: process.env["MODAL_" + "TOKEN_ID"] },
+    { what: "the real Modal token secret", value: process.env["MODAL_" + "TOKEN_SECRET"] },
   ];
+  const modalPath = opts.modalTomlPath ?? process.env.MODAL_CONFIG_PATH ?? join(homedir(), ".modal.toml");
+  for (const t of readModalToml(modalPath)) {
+    found.push({ what: t.key === "token_id" ? "the real Modal token id" : "the real Modal token secret", value: t.value });
+  }
   const secrets = found.filter((s) => typeof s.value === "string" && s.value.length >= 12);
   // An RPC URL's token is often the path after the host; block the path on its own too.
   for (const s of [...secrets]) {
