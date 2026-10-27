@@ -1,0 +1,17 @@
+
+ RUN  v5.0.5 /Users/Admin/Documents/Atlas-wt/meta
+
+ ✓ tests/unit/meta-client.test.ts > Meta client > success: returns content, finish reason and usage priced per 1M tokens 21ms
+ ✓ tests/unit/meta-client.test.ts > Meta client > prices Wonder at $4 in / $20 out per 1M tokens 0ms
+ ✓ tests/unit/meta-client.test.ts > Meta client > length retry: empty content + finish_reason length retries once at 32000 and sums usage 1ms
+ ✓ tests/unit/meta-client.test.ts > Meta client > length retry happens only once, then fails with a plain reason 0ms
+ ✓ tests/unit/meta-client.test.ts > Meta client > API error: returns ok:false and the reason never contains the key, even if the server echoes it 0ms
+ ✓ tests/unit/meta-client.test.ts > Meta client > network error and timeout return ok:false without the key 0ms
+ ✓ tests/unit/meta-client.test.ts > Meta client > usage line: one JSON line per billed call with the agreed fields and no secrets 0ms
+ ✓ tests/unit/meta-client.test.ts > Meta client > if the API rejects response_format, it resends without it and keeps it off 1ms
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  05:12:24
+   Duration  106ms (tests 75%, import 14%, transform 7%, worker 5%)
+

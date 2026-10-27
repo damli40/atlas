@@ -1,0 +1,10 @@
+{
+  "model": "muse-spark-1.3",
+  "finish_reason": "stop",
+  "usage": {
+    "promptTokens": 23,
+    "completionTokens": 150,
+    "reasoningTokens": 136,
+    "usd": 0.003092
+  }
+}
