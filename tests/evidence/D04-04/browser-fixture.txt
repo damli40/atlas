@@ -1,0 +1,21 @@
+=== FIXTURE ROUND (withRpcRetry)
+target label: Pre-existing: written before the hackathon (listed in PRE-EXISTING.md)
+investigator answered after 16929 ms
+findings panel: Where could expectations break? Found by Muse Wonder 1.0 (muse-wonder-1.0). Each place was checked by plain code against the file Atlas read. Cost $0.0442. tests/fixtures/with-rpc-retry.ts lines 59–61 · retry · checked against the file ✓ · muse-wonder-1.0 Use this place tests/fixtures/with-rpc-retry.ts lines 50–65 · retry · checked against the file ✓ · muse-wonder-1.0 Use this place 1 place(s) removed by plain code: the lines did not match the file. Model panel: what Muse Wonder 1.0 (muse-wonder-1.0) said The model's own words about each place. Not a verdict, and not shown to the model that bets. tests/fixtures/with-rpc-retry.ts lines 59–61: "People expect the wait between retries to back off or otherwise change; the code does wait the same fixed delayMs after every failed attempt." tests/fixtures/with-rpc-retry.ts lines 50–65: "People expect attempts: 0 to fall back to the default budget or reject with an actual read error; the code does keep 0 because it uses ??, skips the loop entirely, and throws undefined."
+chosen: This round works on tests/fixtures/with-rpc-retry.ts lines 59–61 (found by muse-wonder-1.0).
+model slot: Model's bets: Muse Spark 1.3 (muse-spark-1.3) Muse Spark 1.3 (muse-spark-1.3) has sealed 3 bets. Its answers stay hidden until the run; only the hashes are shown now. calls: sealed at 2026-10-27T06:22:07.038Z · hash 51ac5a0b0646… totalWaitMs: sealed at 2026-10-27T06:22:07.038Z · hash 7cb4c2d86e7c… outcome: sealed at 2026-10-27T06:22:07.038Z · hash 444777bcdfec…
+pre-run responses: 6; any holding a model answer, rationale or nonce: 0
+run facts: run GFNRq1eJx7 (seed 1431iD0YhA, local sandbox) started 2026-10-27T06:22:07.297Z known-case check first passed measured calls 5 · total wait 12000 ms · outcome throws
+table columns: ["question","You","Muse Spark 1.3 (muse-spark-1.3)","observed"]
+row calls: How many times will the function call the RPC? 5 · matched 5 · matched 5 judged by src/judge.ts
+row totalWaitMs: How long will it wait in total, in ms? 15000 · didn't match 12000 · matched 12000 judged by src/judge.ts
+row outcome: How will it end: returns, throws, or pending (never settles)? throws · matched throws · matched throws judged by src/judge.ts
+seal check: yes | You, calls: shown a29e36160d04… · recomputed a29e36160d04… · ✓ match · sealed before the run started · the answer you typed
+seal check: yes | You, totalWaitMs: shown f0e87849d153… · recomputed f0e87849d153… · ✓ match · sealed before the run started · the answer you typed
+seal check: yes | You, outcome: shown b143eb468053… · recomputed b143eb468053… · ✓ match · sealed before the run started · the answer you typed
+seal check: yes | Muse Spark 1.3 (muse-spark-1.3), calls: shown 51ac5a0b0646… · recomputed 51ac5a0b0646… · ✓ match · sealed before the run started
+seal check: yes | Muse Spark 1.3 (muse-spark-1.3), totalWaitMs: shown 7cb4c2d86e7c… · recomputed 7cb4c2d86e7c… · ✓ match · sealed before the run started
+seal check: yes | Muse Spark 1.3 (muse-spark-1.3), outcome: shown 444777bcdfec… · recomputed 444777bcdfec… · ✓ match · sealed before the run started
+model panel: calls: 5 · "Default attempts is 5 and failTimes is 5, so all 5 attempts call the fake and fail." totalWaitMs: 12000 · "4 retries between 5 attempts each sleep default 3000ms, so 4*3000=12000ms." outcome: throws · "All attempts fail so the loop rethrows the last error after the final attempt."
+fixture runId: GFNRq1eJx7 | proof: {"ok":true,"runId":"GFNRq1eJx7","captions":["Pre-existing: written before the hackathon (listed in PRE-EXISTING.md)"],"published":true}
+page errors: none

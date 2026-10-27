@@ -1,0 +1,12 @@
+// D04-04: validate the two example .atlas.json files with src/atlasfile.ts (zod + plain-code checks).
+//   pnpm exec tsx tests/evidence/D04-04/validate.ts
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { verifyAtlasFile } from "../../../src/atlasfile.ts";
+for (const name of ["fixture-GFNRq1eJx7.atlas.json", "moonwell-level2-fKqHGIIi2_.atlas.json"]) {
+  const v = verifyAtlasFile(JSON.parse(readFileSync(join(import.meta.dirname, name), "utf8")));
+  if (v.ok) {
+    const f = v.file;
+    console.log(`${name}: valid · target ${f.target.ref} · ${f.bets.length} bets · verdicts ${f.verdicts.map((x) => x.outcome).join(", ")} · ${f.forkBlock ? `fork block ${f.forkBlock}` : `seed ${f.seed}`} · captions: ${JSON.stringify(f.captions)}`);
+  } else console.log(`${name}: NOT valid: ${v.problems.join("; ")}`);
+}
