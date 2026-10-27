@@ -1,0 +1,17 @@
+
+ RUN  v5.0.5 <repo>
+
+ ✓ tests/unit/modal-live.test.ts > E4 live: the Modal executor on real Modal Sandboxes > the E1 control passes on Modal, and the run says modal with the pinned Node and Python 1ms
+ ✓ tests/unit/modal-live.test.ts > E4 live: the Modal executor on real Modal Sandboxes > three ordinary functions: the same facts on Modal as on this machine 13080ms
+ ✓ tests/unit/modal-live.test.ts > E4 live: the Modal executor on real Modal Sandboxes > attack: the network (fetch from pasted code) is can't check, and the container itself has no network 5905ms
+ ✓ tests/unit/modal-live.test.ts > E4 live: the Modal executor on real Modal Sandboxes > attack: env holds no secrets (pasted code, and a raw command through the executor, see an empty env) 7694ms
+ ✓ tests/unit/modal-live.test.ts > E4 live: the Modal executor on real Modal Sandboxes > attack: the per-run key is nowhere the code can read, and a forged result line is refused 11243ms
+ ✓ tests/unit/modal-live.test.ts > E4 live: the Modal executor on real Modal Sandboxes > attack: an endless loop hits Atlas's wall-clock limit and is can't check; the sandbox is terminated 6957ms
+ ✓ tests/unit/modal-live.test.ts > E4 live: the Modal executor on real Modal Sandboxes > attack: a 20 MB stdout flood is capped at 16 MiB and the run is can't check 7493ms
+ ✓ tests/unit/modal-live.test.ts > E4 live: the Modal executor on real Modal Sandboxes > every sandbox was made with no network and the caps, and each one got a log line 0ms
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  22:11:24
+   Duration  82.38s (tests 100%)
+

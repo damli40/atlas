@@ -1,0 +1,67 @@
+{
+  "when": "2026-10-27T21:12:47.215Z",
+  "specs": [
+    {
+      "blockNetwork": true,
+      "cpu": 0.5,
+      "cpuLimit": 1,
+      "memoryMiB": 512,
+      "memoryLimitMiB": 1024,
+      "timeoutMs": 160000
+    }
+  ],
+  "lines": [
+    {
+      "label": "control (first sandbox: cold)",
+      "line": "modal sandbox sb-01M5ZK918XW3H5KYT01XH7X38B done exit=0 timedOut=false createMs=25644 setupMs=2875 runMs=554 totalMs=29519 stdoutChars=6496 stderrChars=0"
+    },
+    {
+      "label": "ordinary: add",
+      "line": "modal sandbox sb-01M5ZK95F0ZWFRKCGZB83DMQCW done exit=0 timedOut=false createMs=295 setupMs=2883 runMs=607 totalMs=4329 stdoutChars=492 stderrChars=0"
+    },
+    {
+      "label": "ordinary: retry with a stand-in",
+      "line": "modal sandbox sb-01M5ZK99YG1DQFNRT5CE3KX4A9 done exit=0 timedOut=false createMs=240 setupMs=3277 runMs=498 totalMs=4455 stdoutChars=828 stderrChars=0"
+    },
+    {
+      "label": "ordinary: throws",
+      "line": "modal sandbox sb-01M5ZK9EMSZ2Z2TAAZGFCS4J0Z done exit=0 timedOut=false createMs=232 setupMs=2212 runMs=505 totalMs=3391 stdoutChars=533 stderrChars=0"
+    },
+    {
+      "label": "attack: fetch",
+      "line": "modal sandbox sb-01M5ZK9J7S3QC95EXZHTHCJW4C done exit=0 timedOut=false createMs=332 setupMs=2228 runMs=504 totalMs=3517 stdoutChars=170 stderrChars=0"
+    },
+    {
+      "label": "attack: env from pasted code",
+      "line": "modal sandbox sb-01M5ZK9R04MYAXP24HZRP7YZD1 done exit=0 timedOut=false createMs=243 setupMs=2329 runMs=463 totalMs=3466 stdoutChars=478 stderrChars=0"
+    },
+    {
+      "label": "attack: env through the executor",
+      "line": "modal sandbox sb-01M5ZK9VC98D8TYDRTA7YBZNYZ done exit=0 timedOut=false createMs=240 setupMs=1528 runMs=190 totalMs=2371 stdoutChars=23 stderrChars=0"
+    },
+    {
+      "label": "raw env NAMES Modal sets (values not read)",
+      "line": "BLIS_NUM_THREADS CFLAGS HOME MKL_NUM_THREADS MODAL_CLOUD_PROVIDER MODAL_CONTAINER_ARGUMENTS_PATH MODAL_IMAGE_ID MODAL_REGION MODAL_SANDBOX_ID MODAL_TASK_ID OMP_NUM_THREADS OPENBLAS_NUM_THREADS ORT_INTER_OP_NUM_THREADS ORT_INTRA_OP_NUM_THREADS PATH PIP_DEFAULT_TIMEOUT PIP_NO_CACHE_DIR PIP_ROOT_USER_ACTION PWD PYTHONHASHSEED PYTHONPATH PYTHON_SHA256 PYTHON_VERSION SOURCE_DATE_EPOCH SSL_CERT_DIR TERM UV_BREAK_SYSTEM_PACKAGES"
+    },
+    {
+      "label": "attack: look for the key",
+      "line": "modal sandbox sb-01M5ZK9ZGA6ZN6E9KCVVSQXGWE done exit=0 timedOut=false createMs=227 setupMs=2269 runMs=486 totalMs=3437 stdoutChars=730 stderrChars=0"
+    },
+    {
+      "label": "attack: forged result line",
+      "line": "modal sandbox sb-01M5ZKA2VWB4DEECKTH3HJWX8Q done exit=0 timedOut=false createMs=230 setupMs=2275 runMs=500 totalMs=3444 stdoutChars=1044 stderrChars=0"
+    },
+    {
+      "label": "attack: process.report forge",
+      "line": "modal sandbox sb-01M5ZKA67SGV6WKHYC0TZZRCB2 done exit=0 timedOut=false createMs=298 setupMs=2830 runMs=619 totalMs=4348 stdoutChars=180 stderrChars=0"
+    },
+    {
+      "label": "attack: endless loop",
+      "line": "modal sandbox sb-01M5ZKAAFTYS865BQWVF9TCYEG timed out exit=none timedOut=true createMs=233 setupMs=2285 runMs=4002 totalMs=6952 stdoutChars=0 stderrChars=0"
+    },
+    {
+      "label": "attack: 20 MB stdout flood",
+      "line": "modal sandbox sb-01M5ZKAH99GQN6QFZWTZDF8GEY done exit=0 timedOut=false createMs=237 setupMs=2104 runMs=4697 totalMs=7488 stdoutChars=20971999 stderrChars=0"
+    }
+  ]
+}

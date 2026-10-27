@@ -1,0 +1,43 @@
+
+ RUN  v5.0.5 <repo>
+
+ ✓ tests/unit/secret-scan.test.ts > secret scan > finds each generic secret shape 1ms
+ ✓ tests/unit/secret-scan.test.ts > secret scan > finds a real value it was given, and names it without printing it 0ms
+ ✓ tests/unit/secret-scan.test.ts > secret scan > an allow comment skips generic shapes but never a real value 0ms
+ ✓ tests/unit/secret-scan.test.ts > secret scan > ordinary code passes 0ms
+ ✓ tests/unit/secret-scan.test.ts > secret scan > E4: reads the Modal token id and secret of every profile in a Modal config file, and blocks them by name 2ms
+ ↓ tests/unit/modal-live.test.ts > E4 live: the Modal executor on real Modal Sandboxes > the E1 control passes on Modal, and the run says modal with the pinned Node and Python
+ ↓ tests/unit/modal-live.test.ts > E4 live: the Modal executor on real Modal Sandboxes > three ordinary functions: the same facts on Modal as on this machine
+ ↓ tests/unit/modal-live.test.ts > E4 live: the Modal executor on real Modal Sandboxes > attack: the network (fetch from pasted code) is can't check, and the container itself has no network
+ ↓ tests/unit/modal-live.test.ts > E4 live: the Modal executor on real Modal Sandboxes > attack: env holds no secrets (pasted code, and a raw command through the executor, see an empty env)
+ ↓ tests/unit/modal-live.test.ts > E4 live: the Modal executor on real Modal Sandboxes > attack: the per-run key is nowhere the code can read, and a forged result line is refused
+ ↓ tests/unit/modal-live.test.ts > E4 live: the Modal executor on real Modal Sandboxes > attack: an endless loop hits Atlas's wall-clock limit and is can't check; the sandbox is terminated
+ ↓ tests/unit/modal-live.test.ts > E4 live: the Modal executor on real Modal Sandboxes > attack: a 20 MB stdout flood is capped at 16 MiB and the run is can't check
+ ↓ tests/unit/modal-live.test.ts > E4 live: the Modal executor on real Modal Sandboxes > every sandbox was made with no network and the caps, and each one got a log line
+ ✓ tests/unit/modal-executor.test.ts > what Atlas sends to Modal > one sandbox per exec: no network, CPU and memory caps, a lifetime limit, and no env, secrets or volumes 5ms
+ ✓ tests/unit/modal-executor.test.ts > what Atlas sends to Modal > the run command: env -i with only the request's env, as nobody with no new privileges, then node with the local executor's flags 0ms
+ ✓ tests/unit/modal-executor.test.ts > what Atlas sends to Modal > refuses before any sandbox exists: a widening node flag, a network host list, NODE_OPTIONS, a non-node command, odd env, a path that leaves the folder 1ms
+ ✓ tests/unit/modal-executor.test.ts > what Atlas sends to Modal > the per-run key goes on the run command's stdin ONLY: not in the spec, any command, the file upload or the log 0ms
+ ✓ tests/unit/modal-executor.test.ts > what Atlas sends to Modal > logs one line per sandbox with durations, and never the code, the output or the key 0ms
+ ✓ tests/unit/modal-executor.test.ts > what Atlas reports back > exit code, stdout and stderr as they came, and the measured runtime 0ms
+ ✓ tests/unit/modal-executor.test.ts > what Atlas reports back > stdout is capped at 16 MiB, and the rest is read and dropped (a 20 MB flood) 0ms
+ ✓ tests/unit/modal-executor.test.ts > what Atlas reports back > Atlas's wall-clock limit: the sandbox is terminated and the result says timedOut, with no exit code 303ms
+ ✓ tests/unit/modal-executor.test.ts > what Atlas reports back > an error at any step throws with the step named, and the sandbox is still terminated 3ms
+ ✓ tests/unit/modal-executor.test.ts > what Atlas reports back > Modal unreachable: throws with the reason (no sandbox to terminate) 1ms
+ ✓ tests/unit/modal-executor.test.ts > what Atlas reports back > a sandbox that takes longer than the startup limit: throws, and the late sandbox is terminated when it arrives 155ms
+ ✓ tests/unit/modal-executor.test.ts > what Atlas reports back > Python is checked once per executor, not per run 2ms
+ ✓ tests/unit/modal-executor.test.ts > cost and abuse limits > at most maxConcurrent sandboxes at once; the queue is bounded; one more is refused as busy 2ms
+ ✓ tests/unit/modal-executor.test.ts > cost and abuse limits > a failed run gives its slot back 1ms
+ ✓ tests/unit/modal-executor.test.ts > the unpacker (runs for real on this machine's Node) > writes nested files read-only to others, and prints the Node version 83ms
+ ✓ tests/unit/modal-executor.test.ts > the unpacker (runs for real on this machine's Node) > refuses a path that leaves the folder (second line of defence after the executor's own check) 44ms
+ ✓ tests/unit/modal-executor.test.ts > selection: ATLAS_EXECUTOR > unset or local → the local executor; modal → the Modal executor; anything else stops the server 0ms
+ ✓ tests/unit/modal-executor.test.ts > selection: ATLAS_EXECUTOR > Modal unreachable in hosted mode: the run does not happen, with the reason; it never runs locally instead 2ms
+ ✓ tests/unit/modal-executor.test.ts > end to end through the real call-worker (Modal plumbing emulated on this machine) > the control passes, the runs say executor modal with the measured runtime, and a forged result line is refused 580ms
+ ✓ tests/unit/modal-executor.test.ts > through the server (the retry fixture, which every executor also runs) > Modal unreachable: 'the run did not finish' with Modal's reason; nothing judged, nothing run locally 154ms
+ ✓ tests/unit/modal-executor.test.ts > through the server (the retry fixture, which every executor also runs) > Modal up (plumbing emulated): the fixture's control and run go through it, and the run says modal 396ms
+
+ Test Files  2 passed | 1 skipped (3)
+      Tests  26 passed | 8 skipped (34)
+   Start at  22:14:57
+   Duration  1.87s (tests 96%, import 2%, transform 2%)
+
