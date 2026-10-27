@@ -7,6 +7,10 @@ now reads "allowed (src/gate.ts)" (the stub is gone). No model line appears in t
 round runs on a server built without model bets; D02-06 has the round with Muse Spark's claimant line.
 The table below describes the original run and is kept as written.
 
+**Regenerated again 2026-10-27 (D02-review, S1).** One bet per question per bettor: the third human
+bet is now `totalWaitMs = 9000` (off on purpose) instead of a second bet on `calls`. Same 8 events;
+the third human line reads "seals a bet on totalWaitMs"; the judge line is unchanged.
+
 Date: 2026-10-27 (WAT) · Node v25.8.1
 
 **In plain words:** every step of a round now writes one short line to an in-memory log, kept

@@ -5,7 +5,7 @@
 // Model bets (who "model:…") get no line here: the Claimant role writes its own model line, with usage.
 
 import type { Bet, Experiment, Run, Verdict } from "../../src/types";
-import type { SessionEmitter } from "./agentlog";
+import { oneLine, type SessionEmitter } from "./agentlog";
 
 export const INVESTIGATOR_STUB_ACTION = "uses a fixture finding, written by hand (Investigator arrives Oct 30)";
 export const GATE_STUB_ACTION = "allowed (src/gate.ts)";
@@ -26,7 +26,9 @@ export function roundLog(emit: SessionEmitter) {
       emit.emit({ role: "human", action: INVESTIGATOR_STUB_ACTION, ref: { kind: "experiment", id: exp.id } });
     },
     gate(exp: Experiment) {
-      const action = exp.gate.allowed ? GATE_STUB_ACTION : `rejected (${exp.gate.reason})`;
+      // The gate's reason can be long or hold a line break (it quotes the refused field names), so the
+      // log line is flattened and shortened. The full reason stays in the 422 answer and the experiment.
+      const action = exp.gate.allowed ? GATE_STUB_ACTION : oneLine(`rejected (${exp.gate.reason})`);
       emit.emit({ role: "gate", action, ref: { kind: "experiment", id: exp.id } });
     },
     seals(total: number, unsealed: string[]) {
@@ -34,13 +36,13 @@ export function roundLog(emit: SessionEmitter) {
         unsealed.length === 0
           ? `verifies ${total} ${total === 1 ? "seal" : "seals"}`
           : `refuses bet ${unsealed.join(", ")}: seal did not verify, nothing runs`;
-      emit.emit({ role: "seal", action: action.slice(0, 160) });
+      emit.emit({ role: "seal", action: oneLine(action) });
     },
     runner(exp: Experiment, run: Run) {
-      emit.emit({ role: "runner", action: `runs ${codeName(exp)} in the sandbox (${exp.id})`.slice(0, 160), ref: { kind: "run", id: run.id } });
+      emit.emit({ role: "runner", action: oneLine(`runs ${codeName(exp)} in the sandbox (${exp.id})`), ref: { kind: "run", id: run.id } });
     },
     runnerStopped(exp: Experiment, message: string) {
-      emit.emit({ role: "runner", action: `could not finish ${exp.id}: ${message.replace(/\s+/g, " ")}`.slice(0, 160), ref: { kind: "experiment", id: exp.id } });
+      emit.emit({ role: "runner", action: oneLine(`could not finish ${exp.id}: ${message}`), ref: { kind: "experiment", id: exp.id } });
     },
     judge(verdicts: Verdict[], run: Run) {
       const n = verdicts.length;

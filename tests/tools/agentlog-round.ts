@@ -4,7 +4,8 @@
 // Run: `pnpm exec tsx tests/tools/agentlog-round.ts > tests/evidence/D02-05/events.jsonl`
 //
 // The round: register the withRpcRetry fixture, create experiment S3 (5 failures in a row), place three
-// human bets the server seals (calls = 5, outcome = throws, and calls = 4, one off on purpose), then
+// human bets the server seals (calls = 5, outcome = throws, and totalWaitMs = 9000, off on purpose;
+// one bet per question since the S1 fix), then
 // POST /runs. Since D02-04 the server seals bets as they arrive, so the log order is:
 // investigator stand-in → gate (POST /experiments) → human ×3 (POST /bets) → seal → runner → judge.
 
@@ -37,7 +38,7 @@ export async function runRound(request: Requester): Promise<{ sessionId: string;
   const specs: { measures: string; answer: BetAnswer }[] = [
     { measures: "calls", answer: { kind: "integer", value: 5 } },
     { measures: "outcome", answer: { kind: "enum", value: "throws", options: [...OUTCOME_OPTIONS] } },
-    { measures: "calls", answer: { kind: "integer", value: 4 } },
+    { measures: "totalWaitMs", answer: { kind: "integer", value: 9000 } },
   ];
   for (const b of specs) await post("/bets", { experimentId, who: "human", ...b });
 

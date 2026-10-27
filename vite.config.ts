@@ -9,5 +9,7 @@ export default defineConfig({
   test: {
     include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
     environment: "node",
+    // S7: fails the run if any test changed the public proofs/refusals/ folder.
+    globalSetup: ["tests/tools/refusals-guard.ts"],
   },
 });

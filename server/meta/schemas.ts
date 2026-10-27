@@ -9,7 +9,8 @@ export const betAnswerSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("integer"), value: z.number() }),
   z.strictObject({ kind: z.literal("number"), value: z.number(), tolerancePct: z.number(), unit: z.string().min(1).max(20) }),
   z.strictObject({ kind: z.literal("enum"), value: z.string().min(1).max(100), options: z.array(z.string().max(100)).min(1).max(20) }),
-  z.strictObject({ kind: z.literal("declined"), reason: z.string().min(1).max(500) }),
+  // A declined bet must say why in words: "unknown: <why>". Blank or only spaces is refused.
+  z.strictObject({ kind: z.literal("declined"), reason: z.string().trim().min(1).max(500).regex(/\w/, "a declined bet needs a reason in words") }),
 ]);
 
 /** One model bet before sealing: which field, the answer, and why (shown in the model panel). */

@@ -61,7 +61,7 @@ describe("one full retry round over app.request", () => {
     expect(events.map((e) => e.role)).toEqual(["human", "gate", "human", "human", "human", "seal", "runner", "judge"]);
     expect(events[0]!.action).toBe(INVESTIGATOR_STUB_ACTION);
     expect(events[1]!.action).toBe("allowed (src/gate.ts)");
-    expect(events.slice(2, 5).map((e) => e.action)).toEqual(["seals a bet on calls", "seals a bet on outcome", "seals a bet on calls"]);
+    expect(events.slice(2, 5).map((e) => e.action)).toEqual(["seals a bet on calls", "seals a bet on outcome", "seals a bet on totalWaitMs"]);
     expect(events[5]!.action).toBe("verifies 3 seals");
     expect(events[6]!.action).toBe("runs withRpcRetry in the sandbox (S3)");
     expect(events[7]!.action).toBe("judges 3 bets: 2 matched, 1 didn't match");
@@ -95,7 +95,7 @@ describe("one full retry round over app.request", () => {
     await post("/experiments", { id: "S1", target, params: { shape: "retry-scenario", failTimes: 0, failure: "error" } });
     expect((await post("/bets", { experimentId: "S1", who: "human", measures: "calls", answer: { kind: "integer", value: 1 } })).status).toBe(200);
     // Someone with access to the server's memory edits the stored answer after it was sealed.
-    const stored = betStore.session("tamper").get("S1")!.bets[0]!;
+    const stored = betStore.peek("tamper")!.get("S1")!.bets[0]!;
     stored.answer = { kind: "integer", value: 2 };
     const res = await post("/runs", { experimentId: "S1" });
     expect(res.status).toBe(409);

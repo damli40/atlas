@@ -14,8 +14,14 @@
 //    every bet's sealedAt is earlier than the run's start, runs, judges, and reveals every bet in
 //    full (with its nonce) so the browser can recompute the hash itself.
 //
-// Everything lives in memory, bounded: at most MAX_SESSIONS sessions (oldest dropped first),
-// MAX_EXPERIMENTS per session and MAX_BETS per experiment.
+// Everything lives in memory, bounded: at most MAX_SESSIONS sessions, MAX_EXPERIMENTS per session
+// and MAX_BETS per experiment. A session is created only by POST /experiments; a request that
+// fails (404, 400) never creates or reorders one. When the store is full the least recently used
+// session is dropped, except one holding sealed bets that have not run yet (kept for 2 hours).
+//
+// One bet per bettor per question (S1): a person who has sealed a bet on a question cannot seal
+// another on it in the same experiment (409). The page seals all its answers in ONE request, so
+// a half-sealed attempt cannot happen: if any answer is refused, none is sealed.
 
 import { nanoid } from "nanoid";
 import { z } from "zod";
@@ -61,8 +67,13 @@ export interface ModelSlot {
   /** How the screen names it, e.g. "Muse Spark 1.3 (muse-spark-1.3)". */
   display: string;
   status: "off" | "thinking" | "sealed" | "no_usable_answer";
-  /** Plain reason for "off" and "no_usable_answer". */
+  /**
+   * Plain reason for "off" and "no_usable_answer". Before the run it never quotes the model's
+   * answer: it says only what kind of problem the answer had (S2).
+   */
   reason?: string;
+  /** The full reason, which may quote the model's unusable answer. Shown only after the run. */
+  detail?: string;
   /** Settles when the model's bets are sealed or it gave no usable answer. Never rejects. */
   settled?: Promise<void>;
 }
@@ -74,6 +85,8 @@ export interface ModelSlotView {
   display: string;
   status: ModelSlot["status"];
   reason?: string;
+  /** After the run only: the full reason, which may quote the model's unusable answer. */
+  detail?: string;
   sealed: SealedOnly[];
 }
 
@@ -86,6 +99,8 @@ export function modelSlotView(round: Round): ModelSlotView | null {
     display: m.display,
     status: m.status,
     ...(m.reason ? { reason: m.reason } : {}),
+    // The model's own unusable values are part of its answer: revealed with the bets, after the run.
+    ...(m.detail && round.status === "done" ? { detail: m.detail } : {}),
     sealed: round.bets.filter((b) => b.who === m.who).map(sealedOnly),
   };
 }
@@ -107,27 +122,74 @@ export interface Round {
   model?: ModelSlot;
 }
 
+/** How long a session holding sealed-but-unrun bets is kept safe from eviction, after its last use. */
+export const PROTECT_SEALED_MS = 2 * 60 * 60 * 1000;
+
 export interface BetStore {
-  /** The rounds of one session, created on first use. */
-  session(sessionId: string): Map<string, Round>;
+  /** The rounds of one session, or undefined. Never creates a session and never counts as a use. */
+  peek(sessionId: string): Map<string, Round> | undefined;
+  /** Marks a session as just used (only after a request on it succeeded): it becomes the last to be dropped. */
+  touch(sessionId: string): void;
+  /**
+   * The rounds of a session, creating it when absent. Only POST /experiments calls this. When the
+   * store is full, the least recently USED session is dropped, but never one that holds sealed bets
+   * that have not run yet, until PROTECT_SEALED_MS after its last use. If every session is
+   * protected, nothing is dropped and the new session is refused with a plain reason.
+   */
+  open(sessionId: string): { ok: true; rounds: Map<string, Round> } | { ok: false; reason: string };
+  /** How many sessions are held (tests use it). */
+  size(): number;
 }
 
-export function createBetStore(): BetStore {
-  const sessions = new Map<string, Map<string, Round>>();
+/** True while a session holds bets that are sealed but not yet judged (or a run in progress). */
+function holdsUnrunBets(rounds: Map<string, Round>): boolean {
+  for (const r of rounds.values()) {
+    if (r.status === "running") return true;
+    if (r.status === "open" && r.bets.length > 0) return true;
+  }
+  return false;
+}
+
+export function createBetStore(opts: { maxSessions?: number; protectMs?: number; now?: () => number } = {}): BetStore {
+  const maxSessions = opts.maxSessions ?? MAX_SESSIONS;
+  const protectMs = opts.protectMs ?? PROTECT_SEALED_MS;
+  const now = opts.now ?? Date.now;
+  // Insertion order = least recently used first. Only touch() and open() reorder it.
+  const sessions = new Map<string, { rounds: Map<string, Round>; lastUsed: number }>();
+
+  const touch = (sessionId: string) => {
+    const s = sessions.get(sessionId);
+    if (!s) return;
+    sessions.delete(sessionId);
+    s.lastUsed = now();
+    sessions.set(sessionId, s);
+  };
+
   return {
-    session(sessionId) {
-      let s = sessions.get(sessionId);
-      if (s) {
-        // Touch: move to the newest end so the oldest idle session is the one dropped.
-        sessions.delete(sessionId);
-        sessions.set(sessionId, s);
-        return s;
+    peek: (sessionId) => sessions.get(sessionId)?.rounds,
+    touch,
+    open(sessionId) {
+      const found = sessions.get(sessionId);
+      if (found) {
+        touch(sessionId);
+        return { ok: true, rounds: found.rounds };
       }
-      s = new Map();
-      sessions.set(sessionId, s);
-      while (sessions.size > MAX_SESSIONS) sessions.delete(sessions.keys().next().value!);
-      return s;
+      if (sessions.size >= maxSessions) {
+        const t = now();
+        for (const [id, s] of sessions) {
+          if (sessions.size < maxSessions) break;
+          const protectedNow = holdsUnrunBets(s.rounds) && t - s.lastUsed < protectMs;
+          if (!protectedNow) sessions.delete(id);
+        }
+        if (sessions.size >= maxSessions) {
+          return { ok: false, reason: `the server is holding ${maxSessions} rounds with sealed bets that have not run yet; try again later` };
+        }
+      }
+      const rounds = new Map<string, Round>();
+      sessions.set(sessionId, { rounds, lastUsed: now() });
+      return { ok: true, rounds };
     },
+    size: () => sessions.size,
   };
 }
 
@@ -146,18 +208,32 @@ export const newExperimentId = () => nanoid(10);
 
 // ---------- checking a human bet ----------
 
-/** What the browser sends. The server fills question, options, unit and tolerance from the question itself. */
+const humanAnswer = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("integer"), value: z.number() }).strict(),
+  z.object({ kind: z.literal("number"), value: z.number(), unit: z.string().optional(), tolerancePct: z.number().optional() }).strict(),
+  z.object({ kind: z.literal("enum"), value: z.string(), options: z.array(z.string()).optional() }).strict(),
+  z.object({ kind: z.literal("declined"), reason: z.string().trim().min(1).max(300).regex(/\w/, "a declined bet needs a reason in words") }).strict(),
+]);
+
+/** What the browser sends for ONE bet. The server fills question, options, unit and tolerance from the question itself. */
 export const humanBetBody = z
   .object({
     experimentId: z.string().min(1).max(64),
     who: z.literal("human"),
     measures: z.string().min(1).max(100),
-    answer: z.discriminatedUnion("kind", [
-      z.object({ kind: z.literal("integer"), value: z.number() }).strict(),
-      z.object({ kind: z.literal("number"), value: z.number(), unit: z.string().optional(), tolerancePct: z.number().optional() }).strict(),
-      z.object({ kind: z.literal("enum"), value: z.string(), options: z.array(z.string()).optional() }).strict(),
-      z.object({ kind: z.literal("declined"), reason: z.string().min(1).max(300) }).strict(),
-    ]),
+    answer: humanAnswer,
+  })
+  .strict();
+
+/**
+ * What the page sends: ALL of a person's answers in one request. Every answer is checked first;
+ * if any is refused, none is sealed, so the person can fix it and send them again.
+ */
+export const humanBetsBody = z
+  .object({
+    experimentId: z.string().min(1).max(64),
+    who: z.literal("human"),
+    bets: z.array(z.object({ measures: z.string().min(1).max(100), answer: humanAnswer }).strict()).min(1).max(20),
   })
   .strict();
 

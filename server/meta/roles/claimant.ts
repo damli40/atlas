@@ -19,6 +19,7 @@ import type { AgentEvent, Bet, BetAnswer, Experiment, ExperimentShape, Finding, 
 import { chat as realChat, type ChatArgs, type ChatMessage, type ChatResult, type Usage } from "../client";
 import { claimantOutputSchema, zodReason, type ClaimantBetOut } from "../schemas";
 import type { RefusalRecord } from "../../proofs/refusals";
+import { oneLine } from "../../log/agentlog";
 import { FIXTURE_FINDING_ID, FIXTURE_FINDING_LABEL, fixtureContextRange } from "./fixture-finding";
 
 export const CLAIMANT_MODEL = "muse-spark-1.3";
@@ -167,26 +168,45 @@ export const repairMessage = (error: string): string => `Your previous answer fa
 
 export type Validation =
   | { ok: true; params: ExperimentShape; questions: Question[]; bets: { question: Question; out: ClaimantBetOut }[] }
-  | { ok: false; error: string; gateRejection?: { params: unknown; reason: string } };
+  | { ok: false; error: string; safe: string; gateRejection?: { params: unknown; reason: string } };
 
-function checkAnswer(q: Question, a: BetAnswer): string | undefined {
+/** A zod error with paths and issue kinds only (no values): safe to log before the run. */
+export function zodSafeReason(err: { issues: readonly { path: readonly PropertyKey[]; code: string }[] }): string {
+  return err.issues
+    .slice(0, 3)
+    .map((i) => `${i.path.length ? i.path.map(String).join(".") : "answer"}: ${i.code.replace(/_/g, " ")}`)
+    .join("; ");
+}
+
+/**
+ * Why an answer does not fit its question, twice: `full` quotes the model's value (it goes back to
+ * the model in the repair message and stays on the server); `safe` names only the KIND of problem,
+ * never the value, so it may go into the agent log and API answers before the run (S2).
+ */
+export interface AnswerProblem {
+  full: string;
+  safe: string;
+}
+
+function checkAnswer(q: Question, a: BetAnswer): AnswerProblem | undefined {
+  const on = `bet on "${q.measures}"`;
   if (a.kind === "declined") return undefined;
-  if (a.kind !== q.kind) return `bet on "${q.measures}" must be kind "${q.kind}" (or "declined"); got "${a.kind}"`;
+  if (a.kind !== q.kind) return { full: `${on} must be kind "${q.kind}" (or "declined"); got "${a.kind}"`, safe: `${on}: the answer is not of the question's kind` };
   switch (a.kind) {
     case "integer":
-      if (!Number.isSafeInteger(a.value) || a.value < 0) return `bet on "${q.measures}" must be a whole number of 0 or more; got ${a.value}`;
+      if (!Number.isSafeInteger(a.value) || a.value < 0) return { full: `${on} must be a whole number of 0 or more; got ${a.value}`, safe: `${on}: ${q.measures} must be a whole number` };
       return undefined;
     case "number":
-      if (!Number.isFinite(a.value)) return `bet on "${q.measures}" must be a finite number`;
-      if (a.unit !== q.unit) return `bet on "${q.measures}" must have unit "${q.unit}"; got "${a.unit}"`;
-      if (a.tolerancePct !== q.tolerancePct) return `bet on "${q.measures}" must have tolerancePct ${q.tolerancePct}; got ${a.tolerancePct}`;
+      if (!Number.isFinite(a.value)) return { full: `${on} must be a finite number`, safe: `${on}: ${q.measures} must be a finite number` };
+      if (a.unit !== q.unit) return { full: `${on} must have unit "${q.unit}"; got "${a.unit}"`, safe: `${on}: the unit is not "${q.unit}"` };
+      if (a.tolerancePct !== q.tolerancePct) return { full: `${on} must have tolerancePct ${q.tolerancePct}; got ${a.tolerancePct}`, safe: `${on}: the tolerance is not ${q.tolerancePct}%` };
       return undefined;
     case "enum": {
       const opts = q.options ?? [];
       if (a.options.length !== opts.length || a.options.some((o, i) => o !== opts[i])) {
-        return `bet on "${q.measures}" must have options ${JSON.stringify(opts)}`;
+        return { full: `${on} must have options ${JSON.stringify(opts)}`, safe: `${on}: the options listed are not the question's options` };
       }
-      if (!opts.includes(a.value)) return `bet on "${q.measures}" must be one of ${opts.map((o) => `"${o}"`).join(", ")}; got "${a.value}"`;
+      if (!opts.includes(a.value)) return { full: `${on} must be one of ${opts.map((o) => `"${o}"`).join(", ")}; got "${a.value}"`, safe: `${on}: ${q.measures} not one of the options` };
       return undefined;
     }
   }
@@ -198,18 +218,21 @@ export function validateClaimantOutput(content: string, ctx: GateContext): Valid
   try {
     json = JSON.parse(content);
   } catch {
-    return { ok: false, error: "the answer is not valid JSON" };
+    return { ok: false, error: "the answer is not valid JSON", safe: "the answer is not valid JSON" };
   }
   const parsed = claimantOutputSchema.safeParse(json);
-  if (!parsed.success) return { ok: false, error: `the answer does not match the schema (${zodReason(parsed.error)})` };
+  if (!parsed.success) return { ok: false, error: `the answer does not match the schema (${zodReason(parsed.error)})`, safe: `the answer does not match the schema (${zodSafeReason(parsed.error)})` };
   const out = parsed.data;
 
   const decision = gate(out.experiment, ctx);
   if (!decision.allowed) {
-    return { ok: false, error: `gate: rejected (${decision.reason})`, gateRejection: { params: out.experiment, reason: decision.reason } };
+    return { ok: false, error: `gate: rejected (${decision.reason})`, safe: "gate: rejected the experiment", gateRejection: { params: out.experiment, reason: decision.reason } };
   }
   const questions = questionsFor(decision.params, ctx);
-  if (questions.length === 0) return { ok: false, error: `no questions exist for shape "${decision.params.shape}"; pick a shape that has questions` };
+  if (questions.length === 0) {
+    const why = `no questions exist for shape "${decision.params.shape}"; pick a shape that has questions`;
+    return { ok: false, error: why, safe: why };
+  }
 
   const checked = validateBetsFor(questions, out.bets);
   if (!checked.ok) return checked;
@@ -223,23 +246,36 @@ export function validateClaimantOutput(content: string, ctx: GateContext): Valid
 export function validateBetsFor(
   questions: readonly Question[],
   modelBets: readonly ClaimantBetOut[],
-): { ok: true; bets: { question: Question; out: ClaimantBetOut }[] } | { ok: false; error: string } {
+): { ok: true; bets: { question: Question; out: ClaimantBetOut }[] } | { ok: false; error: string; safe: string } {
+  const wanted = new Set(questions.map((q) => q.measures));
   const byField = new Map<string, ClaimantBetOut>();
   for (const b of modelBets) {
-    if (byField.has(b.measures)) return { ok: false, error: `two bets on "${b.measures}"; place exactly one per question` };
+    if (byField.has(b.measures)) {
+      // A field name the model invented is its own text: named only when it is one of the questions.
+      const named = wanted.has(b.measures) ? `"${b.measures}"` : "the same field";
+      return { ok: false, error: `two bets on "${b.measures}"; place exactly one per question`, safe: `two bets on ${named}; place exactly one per question` };
+    }
     byField.set(b.measures, b);
   }
-  const wanted = new Set(questions.map((q) => q.measures));
   const extra = modelBets.filter((b) => !wanted.has(b.measures)).map((b) => b.measures);
-  if (extra.length) return { ok: false, error: `bets on ${extra.map((m) => `"${m}"`).join(", ")} answer no question; the questions measure ${[...wanted].map((m) => `"${m}"`).join(", ")}` };
+  if (extra.length) {
+    return {
+      ok: false,
+      error: `bets on ${extra.map((m) => `"${m}"`).join(", ")} answer no question; the questions measure ${[...wanted].map((m) => `"${m}"`).join(", ")}`,
+      safe: `a bet answers no question; the questions measure ${[...wanted].map((m) => `"${m}"`).join(", ")}`,
+    };
+  }
   const missing = questions.filter((q) => !byField.has(q.measures)).map((q) => q.measures);
-  if (missing.length) return { ok: false, error: `no bet on ${missing.map((m) => `"${m}"`).join(", ")}; place exactly one bet per question` };
+  if (missing.length) {
+    const why = `no bet on ${missing.map((m) => `"${m}"`).join(", ")}; place exactly one bet per question`;
+    return { ok: false, error: why, safe: why };
+  }
 
   const bets: { question: Question; out: ClaimantBetOut }[] = [];
   for (const q of questions) {
     const b = byField.get(q.measures)!;
     const why = checkAnswer(q, b.answer as BetAnswer);
-    if (why) return { ok: false, error: why };
+    if (why) return { ok: false, error: why.full, safe: why.safe };
     bets.push({ question: q, out: b });
   }
   return { ok: true, bets };
@@ -259,40 +295,59 @@ export function addUsage(a: Usage | undefined, b: Usage | undefined): Usage | un
   };
 }
 
+/** Usage written on a log line when the call reported none: zero tokens, and the line says the cost is unknown. */
+export const NO_USAGE: Usage = { promptTokens: 0, completionTokens: 0, usd: 0 };
+export const COST_UNKNOWN = "cost unknown: the call reported no usage";
+
 export async function runClaimant(input: ClaimantInput, deps: ClaimantDeps = {}): Promise<ClaimantResult> {
   const chat = deps.chat ?? realChat;
-  const emit = deps.emit ?? (() => {});
+  const emitRaw = deps.emit ?? (() => {});
   const onRefusal = deps.onRefusal ?? (() => {});
   const now = deps.now ?? (() => new Date());
   const model = input.model ?? CLAIMANT_MODEL;
-  const say = (role: AgentEvent["role"], action: string, extra: Partial<AgentEvent> = {}) =>
-    emit({ t: now().toISOString(), role, action, ...extra });
+  // Every line is one short line (oneLine), every claimant line carries the model AND its usage,
+  // and plain-code lines (gate, seal) carry no model: the shape the real agent log demands (S8).
+  // A log that still refuses a line never stops the role: the result is returned either way.
+  const emit = (event: AgentEvent) => {
+    try {
+      emitRaw({ ...event, action: oneLine(event.action) });
+    } catch {
+      // The log refused the line; the role's answer still stands.
+    }
+  };
+  const sayModel = (action: string, callUsage: Usage | undefined, ref?: AgentEvent["ref"]) =>
+    emit({ t: now().toISOString(), role: "claimant", model, action: callUsage ? action : `${action} (${COST_UNKNOWN})`, usage: callUsage ?? NO_USAGE, ...(ref ? { ref } : {}) });
+  const sayPlain = (role: "gate" | "seal", action: string, ref?: AgentEvent["ref"]) => emit({ t: now().toISOString(), role, action, ...(ref ? { ref } : {}) });
 
   const rejected: Experiment[] = [];
   const attempts: ClaimantAttempt[] = [];
   let usage: Usage | undefined;
-  const fail = (reason: string): ClaimantResult => {
-    say("claimant", `no usable answer (${reason})`, { model });
+  const fail = (reason: string, logReason: string, callUsage?: Usage): ClaimantResult => {
+    sayModel(`no usable answer (${logReason})`, callUsage);
     return { ok: false, reason, rejected, attempts, ...(usage ? { usage } : {}) };
   };
 
-  if (!input.finding.verified) return fail("the finding is not verified against the file, so no experiment is proposed for it");
+  if (!input.finding.verified) {
+    const why = "the finding is not verified against the file, so no experiment is proposed for it";
+    return fail(why, why);
+  }
 
   const messages = buildClaimantMessages({ ...input, findingLabel: input.findingLabel ?? FIXTURE_FINDING_LABEL });
   let lastError = "";
+  let lastSafe = "";
 
   for (let attempt = 0; attempt < 2; attempt++) {
     const res = await chat({ role: "claimant", model, messages: [...messages], json: true });
     usage = addUsage(usage, res.usage);
     if (!res.ok) {
       attempts.push({ content: null, error: res.reason, ...(res.usage ? { usage: res.usage } : {}) });
-      return fail(`the model call failed: ${res.reason}`);
+      return fail(`the model call failed: ${res.reason}`, `the model call failed: ${res.reason}`, res.usage);
     }
     const v = validateClaimantOutput(res.content, input.gateContext);
     attempts.push({ content: res.content, finishReason: res.finishReason, usage: res.usage, ...(v.ok ? {} : { error: v.error }) });
 
     if (v.ok) {
-      say("claimant", `proposes ${v.params.shape}`, { model, usage: res.usage });
+      sayModel(`proposes ${v.params.shape}`, res.usage);
       const experiment: Experiment = {
         id: nanoid(10),
         target: input.target,
@@ -301,12 +356,12 @@ export async function runClaimant(input: ClaimantInput, deps: ClaimantDeps = {})
         proposedBy: { role: "claimant", model },
         gate: { allowed: true },
       };
-      say("gate", "allowed", { ref: { kind: "experiment", id: experiment.id } });
+      sayPlain("gate", "allowed", { kind: "experiment", id: experiment.id });
       const sealedAt = now();
       const bets = v.bets.map(({ question, out }) =>
         sealBet({ experimentId: experiment.id, who: `model:${model}`, question: question.text, measures: question.measures, answer: out.answer as BetAnswer, rationale: out.rationale }, sealedAt),
       );
-      say("seal", `seals ${bets.length} bets from ${model}`, { model, ref: { kind: "experiment", id: experiment.id } });
+      sayPlain("seal", `seals ${bets.length} bets from ${model}`, { kind: "experiment", id: experiment.id });
       for (const b of bets) {
         if (b.answer.kind === "declined") {
           onRefusal({ kind: "declined_bet", id: b.id, time: b.sealedAt, role: "claimant", model, experiment: v.params, reason: b.answer.reason, measures: b.measures, question: b.question });
@@ -315,7 +370,8 @@ export async function runClaimant(input: ClaimantInput, deps: ClaimantDeps = {})
       return { ok: true, experiment, bets, questions: v.questions, rejected, attempts, ...(usage ? { usage } : {}) };
     }
 
-    say("claimant", `answers (not usable: ${v.error})`, { model, usage: res.usage });
+    // The log line names only the kind of problem, never the model's values (S2).
+    sayModel(`answers (not usable: ${v.safe})`, res.usage);
     if (v.gateRejection) {
       const exp: Experiment = {
         id: nanoid(10),
@@ -326,11 +382,12 @@ export async function runClaimant(input: ClaimantInput, deps: ClaimantDeps = {})
         gate: { allowed: false, reason: v.gateRejection.reason },
       };
       rejected.push(exp);
-      say("gate", `rejected (${v.gateRejection.reason})`, { ref: { kind: "experiment", id: exp.id } });
+      sayPlain("gate", `rejected (${v.gateRejection.reason})`, { kind: "experiment", id: exp.id });
       onRefusal({ kind: "gate_rejection", id: exp.id, time: now().toISOString(), role: "claimant", model, experiment: v.gateRejection.params, reason: v.gateRejection.reason });
     }
     lastError = v.error;
+    lastSafe = v.safe;
     messages.push({ role: "assistant", content: res.content }, { role: "user", content: repairMessage(v.error) });
   }
-  return fail(lastError);
+  return fail(lastError, lastSafe);
 }

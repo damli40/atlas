@@ -71,6 +71,12 @@ export interface LoggedEvent {
   event: AgentEvent;
 }
 
+/** One line, at most `max` characters (the agent log's limit): whitespace runs (line breaks too) become one space. */
+export function oneLine(s: string, max = 160): string {
+  const flat = s.replace(/\s+/g, " ").trim();
+  return flat.length <= max ? flat : `${flat.slice(0, max - 1)}…`;
+}
+
 export class AgentEventError extends Error {
   constructor(message: string) {
     super(message);

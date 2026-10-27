@@ -1,8 +1,8 @@
-{"t":"2026-10-27T05:09:51.527Z","role":"human","action":"uses a fixture finding, written by hand (Investigator arrives Oct 30)","ref":{"kind":"experiment","id":"S3"}}
-{"t":"2026-10-27T05:09:51.528Z","role":"gate","action":"allowed (src/gate.ts)","ref":{"kind":"experiment","id":"S3"}}
-{"t":"2026-10-27T05:09:51.529Z","role":"human","action":"seals a bet on calls","ref":{"kind":"bet","id":"ZGdgeAMVCn"}}
-{"t":"2026-10-27T05:09:51.529Z","role":"human","action":"seals a bet on outcome","ref":{"kind":"bet","id":"-h71-0lInU"}}
-{"t":"2026-10-27T05:09:51.530Z","role":"human","action":"seals a bet on calls","ref":{"kind":"bet","id":"Ku86C5lBLy"}}
-{"t":"2026-10-27T05:09:51.532Z","role":"seal","action":"verifies 3 seals"}
-{"t":"2026-10-27T05:09:51.724Z","role":"runner","action":"runs withRpcRetry in the sandbox (S3)","ref":{"kind":"run","id":"7KMFOin4eM"}}
-{"t":"2026-10-27T05:09:51.724Z","role":"judge","action":"judges 3 bets: 2 matched, 1 didn't match","ref":{"kind":"run","id":"7KMFOin4eM"}}
+{"t":"2026-10-27T05:32:21.348Z","role":"human","action":"uses a fixture finding, written by hand (Investigator arrives Oct 30)","ref":{"kind":"experiment","id":"S3"}}
+{"t":"2026-10-27T05:32:21.349Z","role":"gate","action":"allowed (src/gate.ts)","ref":{"kind":"experiment","id":"S3"}}
+{"t":"2026-10-27T05:32:21.350Z","role":"human","action":"seals a bet on calls","ref":{"kind":"bet","id":"ZoXe4LU9uA"}}
+{"t":"2026-10-27T05:32:21.351Z","role":"human","action":"seals a bet on outcome","ref":{"kind":"bet","id":"WrvAhoEcMN"}}
+{"t":"2026-10-27T05:32:21.351Z","role":"human","action":"seals a bet on totalWaitMs","ref":{"kind":"bet","id":"iozb1I_MGT"}}
+{"t":"2026-10-27T05:32:21.353Z","role":"seal","action":"verifies 3 seals"}
+{"t":"2026-10-27T05:32:21.539Z","role":"runner","action":"runs withRpcRetry in the sandbox (S3)","ref":{"kind":"run","id":"BsKtFuHCMd"}}
+{"t":"2026-10-27T05:32:21.539Z","role":"judge","action":"judges 3 bets: 2 matched, 1 didn't match","ref":{"kind":"run","id":"BsKtFuHCMd"}}

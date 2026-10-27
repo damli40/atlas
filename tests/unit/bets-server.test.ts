@@ -58,7 +58,7 @@ describe("POST /bets", () => {
     expect(bet.question).toBe(QUESTION_TEXT.calls);
     expect(Date.parse(bet.sealedAt as string)).toBeGreaterThanOrEqual(before);
     expect(Date.parse(bet.sealedAt as string)).toBeLessThanOrEqual(Date.now());
-    const stored = betStore.session(session).get("e1")!.bets[0]!;
+    const stored = betStore.peek(session)!.get("e1")!.bets[0]!;
     expect(stored.nonce).toMatch(/^[0-9a-f]{32}$/);
     expect(computeSealHash(stored)).toBe(bet.sealedHash);
   });
@@ -156,7 +156,7 @@ describe("POST /runs", () => {
     await post("/bets", { experimentId: "e1", who: "human", measures: "calls", answer: { kind: "integer", value: 5 } });
     // A correctly sealed bet whose time is one hour ahead (as if a clock or a client wrote it).
     const future = sealBet({ experimentId: "e1", who: "human", question: QUESTION_TEXT.calls, measures: "calls", answer: { kind: "integer", value: 5 } }, new Date(Date.now() + 3_600_000));
-    betStore.session(session).get("e1")!.bets.push(future);
+    betStore.peek(session)!.get("e1")!.bets.push(future);
     const res = await post("/runs", { experimentId: "e1" });
     expect(res.status).toBe(409);
     const body = (await res.json()) as { error: string; betIds: string[] };
