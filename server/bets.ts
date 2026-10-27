@@ -29,6 +29,7 @@ import { extraQuestionsFor, questionsFor, type GateContext, type Question } from
 import { sealBet } from "../src/seal";
 import type { Bet, BetAnswer, Experiment, Finding, Run, RunAttempt, Verdict } from "../src/types";
 import type { ClaimantMode } from "../src/claimants";
+import type { ChainFactsResult } from "../src/chain-facts";
 
 export const MAX_SESSIONS = 500;
 export const MAX_EXPERIMENTS = 50;
@@ -154,6 +155,8 @@ export interface Round {
   attempts?: RunAttempt[];
   /** Why a "stopped" round stopped, in plain words (shown when POST /runs is asked again). */
   stoppedReason?: string;
+  /** D22 (Moonwell rounds): the chain facts read at block 42194662 before any bet was asked for, or why there are none. */
+  chainFacts?: ChainFactsResult;
 }
 
 /** How long a session holding sealed-but-unrun bets is kept safe from eviction, after its last use. */

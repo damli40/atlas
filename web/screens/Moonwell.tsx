@@ -7,6 +7,7 @@
 import { ProofLink } from "./ProofCard";
 import { useEffect, useState } from "react";
 import { MOONWELL_FORK_BLOCKS, MOONWELL_LEVEL_CAPTION, MOONWELL_LEVEL_SAYS, MOONWELL_LICENCE_LINE, moonwellBetContext, type MoonwellLevel } from "../../src/bet-context";
+import { BET_INSTRUCTION, chainFactsLines, type ChainFactsResult } from "../../src/chain-facts";
 import type { Question } from "../../src/gate";
 import type { Finding } from "../../src/types";
 import { formatUsd1e18 } from "../../src/units";
@@ -63,6 +64,8 @@ export function MoonwellFlow({ api, onRoundOpen }: { api: Api; onRoundOpen?: (op
   const [level, setLevel] = useState<Level>("level2");
   const [experimentId, setExperimentId] = useState<string | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
+  // D22: the chain facts the server read at block 42194662 before any bet; the models' prompts hold the same object.
+  const [chainFacts, setChainFacts] = useState<ChainFactsResult | undefined>(undefined);
   const [answer, setAnswer] = useState("");
   const [sealed, setSealed] = useState<ShownBet[]>([]);
   const models = useModelSlots(api);
@@ -101,6 +104,7 @@ export function MoonwellFlow({ api, onRoundOpen }: { api: Api; onRoundOpen?: (op
       const out = await api.experiment(target, LEVELS[level].params, finding.id);
       setExperimentId(out.experiment.id);
       setQuestions(out.questions);
+      setChainFacts(out.chainFacts);
       models.fromExperiment(out);
     });
 
@@ -185,17 +189,21 @@ export function MoonwellFlow({ api, onRoundOpen }: { api: Api; onRoundOpen?: (op
                 if (sealed.length === 0) seal();
               }}
             >
+              {/* D22: the chain facts, visible without opening anything. The same lines are in the text below and in every model's prompt. */}
+              <div className="chain-facts small" data-testid="chain-facts">
+                {chainFactsLines(chainFacts).map((l, i) => (i === 0 ? <p key={i} className="label"><b>{l}</b></p> : <p key={i} className="mono">{l}</p>))}
+              </div>
               {finding && fileOf(finding.file) !== undefined && (
                 <details className="small">
-                  <summary>What you know before betting. Each Meta model that bets (Muse Spark, and Muse Spark Open when chosen) gets exactly this text, nothing more (no prices).</summary>
+                  <summary>What you know before betting. Each Meta model that bets (Muse Spark, and Muse Spark Open when chosen) gets exactly this text, nothing more: no value after the proposal is applied.</summary>
                   <pre className="code" data-testid="bet-context" tabIndex={0} aria-label="what you and the model see">
-                    {moonwellBetContext({ level, question: q, finding, fileText: fileOf(finding.file)!, pr: { ref: target.ref, title: target.title, ...(target.commit !== undefined ? { commit: target.commit } : {}), fileCount: target.files.length, codeSha256: target.codeSha256 } })}
+                    {moonwellBetContext({ level, question: q, finding, fileText: fileOf(finding.file)!, pr: { ref: target.ref, title: target.title, ...(target.commit !== undefined ? { commit: target.commit } : {}), fileCount: target.files.length, codeSha256: target.codeSha256 }, ...(chainFacts !== undefined ? { chainFacts } : {}) })}
                   </pre>
                 </details>
               )}
               <div className="question">
                 <label htmlFor="bet-usd">{q.text}</label>
-                <p className="muted small">Written by plain code (src/gate.ts). Each Meta model that bets answers the same question. Matched means within {q.tolerancePct}% of what the run reads.</p>
+                <p className="muted small">Written by plain code (src/gate.ts). Each Meta model that bets answers the same question. Matched means within {q.tolerancePct}% of what the run reads. {BET_INSTRUCTION}</p>
                 <input id="bet-usd" data-testid="bet-usd" type="number" inputMode="decimal" min={0} step="any" value={answer} disabled={sealed.length > 0 || busy} onChange={(e) => setAnswer(e.target.value)} /> USD
                 {sealed[0] && (
                   <p className="sealed">

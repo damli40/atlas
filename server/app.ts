@@ -86,6 +86,8 @@ import { CLAIMANT_MODEL } from "./meta/roles/claimant";
 import { modelDisplay, runClaimantBets } from "./meta/roles/claimant-bets";
 import { AUTONOMOUS_PERSON_REASON, CLAIMANT_HEADER, CLAIMANT_MODES, DEFAULT_CLAIMANT_MODE, SPARK_OPEN_MODEL, modelsFor, parseClaimantMode, type ClaimantMode, type ClaimantsInfo } from "../src/claimants";
 import { moonwellBetContext, moonwellLevelOf } from "../src/bet-context";
+import { CHAIN_FACTS_BLOCK, type ChainFactsResult, type MoonwellChainFacts } from "../src/chain-facts";
+import { createChainFactsReader } from "../runners/evm/chain-facts";
 import { FIXTURE_FILE, FIXTURE_FINDING_LABEL, fixtureContextRange, fixtureFinding } from "./meta/roles/fixture-finding";
 import { INVESTIGATOR_FALLBACK_MODEL, INVESTIGATOR_MODEL, runInvestigator, type InvestigatorFile } from "./meta/roles/investigator";
 import { fetchGithubPr, type GithubPrTarget } from "./targets/github";
@@ -196,6 +198,7 @@ export function seenContextFor(
   finding: Finding,
   fileText: string,
   pr: { title: string; fileCount: number },
+  chainFacts?: ChainFactsResult,
 ): string | undefined {
   if (exp.runner !== "evm") return undefined;
   const level = moonwellLevelOf(exp.params.shape);
@@ -208,6 +211,7 @@ export function seenContextFor(
     finding,
     fileText,
     pr: { ref: t.ref, title: pr.title, ...(t.commit !== undefined ? { commit: t.commit } : {}), fileCount: pr.fileCount, codeSha256: t.codeSha256 },
+    ...(chainFacts !== undefined ? { chainFacts } : {}),
   });
 }
 
@@ -282,6 +286,12 @@ export interface AppOptions {
   fetchPr?: (pr: { owner: string; repo: string; number: number }) => Promise<GithubPrTarget>;
   /** Runs an EVM experiment at its fork block. Default: runners/evm/runner.ts (spawns anvil; needs BASE_RPC_URL). Tests pass a stand-in. */
   evmRun?: (exp: Experiment, opts: { forkBlock: number; onProgress: (step: string) => void }) => Promise<Run>;
+  /**
+   * D22: reads the chain facts every Moonwell bettor sees, at block 42194662 (before the proposal ran). Default:
+   * a cached reader on a short-lived anvil fork (runners/evm/chain-facts.ts) when the real EVM runner is in use;
+   * none when a stand-in `evmRun` is given (tests), and then the bettors see "Atlas could not read them". `null`: none.
+   */
+  chainFacts?: ((block: number) => Promise<MoonwellChainFacts>) | null;
   /** Where .atlas.json files go. Default: memory only (nothing written). */
   proofs?: ProofStore;
   /** Caps on EVM replays (S5). Default: createReplayGate() with limits from the environment (server/replay-limits.ts). */
@@ -398,6 +408,29 @@ export function createApp(opts: AppOptions = {}) {
     return m;
   };
   const evmRun = opts.evmRun ?? defaultEvmRun;
+  // D22: one reader per app, so the facts are read once per fork block and reused by every later round.
+  const readFacts: ((block: number) => Promise<MoonwellChainFacts>) | null =
+    opts.chainFacts !== undefined
+      ? opts.chainFacts
+      : opts.evmRun
+        ? null
+        : (() => {
+            const r = createChainFactsReader();
+            return (block: number) => r.read(block);
+          })();
+  /**
+   * D22: the facts for a Moonwell round, read BEFORE any bet on it is asked for. Always at CHAIN_FACTS_BLOCK,
+   * whatever the round's level. Undefined for a round that is not a Moonwell level. Never throws.
+   */
+  const chainFactsFor = async (exp: Experiment): Promise<ChainFactsResult | undefined> => {
+    if (exp.runner !== "evm" || !exp.gate.allowed || !moonwellLevelOf(exp.params.shape)) return undefined;
+    if (!readFacts) return { ok: false, reason: "this server reads no chain facts" };
+    try {
+      return { ok: true, facts: await readFacts(CHAIN_FACTS_BLOCK) };
+    } catch (e) {
+      return { ok: false, reason: oneLine(redactRpc(e instanceof Error ? e.message : String(e)), 300) };
+    }
+  };
   const replayGate = opts.replayGate ?? createReplayGate();
   const runGate = opts.runGate ?? createRunGate();
   const trustProxy = opts.trustProxy ?? trustProxyFromEnv();
@@ -562,7 +595,7 @@ export function createApp(opts: AppOptions = {}) {
     const contextRange = exp.target.ref === FIXTURE_FILE ? fixtureContextRange(fileText) : undefined;
     // D19: on the Moonwell PR the model gets exactly what the person's bet screen shows (src/bet-context.ts).
     const prOf = exp.target.kind === "github-pr" ? prTargets.get(exp.target.codeSha256) : undefined;
-    const seenContext = prOf ? seenContextFor(exp, round.questions, finding, fileText, { title: prOf.title, fileCount: prFiles(prOf).length }) : undefined;
+    const seenContext = prOf ? seenContextFor(exp, round.questions, finding, fileText, { title: prOf.title, fileCount: prFiles(prOf).length }, round.chainFacts) : undefined;
     const chat = modelChat;
     const { now } = opts.modelBets;
     const deadlineMs = opts.modelBets.deadlineMs ?? MODEL_BETS_DEADLINE_MS;
@@ -749,8 +782,11 @@ export function createApp(opts: AppOptions = {}) {
       });
       return c.json({ error: `gate: rejected (${decision.reason}); nothing will run`, experiment }, 422);
     }
+    // D22: the chain facts at block 42194662 are read before anyone is asked to bet; the page and every model get the same object.
+    const facts = await chainFactsFor(experiment);
+    if (facts !== undefined) round.chainFacts = facts;
     startModelBets(round, sessionId, clientOf(c), claimant.mode); // D02-06: the model bets on this SAME experiment, from the questions only
-    return c.json({ experiment, questions: round.questions, extraQuestions: round.extraQuestions, model: modelSlotView(round), models: modelSlotViews(round), claimant: claimant.mode });
+    return c.json({ experiment, questions: round.questions, extraQuestions: round.extraQuestions, model: modelSlotView(round), models: modelSlotViews(round), claimant: claimant.mode, ...(round.chainFacts ? { chainFacts: round.chainFacts } : {}) });
   });
 
   app.post("/investigate", async (c) => {
@@ -1348,6 +1384,8 @@ export function createApp(opts: AppOptions = {}) {
       // The claimant model(s) bet on the plain-code questions, sealed before the run. This round's model-bets
       // limits were counted once above, for the whole round (S4).
       // M4 (day-7 review): the mode of the round it reads, never the page's current toggle.
+      const nextFacts = await chainFactsFor(experiment); // D22: the same facts, read before the models bet
+      if (nextFacts !== undefined) next.chainFacts = nextFacts;
       startModelBets(next, sessionId, clientIp, round.claimantMode ?? claimant.mode, true);
       await modelsSettled(next);
       const seated = modelSlotsOf(next).filter((s) => s.status === "sealed");

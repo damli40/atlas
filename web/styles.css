@@ -144,3 +144,8 @@ table.counts { border-collapse: collapse; margin: 8px 0 12px; width: auto; }
 table.counts th, table.counts td { padding: 4px 12px; text-align: left; border-bottom: 1px solid rgba(127, 127, 127, 0.25); vertical-align: bottom; }
 table.counts td:not(:first-child) { text-align: center; font-variant-numeric: tabular-nums; }
 .claimant label { margin-right: 12px; }
+
+/* D22: the chain facts above the bet, read before the proposal ran. Long addresses wrap at phone width. */
+.chain-facts { margin: 8px 0 12px; }
+.chain-facts p { margin: 2px 0; overflow-wrap: anywhere; }
+.chain-facts .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }

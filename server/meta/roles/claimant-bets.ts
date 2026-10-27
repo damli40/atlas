@@ -31,6 +31,7 @@ import type { SessionEmitter } from "../../log/agentlog";
 import { oneLine } from "../../log/agentlog";
 import { CLAIMANT_MODEL, COST_UNKNOWN, NO_USAGE, SYSTEM_PREAMBLE, addUsage, zodSafeReason, contextRangeFor, numbered, repairMessage, validateBetsFor, type ClaimantAttempt } from "./claimant";
 import { plural } from "../../../src/words";
+import { BET_INSTRUCTION } from "../../../src/chain-facts";
 
 /**
  * How the screen names the model: its product name AND its id (D10: model names stay visible).
@@ -125,7 +126,11 @@ export function buildBetOnlyMessages(input: BetOnlyInput): ChatMessage[] {
   ];
 }
 
-/** D19: the prompt for a round whose context is "what the bettor sees". Only the answer format is added. */
+/**
+ * D19: the prompt for a round whose context is "what the bettor sees". Only the answer format is added.
+ * D22: the bet instruction is BET_INSTRUCTION (also in the seen text, so the person reads the same words), the
+ * same for every model: a best estimate, declining only when no estimate can be formed, with the reason.
+ */
 function buildSeenContextMessages(seen: string, questions: readonly Question[]): ChatMessage[] {
   const user = [
     SEEN_CONTEXT_HEADING,
@@ -137,7 +142,8 @@ function buildSeenContextMessages(seen: string, questions: readonly Question[]):
     "TASK",
     "Bet on what this experiment's run will measure:",
     "exactly one bet per question, using the answer JSON shown for it.",
-    'If you do not know an answer, bet {"kind":"declined","reason":"unknown: <why>"} instead of guessing.',
+    BET_INSTRUCTION,
+    'To decline, bet {"kind":"declined","reason":"unknown: <why>"}.',
     "",
     "Return only this JSON object:",
     '{"bets": [{"measures": "<field>", "answer": {...}, "rationale": "<one or two sentences>"}]}',

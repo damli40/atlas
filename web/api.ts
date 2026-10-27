@@ -3,6 +3,7 @@
 // In development, Vite forwards /api/* to the Hono server on port 8787 (vite.config.ts).
 
 import type { Question } from "../src/gate";
+import type { ChainFactsResult } from "../src/chain-facts";
 import type { AtlasFile, Bet, Experiment, Finding, Run, Target, Verdict } from "../src/types";
 import type { FalseAlarmRow } from "../runners/evm/level2";
 import type { ModelSlotView, SealedOnly } from "../server/bets";
@@ -42,6 +43,8 @@ export interface ExperimentAnswer {
   model: ModelSlotView | null;
   /** D07-01: every model slot, in column order (two in "both" mode). */
   models?: ModelSlotView[];
+  /** D22 (Moonwell rounds): the chain facts read at block 42194662 before any bet, or why there are none. */
+  chainFacts?: ChainFactsResult;
 }
 
 export interface RunAnswer {

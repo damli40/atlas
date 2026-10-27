@@ -9,13 +9,18 @@
 //   (Level 2 or Level 1) and its caption, the fork block number and the time that block was made, the
 //   question and its unit, the tolerance rule, and the WHOLE chosen file with line numbers, the
 //   chosen lines marked (v2, after the first version gave only the chosen lines).
-// - It never holds a model's claim sentence (D18), a live price, a reference value or a feed answer:
-//   the person sees none of those before the run either. It takes no input that could carry them.
+// - It never holds a model's claim sentence (D18), any value after the proposal is applied, the run's own
+//   reads, or the reference the judge compares against. It takes no input that could carry them.
+// - D22: it does hold a small fixed set of chain facts read by plain code at block 42194662, BEFORE the
+//   proposal ran (src/chain-facts.ts): the oracle's cbETH price then, the feed it was wired to, the raw
+//   Chainlink answers with their decimals, and the block's timestamp. The person sees them on screen and
+//   every model gets them in its prompt, from the same object. Plus one bet instruction, the same for all.
 // - The block times were read once from Base (eth_getBlockByNumber, field `timestamp`) on 2026-10-27
 //   through the RPC in ~/.config/atlas/rpc.env. They are fixed facts of the chain, so they are stored
 //   here, never guessed and never read at run time.
 
 import { LEVEL2_CAPTION, level1Caption } from "./captions";
+import { BET_INSTRUCTION, chainFactsLines, type ChainFactsResult } from "./chain-facts";
 import { MOONWELL_LEVEL1_BLOCK, MOONWELL_LEVEL2_BLOCK } from "./moonwell-blocks";
 import type { Finding } from "./types";
 import { plural } from "./words";
@@ -67,6 +72,11 @@ export interface BetContextInput {
   question: { text: string; unit?: string; tolerancePct?: number };
   /** The chosen finding: where it is and who chose it. Its claim sentence is never read. */
   finding: Pick<Finding, "file" | "lineStart" | "lineEnd" | "proposedBy">;
+  /**
+   * D22: the chain facts read at block 42194662 before the proposal ran (or why there are none). Always from
+   * that block, whatever the level: src/chain-facts.ts refuses facts from any other block.
+   */
+  chainFacts?: ChainFactsResult;
 }
 
 /** Who chose the lines, in the same words for the screen and the prompt. Never a claim. */
@@ -103,9 +113,11 @@ export function moonwellBetContext(input: BetContextInput): string {
     `What will run: ${MOONWELL_LEVEL_SAYS[input.level]}`,
     `Read with this run: ${MOONWELL_LEVEL_CAPTION[input.level]}`,
     `Fork block: ${fork.block} on Base, made at ${blockTimeUtc(fork.timestamp)}.`,
+    ...chainFactsLines(input.chainFacts),
     `Question: ${input.question.text}`,
     `Answer in: ${unit}.`,
     `Matched means within ${input.question.tolerancePct ?? 10}% of what the run reads.`,
+    `How to bet: ${BET_INSTRUCTION}`,
     `The code this round works on (${chosenBy(f)}): ${f.file}, ${lines}, marked ">" below.`,
     `The whole file, ${f.file}, numbered as on screen:`,
     numberedFile(input.fileText, f),
