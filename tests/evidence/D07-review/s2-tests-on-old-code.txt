@@ -1,0 +1,5 @@
+     × the committed INDEX.md equals the script's output (run `pnpm tsx tests/tools/refusal-index.ts --write` to update) 251ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
++ | 7–9 | 2026-10-27 06:42 | `bkG_en5TYU` | calls 1–3, seals `f2c29c41ca31…`, `09a8bc226ac9…`, `d94b65378dc8…` | D19 v1 context (one line) | the bettor declined ×3 · e.g. "cannot determine post-proposal oracle price without executing fork simulation" | muse-spark-1.3 | `tests/evidence/D19/v1-live-answers.jsonl`, `v1-live-run.json` |
++ | 10–12 | 2026-10-27 06:46 | `dS5cUFIsJI` | calls 1–3, seals `13220d23abe5…`, `f44b2f39b9c2…`, `32b6bd316aec…` | D19 v2 context (same text as the person's screen, block and date given) | the bettor declined ×3 · e.g. "historical cbETH/USD price at Base block 42194662 requires on-chain oracle read unavailable offline" | muse-spark-1.3 | `tests/evidence/D19/v2-live-answers.jsonl`, `v2-live-run.json` |
+      Tests  1 failed | 3 passed (4)
