@@ -1,0 +1,67 @@
+# Atlas .gitignore: an ALLOW-LIST.
+# Everything at the top level is private unless it is un-ignored below.
+# Why: this folder also holds planning, research, pitch drafts and evidence that must never be public.
+# To publish a new top-level folder, add a "!/name/" line on purpose.
+
+/*
+
+# --- public: the product ---
+!/.gitignore
+!/README.md
+!/LICENSE
+!/PRE-EXISTING.md
+!/package.json
+!/package-lock.json
+!/pnpm-lock.yaml
+!/pnpm-workspace.yaml
+!/tsconfig*.json
+!/vite.config.*
+!/index.html
+!/foundry.toml
+!/src/
+!/server/
+!/web/
+!/runners/
+!/contracts/
+!/test/
+!/tests/
+!/public/
+!/proofs/
+!/.github/
+
+# --- public: the logo only (not the exploration page) ---
+!/brand/
+/brand/*
+!/brand/atlas-logo/
+
+# --- never, even inside public folders ---
+node_modules/
+dist/
+build/
+coverage/
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.log
+log.md
+.DS_Store
+.vscode/
+.idea/
+# Foundry build output and fork caches
+out/
+cache/
+broadcast/
+.anvil/
+# scratch runs (published proof cards go in /proofs/)
+runs/tmp/
+
+# --- private on purpose (already ignored by "/*"; listed so nobody un-ignores them by accident) ---
+# CLAUDE.md            build rules: refer to private planning files
+# BUILD-CARD.md VISION.md atlas-prep.md
+# docs/                spec, briefs, superpowers plans
+# official/            copy of the participant guide
+# pitch/               decisions, drafts, X research
+# research/            councils, evidence, Meta key tests
+# .mida/ .claude/
