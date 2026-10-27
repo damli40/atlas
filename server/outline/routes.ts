@@ -19,7 +19,7 @@
 import type { Context, Hono } from "hono";
 import { nanoid } from "nanoid";
 import { z } from "zod";
-import { buildCodeMap } from "../../src/outline/codemap";
+import { buildCodeMap, codeMapTooLarge } from "../../src/outline/codemap";
 import { partDetails } from "../../src/outline/details";
 import { codebaseSha256, makeOutlineSection, MAX_OUTLINE_FILE_BYTES } from "../../src/outline/section";
 import type { OutlineAtlasFile, OutlineSection } from "../../src/outline/types";
@@ -35,8 +35,14 @@ import { intakeGithub, intakeUpload, MAX_UPLOAD_ENTRIES, OutlineIntakeError, par
 export const OUTLINE_BODY_BYTES = 1024 * 1024;
 /** Outline jobs one session may start (each may be 1–2 paid Wonder calls). */
 export const MAX_OUTLINE_JOBS_PER_SESSION = 5;
-/** Jobs kept in memory, across all sessions (each holds up to 300 KB of code); the oldest drop first. */
-export const MAX_OUTLINE_JOBS = 100;
+/** Finished jobs kept in memory, across all sessions (each holds up to 300 KB of code plus its code map). */
+export const MAX_OUTLINE_JOBS = 60;
+/** Review M1 / minor 7: finished jobs a session keeps (its own oldest drop first), so one flooder cannot evict others. */
+export const MAX_KEPT_JOBS_PER_SESSION = 3;
+/** Jobs running at once across the server; past it a new job is refused (503), never queued behind a flood. */
+export const MAX_RUNNING_JOBS = 4;
+/** A finished job is dropped this long after it finished. */
+export const OUTLINE_JOB_TTL_MS = 30 * 60 * 1000;
 /** Outline jobs one client address may start an hour (env ATLAS_OUTLINES_PER_IP_PER_HOUR). */
 export const DEFAULT_OUTLINES_PER_IP_PER_HOUR = 10;
 
@@ -67,6 +73,10 @@ interface Job {
   what: string;
   error?: string;
   section?: OutlineSection;
+  /** When it finished (for expiry). */
+  finishedAt?: number;
+  /** GET /outline/jobs/:id/outline, built once (the code map can be large). */
+  outlineJson?: string;
   /** Why Wonder was not asked (set before the job runs). */
   notAsked?: string;
 }
@@ -100,9 +110,23 @@ export function createOutlineRoutes(opts: OutlineOptions, deps: OutlineDeps) {
   const jobs = new Map<string, Job>();
   const started = new Map<string, number>();
 
+  const finished = (j: Job) => j.status === "done" || j.status === "failed";
+  /**
+   * Drops expired jobs, then each session's finished jobs past its share (its own oldest first), then the oldest
+   * finished jobs past the server's cap. A running job is never dropped.
+   */
+  const prune = () => {
+    const t = now().getTime();
+    for (const [id, j] of jobs) if (finished(j) && j.finishedAt !== undefined && t - j.finishedAt > OUTLINE_JOB_TTL_MS) jobs.delete(id);
+    const bySession = new Map<string, Job[]>();
+    for (const j of jobs.values()) if (finished(j)) (bySession.get(j.sessionId) ?? bySession.set(j.sessionId, []).get(j.sessionId)!).push(j);
+    for (const list of bySession.values()) for (const j of list.slice(0, Math.max(0, list.length - MAX_KEPT_JOBS_PER_SESSION))) jobs.delete(j.id);
+    const done = [...jobs.values()].filter(finished);
+    for (const j of done.slice(0, Math.max(0, done.length - MAX_OUTLINE_JOBS))) jobs.delete(j.id);
+  };
   const keep = (job: Job) => {
     jobs.set(job.id, job);
-    while (jobs.size > MAX_OUTLINE_JOBS) jobs.delete(jobs.keys().next().value!);
+    prune();
   };
   const say = (sessionId: string, role: "human" | "gate", action: string, ref?: string) => {
     try {
@@ -114,6 +138,7 @@ export function createOutlineRoutes(opts: OutlineOptions, deps: OutlineDeps) {
   const mine = (c: Context): { job: Job } | { res: Response } => {
     const sessionId = sessionIdOf(c);
     if (sessionId === null) return { res: c.json({ error: BAD_SESSION }, 400) };
+    prune();
     const job = jobs.get(c.req.param("id") ?? "");
     if (!job || job.sessionId !== sessionId) return { res: c.json({ error: "this session has no outline job with that id" }, 404) };
     return { job };
@@ -126,7 +151,9 @@ export function createOutlineRoutes(opts: OutlineOptions, deps: OutlineDeps) {
       job.status = "mapping";
       const kb = Math.ceil(codebase.files.reduce((n, f) => n + f.bytes, 0) / 1024);
       const label = codebase.source.kind === "github" ? `${codebase.source.repo}@${codebase.source.commit.slice(0, 12)}${codebase.source.subfolder ? ` (${codebase.source.subfolder})` : ""}` : "uploaded files";
-      const codeMap = buildCodeMap(codebase.files);
+      const codeMap = buildCodeMap(codebase.files, codebase.configFiles);
+      const tooBig = codeMapTooLarge(codeMap);
+      if (tooBig) throw new OutlineIntakeError("too_large", tooBig);
       // The fingerprint is computed by the section below; this log line names the files only by count and size.
       say(job.sessionId, "gate", `reads ${plural(codebase.files.length, "source file")} (${kb} KB) from ${label}; skips ${codebase.skipped.length}; maps ${plural(codeMap.edges.length, "edge")}`);
       job.status = "asking-wonder";
@@ -139,15 +166,17 @@ export function createOutlineRoutes(opts: OutlineOptions, deps: OutlineDeps) {
         wonder = r.ok ? { model: r.model, outline: r.outline, attempts: r.attempts } : { model: r.model, outline: null, attempts: r.attempts, failure: oneLine(r.reason, 600) };
       }
       job.status = "checking";
-      const section = makeOutlineSection({ source: codebase.source, files: codebase.files, skipped: codebase.skipped, codeMap, wonder });
+      const section = makeOutlineSection({ source: codebase.source, files: codebase.files, configFiles: codebase.configFiles, skipped: codebase.skipped, codeMap, wonder });
       if (section.verified) {
         const n = section.verified.counts;
         say(job.sessionId, "gate", `checks ${model}'s outline: ${n.confirmedParts} of ${n.confirmedParts + n.unconfirmedParts} parts confirmed; joins ${n.confirmedJoins} confirmed, ${n.modelOnlyJoins} model-only, ${n.codeOnlyJoins} found by plain code`, section.codeSha256);
       }
       job.section = section;
       job.status = "done";
+      job.finishedAt = now().getTime();
     } catch (e) {
       job.status = "failed";
+      job.finishedAt = now().getTime();
       job.error = e instanceof OutlineIntakeError ? e.message : `the outline job stopped: ${oneLine(e instanceof Error ? e.message : String(e), 300)}`;
       say(job.sessionId, "gate", `outline job failed: ${job.error}`);
     }
@@ -203,6 +232,8 @@ export function createOutlineRoutes(opts: OutlineOptions, deps: OutlineDeps) {
       }
       const sessionJobs = [...jobs.values()].filter((j) => j.sessionId === sessionId);
       if (sessionJobs.some((j) => j.status !== "done" && j.status !== "failed")) return c.json({ error: "this session already has an outline job running; wait for it to finish" }, 409);
+      prune();
+      if ([...jobs.values()].filter((j) => !finished(j)).length >= MAX_RUNNING_JOBS) return c.json({ error: `Atlas is already outlining ${MAX_RUNNING_JOBS} codebases; try again in a minute` }, 503);
       const count = started.get(sessionId) ?? 0;
       if (count >= MAX_OUTLINE_JOBS_PER_SESSION) return c.json({ error: `a session may start at most ${MAX_OUTLINE_JOBS_PER_SESSION} outline jobs; start a new session` }, 429);
       const byIp = deps.takeOutline(c);
@@ -239,7 +270,7 @@ export function createOutlineRoutes(opts: OutlineOptions, deps: OutlineDeps) {
       const d = done(c);
       if ("res" in d) return d.res;
       const s = d.section;
-      return c.json({
+      if (d.job.outlineJson === undefined) d.job.outlineJson = JSON.stringify({
         jobId: d.job.id,
         source: s.source,
         codeSha256: s.codeSha256,
@@ -254,6 +285,7 @@ export function createOutlineRoutes(opts: OutlineOptions, deps: OutlineDeps) {
           joins: "confirmed: Wonder said it and plain code found the import or call. model-only: Wonder says; the code doesn't show it. code-only: found by plain code; Wonder did not say it.",
         },
       });
+      return c.body(d.job.outlineJson, 200, { "content-type": "application/json; charset=UTF-8" });
     });
 
     app.get("/outline/jobs/:id/parts/:partId", (c) => {

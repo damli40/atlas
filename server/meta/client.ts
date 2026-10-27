@@ -72,7 +72,8 @@ export function priceFor(model: string): { price: Price; verified: boolean } {
 }
 
 export type Usage = NonNullable<AgentEvent["usage"]>;
-export type ChatRole = AgentEvent["role"];
+/** X1 review minor 8: "outliner" (Muse Wonder outlining a codebase) is logged in usage.jsonl under its own name. */
+export type ChatRole = AgentEvent["role"] | "outliner";
 
 export interface ChatMessage { role: "system" | "user" | "assistant"; content: string }
 
