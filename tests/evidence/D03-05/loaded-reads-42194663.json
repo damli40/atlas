@@ -1,0 +1,23 @@
+{
+  "control": {
+    "forkBlock": 42194663,
+    "chainId": 8453,
+    "blockNumberOnFork": 42194663,
+    "stablecoins": [],
+    "passed": false,
+    "reasons": [
+      "the WETH control could not be read: The contract function \"underlying\" returned no data (\"0x\").\n\nThis could be due to any of the following:\n  - The contract does not have the function \"underlying\",\n  - The parameters passed to the contract function may be invalid, or\n  - The address is not a contract.\n \nContract Call:\n  address:   0x628ff693426583D9a7FB391E54366292F509D457\n  function:  underlying()\n\nDocs: https://viem.sh/docs/contract/readContract\nVersion: viem@2.57.11",
+      "the USDC stablecoin control could not be read: The contract function \"underlying\" returned no data (\"0x\").\n\nThis could be due to any of the following:\n  - The contract does not have the function \"underlying\",\n  - The parameters passed to the contract function may be invalid, or\n  - The address is not a contract.\n \nContract Call:\n  address:   0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22\n  function:  underlying()\n\nDocs: https://viem.sh/docs/contract/readContract\nVersion: viem@2.57.11",
+      "the USDbC stablecoin control could not be read: The contract function \"underlying\" returned no data (\"0x\").\n\nThis could be due to any of the following:\n  - The contract does not have the function \"underlying\",\n  - The parameters passed to the contract function may be invalid, or\n  - The address is not a contract.\n \nContract Call:\n  address:   0x703843C3379b52F9FF486c9f5892218d2a065cC8\n  function:  underlying()\n\nDocs: https://viem.sh/docs/contract/readContract\nVersion: viem@2.57.11",
+      "the DAI stablecoin control could not be read: The contract function \"underlying\" returned no data (\"0x\").\n\nThis could be due to any of the following:\n  - The contract does not have the function \"underlying\",\n  - The parameters passed to the contract function may be invalid, or\n  - The address is not a contract.\n \nContract Call:\n  address:   0x73b06D8d18De422E269645eaCe15400DE7462417\n  function:  underlying()\n\nDocs: https://viem.sh/docs/contract/readContract\nVersion: viem@2.57.11",
+      "the USDS stablecoin control could not be read: The contract function \"underlying\" returned no data (\"0x\").\n\nThis could be due to any of the following:\n  - The contract does not have the function \"underlying\",\n  - The parameters passed to the contract function may be invalid, or\n  - The address is not a contract.\n \nContract Call:\n  address:   0xb6419c6C2e60c4025D6D06eE4F913ce89425a357\n  function:  underlying()\n\nDocs: https://viem.sh/docs/contract/readContract\nVersion: viem@2.57.11"
+    ]
+  },
+  "cbETH": {
+    "error": "The contract function \"underlying\" returned no data (\"0x\").\n\nThis could be due to any of the following:\n  - The contract does not have the function \"underlying\",\n  - The parameters passed to the contract function may be invalid, or\n  - The address is not a contract.\n \nContract Call:\n  address:   0x3bf93770f2d4a794c3d9EBEfBAeBAE2a8f09A5E5\n  function:  underlying()\n\nDocs: https://viem.sh/docs/contract/readContract\nVersion: viem@2.57.11"
+  },
+  "reference": {
+    "ok": false,
+    "reason": "the reference feeds could not be read: The contract function \"decimals\" returned no data (\"0x\").\n\nThis could be due to any of the following:\n  - The contract does not have the function \"decimals\",\n  - The parameters passed to the contract function may be invalid, or\n  - The address is not a contract.\n \nContract Call:\n  address:   0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70\n  function:  decimals()\n\nDocs: https://viem.sh/docs/contract/readContract\nVersion: viem@2.57.11"
+  }
+}

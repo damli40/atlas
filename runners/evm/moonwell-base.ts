@@ -57,3 +57,36 @@ export const CBETH_FEED = {
   /** [cbETHETH_ORACLE_OEV_WRAPPER]: getFeed("cbETH") from block 42194663 (18 decimals, a ratio). */
   afterProposal: "0x67996D1ff7a3711a91E2839d1059Fcb950C0495D" as Address,
 } as const;
+
+/** [CHAINLINK_ETH_USD_OEV_WRAPPER]: what getFeed("WETH") returns at these blocks (D03-02). Recorded, never used as a reference. */
+export const ETH_USD_OEV_WRAPPER: Address = "0xeb083d234ec636A10325ea42bCbbE09Aa56d1547";
+
+/** More markets [MOONWELL_<name>], used by the stablecoin control. */
+export const MOONWELL_USDBC: Address = "0x703843C3379b52F9FF486c9f5892218d2a065cC8"; // [MOONWELL_USDBC]
+export const MOONWELL_DAI: Address = "0x73b06D8d18De422E269645eaCe15400DE7462417"; // [MOONWELL_DAI]
+export const MOONWELL_USDS: Address = "0xb6419c6C2e60c4025D6D06eE4F913ce89425a357"; // [MOONWELL_USDS]
+
+/**
+ * Market symbol (the underlying token's on-chain symbol, the key getFeed uses) → mToken.
+ * The runner re-reads the symbol from the chain and refuses a read whose symbol differs.
+ * A market missing here is recorded as not measured, never guessed.
+ */
+export const MARKETS: Readonly<Record<string, Address>> = {
+  WETH: MOONWELL_WETH,
+  cbETH: MOONWELL_cbETH,
+  USDC: MOONWELL_USDC,
+  USDbC: MOONWELL_USDBC,
+  DAI: MOONWELL_DAI,
+  USDS: MOONWELL_USDS,
+};
+
+/**
+ * US-dollar stablecoin markets for the units sanity control (each must read 0.95–1.05 USD).
+ * EURC is a touched market but a euro coin, so a USD band does not apply to it: left out on purpose.
+ */
+export const USD_STABLECOINS = ["USDC", "USDbC", "DAI", "USDS"] as const;
+
+/** The 14 markets whose feed MIP-X43 changes on Base (from the 14 FeedSet events at block 42194663). */
+export const TOUCHED_MARKETS = [
+  "DAI", "USDC", "USDbC", "cbETH", "AERO", "cbBTC", "EURC", "WELL", "USDS", "tBTC", "VIRTUAL", "MORPHO", "cbXRP", "MAMO",
+] as const;

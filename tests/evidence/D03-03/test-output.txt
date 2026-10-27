@@ -1,0 +1,19 @@
+
+ RUN  v5.0.5 /Users/Admin/Documents/Atlas-wt/level1
+
+ ✓ tests/unit/evm-level1.test.ts > EVM runner, offline > run() refuses a missing fork block instead of defaulting it 1ms
+ ✓ tests/unit/evm-level1.test.ts > EVM runner, offline > control() refuses to run without a fork block 0ms
+ ✓ tests/unit/evm-level1.test.ts > EVM runner, offline > run() refuses shapes Level 1 does not run, and gate-rejected experiments 0ms
+ ✓ tests/unit/evm-level1.test.ts > EVM runner, offline > control reasons: a good record passes; each failing check names itself 0ms
+ ✓ tests/unit/evm-level1.test.ts > EVM runner, offline > stablecoin band is 0.95–1.05 USD inclusive 0ms
+ ✓ tests/unit/evm-level1.test.ts > EVM runner, offline > reference arithmetic: $1,965.58 × 1.12266 = $2,206.68 in USD 1e18 0ms
+ ✓ tests/unit/evm-level1.test.ts > EVM runner, offline > a run whose control failed makes the 2200 bet can't check, whatever was read 2ms
+ ✓ tests/unit/evm-level1.test.ts > Level 1 on Base forks (MIP-X43) > after the fact, block 42194663: cbETH ≈ $1.12, reference ≈ $2,2xx, control passed, 2200 bet judged 1353ms
+ ✓ tests/unit/evm-level1.test.ts > Level 1 on Base forks (MIP-X43) > one block before, 42194662: cbETH ≈ $2,2xx on the old feed 0xB0Ba… 1321ms
+ ✓ tests/unit/evm-level1.test.ts > Level 1 on Base forks (MIP-X43) > assertPreExecution passes at 42194662 and fails at 42194663 with "fork is not pre-execution" 2580ms
+
+ Test Files  1 passed (1)
+      Tests  10 passed (10)
+   Start at  06:42:42
+   Duration  5.54s (tests 97%, import 2%, transform 1%)
+

@@ -1,0 +1,185 @@
+{
+  "caption": "fork of Base at block 42194662, one block before MIP-X43 ran (read only, nothing applied)",
+  "experiment": {
+    "id": "level1-cbETH",
+    "target": {
+      "kind": "github-pr",
+      "ref": "moonwell-fi/moonwell-contracts-v2#578",
+      "codeSha256": "not-hashed-in-D03-03 (Level 1 reads chain state only; PR files are hashed by D03-04)",
+      "commit": "9a6738e189fa903bffa0abf10b9dd7ed2fe73a18"
+    },
+    "runner": "evm",
+    "params": {
+      "shape": "price-read",
+      "markets": [
+        "cbETH"
+      ]
+    },
+    "proposedBy": {
+      "role": "human"
+    },
+    "gate": {
+      "allowed": true
+    }
+  },
+  "run": {
+    "id": "3oveqT4bJV",
+    "experimentId": "level1-cbETH",
+    "runner": "evm",
+    "executor": "local",
+    "codeSha256": "not-hashed-in-D03-03 (Level 1 reads chain state only; PR files are hashed by D03-04)",
+    "forkBlock": 42194662,
+    "chainId": 8453,
+    "startedAt": "2026-10-27T05:41:37.561Z",
+    "finishedAt": "2026-10-27T05:41:52.498Z",
+    "trace": [
+      {
+        "t": 0,
+        "event": "fork_started",
+        "data": {
+          "forkBlock": 42194662,
+          "chainId": 8453
+        }
+      },
+      {
+        "t": 1,
+        "event": "control_matched",
+        "data": {
+          "control": {
+            "forkBlock": 42194662,
+            "chainId": 8453,
+            "blockNumberOnFork": 42194662,
+            "stablecoins": [
+              {
+                "symbol": "USDC",
+                "mToken": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22",
+                "tokenDecimals": 6,
+                "feedAddress": "0x7e860098F58bBFC8648a4311b374B1D669a2bc6B",
+                "rawUnderlyingPrice": "999900000000000000000000000000",
+                "priceUsd1e18": "999900000000000000",
+                "inBand": true
+              },
+              {
+                "symbol": "USDbC",
+                "mToken": "0x703843C3379b52F9FF486c9f5892218d2a065cC8",
+                "tokenDecimals": 6,
+                "feedAddress": "0x7e860098F58bBFC8648a4311b374B1D669a2bc6B",
+                "rawUnderlyingPrice": "999900000000000000000000000000",
+                "priceUsd1e18": "999900000000000000",
+                "inBand": true
+              },
+              {
+                "symbol": "DAI",
+                "mToken": "0x73b06D8d18De422E269645eaCe15400DE7462417",
+                "tokenDecimals": 18,
+                "feedAddress": "0x591e79239a7d679378eC8c847e5038150364C78F",
+                "rawUnderlyingPrice": "999900000000000000",
+                "priceUsd1e18": "999900000000000000",
+                "inBand": true
+              },
+              {
+                "symbol": "USDS",
+                "mToken": "0xb6419c6C2e60c4025D6D06eE4F913ce89425a357",
+                "tokenDecimals": 18,
+                "feedAddress": "0xAeC8E8E3696fc5fcd954eb3ebC26B72FC2FE8E8e",
+                "rawUnderlyingPrice": "999635870000000000",
+                "priceUsd1e18": "999635870000000000",
+                "inBand": true
+              }
+            ],
+            "weth": {
+              "read": {
+                "mToken": "0x628ff693426583D9a7FB391E54366292F509D457",
+                "underlying": "0x4200000000000000000000000000000000000006",
+                "symbol": "WETH",
+                "tokenDecimals": 18,
+                "feedAddress": "0xeb083d234ec636A10325ea42bCbbE09Aa56d1547",
+                "feedDecimals": 8,
+                "feedDescription": "ETH / USD",
+                "rawUnderlyingPrice": "1965580189520000000000",
+                "priceUsd1e18": "1965580189520000000000"
+              },
+              "wiredFeedRound": {
+                "roundId": "18446744073709762014",
+                "answer": "196558018952",
+                "updatedAt": "1771178585"
+              },
+              "expectedRawUnderlyingPrice": "1965580189520000000000",
+              "matched": true
+            },
+            "wiredVsRaw": {
+              "wiredFeed": "0xeb083d234ec636A10325ea42bCbbE09Aa56d1547",
+              "wiredFeedIsRawAggregator": false,
+              "wiredFeedAnswer": "196558018952",
+              "wiredFeedDecimals": 8,
+              "rawAggregator": "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70",
+              "rawAnswer": "196558018952",
+              "rawDecimals": 8,
+              "rawRoundId": "18446744073709762014",
+              "equalAt1e18": true
+            },
+            "passed": true,
+            "reasons": []
+          }
+        }
+      },
+      {
+        "t": 2,
+        "event": "price_read",
+        "data": {
+          "mToken": "0x3bf93770f2d4a794c3d9EBEfBAeBAE2a8f09A5E5",
+          "underlying": "0x2Ae3F1Ec7F1F5012CFEab0185bfc7aa3cf0DEc22",
+          "symbol": "cbETH",
+          "tokenDecimals": 18,
+          "feedAddress": "0xB0Ba0C5D7DA4ec400C1C3E5ef2485134F89918C5",
+          "feedDecimals": 18,
+          "feedDescription": null,
+          "rawUnderlyingPrice": "2206683650838065175827",
+          "priceUsd1e18": "2206683650838065175827"
+        }
+      },
+      {
+        "t": 3,
+        "event": "reference",
+        "data": {
+          "key": "refUsd1e18:cbETH",
+          "value": "2206683650838065175827",
+          "method": "Chainlink ETH/USD × cbETH/ETH at block 42194662, decimals 8 and 18 read on-chain",
+          "inputs": {
+            "ethUsd": {
+              "address": "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70",
+              "decimals": 8,
+              "answer": "196558018952",
+              "roundId": "18446744073709762014"
+            },
+            "cbEthEth": {
+              "address": "0x806b4Ac04501c29769051e42783cF04dCE41440b",
+              "decimals": 18,
+              "answer": "1122662744874806300",
+              "roundId": "18446744073709552673"
+            }
+          }
+        }
+      }
+    ],
+    "result": {
+      "measured": {
+        "priceUsd1e18:cbETH": "2206683650838065175827",
+        "rawUnderlyingPrice:cbETH": "2206683650838065175827",
+        "feedAddress:cbETH": "0xB0Ba0C5D7DA4ec400C1C3E5ef2485134F89918C5",
+        "feedDecimals:cbETH": 18,
+        "feedDescription:cbETH": null,
+        "tokenDecimals:cbETH": 18
+      },
+      "notMeasured": {},
+      "references": {
+        "refUsd1e18:cbETH": {
+          "value": "2206683650838065175827",
+          "method": "Chainlink ETH/USD × cbETH/ETH at block 42194662, decimals 8 and 18 read on-chain"
+        }
+      }
+    },
+    "controlPassed": true,
+    "controlRunId": "dfzMzaiW5i"
+  }
+}

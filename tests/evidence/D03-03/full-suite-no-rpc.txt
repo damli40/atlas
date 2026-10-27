@@ -1,0 +1,10 @@
+$ vitest run
+
+ RUN  v5.0.5 /Users/Admin/Documents/Atlas-wt/level1
+
+
+ Test Files  25 passed (25)
+      Tests  301 passed | 11 skipped (312)
+   Start at  06:43:03
+   Duration  3.57s (tests 85%, import 13%, transform 2%, worker 1%)
+
