@@ -46,7 +46,7 @@ export function ProofCardPage({ api, runId }: { api: Api; runId: string }) {
     };
   }, [api, runId]);
   return (
-    <div className="proof-page">
+    <main className="proof-page">
       {file ? (
         <ProofCard file={file} api={api} />
       ) : error ? (
@@ -56,7 +56,7 @@ export function ProofCardPage({ api, runId }: { api: Api; runId: string }) {
       ) : (
         <p className="muted">Reading the .atlas.json for run {runId}…</p>
       )}
-    </div>
+    </main>
   );
 }
 

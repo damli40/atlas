@@ -44,7 +44,7 @@ function OutcomeCell({ v, format, measures, testId }: { v: Verdict | undefined; 
 export function DiffView({ diff }: { diff: string }) {
   const lines = diff.replace(/\n$/, "").split("\n");
   return (
-    <pre className="code diff" data-testid="change-diff" aria-label="the proposed diff">
+    <pre className="code diff" data-testid="change-diff" aria-label="the proposed diff" tabIndex={0}>
       {lines.map((l, i) => (
         <div key={i} className={`line${l.startsWith("+") && !l.startsWith("+++") ? " add" : l.startsWith("-") && !l.startsWith("---") ? " del" : ""}`}>
           {l === "" ? " " : l}
@@ -85,7 +85,7 @@ export function ChangeResult({ answer, format = asStored }: { answer: ChangeAnsw
         {answer.toward && (
           <>
             <h3>What you expected (written by plain code from the sealed bets)</h3>
-            <pre className="code toward">{answer.toward}</pre>
+            <pre className="code toward" tabIndex={0} aria-label="what you expected">{answer.toward}</pre>
           </>
         )}
         {answer.diff && (

@@ -39,7 +39,10 @@
 .pc-judged { margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 17px; color: var(--muted); }
 .pc-score { grid-area: score; min-width: 0; }
 .pc-bets { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 17px; }
-.pc-bets th, .pc-bets td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
+.pc-bets th, .pc-bets td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: break-word; }
+/* D07-04: outcome words never break inside a word (a long id may still wrap at its hyphens). */
+.pc-out { white-space: nowrap; }
+.pc-who { overflow-wrap: anywhere; }
 .pc-bets th { color: var(--muted); font-weight: 500; font-size: 14px; }
 .pc-who { font-weight: 600; }
 .pc-out { font-weight: 600; }
@@ -69,6 +72,8 @@
   .pc-title { font-size: 24px; }
   .pc-bets { font-size: 15px; }
   .pc-bets th:nth-child(2), .pc-bets td:nth-child(2) { display: none; }
+  .pc-bets .pc-out { white-space: normal; }
+  .pc-bets td.pc-out { min-width: 5.5em; }
   .pc-bets th:nth-child(4), .pc-bets td:nth-child(4) { white-space: nowrap; overflow-wrap: normal; }
   .pc-bets th, .pc-bets td { padding: 6px 5px; }
   .pc-facts { font-size: 15px; }

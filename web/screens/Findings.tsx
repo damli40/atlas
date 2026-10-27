@@ -168,7 +168,7 @@ function PickLines({ api, target, onChoose, locked, chosen }: { api: Api; target
             </select>
           </label>
           <p className="muted small">Click a line to start; click a later line to end the range.</p>
-          <pre className="code" data-testid="pick-code">
+          <pre className="code" data-testid="pick-code" tabIndex={0} aria-label="the file's lines">
             {lines.map((l, i) => {
               const n = i + 1;
               const sel = from !== null && to !== null && n >= from && n <= to;

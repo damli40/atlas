@@ -23,6 +23,7 @@ import { notShownAsFact } from "../../src/trust";
 import { PricePipe } from "../machines/pricepipe/PricePipe";
 import { ChangePanel } from "./Change";
 import { AdversaryPanel } from "./Adversary";
+import { plural } from "../../src/words";
 
 export const PR_FORK_BLOCK = { level2: MOONWELL_FORK_BLOCKS.level2.block, level1: MOONWELL_FORK_BLOCKS.level1.block } as const;
 
@@ -181,7 +182,7 @@ export function MoonwellFlow({ api, onRoundOpen }: { api: Api; onRoundOpen?: (op
               {finding && fileOf(finding.file) !== undefined && (
                 <details className="small">
                   <summary>What you know before betting. Each Meta model that bets (Muse Spark, and Muse Spark Open when chosen) gets exactly this text, nothing more (no prices).</summary>
-                  <pre className="code" data-testid="bet-context">
+                  <pre className="code" data-testid="bet-context" tabIndex={0} aria-label="what you and the model see">
                     {moonwellBetContext({ level, question: q, finding, fileText: fileOf(finding.file)!, pr: { ref: target.ref, title: target.title, ...(target.commit !== undefined ? { commit: target.commit } : {}), fileCount: target.files.length, codeSha256: target.codeSha256 } })}
                   </pre>
                 </details>
@@ -241,7 +242,7 @@ export function MoonwellFlow({ api, onRoundOpen }: { api: Api; onRoundOpen?: (op
               {notShownAsFact(result.run) === null && typeof m["priceSources:cbETH"] === "number" && (
                 <>
                   <dt>price sources</dt>
-                  <dd>cbETH's read touched {m["priceSources:cbETH"]} price source(s) (call trace). Observed, not part of the pre-registered rule: PASS-RULE.md counts sources only after a proposed change.</dd>
+                  <dd>cbETH's read touched {plural(m["priceSources:cbETH"] as number, "price source")} (call trace). Observed, not part of the pre-registered rule: PASS-RULE.md counts sources only after a proposed change.</dd>
                 </>
               )}
             </dl>

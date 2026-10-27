@@ -86,7 +86,7 @@ export function LogStrip({ events, dropped, open, onToggle }: LogStripProps) {
         </button>
       </div>
       {open && (
-        <ol className="logstrip-lines" ref={list} data-testid="logstrip-lines">
+        <ol className="logstrip-lines" ref={list} data-testid="logstrip-lines" tabIndex={0} aria-label="agent log lines">
           {rows.length === 0 && <li className="logstrip-empty">No steps yet. Each step of the round appears here as it happens.</li>}
           {rows.map((r) => (
             <li key={r.key} className={r.model ? "model" : r.plainCode ? "plain" : "person"} data-testid="logstrip-line" title={`${r.time} ${r.who}${r.model ? ` (${r.model})` : ""}: ${r.action}`}>
