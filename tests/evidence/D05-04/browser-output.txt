@@ -1,0 +1,22 @@
+=== FIXTURE ROUND (withRpcRetry), 1920×1080, strip open
+model slot: Model's bets: Muse Spark 1.3 (muse-spark-1.3) Muse Spark 1.3 (muse-spark-1.3) has sealed 3 bets. Its answers stay hidden until the run; only the hashes are shown now. calls: sealed at 2026-10-27T07:29:20.442Z · hash fbf50abcd20a… totalWaitMs: sealed at 2026-10-27T07:29:20.442Z · hash 1cac08066efa… outcome: sealed at 2026-10-27T07:29:20.442Z · hash 720cac5cf88d…
+pre-run strip holds a model bet value: false | model values (revealed after the run): ["5","12000","throws"]
+why (fixture): Ask why Only sentences that point at this run's evidence (a trace event or a finding's lines) are shown. 3 dropped: no run evidence. Atlas, plain code: it waited 4 times, 3000 ms each (trace #4, #9, #14, #19) · evidence: trace #4: sleep; trace #9: sleep; trace #14: sleep; trace #19: sleep Atlas, plain code: call 5 threw; no more attempts (trace #23) · evidence: trace #23: throws
+strip (fixture): {"lines":11,"fullyVisible":11,"newestVisible":true,"minFontPx":22,"everyRowOneLine":true,"listHeightPx":988,"rowsThatFitWithoutScrolling":24,"cutWithEllipsis":0}
+fixture runId: eRopGsrp2a | proof: {"ok":true,"runId":"eRopGsrp2a","captions":["Pre-existing: written before the hackathon (listed in PRE-EXISTING.md)"],"published":true}
+page errors: none
+=== MOONWELL ROUND (PR #578, Level 2), 1920×1080, strip open
+investigator answered after 19933 ms
+investigator places: ["proposals/ChainlinkOracleConfigs.sol:44-53","proposals/ChainlinkOracleConfigs.sol:142-144","proposals/mips/mip-x43/mip-x43.sol:147-169"] | removed: 0
+model slot: Model's bets: Muse Spark 1.3 (muse-spark-1.3) Muse Spark 1.3 (muse-spark-1.3) has sealed 1 bet. Its answers stay hidden until the run; only the hashes are shown now. priceUsd1e18:cbETH: sealed at 2026-10-27T07:29:51.591Z · hash 7b44a0956889…
+strip before the run: {"lines":10,"fullyVisible":10,"newestVisible":true,"minFontPx":22,"everyRowOneLine":true,"listHeightPx":988,"rowsThatFitWithoutScrolling":24,"cutWithEllipsis":6}
+run answered after 4819 ms
+model bets revealed after the run: [{"kind":"declined","reason":"unknown: cbETH USD price at fork block 2026-02-15 is after knowledge cutoff and depends on live oracle state"}]
+pre-run strip holds the person's 2200 or a model bet value: false
+verdict row cbETH: After this proposal is applied, what will Moonwell's oracle report for 1 cbETH, in USD? 2200 USD (±10%) · didn't match declined · can't check (the bettor declined) $1.12 judged by src/judge.ts $2,206.68 Chainlink ETH/USD × cbETH/ETH at block 42194662, decimals 8 and 18 read on-chain
+captions: Read with this run fork of Base one block before MIP-X43 ran; Atlas applied the proposal's oracle-feed actions as the governor the cbETH line was picked by a person; the Investigator pointed elsewhere .atlas.json for run mwTaxvHFzB: written to the proofs folder. Anyone can replay it at /replay/mwTaxvHFzB.
+why (moonwell): Ask why Only sentences that point at this run's evidence (a trace event or a finding's lines) are shown. 1 dropped: no run evidence. Atlas, plain code: a person chose proposals/ChainlinkOracleConfigs.sol lines 42–42 for this round · evidence: proposals/ChainlinkOracleConfigs.sol lines 42–42 Atlas, plain code: the known-case control matched before anything was judged (trace #2) · evidence: trace #2: control_matched Atlas, plain code: Atlas set cbETH's oracle feed as the governor, as the proposal does (trace #21) · evidence: trace #21: feed_set Atlas, plain code: cbETH's price read after the change was $1.12 (trace #35) · evidence: trace #35: price_read Atlas, plain code: before the change, cbETH's price read touched 2 price sources (trace #47) · evidence: trace #47: call_trace Atlas, plain code: after the change, cbETH's price read touched 1 price source (trace #48) · evidence: trace #48: call_trace
+strip after the run (1920×1080): {"lines":21,"fullyVisible":21,"newestVisible":true,"minFontPx":22,"everyRowOneLine":true,"listHeightPx":988,"rowsThatFitWithoutScrolling":24,"cutWithEllipsis":8}
+390 px: page wider than the screen: true | strip below the flow: true
+moonwell runId: mwTaxvHFzB | proof: {"ok":true,"runId":"mwTaxvHFzB","captions":["fork of Base one block before MIP-X43 ran; Atlas applied the proposal's oracle-feed actions as the governor","the cbETH line was picked by a person; the Investigator pointed elsewhere"],"published":true} | session events: 20
+page errors: none
