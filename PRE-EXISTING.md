@@ -13,7 +13,8 @@ can tell it apart. Anything on this list that appears on screen carries a
 - The "oracle table" of what withRpcRetry does in 8 scenarios (tests/oracle/), written
   Oct 22, 2026 as planning. It is test data, not product code.
 - Moonwell's MIP-X43 files (PR moonwell-fi/moonwell-contracts-v2 #578, merged Feb 10,
-  2026, BSD-3-Clause, notice kept in contracts/lib/moonwell/). Third-party code Atlas
+  2026; the repo is BSD-3-Clause, and mip-x43.sol itself declares GPL-3.0-or-later;
+  both notices are kept in contracts/lib/moonwell/). Third-party code Atlas
   re-runs on a fork. Atlas did not write it and does not judge it.
 - Public facts researched Oct 26 (before the window): the execution block 42194663,
   the oracle, market and feed addresses, and the live before/after prices. These are
