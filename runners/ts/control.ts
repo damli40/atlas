@@ -18,6 +18,7 @@ import { checkChange, tsChangeContext } from "../change.ts";
 import { BUILTINS_CHANGED_REASON, RESULT_MARKER, type HarnessOutput, type WorkerRequest, type WorkerResponse } from "./harness.ts";
 import { SUCCESS_VALUE, harnessInputFromShape, scenarioFromOracleInput, type OracleInput } from "./shapes.ts";
 import { TS_TARGET_EXPORTS } from "../../src/target-name.ts";
+import { runCallControl, runCallExperiment } from "./call-runner.ts";
 
 const REPO_ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const FIXTURES_DIR = resolve(REPO_ROOT, "tests/fixtures");
@@ -358,13 +359,22 @@ export async function runExperiment(
   };
 }
 
-/** The TS Runner: every run is preceded by a control on the same code through the same executor. */
+/**
+ * The TS Runner: every run is preceded by a control on the same code through the same executor.
+ * E1: a pasted target runs "call-function" experiments; its control is the call-function known-case check
+ * (runners/ts/call-runner.ts), which checks the harness on fixed reference functions.
+ */
 export function tsRunner(executor: Executor = localExecutor): Runner {
   return {
     kind: "ts",
-    control: (target) => control(target, executor),
+    control: async (target) => (target.kind === "pasted" ? (await runCallControl({ executor })).run : control(target, executor)),
     async run(exp: Experiment, opts): Promise<Run> {
       if (!exp.gate.allowed) throw new Error(`experiment ${exp.id} was rejected by the gate: ${exp.gate.reason}`);
+      if (exp.params.shape === "call-function" || exp.target.kind === "pasted") {
+        if (exp.params.shape !== "call-function" || exp.target.kind !== "pasted") throw new Error(`"call-function" runs on pasted targets, and pasted targets run "call-function" only`);
+        const ctl = await runCallControl({ executor });
+        return runCallExperiment(exp, ctl.run, { executor, ...(opts.replayOf ? { replayOf: opts.replayOf } : {}) });
+      }
       const ctl = await runControl(readFixture(exp.target), { executor, expectedSha256: exp.target.codeSha256 });
       return runExperiment(exp, ctl.run, {
         executor,
@@ -372,7 +382,11 @@ export function tsRunner(executor: Executor = localExecutor): Runner {
         ...(opts.replayOf ? { replayOf: opts.replayOf } : {}),
       });
     },
-    replayWithChange: (run: Run, change: Change, ctx: ReplayContext) => replayTsWithChange(run, change, ctx, executor),
+    replayWithChange: (run: Run, change: Change, ctx: ReplayContext) => {
+      // E1: changes to pasted code are not replayed yet (the Fixer works on the fixture and the Moonwell PR).
+      if (ctx.experiment.params.shape === "call-function") return Promise.reject(new Error("replaying a change on pasted code is not built yet"));
+      return replayTsWithChange(run, change, ctx, executor);
+    },
   };
 }
 
