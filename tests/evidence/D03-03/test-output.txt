@@ -1,5 +1,5 @@
 
- RUN  v5.0.5 /Users/Admin/Documents/Atlas-wt/level1
+ RUN  v5.0.5 <repo>
 
  ✓ tests/unit/evm-level1.test.ts > EVM runner, offline > run() refuses a missing fork block instead of defaulting it 1ms
  ✓ tests/unit/evm-level1.test.ts > EVM runner, offline > control() refuses to run without a fork block 0ms

@@ -1,5 +1,5 @@
 
- RUN  v5.0.5 /Users/Admin/Documents/Atlas-wt/ghtarget
+ RUN  v5.0.5 <repo>
 
  ✓ tests/unit/github-target.test.ts > GitHub target with a mocked fetch > sorts by path and hashes path + \n + bytes + \n in that order 18ms
  ✓ tests/unit/github-target.test.ts > GitHub target with a mocked fetch > gives the same fingerprint whatever order GitHub lists the files in 1ms

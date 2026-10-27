@@ -1,8 +1,8 @@
 // Secret scan for files about to be committed. Run by .githooks/pre-commit.
 //
 // What it blocks, in plain words:
-// 1. The REAL Meta API key and the REAL Base RPC URL, loaded at run time from the environment or
-//    from their config files (~/.config/meta-model-api/env, ~/.config/atlas/rpc.env). Their values
+// 1. The REAL Meta API key, the REAL Base RPC URL and the REAL Baseten key, loaded at run time from the environment or
+//    from their config files (~/.config/meta-model-api/env, ~/.config/atlas/rpc.env, ~/.config/baseten/env). Their values
 //    are never printed: a hit is reported as "<file>: contains a secret (<which one>)".
 // 2. Generic shapes of secrets: sk-... API keys, Bearer tokens, QuickNode URLs with a token,
 //    Alchemy /v2/ keys, Infura /v3/ keys.
@@ -46,11 +46,14 @@ function readEnvFile(path) {
 export function loadRealSecrets() {
   const meta = readEnvFile(join(homedir(), ".config", "meta-model-api", "env"));
   const rpc = readEnvFile(join(homedir(), ".config", "atlas", "rpc.env"));
+  const baseten = readEnvFile(join(homedir(), ".config", "baseten", "env"));
   const metaName = "META_" + "API_KEY";
   const rpcName = "BASE_" + "RPC_URL";
+  const basetenName = "BASETEN_" + "API_KEY";
   const found = [
     { what: "the real Meta API key", value: process.env[metaName] || meta[metaName] },
     { what: "the real Base RPC URL", value: process.env[rpcName] || rpc[rpcName] },
+    { what: "the real Baseten API key", value: process.env[basetenName] || baseten[basetenName] },
   ];
   const secrets = found.filter((s) => typeof s.value === "string" && s.value.length >= 12);
   // An RPC URL's token is often the path after the host; block the path on its own too.
