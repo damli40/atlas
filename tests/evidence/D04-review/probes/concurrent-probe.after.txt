@@ -1,0 +1,6 @@
+secs 4 live anvils after: 0
+L2 control true L2 measured deep-equal to evidence file: true refs equal: true
+L2 cbETH 1122662744874806300 sources 1 blockAfterApply 42194676
+L1 control true L1 cbETH 1122662744874806300 forkBlock 42194663 notMeasured {}
+fork block ts 1771178671 next mined ts 1771178672 delta s 1 now 1793085063
+live anvils at end: 0

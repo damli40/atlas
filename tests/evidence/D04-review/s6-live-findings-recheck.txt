@@ -1,0 +1,1 @@
+previously verified findings: 39; still verified under the whole-line + 12-char rule: 39; now dropped: 0

@@ -1,0 +1,29 @@
+# S4 proof in throwaway clones of HEAD
+
+## Case (b): PASS-RULE.md edited and committed
+     × (b) exactly one commit touches PASS-RULE.md 3ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: PASS-RULE.md was changed after it was first committed (2 commits touch it: 7aef96f, 98e71ef). Amendments must be appended as a new dated file next to it (for example proofs/moonwell/PASS-RULE-AMENDMENT-YYYY-MM-DD.md), never as edits to PASS-RULE.md.: expected 2 to be 1 // Object.is equality
+     82|         "Amendments must be appended as a new dated file next to it (f…
+      Tests  1 failed | 4 passed (5)
+
+## Case (a): a branch from before PASS-RULE.md adds tests/evidence/EARLY/level9.json {runner: evm}, merged into main
+     × (a) PASS-RULE.md's first commit is an ancestor of the commit that first added each EVM run 65ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/unit/pass-rule-order.test.ts > pass rule is committed before any EVM run, and never edited (pre-registration) > (a) PASS-RULE.md's first commit is an ancestor of the commit that first added each EVM run
+AssertionError: PASS-RULE.md's first commit is not an ancestor of the commit adding tests/evidence/EARLY/level9.json: the run may predate the rule: expected false to be true // Object.is equality
+    113|         ancestor = false;
+    115|       expect(ancestor, `PASS-RULE.md's first commit is not an ancestor…
+      Tests  1 failed | 4 passed (5)
+
+## The OLD test on both tampered clones (passes both: the bug)
+cloneA old test:
+ ✓ tests/unit/pass-rule-order.test.ts > pass rule is committed before any EVM run (pre-registration) > PASS-RULE.md has an adding commit 15ms
+ ✓ tests/unit/pass-rule-order.test.ts > pass rule is committed before any EVM run (pre-registration) > no EVM run.json has been committed yet, so the order holds trivially 14ms
+ ✓ tests/unit/pass-rule-order.test.ts > pass rule is committed before any EVM run (pre-registration) > recognises an EVM run in both shapes (a single Run, or a file with runs[]) 0ms
+      Tests  3 passed (3)
+cloneB old test:
+ ✓ tests/unit/pass-rule-order.test.ts > pass rule is committed before any EVM run (pre-registration) > PASS-RULE.md has an adding commit 15ms
+ ✓ tests/unit/pass-rule-order.test.ts > pass rule is committed before any EVM run (pre-registration) > no EVM run.json has been committed yet, so the order holds trivially 14ms
+ ✓ tests/unit/pass-rule-order.test.ts > pass rule is committed before any EVM run (pre-registration) > recognises an EVM run in both shapes (a single Run, or a file with runs[]) 0ms
+      Tests  3 passed (3)

@@ -1,0 +1,110 @@
+# Every new regression test file, run on the code before the fixes (scratch checkout of 2ff03b6)
+
+## As written (files that import a module the fix added fail at import)
+     × falseAlarmFromRun: every row is can't check (flagged null) with the control's reason 4ms
+     × the same run with its control passing still flags cbETH only 1ms
+     × controlPassed missing (not true) counts as a failed control 0ms
+     × falseAlarmTable on a Level 2 record: a failed control (or a stablecoin out of band after apply) blanks every flag 1ms
+     × the .atlas.json carries the table, all can't check when the control failed, and a forged flag does not verify 7ms
+     × (a) the cbETH price edited to the person's bet and every verdict re-judged: refused 3ms
+     × (a2) the reference edited: it no longer recomputes from its recorded Chainlink inputs 1ms
+     × (a3) the price-source count edited: refused 1ms
+     × (b) the Level 1 caption on a Level 2 file, and the person-picked caption without a person's cbETH finding: refused 1ms
+     × (c) the trace says the control did not match while controlPassed is true: refused 1ms
+     × (d) a Level 2 shape at the Level 1 block: refused 1ms
+     × (e) experiments[0] is not the experiment of runs[0]: refused 1ms
+     × a run of closing braces is dropped with its reason (before: VERIFIED) 1ms
+     × a fragment from the middle of a line is dropped with its reason (before: VERIFIED) 0ms
+     × matchesWholeLines: blank lines are skipped, partial last lines are not 0ms
+     × latestAnswer / getRoundData / getAnswer in the trace → not measured, with the reason 3ms
+     × evaluatePassRule names it so 1ms
+     × every read passes blockNumber = the fork block 1ms
+     × listeningPort parses anvil's line 0ms
+     × startAnvil answers on the port anvil printed (a stand-in anvil and node) 5088ms
+     × no proposal_derived event → refused (the table would be silently empty) 22ms
+     × not 'the lines did not match the file' for every drop 22ms
+ FAIL  tests/unit/review-day34-redact.test.ts [ tests/unit/review-day34-redact.test.ts ]
+Error: Cannot find module '../../runners/evm/redact.ts' imported from <scratch>/old/tests/unit/review-day34-redact.test.ts
+ FAIL  tests/unit/review-day34-replay.test.ts [ tests/unit/review-day34-replay.test.ts ]
+Error: Cannot find module '../../server/replay-limits' imported from <scratch>/old/tests/unit/review-day34-replay.test.ts
+ FAIL  tests/unit/review-day34-ui.test.tsx [ tests/unit/review-day34-ui.test.tsx ]
+Error: Cannot find module '../../src/falsealarm' imported from <scratch>/old/tests/unit/review-day34-ui.test.tsx
+⎯⎯⎯⎯⎯⎯ Failed Tests 22 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/unit/review-day34-minors.test.tsx > M1: a feed read another way makes the price-source count not measured, never low > latestAnswer / getRoundData / getAnswer in the trace → not measured, with the reason
+ FAIL  tests/unit/review-day34-minors.test.tsx > M2: the single-source line is labelled as observed, not pre-registered > evaluatePassRule names it so
+ FAIL  tests/unit/review-day34-minors.test.tsx > M3: the cbETH reference is read at the fork block its method names > every read passes blockNumber = the fork block
+ FAIL  tests/unit/review-day34-minors.test.tsx > M4: anvil picks its own port and Atlas reads it from anvil's output > listeningPort parses anvil's line
+ FAIL  tests/unit/review-day34-minors.test.tsx > M4: anvil picks its own port and Atlas reads it from anvil's output > startAnvil answers on the port anvil printed (a stand-in anvil and node)
+ FAIL  tests/unit/review-day34-minors.test.tsx > M5: a Level 2 file without the actions it applied does not verify > no proposal_derived event → refused (the table would be silently empty)
+ FAIL  tests/unit/review-day34-minors.test.tsx > M6: the findings panel shows each removed place's real reason > not 'the lines did not match the file' for every drop
+ FAIL  tests/unit/review-day34.test.ts > B1: a run whose control failed never shows a flag > falseAlarmFromRun: every row is can't check (flagged null) with the control's reason
+ FAIL  tests/unit/review-day34.test.ts > B1: a run whose control failed never shows a flag > the same run with its control passing still flags cbETH only
+ FAIL  tests/unit/review-day34.test.ts > B1: a run whose control failed never shows a flag > controlPassed missing (not true) counts as a failed control
+ FAIL  tests/unit/review-day34.test.ts > B1: a run whose control failed never shows a flag > falseAlarmTable on a Level 2 record: a failed control (or a stablecoin out of band after apply) blanks every flag
+ FAIL  tests/unit/review-day34.test.ts > B1: a run whose control failed never shows a flag > the .atlas.json carries the table, all can't check when the control failed, and a forged flag does not verify
+ FAIL  tests/unit/review-day34.test.ts > S3: verify recomputes the file instead of trusting it > (a) the cbETH price edited to the person's bet and every verdict re-judged: refused
+ FAIL  tests/unit/review-day34.test.ts > S3: verify recomputes the file instead of trusting it > (a2) the reference edited: it no longer recomputes from its recorded Chainlink inputs
+ FAIL  tests/unit/review-day34.test.ts > S3: verify recomputes the file instead of trusting it > (a3) the price-source count edited: refused
+ FAIL  tests/unit/review-day34.test.ts > S3: verify recomputes the file instead of trusting it > (b) the Level 1 caption on a Level 2 file, and the person-picked caption without a person's cbETH finding: refused
+ FAIL  tests/unit/review-day34.test.ts > S3: verify recomputes the file instead of trusting it > (c) the trace says the control did not match while controlPassed is true: refused
+ FAIL  tests/unit/review-day34.test.ts > S3: verify recomputes the file instead of trusting it > (d) a Level 2 shape at the Level 1 block: refused
+ FAIL  tests/unit/review-day34.test.ts > S3: verify recomputes the file instead of trusting it > (e) experiments[0] is not the experiment of runs[0]: refused
+ FAIL  tests/unit/review-day34.test.ts > S6: a quote must be whole lines and carry at least 12 letters or digits > a run of closing braces is dropped with its reason (before: VERIFIED)
+ FAIL  tests/unit/review-day34.test.ts > S6: a quote must be whole lines and carry at least 12 letters or digits > a fragment from the middle of a line is dropped with its reason (before: VERIFIED)
+ FAIL  tests/unit/review-day34.test.ts > S6: a quote must be whole lines and carry at least 12 letters or digits > matchesWholeLines: blank lines are skipped, partial last lines are not
+ Test Files  5 failed (5)
+      Tests  22 failed | 3 passed (25)
+
+## Behavioural: S1 tests with the old redact() from anvil.ts (scrubDeep stubbed as identity), B1 and S3
+     × falseAlarmFromRun: every row is can't check (flagged null) with the control's reason 4ms
+     × the same run with its control passing still flags cbETH only 1ms
+     × controlPassed missing (not true) counts as a failed control 0ms
+     × falseAlarmTable on a Level 2 record: a failed control (or a stablecoin out of band after apply) blanks every flag 1ms
+     × the .atlas.json carries the table, all can't check when the control failed, and a forged flag does not verify 7ms
+     × the redaction removes the full URL, the host, the endpoint subdomain and the key, in any case 3ms
+     × setFeed: a refused transaction, and a refused impersonation 16ms
+     × the pre-execution check 2ms
+     × the symbol reads 2ms
+     × the call trace 1ms
+     × a whole Level 2 run on a fork that fails 1ms
+     × scrubDeep: every string of a Run, keys included 0ms
+     × a runner error that still carries the URL is redacted in the 500 body and the agent log 23ms
+     × a finished run whose strings carry the URL is scrubbed before the answer and the .atlas.json 15ms
+     × /replay: an error during the replay is redacted in its body 5ms
+⎯⎯⎯⎯⎯⎯ Failed Tests 15 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  15 failed | 1 passed (16)
+     × falseAlarmFromRun: every row is can't check (flagged null) with the control's reason 4ms
+     × the same run with its control passing still flags cbETH only 1ms
+     × controlPassed missing (not true) counts as a failed control 0ms
+     × falseAlarmTable on a Level 2 record: a failed control (or a stablecoin out of band after apply) blanks every flag 1ms
+     × the .atlas.json carries the table, all can't check when the control failed, and a forged flag does not verify 6ms
+     × (a) the cbETH price edited to the person's bet and every verdict re-judged: refused 2ms
+     × (a2) the reference edited: it no longer recomputes from its recorded Chainlink inputs 1ms
+     × (a3) the price-source count edited: refused 1ms
+     × (b) the Level 1 caption on a Level 2 file, and the person-picked caption without a person's cbETH finding: refused 1ms
+     × (c) the trace says the control did not match while controlPassed is true: refused 2ms
+     × (d) a Level 2 shape at the Level 1 block: refused 1ms
+     × (e) experiments[0] is not the experiment of runs[0]: refused 1ms
+⎯⎯⎯⎯⎯⎯ Failed Tests 12 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  12 failed | 2 passed (14)
+
+## Behavioural: S5 and page tests with the new imports stubbed (old server, old page)
+     × POST /runs and the .atlas.json: a failed control gives can't check on every flag 30ms
+     × a passing control still flags cbETH in the response and the file 6ms
+     × the table: can't check in every flag cell and in the summary, never 'yes' or '1 flagged' 12ms
+     × a market 40% up is 'moved more than 2% (not flagged)' and is counted so, not as unchanged 6ms
+     × a market 0.5% up is 'within 2% (not flagged)', not 'unchanged'; an exactly equal one is 'unchanged' 3ms
+     × defaults are small, and the environment can set them (bad values keep the default) 4ms
+     × at once: a second replay while one runs gets 429 (per session, then across the server) 5005ms
+     × per hour: the session's and the server's hourly caps, then a fresh hour 19ms
+     × an EVM replay without the session header is refused (the per-session cap must not be skipped) 9ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 9 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: expected {} to deeply equal { globalConcurrent: 1, …(3) }
+AssertionError: expected 200 to be 429 // Object.is equality
+AssertionError: expected 200 to be 400 // Object.is equality
+AssertionError: expected false to be true // Object.is equality
+AssertionError: expected 'Every market the proposal touches14 m…' to contain 'The control did not pass'
+Received: "Every market the proposal touches14 markets: 13 unchanged, 1 flagged. A market is flagged when its price after the proposal differs by more than 50% from what it is compared with: cbETH with the raw Chainlink price (ETH/USD × cbETH/ETH, same block), every other market with its own price before the proposal.marketbeforeaftercompared withdifferenceflaggedDAI$1.00$1.00its price before0.0000%noUSDC$1.00$1.00its price before0.0000%noUSDbC$1.00$1.00its price before0.0000%nocbETH$2,206.68$1.12raw Chainlink $2,206.68-99.9491%yesAERO$0.31$0.31its price before0.0000%nocbBTC$68,489.74$68,489.74its price before0.0000%noEURC$1.18$1.18its price before0.0000%noWELL$0.01$0.01its price before0.0000%noUSDS$1.00$1.00its price before0.0000%notBTC$68,265.91$68,265.91its price before0.0000%noVIRTUAL$0.63$0.63its price before0.0000%noMORPHO$1.32$1.32its price before0.0000%nocbXRP$1.49$1.49its price before0.0000%noMAMO$0.01$0.01its price before0.0000%no"
+AssertionError: expected 'no' to be 'moved more than 2% (not flagged)' // Object.is equality
+AssertionError: expected 'no' to be 'within 2% (not flagged)' // Object.is equality
+      Tests  9 failed (9)

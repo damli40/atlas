@@ -1,0 +1,31 @@
+== fa-probe.mts (new)
+control failed -> cbETH flagged: null | rows flagged true: 0
+AERO +40% -> flagged: false diff +40.0000% (web counts flagged===false as 'unchanged')
+no proposal_derived event -> rows: 0
+"} } } } }" -> removed: lines did not match the file (the quoted snippet has 0 letters or digits; at least 12 are needed to pin a place) | normalised: "} } } } }"
+"}\n}\n}\n}\n}\n}" -> removed: lines did not match the file (the quoted snippet has 0 letters or digits; at least 12 are needed to pin a place) | normalised: "} } } } } }"
+"    }\n    }\n}  }  }" -> removed: lines did not match the file (the quoted snippet has 0 letters or digits; at least 12 are needed to pin a place) | normalised: "} } } } }"
+"1| contract A {" -> removed: lines did not match the file (the quoted snippet has 9 letters or digits; at least 12 are needed to pin a place) | normalised: "contract A {"
+mid-token fragment 'ction f() pu' -> removed: lines did not match the file (the quoted snippet has 8 letters or digits; at least 12 are needed to pin a place)
+== leak-probe.mts (new)
+getFeed raw: { key: false, host: true } | redacted by why(): { key: false, host: false }
+SAMPLE: The contract function "getFeed" reverted with the following reason:
+failed to get account for 0x4200000000000000000000000000000000000015: MPP HTTP request to http://127.0.0.1:50217/ failed: HTTP request failed: error sending request: error sending request: client error (Connect): tcp connect error: Connection refused (os error 61)
+
+Contract Call:
+  address:   0xEC942bE8A8114bFD0396A5052c36027f2cA6
+trace reason: { key: false, host: false }
+assertPreExecution: { key: false, host: false }
+applyFeedActions: { key: false, host: false }
+== tamper-probe-rebuilt.mts (new)
+committed file as-is: refused: a Level 2 file must carry its false-alarm table
+rebuilt file: verifies
+T1 edited price + rejudged: refused: run fKqHGIIi2_: measured priceUsd1e18:cbETH is not the value its trace read (1122662744874806300)
+T2 Level 1 caption on Level 2: refused: caption "re-run after the fact, on a fork of Base at block 42194663" is not one this run earns
+T3 trace says control failed: refused: run fKqHGIIi2_: its trace says control_did_not_match but controlPassed is true
+T4 Level 2 at 42194663: refused: a Level 2 (apply-proposal-then-read) run must fork at 42194662, run fKqHGIIi2_ forked at 42194663
+T5 experiments[0] != runs[0]: refused: runs[0] is the run of experiment xTXoToEFru, not of experiments[0] (other)
+== fa-probe-words.mts (new)
+control failed -> words: [ "can't check" ]
+AERO +40% -> words: moved more than 2% (not flagged) | counts: {"markets":14,"controlPassed":true,"cbEthFlagged":true,"within2Pct":12,"unchanged":12,"movedMoreThan2Pct":1,"othersFlagged":0,"cantCheck":0}
+live run -> counts: {"markets":14,"controlPassed":true,"cbEthFlagged":true,"within2Pct":13,"unchanged":13,"movedMoreThan2Pct":0,"othersFlagged":0,"cantCheck":0}
