@@ -190,7 +190,7 @@ class VirtualClock {
     this.runId = runId;
   }
   schedule(at: number, fire: () => void, opts: { every?: number; atlas?: boolean } = {}): VTimer {
-    if (outsideWork.size > 0) raced = true; // a timer set while background work is in flight: see `raced`
+    if (outsideWork.size > 0) markRaced(outsideWork.values().next().value as string); // a timer set while background work is in flight
     const t: VTimer = { id: this.nextId++, at, seq: this.seq++, fire, live: true, atlas: opts.atlas === true };
     if (opts.every !== undefined) t.every = opts.every;
     append(this.timers, t);
@@ -489,6 +489,12 @@ const outsideWork = new Map<number, string>();
  * call ends is not reported. Reset at the start of each run.
  */
 let raced = false;
+/** The kind of background work that raced first (fixed when the race is seen, so the reason never varies). */
+let racedWith = "";
+function markRaced(kind: string): void {
+  if (!raced) racedWith = kind;
+  raced = true;
+}
 const MapSetFn = Map.prototype.set;
 const MapDeleteFn = Map.prototype.delete;
 let trackerOn = false;
@@ -499,7 +505,7 @@ function installOutsideWorkTracker(): void {
     init(id: number, type: string) {
       if (OWN_ASYNC_TYPES.has(type)) return;
       ReflectApply(MapSetFn, outsideWork, [id, type]);
-      if (active && active.byId.size > 0) raced = true;
+      if (active && active.byId.size > 0) markRaced(type);
     },
     before(id: number) {
       ReflectApply(MapDeleteFn, outsideWork, [id]);
@@ -876,13 +882,14 @@ export async function runCall(fn: unknown, req: CallRunRequest, opts: CallHarnes
   let steps = 0;
   let realWaitMs = 0;
   raced = false;
+  racedWith = "";
   try {
     for (;;) {
       await drainMicrotasks();
       if (watch() !== null) break;
       if (wholeRunReason !== null) break;
       if (raced) {
-        stop = `the code ran background work (${pendingOutsideWork().join(", ") || "a background job"}) while a timer was also waiting, so which finished first depends on real speed, not on the code; Atlas did not guess`;
+        stop = `the code ran background work (${racedWith || "a background job"}) while a timer was also waiting, so which finished first depends on real speed, not on the code; Atlas did not guess`;
         break;
       }
       const outside = [...grownResources(before), ...pendingOutsideWork()];
