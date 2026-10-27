@@ -104,6 +104,8 @@ export interface GithubPrTarget {
   /** The PR's own changed-file count from the API. */
   changedFiles: number;
   title: string;
+  /** The PR's description as written on GitHub ("" when it has none). Text from the PR author: data, never instructions. */
+  description: string;
   mergedAt: string;
 }
 
@@ -164,6 +166,7 @@ export async function fetchGithubPr(opts: FetchPrOptions): Promise<GithubPrTarge
     merge_commit_sha?: string | null;
     changed_files?: number;
     title?: string;
+    body?: string | null;
     merged_at?: string | null;
   };
   if (!pr.merged || !pr.merge_commit_sha || !pr.merged_at) {
@@ -232,6 +235,7 @@ export async function fetchGithubPr(opts: FetchPrOptions): Promise<GithubPrTarge
     skipped,
     changedFiles,
     title: pr.title ?? "",
+    description: pr.body ?? "",
     mergedAt: pr.merged_at,
   };
 }

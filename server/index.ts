@@ -25,15 +25,21 @@ const budget = createModelBudget({
 const BET_TIMEOUT_MS = 45_000;
 const chat = createMetaClient({ timeoutMs: BET_TIMEOUT_MS }).chat;
 
+// D04-03: the Investigator reads whole targets (a PR is ~35k tokens), so it gets the client's
+// default time limit (120 s) instead of the bets' 45 s. ATLAS_INVESTIGATOR=off turns it off.
+const investigatorOn = process.env.ATLAS_INVESTIGATOR !== "off";
+const investigatorChat = createMetaClient().chat;
+
 // S7: the live server writes a public refusal record for every gate refusal and can't-check verdict.
 const app = createApp({
   ...(modelBetsOn ? { modelBets: { chat, budget } } : {}),
+  ...(investigatorOn ? { investigator: { chat: investigatorChat, budget } } : {}),
   refusals: fileRefusalWriter(undefined, (e) => console.error(`could not write a refusal record: ${e instanceof Error ? e.message : String(e)}`)),
 });
 
 serve({ fetch: app.fetch, port }, (info) => {
-  console.log(`Atlas server listening on http://localhost:${info.port} (model bets ${modelBetsOn ? "on" : "off"})`);
-  if (modelBetsOn) {
+  console.log(`Atlas server listening on http://localhost:${info.port} (model bets ${modelBetsOn ? "on" : "off"}, investigator ${investigatorOn ? "on" : "off"})`);
+  if (modelBetsOn || investigatorOn) {
     console.log(`model budget: $${budget.spentUsd().toFixed(2)} already spent (usage log, ${spentAtStart.lines} lines${spentAtStart.skipped ? `, ${spentAtStart.skipped} unreadable` : ""})`);
   }
 });

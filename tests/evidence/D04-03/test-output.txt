@@ -1,0 +1,10 @@
+$ vitest run
+
+ RUN  v5.0.5 <repo>
+
+
+ Test Files  27 passed (27)
+      Tests  340 passed | 11 skipped (351)
+   Start at  06:59:40
+   Duration  4.13s (tests 85%, import 13%, transform 2%)
+

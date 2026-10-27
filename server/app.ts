@@ -15,6 +15,12 @@
 //   The model is asked as soon as the experiment is created (when the server was built with
 //   `modelBets`), from the experiment and the plain-code questions only: never the person's bets.
 //   Its answers and rationale stay on the server until POST /runs reveals every bet.
+// - POST /investigate {target: {ref, codeSha256}} | {pr: "owner/repo#N"} (D04-03) → the Investigator
+//   (muse-wonder-1.0, falling back to muse-spark-1.3) reads the target's files and returns up to 3
+//   findings that plain code verified against the file, plus every place it removed and why. A PR is
+//   read at its merge commit, with its title and description. The fixture's finding written by hand
+//   stays as the labelled fallback when no verified finding exists. Limited per session and by the
+//   model budget. The claim sentences are in the answer (model panel) only, never in a log line.
 // - GET /events/:sessionId (D02-05) → SSE of the session's agent events (server/log/). The session
 //   is the `x-atlas-session` header; the server makes one and returns it when absent. Experiments
 //   and bets belong to the session that made them.
@@ -52,9 +58,11 @@ import { checkAnswer, createBetStore, humanBetBody, humanBetsBody, MAX_BETS, MAX
 import type { ChatArgs, ChatResult } from "./meta/client";
 import { CLAIMANT_MODEL } from "./meta/roles/claimant";
 import { modelDisplay, runClaimantBets } from "./meta/roles/claimant-bets";
-import { FIXTURE_FILE, fixtureFinding } from "./meta/roles/fixture-finding";
+import { FIXTURE_FILE, FIXTURE_FINDING_LABEL, fixtureContextRange, fixtureFinding } from "./meta/roles/fixture-finding";
+import { INVESTIGATOR_FALLBACK_MODEL, INVESTIGATOR_MODEL, runInvestigator, type InvestigatorFile } from "./meta/roles/investigator";
+import { fetchGithubPr, type GithubPrTarget } from "./targets/github";
 import { gate, type GateContext } from "../src/gate";
-import type { Experiment, Run, Target, Verdict } from "../src/types";
+import type { Experiment, Finding, Run, Target, Verdict } from "../src/types";
 import type { Executor } from "../runners/runner";
 import { localExecutor } from "../runners/executor/local";
 import { AgentEventError, createAgentLog, sessionEmitter, type AgentLog } from "./log/agentlog";
@@ -141,7 +149,34 @@ export const MAX_BODY_BYTES = 64 * 1024;
 /** Runs kept in memory (with their traces); the oldest are dropped first. */
 export const MAX_RUNS = 1000;
 
+/** The Investigator (D04-03). Absent: POST /investigate answers that no model is asked. */
+export interface InvestigatorOptions {
+  chat: (args: ChatArgs) => Promise<ChatResult>;
+  model?: string;
+  /** null: no fallback model. */
+  fallbackModel?: string | null;
+  /** Reads a merged PR at its merge commit. Default: server/targets/github.ts fetchGithubPr. */
+  fetchPr?: (pr: { owner: string; repo: string; number: number }) => Promise<GithubPrTarget>;
+  /** Shared with model bets when both are on. Default: the model-bets budget, else createModelBudget(). */
+  budget?: ModelBudget;
+}
+
+/** Investigations one session may ask for (each is 1–4 paid model calls). */
+export const MAX_INVESTIGATIONS_PER_SESSION = 3;
+/** The largest target the Investigator reads, in characters (about 150k tokens, about $0.60 of Wonder input). */
+export const MAX_INVESTIGATE_CHARS = 600_000;
+/** Sessions whose investigation counts and findings are kept; the oldest drop first. */
+const MAX_INVESTIGATED_SESSIONS = 1000;
+/** Pull requests kept after reading (their files); the oldest drop first. */
+const MAX_CACHED_PRS = 20;
+
+const investigateBody = z.union([
+  z.object({ target: z.object({ ref: z.string().min(1).max(200), codeSha256: z.string().regex(/^[0-9a-f]{64}$/) }) }).strict(),
+  z.object({ pr: z.string().regex(/^[A-Za-z0-9_.-]{1,100}\/[A-Za-z0-9_.-]{1,100}#[1-9]\d{0,6}$/, "pr must look like owner/repo#123") }).strict(),
+]);
+
 export interface AppOptions {
+  investigator?: InvestigatorOptions;
   executor?: Executor;
   agentLog?: AgentLog;
   betStore?: BetStore;
@@ -155,8 +190,30 @@ export function createApp(opts: AppOptions = {}) {
   const betStore = opts.betStore ?? createBetStore(); // D02-04: experiments and server-sealed bets, per session
   const agentLog = opts.agentLog ?? createAgentLog(); // D02-05: per-session agent events
   const refusals: RefusalWriter = opts.refusals ?? (() => {});
-  const budget = opts.modelBets ? (opts.modelBets.budget ?? createModelBudget()) : undefined;
+  const budget = opts.modelBets?.budget ?? opts.investigator?.budget ?? (opts.modelBets || opts.investigator ? createModelBudget() : undefined);
   const modelChat = opts.modelBets && budget ? budget.wrap(opts.modelBets.chat) : undefined;
+  const investigatorChat = opts.investigator && budget ? budget.wrap(opts.investigator.chat) : undefined;
+  /** Per session: how many investigations it asked for, and the verified findings by target codeSha256. */
+  const investigations = new Map<string, { count: number; findings: Map<string, Finding[]> }>();
+  const investigationsOf = (sessionId: string) => {
+    let s = investigations.get(sessionId);
+    if (s) investigations.delete(sessionId);
+    else s = { count: 0, findings: new Map() };
+    investigations.set(sessionId, s); // most recently used last
+    while (investigations.size > MAX_INVESTIGATED_SESSIONS) investigations.delete(investigations.keys().next().value!);
+    return s;
+  };
+  const prCache = new Map<string, Promise<GithubPrTarget>>();
+  /**
+   * The finding a round's model bets use: the session's first verified Investigator finding on this
+   * exact code (a retry one first), else the fixture finding written by hand, with its label.
+   */
+  const findingFor = (sessionId: string, target: Target, fileText: string): { finding: Finding; label: string } => {
+    const found = investigations.get(sessionId)?.findings.get(target.codeSha256) ?? [];
+    const pick = found.find((f) => f.kind === "retry") ?? found[0];
+    if (pick) return { finding: pick, label: `found by ${pick.proposedBy.model}; file, lines and quote checked by plain code` };
+    return { finding: fixtureFinding(fileText), label: FIXTURE_FINDING_LABEL };
+  };
   const targets = new Map<string, Target>(); // by codeSha256
   const controls = new Map<string, Promise<Run>>(); // passed controls only, by codeSha256
   const runs = new Map<string, Run>(); // in memory today; not published
@@ -207,7 +264,10 @@ export function createApp(opts: AppOptions = {}) {
       return;
     }
     const fileText = readFixture(exp.target);
-    const finding = fixtureFinding(fileText);
+    const { finding, label: findingLabel } = findingFor(sessionId, exp.target, fileText);
+    // The retry defaults sit more than 20 lines above the loop, so for the fixture the model sees the
+    // whole verbatim block whichever finding is used (fixture-finding.ts explains why).
+    const contextRange = exp.target.ref === FIXTURE_FILE ? fixtureContextRange(fileText) : undefined;
     slot.status = "thinking";
     const chat = modelChat;
     const { now } = opts.modelBets;
@@ -220,7 +280,7 @@ export function createApp(opts: AppOptions = {}) {
     });
     slot.settled = Promise.race([
       runClaimantBets(
-        { experiment: exp, questions: round.questions, finding, fileText, gateContext: TS_GATE_CONTEXT, model },
+        { experiment: exp, questions: round.questions, finding, findingLabel, ...(contextRange ? { contextRange } : {}), fileText, gateContext: TS_GATE_CONTEXT, model },
         { chat, log: sessionEmitter(agentLog, sessionId), ...(now ? { now } : {}) },
       ),
       late, // an answer after the deadline is never sealed into this round
@@ -313,7 +373,9 @@ export function createApp(opts: AppOptions = {}) {
     } as Experiment;
     const round = newRound(experiment, TS_GATE_CONTEXT);
     rounds.set(id, round); // a refused experiment is kept too (shown, never run)
-    if (decision.allowed) log.investigatorStub(experiment);
+    // The stand-in line only when the hand-written fixture finding is the one in use.
+    const usesInvestigatorFinding = (investigations.get(sessionId)?.findings.get(target.codeSha256)?.length ?? 0) > 0;
+    if (decision.allowed && !usesInvestigatorFinding) log.investigatorStub(experiment);
     try {
       log.gate(experiment); // one flattened line; the 422 below keeps the full reason (S3)
     } catch (e) {
@@ -334,6 +396,89 @@ export function createApp(opts: AppOptions = {}) {
     }
     startModelBets(round, sessionId); // D02-06: the model bets on this SAME experiment, from the questions only
     return c.json({ experiment, questions: round.questions, extraQuestions: round.extraQuestions, model: modelSlotView(round) });
+  });
+
+  app.post("/investigate", async (c) => {
+    const sessionId = sessionIdOf(c);
+    if (sessionId === null) return c.json({ error: BAD_SESSION }, 400);
+    const raw = await readJson(c.req.raw);
+    if (!raw.ok) return c.json({ error: "the request body is not JSON" }, 400);
+    const parsed = investigateBody.safeParse(raw.body);
+    if (!parsed.success) return c.json({ error: plainReason(parsed.error) }, 400);
+    const body = parsed.data;
+    const model = opts.investigator?.model ?? INVESTIGATOR_MODEL;
+    // Limits first, so a request that will not be answered does not spend GitHub's rate limit either.
+    const mine = investigationsOf(sessionId);
+    const capped = mine.count >= MAX_INVESTIGATIONS_PER_SESSION;
+
+    // 1. The target and its files, read by the server (never taken from the request).
+    let target: Target;
+    let files: InvestigatorFile[];
+    let pr: { title: string; description: string } | undefined;
+    let fallbackFinding: (Finding & { label: string }) | undefined;
+    if ("target" in body) {
+      const t = targets.get(body.target.codeSha256);
+      if (!t || t.ref !== body.target.ref) return c.json({ error: "unknown target: register it with POST /targets first (same ref and codeSha256)" }, 400);
+      target = t;
+      const text = readFixture(t);
+      files = [{ path: t.ref, text }];
+      if (t.ref === FIXTURE_FILE) fallbackFinding = { ...fixtureFinding(text), label: FIXTURE_FINDING_LABEL };
+    } else {
+      if (!opts.investigator || !investigatorChat) return c.json({ ok: false, reason: "not asked (this server asks no Meta model to investigate)", findings: [], dropped: [], model });
+      if (capped) return c.json({ ok: false, reason: `not asked (call limit reached: this session already asked for ${MAX_INVESTIGATIONS_PER_SESSION} investigations)`, findings: [], dropped: [], model });
+      const m = /^([^/]+)\/([^#]+)#(\d+)$/.exec(body.pr)!;
+      const ref = { owner: m[1]!, repo: m[2]!, number: Number(m[3]) };
+      const key = `${ref.owner}/${ref.repo}#${ref.number}`.toLowerCase();
+      const fetchPr = opts.investigator?.fetchPr ?? ((p: typeof ref) => fetchGithubPr(p));
+      let got = prCache.get(key);
+      if (!got) {
+        got = fetchPr(ref);
+        prCache.set(key, got);
+        got.catch(() => prCache.delete(key)); // a failed fetch is tried again next time
+        while (prCache.size > MAX_CACHED_PRS) prCache.delete(prCache.keys().next().value!);
+      }
+      let prTarget: GithubPrTarget;
+      try {
+        prTarget = await got;
+      } catch (e) {
+        return c.json({ error: `could not read pull request ${body.pr}: ${e instanceof Error ? e.message : String(e)}` }, 502);
+      }
+      target = prTarget.target;
+      files = prTarget.files.filter((f) => f.content !== undefined).map((f) => ({ path: f.path, text: f.content! }));
+      pr = { title: prTarget.title, description: prTarget.description };
+    }
+    const chars = files.reduce((n, f) => n + f.text.length, 0) + (pr ? pr.title.length + pr.description.length : 0);
+    if (chars > MAX_INVESTIGATE_CHARS) {
+      return c.json({ error: `the target is ${chars} characters; the Investigator reads at most ${MAX_INVESTIGATE_CHARS}` }, 413);
+    }
+
+    const notAsked = (reason: string) =>
+      c.json({ ok: false, reason: `not asked (${reason})`, target, findings: [], dropped: [], model, ...(fallbackFinding ? { fallbackFinding } : {}) });
+    if (!opts.investigator || !investigatorChat) return notAsked("this server asks no Meta model to investigate");
+
+    // 2. Limits: per session here, calls an hour and total spend in the budget (S5).
+    if (capped) {
+      return notAsked(`call limit reached: this session already asked for ${MAX_INVESTIGATIONS_PER_SESSION} investigations`);
+    }
+    mine.count++;
+
+    // 3. The model proposes; plain code verifies each place against the file.
+    const r = await runInvestigator(
+      {
+        target,
+        files,
+        ...(pr ? { pr } : {}),
+        model,
+        fallbackModel: opts.investigator.fallbackModel === undefined ? INVESTIGATOR_FALLBACK_MODEL : opts.investigator.fallbackModel,
+      },
+      { chat: investigatorChat, log: sessionEmitter(agentLog, sessionId) },
+    );
+    const dropped = r.dropped.map((d) => ({ model: d.model, attempt: d.attempt, file: d.file, lineStart: d.lineStart, lineEnd: d.lineEnd, kind: d.kind, reason: d.reason }));
+    if (!r.ok) {
+      return c.json({ ok: false, reason: r.reason, target, findings: [], dropped, model, usage: r.usage ?? null, ...(fallbackFinding ? { fallbackFinding } : {}) });
+    }
+    mine.findings.set(target.codeSha256, r.findings);
+    return c.json({ ok: true, target, findings: r.findings, dropped, model: r.model, fellBack: r.fellBack, usage: r.usage ?? null });
   });
 
   app.post("/experiments/:id/model-bets", async (c) => {
