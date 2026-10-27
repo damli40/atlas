@@ -1,0 +1,75 @@
+{
+  "startedAt": "2026-10-27T05:18:26.164Z",
+  "finishedAt": "2026-10-27T05:18:27.517Z",
+  "forkBlock": 42195500,
+  "blockNumberOnFork": 42195500,
+  "chainId": 8453,
+  "rpc": "local anvil fork; remote RPC URL not recorded",
+  "rawFeeds": {
+    "ethUsd": {
+      "address": "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70",
+      "decimals": 8,
+      "description": "ETH / USD",
+      "round": {
+        "roundId": "18446744073709762023",
+        "answer": "196411177659",
+        "startedAt": "1771180327",
+        "updatedAt": "1771180327",
+        "answeredInRound": "18446744073709762023"
+      }
+    },
+    "cbEthEth": {
+      "address": "0x806b4Ac04501c29769051e42783cF04dCE41440b",
+      "decimals": 18,
+      "description": "CBETH / ETH",
+      "round": {
+        "roundId": "18446744073709552673",
+        "answer": "1122662744874806300",
+        "startedAt": "1771164149",
+        "updatedAt": "1771164149",
+        "answeredInRound": "18446744073709552673"
+      }
+    }
+  },
+  "markets": {
+    "WETH": {
+      "mToken": "0x628ff693426583D9a7FB391E54366292F509D457",
+      "underlying": "0x4200000000000000000000000000000000000006",
+      "symbol": "WETH",
+      "tokenDecimals": 18,
+      "feedAddress": "0xeb083d234ec636A10325ea42bCbbE09Aa56d1547",
+      "feedDecimals": 8,
+      "feedDescription": "ETH / USD",
+      "rawUnderlyingPrice": "1964111776590000000000",
+      "priceUsd1e18": "1964111776590000000000"
+    },
+    "USDC": {
+      "mToken": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22",
+      "underlying": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "symbol": "USDC",
+      "tokenDecimals": 6,
+      "feedAddress": "0x7600b9068bB0aFEA6adf70eD6CD0f8492117236d",
+      "feedDecimals": 8,
+      "feedDescription": "USDC / USD",
+      "rawUnderlyingPrice": "999900000000000000000000000000",
+      "priceUsd1e18": "999900000000000000"
+    },
+    "cbETH": {
+      "mToken": "0x3bf93770f2d4a794c3d9EBEfBAeBAE2a8f09A5E5",
+      "underlying": "0x2Ae3F1Ec7F1F5012CFEab0185bfc7aa3cf0DEc22",
+      "symbol": "cbETH",
+      "tokenDecimals": 18,
+      "feedAddress": "0x67996D1ff7a3711a91E2839d1059Fcb950C0495D",
+      "feedDecimals": 18,
+      "feedDescription": "CBETH / ETH",
+      "rawUnderlyingPrice": "1122662744874806300",
+      "priceUsd1e18": "1122662744874806300"
+    }
+  },
+  "control": {
+    "rule": "getUnderlyingPrice(MOONWELL_WETH) == ETH/USD latestRoundData().answer × 10^(18 − 8), exact",
+    "wethRawUnderlyingPrice": "1964111776590000000000",
+    "ethUsdAnswerTimes1e10": "1964111776590000000000",
+    "matched": true
+  }
+}

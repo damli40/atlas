@@ -1,4 +1,4 @@
- RUN  v5.0.5 /Users/Admin/Documents/Atlas-wt/agentlog
+ RUN  v5.0.5 <repo>
  ✓ tests/unit/agentlog.test.ts > agent log bus > refuses a model-role event without model or usage, and accepts it with both 4ms
  ✓ tests/unit/agentlog.test.ts > agent log bus > refuses a model name on a plain-code role, bad actions, unknown roles and extra fields 1ms
  ✓ tests/unit/agentlog.test.ts > agent log bus > keeps a bounded history and evicts idle sessions 0ms

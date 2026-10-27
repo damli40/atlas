@@ -2,7 +2,7 @@
 
 $ pnpm exec vitest run --reporter=verbose tests/unit/bets-ui.test.tsx tests/unit/bets-server.test.ts
 
- RUN  v5.0.5 /Users/Admin/Documents/Atlas-wt/betsui
+ RUN  v5.0.5 <repo>
 
  ✓ tests/unit/bets-server.test.ts > POST /experiments > returns the gate decision and the plain-code questions; the id is made by the server when absent 24ms
  ✓ tests/unit/bets-server.test.ts > POST /bets > seals with server time and a server nonce; returns the hash but not the nonce 2ms

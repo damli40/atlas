@@ -1,5 +1,5 @@
 
- RUN  v5.0.5 /Users/Admin/Documents/Atlas-wt/claimfix
+ RUN  v5.0.5 <repo>
 
  ✓ tests/unit/claimant.test.ts > the fixture finding > is the retry loop (fixture lines 49–66 = original lines 69–86) and verifies against the file 1ms
  ✓ tests/unit/claimant.test.ts > the fixture finding > its claim is neutral: 'People expect X; the code does Y', naming no one scenario 0ms

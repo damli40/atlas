@@ -1,0 +1,12 @@
+ ✓ tests/unit/pass-rule-order.test.ts > pass rule is committed before any EVM run (pre-registration) > PASS-RULE.md has an adding commit 15ms
+ ✓ tests/unit/pass-rule-order.test.ts > pass rule is committed before any EVM run (pre-registration) > no EVM run.json has been committed yet, so the order holds trivially 14ms
+ ✓ tests/unit/pass-rule-order.test.ts > pass rule is committed before any EVM run (pre-registration) > recognises an EVM run in both shapes (a single Run, or a file with runs[]) 0ms
+ ✓ tests/unit/evm-reads.test.ts > anvil wrapper and reads (offline) > redact hides the URL, its token path and its host 1ms
+ ✓ tests/unit/evm-reads.test.ts > anvil wrapper and reads (offline) > reads refuse any URL that is not a local fork 1ms
+ ✓ tests/unit/evm-reads.test.ts > anvil wrapper and reads (offline) > a fork that cannot reach its RPC fails with a redacted message and leaves no process 277ms
+ ✓ tests/unit/evm-reads.test.ts > reads on a Base fork at block 42195500 > forks, reads, and stops the fork 1330ms
+ ✓ tests/unit/evm-reads.test.ts > reads on a Base fork at block 42195500 > control: getUnderlyingPrice(MOONWELL_WETH) equals the ETH/USD answer × 1e10 exactly 0ms
+ ✓ tests/unit/evm-reads.test.ts > reads on a Base fork at block 42195500 > feed decimals read on-chain: ETH/USD 8, cbETH/ETH 18 0ms
+ ✓ tests/unit/evm-reads.test.ts > reads on a Base fork at block 42195500 > units trap: USDC has 6 decimals and its normalised price is between 0.98 and 1.02 USD 0ms
+ ✓ tests/unit/evm-reads.test.ts > reads on a Base fork at block 42195500 > the fork is stopped even when the work inside it throws 1287ms
+      Tests  11 passed (11)
