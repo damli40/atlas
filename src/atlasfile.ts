@@ -9,10 +9,13 @@
 // - every verdict is exactly what src/judge.ts gives today for that bet and run (re-judged here);
 // - the code fingerprint, fork block and seed agree everywhere they appear;
 // - the captions this kind of run requires are present (pre-existing label, "after the fact", fork wording).
+// - a Level 2 file's false-alarm table is exactly what src/falsealarm.ts rebuilds from its run (so a run
+//   whose control failed shows "can't check" on every flag, never a stored "flagged").
 // No I/O, no clock (except `createdAt`, passed in), no model.
 
 import { z } from "zod";
 import { judge } from "./judge";
+import { falseAlarmFromRun } from "./falsealarm";
 import { canonicalJson, verifySeal } from "./seal";
 import type { AgentEvent, AtlasFile, Bet, Experiment, Finding, Run, Target, Verdict } from "./types";
 
@@ -140,6 +143,24 @@ const agentEventSchema = z
   })
   .strict();
 
+const nstr = z.string().nullable();
+const falseAlarmRowSchema = z
+  .object({
+    market: z.string().min(1),
+    preUsd1e18: nstr,
+    postUsd1e18: nstr,
+    diffVsPrePct: nstr,
+    flagReference: z.enum(["refUsd1e18:cbETH (raw Chainlink ETH/USD × cbETH/ETH)", "pre-apply price, same fork block"]),
+    flagReferenceUsd1e18: nstr,
+    diffVsFlagReferencePct: nstr,
+    flagged: z.boolean().nullable(),
+    controlPassed: z.boolean(),
+    feedBefore: nstr,
+    feedAfter: nstr,
+    note: z.string().optional(),
+  })
+  .strict();
+
 export const atlasFileSchema = z
   .object({
     version: z.literal(1),
@@ -154,6 +175,7 @@ export const atlasFileSchema = z
     verdicts: z.array(verdictSchema),
     change: z.unknown().optional(),
     findings: z.array(findingSchema).optional(),
+    falseAlarm: z.array(falseAlarmRowSchema).optional(),
     agentLog: z.array(agentEventSchema),
     captions: z.array(z.string().min(1)).min(1),
     createdAt: iso,
@@ -180,6 +202,11 @@ export function requiredCaptions(file: Pick<AtlasFile, "target" | "experiments" 
     if (exp?.params.shape === "price-read" && run.forkBlock !== undefined) out.push(level1Caption(run.forkBlock));
   }
   return [...new Set(out)];
+}
+
+/** The file's Level 2 run (an EVM apply-proposal-then-read run), if it has one. */
+function isLevel2(file: Pick<AtlasFile, "experiments" | "runs">): Run | undefined {
+  return file.runs.find((r) => r.runner === "evm" && file.experiments.find((e) => e.id === r.experimentId)?.params.shape === "apply-proposal-then-read");
 }
 
 export type Verification = { ok: true; file: AtlasFile } | { ok: false; problems: string[] };
@@ -232,6 +259,12 @@ export function verifyAtlasFile(raw: unknown): Verification {
   }
   for (const v of file.verdicts) if (!file.bets.some((b) => b.id === v.betId)) say(`verdict names bet ${v.betId}, which is not in the file`);
   for (const c of requiredCaptions(file)) if (!file.captions.includes(c)) say(`missing caption: "${c}"`);
+  // The false-alarm table is never trusted as stored: it is rebuilt from the run (src/falsealarm.ts),
+  // which also makes every flag "can't check" when the run's control did not pass.
+  const level2Run = isLevel2(file);
+  if (level2Run && !file.falseAlarm) say("a Level 2 file must carry its false-alarm table");
+  if (!level2Run && file.falseAlarm) say("only a Level 2 file carries a false-alarm table");
+  if (level2Run && file.falseAlarm && !sameJson(falseAlarmFromRun(level2Run), file.falseAlarm)) say("the false-alarm table is not what src/falsealarm.ts rebuilds from the run");
   return problems.length ? { ok: false, problems } : { ok: true, file };
 }
 
@@ -279,6 +312,7 @@ export function buildAtlasFile(input: BuildInput): AtlasFile {
     runs: [input.run],
     verdicts: input.verdicts,
     ...(input.findings && input.findings.length ? { findings: input.findings } : {}),
+    ...(isLevel2(base) ? { falseAlarm: falseAlarmFromRun(input.run) } : {}),
     agentLog: input.agentLog,
     captions,
     createdAt: input.createdAt,

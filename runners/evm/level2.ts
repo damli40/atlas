@@ -16,6 +16,7 @@
 
 import type { Address, PublicClient } from "viem";
 import { usdTimesRatio1e18 } from "../../src/units.ts";
+import { CONTROL_FAILED_NOTE, diffPpm, differsByMoreThan, FALSE_ALARM_PCT, FLAG_PCT, ppmToPct, type FalseAlarmRow } from "../../src/falsealarm.ts";
 import { applyFeedActions, comparePairs, planFromPrFiles, resolveSymbols, traceUnderlyingPriceSources, type AppliedFeedAction, type FeedAction, type PairComparison, type SourceCount } from "./apply.ts";
 import { assertPreExecution, cbEthReference, inStablecoinBand, readControl, why, type EvmControlRecord, type ReferenceResult } from "./control.ts";
 import { MOONWELL_cbETH, TEMPORAL_GOVERNOR, USD_STABLECOINS } from "./moonwell-base.ts";
@@ -125,39 +126,7 @@ export async function runLevel2OnFork(client: PublicClient, fork: { url: string 
 
 // ── The pass rule, as plain code ─────────────────────────────────────────────────────────────────
 
-/** Signed difference of `value` from `base`, in parts per million of `base` (bigint, truncated toward zero). */
-export function diffPpm(value: bigint, base: bigint): bigint {
-  if (base <= 0n) throw new RangeError("the base of a percentage must be above zero");
-  return ((value - base) * 1_000_000n) / base;
-}
-
-/** "−99.9491%" style text from parts per million, 4 decimals, no floating point. */
-export function ppmToPct(ppm: bigint): string {
-  const neg = ppm < 0n;
-  const a = neg ? -ppm : ppm;
-  const whole = a / 10_000n;
-  const frac = (a % 10_000n).toString().padStart(4, "0");
-  return `${neg ? "-" : a === 0n ? "" : "+"}${whole}.${frac}%`;
-}
-
-/** |value − base| > pct% of base, exactly (no rounding). */
-export const differsByMoreThan = (value: bigint, base: bigint, pct: bigint) => (value > base ? value - base : base - value) * 100n > base * pct;
-
-export interface FalseAlarmRow {
-  market: string;
-  preUsd1e18: string | null;
-  postUsd1e18: string | null;
-  diffVsPrePct: string | null;
-  /** What this market's flag compares against: the raw-Chainlink reference for cbETH, the pre-apply price for the rest. */
-  flagReference: "refUsd1e18:cbETH (raw Chainlink ETH/USD × cbETH/ETH)" | "pre-apply price, same fork block";
-  flagReferenceUsd1e18: string | null;
-  diffVsFlagReferencePct: string | null;
-  /** Atlas surfaces the market when post differs from its flag reference by more than 50%. null = can't check. */
-  flagged: boolean | null;
-  feedBefore: string | null;
-  feedAfter: string | null;
-  note?: string;
-}
+export { CONTROL_FAILED_NOTE, diffPpm, differsByMoreThan, FALSE_ALARM_PCT, falseAlarmFromRun, FLAG_PCT, ppmToPct, type FalseAlarmRow } from "../../src/falsealarm.ts";
 
 export interface PassRuleLine {
   rule: string;
@@ -165,11 +134,11 @@ export interface PassRuleLine {
   detail: string;
 }
 
-export const FLAG_PCT = 50n;
-export const FALSE_ALARM_PCT = 2n;
-
 /** Build the false-alarm table: one row per touched market, cbETH judged against the raw reference. */
 export function falseAlarmTable(rec: Level2Record): FalseAlarmRow[] {
+  // PASS-RULE.md: if any control fails, every verdict on the run is "can't check" (flags included).
+  const controlPassed = rec.control.passed === true && rec.postStablecoins.every((s) => s.inBand);
+  const controlWhy = [...rec.control.reasons, ...rec.postStablecoins.filter((s) => !s.inBand).map((s) => `${s.symbol} post-apply is outside 0.95–1.05 USD`)].join("; ");
   return rec.actions.map((a) => {
     const pre = rec.pre[a.symbol];
     const post = rec.post[a.symbol];
@@ -185,11 +154,12 @@ export function falseAlarmTable(rec: Level2Record): FalseAlarmRow[] {
       flagReference: isCbEth ? "refUsd1e18:cbETH (raw Chainlink ETH/USD × cbETH/ETH)" : "pre-apply price, same fork block",
       flagReferenceUsd1e18: ref?.toString() ?? null,
       diffVsFlagReferencePct: ref !== null && postV !== null && ref > 0n ? ppmToPct(diffPpm(postV, ref)) : null,
-      flagged: ref !== null && postV !== null && ref > 0n ? differsByMoreThan(postV, ref, FLAG_PCT) : null,
+      flagged: controlPassed && ref !== null && postV !== null && ref > 0n ? differsByMoreThan(postV, ref, FLAG_PCT) : null,
+      controlPassed,
       feedBefore: pre?.ok ? pre.read.feedAddress : null,
       feedAfter: post?.ok ? post.read.feedAddress : null,
     };
-    const why = [!pre?.ok && pre ? `pre: ${pre.reason}` : "", !post?.ok && post ? `post: ${post.reason}` : "", isCbEth && !rec.referencePost.ok ? `reference: ${rec.referencePost.reason}` : ""].filter(Boolean);
+    const why = [!controlPassed ? CONTROL_FAILED_NOTE(controlWhy || undefined) : "", !pre?.ok && pre ? `pre: ${pre.reason}` : "", !post?.ok && post ? `post: ${post.reason}` : "", isCbEth && !rec.referencePost.ok ? `reference: ${rec.referencePost.reason}` : ""].filter(Boolean);
     if (why.length) row.note = why.join("; ");
     return row;
   });
@@ -256,38 +226,4 @@ export function referenceRecomputes(ref: ReferenceResult): boolean {
   const eth = BigInt(ref.inputs.ethUsd.answer) * 10n ** BigInt(18 - ref.inputs.ethUsd.decimals);
   const ratio = BigInt(ref.inputs.cbEthEth.answer) * 10n ** BigInt(18 - ref.inputs.cbEthEth.decimals);
   return usdTimesRatio1e18(eth, ratio).toString() === ref.value;
-}
-
-/**
- * The false-alarm table from a stored Level 2 Run alone (no Level2Record): the rows a replayer can
- * rebuild from an .atlas.json. Same rule as falseAlarmTable: cbETH is compared with the raw-Chainlink
- * reference, every other market with its own pre-apply price; flagged = differs by more than 50%.
- * Market order is the order the run applied them (its "proposal_derived" trace event).
- */
-export function falseAlarmFromRun(run: { result: { measured: Record<string, unknown>; references?: Record<string, { value: string }> }; trace: { event: string; data?: Record<string, unknown> }[] }): FalseAlarmRow[] {
-  const derived = run.trace.find((t) => t.event === "proposal_derived")?.data?.actions;
-  const markets = Array.isArray(derived) ? derived.map((a) => String((a as { symbol: unknown }).symbol)) : [];
-  const m = run.result.measured;
-  const str = (k: string) => (typeof m[k] === "string" ? (m[k] as string) : null);
-  return markets.map((sym) => {
-    const preS = str(`preApplyPriceUsd1e18:${sym}`);
-    const postS = str(`priceUsd1e18:${sym}`);
-    const preV = preS !== null ? BigInt(preS) : null;
-    const postV = postS !== null ? BigInt(postS) : null;
-    const isCbEth = sym === "cbETH";
-    const refS = isCbEth ? (run.result.references?.["refUsd1e18:cbETH"]?.value ?? null) : preS;
-    const ref = refS !== null ? BigInt(refS) : null;
-    return {
-      market: sym,
-      preUsd1e18: preS,
-      postUsd1e18: postS,
-      diffVsPrePct: preV !== null && postV !== null && preV > 0n ? ppmToPct(diffPpm(postV, preV)) : null,
-      flagReference: isCbEth ? "refUsd1e18:cbETH (raw Chainlink ETH/USD × cbETH/ETH)" : "pre-apply price, same fork block",
-      flagReferenceUsd1e18: refS,
-      diffVsFlagReferencePct: ref !== null && postV !== null && ref > 0n ? ppmToPct(diffPpm(postV, ref)) : null,
-      flagged: ref !== null && postV !== null && ref > 0n ? differsByMoreThan(postV, ref, FLAG_PCT) : null,
-      feedBefore: str(`preApplyFeedAddress:${sym}`),
-      feedAfter: str(`feedAddress:${sym}`),
-    } satisfies FalseAlarmRow;
-  });
 }

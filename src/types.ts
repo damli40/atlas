@@ -1,6 +1,7 @@
 // All ids are short random strings (nanoid 10). All times are ISO-8601 UTC strings.
 // All on-chain numbers are decimal strings of integers (bigint-safe), never JS numbers.
 
+import type { FalseAlarmRow } from "./falsealarm";
 export type TargetKind = "ts-fixture" | "github-pr";
 export interface Target {
   kind: TargetKind;
@@ -157,6 +158,8 @@ export interface AtlasFile {
   change?: Change;
   /** Added D04-04: the finding(s) the round worked on, with who proposed them (investigator model or a person). */
   findings?: Finding[];
+  /** Level 2 only: the false-alarm table, rebuilt from the run by src/falsealarm.ts (verify recomputes it). */
+  falseAlarm?: FalseAlarmRow[];
   agentLog: AgentEvent[];
   /** Text a replayer must show: pre-existing labels, "replayed on a fork", "mechanism, not an incident". */
   captions: string[];

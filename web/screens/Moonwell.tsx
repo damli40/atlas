@@ -279,13 +279,20 @@ export function MoonwellFlow({ api }: { api: Api }) {
 }
 
 export function FalseAlarmTable({ rows }: { rows: FalseAlarmRow[] }) {
+  // PASS-RULE.md: when the run's control did not pass, every flag on it is "can't check".
+  const controlFailed = rows.some((r) => r.controlPassed !== true);
   const flagged = rows.filter((r) => r.flagged === true).length;
   const quiet = rows.filter((r) => r.flagged === false).length;
   return (
     <section className="card" aria-label="false-alarm table" data-testid="false-alarm">
       <h2>Every market the proposal touches</h2>
+      {controlFailed && (
+        <p className="notice" data-testid="fa-control-failed">
+          The control did not pass, so every flag on this run is "can't check". {rows.find((r) => r.note)?.note ?? ""}
+        </p>
+      )}
       <p className="muted">
-        {rows.length} markets: {quiet} unchanged, {flagged} flagged. A market is flagged when its price after the proposal differs by more than 50% from what it is compared with: cbETH with the raw Chainlink price (ETH/USD × cbETH/ETH, same block), every other market with its own price before the proposal.
+        {rows.length} markets: {controlFailed ? "can't check (control did not pass)" : `${quiet} unchanged, ${flagged} flagged`}. A market is flagged when its price after the proposal differs by more than 50% from what it is compared with: cbETH with the raw Chainlink price (ETH/USD × cbETH/ETH, same block), every other market with its own price before the proposal.
       </p>
       <table className="verdicts">
         <thead>
@@ -300,13 +307,13 @@ export function FalseAlarmTable({ rows }: { rows: FalseAlarmRow[] }) {
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={r.market} data-testid={`fa-${r.market}`} className={r.flagged ? "flagged" : undefined}>
+            <tr key={r.market} data-testid={`fa-${r.market}`} className={r.controlPassed === true && r.flagged ? "flagged" : undefined}>
               <td>{r.market}</td>
               <td>{usdOf(r.preUsd1e18)}</td>
               <td>{usdOf(r.postUsd1e18)}</td>
               <td>{r.market === "cbETH" ? `raw Chainlink ${usdOf(r.flagReferenceUsd1e18)}` : "its price before"}</td>
               <td>{r.diffVsFlagReferencePct ?? "-"}</td>
-              <td>{r.flagged === null ? "can't check" : r.flagged ? <b>yes</b> : "no"}</td>
+              <td>{r.controlPassed !== true || r.flagged === null ? "can't check" : r.flagged ? <b>yes</b> : "no"}</td>
             </tr>
           ))}
         </tbody>
