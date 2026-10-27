@@ -1,15 +1,18 @@
 // One flow on the withRpcRetry fixture: pick a scenario → answer the plain-code questions → the
 // server seals the bets (hashes on screen) → "Break it" runs the real code → verdicts + the
 // browser's own seal check.
+// D02-06: as soon as the experiment exists, the server asks Muse Spark for its bets on the SAME
+// questions. The page shows only "has sealed N bets" + hashes until the run, then both columns.
 
 import { useEffect, useMemo, useState } from "react";
 import type { Question } from "../src/gate";
 import type { Target } from "../src/types";
-import { createApi, type Api, type HumanAnswer, type RunAnswer, type ShownBet } from "./api";
+import { createApi, type Api, type HumanAnswer, type ModelSlotView, type RunAnswer, type ShownBet } from "./api";
 import { DEFAULT_SCENARIO, FIXTURE_REF, SCENARIOS } from "./scenarios";
 import { Bets, TargetCard } from "./screens/Bets";
 import { RunScreen } from "./screens/Run";
 import { VerdictScreen } from "./screens/Verdict";
+import { ModelSlotCard } from "./screens/ModelPanel";
 
 export function App({ api: given }: { api?: Api } = {}) {
   const api = useMemo(() => given ?? createApi(), [given]);
@@ -20,6 +23,7 @@ export function App({ api: given }: { api?: Api } = {}) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [sealed, setSealed] = useState<ShownBet[]>([]);
   const [result, setResult] = useState<RunAnswer | null>(null);
+  const [modelSlot, setModelSlot] = useState<ModelSlotView | null>(null);
   const [busy, setBusy] = useState(false);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +58,15 @@ export function App({ api: given }: { api?: Api } = {}) {
       const out = await api.experiment(target, scenario.params);
       setExperimentId(out.experiment.id);
       setQuestions(out.questions);
+      setModelSlot(out.model);
+      if (out.model?.status === "thinking") {
+        // Not awaited: the person bets while the model thinks. Only hashes come back.
+        const thinking = out.model;
+        api.modelBets(out.experiment.id).then(
+          (m) => setModelSlot(m),
+          (e: Error) => setModelSlot({ ...thinking, status: "no_usable_answer", reason: `the page could not reach the server: ${e.message}`, sealed: [] }),
+        );
+      }
     });
 
   const seal = () =>
@@ -100,8 +113,17 @@ export function App({ api: given }: { api?: Api } = {}) {
         onSeal={seal}
         busy={busy || !target}
       />
-      <RunScreen canRun={sealed.length > 0 && !busy} running={running} result={result} onBreak={breakIt} />
-      {result && <VerdictScreen shown={sealed} result={result} />}
+      <ModelSlotCard slot={modelSlot} revealed={result && modelSlot ? result.bets.filter((b) => b.who === modelSlot.who) : null} />
+      <RunScreen canRun={sealed.length > 0 && !busy && modelSlot?.status !== "thinking"} running={running} result={result} onBreak={breakIt} />
+      {result && (
+        <VerdictScreen
+          shown={sealed}
+          modelShown={modelSlot?.sealed ?? []}
+          modelName={modelSlot && modelSlot.status !== "off" ? modelSlot.display : null}
+          modelEmpty={modelSlot?.status === "no_usable_answer" ? `no usable answer (${modelSlot.reason ?? "no reason given"})` : undefined}
+          result={result}
+        />
+      )}
       {error && (
         <p className="notice" role="alert">
           {error}

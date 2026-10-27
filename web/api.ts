@@ -4,6 +4,9 @@
 
 import type { Question } from "../src/gate";
 import type { Bet, Experiment, Run, Target, Verdict } from "../src/types";
+import type { ModelSlotView, SealedOnly } from "../server/bets";
+
+export type { ModelSlotView, SealedOnly };
 
 export type FetchLike = (url: string, init: RequestInit) => Promise<Response>;
 
@@ -13,6 +16,8 @@ export type ShownBet = Omit<Bet, "nonce">;
 export interface ExperimentAnswer {
   experiment: Experiment;
   questions: Question[];
+  /** The model's slot on this same experiment: status and, once sealed, hashes only (D02-06). */
+  model: ModelSlotView | null;
 }
 
 export interface RunAnswer {
@@ -21,6 +26,7 @@ export interface RunAnswer {
   /** Every bet in full, nonce included, revealed after the run. */
   bets: Bet[];
   betsFrozenAt: string;
+  model?: ModelSlotView | null;
 }
 
 export type HumanAnswer = { kind: "integer"; value: number } | { kind: "enum"; value: string };
@@ -58,6 +64,9 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
       post<ExperimentAnswer>("/experiments", { target: { ref: target.ref, codeSha256: target.codeSha256 }, params }),
     bet: (experimentId: string, measures: string, answer: HumanAnswer) =>
       post<{ bet: ShownBet }>("/bets", { experimentId, who: "human", measures, answer }).then((r) => r.bet),
+    /** Waits for the model's bets on this experiment; returns its status and sealed hashes (never its answers). */
+    modelBets: (experimentId: string) =>
+      post<{ model: ModelSlotView | null }>(`/experiments/${encodeURIComponent(experimentId)}/model-bets`, {}).then((r) => r.model),
     run: (experimentId: string) => post<RunAnswer>("/runs", { experimentId }),
   };
 }
