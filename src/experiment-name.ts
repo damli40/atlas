@@ -12,7 +12,8 @@
 //   touched markets, and every field left out filled in with the value the run would use anyway (the
 //   harness's own defaults, and the function's defaults read from the target's code by
 //   functionDefaults). So `failTimes 5` and `failTimes 5, attempts 5` are the same experiment when the
-//   function's default is 5 attempts. Only this file decides that.
+//   function's default is 5 attempts. Also the same: failTimes 0 with any failure kind (no call fails,
+//   so the kind is never used). Only this file decides that.
 //
 // No I/O, no clock, no model.
 
@@ -62,6 +63,10 @@ function withDefaults(params: ExperimentShape, fn: FunctionDefaults): Record<str
     if (params.failTimes !== "always") fill("resolvesWith", HARNESS_DEFAULTS.resolvesWith);
   }
   if (params.shape === "concurrency-sweep") fill("delayMs", fn.delayMs);
+  // Day-7 review M1: with failTimes 0 no call fails, so how a failing call would fail never happens: the
+  // harness never reads `failure` (runners/ts/harness.ts). Provably the same run, so the same experiment.
+  // attempts and delayMs are NOT merged: they go into the code under test, which may use them any way.
+  if (params.shape === "retry-scenario" && params.failTimes === 0) p.failure = "(no call fails)";
   return p;
 }
 

@@ -1,0 +1,8 @@
+     × retry-scenario failTimes 0: error vs never_settles is a repeat (the review's P3) 4ms
+     × redactSecret: prefix, middle and suffix pieces of 12+ characters 1ms
+     × the Baseten client: a 401 body that echoes part of the key (the review's P5) 16ms
+     × Muse Code's text and refusal records too 0ms
+     × each line's provider is the one its model goes to 0ms
+     × no ~/.config path and no `gh auth token` in its comments 0ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  6 failed | 3 passed (9)   [one sweep case was removed afterwards: concurrency-sweep allows only failure "error", so it had nothing to test]

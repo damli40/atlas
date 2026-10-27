@@ -14,7 +14,7 @@
 //
 // --moonwell-only: run only the Moonwell round and append it to the rounds already on file (used after the
 // first pass stopped on a script bug before the Moonwell round asked any model; see the README).
-// Run: ( set -a; . ~/.config/atlas/rpc.env; set +a; GITHUB_TOKEN=$(gh auth token) pnpm exec tsx tests/evidence/D07-01/live.ts )
+// Run: with BASE_RPC_URL and GITHUB_TOKEN set in the environment, `pnpm exec tsx tests/evidence/D07-01/live.ts`
 // Spend guard: stops before a call once Meta spend reaches $0.45 or Baseten spend $2.50 (task caps $0.50 / $3).
 // Writes (next to this file): live-rounds.json (every round's answers), round-<n>.atlas.json, prompts.json,
 // live-summary.json. Each model call appends its usage line to tests/evidence/usage/usage.jsonl.

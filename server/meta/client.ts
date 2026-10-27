@@ -17,6 +17,7 @@
 // 5. It never throws because the usage file could not be written (a read-only disk when hosted):
 //    the call was already billed, so the result and its usage come back with a `warning`.
 
+import { redactSecret } from "./redact-secret";
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
@@ -206,7 +207,7 @@ function addUsage(a: Usage | undefined, b: Usage | undefined): Usage | undefined
 
 /** Removes the key from any text before it leaves this module. */
 function scrub(text: string, key: string): string {
-  return key ? text.split(key).join("[redacted]") : text;
+  return redactSecret(text, key); // M2 (day-7 review): any 12+ character piece of the key too
 }
 
 /**

@@ -14,6 +14,7 @@
 // <YYYY-MM-DD>-<experimentId>.json for a gate refusal (no run exists), <YYYY-MM-DD>-<betId>.json for
 // a declined bet recorded by the Claimant evidence scripts.
 
+import { redactSecret } from "../meta/redact-secret";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -65,9 +66,11 @@ const SECRET_TEXT = /\b(?:sk|pk|key|token|secret|bearer)[-_ ]?[A-Za-z0-9_-]{16,}
 /** Removes local paths, URLs and secret-looking strings from text (and the live key / RPC URL, when set). */
 export function scrubText(text: string, env: NodeJS.ProcessEnv = process.env): string {
   let out = text;
-  for (const name of ["META_API_KEY", "BASE_RPC_URL", "ATLAS_BASE_RPC_URL", "RPC_URL"]) {
+  for (const name of ["META_API_KEY", "BASETEN_API_KEY", "BASE_RPC_URL", "ATLAS_BASE_RPC_URL", "RPC_URL"]) {
     const v = env[name]?.trim();
-    if (v && v.length >= 8) out = out.split(v).join(`[${name.toLowerCase().includes("key") ? "key" : "url"} removed]`);
+    if (!v || v.length < 8) continue;
+    // M2 (day-7 review): for a key, any 12+ character piece of it too.
+    out = name.endsWith("_KEY") ? redactSecret(out, v, "[key removed]") : out.split(v).join("[url removed]");
   }
   return out.replace(URL_TEXT, "[url removed]").replace(LOCAL_PATH, "[local path removed]").replace(SECRET_TEXT, (m) => (/^[0-9a-f]{64}$/.test(m) ? m : "[removed]"));
 }

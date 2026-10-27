@@ -39,6 +39,7 @@ import { dirname, join } from "node:path";
 import { extractDiff } from "../../../src/diff";
 import type { Experiment } from "../../../src/types";
 import { changeProposer } from "../../../src/claimants";
+import { redactSecret } from "../redact-secret";
 import { checkChange, MAX_CHANGED_LINES, type ChangeContext, type CheckedChange } from "../../../runners/change";
 import { makeScratch } from "../../../runners/scratch";
 import { chat as realChat, costUsd, DEFAULT_USAGE_PATH, loadApiKey, modelRefusal, priceFor, shownModelId, type ChatArgs, type ChatResult, type Usage } from "../client";
@@ -339,7 +340,7 @@ export function realMuseExec(opts: { bin?: string; apiKey?: string } = {}): Muse
     writeFileSync(promptFile, prompt);
     const profile = join(home, "atlas-muse.sb");
     writeFileSync(profile, museSandboxProfile({ workspace, home, museDir: dirname(realpathSync(bin)), userHome: realpathSync(homedir()) }));
-    const scrub = (s: string) => s.split(key).join("[redacted]").split(workspace).join("<scratch>").split(scratch.dir).join("<scratch>").split(home).join("<home>");
+    const scrub = (s: string) => redactSecret(s, key).split(workspace).join("<scratch>").split(scratch.dir).join("<scratch>").split(home).join("<home>");
     try {
       return await new Promise<MuseExecResult>((resolve) => {
         let stdout = "";
@@ -407,13 +408,13 @@ const ABSOLUTE_PATH = /(?:~|\/Users|\/home|\/private|\/var\/folders|\/tmp|\/etc|
 
 /** True when `text` holds the Meta key or a secret shape (the diff is then not used at all). */
 export function holdsSecret(text: string, key: string | undefined = loadApiKey()): boolean {
-  if (key && key.length >= 12 && text.includes(key)) return true;
+  if (key && key.length >= 12 && redactSecret(text, key) !== text) return true; // M2: a 12+ character piece counts
   return SECRET_SHAPES.some((re) => new RegExp(re.source, re.flags.replace("g", "")).test(text));
 }
 
 /** A model's raw answer as Atlas keeps it: the key, secret shapes, the RPC URL and absolute paths removed. */
 export function scrubModelText(text: string, key: string | undefined = loadApiKey()): string {
-  let out = key && key.length >= 12 ? text.split(key).join("[redacted key]") : text;
+  let out = key && key.length >= 12 ? redactSecret(text, key, "[redacted key]") : text;
   for (const re of SECRET_SHAPES) out = out.replace(re, "[redacted secret]");
   out = redactRpc(out);
   return out.replace(ABSOLUTE_PATH, "<path>");
