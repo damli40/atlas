@@ -1,0 +1,76 @@
+{
+  "fetchedAt": "2026-10-27T05:41:20.082Z",
+  "target": {
+    "kind": "github-pr",
+    "ref": "moonwell-fi/moonwell-contracts-v2#578",
+    "commit": "9a6738e189fa903bffa0abf10b9dd7ed2fe73a18",
+    "codeSha256": "6c431aaec1a5631719cb0c90128b0b2b0f294bafb3634c775cb93fee0670f7c7"
+  },
+  "title": "Add MIP-X43: Activate OEV wrappers for all remaining markets",
+  "mergedAt": "2026-02-10T18:58:44Z",
+  "changedFiles": 6,
+  "fingerprintRule": "for each fetched file sorted by path: UTF-8(path) + \"\\n\" + bytes + \"\\n\"; SHA-256 of the whole",
+  "files": [
+    {
+      "path": "chains/10.json",
+      "status": "modified",
+      "lines": 782,
+      "sizeBytes": 22751,
+      "binary": false,
+      "fetchedSha256": "6aa4053ada5aa13aa615b9844e154b8e04e3b524f8e9ddb2b91e5f1523e0d088",
+      "committedCopySha256": null,
+      "copy": "not copied"
+    },
+    {
+      "path": "chains/8453.json",
+      "status": "modified",
+      "lines": 1407,
+      "sizeBytes": 41146,
+      "binary": false,
+      "fetchedSha256": "b3121869f10e149692fd37cfd47be5faf73936d2957a329a2a7a4cc54c09dc06",
+      "committedCopySha256": "b3121869f10e149692fd37cfd47be5faf73936d2957a329a2a7a4cc54c09dc06",
+      "copy": "matched"
+    },
+    {
+      "path": "proposals/ChainlinkOracleConfigs.sol",
+      "status": "modified",
+      "lines": 188,
+      "sizeBytes": 7851,
+      "binary": false,
+      "fetchedSha256": "1051200988ea46e5731052d7cc3387dcb7541bfbba01ebea6e2eabf4563ad383",
+      "committedCopySha256": "1051200988ea46e5731052d7cc3387dcb7541bfbba01ebea6e2eabf4563ad383",
+      "copy": "matched"
+    },
+    {
+      "path": "proposals/mips/mip-x43/mip-x43.sol",
+      "status": "added",
+      "lines": 701,
+      "sizeBytes": 26562,
+      "binary": false,
+      "fetchedSha256": "fa2a8c6333521534acf51d8b2e89dc034514bd1b291b2233097ff3e0e4fc2bd6",
+      "committedCopySha256": "fa2a8c6333521534acf51d8b2e89dc034514bd1b291b2233097ff3e0e4fc2bd6",
+      "copy": "matched"
+    },
+    {
+      "path": "proposals/mips/mip-x43/x43.md",
+      "status": "added",
+      "lines": 103,
+      "sizeBytes": 3621,
+      "binary": false,
+      "fetchedSha256": "8d37734a593877af61614b6a9360c2206fceac651faf2d6839c51ac0c09696c9",
+      "committedCopySha256": "8d37734a593877af61614b6a9360c2206fceac651faf2d6839c51ac0c09696c9",
+      "copy": "matched"
+    },
+    {
+      "path": "proposals/mips/mips.json",
+      "status": "modified",
+      "lines": 835,
+      "sizeBytes": 24393,
+      "binary": false,
+      "fetchedSha256": "25eb2e4cc21cf987cefc9d2ff20d4297e0f14620ad5d4ec0212cc3b4642d5137",
+      "committedCopySha256": null,
+      "copy": "not copied"
+    }
+  ],
+  "skipped": []
+}
