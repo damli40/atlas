@@ -10,6 +10,11 @@
 // - POST /runs {experimentId} (D02-04) → freezes the bets, checks every bet was sealed before the run
 //   started, runs the control (once per code SHA-256) and the experiment in the sandbox, lets
 //   src/judge.ts judge each bet, and reveals every bet in full (with its nonce).
+// - POST /experiments/:id/model-bets (D02-06) → waits for the model's bets on that SAME experiment
+//   and returns its slot: status ("sealed", "no_usable_answer", "off") and the sealed hashes only.
+//   The model is asked as soon as the experiment is created (when the server was built with
+//   `modelBets`), from the experiment and the plain-code questions only: never the person's bets.
+//   Its answers and rationale stay on the server until POST /runs reveals every bet.
 // - GET /events/:sessionId (D02-05) → SSE of the session's agent events (server/log/). The session
 //   is the `x-atlas-session` header; the server makes one and returns it when absent. Experiments
 //   and bets belong to the session that made them.
@@ -31,7 +36,11 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { judge } from "../src/judge";
 import { verifySeal } from "../src/seal";
-import { checkAnswer, createBetStore, humanBetBody, MAX_BETS, MAX_EXPERIMENTS, newExperimentId, newRound, publicBet, sealedAfter, sealHumanBet, type BetStore } from "./bets";
+import { checkAnswer, createBetStore, humanBetBody, MAX_BETS, MAX_EXPERIMENTS, modelSlotView, newExperimentId, newRound, publicBet, sealedAfter, sealHumanBet, type BetStore, type ModelSlot, type Round } from "./bets";
+import type { ChatArgs, ChatResult } from "./meta/client";
+import { CLAIMANT_MODEL } from "./meta/roles/claimant";
+import { modelDisplay, runClaimantBets } from "./meta/roles/claimant-bets";
+import { FIXTURE_FILE, fixtureFinding } from "./meta/roles/fixture-finding";
 import { gate, type GateContext } from "../src/gate";
 import type { Experiment, Run, Target, Verdict } from "../src/types";
 import type { Executor } from "../runners/runner";
@@ -94,7 +103,18 @@ export const TS_GATE_CONTEXT: GateContext = { shapes: ["retry-scenario"], watchL
 
 // ---------- the app ----------
 
-export function createApp(opts: { executor?: Executor; agentLog?: AgentLog; betStore?: BetStore } = {}) {
+/**
+ * Model bets (D02-06). When given, the server asks this model for its bets on every allowed
+ * experiment, as soon as the experiment exists. Absent (the default, and in tests unless they pass a
+ * mocked chat), no model is asked and the slot says so.
+ */
+export interface ModelBetsOptions {
+  chat: (args: ChatArgs) => Promise<ChatResult>;
+  model?: string;
+  now?: () => Date;
+}
+
+export function createApp(opts: { executor?: Executor; agentLog?: AgentLog; betStore?: BetStore; modelBets?: ModelBetsOptions } = {}) {
   const executor = opts.executor ?? localExecutor;
   const betStore = opts.betStore ?? createBetStore(); // D02-04: experiments and server-sealed bets, per session
   const agentLog = opts.agentLog ?? createAgentLog(); // D02-05: per-session agent events
@@ -114,6 +134,48 @@ export function createApp(opts: { executor?: Executor; agentLog?: AgentLog; betS
     p.catch(() => controls.delete(target.codeSha256));
     controls.set(target.codeSha256, p);
     return p;
+  };
+
+  /** Ask the model for its bets on this round's experiment. Never throws; the slot records the outcome. */
+  const startModelBets = (round: Round, sessionId: string): void => {
+    const model = opts.modelBets?.model ?? CLAIMANT_MODEL;
+    const slot: ModelSlot = { model, who: `model:${model}`, display: modelDisplay(model), status: "off" };
+    round.model = slot;
+    if (!opts.modelBets) {
+      slot.reason = "this server asks no Meta model for bets";
+      return;
+    }
+    const exp = round.experiment;
+    if (exp.target.ref !== FIXTURE_FILE) {
+      slot.reason = `no finding exists yet for ${exp.target.ref}`;
+      return;
+    }
+    const fileText = readFixture(exp.target);
+    const finding = fixtureFinding(fileText);
+    slot.status = "thinking";
+    const { chat, now } = opts.modelBets;
+    slot.settled = runClaimantBets(
+      { experiment: exp, questions: round.questions, finding, fileText, gateContext: TS_GATE_CONTEXT, model },
+      { chat, log: sessionEmitter(agentLog, sessionId), ...(now ? { now } : {}) },
+    ).then(
+      (r) => {
+        if (!r.ok) {
+          slot.status = "no_usable_answer";
+          slot.reason = r.reason;
+        } else if (round.betsFrozenAt !== undefined) {
+          // Cannot happen while POST /runs waits for this promise; kept so a late answer is never judged.
+          slot.status = "no_usable_answer";
+          slot.reason = "the answer arrived after the bets were frozen";
+        } else {
+          round.bets.push(...r.bets);
+          slot.status = "sealed";
+        }
+      },
+      (e: unknown) => {
+        slot.status = "no_usable_answer";
+        slot.reason = `the server could not finish the model call: ${e instanceof Error ? e.message : String(e)}`;
+      },
+    );
   };
 
   const app = new Hono();
@@ -180,7 +242,20 @@ export function createApp(opts: { executor?: Executor; agentLog?: AgentLog; betS
     if (decision.allowed) log.investigatorStub(experiment);
     log.gate(experiment);
     if (!decision.allowed) return c.json({ error: `gate: rejected (${decision.reason}); nothing will run`, experiment }, 422);
-    return c.json({ experiment, questions: round.questions, extraQuestions: round.extraQuestions });
+    startModelBets(round, sessionId); // D02-06: the model bets on this SAME experiment, from the questions only
+    return c.json({ experiment, questions: round.questions, extraQuestions: round.extraQuestions, model: modelSlotView(round) });
+  });
+
+  app.post("/experiments/:id/model-bets", async (c) => {
+    const sessionId = sessionIdOf(c);
+    if (sessionId === null) return c.json({ error: BAD_SESSION }, 400);
+    const id = c.req.param("id");
+    const round = betStore.session(sessionId).get(id);
+    if (!round) return c.json({ error: `this session has no experiment ${id}: create it with POST /experiments first` }, 404);
+    if (!round.experiment.gate.allowed) return c.json({ error: `the gate refused experiment ${id}, so no model bets on it` }, 422);
+    await round.model?.settled;
+    // Hashes only: the model's answers and rationale stay on the server until the run reveals every bet.
+    return c.json({ model: modelSlotView(round) });
   });
 
   app.post("/bets", async (c) => {
@@ -231,8 +306,10 @@ export function createApp(opts: { executor?: Executor; agentLog?: AgentLog; betS
     if (round.status !== "open") return c.json({ error: `experiment ${experiment.id} already ran (started ${round.betsFrozenAt}); start a new experiment to run again` }, 409);
     if (round.bets.length === 0) return c.json({ error: "place at least one bet first: a run only happens after bets are sealed" }, 409);
 
-    // Freeze the bets NOW, before any await: from here every POST /bets on this experiment gets 409.
+    // Freeze the person's bets NOW, before any await: from here every POST /bets on this experiment gets 409.
     round.status = "running";
+    // The model's bets are part of the round: wait until they are sealed (or it gave no usable answer).
+    await round.model?.settled;
     const bets = [...round.bets];
     const log = roundLog(sessionEmitter(agentLog, sessionId));
 
@@ -284,7 +361,7 @@ export function createApp(opts: { executor?: Executor; agentLog?: AgentLog; betS
     round.run = run;
     round.verdicts = verdicts;
     // Reveal every bet in full (with its nonce) so the browser can recompute each hash itself.
-    return c.json({ run, verdicts, bets, betsFrozenAt: round.betsFrozenAt });
+    return c.json({ run, verdicts, bets, betsFrozenAt: round.betsFrozenAt, model: modelSlotView(round) });
   });
 
   app.onError((err, c) => c.json({ error: `the server could not finish the request: ${err.message}` }, 500));

@@ -35,6 +35,61 @@ export const publicBet = (b: Bet): PublicBet => {
   return rest;
 };
 
+/**
+ * What anyone may see of a sealed bet before the run when the bettor is NOT the person asking:
+ * who, which question, when, and the hash. Not the answer, not the rationale, not the nonce.
+ * (D02-06: the page shows "Muse Spark has sealed 3 bets" + these hashes, and Spark's answers only
+ * after the run.)
+ */
+export type SealedOnly = Pick<Bet, "id" | "experimentId" | "who" | "question" | "measures" | "sealedAt" | "sealedHash">;
+
+export const sealedOnly = (b: Bet): SealedOnly => ({
+  id: b.id,
+  experimentId: b.experimentId,
+  who: b.who,
+  question: b.question,
+  measures: b.measures,
+  sealedAt: b.sealedAt,
+  sealedHash: b.sealedHash,
+});
+
+/** The model's slot on one experiment (D02-06). */
+export interface ModelSlot {
+  model: string;
+  /** "model:<id>", as on its bets. */
+  who: `model:${string}`;
+  /** How the screen names it, e.g. "Muse Spark 1.3 (muse-spark-1.3)". */
+  display: string;
+  status: "off" | "thinking" | "sealed" | "no_usable_answer";
+  /** Plain reason for "off" and "no_usable_answer". */
+  reason?: string;
+  /** Settles when the model's bets are sealed or it gave no usable answer. Never rejects. */
+  settled?: Promise<void>;
+}
+
+/** The model slot as the server shows it: status and sealed hashes only (never the answers). */
+export interface ModelSlotView {
+  model: string;
+  who: string;
+  display: string;
+  status: ModelSlot["status"];
+  reason?: string;
+  sealed: SealedOnly[];
+}
+
+export function modelSlotView(round: Round): ModelSlotView | null {
+  const m = round.model;
+  if (!m) return null;
+  return {
+    model: m.model,
+    who: m.who,
+    display: m.display,
+    status: m.status,
+    ...(m.reason ? { reason: m.reason } : {}),
+    sealed: round.bets.filter((b) => b.who === m.who).map(sealedOnly),
+  };
+}
+
 export interface Round {
   experiment: Experiment;
   /** The questions shown to everyone (the same ones a model answers). */
@@ -48,6 +103,8 @@ export interface Round {
   betsFrozenAt?: string;
   run?: Run;
   verdicts?: Verdict[];
+  /** The model's bets on this same experiment (D02-06). Absent when the server asks no model. */
+  model?: ModelSlot;
 }
 
 export interface BetStore {

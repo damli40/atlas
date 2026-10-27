@@ -28,6 +28,14 @@ export const claimantOutputSchema = z.strictObject({
   bets: z.array(claimantBetSchema).min(1).max(20),
 });
 
+/**
+ * The Claimant's answer in bet-only mode: the experiment is already chosen (and allowed by the
+ * gate), so the model returns only its bets, in the same bet schema.
+ */
+export const claimantBetsOnlySchema = z.strictObject({
+  bets: z.array(claimantBetSchema).min(1).max(20),
+});
+
 export type ClaimantOutput = z.infer<typeof claimantOutputSchema>;
 export type ClaimantBetOut = z.infer<typeof claimantBetSchema>;
 

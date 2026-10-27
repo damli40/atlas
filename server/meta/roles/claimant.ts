@@ -87,7 +87,7 @@ export type ClaimantResult =
 
 // ---------- the prompt ----------
 
-function numbered(fileText: string, from: number, to: number): string {
+export function numbered(fileText: string, from: number, to: number): string {
   const lines = fileText.split("\n");
   const end = Math.min(to, lines.length);
   const width = String(end).length;
@@ -211,13 +211,26 @@ export function validateClaimantOutput(content: string, ctx: GateContext): Valid
   const questions = questionsFor(decision.params, ctx);
   if (questions.length === 0) return { ok: false, error: `no questions exist for shape "${decision.params.shape}"; pick a shape that has questions` };
 
+  const checked = validateBetsFor(questions, out.bets);
+  if (!checked.ok) return checked;
+  return { ok: true, params: decision.params, questions, bets: checked.bets };
+}
+
+/**
+ * The bet checks both modes share: exactly one bet per plain-code question, nothing extra, and each
+ * answer of the question's kind (with its exact unit, tolerance and options). Pure.
+ */
+export function validateBetsFor(
+  questions: readonly Question[],
+  modelBets: readonly ClaimantBetOut[],
+): { ok: true; bets: { question: Question; out: ClaimantBetOut }[] } | { ok: false; error: string } {
   const byField = new Map<string, ClaimantBetOut>();
-  for (const b of out.bets) {
+  for (const b of modelBets) {
     if (byField.has(b.measures)) return { ok: false, error: `two bets on "${b.measures}"; place exactly one per question` };
     byField.set(b.measures, b);
   }
   const wanted = new Set(questions.map((q) => q.measures));
-  const extra = out.bets.filter((b) => !wanted.has(b.measures)).map((b) => b.measures);
+  const extra = modelBets.filter((b) => !wanted.has(b.measures)).map((b) => b.measures);
   if (extra.length) return { ok: false, error: `bets on ${extra.map((m) => `"${m}"`).join(", ")} answer no question; the questions measure ${[...wanted].map((m) => `"${m}"`).join(", ")}` };
   const missing = questions.filter((q) => !byField.has(q.measures)).map((q) => q.measures);
   if (missing.length) return { ok: false, error: `no bet on ${missing.map((m) => `"${m}"`).join(", ")}; place exactly one bet per question` };
@@ -229,12 +242,12 @@ export function validateClaimantOutput(content: string, ctx: GateContext): Valid
     if (why) return { ok: false, error: why };
     bets.push({ question: q, out: b });
   }
-  return { ok: true, params: decision.params, questions, bets };
+  return { ok: true, bets };
 }
 
 // ---------- the role ----------
 
-function addUsage(a: Usage | undefined, b: Usage | undefined): Usage | undefined {
+export function addUsage(a: Usage | undefined, b: Usage | undefined): Usage | undefined {
   if (!a) return b;
   if (!b) return a;
   const r = (a.reasoningTokens ?? 0) + (b.reasoningTokens ?? 0);
