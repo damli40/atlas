@@ -1,0 +1,142 @@
+ RUN  v5.0.5 <repo>
+ ✓ tests/unit/py-contract.test.ts > a pasted Python target > is named by its fingerprint and carries language py 1ms
+ ✓ tests/unit/py-contract.test.ts > top-level functions, read by plain code > lists def and async def at column 0, with lines, and nothing else 1ms
+ ✓ tests/unit/py-contract.test.ts > top-level functions, read by plain code > f-strings with nested quotes and braces do not confuse it 0ms
+ ✓ tests/unit/py-contract.test.ts > top-level functions, read by plain code > the gate accepts a top-level function and refuses a method or a missing name 1ms
+ ✓ tests/unit/py-contract.test.ts > imports, read by plain code > finds every form, with the module as written 0ms
+ ✓ tests/unit/py-contract.test.ts > imports, read by plain code > the standard library is allowed; anything else is refused before running, with the first one named 0ms
+ ✓ tests/unit/py-contract.test.ts > imports, read by plain code > text it cannot read is left to Python (which reports the SyntaxError in its own words) 0ms
+ ✓ tests/unit/py-contract.test.ts > imports, read by plain code > the standard-library list is exactly the interpreter's own (sys.stdlib_module_names) 15ms
+ ✓ tests/unit/py-sandbox.test.ts > the Python sandbox profile > starts from deny-everything and allows only the interpreter, its install, the run folder and system libraries 1ms
+ ✓ tests/unit/py-sandbox.test.ts > the Python sandbox profile > picks Python from a fixed list, in a fixed order 0ms
+ ✓ tests/unit/py-sandbox.test.ts > the Python sandbox profile > refuses on any OS other than macOS 0ms
+ ✓ tests/unit/py-sandbox.test.ts > the Python executor (real sandbox-exec) > runs Python 3.12+ in isolated mode with an empty environment 18ms
+ ✓ tests/unit/py-sandbox.test.ts > the Python executor (real sandbox-exec) > refuses commands it cannot keep in the sandbox 1ms
+ ✓ tests/unit/py-sandbox.test.ts > the Python executor (real sandbox-exec) > the OS denies opening a network connection 25ms
+ ✓ tests/unit/py-sandbox.test.ts > the Python executor (real sandbox-exec) > the OS denies listening on a port 18ms
+ ✓ tests/unit/py-sandbox.test.ts > the Python executor (real sandbox-exec) > the OS denies writing a file in its own folder 16ms
+ ✓ tests/unit/py-sandbox.test.ts > the Python executor (real sandbox-exec) > the OS denies writing a file in /private/tmp 17ms
+ ✓ tests/unit/py-sandbox.test.ts > the Python executor (real sandbox-exec) > the OS denies reading a file under ~/.config 16ms
+ ✓ tests/unit/py-sandbox.test.ts > the Python executor (real sandbox-exec) > the OS denies listing the home folder 15ms
+ ✓ tests/unit/py-sandbox.test.ts > the Python executor (real sandbox-exec) > the OS denies reading /etc/passwd 15ms
+ ✓ tests/unit/py-sandbox.test.ts > the Python executor (real sandbox-exec) > the OS denies starting a program (subprocess) 22ms
+ ✓ tests/unit/py-sandbox.test.ts > the Python executor (real sandbox-exec) > the OS denies forking (os.fork) 16ms
+ ✓ tests/unit/py-sandbox.test.ts > the Python executor (real sandbox-exec) > the OS denies loading ctypes 19ms
+ ✓ tests/unit/py-sandbox.test.ts > the Python executor (real sandbox-exec) > leaves no file behind from the write attempts 0ms
+ ✓ tests/unit/py-call.test.ts > the Python call-function control > passes on the shipped reference file, every case matched 1ms
+ ✓ tests/unit/py-call.test.ts > the Python call-function control > fails loudly when the sandbox gives no result 1ms
+ ✓ tests/unit/py-sandbox.test.ts > the Python executor (real sandbox-exec) > the raw _ctypes module still loads at the OS level (so the harness refuses it in-process: py-call tests) 19ms
+ ✓ tests/unit/py-sandbox.test.ts > the Python executor (real sandbox-exec) > can read its own run folder and the standard library, nothing else 21ms
+ ✓ tests/unit/py-parity.test.ts > ten ordinary Python functions give correct facts > both controls passed 1ms
+ ✓ tests/unit/py-parity.test.ts > ten ordinary Python functions give correct facts > 1. debounce: three keystrokes 100 ms apart, one save 300 ms after the last 86ms
+ ✓ tests/unit/py-call.test.ts > the Python call-function control > fails loudly when one measured fact differs (a harness whose clock is 1 ms off) 174ms
+ ✓ tests/unit/py-parity.test.ts > ten ordinary Python functions give correct facts > 2a. retry with backoff: fails twice, then answers after 50 ms 85ms
+ ✓ tests/unit/py-parity.test.ts > ten ordinary Python functions give correct facts > 2b. retry with backoff: fails every time, raises the last ConnectionError after 125 + 250 + 500 ms 84ms
+ ✓ tests/unit/py-parity.test.ts > ten ordinary Python functions give correct facts > 3. parser: European number format in, JSON out; bad text raises 175ms
+ ✓ tests/unit/py-call.test.ts > a pasted Python file runs end to end > JSON args in, JSON out, stand-in counted, virtual time measured, a sealed bet matched 96ms
+ ✓ tests/unit/py-call.test.ts > a pasted Python file runs end to end > the TS runner's entry point sends a pasted Python target to the Python runner (control first) 310ms
+ ✓ tests/unit/py-parity.test.ts > ten ordinary Python functions give correct facts > 4. rate limiter: a token bucket on time.monotonic, six requests 250 ms apart 126ms
+ ✓ tests/unit/py-call.test.ts > a pasted Python file runs end to end > a plain stand-in that raises gives a real Python exception the code can catch by class 112ms
+ ✓ tests/unit/py-call.test.ts > returned values that are not plain JSON > return (1, 2) -> returned, tuple, returnedJson not measured 89ms
+ ✓ tests/unit/py-sandbox.test.ts > the Python executor (real sandbox-exec) > kills a run that passes the wall-clock limit 802ms
+ ✓ tests/unit/py-parity.test.ts > ten ordinary Python functions give correct facts > 5. currency formatter 194ms
+ ✓ tests/unit/py-parity.test.ts > ten ordinary Python functions give correct facts > 6. deep merge 83ms
+ ✓ tests/unit/py-call.test.ts > returned values that are not plain JSON > return {1, 2} -> returned, set, returnedJson not measured 83ms
+ ✓ tests/unit/py-call.test.ts > returned values that are not plain JSON > return b'x' -> returned, bytes, returnedJson not measured 82ms
+ ✓ tests/unit/py-parity.test.ts > ten ordinary Python functions give correct facts > 7. task pool: five jobs, at most two at a time, each 100 ms 83ms
+ ✓ tests/unit/py-call.test.ts > returned values that are not plain JSON > return float('nan') -> returned, number (NaN), returnedJson not measured 85ms
+ ✓ tests/unit/py-parity.test.ts > ten ordinary Python functions give correct facts > 8. a class with methods; a bad quantity raises the code's own error 177ms
+ ✓ tests/unit/py-call.test.ts > returned values that are not plain JSON > return float('-inf') -> returned, number (-Infinity), returnedJson not measured 92ms
+ ✓ tests/unit/py-call.test.ts > returned values that are not plain JSON > return 2 ** 64 -> returned, number (an integer beyond 2^53), returnedJson not measured 88ms
+ ✓ tests/unit/py-parity.test.ts > ten ordinary Python functions give correct facts > 9. an async generator, consumed with async for 86ms
+ ✓ tests/unit/py-call.test.ts > returned values that are not plain JSON > return lambda: 1 -> returned, function, returnedJson not measured 82ms
+ ✓ tests/unit/py-parity.test.ts > ten ordinary Python functions give correct facts > 10. logging and print do not disturb the facts 82ms
+ ✓ tests/unit/py-call.test.ts > returned values that are not plain JSON > return a -> returned, object, returnedJson not measured 84ms
+ ✓ tests/unit/py-call.test.ts > returned values that are not plain JSON > return 'x' * 10240 -> returned, string, returnedJson not measured 85ms
+ ✓ tests/unit/py-parity.test.ts > the same behaviour in JavaScript and in Python gives identical measured fields > retry with backoff, a stand-in that fails twice then answers late 132ms
+ ✓ tests/unit/py-call.test.ts > returned values that are not plain JSON > return {1: 2} -> returned, object, returnedJson not measured 84ms
+ ✓ tests/unit/py-parity.test.ts > the same behaviour in JavaScript and in Python gives identical measured fields > the same retry when every call fails 142ms
+ ✓ tests/unit/py-call.test.ts > returned values that are not plain JSON > return collections.OrderedDict(a=1) -> returned, object (OrderedDict), returnedJson not measured 87ms
+ ✓ tests/unit/py-parity.test.ts > the same behaviour in JavaScript and in Python gives identical measured fields > a call that waits on a stand-in that never answers 136ms
+ ✓ tests/unit/py-parity.test.ts > the same behaviour in JavaScript and in Python gives identical measured fields > a 10-minute wait with a 30 s watch limit 142ms
+ ✓ tests/unit/py-call.test.ts > returned values that are not plain JSON > a 50-million-character string and a dict with a million keys are refused quickly by size 340ms
+ ✓ tests/unit/py-parity.test.ts > the same behaviour in JavaScript and in Python gives identical measured fields > a value JSON cannot hold (NaN) 143ms
+ ✓ tests/unit/py-call.test.ts > returned values that are not plain JSON > None is JSON null; 100 nested lists are kept and 101 are not 255ms
+ ✓ tests/unit/py-parity.test.ts > the same behaviour in JavaScript and in Python gives identical measured fields > plain JSON in and out, with JavaScript's number forms 140ms
+ ✓ tests/unit/py-parity.test.ts > the same behaviour in JavaScript and in Python gives identical measured fields > a sync stand-in counted after the call returned (timer 500 ms later) 125ms
+ ✓ tests/unit/py-call.test.ts > returned values that are not plain JSON > text is written exactly as JavaScript writes it (escapes, accents, emoji, key order by UTF-16) 84ms
+ ✓ tests/unit/py-call.test.ts > exceptions > a raise is threw, with the class name and message 80ms
+ ✓ tests/unit/py-call.test.ts > exceptions > the code's own PermissionError (no OS refusal behind it) is a fact: threw 80ms
+ ✓ tests/unit/py-call.test.ts > exceptions > a message whose __str__ raises is not measured, the name still is 81ms
+ ✓ tests/unit/py-call.test.ts > time on the virtual clock > never settles: awaiting a future nobody resolves 81ms
+ ✓ tests/unit/py-call.test.ts > time on the virtual clock > still running at the watch limit: a 10-minute sleep with a 30 s limit 80ms
+ ✓ tests/unit/py-call.test.ts > time on the virtual clock > a blocking time.sleep past the watch limit is still running too 79ms
+ ✓ tests/unit/py-call.test.ts > time on the virtual clock > datetime, time.time, monotonic and localtime all read the virtual clock (UTC, from 2026-01-01) 81ms
+ ✓ tests/unit/py-call.test.ts > time on the virtual clock > an endless loop hits Atlas's real-time limit: can't check, and the test does not hang 1505ms
+ ✓ tests/unit/py-call.test.ts > time on the virtual clock > an endless chain of zero sleeps hits the step limit: the outcome is not claimed 249ms
+ ✓ tests/unit/py-call.test.ts > time on the virtual clock > a stand-in called by a timer after the call returned is counted; one still pending at the limit is not claimed 162ms
+ ✓ tests/unit/py-call.test.ts > whole-run can't check: imports > a third-party package is refused before anything runs 1ms
+ ✓ tests/unit/py-call.test.ts > whole-run can't check: imports > the same refusal happens inside the sandbox when the scan is skipped, even if the code catches it 80ms
+ ✓ tests/unit/py-call.test.ts > whole-run can't check: imports > a module imported at run time by name, and a relative import, are refused 160ms
+ ✓ tests/unit/py-call.test.ts > whole-run can't check: imports > a standard-library module Atlas did not load is refused with its own reason 81ms
+ ✓ tests/unit/py-call.test.ts > whole-run can't check: imports > a fresh copy of a loaded module (to get originals back) is refused 80ms
+ ✓ tests/unit/py-call.test.ts > whole-run can't check: imports > a syntax error is the interpreter's own message 79ms
+ ✓ tests/unit/py-call.test.ts > whole-run can't check: imports > a file that raises while loading, a missing function, and a name that is not a function 235ms
+ ✓ tests/unit/py-call.test.ts > whole-run can't check: reaching outside (the code catches the error and carries on) > reading /etc/passwd 80ms
+ ✓ tests/unit/py-call.test.ts > whole-run can't check: reaching outside (the code catches the error and carries on) > writing a file 79ms
+ ✓ tests/unit/py-call.test.ts > whole-run can't check: reaching outside (the code catches the error and carries on) > listing a folder 79ms
+ ✓ tests/unit/py-call.test.ts > whole-run can't check: reaching outside (the code catches the error and carries on) > a network connection 81ms
+ ✓ tests/unit/py-call.test.ts > whole-run can't check: reaching outside (the code catches the error and carries on) > a subprocess 79ms
+ ✓ tests/unit/py-call.test.ts > whole-run can't check: reaching outside (the code catches the error and carries on) > os.system 79ms
+ ✓ tests/unit/py-call.test.ts > whole-run can't check: reaching outside (the code catches the error and carries on) > os.fork 82ms
+ ✓ tests/unit/py-call.test.ts > whole-run can't check: reaching outside (the code catches the error and carries on) > ctypes 79ms
+ ✓ tests/unit/py-call.test.ts > whole-run can't check: reaching outside (the code catches the error and carries on) > the raw _ctypes module 80ms
+ ✓ tests/unit/py-call.test.ts > whole-run can't check: reaching outside (the code catches the error and carries on) > a thread 79ms
+ ✓ tests/unit/py-call.test.ts > whole-run can't check: reaching outside (the code catches the error and carries on) > a signal handler (it would be handed a stack frame) 78ms
+ ✓ tests/unit/py-call.test.ts > whole-run can't check: reaching outside (the code catches the error and carries on) > a real-time signal timer 79ms
+ ✓ tests/unit/py-call.test.ts > whole-run can't check: reaching outside (the code catches the error and carries on) > CPU time 78ms
+ ✓ tests/unit/py-call.test.ts > whole-run can't check: reaching outside (the code catches the error and carries on) > select with a real timeout 81ms
+ ✓ tests/unit/py-call.test.ts > whole-run can't check: reaching outside (the code catches the error and carries on) > reading stdin 80ms
+ ✓ tests/unit/py-call.test.ts > whole-run can't check: reaching outside (the code catches the error and carries on) > sys.exit that escapes the call ends the process: can't check; caught by the code it is ordinary Python 157ms
+ ✓ tests/unit/py-call.test.ts > whole-run can't check: reaching outside (the code catches the error and carries on) > an OS refusal that escapes the call is never recorded as threw 79ms
+ ✓ tests/unit/py-call.test.ts > whole-run can't check: reaching outside (the code catches the error and carries on) > a thread pool through asyncio (run_in_executor / to_thread) is refused 80ms
+ ✓ tests/unit/py-call.test.ts > whole-run can't check: reaching outside (the code catches the error and carries on) > os._exit before the result: no result, can't check 82ms
+ ✓ tests/unit/py-call.test.ts > whole-run can't check: reaching outside (the code catches the error and carries on) > a callback that fails with nobody catching it, and a task whose error is never read 160ms
+ ✓ tests/unit/py-call.test.ts > whole-run can't check: reaching outside (the code catches the error and carries on) > an atexit function, a gc callback and turning the garbage collector back on are refused 242ms
+ ✓ tests/unit/py-call.test.ts > attacks on the result channel > gc key hunt: gc.get_objects / get_referrers are refused, so no key is found 161ms
+ ✓ tests/unit/py-call.test.ts > attacks on the result channel > frame walking through sys._getframe is refused 80ms
+ ✓ tests/unit/py-call.test.ts > attacks on the result channel > frame walking through a traceback's tb_frame is refused 92ms
+ ✓ tests/unit/py-call.test.ts > attacks on the result channel > frame walking through inspect.stack is refused 88ms
+ ✓ tests/unit/py-call.test.ts > attacks on the result channel > frame walking through traceback.format_exc is refused 82ms
+ ✓ tests/unit/py-call.test.ts > attacks on the result channel > frame walking through a coroutine's cr_frame is refused 79ms
+ ✓ tests/unit/py-call.test.ts > attacks on the result channel > frame walking through sys.settrace is refused 80ms
+ ✓ tests/unit/py-call.test.ts > attacks on the result channel > frame walking through sys.setprofile is refused 78ms
+ ✓ tests/unit/py-call.test.ts > attacks on the result channel > frame walking through sys.monitoring is refused 80ms
+ ✓ tests/unit/py-call.test.ts > attacks on the result channel > frame walking through adding an audit hook is refused 80ms
+ ✓ tests/unit/py-call.test.ts > attacks on the result channel > gc.set_debug(DEBUG_SAVEALL) + gc.garbage (a route with no audit event) is refused 81ms
+ ✓ tests/unit/py-call.test.ts > attacks on the result channel > lowering the recursion limit does not break Atlas's own reading of the result 78ms
+ ✓ tests/unit/py-call.test.ts > attacks on the result channel > a stand-in called 20,000 times: the count is exact, the trace is cut and says so 113ms
+ ✓ tests/unit/py-call.test.ts > attacks on the result channel > the stand-in's generator: opening its frame, throwing into it or closing it are all refused 243ms
+ ✓ tests/unit/py-call.test.ts > attacks on the result channel > rewiring a stand-in's closure changes only what the code sees: the count stays the real one 80ms
+ ✓ tests/unit/py-call.test.ts > attacks on the result channel > moving Atlas's virtual clock backwards through a function's globals is refused 86ms
+ ✓ tests/unit/py-call.test.ts > attacks on the result channel > editing Atlas's exposed globals (to silence its refusals) is caught 88ms
+ ✓ tests/unit/py-call.test.ts > attacks on the result channel > replacing a function's code, building code objects and loading marshal data are refused 318ms
+ ✓ tests/unit/py-call.test.ts > attacks on the result channel > _imp.create_builtin (a fresh signal module with the original functions) is refused 79ms
+ ✓ tests/unit/py-call.test.ts > attacks on the result channel > a forged result line followed by os._exit is rejected (it does not carry the run's key) 81ms
+ ✓ tests/unit/py-call.test.ts > attacks on the result channel > a forged line printed before returning normally: two lines, tampering 81ms
+ ✓ tests/unit/py-call.test.ts > attacks on the result channel > a returned object whose __del__ writes a forged line cannot sneak it in 80ms
+ ✓ tests/unit/py-call.test.ts > attacks on the result channel > the key is in no argv, environment variable or file the code can read 79ms
+ ✓ tests/unit/py-call.test.ts > poisoned returned objects cannot make Atlas sign a value the code did not return > a dict subclass that lies about its items 78ms
+ ✓ tests/unit/py-call.test.ts > poisoned returned objects cannot make Atlas sign a value the code did not return > a float subclass with a forged repr 80ms
+ ✓ tests/unit/py-call.test.ts > poisoned returned objects cannot make Atlas sign a value the code did not return > a str subclass 80ms
+ ✓ tests/unit/py-call.test.ts > poisoned returned objects cannot make Atlas sign a value the code did not return > an object that claims to be a dict 80ms
+ ✓ tests/unit/py-call.test.ts > poisoned returned objects cannot make Atlas sign a value the code did not return > a list subclass 82ms
+ ✓ tests/unit/py-call.test.ts > poisoned returned objects cannot make Atlas sign a value the code did not return > an int subclass with __eq__ 79ms
+ ✓ tests/unit/py-call.test.ts > poisoned returned objects cannot make Atlas sign a value the code did not return > a poisoned value nested in a plain dict, and a poisoned key, make the whole value not JSON 160ms
+ ✓ tests/unit/py-call.test.ts > poisoned returned objects cannot make Atlas sign a value the code did not return > patching builtins, json, sys.stdout, sys.modules and __import__ changes nothing Atlas reports (proven harmless) 82ms
+ ✓ tests/unit/py-call.test.ts > poisoned returned objects cannot make Atlas sign a value the code did not return > replacing time.time with the code's own function changes only what the code sees 80ms
+ ✓ tests/unit/py-call.test.ts > the sentences the Python harness shows > reuse the JavaScript wording where the cause is the same, with a slot for the detail 0ms
+ Test Files  4 passed (4)
+      Tests  137 passed (137)
+   Start at  22:12:43
+   Duration  11.02s (tests 98%, import 1%)
