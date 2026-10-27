@@ -1,7 +1,9 @@
 // Sealing bets. A sealed bet is fixed before the run: its hash is shown on screen first,
 // and anyone can later recompute it to confirm the bet was not changed after the run.
 //
-// sealedHash = sha256(canonicalJson({who, experimentId, question, measures, answer, nonce, sealedAt}))
+// sealedHash = sha256(canonicalJson({who, experimentId, question, measures, answer, nonce, sealedAt, rationale?}))
+// The rationale (a model's reasoning) is sealed when the bet has one, so reasoning written after the
+// run can never sit next to a sealed bet. A bet without a rationale hashes exactly the seven fields.
 //
 // canonicalJson writes the same object the same way every time (keys sorted at every
 // level, no spaces), so the hash does not depend on the order fields were written in.
@@ -133,7 +135,9 @@ export function sha256Hex(text: string): string {
 
 export type BetToSeal = Omit<Bet, "id" | "nonce" | "sealedAt" | "sealedHash"> & { id?: string };
 
-function sealPayload(bet: Pick<Bet, "who" | "experimentId" | "question" | "measures" | "answer" | "nonce" | "sealedAt">) {
+type SealedFields = Pick<Bet, "who" | "experimentId" | "question" | "measures" | "answer" | "nonce" | "sealedAt" | "rationale">;
+
+function sealPayload(bet: SealedFields) {
   return {
     who: bet.who,
     experimentId: bet.experimentId,
@@ -142,13 +146,12 @@ function sealPayload(bet: Pick<Bet, "who" | "experimentId" | "question" | "measu
     answer: bet.answer,
     nonce: bet.nonce,
     sealedAt: bet.sealedAt,
+    ...(bet.rationale !== undefined ? { rationale: bet.rationale } : {}),
   };
 }
 
 /** The hash a bet with these fields must carry. */
-export function computeSealHash(
-  bet: Pick<Bet, "who" | "experimentId" | "question" | "measures" | "answer" | "nonce" | "sealedAt">,
-): string {
+export function computeSealHash(bet: SealedFields): string {
   return sha256Hex(canonicalJson(sealPayload(bet)));
 }
 
@@ -162,7 +165,7 @@ function randomNonce(): string {
 
 /**
  * Seal a bet: add a 16-byte random nonce, the time, and the hash. `now` is only for tests.
- * The rationale (model bets) is kept on the bet but is NOT part of the hash.
+ * The rationale (model bets), when present, is part of the hash.
  */
 export function sealBet(input: BetToSeal, now: Date = new Date()): Bet {
   const nonce = randomNonce();

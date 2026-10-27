@@ -90,8 +90,18 @@ describe("sealBet / verifySeal", () => {
     expect(sealBet(input, t).sealedHash).not.toBe(sealBet(input, t).sealedHash);
   });
 
-  it("the hash covers exactly who, experimentId, question, measures, answer, nonce, sealedAt", () => {
+  it("the hash covers who, experimentId, question, measures, answer, nonce, sealedAt, and the rationale when present", () => {
     const b = sealBet(input);
+    const payload = {
+      who: b.who, experimentId: b.experimentId, question: b.question, measures: b.measures,
+      answer: b.answer, nonce: b.nonce, sealedAt: b.sealedAt, rationale: b.rationale,
+    };
+    expect(b.sealedHash).toBe(nodeSha(canonicalJson(payload)));
+  });
+
+  it("a bet with no rationale hashes exactly the original seven fields", () => {
+    const { rationale: _r, ...noRationale } = input;
+    const b = sealBet(noRationale);
     const payload = {
       who: b.who, experimentId: b.experimentId, question: b.question, measures: b.measures,
       answer: b.answer, nonce: b.nonce, sealedAt: b.sealedAt,
@@ -114,9 +124,19 @@ describe("sealBet / verifySeal", () => {
     expect(verifySeal({ ...b, sealedAt: "2026-10-28T00:00:00.000Z" })).toBe(false);
   });
 
-  it("the rationale and id are not sealed (changing them keeps the seal valid)", () => {
+  it("the rationale IS sealed: rewriting, removing or adding it after sealing breaks the seal", () => {
+    // Review finding S9: reasoning written after the run must not sit next to a "sealed" bet.
     const b = sealBet(input);
-    expect(verifySeal({ ...b, rationale: "different" })).toBe(true);
+    expect(verifySeal({ ...b, rationale: "different" })).toBe(false);
+    const { rationale: _r, ...withoutRationale } = b;
+    expect(verifySeal(withoutRationale)).toBe(false);
+    const { rationale: _r2, ...noRationale } = input;
+    const plain = sealBet(noRationale);
+    expect(verifySeal({ ...plain, rationale: "added later" })).toBe(false);
+  });
+
+  it("the id is not sealed (changing it keeps the seal valid)", () => {
+    const b = sealBet(input);
     expect(verifySeal({ ...b, id: "other" })).toBe(true);
   });
 

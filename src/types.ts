@@ -47,9 +47,9 @@ export interface Bet {
   answer: BetAnswer;
   nonce: string;                            // 16 random bytes hex; makes the hash unguessable
   sealedAt: string;
-  /** sha256(canonicalJson({who, experimentId, question, measures, answer, nonce, sealedAt})). Shown on screen BEFORE the run. */
+  /** sha256(canonicalJson({who, experimentId, question, measures, answer, nonce, sealedAt, rationale?})). Shown on screen BEFORE the run. */
   sealedHash: string;
-  /** Model bets only: what the model said; shown in the model panel. */
+  /** Model bets only: what the model said; shown in the model panel. Sealed with the bet when present. */
   rationale?: string;
 }
 
