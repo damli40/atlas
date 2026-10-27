@@ -10,7 +10,8 @@
     "skipLibCheck": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
     "types": ["node"]
   },
-  "include": ["src", "server", "web", "tests", "vite.config.ts"]
+  "include": ["src", "server", "web", "runners", "tests", "vite.config.ts"]
 }

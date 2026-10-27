@@ -1,0 +1,44 @@
+
+ RUN  v5.0.5 /Users/Admin/Documents/Atlas-wt/harness
+
+stdout | tests/unit/harness.test.ts > TS harness against the oracle table (real withRpcRetry, virtual clock) > S1: calls, waits, log lines and outcome match the oracle row
+S1 measured {"calls":1,"waitCount":0,"waitsMs":"","logCount":0,"logAttempts":"","totalWaitMs":0,"outcome":"returns","settledAtMs":0,"returned":"\"the value\""} wall=0.3ms
+
+stdout | tests/unit/harness.test.ts > TS harness against the oracle table (real withRpcRetry, virtual clock) > S2: calls, waits, log lines and outcome match the oracle row
+S2 measured {"calls":2,"waitCount":1,"waitsMs":"3000","logCount":1,"logAttempts":"1/5","totalWaitMs":3000,"outcome":"returns","settledAtMs":3000,"returned":"\"the value\""} wall=0.7ms
+
+stdout | tests/unit/harness.test.ts > TS harness against the oracle table (real withRpcRetry, virtual clock) > S3: calls, waits, log lines and outcome match the oracle row
+S3 measured {"calls":5,"waitCount":4,"waitsMs":"3000,3000,3000,3000","logCount":4,"logAttempts":"1/5,2/5,3/5,4/5","totalWaitMs":12000,"outcome":"throws","settledAtMs":12000,"thrown":"HttpRequestError: HTTP request failed. Status: 502 (call 5)","thrownFromCall":5} wall=0.2ms
+
+stdout | tests/unit/harness.test.ts > TS harness against the oracle table (real withRpcRetry, virtual clock) > S4: calls, waits, log lines and outcome match the oracle row
+S4 measured {"calls":2,"waitCount":1,"waitsMs":"3000","logCount":1,"logAttempts":"1/5","totalWaitMs":3000,"outcome":"returns","settledAtMs":3000,"returned":"\"the value\""} wall=0.1ms
+
+stdout | tests/unit/harness.test.ts > TS harness against the oracle table (real withRpcRetry, virtual clock) > S5: calls, waits, log lines and outcome match the oracle row
+S5 measured {"calls":1,"waitCount":0,"waitsMs":"","logCount":0,"logAttempts":"","totalWaitMs":0,"outcome":"returns","settledAtMs":0,"returned":"{\"status\":429}"} wall=0.0ms
+
+stdout | tests/unit/harness.test.ts > TS harness against the oracle table (real withRpcRetry, virtual clock) > S6: calls, waits, log lines and outcome match the oracle row
+S6 measured {"calls":1,"waitCount":0,"waitsMs":"","logCount":0,"logAttempts":"","totalWaitMs":0,"outcome":"pending"} wall=0.0ms
+
+stdout | tests/unit/harness.test.ts > TS harness against the oracle table (real withRpcRetry, virtual clock) > H2: calls, waits, log lines and outcome match the oracle row
+H2 measured {"calls":3,"waitCount":2,"waitsMs":"3000,3000","logCount":2,"logAttempts":"1/3,2/3","totalWaitMs":6000,"outcome":"throws","settledAtMs":6000,"thrown":"HttpRequestError: HTTP request failed. Status: 502 (call 3)","thrownFromCall":3} wall=0.1ms
+
+ ✓ tests/unit/harness.test.ts > TS harness against the oracle table (real withRpcRetry, virtual clock) > S1: calls, waits, log lines and outcome match the oracle row 1ms
+ ✓ tests/unit/harness.test.ts > TS harness against the oracle table (real withRpcRetry, virtual clock) > S2: calls, waits, log lines and outcome match the oracle row 1ms
+ ✓ tests/unit/harness.test.ts > TS harness against the oracle table (real withRpcRetry, virtual clock) > S3: calls, waits, log lines and outcome match the oracle row 0ms
+ ✓ tests/unit/harness.test.ts > TS harness against the oracle table (real withRpcRetry, virtual clock) > S4: calls, waits, log lines and outcome match the oracle row 0ms
+ ✓ tests/unit/harness.test.ts > TS harness against the oracle table (real withRpcRetry, virtual clock) > S5: calls, waits, log lines and outcome match the oracle row 0ms
+ ✓ tests/unit/harness.test.ts > TS harness against the oracle table (real withRpcRetry, virtual clock) > S6: calls, waits, log lines and outcome match the oracle row 0ms
+ ✓ tests/unit/harness.test.ts > TS harness against the oracle table (real withRpcRetry, virtual clock) > H2: calls, waits, log lines and outcome match the oracle row 0ms
+ ✓ tests/unit/harness.test.ts > TS harness against the oracle table (real withRpcRetry, virtual clock) > S6: reports pending with the harness-limit wording, in under 200 ms real time 1ms
+ ✓ tests/unit/harness.test.ts > TS harness against the oracle table (real withRpcRetry, virtual clock) > S3: 12,000 virtual ms complete in under 200 ms of wall-clock time (no real sleeping) 0ms
+ ✓ tests/unit/harness.test.ts > TS harness against the oracle table (real withRpcRetry, virtual clock) > H1 (held out, not in the acceptance list): resolves after 20,000 virtual ms with no waits 0ms
+ ✓ tests/unit/harness.test.ts > TS harness against the oracle table (real withRpcRetry, virtual clock) > same seed gives deep-equal traces across two runs; a different seed changes the errors 1ms
+ ✓ tests/unit/harness.test.ts > TS harness against the oracle table (real withRpcRetry, virtual clock) > S3: the five errors are all different 0ms
+ ✓ tests/unit/harness.test.ts > TS harness against the oracle table (real withRpcRetry, virtual clock) > reports can't-check (not 'pending') when the code waits on a real timer the harness does not control 62ms
+ ✓ tests/unit/harness.test.ts > TS harness against the oracle table (real withRpcRetry, virtual clock) > stops at the virtual watch limit when the code would wait past it 0ms
+
+ Test Files  1 passed (1)
+      Tests  14 passed (14)
+   Start at  05:13:33
+   Duration  155ms (tests 87%, import 7%, transform 4%, worker 2%)
+
