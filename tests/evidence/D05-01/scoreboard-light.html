@@ -1,0 +1,171 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Scoreboard</title>
+<style>body{margin:0;background:#f2f2ef;color:#1d1d1b;font:15px/1.5 system-ui,sans-serif;--ink:#1d1d1b}main{max-width:720px;margin:0 auto;padding:24px 16px}.muted{opacity:.7}.small{font-size:13px}h2{font-size:15px;margin:18px 0 6px}
+/* Styles for the Atlas machines: the Anatomy kit's tokens (iso.css, MIT, see iso/LICENSE),
+   the scoreboard mark and the retry machine. Imported once by web/main.tsx. */
+.iso{
+  --anatomy-page:#0b0b0b;--anatomy-card:#131313;--anatomy-text:#a3a3a3;--anatomy-strong:#e6e6e6;--anatomy-muted:#6e6e6e;
+  --anatomy-paper:#131313;--anatomy-face:#1b1b1b;--anatomy-top:#1c1c1c;
+  --anatomy-shade-0:#0f0f0f;--anatomy-shade-1:#121212;--anatomy-shade-2:#151515;--anatomy-shade-3:#181818;
+  --anatomy-lit-top:#262626;--anatomy-lit-shade:#1d1d1d;
+  --anatomy-hi:#d4d4d4;--anatomy-mid:#6a6a6a;--anatomy-lo:#3e3e3e;--anatomy-faint:#2a2a2a;--anatomy-lit:#ffffff;
+  --anatomy-halo:#050505;--anatomy-halo-opacity:.9;--anatomy-dot:#e6e6e6;
+  --anatomy-red:#ff6b6b;--anatomy-green:#6be0a0;--anatomy-blue:#6b9bff;
+  --anatomy-weight:.6px;--anatomy-ease:cubic-bezier(.32,.72,0,1);
+  --anatomy-mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --anatomy-lift:inset 0 1px 0 0 #ffffff0a,inset 0 0 0 1px #ffffff06,0 0 0 1px #00000026,0 1px 1px -.5px #00000014,0 3px 3px -1.5px #00000014,0 6px 6px -3px #00000014,0 12px 12px -6px #00000014;
+}
+.iso[data-theme="light"]{
+  --anatomy-page:#f2f2ef;--anatomy-card:#fbfbfa;--anatomy-text:#57575a;--anatomy-strong:#18181a;--anatomy-muted:#8c8c90;
+  --anatomy-paper:#fbfbfa;--anatomy-face:#ffffff;--anatomy-top:#ffffff;
+  --anatomy-shade-0:#dcdcd9;--anatomy-shade-1:#e5e5e2;--anatomy-shade-2:#ededea;--anatomy-shade-3:#f4f4f1;
+  --anatomy-lit-top:#ffffff;--anatomy-lit-shade:#eeeeeb;
+  --anatomy-hi:#26262a;--anatomy-mid:#8a8a8f;--anatomy-lo:#b4b4b8;--anatomy-faint:#d4d4d6;--anatomy-lit:#000000;
+  --anatomy-halo:#8a8a80;--anatomy-halo-opacity:.32;--anatomy-dot:#3a3a3e;
+  --anatomy-red:#e5484d;--anatomy-green:#30a46c;--anatomy-blue:#3e63dd;
+  --anatomy-lift:inset 0 1px 0 0 #ffffff,0 0 0 1px #0000000f,0 1px 1px -.5px #0000000a,0 3px 3px -1.5px #0000000a,0 6px 6px -3px #0000000a,0 12px 12px -6px #0000000a;
+}
+.iso-svg{display:block;width:100%;height:auto;overflow:visible}
+.iso-svg path,.iso-svg circle{vector-effect:non-scaling-stroke}
+.iso-fill{fill:var(--anatomy-paper);stroke:none}
+.iso-solid[data-lit]>.iso-fill{fill:var(--anatomy-face)}
+.iso-shade,.iso-top{stroke:none}
+.iso-shade[data-shade="0"]{fill:var(--anatomy-shade-0)}
+.iso-shade[data-shade="1"]{fill:var(--anatomy-shade-1)}
+.iso-shade[data-shade="2"]{fill:var(--anatomy-shade-2)}
+.iso-shade[data-shade="3"]{fill:var(--anatomy-shade-3)}
+.iso-top{fill:var(--anatomy-top)}
+.iso-solid[data-lit]>.iso-top{fill:var(--anatomy-lit-top)}
+.iso-solid[data-lit]>.iso-shade{fill:var(--anatomy-lit-shade)}
+.iso-solid[data-seamless]>.iso-shade,.iso-solid[data-seamless]>.iso-top{stroke-width:.4;stroke-linejoin:round}
+.iso-solid[data-seamless]>.iso-shade[data-shade="0"]{stroke:var(--anatomy-shade-0)}
+.iso-solid[data-seamless]>.iso-shade[data-shade="1"]{stroke:var(--anatomy-shade-1)}
+.iso-solid[data-seamless]>.iso-shade[data-shade="2"]{stroke:var(--anatomy-shade-2)}
+.iso-solid[data-seamless]>.iso-shade[data-shade="3"]{stroke:var(--anatomy-shade-3)}
+.iso-solid[data-seamless]>.iso-top{stroke:var(--anatomy-top)}
+.iso-solid[data-seamless][data-lit]>.iso-top{stroke:var(--anatomy-lit-top)}
+.iso-solid[data-seamless][data-lit]>.iso-shade{stroke:var(--anatomy-lit-shade)}
+.iso-solid[data-lit]>.iso-edge{stroke:var(--anatomy-lit)}
+.iso-halo{fill:var(--anatomy-halo);stroke:none;filter:blur(9px);opacity:var(--anatomy-halo-opacity);transform:translateY(3px)}
+.iso-line{fill:none;stroke:var(--anatomy-lo);stroke-width:var(--anatomy-weight);stroke-linecap:round;stroke-linejoin:round}
+.iso-line[data-tone="hi"]{stroke:var(--anatomy-hi)}
+.iso-line[data-tone="mid"]{stroke:var(--anatomy-mid)}
+.iso-line[data-tone="lo"]{stroke:var(--anatomy-lo)}
+.iso-line[data-tone="faint"]{stroke:var(--anatomy-faint)}
+.iso-line[data-tone="lit"]{stroke:var(--anatomy-lit)}
+.iso-line[data-tone="red"]{stroke:var(--anatomy-red)}
+.iso-line[data-tone="green"]{stroke:var(--anatomy-green)}
+.iso-line[data-tone="blue"]{stroke:var(--anatomy-blue)}
+.iso-line[data-dotted]{stroke-dasharray:.01 3.5;stroke-width:1}
+.iso-line[data-dashed]{stroke-dasharray:3 3}
+.iso-line[data-flow]{stroke-dasharray:2 6}
+.iso-wire-end{fill:var(--anatomy-paper);stroke:var(--anatomy-lo);stroke-width:var(--anatomy-weight)}
+.iso-wire[data-tone="hi"] .iso-wire-end{stroke:var(--anatomy-hi)}
+.iso-wire[data-tone="mid"] .iso-wire-end{stroke:var(--anatomy-mid)}
+.iso-wire[data-tone="faint"] .iso-wire-end{stroke:var(--anatomy-faint)}
+.iso-wire[data-tone="lit"] .iso-wire-end{stroke:var(--anatomy-lit)}
+.iso-dots circle{fill:var(--anatomy-dot);stroke:none;opacity:.32}
+.iso-dots[data-tone="hi"] circle{opacity:.85}
+.iso-dots[data-tone="mid"] circle{opacity:.45}
+.iso-dots[data-tone="lo"] circle{opacity:.22}
+.iso-dots[data-tone="faint"] circle{opacity:.12}
+.iso-face-text{fill:var(--anatomy-mid);font-family:var(--anatomy-mono);letter-spacing:.04em}
+.iso-face-text[data-tone="hi"]{fill:var(--anatomy-hi)}
+.iso-face-text[data-tone="lo"]{fill:var(--anatomy-lo)}
+.iso-face-text[data-tone="faint"]{fill:var(--anatomy-faint)}
+.tb-body{fill:var(--anatomy-shade-2);stroke:none}
+.tb-shine{fill:var(--anatomy-top);stroke:none}
+.tb-shade{fill:var(--anatomy-shade-0);stroke:none}
+.tb-ring{fill:none;stroke:var(--anatomy-lo);stroke-width:.45;stroke-linecap:butt;stroke-linejoin:round}
+.tb-ring[data-tone="mid"]{stroke:var(--anatomy-mid)}
+.tb-ring[data-tone="faint"]{stroke:var(--anatomy-faint)}
+.tb-ring[data-tone="hi"]{stroke:var(--anatomy-hi)}
+@keyframes iso-flow{to{stroke-dashoffset:-32}}
+@keyframes iso-pulse{0%,100%{opacity:.18}12%{opacity:1}40%{opacity:.18}}
+.iso-line[data-flow]{animation:iso-flow 1600ms linear infinite}
+.iso-dots circle[data-pulse]{animation:iso-pulse 1600ms steps(1,end) infinite;animation-delay:var(--pulse-at,0ms)}
+.iso-figure{margin:32px 0 36px}
+.iso-plate{position:relative;padding:52px 24px;border-radius:0;background:var(--anatomy-card);box-shadow:0 0 0 1px var(--anatomy-mid);--anatomy-paper:var(--anatomy-card)}
+.iso-plate-corners{position:absolute;inset:18px 20px;pointer-events:none}
+.iso-plate-corner{position:absolute;color:var(--anatomy-muted);font-family:var(--anatomy-mono);font-size:10.5px;line-height:1;letter-spacing:.04em;white-space:nowrap}
+.iso-plate-corner[data-corner="fig"]{top:0;left:0;color:var(--anatomy-text)}
+.iso-plate-corner[data-corner="title"]{top:0;right:0;text-transform:uppercase;letter-spacing:.1em}
+.iso-plate-corner[data-corner="hint"]{bottom:0;left:0;text-transform:uppercase;letter-spacing:.1em}
+.iso-plate-corner[data-corner="readout"]{right:0;bottom:0;color:var(--anatomy-text);font-variant-numeric:tabular-nums}
+.iso-plate .iso-svg{margin:0 auto}
+.iso-legend{display:grid;gap:8px;margin-top:12px;color:var(--anatomy-muted);font-size:13px;line-height:1.55}
+.iso-keys{display:flex;flex-wrap:wrap;gap:6px 18px}
+.iso-key{display:inline-flex;align-items:center;gap:7px}
+.iso-swatch{width:16px;height:10px;flex:none;overflow:visible}
+.iso-swatch path{fill:none;stroke:var(--anatomy-hi);stroke-width:1;vector-effect:non-scaling-stroke;stroke-linejoin:round;stroke-linecap:round}
+.iso-swatch[data-mark="raised"] path,.iso-swatch[data-mark="flat"] path{stroke:var(--anatomy-mid)}
+.iso-swatch[data-mark="lit"] path{stroke:var(--anatomy-lit)}
+.iso-swatch[data-mark="dim"] path{stroke:var(--anatomy-lo)}
+.iso-swatch[data-mark="dotted"] path{stroke-dasharray:.01 3;stroke-width:1.4}
+.iso-swatch[data-mark="dashed"] path{stroke-dasharray:3 2.5}
+.iso-swatch[data-mark="red"] path{stroke:var(--anatomy-red)}
+.iso-swatch[data-mark="green"] path{stroke:var(--anatomy-green)}
+.iso-swatch[data-mark="blue"] path{stroke:var(--anatomy-blue)}
+.iso-swatch-crease{stroke:var(--anatomy-lo)!important}
+@media (max-width:560px){.iso-plate{padding:48px 12px 70px}.iso-plate-corner[data-corner="hint"]{bottom:18px}}
+@media (prefers-reduced-motion:reduce){.iso-line[data-flow],.iso-dots circle[data-pulse]{animation:none}}
+
+/* The scoreboard mark. Monochrome, in the page's ink, like the logo. */
+.sb { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 4px 0 16px; }
+.sb-item { margin: 0; display: flex; flex-direction: column; align-items: center; max-width: 150px; text-align: center; }
+.sb-mark { display: block; color: var(--ink, currentColor); overflow: visible; }
+.sb-bar { fill: currentColor; }
+.sb-dot { fill: currentColor; }
+.sb-ring { fill: none; stroke: currentColor; stroke-width: 4; }
+.sb-ring[data-faint] { opacity: 0.35; }
+.sb-line { fill: none; stroke: currentColor; stroke-width: 4; stroke-linecap: round; }
+.sb-line[data-dashed] { stroke-dasharray: 0.12 0.16; stroke-linecap: butt; }
+.sb-line[data-faint] { opacity: 0.45; }
+.sb-noreading { stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
+
+/* Motion: the lines grow from the dots toward the bar, then a matched model's ring fills. */
+.sb-grow { stroke-dasharray: 1; stroke-dashoffset: 1; animation: sb-grow 700ms cubic-bezier(.32,.72,0,1) forwards; }
+.sb-fade { opacity: 0; animation: sb-fade 600ms ease-out forwards; }
+.sb-fade[data-faint] { --sb-to: 0.45; }
+.sb-fill { fill-opacity: 0; animation: sb-fill 400ms ease-out forwards; }
+@keyframes sb-grow { to { stroke-dashoffset: 0; } }
+@keyframes sb-fade { to { opacity: var(--sb-to, 1); } }
+@keyframes sb-fill { to { fill-opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .sb-grow, .sb-fade, .sb-fill { animation: none; stroke-dashoffset: 0; opacity: initial; fill-opacity: 1; }
+}
+
+/* The retry machine's own styles, scoped to .rm (Anatomy: figure tokens stay off :root). */
+.rm { margin: 16px 0; }
+.rm .iso-figure { margin: 0; }
+.rm .iso-plate-corner[data-corner="readout"] { white-space: normal; max-width: 62%; text-align: right; line-height: 1.35; }
+.rm .iso-legend { display: block; padding: 10px 2px 0; font-size: 13px; color: var(--anatomy-text); }
+.rm .iso-keys { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 6px; }
+.rm .iso-key { display: inline-flex; gap: 6px; align-items: center; }
+.rm .iso-swatch { width: 16px; height: 10px; }
+.rm-live:focus-visible { outline: 1px solid var(--anatomy-muted); outline-offset: 6px; }
+
+/* Capsule marks: shown only once the capsule has come back with that answer. */
+.rm-capsule .rm-mark-threw, .rm-capsule .rm-mark-returned { display: none; }
+.rm-capsule[data-shows="threw"] .rm-mark-threw { display: inline; }
+.rm-capsule[data-shows="returned"] .rm-mark-returned { display: inline; }
+.rm-capsule[data-lit] .rm-mark-threw .iso-line { stroke: var(--anatomy-lit); }
+.rm-capsule-halo { opacity: 0.5; }
+
+/* Counters: an empty hole, or a filled mark for each pull / each wait done. */
+.rm-pull-marks circle, .rm-turn-marks circle { fill: none; stroke: none; }
+.rm-pull-marks circle[data-on], .rm-turn-marks circle[data-on] { fill: var(--anatomy-hi); }
+
+/* The drum pointer is the lit accent only while the drum turns. */
+.rm-drum[data-turning] .rm-drum-pointer { stroke: var(--anatomy-lit); }
+
+/* Ghost markers: faint until the verdict; a matched bet's marker goes to the strong tone. */
+.rm-ghost[data-kind="person"] { fill: var(--anatomy-lo); }
+.rm-ghost[data-kind="person"][data-matched] { fill: var(--anatomy-hi); }
+.rm-ghost[data-kind="model"] { fill: none; }
+
+@media (max-width: 480px) {
+  .rm .iso-plate { padding: 44px 6px 78px; }
+  .rm .iso-plate-corner[data-corner="readout"] { max-width: 70%; }
+}
+
+</style></head><body><main><div class="sb-page"><h2>person: didn't match · model: matched</h2><div class="sb" data-testid="scoreboard" data-still=""><figure class="sb-item"><svg class="sb-mark" viewBox="0 0 100 100" width="96" height="96" role="img" aria-label="You: didn&#x27;t match. muse-spark-1.3: matched" data-measures="calls"><g data-bettor="human" data-outcome="not_matched"><path class="sb-line" d="M34.44 41.00L39.70 56.40" pathLength="1"></path><circle class="sb-dot" data-filled="" cx="30" cy="28" r="9"></circle></g><g data-bettor="model:muse-spark-1.3" data-outcome="matched"><path class="sb-line" data-reaches-bar="" d="M66.07 39.50L56.00 69.00" pathLength="1"></path><circle class="sb-ring" cx="70" cy="28" r="7.5"></circle><circle class="sb-dot" data-filled="" cx="70" cy="28" r="4.1"></circle></g><rect class="sb-bar" x="24" y="69" width="52" height="11" rx="5.5"></rect></svg><figcaption class="muted small">How many times will the function call the RPC?</figcaption></figure></div><h2>person: matched · model: can't check</h2><div class="sb" data-testid="scoreboard" data-still=""><figure class="sb-item"><svg class="sb-mark" viewBox="0 0 100 100" width="96" height="96" role="img" aria-label="You: matched. muse-spark-1.3: can&#x27;t check" data-measures="calls"><g data-bettor="human" data-outcome="matched"><path class="sb-line" data-reaches-bar="" d="M34.44 41.00L44.00 69.00" pathLength="1"></path><circle class="sb-dot" data-filled="" cx="30" cy="28" r="9"></circle></g><g data-bettor="model:muse-spark-1.3" data-outcome="cant_check"><path class="sb-line" data-dashed="" data-faint="" d="M66.07 39.50L60.53 55.73" pathLength="1"></path><circle class="sb-ring" cx="70" cy="28" r="7.5"></circle><path class="sb-noreading" d="M66.85 28H73.15"></path></g><rect class="sb-bar" x="24" y="69" width="52" height="11" rx="5.5"></rect></svg><figcaption class="muted small">How many times will the function call the RPC?</figcaption></figure></div><h2>Real round S3 (run reH2bzAGbI)</h2><div class="sb" data-testid="scoreboard" data-still=""><figure class="sb-item"><svg class="sb-mark" viewBox="0 0 100 100" width="96" height="96" role="img" aria-label="You: matched" data-measures="calls"><g data-bettor="human" data-outcome="matched"><path class="sb-line" data-reaches-bar="" d="M35.07 41.00L46.00 69.00" pathLength="1"></path><circle class="sb-dot" data-filled="" cx="30" cy="28" r="9"></circle></g><rect class="sb-bar" x="24" y="69" width="52" height="11" rx="5.5"></rect></svg><figcaption class="muted small">How many times will the function call the RPC?</figcaption></figure><figure class="sb-item"><svg class="sb-mark" viewBox="0 0 100 100" width="96" height="96" role="img" aria-label="You: matched" data-measures="totalWaitMs"><g data-bettor="human" data-outcome="matched"><path class="sb-line" data-reaches-bar="" d="M35.07 41.00L46.00 69.00" pathLength="1"></path><circle class="sb-dot" data-filled="" cx="30" cy="28" r="9"></circle></g><rect class="sb-bar" x="24" y="69" width="52" height="11" rx="5.5"></rect></svg><figcaption class="muted small">How long will it wait in total, in ms?</figcaption></figure><figure class="sb-item"><svg class="sb-mark" viewBox="0 0 100 100" width="96" height="96" role="img" aria-label="You: matched" data-measures="outcome"><g data-bettor="human" data-outcome="matched"><path class="sb-line" data-reaches-bar="" d="M35.07 41.00L46.00 69.00" pathLength="1"></path><circle class="sb-dot" data-filled="" cx="30" cy="28" r="9"></circle></g><rect class="sb-bar" x="24" y="69" width="52" height="11" rx="5.5"></rect></svg><figcaption class="muted small">How will it end: returns, throws, or pending (never settles)?</figcaption></figure></div><h2>Real round S6 (run MWciDNv9Ij)</h2><div class="sb" data-testid="scoreboard" data-still=""><figure class="sb-item"><svg class="sb-mark" viewBox="0 0 100 100" width="96" height="96" role="img" aria-label="You: didn&#x27;t match" data-measures="calls"><g data-bettor="human" data-outcome="not_matched"><path class="sb-line" d="M35.07 41.00L41.08 56.40" pathLength="1"></path><circle class="sb-dot" data-filled="" cx="30" cy="28" r="9"></circle></g><rect class="sb-bar" x="24" y="69" width="52" height="11" rx="5.5"></rect></svg><figcaption class="muted small">How many times will the function call the RPC?</figcaption></figure><figure class="sb-item"><svg class="sb-mark" viewBox="0 0 100 100" width="96" height="96" role="img" aria-label="You: matched" data-measures="totalWaitMs"><g data-bettor="human" data-outcome="matched"><path class="sb-line" data-reaches-bar="" d="M35.07 41.00L46.00 69.00" pathLength="1"></path><circle class="sb-dot" data-filled="" cx="30" cy="28" r="9"></circle></g><rect class="sb-bar" x="24" y="69" width="52" height="11" rx="5.5"></rect></svg><figcaption class="muted small">How long will it wait in total, in ms?</figcaption></figure><figure class="sb-item"><svg class="sb-mark" viewBox="0 0 100 100" width="96" height="96" role="img" aria-label="You: matched" data-measures="outcome"><g data-bettor="human" data-outcome="matched"><path class="sb-line" data-reaches-bar="" d="M35.07 41.00L46.00 69.00" pathLength="1"></path><circle class="sb-dot" data-filled="" cx="30" cy="28" r="9"></circle></g><rect class="sb-bar" x="24" y="69" width="52" height="11" rx="5.5"></rect></svg><figcaption class="muted small">How will it end: returns, throws, or pending (never settles)?</figcaption></figure></div><h2>Real round S2 (run nQ_JlUMv22)</h2><div class="sb" data-testid="scoreboard" data-still=""><figure class="sb-item"><svg class="sb-mark" viewBox="0 0 100 100" width="96" height="96" role="img" aria-label="You: matched" data-measures="calls"><g data-bettor="human" data-outcome="matched"><path class="sb-line" data-reaches-bar="" d="M35.07 41.00L46.00 69.00" pathLength="1"></path><circle class="sb-dot" data-filled="" cx="30" cy="28" r="9"></circle></g><rect class="sb-bar" x="24" y="69" width="52" height="11" rx="5.5"></rect></svg><figcaption class="muted small">How many times will the function call the RPC?</figcaption></figure><figure class="sb-item"><svg class="sb-mark" viewBox="0 0 100 100" width="96" height="96" role="img" aria-label="You: matched" data-measures="totalWaitMs"><g data-bettor="human" data-outcome="matched"><path class="sb-line" data-reaches-bar="" d="M35.07 41.00L46.00 69.00" pathLength="1"></path><circle class="sb-dot" data-filled="" cx="30" cy="28" r="9"></circle></g><rect class="sb-bar" x="24" y="69" width="52" height="11" rx="5.5"></rect></svg><figcaption class="muted small">How long will it wait in total, in ms?</figcaption></figure><figure class="sb-item"><svg class="sb-mark" viewBox="0 0 100 100" width="96" height="96" role="img" aria-label="You: matched" data-measures="outcome"><g data-bettor="human" data-outcome="matched"><path class="sb-line" data-reaches-bar="" d="M35.07 41.00L46.00 69.00" pathLength="1"></path><circle class="sb-dot" data-filled="" cx="30" cy="28" r="9"></circle></g><rect class="sb-bar" x="24" y="69" width="52" height="11" rx="5.5"></rect></svg><figcaption class="muted small">How will it end: returns, throws, or pending (never settles)?</figcaption></figure></div><h2>Real round S3-person-and-spark (run GFNRq1eJx7)</h2><div class="sb" data-testid="scoreboard" data-still=""><figure class="sb-item"><svg class="sb-mark" viewBox="0 0 100 100" width="96" height="96" role="img" aria-label="You: matched. muse-spark-1.3: matched" data-measures="calls"><g data-bettor="human" data-outcome="matched"><path class="sb-line" data-reaches-bar="" d="M34.44 41.00L44.00 69.00" pathLength="1"></path><circle class="sb-dot" data-filled="" cx="30" cy="28" r="9"></circle></g><g data-bettor="model:muse-spark-1.3" data-outcome="matched"><path class="sb-line" data-reaches-bar="" d="M66.07 39.50L56.00 69.00" pathLength="1"></path><circle class="sb-ring" cx="70" cy="28" r="7.5"></circle><circle class="sb-dot" data-filled="" cx="70" cy="28" r="4.1"></circle></g><rect class="sb-bar" x="24" y="69" width="52" height="11" rx="5.5"></rect></svg><figcaption class="muted small">How many times will the function call the RPC?</figcaption></figure><figure class="sb-item"><svg class="sb-mark" viewBox="0 0 100 100" width="96" height="96" role="img" aria-label="You: didn&#x27;t match. muse-spark-1.3: matched" data-measures="totalWaitMs"><g data-bettor="human" data-outcome="not_matched"><path class="sb-line" d="M34.44 41.00L39.70 56.40" pathLength="1"></path><circle class="sb-dot" data-filled="" cx="30" cy="28" r="9"></circle></g><g data-bettor="model:muse-spark-1.3" data-outcome="matched"><path class="sb-line" data-reaches-bar="" d="M66.07 39.50L56.00 69.00" pathLength="1"></path><circle class="sb-ring" cx="70" cy="28" r="7.5"></circle><circle class="sb-dot" data-filled="" cx="70" cy="28" r="4.1"></circle></g><rect class="sb-bar" x="24" y="69" width="52" height="11" rx="5.5"></rect></svg><figcaption class="muted small">How long will it wait in total, in ms?</figcaption></figure><figure class="sb-item"><svg class="sb-mark" viewBox="0 0 100 100" width="96" height="96" role="img" aria-label="You: matched. muse-spark-1.3: matched" data-measures="outcome"><g data-bettor="human" data-outcome="matched"><path class="sb-line" data-reaches-bar="" d="M34.44 41.00L44.00 69.00" pathLength="1"></path><circle class="sb-dot" data-filled="" cx="30" cy="28" r="9"></circle></g><g data-bettor="model:muse-spark-1.3" data-outcome="matched"><path class="sb-line" data-reaches-bar="" d="M66.07 39.50L56.00 69.00" pathLength="1"></path><circle class="sb-ring" cx="70" cy="28" r="7.5"></circle><circle class="sb-dot" data-filled="" cx="70" cy="28" r="4.1"></circle></g><rect class="sb-bar" x="24" y="69" width="52" height="11" rx="5.5"></rect></svg><figcaption class="muted small">How will it end: returns, throws, or pending (never settles)?</figcaption></figure></div></div></main></body></html>

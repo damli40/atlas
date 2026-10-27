@@ -8,6 +8,7 @@ import { computeSealHash } from "../../src/seal";
 import type { Bet, Outcome, Verdict } from "../../src/types";
 import type { RunAnswer, SealedOnly } from "../api";
 import { ShortHash } from "./Bets";
+import { Scoreboard } from "../machines/scoreboard/Scoreboard";
 
 const SAY: Record<Outcome, string> = { matched: "matched", not_matched: "didn't match", cant_check: "can't check" };
 
@@ -112,6 +113,7 @@ export function VerdictScreen({ shown, typed, modelShown, modelName, modelEmpty,
   return (
     <section className="card" aria-label="verdicts">
       <h2>4. Whose bet matched</h2>
+      <Scoreboard verdicts={result.verdicts} bets={result.bets} names={modelName && judgedModel[0] ? { [judgedModel[0].who]: modelName } : {}} />
       <table className="verdicts">
         <thead>
           <tr>
