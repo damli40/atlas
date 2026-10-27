@@ -1,0 +1,287 @@
+{
+  "node": "v25.8.1",
+  "target": {
+    "kind": "ts-fixture",
+    "ref": "tests/fixtures/with-rpc-retry.ts",
+    "codeSha256": "f3d2c59f05151be85d8a950c009e63de8015e638d3af6f2fd1c2a729393ad101"
+  },
+  "controlPassed": true,
+  "reason": null,
+  "run": {
+    "id": "nvnq64ADP9",
+    "experimentId": "control:S1+S3",
+    "runner": "ts",
+    "executor": "local",
+    "codeSha256": "f3d2c59f05151be85d8a950c009e63de8015e638d3af6f2fd1c2a729393ad101",
+    "seed": "atlas-control",
+    "startedAt": "2026-10-27T04:16:19.096Z",
+    "finishedAt": "2026-10-27T04:16:19.195Z",
+    "trace": [
+      {
+        "t": 0,
+        "event": "start",
+        "data": {
+          "case": "S1",
+          "label": "atlas-read"
+        }
+      },
+      {
+        "t": 0,
+        "event": "call",
+        "data": {
+          "case": "S1",
+          "n": 1
+        }
+      },
+      {
+        "t": 0,
+        "event": "resolve",
+        "data": {
+          "case": "S1",
+          "n": 1,
+          "value": "\"the value\""
+        }
+      },
+      {
+        "t": 0,
+        "event": "returns",
+        "data": {
+          "case": "S1",
+          "value": "\"the value\""
+        }
+      },
+      {
+        "t": 0,
+        "event": "start",
+        "data": {
+          "case": "S3",
+          "label": "atlas-read"
+        }
+      },
+      {
+        "t": 0,
+        "event": "call",
+        "data": {
+          "case": "S3",
+          "n": 1
+        }
+      },
+      {
+        "t": 0,
+        "event": "reject",
+        "data": {
+          "case": "S3",
+          "n": 1,
+          "error": "BlockNotFoundError: Block at number 42194663 could not be found. (call 1)"
+        }
+      },
+      {
+        "t": 0,
+        "event": "log",
+        "data": {
+          "case": "S3",
+          "msg": "atlas-read: chain read failed (attempt 1/5, likely RPC lag) — retrying in 3s"
+        }
+      },
+      {
+        "t": 0,
+        "event": "sleep",
+        "data": {
+          "case": "S3",
+          "ms": 3000
+        }
+      },
+      {
+        "t": 3000,
+        "event": "wake",
+        "data": {
+          "case": "S3",
+          "ms": 3000
+        }
+      },
+      {
+        "t": 3000,
+        "event": "call",
+        "data": {
+          "case": "S3",
+          "n": 2
+        }
+      },
+      {
+        "t": 3000,
+        "event": "reject",
+        "data": {
+          "case": "S3",
+          "n": 2,
+          "error": "SocketError: read ECONNRESET (call 2)"
+        }
+      },
+      {
+        "t": 3000,
+        "event": "log",
+        "data": {
+          "case": "S3",
+          "msg": "atlas-read: chain read failed (attempt 2/5, likely RPC lag) — retrying in 3s"
+        }
+      },
+      {
+        "t": 3000,
+        "event": "sleep",
+        "data": {
+          "case": "S3",
+          "ms": 3000
+        }
+      },
+      {
+        "t": 6000,
+        "event": "wake",
+        "data": {
+          "case": "S3",
+          "ms": 3000
+        }
+      },
+      {
+        "t": 6000,
+        "event": "call",
+        "data": {
+          "case": "S3",
+          "n": 3
+        }
+      },
+      {
+        "t": 6000,
+        "event": "reject",
+        "data": {
+          "case": "S3",
+          "n": 3,
+          "error": "BlockNotFoundError: Block at number 42194663 could not be found. (call 3)"
+        }
+      },
+      {
+        "t": 6000,
+        "event": "log",
+        "data": {
+          "case": "S3",
+          "msg": "atlas-read: chain read failed (attempt 3/5, likely RPC lag) — retrying in 3s"
+        }
+      },
+      {
+        "t": 6000,
+        "event": "sleep",
+        "data": {
+          "case": "S3",
+          "ms": 3000
+        }
+      },
+      {
+        "t": 9000,
+        "event": "wake",
+        "data": {
+          "case": "S3",
+          "ms": 3000
+        }
+      },
+      {
+        "t": 9000,
+        "event": "call",
+        "data": {
+          "case": "S3",
+          "n": 4
+        }
+      },
+      {
+        "t": 9000,
+        "event": "reject",
+        "data": {
+          "case": "S3",
+          "n": 4,
+          "error": "InternalRpcError: An internal error was received. (code -32603) (call 4)"
+        }
+      },
+      {
+        "t": 9000,
+        "event": "log",
+        "data": {
+          "case": "S3",
+          "msg": "atlas-read: chain read failed (attempt 4/5, likely RPC lag) — retrying in 3s"
+        }
+      },
+      {
+        "t": 9000,
+        "event": "sleep",
+        "data": {
+          "case": "S3",
+          "ms": 3000
+        }
+      },
+      {
+        "t": 12000,
+        "event": "wake",
+        "data": {
+          "case": "S3",
+          "ms": 3000
+        }
+      },
+      {
+        "t": 12000,
+        "event": "call",
+        "data": {
+          "case": "S3",
+          "n": 5
+        }
+      },
+      {
+        "t": 12000,
+        "event": "reject",
+        "data": {
+          "case": "S3",
+          "n": 5,
+          "error": "HttpRequestError: HTTP request failed. Status: 502 (call 5)"
+        }
+      },
+      {
+        "t": 12000,
+        "event": "throws",
+        "data": {
+          "case": "S3",
+          "error": "HttpRequestError: HTTP request failed. Status: 502 (call 5)"
+        }
+      },
+      {
+        "t": 0,
+        "event": "control_matched",
+        "data": {
+          "cases": [
+            "S1",
+            "S3"
+          ]
+        }
+      }
+    ],
+    "result": {
+      "measured": {
+        "S1.calls": 1,
+        "S1.waitCount": 0,
+        "S1.waitsMs": "",
+        "S1.logCount": 0,
+        "S1.logAttempts": "",
+        "S1.totalWaitMs": 0,
+        "S1.outcome": "returns",
+        "S1.settledAtMs": 0,
+        "S1.returned": "\"the value\"",
+        "S3.calls": 5,
+        "S3.waitCount": 4,
+        "S3.waitsMs": "3000,3000,3000,3000",
+        "S3.logCount": 4,
+        "S3.logAttempts": "1/5,2/5,3/5,4/5",
+        "S3.totalWaitMs": 12000,
+        "S3.outcome": "throws",
+        "S3.settledAtMs": 12000,
+        "S3.thrown": "HttpRequestError: HTTP request failed. Status: 502 (call 5)",
+        "S3.thrownFromCall": 5
+      },
+      "notMeasured": {}
+    },
+    "controlPassed": true
+  }
+}

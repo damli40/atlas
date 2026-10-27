@@ -1,0 +1,21 @@
+
+ RUN  v5.0.5 /Users/Admin/Documents/Atlas-wt/harness
+
+ ✓ tests/unit/executor.test.ts > local executor boundary (Node permission model) > runs node in its temp folder and returns stdout 47ms
+ ✓ tests/unit/executor.test.ts > local executor boundary (Node permission model) > blocks a network connection to a listening local port 49ms
+ ✓ tests/unit/control.test.ts > TS control (oracle rows S1 and S3 through the local executor) > passes on the unedited fixture 89ms
+ ✓ tests/unit/executor.test.ts > local executor boundary (Node permission model) > blocks reading files outside its folder and writing anywhere 46ms
+ ✓ tests/unit/executor.test.ts > local executor boundary (Node permission model) > blocks starting a child process 49ms
+ ✓ tests/unit/executor.test.ts > local executor boundary (Node permission model) > passes no environment from the parent 46ms
+ ✓ tests/unit/control.test.ts > TS control (oracle rows S1 and S3 through the local executor) > does not pass on a scratch copy with the attempts default changed to 3, and says why 100ms
+ ✓ tests/unit/control.test.ts > TS control (oracle rows S1 and S3 through the local executor) > does not pass when the code's SHA-256 is not the target's 98ms
+ ✓ tests/unit/control.test.ts > TS control (oracle rows S1 and S3 through the local executor) > does not pass when the sandbox runs out of wall-clock time 3ms
+ ✓ tests/unit/control.test.ts > TS control (oracle rows S1 and S3 through the local executor) > the Runner runs an experiment in the sandbox after a passing control (S6 shape) 183ms
+ ✓ tests/unit/executor.test.ts > local executor boundary (Node permission model) > kills the child at the wall-clock limit and says so 304ms
+ ✓ tests/unit/executor.test.ts > local executor boundary (Node permission model) > refuses flags that widen the sandbox, non-node commands, host-limited network and NODE_OPTIONS 2ms
+
+ Test Files  2 passed (2)
+      Tests  12 passed (12)
+   Start at  05:16:19
+   Duration  631ms (tests 98%, import 1%, transform 1%)
+

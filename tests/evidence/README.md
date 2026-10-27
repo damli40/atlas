@@ -9,3 +9,4 @@ were run, the raw output, what the check proves, and what it does not.
 | [D01-02](D01-02/README.md) | Scaffold: tests run, types check, `/health` answers `{"ok":true}` |
 | [D01-03](D01-03/README.md) | The withRpcRetry fixture is an exact copy of the pinned original; oracle table is complete |
 | [D01-04](D01-04/README.md) | TS harness: real withRpcRetry on a virtual clock matches oracle rows S1–S6 and H2; same seed gives the same trace |
+| [D01-05](D01-05/README.md) | Local executor (Node `--permission`: no network, read-only own folder, wall-clock kill); control S1+S3 passes on the fixture, does not pass with attempts edited to 3 |

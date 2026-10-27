@@ -1,0 +1,198 @@
+{
+  "node": "v25.8.1",
+  "edit": "RPC_RETRY_ATTEMPTS = 5 -> 3 in a temp-dir copy (deleted after)",
+  "controlPassed": false,
+  "reason": "S3: calls was 3, the oracle row says 5; S3: waits (ms) was \"3000,3000\", the oracle row says \"3000,3000,3000,3000\"; S3: total wait (ms) was 6000, the oracle row says 12000; S3: log lines was 2, the oracle row says 4; S3: log attempts was \"1/3,2/3\", the oracle row says \"1/5,2/5,3/5,4/5\"; S3: call whose error was thrown was 3, the oracle row says 5",
+  "run": {
+    "id": "liqQNw8rL4",
+    "experimentId": "control:S1+S3",
+    "runner": "ts",
+    "executor": "local",
+    "codeSha256": "4c54539cbfdb409ca7f372927964529de561b47b9da4956bfff10741b380407c",
+    "seed": "atlas-control",
+    "startedAt": "2026-10-27T04:16:19.196Z",
+    "finishedAt": "2026-10-27T04:16:19.280Z",
+    "trace": [
+      {
+        "t": 0,
+        "event": "start",
+        "data": {
+          "case": "S1",
+          "label": "atlas-read"
+        }
+      },
+      {
+        "t": 0,
+        "event": "call",
+        "data": {
+          "case": "S1",
+          "n": 1
+        }
+      },
+      {
+        "t": 0,
+        "event": "resolve",
+        "data": {
+          "case": "S1",
+          "n": 1,
+          "value": "\"the value\""
+        }
+      },
+      {
+        "t": 0,
+        "event": "returns",
+        "data": {
+          "case": "S1",
+          "value": "\"the value\""
+        }
+      },
+      {
+        "t": 0,
+        "event": "start",
+        "data": {
+          "case": "S3",
+          "label": "atlas-read"
+        }
+      },
+      {
+        "t": 0,
+        "event": "call",
+        "data": {
+          "case": "S3",
+          "n": 1
+        }
+      },
+      {
+        "t": 0,
+        "event": "reject",
+        "data": {
+          "case": "S3",
+          "n": 1,
+          "error": "BlockNotFoundError: Block at number 42194663 could not be found. (call 1)"
+        }
+      },
+      {
+        "t": 0,
+        "event": "log",
+        "data": {
+          "case": "S3",
+          "msg": "atlas-read: chain read failed (attempt 1/3, likely RPC lag) — retrying in 3s"
+        }
+      },
+      {
+        "t": 0,
+        "event": "sleep",
+        "data": {
+          "case": "S3",
+          "ms": 3000
+        }
+      },
+      {
+        "t": 3000,
+        "event": "wake",
+        "data": {
+          "case": "S3",
+          "ms": 3000
+        }
+      },
+      {
+        "t": 3000,
+        "event": "call",
+        "data": {
+          "case": "S3",
+          "n": 2
+        }
+      },
+      {
+        "t": 3000,
+        "event": "reject",
+        "data": {
+          "case": "S3",
+          "n": 2,
+          "error": "SocketError: read ECONNRESET (call 2)"
+        }
+      },
+      {
+        "t": 3000,
+        "event": "log",
+        "data": {
+          "case": "S3",
+          "msg": "atlas-read: chain read failed (attempt 2/3, likely RPC lag) — retrying in 3s"
+        }
+      },
+      {
+        "t": 3000,
+        "event": "sleep",
+        "data": {
+          "case": "S3",
+          "ms": 3000
+        }
+      },
+      {
+        "t": 6000,
+        "event": "wake",
+        "data": {
+          "case": "S3",
+          "ms": 3000
+        }
+      },
+      {
+        "t": 6000,
+        "event": "call",
+        "data": {
+          "case": "S3",
+          "n": 3
+        }
+      },
+      {
+        "t": 6000,
+        "event": "reject",
+        "data": {
+          "case": "S3",
+          "n": 3,
+          "error": "BlockNotFoundError: Block at number 42194663 could not be found. (call 3)"
+        }
+      },
+      {
+        "t": 6000,
+        "event": "throws",
+        "data": {
+          "case": "S3",
+          "error": "BlockNotFoundError: Block at number 42194663 could not be found. (call 3)"
+        }
+      },
+      {
+        "t": 0,
+        "event": "control_did_not_match",
+        "data": {
+          "reason": "S3: calls was 3, the oracle row says 5; S3: waits (ms) was \"3000,3000\", the oracle row says \"3000,3000,3000,3000\"; S3: total wait (ms) was 6000, the oracle row says 12000; S3: log lines was 2, the oracle row says 4; S3: log attempts was \"1/3,2/3\", the oracle row says \"1/5,2/5,3/5,4/5\"; S3: call whose error was thrown was 3, the oracle row says 5"
+        }
+      }
+    ],
+    "result": {
+      "measured": {
+        "S1.calls": 1,
+        "S1.waitCount": 0,
+        "S1.waitsMs": "",
+        "S1.logCount": 0,
+        "S1.logAttempts": "",
+        "S1.totalWaitMs": 0,
+        "S1.outcome": "returns",
+        "S1.settledAtMs": 0,
+        "S1.returned": "\"the value\"",
+        "S3.calls": 3,
+        "S3.waitCount": 2,
+        "S3.waitsMs": "3000,3000",
+        "S3.logCount": 2,
+        "S3.logAttempts": "1/3,2/3",
+        "S3.totalWaitMs": 6000,
+        "S3.outcome": "throws",
+        "S3.settledAtMs": 6000,
+        "S3.thrown": "BlockNotFoundError: Block at number 42194663 could not be found. (call 3)",
+        "S3.thrownFromCall": 3
+      },
+      "notMeasured": {}
+    },
+    "controlPassed": false
+  }
+}

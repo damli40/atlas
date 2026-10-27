@@ -2,7 +2,7 @@
 //
 // Plain words: the code under test (withRpcRetry) calls a function `fn` that stands in for a
 // chain read. This file decides what that stand-in does on each call: throw an error, resolve
-// with a value, resolve later, or never answer at all. Errors are picked from a fixed list by a
+// with a value, resolve later, or never answer at all. Errors are picked from a set list by a
 // seeded random generator, so the same seed always gives the same errors in the same order.
 
 import type { ExperimentShape } from "../../src/types.ts";
@@ -30,7 +30,7 @@ export interface RetryScenario {
 /** What a successful fake call resolves with unless the scenario says otherwise. */
 export const SUCCESS_VALUE = "the value";
 
-/** The errors a fake RPC can throw. Fixed list; the seed picks from it. */
+/** The errors a fake RPC can throw. A set list; the seed picks from it. */
 export const FAKE_RPC_ERRORS: ReadonlyArray<{ name: string; message: string }> = [
   { name: "BlockNotFoundError", message: "Block at number 42194663 could not be found." },
   { name: "HttpRequestError", message: "HTTP request failed. Status: 502" },
