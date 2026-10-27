@@ -35,6 +35,17 @@ Also in this task:
   run Atlas's watch limit cuts off before the end is "can't check". It names no scenario or answer.
 - **D02-05 `events.jsonl` regenerated** with the current log order (see its README).
 
+## Later change: D18 (2026-10-27), Spark no longer sees the claim sentence
+
+Dami decided D18 = A: a model guessing on its own is the honest version of the bet. So since this
+change Spark's prompt (both modes: bet-only here, and "Spark chooses the experiment") holds the
+finding's file, line range and kind plus the numbered code lines, and **no longer** the `claim:` line
+(the Investigator's "People expect X; the code does Y" sentence). The live calls above were made
+before the change, with the hand-written fixture claim in the prompt; they were not re-run.
+Test: `tests/unit/claimant-blind.test.ts` builds a session with a (mocked) Wonder finding, then
+asserts Spark's prompt holds `lines 55-56` and the numbered code but not the claim text, any part of
+it, or a `claim:` line; and that both prompt builders leave the claim out.
+
 ## Commands and results
 
 | Command | Output | Result |

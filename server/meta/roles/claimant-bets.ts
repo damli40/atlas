@@ -7,8 +7,11 @@
 // person picked. The "Claimant chooses the experiment" mode (claimant.ts runClaimant) is unchanged.
 //
 // Plain words on who decides what:
-// - The prompt holds the finding, the code, the chosen experiment, what its fields mean and the
-//   questions. It never holds anyone else's bets: there is no input for them.
+// - The prompt holds the finding's place (file, line range, kind), the numbered code lines around
+//   it, the chosen experiment, what its fields mean and the questions. It never holds anyone else's
+//   bets: there is no input for them.
+// - D18 = A: the prompt never holds the Investigator's claim sentence (or any model's rationale).
+//   Spark sees the code lines only, so its guess is its own, not a reply to Wonder's.
 // - The answer is checked like the full Claimant's bets: JSON parse → zod (claimantBetsOnlySchema)
 //   → one bet per question, of the question's kind, unit, tolerance and options (validateBetsFor).
 // - On any failure: ONE repair try with the error appended. A second failure gives
@@ -80,7 +83,6 @@ export function buildBetOnlyMessages(input: BetOnlyInput): ChatMessage[] {
   const user = [
     `FINDING${label ? ` (${label})` : ""}`,
     `file: ${f.file}, lines ${f.lineStart}-${f.lineEnd}, kind: ${f.kind}`,
-    `claim: ${f.claim}`,
     "",
     `CODE (${f.file}, lines ${from}-${to}):`,
     numbered(input.fileText, from, to),

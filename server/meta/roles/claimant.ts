@@ -11,6 +11,8 @@
 // - A gate refusal of the model's experiment is kept (returned in `rejected`, emitted, and passed to
 //   onRefusal) even when the repair then succeeds.
 // - Sealing (src/seal.ts) happens after validation. The model never sees a nonce or a hash.
+// - D18 = A: the prompt shows the finding's place (file, line range, kind) and the numbered code
+//   lines only, never the Investigator's claim sentence or any other model's rationale.
 
 import { nanoid } from "nanoid";
 import { gate, questionsFor, renderAllowList, renderQuestions, type GateContext, type Question } from "../../../src/gate";
@@ -135,7 +137,6 @@ export function buildClaimantMessages(input: ClaimantInput): ChatMessage[] {
   const user = [
     `FINDING${input.findingLabel ? ` (${input.findingLabel})` : ""}`,
     `file: ${f.file}, lines ${f.lineStart}-${f.lineEnd}, kind: ${f.kind}`,
-    `claim: ${f.claim}`,
     "",
     `CODE (${f.file}, lines ${from}-${to}):`,
     numbered(input.fileText, from, to),
