@@ -77,6 +77,9 @@ reads every tracked file without a NUL byte instead of skipping by extension.
 - The strip now reads "Proposes a change · muse-spark-1.3 · Muse Code (muse-spark-1.3) proposes a change …",
   which repeats the verb. Plain, but not elegant.
 - M9, M10 (author e-mail, left as asked), M11 were not in this task.
+- **One flaky RPC run.** After the evidence commit I ran the RPC suite 7 more times: 6 green (768 passed),
+  1 with one failed test. I printed only the totals of that run, so I do not know which test it was; the
+  offline suite was green every time. Most likely a Base RPC or fork timing hiccup, but that is a guess.
 
 ## Files
 
