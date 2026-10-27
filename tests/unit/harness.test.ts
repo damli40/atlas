@@ -101,9 +101,32 @@ describe("TS harness against the oracle table (real withRpcRetry, virtual clock)
     await new Promise((r) => setTimeout(r, 60)); // let the stray timer finish before the next test
   });
 
-  it("stops at the virtual watch limit when the code would wait past it", async () => {
+  it("watch limit with work still pending: outcome, calls and total wait are can't check, not 'pending'", async () => {
+    // 20 attempts x 3000 ms: the real function would make 20 calls and throw at 57,000 ms. Atlas stops
+    // watching at 30,000 ms, so it did NOT see the end. Before this fix the run said outcome "pending",
+    // calls 11 and totalWaitMs 33000, and a bet of "throws" or "calls = 20" came back "didn't match".
     const out = await runScenario(target, { failTimes: "always", failure: "error", attempts: 20 }, { seed: SEED, watchLimitMs: 30000 });
-    expect(out.result.measured.outcome).toBe("pending");
-    expect(out.result.notMeasured.settleTime).toMatch(/not settled within 30000 ms of virtual time/);
+    const { measured, notMeasured } = out.result;
+    for (const k of ["outcome", "calls", "totalWaitMs", "waitCount", "logCount", "settledAtMs"]) {
+      expect(measured[k], k).toBeUndefined();
+      expect(notMeasured[k], k).toMatch(/Atlas's watch limit .* ended the run before the function finished/);
+    }
+    expect(notMeasured.calls).toMatch(/the count so far was 11$/);
+    // The partial numbers stay in the trace, labelled as partial.
+    const stopped = out.trace.find((t) => t.event === "stopped_watching");
+    expect(stopped?.data).toMatchObject({ partial: true, callsSoFar: 11 });
+  });
+
+  it("watch limit: a call that would resolve at 40 s is can't check, not 'pending'", async () => {
+    const out = await runScenario(target, { failTimes: 0, failure: "error", resolveAfterMs: 40000 }, { seed: SEED, watchLimitMs: 30000 });
+    expect(out.result.measured.outcome).toBeUndefined();
+    expect(out.result.notMeasured.outcome).toMatch(/watch limit/);
+  });
+
+  it("step limit with work still pending: can't check, not 'pending'", async () => {
+    const out = await runScenario(target, { failTimes: "always", failure: "error", attempts: 50, delayMs: 0 }, { seed: SEED, maxSteps: 10 });
+    expect(out.result.measured.outcome).toBeUndefined();
+    expect(out.result.measured.calls).toBeUndefined();
+    expect(out.result.notMeasured.calls).toMatch(/step limit .* the count so far was \d+$/);
   });
 });

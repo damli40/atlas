@@ -1,0 +1,8 @@
+     × watch limit with work still pending: outcome, calls and total wait are can't check, not 'pending' 3ms
+     × watch limit: a call that would resolve at 40 s is can't check, not 'pending' 0ms
+     × step limit with work still pending: can't check, not 'pending' 0ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/unit/harness.test.ts > TS harness against the oracle table (real withRpcRetry, virtual clock) > watch limit with work still pending: outcome, calls and total wait are can't check, not 'pending'
+ FAIL  tests/unit/harness.test.ts > TS harness against the oracle table (real withRpcRetry, virtual clock) > watch limit: a call that would resolve at 40 s is can't check, not 'pending'
+ FAIL  tests/unit/harness.test.ts > TS harness against the oracle table (real withRpcRetry, virtual clock) > step limit with work still pending: can't check, not 'pending'
+      Tests  3 failed | 13 passed (16)

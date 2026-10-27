@@ -176,25 +176,27 @@ export async function runScenario(withRpcRetry: RetryFn, scenario: RetryScenario
     );
 
   // ---- the virtual event loop ----
-  let stop: { outcomeReason: string } | null = null;
+  // `stop` is set when Atlas stops watching BEFORE the function finished. In every such case the run
+  // did not see the end, so the counts so far are partial and are not reported as measured.
+  let stop: { kind: "outside" | "watch" | "steps"; outcomeReason: string } | null = null;
   let steps = 0;
   for (;;) {
     await drainMicrotasks();
     if (settled) break;
     const outside = grownResources(before);
     if (outside.length > 0) {
-      stop = { outcomeReason: `the code is waiting on something Atlas does not control (${outside.join(", ")}); Atlas did not wait for it` };
+      stop = { kind: "outside", outcomeReason: `the code is waiting on something Atlas does not control (${outside.join(", ")}); Atlas did not wait for it` };
       break;
     }
     if (timers.length === 0) break; // unsettled, nothing scheduled, queue drained: it can never settle
     timers.sort((a, b) => a.at - b.at || a.seq - b.seq);
     const next = timers[0]!;
     if (next.at > watchLimitMs) {
-      stop = { outcomeReason: `not settled within ${watchLimitMs} ms of virtual time; Atlas stopped watching (harness limit, not the code's)` };
+      stop = { kind: "watch", outcomeReason: `Atlas's watch limit (${watchLimitMs} ms of virtual time, Atlas's limit, not the code's) ended the run before the function finished` };
       break;
     }
     if (++steps > maxSteps) {
-      stop = { outcomeReason: `not settled after ${maxSteps} virtual timer steps; Atlas stopped watching (harness limit, not the code's)` };
+      stop = { kind: "steps", outcomeReason: `Atlas's step limit (${maxSteps} virtual timer steps, Atlas's limit, not the code's) ended the run before the function finished` };
       break;
     }
     timers.shift();
@@ -203,18 +205,45 @@ export async function runScenario(withRpcRetry: RetryFn, scenario: RetryScenario
   }
 
   // ---- measured facts ----
-  const measured: RunResult["measured"] = {
-    calls,
-    waitCount: waits.length,
-    waitsMs: waits.join(","),
-    logCount: logs.length,
-    logAttempts: logs.map((m) => /attempt (\d+\/\d+)/.exec(m)?.[1] ?? "?").join(","),
-  };
+  const measured: RunResult["measured"] = {};
   const notMeasured: RunResult["notMeasured"] = {};
-  if (waits.every((w) => Number.isFinite(w))) measured.totalWaitMs = waits.reduce((a, b) => a + b, 0);
+  const totalWait = waits.every((w) => Number.isFinite(w)) ? waits.reduce((a, b) => a + b, 0) : null;
+  const s = settled as Settled | null;
+
+  if (stop) {
+    // Atlas stopped watching while the function was still working (virtual timers left, or a real
+    // timer / real I/O it does not control). The function did not finish while Atlas watched, so how
+    // it ends and how many calls/waits it makes in total were NOT observed. The numbers so far go
+    // into the trace, marked partial; none of them is reported as measured.
+    const r = stop.outcomeReason;
+    notMeasured.outcome = `${r}, so how it ends was not seen`;
+    notMeasured.settleTime = r;
+    notMeasured.settledAtMs = r;
+    notMeasured.calls = `${r}; the count so far was ${calls}`;
+    notMeasured.waitCount = `${r}; the count so far was ${waits.length}`;
+    notMeasured.waitsMs = `${r}; the waits asked for so far were [${waits.join(",")}]`;
+    notMeasured.totalWaitMs = `${r}; the waits asked for so far added up to ${totalWait ?? "a non-finite number of"} ms`;
+    notMeasured.logCount = `${r}; the count so far was ${logs.length}`;
+    notMeasured.logAttempts = `${r}; the log lines so far were ${logs.length}`;
+    emit("stopped_watching", {
+      reason: r,
+      partial: true,
+      callsSoFar: calls,
+      waitsSoFarMs: waits.join(","),
+      logLinesSoFar: logs.length,
+    });
+    return { trace, result: { measured, notMeasured } };
+  }
+
+  // The function settled, or it can never settle (nothing left that could wake it): the counts are final.
+  measured.calls = calls;
+  measured.waitCount = waits.length;
+  measured.waitsMs = waits.join(",");
+  measured.logCount = logs.length;
+  measured.logAttempts = logs.map((m) => /attempt (\d+\/\d+)/.exec(m)?.[1] ?? "?").join(",");
+  if (totalWait !== null) measured.totalWaitMs = totalWait;
   else notMeasured.totalWaitMs = "the code asked to wait a non-finite number of ms";
 
-  const s = settled as Settled | null;
   if (s) {
     measured.outcome = s.kind;
     measured.settledAtMs = s.at;
@@ -227,16 +256,8 @@ export async function runScenario(withRpcRetry: RetryFn, scenario: RetryScenario
       measured.thrownFromCall = typeof c === "number" ? c : null;
       emit("throws", { error: describeError(s.error) });
     }
-  } else if (stop && stop.outcomeReason.startsWith("the code is waiting")) {
-    // Real timer or I/O: the outcome is unknown, so it is not measured.
-    notMeasured.outcome = stop.outcomeReason;
-    notMeasured.settleTime = stop.outcomeReason;
-    emit("stopped_watching", { reason: stop.outcomeReason });
-  } else if (stop) {
-    measured.outcome = "pending";
-    notMeasured.settleTime = stop.outcomeReason;
-    emit("stopped_watching", { reason: stop.outcomeReason });
   } else {
+    // Unsettled, no virtual timers left, nothing outside Atlas pending, queue drained: it can never settle.
     measured.outcome = "pending";
     notMeasured.settleTime = NEVER_SETTLED_REASON;
     emit("pending", { reason: "unsettled, no timers left, queue drained" });
