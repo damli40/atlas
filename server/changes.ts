@@ -99,7 +99,8 @@ export async function changeAndReplay(round: Round, deps: ChangeDeps): Promise<C
   }
   const { context, finding } = changeInputsFor(round);
   const fx = await runFixer({ context, finding, toward, experiment: exp, ...(run.forkBlock !== undefined ? { forkBlock: run.forkBlock } : {}) }, { ...deps.fixer, log: deps.log });
-  const fixer: FixerView = { path: fx.path, model: fx.model, attempts: fx.attempts, usage: fx.usage ?? null };
+  // S8 (day-6 review): the model's raw answer never goes to the browser; only the diff plain code accepted.
+  const fixer: FixerView = { path: fx.path, model: fx.model, attempts: fx.attempts.map(({ answer: _answer, ...a }) => a), usage: fx.usage ?? null };
   if (!fx.ok) return { ok: false, runId: run.id, reason: fx.reason, fixer, toward };
 
   const change: Change = { id: nanoid(10), runId: run.id, diff: fx.diff, proposedBy: { role: "fixer", model: fx.model }, toward };

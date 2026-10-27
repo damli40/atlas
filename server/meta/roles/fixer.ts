@@ -2,13 +2,22 @@
 //
 // Plain words on who decides what:
 // - Muse Code (Meta's coding agent, the `muse` CLI) runs HEADLESS (`muse exec --json`) with a
-//   scratch copy of the target's files as its only workspace. It may read those files; it may NOT
-//   write them (--disable-write), run a shell (--disable-shell), use the web (--disable-web-tools),
-//   ask a person anything (--disable-request-user-input) or load anyone's personal skills (a fresh,
-//   empty HOME and --no-foreign-personal-context). Its answer is text: the instruction asks for a
-//   unified diff only. The model is named (--model muse-spark-1.3) and contributor mode is asked OFF;
-//   the model id muse exec REPORTS is what the log and the answer show, and an attempt answered by a
-//   "-contributor" model is flagged (contributorModel: true).
+//   scratch copy of the target's files as its only workspace AND its working directory. It may read
+//   those files; it may NOT write them (--disable-write), run a shell (--disable-shell), use the web
+//   (--disable-web-tools), ask a person anything (--disable-request-user-input), have an LLM judge
+//   approve a tool call (--approval-judge off) or load anyone's personal skills (a fresh, empty HOME
+//   and --no-foreign-personal-context). Its environment holds only PATH, that empty HOME and TMPDIR,
+//   and MUSE_NO_AUTO_UPDATE=1; it authenticates with the Meta key on stdin (--api-key-stdin) and
+//   nothing else (S8, day-6 review). Its answer is text: the instruction asks for a unified diff only.
+// - S4 (day-6 review): the model is named (--model muse-spark-1.3) and contributor mode is asked OFF.
+//   Before any code is sent, a one-step PREFLIGHT run with an empty workspace and no code asks for
+//   "OK" and reads which model id muse exec reports; Atlas sends the code only when that id is one it
+//   knows (server/meta/client.ts KNOWN_META_MODELS) and not a contributor model. After the real run,
+//   every model id muse exec reports (in its JSON events) and any "contributor" in its stdout or stderr
+//   is checked again; an unknown, missing or contributor id means the answer is not used. Honestly: a
+//   refusal AFTER the run cannot un-send the code; the preflight is what keeps it from being sent.
+// - S8: the raw answer is scrubbed (key, secret shapes, the RPC URL, absolute paths) before it is kept,
+//   and it never goes to the browser: POST /changes returns only the diff that plain code accepted.
 // - If `muse exec` cannot give an answer at all (missing binary, no key, timeout, a failed run),
 //   the fallback is one muse-spark-1.3 chat completion with the same prompt. The log says which
 //   path ran and which model id answered.
@@ -24,14 +33,15 @@
 // - Only the diff is ever shown. Any sentence the model wrote around it is dropped.
 
 import { spawn } from "node:child_process";
-import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { extractDiff } from "../../../src/diff";
 import type { Experiment } from "../../../src/types";
 import { checkChange, MAX_CHANGED_LINES, type ChangeContext, type CheckedChange } from "../../../runners/change";
 import { makeScratch } from "../../../runners/scratch";
-import { chat as realChat, contributorRefusal, costUsd, DEFAULT_USAGE_PATH, loadApiKey, priceFor, type ChatArgs, type ChatResult, type Usage } from "../client";
+import { chat as realChat, costUsd, DEFAULT_USAGE_PATH, loadApiKey, modelRefusal, priceFor, shownModelId, type ChatArgs, type ChatResult, type Usage } from "../client";
+import { redactRpc } from "../../../runners/evm/redact";
 import { oneLine, type SessionEmitter } from "../../log/agentlog";
 import { addUsage, COST_UNKNOWN, NO_USAGE, numbered } from "./claimant";
 import { DEFAULT_WATCH_LIMIT_MS } from "../../../runners/ts/harness";
@@ -71,12 +81,20 @@ export interface FixerInput {
   forkBlock?: number;
 }
 
+/**
+ * `models`: every model id muse exec reported in its usage events (S4). `contributorSeen`: the word
+ * "contributor" appeared anywhere in its stdout or stderr.
+ */
 export type MuseExecResult =
-  | { ok: true; text: string; model: string; usage?: Usage }
-  | { ok: false; reason: string; model?: string; usage?: Usage };
+  | { ok: true; text: string; model: string; usage?: Usage; models?: string[]; contributorSeen?: boolean }
+  | { ok: false; reason: string; model?: string; usage?: Usage; models?: string[]; contributorSeen?: boolean };
 
-/** Runs `muse exec` once with this workspace and prompt. Injected in tests. */
-export type MuseExec = (req: { files: Record<string, string>; prompt: string; timeoutMs: number }) => Promise<MuseExecResult>;
+/** Runs `muse exec` once with this workspace and prompt. Injected in tests. `maxSteps` defaults to MUSE_MAX_STEPS. */
+export type MuseExec = (req: { files: Record<string, string>; prompt: string; timeoutMs: number; maxSteps?: number }) => Promise<MuseExecResult>;
+
+/** S4: the preflight's prompt. No code, no file content, nothing from the round. */
+export const PREFLIGHT_PROMPT = "Reply with the single word OK.";
+export const PREFLIGHT_TIMEOUT_MS = 60_000;
 
 export interface FixerAttempt {
   attempt: number;
@@ -99,6 +117,11 @@ export type FixerResult =
 export interface FixerDeps {
   /** Default: the real `muse exec`. Pass null to skip Muse Code and go straight to the chat fallback. */
   museExec?: MuseExec | null;
+  /**
+   * S4: the no-code preflight run that shows which model muse exec routes to before any code is sent.
+   * Default: the real `muse exec` when museExec is the real one; none when a test injects museExec.
+   */
+  musePreflight?: MuseExec | null;
   chat?: (args: ChatArgs) => Promise<ChatResult>;
   /** Wraps each model call (the server passes its budget's track()). Default: the call runs as is. */
   guard?: <R extends { usage?: { usd: number } }>(call: () => Promise<R>, refused: (reason: string) => R) => Promise<R>;
@@ -189,7 +212,7 @@ export function repairPrompt(base: string, reason: string, previous: string | nu
 // ── Muse Code, headless ─────────────────────────────────────────────────────────────────────────
 
 /** The `muse exec` arguments, in one place (the README lists them). */
-export function museArgs(workspace: string, promptFile: string): string[] {
+export function museArgs(workspace: string, promptFile: string, maxSteps: number = MUSE_MAX_STEPS): string[] {
   return [
     "exec",
     "--json",
@@ -202,11 +225,12 @@ export function museArgs(workspace: string, promptFile: string): string[] {
     "--disable-write",
     "--disable-request-user-input",
     "--approval-mode", "never",
+    "--approval-judge", "off",
     "--no-foreign-personal-context",
     "--disable-reminders",
     "--no-session-log",
     "--reasoning-effort", "low",
-    "--max-model-steps", String(MUSE_MAX_STEPS),
+    "--max-model-steps", String(maxSteps),
     "--max-tool-output-bytes", String(MUSE_MAX_TOOL_OUTPUT_BYTES),
     "--prompt-file", promptFile,
   ];
@@ -228,6 +252,7 @@ export function parseMuseJsonl(stdout: string): MuseExecResult {
   let terminal: string | null = null;
   let termReason: string | null = null;
   let model: string | undefined;
+  const models: string[] = [];
   let usage: Usage | undefined;
   for (const line of stdout.split("\n")) {
     if (!line.trim().startsWith("{")) continue;
@@ -240,6 +265,8 @@ export function parseMuseJsonl(stdout: string): MuseExecResult {
     if (ev.payload_type === "run.usage" && Array.isArray(ev.payload?.models)) {
       for (const m of ev.payload.models) {
         if (m.model) model ??= m.model;
+        // S4: every reported id is kept and checked, not only the first.
+        if (typeof m.model === "string" && !models.includes(m.model)) models.push(m.model);
         const promptTokens = m.input_tokens ?? 0;
         const completionTokens = m.output_tokens ?? 0;
         // Cached input tokens are counted at the full input price: the logged cost is an upper bound.
@@ -254,24 +281,64 @@ export function parseMuseJsonl(stdout: string): MuseExecResult {
     }
   }
   const m = model ?? "unknown (muse exec reported no model id)";
-  const extra = { model: m, ...(usage ? { usage } : {}) };
+  const extra = { model: m, models, contributorSeen: /contributor/i.test(stdout), ...(usage ? { usage } : {}) };
   if (terminal === null) return { ok: false, reason: "muse exec ended without a final answer", ...extra };
   if (terminal !== "completed") return { ok: false, reason: `muse exec ended "${terminal}"${termReason ? ` (${termReason})` : ""}`, ...extra };
   if (!text || !text.trim()) return { ok: false, reason: "muse exec completed with an empty answer", ...extra };
   return { ok: true, text, ...extra };
 }
 
-/** The real `muse exec`: scratch workspace, empty HOME, key on stdin, hard time limit. */
+// ── S8: the OS sandbox around muse exec ─────────────────────────────────────────────────────────
+//
+// Plain words: on Oct 27 a live probe (tests/evidence/D06-review/s8-live-probe.txt) showed that Muse
+// Code's own file tools READ a file outside its workspace when given an absolute path, with every flag
+// above set. So Atlas does not rely on muse's own policy. On macOS, muse exec runs inside the OS sandbox
+// (sandbox-exec) with a profile that refuses to read or write the contents of anything under the user's
+// home folder, /private/tmp or /private/var/folders, except: the scratch workspace, muse's empty HOME,
+// and the folder the muse program itself is installed in. Network stays open (muse must reach Meta's
+// API). File NAMES and sizes outside stay visible (stat is allowed: muse fails to start without it);
+// file CONTENTS do not. Where no OS sandbox exists (any non-macOS machine), muse exec is not run at all
+// and the Fixer goes to the chat fallback, which has no file access.
+
+export const SANDBOX_EXEC = "/usr/bin/sandbox-exec";
+
+/** Quotes a path for the sandbox profile language (a string literal). */
+const sbString = (p: string) => `"${p.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+
+/** The sandbox profile for one muse exec run. Paths must be real paths (no symlinks: /var is /private/var). */
+export function museSandboxProfile(o: { workspace: string; home: string; museDir: string; userHome: string }): string {
+  const denied = [o.userHome, "/private/tmp", "/private/var/folders"];
+  return [
+    "(version 1)",
+    "(allow default)",
+    ...denied.map((d) => `(deny file-read-data file-write* (subpath ${sbString(d)}))`),
+    `(allow file-read-data (subpath ${sbString(o.museDir)}))`,
+    `(allow file-read-data file-write* (subpath ${sbString(o.workspace)}) (subpath ${sbString(o.home)}))`,
+    "",
+  ].join("\n");
+}
+
+/** The OS sandbox command on this machine, or null when there is none Atlas can use. */
+export function osSandbox(): string | null {
+  return process.platform === "darwin" && existsSync(SANDBOX_EXEC) ? SANDBOX_EXEC : null;
+}
+
+/** The real `muse exec`: scratch workspace, empty HOME, key on stdin, OS sandbox, hard time limit. */
 export function realMuseExec(opts: { bin?: string; apiKey?: string } = {}): MuseExec {
-  return async ({ files, prompt, timeoutMs }) => {
+  return async ({ files, prompt, timeoutMs, maxSteps }) => {
     const key = opts.apiKey ?? loadApiKey();
     if (!key) return { ok: false, reason: "no Meta API key for muse exec" };
     const bin = process.env.ATLAS_MUSE_BIN ?? opts.bin ?? MUSE_BIN_DEFAULT;
+    const sandbox = osSandbox();
+    if (!sandbox) return { ok: false, reason: "muse exec not run: this machine has no OS sandbox Atlas can use to keep Muse Code inside its workspace" };
     const scratch = await makeScratch(files, "atlas-muse-ws-");
-    const home = mkdtempSync(join(tmpdir(), "atlas-muse-home-"));
+    const home = realpathSync(mkdtempSync(join(tmpdir(), "atlas-muse-home-")));
+    const workspace = realpathSync(scratch.dir);
     const promptFile = join(home, "prompt.txt"); // outside the workspace: Muse Code reads it as the prompt only
     writeFileSync(promptFile, prompt);
-    const scrub = (s: string) => s.split(key).join("[redacted]").split(scratch.dir).join("<scratch>").split(home).join("<home>");
+    const profile = join(home, "atlas-muse.sb");
+    writeFileSync(profile, museSandboxProfile({ workspace, home, museDir: dirname(realpathSync(bin)), userHome: realpathSync(homedir()) }));
+    const scrub = (s: string) => s.split(key).join("[redacted]").split(workspace).join("<scratch>").split(scratch.dir).join("<scratch>").split(home).join("<home>");
     try {
       return await new Promise<MuseExecResult>((resolve) => {
         let stdout = "";
@@ -283,10 +350,13 @@ export function realMuseExec(opts: { bin?: string; apiKey?: string } = {}): Muse
           clearTimeout(timer);
           resolve(r);
         };
-        const child = spawn(bin, museArgs(scratch.dir, promptFile), {
-          cwd: scratch.dir,
-          // A fresh HOME: no personal skills, rules or stored credentials reach the run. Nothing else inherited.
-          env: { PATH: process.env.PATH ?? "/usr/bin:/bin", HOME: home, TMPDIR: home },
+        const child = spawn(sandbox, ["-f", profile, bin, ...museArgs(workspace, promptFile, maxSteps)], {
+          // S8: the working directory is the scratch copy, so a relative path resolves inside it.
+          cwd: workspace,
+          // A fresh, empty HOME: no personal skills, rules, ~/.config or stored credentials reach the run.
+          // Nothing else is inherited. Muse authenticates with the key on stdin only (--api-key-stdin);
+          // MUSE_NO_AUTO_UPDATE=1 keeps its launcher from updating itself over the network mid-run.
+          env: { PATH: process.env.PATH ?? "/usr/bin:/bin", HOME: home, TMPDIR: home, MUSE_NO_AUTO_UPDATE: "1" },
           stdio: ["pipe", "pipe", "pipe"],
         });
         const timer = setTimeout(() => {
@@ -302,7 +372,9 @@ export function realMuseExec(opts: { bin?: string; apiKey?: string } = {}): Muse
         });
         child.on("error", (e) => done({ ok: false, reason: `muse exec could not start: ${scrub(e.message)}` }));
         child.on("close", (code) => {
-          const parsed = parseMuseJsonl(stdout);
+          const parsed0 = parseMuseJsonl(stdout);
+          // S4: "contributor" anywhere in stdout OR stderr counts.
+          const parsed = { ...parsed0, contributorSeen: parsed0.contributorSeen === true || /contributor/i.test(stderr) } as MuseExecResult;
           if (code !== 0 && parsed.ok) return done({ ok: false, reason: `muse exec exited with code ${code}`, model: parsed.model, ...(parsed.usage ? { usage: parsed.usage } : {}) });
           if (code !== 0) {
             const tail = scrub(stderr.trim().split("\n").filter((l) => !/^muse: (workspace root|local session|Agent delegation)/.test(l)).slice(-2).join(" | "));
@@ -317,6 +389,33 @@ export function realMuseExec(opts: { bin?: string; apiKey?: string } = {}): Muse
       rmSync(home, { recursive: true, force: true });
     }
   };
+}
+
+// ── S8: what is kept of a model's raw answer ────────────────────────────────────────────────────
+
+/** Generic secret shapes (the same list as tests/tools/secret-scan.mjs). */
+const SECRET_SHAPES = [
+  /\bsk-[A-Za-z0-9_-]{20,}/g,
+  /\bBearer\s+[A-Za-z0-9._~+/=-]{20,}/g,
+  /[a-z0-9.-]*\.(?:quiknode|quicknode)\.pro\/[A-Za-z0-9]{8,}/gi,
+  /alchemy\.com\/v2\/[A-Za-z0-9_-]{8,}/gi,
+  /infura\.io\/v3\/[0-9a-f]{16,}/gi,
+];
+/** Absolute paths on this kind of machine, and ~/ paths: never kept, never shown. */
+const ABSOLUTE_PATH = /(?:~|\/Users|\/home|\/private|\/var\/folders|\/tmp|\/etc|\/root)\/[^\s"'`)<>]*/g;
+
+/** True when `text` holds the Meta key or a secret shape (the diff is then not used at all). */
+export function holdsSecret(text: string, key: string | undefined = loadApiKey()): boolean {
+  if (key && key.length >= 12 && text.includes(key)) return true;
+  return SECRET_SHAPES.some((re) => new RegExp(re.source, re.flags.replace("g", "")).test(text));
+}
+
+/** A model's raw answer as Atlas keeps it: the key, secret shapes, the RPC URL and absolute paths removed. */
+export function scrubModelText(text: string, key: string | undefined = loadApiKey()): string {
+  let out = key && key.length >= 12 ? text.split(key).join("[redacted key]") : text;
+  for (const re of SECRET_SHAPES) out = out.replace(re, "[redacted secret]");
+  out = redactRpc(out);
+  return out.replace(ABSOLUTE_PATH, "<path>");
 }
 
 function logMuseUsage(path: string, model: string, usage: Usage, finishReason: string, now: Date): string | undefined {
@@ -355,14 +454,45 @@ export async function runFixer(input: FixerInput, deps: FixerDeps = {}): Promise
   const say = (m: string, action: string, usage: Usage | undefined) =>
     log?.model({ role: "fixer", model: m, action: oneLine(usage ? action : `${action} (${COST_UNKNOWN})`), usage: usage ?? NO_USAGE });
 
+  // S4: the preflight (no code sent) runs once, before the first real muse exec run.
+  const preflight = deps.musePreflight === undefined ? (deps.museExec === undefined ? realMuseExec() : null) : deps.musePreflight;
+  let preflightDone = false;
+  /** Null when muse exec's reports allow the answer to be used; else why not (S4, fail closed). */
+  const reportProblem = (r: MuseExecResult): string | null => {
+    const ids = r.models && r.models.length ? r.models : r.model && !r.model.startsWith("unknown") ? [r.model] : [];
+    if (ids.length === 0) return "muse exec reported no model id, so Atlas cannot tell which model received the code";
+    for (const id of ids) {
+      const refused = modelRefusal(id);
+      if (refused) return refused;
+    }
+    if (r.contributorSeen) return "muse exec's output mentions a contributor model";
+    return null;
+  };
   const askMuse = async (): Promise<MuseExecResult> => {
-    const before = contributorRefusal(FIXER_MUSE_MODEL);
+    const before = modelRefusal(FIXER_MUSE_MODEL);
     if (before) return { ok: false, reason: `not asked (${before})` };
+    if (preflight && !preflightDone) {
+      const p = await guard(() => preflight({ files: { "README.txt": "Atlas preflight: no code here.\n" }, prompt: PREFLIGHT_PROMPT, timeoutMs: PREFLIGHT_TIMEOUT_MS, maxSteps: 1 }), (reason): MuseExecResult => ({ ok: false, reason }));
+      if (p.usage && p.model) logMuseUsage(usagePath, p.model, p.usage, p.ok ? "preflight" : "preflight failed", now());
+      total = addUsage(total, p.usage);
+      const problem = p.ok ? reportProblem(p) : `the preflight did not finish (${p.reason})`;
+      say(p.model ?? MUSE_CODE, problem ? `${MUSE_CODE} preflight (no code sent): ${problem}; the code is not sent` : `${MUSE_CODE} preflight (no code sent): muse exec answers with ${shownModelId(p.model ?? "")}`, p.usage);
+      if (problem) return { ok: false, reason: `not asked (preflight, no code sent: ${problem})`, ...(p.model ? { model: p.model } : {}) };
+      preflightDone = true;
+    }
     const r = await guard(() => museExec!({ files: input.context.files, prompt, timeoutMs: MUSE_TIMEOUT_MS }), (reason): MuseExecResult => ({ ok: false, reason: `not asked (${reason})` }));
-    // The model id muse exec REPORTS is logged as is; a contributor model's answer is not used.
+    // The model id muse exec REPORTS is logged as is; an unknown, missing or contributor id: the answer is not used.
     if (r.usage && r.model) logMuseUsage(usagePath, r.model, r.usage, r.ok ? "completed" : "failed", now());
-    const after = r.model ? contributorRefusal(r.model) : null;
-    if (after) return { ok: false, reason: `muse exec answered with ${after}`, model: r.model!, ...(r.usage ? { usage: r.usage } : {}) };
+    if (!r.ok) return r; // no answer: nothing is used either way (its model id, when reported, is in the log)
+    const problem = reportProblem(r);
+    if (problem) {
+      return {
+        ok: false,
+        reason: `muse exec answered, but ${problem}; the answer is not used (the code was already sent, and refusing now cannot un-send it)`,
+        ...(r.model ? { model: r.model } : {}),
+        ...(r.usage ? { usage: r.usage } : {}),
+      };
+    }
     return r;
   };
   const askChat = async (): Promise<MuseExecResult> => {
@@ -408,8 +538,13 @@ export async function runFixer(input: FixerInput, deps: FixerDeps = {}): Promise
       continue;
     }
     const got = extractDiff(r.text);
-    const checked: CheckedChange = got ? await checkChange(got.diff, input.context) : { ok: false, reason: "the answer holds no unified diff" };
-    const kept = { answer: r.text.slice(0, 20_000), ...(/-contributor$/.test(model) ? { contributorModel: true } : {}) };
+    const checked: CheckedChange = !got
+      ? { ok: false, reason: "the answer holds no unified diff" }
+      : holdsSecret(got.diff)
+        ? { ok: false, reason: "the diff holds text shaped like a secret, so it is not used or shown" }
+        : await checkChange(got.diff, input.context);
+    // S8: the raw answer is kept only scrubbed, for the record; it never goes to the browser.
+    const kept = { answer: scrubModelText(r.text.slice(0, 20_000)), ...(/contributor/i.test(model) ? { contributorModel: true } : {}) };
     if (checked.ok) {
       attempts.push({ attempt, path, model, ok: true, ...(r.usage ? { usage: r.usage } : {}), ...kept });
       const files = checked.diffFiles.map((f) => f.newPath).join(", ");
@@ -418,7 +553,7 @@ export async function runFixer(input: FixerInput, deps: FixerDeps = {}): Promise
     }
     lastReason = checked.reason;
     attempts.push({ attempt, path, model, ok: false, reason: checked.reason, ...(r.usage ? { usage: r.usage } : {}), ...kept });
-    say(model, `${pathLabel(path, model)}: answer refused by plain code (${checked.reason})${attempt === 1 ? "; one repair try" : ""}`, r.usage);
+    say(model, `${pathLabel(path, model)}: answer refused by plain code (${checked.reason})${attempt === 1 ? "; one more try" : ""}`, r.usage);
     prompt = repairPrompt(base, checked.reason, got?.diff ?? null);
     if (deps.repairWith === "chat-fallback" && path === "muse-exec") {
       // Same inputs for the fallback: the base prompt, not Muse Code's repair note.

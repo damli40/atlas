@@ -65,6 +65,8 @@ describe("POST /changes", () => {
     if (!a.ok) return;
     expect(a.caption).toBe(CHANGE_CAPTION);
     expect(a.diff).toBe(DIFF);
+    // S8 (day-6): the model's raw answer never reaches the browser, only the accepted diff.
+    expect(a.fixer.attempts.some((x) => "answer" in x)).toBe(false);
     expect(a.change.proposedBy).toEqual({ role: "fixer", model: "muse-spark-1.3" });
     expect(a.change.toward).toContain("The person bet on");
     expect(a.replay.seed).toBe(run.seed);

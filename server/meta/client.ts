@@ -90,16 +90,33 @@ export function loadApiKey(): string | undefined {
   return m?.[1];
 }
 
+/** S4 (day-6 review): the Meta model ids Atlas uses. Any other id is refused, before and after a call. */
+export const KNOWN_META_MODELS = ["muse-wonder-1.0", "muse-spark-1.3", "muse-image-1.0"] as const;
+
+/** A model id as reported by a tool is shown only when it reads like an id; otherwise it is described. */
+export const shownModelId = (model: string) => (/^[A-Za-z0-9._:/-]{1,64}$/.test(model.trim()) ? model.trim() : "an unreadable model id");
+
 /**
- * "-contributor" models are cheaper, but Meta may train on their inputs. Atlas refuses them unless the
- * environment says ATLAS_ALLOW_CONTRIBUTOR=1 (a deliberate choice, for public code only).
- * Returns the refusal sentence, or null when the model may be used.
+ * Whether Atlas may use (or use the answer of) this model id. Null when it may.
+ * - "contributor" anywhere in the id, in any case or with any separator or suffix
+ *   (muse-spark-1.3-contributor, muse-spark-1.3:contributor, contributor/..., -Contributor-2026): Meta may
+ *   train on what such a model receives, so Atlas refuses it. ATLAS_ALLOW_CONTRIBUTOR=1 (a deliberate
+ *   choice, for public code only) allows exactly "<known id>-contributor" and nothing else.
+ * - Any id that is not one of KNOWN_META_MODELS is refused too (fail closed): Atlas cannot say what an
+ *   unknown model is or what happens to its inputs.
  */
-export function contributorRefusal(model: string, env: NodeJS.ProcessEnv = process.env): string | null {
-  if (!/-contributor$/i.test(model.trim())) return null;
-  if (env.ATLAS_ALLOW_CONTRIBUTOR === "1") return null;
-  return `${model} is a contributor model (Meta may train on its inputs); Atlas does not use it unless ATLAS_ALLOW_CONTRIBUTOR=1 is set`;
+export function modelRefusal(model: string, env: NodeJS.ProcessEnv = process.env): string | null {
+  const m = model.trim();
+  if ((KNOWN_META_MODELS as readonly string[]).includes(m)) return null;
+  if (/contributor/i.test(m)) {
+    if (env.ATLAS_ALLOW_CONTRIBUTOR === "1" && KNOWN_META_MODELS.some((k) => m === `${k}-contributor`)) return null;
+    return `${shownModelId(m)} is a contributor model (Meta may train on its inputs); Atlas does not use it unless ATLAS_ALLOW_CONTRIBUTOR=1 is set`;
+  }
+  return `${shownModelId(m)} is not a Meta model id Atlas knows (${KNOWN_META_MODELS.join(", ")}); Atlas does not use it`;
 }
+
+/** The earlier name of modelRefusal (kept so older callers read the same rule). */
+export const contributorRefusal = modelRefusal;
 
 export function costUsd(model: string, promptTokens: number, completionTokens: number): number {
   const { price } = priceFor(model);
@@ -228,7 +245,7 @@ export function createMetaClient(opts: ClientOptions = {}) {
   }
 
   async function chat(args: ChatArgs): Promise<ChatResult> {
-    const refused = contributorRefusal(args.model);
+    const refused = modelRefusal(args.model);
     if (refused) return { ok: false, reason: refused };
     const key = opts.apiKey ?? loadApiKey();
     if (!key) return { ok: false, reason: "no Meta API key: set META_API_KEY or ~/.config/meta-model-api/env" };

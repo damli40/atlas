@@ -1,0 +1,4 @@
+model muse-spark-1.3 | models ["muse-spark-1.3"] | contributor seen false | usd 0.190868
+canary in the raw answer: no
+answer (scrubbed):
+tool failed: Operation not permitted (os error 1)

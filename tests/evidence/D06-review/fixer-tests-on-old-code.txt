@@ -1,0 +1,17 @@
+     × refuses 'contributor' anywhere in the id, in any case, with any separator or suffix 2ms
+     × refuses an unknown id; allows only the known Meta ids 0ms
+     × ATLAS_ALLOW_CONTRIBUTOR=1 allows exactly '<known id>-contributor', nothing looser 0ms
+     × muse exec's usage lists every model: a contributor id in second place is seen 1ms
+     × an answer whose report lists a contributor model second is not used 51ms
+     × an answer with NO model id reported is not used (fail closed) 48ms
+     × 'contributor' in muse exec's stdout or stderr: the answer is not used 45ms
+     × the preflight runs BEFORE any code is sent; a contributor answer there means the code is never sent 43ms
+     × the flags include --approval-judge off and the strict set 1ms
+     × the sandbox profile refuses file contents under the home folder and the temp roots, except its own folders 0ms
+     × on macOS, a process inside that profile cannot read a file outside its folders (no model needed) 1ms
+     × the raw answer is kept only scrubbed: key, secret shapes and absolute paths removed 0ms
+     × a diff holding a secret shape is refused, never shown 45ms
+     × proposes, checks, replays with the same seed, and judges the SAME bets before and after 697ms
+     × a refused change says 'Muse Code: no usable change (<reason>)' and nothing replays 241ms
+⎯⎯⎯⎯⎯⎯ Failed Tests 15 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  15 failed | 2 passed (17)
