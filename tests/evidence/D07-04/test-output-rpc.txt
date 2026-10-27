@@ -1,0 +1,6 @@
+
+ Test Files  72 passed (72)
+      Tests  739 passed | 4 skipped (743)
+   Start at  12:45:58
+   Duration  23.04s (tests 84%, import 15%, transform 1%)
+
