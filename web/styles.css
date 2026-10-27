@@ -138,3 +138,9 @@ section[data-testid="false-alarm"] { overflow-x: auto; }
 .code.diff .line.add { background: color-mix(in srgb, var(--matched) 14%, transparent); }
 .code.diff .line.del { background: color-mix(in srgb, var(--not-matched) 14%, transparent); }
 .code.toward { white-space: pre-wrap; padding: 8px; }
+
+/* D07-01: per-bettor counts (You · Muse Spark · Muse Spark Open). Counts only. */
+table.counts { border-collapse: collapse; margin: 8px 0 12px; width: auto; }
+table.counts th, table.counts td { padding: 4px 12px; text-align: left; border-bottom: 1px solid rgba(127, 127, 127, 0.25); vertical-align: bottom; }
+table.counts td:not(:first-child) { text-align: center; font-variant-numeric: tabular-nums; }
+.claimant label { margin-right: 12px; }

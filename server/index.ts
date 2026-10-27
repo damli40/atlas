@@ -1,6 +1,6 @@
 import { serve } from "@hono/node-server";
 import { createApp } from "./app";
-import { createMetaClient, DEFAULT_USAGE_PATH } from "./meta/client";
+import { createMetaClient, DEFAULT_USAGE_PATH, loadBasetenKey } from "./meta/client";
 import { createModelBudget, DEFAULT_CALLS_PER_HOUR, DEFAULT_EXPERIMENTS_PER_SESSION, DEFAULT_SPEND_CEILING_USD, envNumber, readUsageTotal } from "./meta/budget";
 import { fileRefusalWriter } from "./proofs/refusals";
 import { createProofStore } from "./evm-round";
@@ -22,6 +22,16 @@ const budget = createModelBudget({
   spendCeilingUsd: envNumber(process.env.ATLAS_SPEND_CEILING_USD, DEFAULT_SPEND_CEILING_USD),
   spentAtStartUsd: spentAtStart.usd,
 });
+
+// D07-01: Muse Spark Open (open weights, via Baseten) can be asked only when a Baseten key is on this
+// machine (BASETEN_API_KEY or ~/.config/baseten/env). The key is only checked for presence here, never
+// printed. ATLAS_SPARK_OPEN=off turns it off. When it is not available, the page's toggle says why.
+const sparkOpen =
+  process.env.ATLAS_SPARK_OPEN === "off"
+    ? { available: false as const, reason: "turned off on this server (ATLAS_SPARK_OPEN=off)" }
+    : loadBasetenKey()
+      ? { available: true as const }
+      : { available: false as const, reason: "no Baseten access on this server" };
 
 // Bets get a shorter deadline than the client's default, so a model that never answers cannot hold
 // a person's run for minutes (the run waits for the model's bets before it starts).
@@ -50,7 +60,7 @@ const refusalsDir = process.env.ATLAS_PROOFS_DIR ? join(proofsDir, "refusals") :
 // S7: the live server writes a public refusal record for every gate refusal and can't-check verdict.
 const app = createApp({
   proofs,
-  ...(modelBetsOn ? { modelBets: { chat, budget } } : {}),
+  ...(modelBetsOn ? { modelBets: { chat, budget, sparkOpen } } : {}),
   ...(investigatorOn ? { investigator: { chat: investigatorChat, budget } } : {}),
   // ATLAS_FIXER_REPAIR_WITH=chat: when Muse Code's diff is refused, the one repair try is the muse-spark-1.3 chat.
   ...(fixerOn ? { fixer: { chat: fixerChat, budget, ...(process.env.ATLAS_FIXER_REPAIR_WITH === "chat" ? { repairWith: "chat-fallback" as const } : {}) } } : {}),
@@ -58,7 +68,7 @@ const app = createApp({
 });
 
 serve({ fetch: app.fetch, port }, (info) => {
-  console.log(`Atlas server listening on http://localhost:${info.port} (model bets ${modelBetsOn ? "on" : "off"}, investigator ${investigatorOn ? "on" : "off"}, fixer ${fixerOn ? "on" : "off"}, .atlas.json files ${publishProofs ? "written to the proofs folder" : "kept in memory only"})`);
+  console.log(`Atlas server listening on http://localhost:${info.port} (model bets ${modelBetsOn ? "on" : "off"}, Muse Spark Open ${sparkOpen.available ? "available" : `not available (${sparkOpen.reason})`}, investigator ${investigatorOn ? "on" : "off"}, fixer ${fixerOn ? "on" : "off"}, .atlas.json files ${publishProofs ? "written to the proofs folder" : "kept in memory only"})`);
   if (modelBetsOn || investigatorOn) {
     console.log(`model budget: $${budget.spentUsd().toFixed(2)} already spent (usage log, ${spentAtStart.lines} lines${spentAtStart.skipped ? `, ${spentAtStart.skipped} unreadable` : ""})`);
   }

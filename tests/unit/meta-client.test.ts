@@ -114,6 +114,7 @@ describe("Meta client", () => {
     expect(l[0]).toEqual({
       ts: "2026-10-27T12:00:00.000Z",
       role: "claimant",
+      provider: "meta", // D07-01: every usage line names who served the call
       model: "muse-spark-1.3",
       promptTokens: 26,
       completionTokens: 124,

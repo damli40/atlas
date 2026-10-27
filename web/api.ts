@@ -7,6 +7,9 @@ import type { AtlasFile, Bet, Experiment, Finding, Run, Target, Verdict } from "
 import type { FalseAlarmRow } from "../runners/evm/level2";
 import type { ModelSlotView, SealedOnly } from "../server/bets";
 import type { ChangeAnswer } from "../server/changes";
+import { CLAIMANT_HEADER, DEFAULT_CLAIMANT_MODE, type ClaimantMode, type ClaimantsInfo } from "../src/claimants";
+
+export type { ClaimantMode, ClaimantsInfo };
 
 export type { ModelSlotView, SealedOnly, FalseAlarmRow, ChangeAnswer };
 
@@ -36,6 +39,8 @@ export interface ExperimentAnswer {
   questions: Question[];
   /** The model's slot on this same experiment: status and, once sealed, hashes only (D02-06). */
   model: ModelSlotView | null;
+  /** D07-01: every model slot, in column order (two in "both" mode). */
+  models?: ModelSlotView[];
 }
 
 export interface RunAnswer {
@@ -45,6 +50,8 @@ export interface RunAnswer {
   bets: Bet[];
   betsFrozenAt: string;
   model?: ModelSlotView | null;
+  /** D07-01: every model slot, in column order. */
+  models?: ModelSlotView[];
   /** D04-04: the round's .atlas.json (kept, and written when publishing is on). */
   proof?: ProofInfo;
   /** D04-04, Level 2 only: one row per market the proposal touches. */
@@ -99,11 +106,17 @@ export class ApiError extends Error {
   }
 }
 
+/** D07-01: the slots an answer carries: `models` when present, else the single `model`. */
+export const slotsOf = (a: { model?: ModelSlotView | null; models?: ModelSlotView[] }): ModelSlotView[] => (a.models && a.models.length > 0 ? a.models : a.model ? [a.model] : []);
+
 export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/api") {
   let session: string | null = null;
+  /** D07-01: who places the model's bets on the next experiment (the x-atlas-claimant header). */
+  let claimant: ClaimantMode = DEFAULT_CLAIMANT_MODE;
   async function post<T>(path: string, body: unknown): Promise<T> {
     const headers: Record<string, string> = { "content-type": "application/json" };
     if (session) headers[SESSION_HEADER] = session;
+    if (claimant !== DEFAULT_CLAIMANT_MODE) headers[CLAIMANT_HEADER] = claimant;
     const res = await fetchFn(`${base}${path}`, { method: "POST", headers, body: JSON.stringify(body) });
     session ??= res.headers.get(SESSION_HEADER);
     let json: (T & { error?: string }) | undefined;
@@ -138,6 +151,13 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
     replay: (runId: string) => get<ReplayAnswer>(`/replay/${encodeURIComponent(runId)}`),
     /** The session id the server handed back (null before the first answer). */
     session: () => session,
+    /** D07-01: the claimant mode sent with the next experiment. */
+    claimant: () => claimant,
+    setClaimant: (mode: ClaimantMode) => {
+      claimant = mode;
+    },
+    /** D07-01: whether this server can ask Muse Spark Open, and if not, why (no model call). */
+    claimants: () => get<ClaimantsInfo>("/claimants"),
     target: (ref: string) => post<Target>("/targets", { kind: "ts-fixture", ref }),
     /** D04-04: a pull request, read by the server at its merge commit. */
     prTarget: (ref: string) => post<PrTarget>("/targets", { kind: "github-pr", ref }),
@@ -159,6 +179,9 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
     /** Waits for the model's bets on this experiment; returns its status and sealed hashes (never its answers). */
     modelBets: (experimentId: string) =>
       post<{ model: ModelSlotView | null }>(`/experiments/${encodeURIComponent(experimentId)}/model-bets`, {}).then((r) => r.model),
+    /** D07-01: the same wait, for every model slot of the experiment. */
+    modelSlots: (experimentId: string) =>
+      post<{ model: ModelSlotView | null; models?: ModelSlotView[] }>(`/experiments/${encodeURIComponent(experimentId)}/model-bets`, {}).then(slotsOf),
     run: (experimentId: string) => post<RunAnswer>("/runs", { experimentId }),
     /** D06-01: Muse Code proposes a change toward the bets; the same experiment re-runs; the same bets are judged. */
     change: (runId: string) => post<ChangeAnswer>("/changes", { runId }),

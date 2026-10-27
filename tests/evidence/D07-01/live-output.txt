@@ -1,0 +1,127 @@
+round 1 (fixture)
+  muse-spark-1.3: sealed, 3 sealed
+  meta-models/muse-spark-open-1026: sealed, 3 sealed
+  run E_Qbhza5e3 in 0 s, control passed
+  spark: calls=5 → matched; totalWaitMs=12000 → matched; outcome="throws" → matched
+  sparkOpen: calls=5 → matched; totalWaitMs=12000 → matched; outcome="throws" → matched
+  script: calls=3 → not_matched; totalWaitMs=3000 → not_matched; outcome="throws" → matched
+round 2 (fixture)
+  muse-spark-1.3: sealed, 3 sealed
+  meta-models/muse-spark-open-1026: sealed, 3 sealed
+  run uqNZ2SHHgS in 0 s, control passed
+  spark: calls=5 → matched; totalWaitMs=12000 → matched; outcome="throws" → matched
+  sparkOpen: calls=5 → matched; totalWaitMs=12000 → matched; outcome="throws" → matched
+  script: calls=3 → not_matched; totalWaitMs=3000 → not_matched; outcome="throws" → matched
+round 3 (fixture)
+  muse-spark-1.3: sealed, 3 sealed
+  meta-models/muse-spark-open-1026: sealed, 3 sealed
+  run SXdSjQ3rqu in 0 s, control passed
+  spark: calls=5 → matched; totalWaitMs=12000 → matched; outcome="throws" → matched
+  sparkOpen: calls=5 → matched; totalWaitMs=12000 → matched; outcome="throws" → matched
+  script: calls=3 → not_matched; totalWaitMs=3000 → not_matched; outcome="throws" → matched
+round 4 (moonwell)
+stopped: experiment: HTTP 413 {"error":"the request body is larger than 65536 bytes"}
+{
+  "at": "2026-10-27T10:54:47.141Z",
+  "spentUsd": {
+    "meta": 0.053352,
+    "baseten": 0.010486
+  },
+  "samePrompt": [
+    {
+      "round": 1,
+      "models": 2,
+      "identical": true
+    },
+    {
+      "round": 2,
+      "models": 2,
+      "identical": true
+    },
+    {
+      "round": 3,
+      "models": 2,
+      "identical": true
+    }
+  ],
+  "rounds": 3
+}
+round 4 (moonwell)
+  muse-spark-1.3: no_usable_answer (the model call failed: network error (TypeError: fetch failed)), 0 sealed
+  meta-models/muse-spark-open-1026: sealed, 1 sealed
+  run cu96dAM4Bf in 5 s, control passed
+  spark: no bets
+  sparkOpen: priceUsd1e18:cbETH="declined" → cant_check
+  script: priceUsd1e18:cbETH=2200 → not_matched
+{
+  "at": "2026-10-27T10:55:24.456Z",
+  "spentUsd": {
+    "meta": 0.053352,
+    "baseten": 0.01553
+  },
+  "samePrompt": [
+    {
+      "round": 1,
+      "models": 2,
+      "identical": true
+    },
+    {
+      "round": 2,
+      "models": 2,
+      "identical": true
+    },
+    {
+      "round": 3,
+      "models": 2,
+      "identical": true
+    },
+    {
+      "round": 4,
+      "models": 2,
+      "identical": true
+    }
+  ],
+  "rounds": 4
+}
+round 5 (moonwell)
+  muse-spark-1.3: sealed, 1 sealed
+  meta-models/muse-spark-open-1026: sealed, 1 sealed
+  run ytshhYe28r in 5 s, control passed
+  spark: priceUsd1e18:cbETH="declined" → cant_check
+  sparkOpen: priceUsd1e18:cbETH="declined" → cant_check
+  script: priceUsd1e18:cbETH=2200 → not_matched
+{
+  "at": "2026-10-27T10:55:47.882Z",
+  "spentUsd": {
+    "meta": 0.074088,
+    "baseten": 0.016798
+  },
+  "samePrompt": [
+    {
+      "round": 1,
+      "models": 2,
+      "identical": true
+    },
+    {
+      "round": 2,
+      "models": 2,
+      "identical": true
+    },
+    {
+      "round": 3,
+      "models": 2,
+      "identical": true
+    },
+    {
+      "round": 4,
+      "models": 2,
+      "identical": true
+    },
+    {
+      "round": 5,
+      "models": 2,
+      "identical": true
+    }
+  ],
+  "rounds": 5
+}

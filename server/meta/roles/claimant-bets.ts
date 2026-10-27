@@ -32,11 +32,11 @@ import { oneLine } from "../../log/agentlog";
 import { CLAIMANT_MODEL, COST_UNKNOWN, NO_USAGE, SYSTEM_PREAMBLE, addUsage, zodSafeReason, contextRangeFor, numbered, repairMessage, validateBetsFor, type ClaimantAttempt } from "./claimant";
 import { FIXTURE_FINDING_LABEL } from "./fixture-finding";
 
-/** How the screen names the model: its product name AND its id (D10: model names stay visible). */
-export const MODEL_DISPLAY: Record<string, string> = {
-  "muse-spark-1.3": "Muse Spark 1.3 (muse-spark-1.3)",
-};
-export const modelDisplay = (model: string): string => MODEL_DISPLAY[model] ?? model;
+/**
+ * How the screen names the model: its product name AND its id (D10: model names stay visible).
+ * D07-01: the list lives in src/claimants.ts so the page and the server use the same words.
+ */
+export { MODEL_DISPLAY, modelDisplay } from "../../../src/claimants";
 
 export interface BetOnlyInput {
   /** The experiment the person picked. Must already be allowed by the gate. */

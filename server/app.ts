@@ -63,6 +63,11 @@
 // - Before the run, no log line, SSE event or API answer carries a model's answer values (S2).
 // - Model calls are limited (server/meta/budget.ts, S5); when a limit is reached the model is not
 //   asked and the person's round goes on.
+// - D07-01, open-weights mode: the x-atlas-claimant header on POST /experiments picks who places the
+//   model's bets: "spark" (default, Muse Spark 1.3 on Meta's API), "spark-open" (Muse Spark Open,
+//   meta-models/muse-spark-open-1026, via Baseten) or "both" (each seals its own bets on the same
+//   experiment, from the same prompt). GET /claimants says whether Muse Spark Open can be asked and,
+//   if not, why; when it cannot, its slot says "not available (<reason>)" and no bet is ever made up.
 
 import { existsSync, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -75,10 +80,11 @@ import { verifySeal } from "../src/seal";
 import { bodyLimit } from "hono/body-limit";
 import { createModelBudget, type ModelBudget } from "./meta/budget";
 import { cleanRecord, type RefusalWriter } from "./proofs/refusals";
-import { checkAnswer, createBetStore, humanBetBody, humanBetsBody, MAX_BETS, MAX_EXPERIMENTS, modelSlotView, newExperimentId, newRound, publicBet, sealedAfter, sealHumanBet, type BetStore, type ModelSlot, type Round } from "./bets";
+import { checkAnswer, createBetStore, humanBetBody, humanBetsBody, MAX_BETS, MAX_EXPERIMENTS, modelSlotsOf, modelSlotView, modelSlotViews, newExperimentId, newRound, publicBet, sealedAfter, sealHumanBet, type BetStore, type ModelSlot, type Round } from "./bets";
 import type { ChatArgs, ChatResult } from "./meta/client";
 import { CLAIMANT_MODEL } from "./meta/roles/claimant";
 import { modelDisplay, runClaimantBets } from "./meta/roles/claimant-bets";
+import { CLAIMANT_HEADER, CLAIMANT_MODES, DEFAULT_CLAIMANT_MODE, SPARK_OPEN_MODEL, modelsFor, parseClaimantMode, type ClaimantMode, type ClaimantsInfo } from "../src/claimants";
 import { moonwellBetContext, moonwellLevelOf } from "../src/bet-context";
 import { FIXTURE_FILE, FIXTURE_FINDING_LABEL, fixtureContextRange, fixtureFinding } from "./meta/roles/fixture-finding";
 import { INVESTIGATOR_FALLBACK_MODEL, INVESTIGATOR_MODEL, runInvestigator, type InvestigatorFile } from "./meta/roles/investigator";
@@ -219,6 +225,11 @@ export interface ModelBetsOptions {
   deadlineMs?: number;
   /** Call and spend limits (S5). Default: createModelBudget() with its defaults (60 calls an hour, 10 experiments a session, $100). */
   budget?: ModelBudget;
+  /**
+   * D07-01: can this server ask Muse Spark Open (via Baseten)? Default: not available, "this server
+   * was not set up for Baseten". server/index.ts sets it from the Baseten key's presence (no paid call).
+   */
+  sparkOpen?: { available: true } | { available: false; reason: string };
 }
 
 /** How long the server waits for the model's bets before it gives up and the slot says so. */
@@ -431,15 +442,31 @@ export function createApp(opts: AppOptions = {}) {
     }
   };
 
-  /** Ask the model for its bets on this round's experiment. Never throws; the slot records the outcome. */
-  const startModelBets = (round: Round, sessionId: string, clientIp: string): void => {
-    const model = opts.modelBets?.model ?? CLAIMANT_MODEL;
-    const slot: ModelSlot = { model, who: `model:${model}`, display: modelDisplay(model), status: "off" };
-    round.model = slot;
-    if (!opts.modelBets || !budget || !modelChat) {
-      slot.reason = "this server asks no Meta model for bets";
-      return;
-    }
+  /** D07-01: whether Muse Spark Open can be asked here, and if not, why. */
+  const sparkOpen = opts.modelBets?.sparkOpen ?? { available: false as const, reason: "this server was not set up for Baseten" };
+
+  /**
+   * Ask the model(s) for bets on this round's experiment. Never throws; each slot records its outcome.
+   * D07-01: "both" makes two slots (Muse Spark, then Muse Spark Open). The checks that are about the
+   * round (a finding, the per-client and per-session limits) run once; each model then gets the SAME
+   * prompt (D18, D19) and seals its own bets. Neither sees the other's bets.
+   */
+  const startModelBets = (round: Round, sessionId: string, clientIp: string, mode: ClaimantMode = DEFAULT_CLAIMANT_MODE): void => {
+    const wanted = opts.modelBets?.model && mode === DEFAULT_CLAIMANT_MODE ? [opts.modelBets.model] : modelsFor(mode);
+    const slots: ModelSlot[] = wanted.map((model) => ({ model, who: `model:${model}`, display: modelDisplay(model), status: "off" }));
+    round.models = slots;
+    round.model = slots[0];
+    const offAll = (reason: string) => {
+      for (const s of slots) s.reason = reason;
+    };
+    if (!opts.modelBets || !budget || !modelChat) return offAll("this server asks no Meta model for bets");
+    // Muse Spark Open is never asked when this server cannot reach it; its slot says why.
+    const askable = slots.filter((s) => {
+      if (s.model !== SPARK_OPEN_MODEL || sparkOpen.available) return true;
+      s.reason = `not available: ${sparkOpen.reason}`;
+      return false;
+    });
+    if (askable.length === 0) return;
     const exp = round.experiment;
     // The finding the model works on: the one the person chose for this round, else (fixture only)
     // the session's Investigator finding or the hand-written one. D18: the model sees its file,
@@ -455,13 +482,13 @@ export function createApp(opts: AppOptions = {}) {
       round.finding = f.finding; // the finding this round worked on, for its .atlas.json
     }
     if (!picked) {
-      slot.reason = `no finding chosen yet for ${exp.target.ref}`;
+      for (const s of askable) s.reason = `no finding chosen yet for ${exp.target.ref}`;
       return;
     }
     const byIp = modelRoundsByIp.take(clientIp);
     const allowed = byIp.ok ? budget.startExperiment(sessionId) : byIp;
     if (!allowed.ok) {
-      slot.reason = allowed.reason; // e.g. "call limit reached": the person's round goes on without the model
+      for (const s of askable) s.reason = allowed.reason; // e.g. "call limit reached": the person's round goes on without the model
       return;
     }
     const { finding, label: findingLabelText, fileText } = picked;
@@ -471,43 +498,49 @@ export function createApp(opts: AppOptions = {}) {
     // D19: on the Moonwell PR the model gets exactly what the person's bet screen shows (src/bet-context.ts).
     const prOf = exp.target.kind === "github-pr" ? prTargets.get(exp.target.codeSha256) : undefined;
     const seenContext = prOf ? seenContextFor(exp, round.questions, finding, fileText, { title: prOf.title, fileCount: prFiles(prOf).length }) : undefined;
-    slot.status = "thinking";
     const chat = modelChat;
     const { now } = opts.modelBets;
     const deadlineMs = opts.modelBets.deadlineMs ?? MODEL_BETS_DEADLINE_MS;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const late = new Promise<{ ok: false; reason: string; detail: string }>((ok) => {
-      const why = `the model did not answer within ${deadlineMs >= 1000 ? `${Math.round(deadlineMs / 1000)} s` : `${deadlineMs} ms`}`;
-      timer = setTimeout(() => ok({ ok: false, reason: why, detail: why }), deadlineMs);
-      (timer as { unref?: () => void }).unref?.();
-    });
-    slot.settled = Promise.race([
-      runClaimantBets(
-        { experiment: exp, questions: round.questions, finding, findingLabel: findingLabelText, ...(contextRange ? { contextRange } : {}), ...(seenContext !== undefined ? { seenContext } : {}), fileText, gateContext: round.gateContext ?? TS_GATE_CONTEXT, model },
-        { chat, log: sessionEmitter(agentLog, sessionId), ...(now ? { now } : {}) },
-      ),
-      late, // an answer after the deadline is never sealed into this round
-    ]).finally(() => clearTimeout(timer)).then(
-      (r) => {
-        if (!r.ok) {
+    for (const slot of askable) {
+      const model = slot.model;
+      slot.status = "thinking";
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const late = new Promise<{ ok: false; reason: string; detail: string }>((ok) => {
+        const why = `the model did not answer within ${deadlineMs >= 1000 ? `${Math.round(deadlineMs / 1000)} s` : `${deadlineMs} ms`}`;
+        timer = setTimeout(() => ok({ ok: false, reason: why, detail: why }), deadlineMs);
+        (timer as { unref?: () => void }).unref?.();
+      });
+      slot.settled = Promise.race([
+        runClaimantBets(
+          { experiment: exp, questions: round.questions, finding, findingLabel: findingLabelText, ...(contextRange ? { contextRange } : {}), ...(seenContext !== undefined ? { seenContext } : {}), fileText, gateContext: round.gateContext ?? TS_GATE_CONTEXT, model },
+          { chat, log: sessionEmitter(agentLog, sessionId), ...(now ? { now } : {}) },
+        ),
+        late, // an answer after the deadline is never sealed into this round
+      ]).finally(() => clearTimeout(timer)).then(
+        (r) => {
+          if (!r.ok) {
+            slot.status = "no_usable_answer";
+            slot.reason = r.reason; // names the kind of problem only (S2)
+            if (r.detail !== r.reason) slot.detail = r.detail; // may quote the model's values: shown after the run
+          } else if (round.betsFrozenAt !== undefined) {
+            // Cannot happen while POST /runs waits for this promise; kept so a late answer is never judged.
+            slot.status = "no_usable_answer";
+            slot.reason = "the answer arrived after the bets were frozen";
+          } else {
+            round.bets.push(...r.bets);
+            slot.status = "sealed";
+          }
+        },
+        (e: unknown) => {
           slot.status = "no_usable_answer";
-          slot.reason = r.reason; // names the kind of problem only (S2)
-          if (r.detail !== r.reason) slot.detail = r.detail; // may quote the model's values: shown after the run
-        } else if (round.betsFrozenAt !== undefined) {
-          // Cannot happen while POST /runs waits for this promise; kept so a late answer is never judged.
-          slot.status = "no_usable_answer";
-          slot.reason = "the answer arrived after the bets were frozen";
-        } else {
-          round.bets.push(...r.bets);
-          slot.status = "sealed";
-        }
-      },
-      (e: unknown) => {
-        slot.status = "no_usable_answer";
-        slot.reason = `the server could not finish the model call: ${e instanceof Error ? e.message : String(e)}`;
-      },
-    );
+          slot.reason = `the server could not finish the model call: ${e instanceof Error ? e.message : String(e)}`;
+        },
+      );
+    }
   };
+
+  /** Waits until every model slot of the round has sealed its bets or given no usable answer. */
+  const modelsSettled = (round: Round) => Promise.all(modelSlotsOf(round).map((s) => s.settled));
 
   const app = new Hono();
 
@@ -515,6 +548,16 @@ export function createApp(opts: AppOptions = {}) {
   app.use("*", bodyLimit({ maxSize: MAX_BODY_BYTES, onError: (c) => c.json({ error: `the request body is larger than ${MAX_BODY_BYTES} bytes` }, 413) }));
 
   app.get("/health", (c) => c.json({ ok: true }));
+  // D07-01: what the page's claimant toggle offers. No model call: availability is known at startup.
+  app.get("/claimants", (c) => {
+    const display = modelDisplay(SPARK_OPEN_MODEL);
+    const info: ClaimantsInfo = {
+      default: DEFAULT_CLAIMANT_MODE,
+      modes: CLAIMANT_MODES,
+      sparkOpen: opts.modelBets && sparkOpen.available ? { model: SPARK_OPEN_MODEL, display, available: true } : { model: SPARK_OPEN_MODEL, display, available: false, reason: !opts.modelBets ? "this server asks no Meta model for bets" : sparkOpen.available ? "unknown" : sparkOpen.reason },
+    };
+    return c.json(info);
+  });
   registerEventRoutes(app, agentLog); // D02-05: GET /events/:sessionId (SSE)
 
   app.post("/targets", async (c) => {
@@ -568,6 +611,9 @@ export function createApp(opts: AppOptions = {}) {
     const parsed = experimentBody.safeParse(raw.body);
     if (!parsed.success) return c.json({ error: plainReason(parsed.error) }, 400);
     const body = parsed.data;
+    // D07-01: who places the model's bets (x-atlas-claimant). A value Atlas does not know is refused, never guessed.
+    const claimant = parseClaimantMode(c.req.header(CLAIMANT_HEADER));
+    if (!claimant.ok) return c.json({ error: claimant.reason }, 400);
 
     const target = targets.get(body.target.codeSha256);
     if (!target || target.ref !== body.target.ref) {
@@ -638,8 +684,8 @@ export function createApp(opts: AppOptions = {}) {
       });
       return c.json({ error: `gate: rejected (${decision.reason}); nothing will run`, experiment }, 422);
     }
-    startModelBets(round, sessionId, clientOf(c)); // D02-06: the model bets on this SAME experiment, from the questions only
-    return c.json({ experiment, questions: round.questions, extraQuestions: round.extraQuestions, model: modelSlotView(round) });
+    startModelBets(round, sessionId, clientOf(c), claimant.mode); // D02-06: the model bets on this SAME experiment, from the questions only
+    return c.json({ experiment, questions: round.questions, extraQuestions: round.extraQuestions, model: modelSlotView(round), models: modelSlotViews(round), claimant: claimant.mode });
   });
 
   app.post("/investigate", async (c) => {
@@ -756,9 +802,9 @@ export function createApp(opts: AppOptions = {}) {
     if (!round) return c.json({ error: `this session has no experiment ${id}: create it with POST /experiments first` }, 404);
     if (!round.experiment.gate.allowed) return c.json({ error: `the gate refused experiment ${id}, so no model bets on it` }, 422);
     betStore.touch(sessionId);
-    await round.model?.settled;
+    await modelsSettled(round);
     // Hashes only: the model's answers and rationale stay on the server until the run reveals every bet.
-    return c.json({ model: modelSlotView(round) });
+    return c.json({ model: modelSlotView(round), models: modelSlotViews(round) });
   });
 
   app.post("/bets", async (c) => {
@@ -856,8 +902,8 @@ export function createApp(opts: AppOptions = {}) {
 
     // Freeze the person's bets NOW, before any await: from here every POST /bets on this experiment gets 409.
     round.status = "running";
-    // The model's bets are part of the round: wait until they are sealed (or it gave no usable answer).
-    await round.model?.settled;
+    // The models' bets are part of the round: wait until they are sealed (or gave no usable answer).
+    await modelsSettled(round);
     const bets = [...round.bets];
     const log = roundLog(sessionEmitter(agentLog, sessionId));
 
@@ -950,7 +996,7 @@ export function createApp(opts: AppOptions = {}) {
     const proof = keepProof(sessionId, round, run, bets, verdicts);
     const falseAlarm = experiment.runner === "evm" && experiment.params.shape === "apply-proposal-then-read" ? falseAlarmFromRun(run) : undefined;
     // Reveal every bet in full (with its nonce) so the browser can recompute each hash itself.
-    return c.json({ run, verdicts, bets, betsFrozenAt: round.betsFrozenAt, model: modelSlotView(round), proof, ...(falseAlarm ? { falseAlarm } : {}) });
+    return c.json({ run, verdicts, bets, betsFrozenAt: round.betsFrozenAt, model: modelSlotView(round), models: modelSlotViews(round), proof, ...(falseAlarm ? { falseAlarm } : {}) });
   }
 
   // D06-02: the waves screen. Many callers at once, same failure pattern, one virtual clock, in the sandbox.
@@ -1050,7 +1096,7 @@ export function createApp(opts: AppOptions = {}) {
     changesPerSession.set(sessionId, used + 1);
     const emitter = sessionEmitter(agentLog, sessionId);
     const exp = round.experiment;
-    const names = round.model && round.model.status !== "off" ? { [round.model.who]: round.model.display } : {};
+    const names = Object.fromEntries(modelSlotsOf(round).filter((m) => m.status !== "off").map((m) => [m.who, m.display]));
     const work = changeAndReplay(round, {
       fixer: { chat: opts.fixer.chat, ...(opts.fixer.museExec !== undefined ? { museExec: opts.fixer.museExec } : {}), ...(opts.fixer.repairWith ? { repairWith: opts.fixer.repairWith } : {}), guard: fixerBudget.track },
       tsReplay: opts.tsReplay ?? ((run, change, ctx) => tsRunner(executor).replayWithChange(run, change, ctx)),

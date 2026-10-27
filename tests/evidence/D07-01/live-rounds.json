@@ -1,0 +1,1021 @@
+[
+  {
+    "round": 1,
+    "kind": "fixture",
+    "experimentId": "6cNpRlMY7N",
+    "runId": "E_Qbhza5e3",
+    "claimantHeader": "both",
+    "slotsBeforeRun": [
+      {
+        "model": "muse-spark-1.3",
+        "status": "sealed",
+        "reason": null,
+        "sealedHashes": 3
+      },
+      {
+        "model": "meta-models/muse-spark-open-1026",
+        "status": "sealed",
+        "reason": null,
+        "sealedHashes": 3
+      }
+    ],
+    "slotsAfterRun": [
+      {
+        "model": "muse-spark-1.3",
+        "status": "sealed",
+        "reason": null,
+        "detail": null
+      },
+      {
+        "model": "meta-models/muse-spark-open-1026",
+        "status": "sealed",
+        "reason": null,
+        "detail": null
+      }
+    ],
+    "controlPassed": true,
+    "forkBlock": null,
+    "script": [
+      {
+        "measures": "calls",
+        "bet": {
+          "kind": "integer",
+          "value": 3
+        },
+        "measured": 5,
+        "verdict": "not_matched",
+        "reason": null,
+        "rationale": null
+      },
+      {
+        "measures": "totalWaitMs",
+        "bet": {
+          "kind": "integer",
+          "value": 3000
+        },
+        "measured": 12000,
+        "verdict": "not_matched",
+        "reason": null,
+        "rationale": null
+      },
+      {
+        "measures": "outcome",
+        "bet": {
+          "kind": "enum",
+          "value": "throws",
+          "options": [
+            "returns",
+            "throws",
+            "pending"
+          ]
+        },
+        "measured": "throws",
+        "verdict": "matched",
+        "reason": null,
+        "rationale": null
+      }
+    ],
+    "spark": [
+      {
+        "measures": "calls",
+        "bet": {
+          "kind": "integer",
+          "value": 5
+        },
+        "measured": 5,
+        "verdict": "matched",
+        "reason": null,
+        "rationale": "Defaults give 5 attempts and the fake fails first 5 calls, so all 5 attempts are used."
+      },
+      {
+        "measures": "totalWaitMs",
+        "bet": {
+          "kind": "integer",
+          "value": 12000
+        },
+        "measured": 12000,
+        "verdict": "matched",
+        "reason": null,
+        "rationale": "4 sleeps between 5 attempts at default 3000ms each gives 12000ms total wait."
+      },
+      {
+        "measures": "outcome",
+        "bet": {
+          "kind": "enum",
+          "value": "throws",
+          "options": [
+            "returns",
+            "throws",
+            "pending"
+          ]
+        },
+        "measured": "throws",
+        "verdict": "matched",
+        "reason": null,
+        "rationale": "All 5 attempts fail with error, so loop exhausts and rethrows last error."
+      }
+    ],
+    "sparkOpen": [
+      {
+        "measures": "calls",
+        "bet": {
+          "kind": "integer",
+          "value": 5
+        },
+        "measured": 5,
+        "verdict": "matched",
+        "reason": null,
+        "rationale": "attempts defaults to 5, failTimes 5 means all 5 attempts fail, so 5 calls"
+      },
+      {
+        "measures": "totalWaitMs",
+        "bet": {
+          "kind": "integer",
+          "value": 12000
+        },
+        "measured": 12000,
+        "verdict": "matched",
+        "reason": null,
+        "rationale": "4 sleeps between 5 attempts at default 3000ms each"
+      },
+      {
+        "measures": "outcome",
+        "bet": {
+          "kind": "enum",
+          "value": "throws",
+          "options": [
+            "returns",
+            "throws",
+            "pending"
+          ]
+        },
+        "measured": "throws",
+        "verdict": "matched",
+        "reason": null,
+        "rationale": "all attempts exhausted, function rethrows last error"
+      }
+    ],
+    "scriptSealed": 3,
+    "falseAlarm": null
+  },
+  {
+    "round": 2,
+    "kind": "fixture",
+    "experimentId": "q1rVFDHTFh",
+    "runId": "uqNZ2SHHgS",
+    "claimantHeader": "both",
+    "slotsBeforeRun": [
+      {
+        "model": "muse-spark-1.3",
+        "status": "sealed",
+        "reason": null,
+        "sealedHashes": 3
+      },
+      {
+        "model": "meta-models/muse-spark-open-1026",
+        "status": "sealed",
+        "reason": null,
+        "sealedHashes": 3
+      }
+    ],
+    "slotsAfterRun": [
+      {
+        "model": "muse-spark-1.3",
+        "status": "sealed",
+        "reason": null,
+        "detail": null
+      },
+      {
+        "model": "meta-models/muse-spark-open-1026",
+        "status": "sealed",
+        "reason": null,
+        "detail": null
+      }
+    ],
+    "controlPassed": true,
+    "forkBlock": null,
+    "script": [
+      {
+        "measures": "calls",
+        "bet": {
+          "kind": "integer",
+          "value": 3
+        },
+        "measured": 5,
+        "verdict": "not_matched",
+        "reason": null,
+        "rationale": null
+      },
+      {
+        "measures": "totalWaitMs",
+        "bet": {
+          "kind": "integer",
+          "value": 3000
+        },
+        "measured": 12000,
+        "verdict": "not_matched",
+        "reason": null,
+        "rationale": null
+      },
+      {
+        "measures": "outcome",
+        "bet": {
+          "kind": "enum",
+          "value": "throws",
+          "options": [
+            "returns",
+            "throws",
+            "pending"
+          ]
+        },
+        "measured": "throws",
+        "verdict": "matched",
+        "reason": null,
+        "rationale": null
+      }
+    ],
+    "spark": [
+      {
+        "measures": "calls",
+        "bet": {
+          "kind": "integer",
+          "value": 5
+        },
+        "measured": 5,
+        "verdict": "matched",
+        "reason": null,
+        "rationale": "Default attempts is 5 and all 5 fail, so it calls once per attempt."
+      },
+      {
+        "measures": "totalWaitMs",
+        "bet": {
+          "kind": "integer",
+          "value": 12000
+        },
+        "measured": 12000,
+        "verdict": "matched",
+        "reason": null,
+        "rationale": "It sleeps 3000ms after each failed attempt except the last, so 4 sleeps total 12000ms."
+      },
+      {
+        "measures": "outcome",
+        "bet": {
+          "kind": "enum",
+          "value": "throws",
+          "options": [
+            "returns",
+            "throws",
+            "pending"
+          ]
+        },
+        "measured": "throws",
+        "verdict": "matched",
+        "reason": null,
+        "rationale": "All 5 attempts fail so the loop exhausts and rethrows the last error."
+      }
+    ],
+    "sparkOpen": [
+      {
+        "measures": "calls",
+        "bet": {
+          "kind": "integer",
+          "value": 5
+        },
+        "measured": 5,
+        "verdict": "matched",
+        "reason": null,
+        "rationale": "defaults attempts=5, failTimes=5 means all 5 attempts fail with no success, so 5 calls"
+      },
+      {
+        "measures": "totalWaitMs",
+        "bet": {
+          "kind": "integer",
+          "value": 12000
+        },
+        "measured": 12000,
+        "verdict": "matched",
+        "reason": null,
+        "rationale": "4 sleeps between 5 attempts at default 3000ms = 12000ms"
+      },
+      {
+        "measures": "outcome",
+        "bet": {
+          "kind": "enum",
+          "value": "throws",
+          "options": [
+            "returns",
+            "throws",
+            "pending"
+          ]
+        },
+        "measured": "throws",
+        "verdict": "matched",
+        "reason": null,
+        "rationale": "all attempts exhausted, function rethrows last error"
+      }
+    ],
+    "scriptSealed": 3,
+    "falseAlarm": null
+  },
+  {
+    "round": 3,
+    "kind": "fixture",
+    "experimentId": "J2H7vlzAt4",
+    "runId": "SXdSjQ3rqu",
+    "claimantHeader": "both",
+    "slotsBeforeRun": [
+      {
+        "model": "muse-spark-1.3",
+        "status": "sealed",
+        "reason": null,
+        "sealedHashes": 3
+      },
+      {
+        "model": "meta-models/muse-spark-open-1026",
+        "status": "sealed",
+        "reason": null,
+        "sealedHashes": 3
+      }
+    ],
+    "slotsAfterRun": [
+      {
+        "model": "muse-spark-1.3",
+        "status": "sealed",
+        "reason": null,
+        "detail": null
+      },
+      {
+        "model": "meta-models/muse-spark-open-1026",
+        "status": "sealed",
+        "reason": null,
+        "detail": null
+      }
+    ],
+    "controlPassed": true,
+    "forkBlock": null,
+    "script": [
+      {
+        "measures": "calls",
+        "bet": {
+          "kind": "integer",
+          "value": 3
+        },
+        "measured": 5,
+        "verdict": "not_matched",
+        "reason": null,
+        "rationale": null
+      },
+      {
+        "measures": "totalWaitMs",
+        "bet": {
+          "kind": "integer",
+          "value": 3000
+        },
+        "measured": 12000,
+        "verdict": "not_matched",
+        "reason": null,
+        "rationale": null
+      },
+      {
+        "measures": "outcome",
+        "bet": {
+          "kind": "enum",
+          "value": "throws",
+          "options": [
+            "returns",
+            "throws",
+            "pending"
+          ]
+        },
+        "measured": "throws",
+        "verdict": "matched",
+        "reason": null,
+        "rationale": null
+      }
+    ],
+    "spark": [
+      {
+        "measures": "calls",
+        "bet": {
+          "kind": "integer",
+          "value": 5
+        },
+        "measured": 5,
+        "verdict": "matched",
+        "reason": null,
+        "rationale": "Defaults attempts=5, all 5 fail before any success so loop calls fn 5 times."
+      },
+      {
+        "measures": "totalWaitMs",
+        "bet": {
+          "kind": "integer",
+          "value": 12000
+        },
+        "measured": 12000,
+        "verdict": "matched",
+        "reason": null,
+        "rationale": "Sleeps after attempts 1-4 only, 4 times default 3000ms = 12000ms."
+      },
+      {
+        "measures": "outcome",
+        "bet": {
+          "kind": "enum",
+          "value": "throws",
+          "options": [
+            "returns",
+            "throws",
+            "pending"
+          ]
+        },
+        "measured": "throws",
+        "verdict": "matched",
+        "reason": null,
+        "rationale": "All attempts exhausted so code rethrows last error per fail-closed comment."
+      }
+    ],
+    "sparkOpen": [
+      {
+        "measures": "calls",
+        "bet": {
+          "kind": "integer",
+          "value": 5
+        },
+        "measured": 5,
+        "verdict": "matched",
+        "reason": null,
+        "rationale": "Default attempts is 5, fn fails 5 times so loop executes all 5 iterations."
+      },
+      {
+        "measures": "totalWaitMs",
+        "bet": {
+          "kind": "integer",
+          "value": 12000
+        },
+        "measured": 12000,
+        "verdict": "matched",
+        "reason": null,
+        "rationale": "Sleeps 3000ms after each of first 4 failures, no sleep after final attempt: 4*3000=12000."
+      },
+      {
+        "measures": "outcome",
+        "bet": {
+          "kind": "enum",
+          "value": "throws",
+          "options": [
+            "returns",
+            "throws",
+            "pending"
+          ]
+        },
+        "measured": "throws",
+        "verdict": "matched",
+        "reason": null,
+        "rationale": "All 5 attempts fail, loop throws last error; never_settles not used so no pending."
+      }
+    ],
+    "scriptSealed": 3,
+    "falseAlarm": null
+  },
+  {
+    "round": 4,
+    "kind": "moonwell",
+    "experimentId": "h7_Rym-PLm",
+    "runId": "cu96dAM4Bf",
+    "claimantHeader": "both",
+    "slotsBeforeRun": [
+      {
+        "model": "muse-spark-1.3",
+        "status": "no_usable_answer",
+        "reason": "the model call failed: network error (TypeError: fetch failed)",
+        "sealedHashes": 0
+      },
+      {
+        "model": "meta-models/muse-spark-open-1026",
+        "status": "sealed",
+        "reason": null,
+        "sealedHashes": 1
+      }
+    ],
+    "slotsAfterRun": [
+      {
+        "model": "muse-spark-1.3",
+        "status": "no_usable_answer",
+        "reason": "the model call failed: network error (TypeError: fetch failed)",
+        "detail": null
+      },
+      {
+        "model": "meta-models/muse-spark-open-1026",
+        "status": "sealed",
+        "reason": null,
+        "detail": null
+      }
+    ],
+    "controlPassed": true,
+    "forkBlock": 42194662,
+    "script": [
+      {
+        "measures": "priceUsd1e18:cbETH",
+        "bet": {
+          "kind": "number",
+          "value": 2200,
+          "tolerancePct": 10,
+          "unit": "USD"
+        },
+        "measured": "1122662744874806300",
+        "verdict": "not_matched",
+        "reason": null,
+        "rationale": null
+      }
+    ],
+    "spark": [],
+    "sparkOpen": [
+      {
+        "measures": "priceUsd1e18:cbETH",
+        "bet": {
+          "kind": "declined",
+          "reason": "unknown: no oracle price data provided and cannot infer post-proposal cbETH USD price without running fork"
+        },
+        "measured": "1122662744874806300",
+        "verdict": "cant_check",
+        "reason": "the bettor declined",
+        "rationale": "No price feed value is given in the prompt and the fork result cannot be predicted without execution."
+      }
+    ],
+    "scriptSealed": 1,
+    "falseAlarm": [
+      {
+        "market": "DAI",
+        "preUsd1e18": "999900000000000000",
+        "postUsd1e18": "999900000000000000",
+        "diffVsPrePct": "0.0000%",
+        "flagReference": "pre-apply price, same fork block",
+        "flagReferenceUsd1e18": "999900000000000000",
+        "diffVsFlagReferencePct": "0.0000%",
+        "flagged": false,
+        "withinFalseAlarmPct": true,
+        "controlPassed": true,
+        "feedBefore": "0x591e79239a7d679378eC8c847e5038150364C78F",
+        "feedAfter": "0x4916EC6773e14CA873be3d65022BB122CB8b89a2"
+      },
+      {
+        "market": "USDC",
+        "preUsd1e18": "999900000000000000",
+        "postUsd1e18": "999900000000000000",
+        "diffVsPrePct": "0.0000%",
+        "flagReference": "pre-apply price, same fork block",
+        "flagReferenceUsd1e18": "999900000000000000",
+        "diffVsFlagReferencePct": "0.0000%",
+        "flagged": false,
+        "withinFalseAlarmPct": true,
+        "controlPassed": true,
+        "feedBefore": "0x7e860098F58bBFC8648a4311b374B1D669a2bc6B",
+        "feedAfter": "0x7600b9068bB0aFEA6adf70eD6CD0f8492117236d"
+      },
+      {
+        "market": "USDbC",
+        "preUsd1e18": "999900000000000000",
+        "postUsd1e18": "999900000000000000",
+        "diffVsPrePct": "0.0000%",
+        "flagReference": "pre-apply price, same fork block",
+        "flagReferenceUsd1e18": "999900000000000000",
+        "diffVsFlagReferencePct": "0.0000%",
+        "flagged": false,
+        "withinFalseAlarmPct": true,
+        "controlPassed": true,
+        "feedBefore": "0x7e860098F58bBFC8648a4311b374B1D669a2bc6B",
+        "feedAfter": "0x7600b9068bB0aFEA6adf70eD6CD0f8492117236d"
+      },
+      {
+        "market": "cbETH",
+        "preUsd1e18": "2206683650838065175827",
+        "postUsd1e18": "1122662744874806300",
+        "diffVsPrePct": "-99.9491%",
+        "flagReference": "refUsd1e18:cbETH (raw Chainlink ETH/USD × cbETH/ETH)",
+        "flagReferenceUsd1e18": "2206683650838065175827",
+        "diffVsFlagReferencePct": "-99.9491%",
+        "flagged": true,
+        "withinFalseAlarmPct": false,
+        "controlPassed": true,
+        "feedBefore": "0xB0Ba0C5D7DA4ec400C1C3E5ef2485134F89918C5",
+        "feedAfter": "0x67996D1ff7a3711a91E2839d1059Fcb950C0495D"
+      },
+      {
+        "market": "AERO",
+        "preUsd1e18": "310865530000000000",
+        "postUsd1e18": "310865530000000000",
+        "diffVsPrePct": "0.0000%",
+        "flagReference": "pre-apply price, same fork block",
+        "flagReferenceUsd1e18": "310865530000000000",
+        "diffVsFlagReferencePct": "0.0000%",
+        "flagged": false,
+        "withinFalseAlarmPct": true,
+        "controlPassed": true,
+        "feedBefore": "0x4EC5970fC728C5f65ba413992CD5fF6FD70fcfF0",
+        "feedAfter": "0xdC79C7D5D4dA3b237D2d078a1ee06F2FD1FfEf98"
+      },
+      {
+        "market": "cbBTC",
+        "preUsd1e18": "68489740000000000000000",
+        "postUsd1e18": "68489740000000000000000",
+        "diffVsPrePct": "0.0000%",
+        "flagReference": "pre-apply price, same fork block",
+        "flagReferenceUsd1e18": "68489740000000000000000",
+        "diffVsFlagReferencePct": "0.0000%",
+        "flagged": false,
+        "withinFalseAlarmPct": true,
+        "controlPassed": true,
+        "feedBefore": "0x6F0cC02e5a7640B28F538fcc06bCA3BdFA57d1BB",
+        "feedAfter": "0x6a3c960Bcfb69BAe78f706c9c6B168bB7693E119"
+      },
+      {
+        "market": "EURC",
+        "preUsd1e18": "1184823110000000000",
+        "postUsd1e18": "1184823110000000000",
+        "diffVsPrePct": "0.0000%",
+        "flagReference": "pre-apply price, same fork block",
+        "flagReferenceUsd1e18": "1184823110000000000",
+        "diffVsFlagReferencePct": "0.0000%",
+        "flagged": false,
+        "withinFalseAlarmPct": true,
+        "controlPassed": true,
+        "feedBefore": "0x48F86A23aDE243F7a1028108aA65274FC84f382F",
+        "feedAfter": "0xd5669e0175D01cc5F6Be9607129668D0833DcbEC"
+      },
+      {
+        "market": "WELL",
+        "preUsd1e18": "5012000000000000",
+        "postUsd1e18": "5012000000000000",
+        "diffVsPrePct": "0.0000%",
+        "flagReference": "pre-apply price, same fork block",
+        "flagReferenceUsd1e18": "5012000000000000",
+        "diffVsFlagReferencePct": "0.0000%",
+        "flagged": false,
+        "withinFalseAlarmPct": true,
+        "controlPassed": true,
+        "feedBefore": "0x1E0E8bcFb5FFa86749B8b89fb6e055337Ba74A39",
+        "feedAfter": "0xBA5220805E43194Ff12A434fBb745f3a2E1a09db"
+      },
+      {
+        "market": "USDS",
+        "preUsd1e18": "999635870000000000",
+        "postUsd1e18": "999635870000000000",
+        "diffVsPrePct": "0.0000%",
+        "flagReference": "pre-apply price, same fork block",
+        "flagReferenceUsd1e18": "999635870000000000",
+        "diffVsFlagReferencePct": "0.0000%",
+        "flagged": false,
+        "withinFalseAlarmPct": true,
+        "controlPassed": true,
+        "feedBefore": "0xAeC8E8E3696fc5fcd954eb3ebC26B72FC2FE8E8e",
+        "feedAfter": "0x6621069673C61a143DaDF376389e82DA372BF405"
+      },
+      {
+        "market": "tBTC",
+        "preUsd1e18": "68265908984780000000000",
+        "postUsd1e18": "68265908984780000000000",
+        "diffVsPrePct": "0.0000%",
+        "flagReference": "pre-apply price, same fork block",
+        "flagReferenceUsd1e18": "68265908984780000000000",
+        "diffVsFlagReferencePct": "0.0000%",
+        "flagged": false,
+        "withinFalseAlarmPct": true,
+        "controlPassed": true,
+        "feedBefore": "0x94423903EaAf8638bDE262c417fEEf5E2Ec507E5",
+        "feedAfter": "0xBfAaA8B347dA80B909504d403CB4C8F245e921ab"
+      },
+      {
+        "market": "VIRTUAL",
+        "preUsd1e18": "627045790000000000",
+        "postUsd1e18": "627045790000000000",
+        "diffVsPrePct": "0.0000%",
+        "flagReference": "pre-apply price, same fork block",
+        "flagReferenceUsd1e18": "627045790000000000",
+        "diffVsFlagReferencePct": "0.0000%",
+        "flagged": false,
+        "withinFalseAlarmPct": true,
+        "controlPassed": true,
+        "feedBefore": "0x6aa41dF8FB0deC976B59bf0824FC5fFB88ccA958",
+        "feedAfter": "0x12EC8CfEbCF5728774925feC1502733f906CB6e3"
+      },
+      {
+        "market": "MORPHO",
+        "preUsd1e18": "1323195190000000000",
+        "postUsd1e18": "1323195190000000000",
+        "diffVsPrePct": "0.0000%",
+        "flagReference": "pre-apply price, same fork block",
+        "flagReferenceUsd1e18": "1323195190000000000",
+        "diffVsFlagReferencePct": "0.0000%",
+        "flagged": false,
+        "withinFalseAlarmPct": true,
+        "controlPassed": true,
+        "feedBefore": "0xe95e258bb6615d47515Fc849f8542dA651f12bF6",
+        "feedAfter": "0x09793267120dbF519B2B0e8Ea77A689e2Ba453F0"
+      },
+      {
+        "market": "cbXRP",
+        "preUsd1e18": "1493697000000000000",
+        "postUsd1e18": "1493697000000000000",
+        "diffVsPrePct": "0.0000%",
+        "flagReference": "pre-apply price, same fork block",
+        "flagReferenceUsd1e18": "1493697000000000000",
+        "diffVsFlagReferencePct": "0.0000%",
+        "flagged": false,
+        "withinFalseAlarmPct": true,
+        "controlPassed": true,
+        "feedBefore": "0x9f0C1dD78C4CBdF5b9cf923a549A201EdC676D34",
+        "feedAfter": "0xf2Ac6F14A094A82A6f9489364CdE9e1ba2548d49"
+      },
+      {
+        "market": "MAMO",
+        "preUsd1e18": "14376590000000000",
+        "postUsd1e18": "14376590000000000",
+        "diffVsPrePct": "0.0000%",
+        "flagReference": "pre-apply price, same fork block",
+        "flagReferenceUsd1e18": "14376590000000000",
+        "diffVsFlagReferencePct": "0.0000%",
+        "flagged": false,
+        "withinFalseAlarmPct": true,
+        "controlPassed": true,
+        "feedBefore": "0xeF7541b388a77C1709a3d44BfBfC5c1ED3F0Ac94",
+        "feedAfter": "0xfbA86a013f7FD93B5454e147242CF2Bf419e120D"
+      }
+    ]
+  },
+  {
+    "round": 5,
+    "kind": "moonwell",
+    "experimentId": "GOamxmr3RZ",
+    "runId": "ytshhYe28r",
+    "claimantHeader": "both",
+    "slotsBeforeRun": [
+      {
+        "model": "muse-spark-1.3",
+        "status": "sealed",
+        "reason": null,
+        "sealedHashes": 1
+      },
+      {
+        "model": "meta-models/muse-spark-open-1026",
+        "status": "sealed",
+        "reason": null,
+        "sealedHashes": 1
+      }
+    ],
+    "slotsAfterRun": [
+      {
+        "model": "muse-spark-1.3",
+        "status": "sealed",
+        "reason": null,
+        "detail": null
+      },
+      {
+        "model": "meta-models/muse-spark-open-1026",
+        "status": "sealed",
+        "reason": null,
+        "detail": null
+      }
+    ],
+    "controlPassed": true,
+    "forkBlock": 42194662,
+    "script": [
+      {
+        "measures": "priceUsd1e18:cbETH",
+        "bet": {
+          "kind": "number",
+          "value": 2200,
+          "tolerancePct": 10,
+          "unit": "USD"
+        },
+        "measured": "1122662744874806300",
+        "verdict": "not_matched",
+        "reason": null,
+        "rationale": null
+      }
+    ],
+    "spark": [
+      {
+        "measures": "priceUsd1e18:cbETH",
+        "bet": {
+          "kind": "declined",
+          "reason": "unknown: no access to fork oracle state to determine cbETH USD price"
+        },
+        "measured": "1122662744874806300",
+        "verdict": "cant_check",
+        "reason": "the bettor declined",
+        "rationale": "Cannot observe historical Chainlink price at that block without running the fork."
+      }
+    ],
+    "sparkOpen": [
+      {
+        "measures": "priceUsd1e18:cbETH",
+        "bet": {
+          "kind": "declined",
+          "reason": "unknown: oracle price depends on on-chain state after proposal execution not provided"
+        },
+        "measured": "1122662744874806300",
+        "verdict": "cant_check",
+        "reason": "the bettor declined",
+        "rationale": "No price data or oracle feed values provided to determine post-proposal cbETH USD price."
+      }
+    ],
+    "scriptSealed": 1,
+    "falseAlarm": [
+      {
+        "market": "DAI",
+        "preUsd1e18": "999900000000000000",
+        "postUsd1e18": "999900000000000000",
+        "diffVsPrePct": "0.0000%",
+        "flagReference": "pre-apply price, same fork block",
+        "flagReferenceUsd1e18": "999900000000000000",
+        "diffVsFlagReferencePct": "0.0000%",
+        "flagged": false,
+        "withinFalseAlarmPct": true,
+        "controlPassed": true,
+        "feedBefore": "0x591e79239a7d679378eC8c847e5038150364C78F",
+        "feedAfter": "0x4916EC6773e14CA873be3d65022BB122CB8b89a2"
+      },
+      {
+        "market": "USDC",
+        "preUsd1e18": "999900000000000000",
+        "postUsd1e18": "999900000000000000",
+        "diffVsPrePct": "0.0000%",
+        "flagReference": "pre-apply price, same fork block",
+        "flagReferenceUsd1e18": "999900000000000000",
+        "diffVsFlagReferencePct": "0.0000%",
+        "flagged": false,
+        "withinFalseAlarmPct": true,
+        "controlPassed": true,
+        "feedBefore": "0x7e860098F58bBFC8648a4311b374B1D669a2bc6B",
+        "feedAfter": "0x7600b9068bB0aFEA6adf70eD6CD0f8492117236d"
+      },
+      {
+        "market": "USDbC",
+        "preUsd1e18": "999900000000000000",
+        "postUsd1e18": "999900000000000000",
+        "diffVsPrePct": "0.0000%",
+        "flagReference": "pre-apply price, same fork block",
+        "flagReferenceUsd1e18": "999900000000000000",
+        "diffVsFlagReferencePct": "0.0000%",
+        "flagged": false,
+        "withinFalseAlarmPct": true,
+        "controlPassed": true,
+        "feedBefore": "0x7e860098F58bBFC8648a4311b374B1D669a2bc6B",
+        "feedAfter": "0x7600b9068bB0aFEA6adf70eD6CD0f8492117236d"
+      },
+      {
+        "market": "cbETH",
+        "preUsd1e18": "2206683650838065175827",
+        "postUsd1e18": "1122662744874806300",
+        "diffVsPrePct": "-99.9491%",
+        "flagReference": "refUsd1e18:cbETH (raw Chainlink ETH/USD × cbETH/ETH)",
+        "flagReferenceUsd1e18": "2206683650838065175827",
+        "diffVsFlagReferencePct": "-99.9491%",
+        "flagged": true,
+        "withinFalseAlarmPct": false,
+        "controlPassed": true,
+        "feedBefore": "0xB0Ba0C5D7DA4ec400C1C3E5ef2485134F89918C5",
+        "feedAfter": "0x67996D1ff7a3711a91E2839d1059Fcb950C0495D"
+      },
+      {
+        "market": "AERO",
+        "preUsd1e18": "310865530000000000",
+        "postUsd1e18": "310865530000000000",
+        "diffVsPrePct": "0.0000%",
+        "flagReference": "pre-apply price, same fork block",
+        "flagReferenceUsd1e18": "310865530000000000",
+        "diffVsFlagReferencePct": "0.0000%",
+        "flagged": false,
+        "withinFalseAlarmPct": true,
+        "controlPassed": true,
+        "feedBefore": "0x4EC5970fC728C5f65ba413992CD5fF6FD70fcfF0",
+        "feedAfter": "0xdC79C7D5D4dA3b237D2d078a1ee06F2FD1FfEf98"
+      },
+      {
+        "market": "cbBTC",
+        "preUsd1e18": "68489740000000000000000",
+        "postUsd1e18": "68489740000000000000000",
+        "diffVsPrePct": "0.0000%",
+        "flagReference": "pre-apply price, same fork block",
+        "flagReferenceUsd1e18": "68489740000000000000000",
+        "diffVsFlagReferencePct": "0.0000%",
+        "flagged": false,
+        "withinFalseAlarmPct": true,
+        "controlPassed": true,
+        "feedBefore": "0x6F0cC02e5a7640B28F538fcc06bCA3BdFA57d1BB",
+        "feedAfter": "0x6a3c960Bcfb69BAe78f706c9c6B168bB7693E119"
+      },
+      {
+        "market": "EURC",
+        "preUsd1e18": "1184823110000000000",
+        "postUsd1e18": "1184823110000000000",
+        "diffVsPrePct": "0.0000%",
+        "flagReference": "pre-apply price, same fork block",
+        "flagReferenceUsd1e18": "1184823110000000000",
+        "diffVsFlagReferencePct": "0.0000%",
+        "flagged": false,
+        "withinFalseAlarmPct": true,
+        "controlPassed": true,
+        "feedBefore": "0x48F86A23aDE243F7a1028108aA65274FC84f382F",
+        "feedAfter": "0xd5669e0175D01cc5F6Be9607129668D0833DcbEC"
+      },
+      {
+        "market": "WELL",
+        "preUsd1e18": "5012000000000000",
+        "postUsd1e18": "5012000000000000",
+        "diffVsPrePct": "0.0000%",
+        "flagReference": "pre-apply price, same fork block",
+        "flagReferenceUsd1e18": "5012000000000000",
+        "diffVsFlagReferencePct": "0.0000%",
+        "flagged": false,
+        "withinFalseAlarmPct": true,
+        "controlPassed": true,
+        "feedBefore": "0x1E0E8bcFb5FFa86749B8b89fb6e055337Ba74A39",
+        "feedAfter": "0xBA5220805E43194Ff12A434fBb745f3a2E1a09db"
+      },
+      {
+        "market": "USDS",
+        "preUsd1e18": "999635870000000000",
+        "postUsd1e18": "999635870000000000",
+        "diffVsPrePct": "0.0000%",
+        "flagReference": "pre-apply price, same fork block",
+        "flagReferenceUsd1e18": "999635870000000000",
+        "diffVsFlagReferencePct": "0.0000%",
+        "flagged": false,
+        "withinFalseAlarmPct": true,
+        "controlPassed": true,
+        "feedBefore": "0xAeC8E8E3696fc5fcd954eb3ebC26B72FC2FE8E8e",
+        "feedAfter": "0x6621069673C61a143DaDF376389e82DA372BF405"
+      },
+      {
+        "market": "tBTC",
+        "preUsd1e18": "68265908984780000000000",
+        "postUsd1e18": "68265908984780000000000",
+        "diffVsPrePct": "0.0000%",
+        "flagReference": "pre-apply price, same fork block",
+        "flagReferenceUsd1e18": "68265908984780000000000",
+        "diffVsFlagReferencePct": "0.0000%",
+        "flagged": false,
+        "withinFalseAlarmPct": true,
+        "controlPassed": true,
+        "feedBefore": "0x94423903EaAf8638bDE262c417fEEf5E2Ec507E5",
+        "feedAfter": "0xBfAaA8B347dA80B909504d403CB4C8F245e921ab"
+      },
+      {
+        "market": "VIRTUAL",
+        "preUsd1e18": "627045790000000000",
+        "postUsd1e18": "627045790000000000",
+        "diffVsPrePct": "0.0000%",
+        "flagReference": "pre-apply price, same fork block",
+        "flagReferenceUsd1e18": "627045790000000000",
+        "diffVsFlagReferencePct": "0.0000%",
+        "flagged": false,
+        "withinFalseAlarmPct": true,
+        "controlPassed": true,
+        "feedBefore": "0x6aa41dF8FB0deC976B59bf0824FC5fFB88ccA958",
+        "feedAfter": "0x12EC8CfEbCF5728774925feC1502733f906CB6e3"
+      },
+      {
+        "market": "MORPHO",
+        "preUsd1e18": "1323195190000000000",
+        "postUsd1e18": "1323195190000000000",
+        "diffVsPrePct": "0.0000%",
+        "flagReference": "pre-apply price, same fork block",
+        "flagReferenceUsd1e18": "1323195190000000000",
+        "diffVsFlagReferencePct": "0.0000%",
+        "flagged": false,
+        "withinFalseAlarmPct": true,
+        "controlPassed": true,
+        "feedBefore": "0xe95e258bb6615d47515Fc849f8542dA651f12bF6",
+        "feedAfter": "0x09793267120dbF519B2B0e8Ea77A689e2Ba453F0"
+      },
+      {
+        "market": "cbXRP",
+        "preUsd1e18": "1493697000000000000",
+        "postUsd1e18": "1493697000000000000",
+        "diffVsPrePct": "0.0000%",
+        "flagReference": "pre-apply price, same fork block",
+        "flagReferenceUsd1e18": "1493697000000000000",
+        "diffVsFlagReferencePct": "0.0000%",
+        "flagged": false,
+        "withinFalseAlarmPct": true,
+        "controlPassed": true,
+        "feedBefore": "0x9f0C1dD78C4CBdF5b9cf923a549A201EdC676D34",
+        "feedAfter": "0xf2Ac6F14A094A82A6f9489364CdE9e1ba2548d49"
+      },
+      {
+        "market": "MAMO",
+        "preUsd1e18": "14376590000000000",
+        "postUsd1e18": "14376590000000000",
+        "diffVsPrePct": "0.0000%",
+        "flagReference": "pre-apply price, same fork block",
+        "flagReferenceUsd1e18": "14376590000000000",
+        "diffVsFlagReferencePct": "0.0000%",
+        "flagged": false,
+        "withinFalseAlarmPct": true,
+        "controlPassed": true,
+        "feedBefore": "0xeF7541b388a77C1709a3d44BfBfC5c1ED3F0Ac94",
+        "feedAfter": "0xfbA86a013f7FD93B5454e147242CF2Bf419e120D"
+      }
+    ]
+  }
+]

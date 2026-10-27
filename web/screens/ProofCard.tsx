@@ -12,6 +12,8 @@ import { ApiError, type Api, type ReplayAnswer } from "../api";
 import { Scoreboard, bettorName } from "../machines/scoreboard/Scoreboard";
 import { SAY, proofCardModel, replayWords } from "./proofcard-model";
 import { DiffView } from "./Change";
+import { BettorCounts } from "./Claimant";
+import { MODEL_DISPLAY, orderModelBettors } from "../../src/claimants";
 import { AFTER_LABEL, BEFORE_LABEL, CHANGE_CAPTION, theoryCaptions } from "../../src/change";
 
 /** S6: the pre-existing label, from the file when it carries one. */
@@ -60,8 +62,22 @@ export function ProofCardPage({ api, runId }: { api: Api; runId: string }) {
 
 type ReplayState = { kind: "idle" } | { kind: "running" } | { kind: "done"; answer: ReplayAnswer } | { kind: "failed"; reason: string };
 
+/** D10 + D07-01: each model bettor of the file by product name AND id (src/claimants.ts). An unknown id is shown as itself. */
+export function modelNames(file: Pick<AtlasFile, "bets">): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const b of file.bets) {
+    const shown = MODEL_DISPLAY[b.who.replace(/^model:/, "")];
+    if (b.who !== "human" && shown) out[b.who] = shown;
+  }
+  return out;
+}
+
 export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?: Api; replay?: ReplayAnswer }) {
   const card = useMemo(() => proofCardModel(file), [file]);
+  // D10 + D07-01: every model bettor by product name AND id (src/claimants.ts), e.g.
+  // "Muse Spark Open (meta-models/muse-spark-open-1026) · via Baseten". An unknown id is shown as itself.
+  const names = useMemo(() => modelNames(file), [file]);
+  const modelBettors = orderModelBettors(file.bets.filter((b) => b.who !== "human").map((b) => b.who));
   const [replay, setReplay] = useState<ReplayState>(given ? { kind: "done", answer: given } : { kind: "idle" });
   const download = useMemo(() => {
     if (typeof URL === "undefined" || typeof URL.createObjectURL !== "function" || typeof Blob === "undefined") return null;
@@ -110,7 +126,10 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
             {card.notShownAsFact}
           </p>
         ) : (
-          <Scoreboard verdicts={file.verdicts} bets={file.bets} still />
+          <>
+            <Scoreboard verdicts={file.verdicts} bets={file.bets} names={names} still />
+            {modelBettors.length > 1 && <BettorCounts verdicts={file.verdicts} bets={file.bets} names={names} columns={modelBettors} />}
+          </>
         )}
         <table className="pc-bets" data-testid="pc-bets">
           <thead>
@@ -125,7 +144,7 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
           <tbody>
             {card.bets.map((b) => (
               <tr key={b.betId} data-outcome={b.outcome ?? "none"}>
-                <td className="pc-who">{bettorName(b.who, {})}</td>
+                <td className="pc-who">{bettorName(b.who, names)}</td>
                 <td>{b.measures}</td>
                 <td>{b.said}</td>
                 <td>{card.notShownAsFact ? "not shown" : b.observed}</td>
@@ -172,7 +191,7 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
         <ul data-testid="pc-seals">
           {card.bets.map((b) => (
             <li key={b.betId}>
-              <span className="pc-who">{bettorName(b.who, {})}</span> · {b.measures} · <span className="pc-mono">{b.sealedHash}</span> {b.sealHolds ? "✓" : "✗ does not match its fields"}
+              <span className="pc-who">{bettorName(b.who, names)}</span> · {b.measures} · <span className="pc-mono">{b.sealedHash}</span> {b.sealHolds ? "✓" : "✗ does not match its fields"}
             </li>
           ))}
         </ul>
@@ -255,7 +274,7 @@ function ProofChange({ file, said }: { file: AtlasFile; said: Record<string, str
             const o2 = after(b.id);
             return (
               <tr key={b.id}>
-                <td className="pc-who">{bettorName(b.who, {})}</td>
+                <td className="pc-who">{bettorName(b.who, modelNames(file))}</td>
                 <td>{b.measures}</td>
                 <td>{said[b.id] ?? ""}</td>
                 <td className={`pc-out pc-${o1 ?? "none"}`}>{o1 ? SAY[o1] : "no verdict"}</td>

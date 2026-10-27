@@ -1,0 +1,415 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>D07-01 verdict screen, fixture S3, both models</title><style>:root {
+  --bg: #f7f7f5;
+  --card: #ffffff;
+  --ink: #1d1d1b;
+  --muted: #64645f;
+  --line: #e2e2dc;
+  --accent: #2f5bd3;
+  --matched: #1f7a46;
+  --not-matched: #9a4b00;
+  --cant: #5b5b8a;
+  --label-bg: #fff4d6;
+  --label-ink: #6b4d00;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #151514;
+    --card: #1f1f1d;
+    --ink: #ececea;
+    --muted: #a3a39c;
+    --line: #34342f;
+    --accent: #8aa8ff;
+    --matched: #6fd39b;
+    --not-matched: #f0a35c;
+    --cant: #b3b3e6;
+    --label-bg: #3a3014;
+    --label-ink: #f3d68a;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+main { max-width: 760px; margin: 0 auto; padding: 24px 16px 64px; }
+h1 { margin: 0; font-size: 28px; }
+h2 { font-size: 18px; margin: 0 0 12px; }
+h3 { font-size: 15px; margin: 20px 0 8px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 18px; margin: 16px 0; }
+.row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.row h2 { margin: 0; }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+.label { background: var(--label-bg); color: var(--label-ink); border-radius: 6px; padding: 2px 8px; font-size: 13px; font-weight: 600; }
+fieldset { border: 0; padding: 0; margin: 0 0 12px; }
+.choice { display: flex; gap: 8px; align-items: baseline; padding: 4px 0; }
+.question { margin: 12px 0; }
+.question label { display: block; margin-bottom: 4px; }
+input[type="number"], select { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); color: var(--ink); min-width: 160px; }
+input:disabled, select:disabled { opacity: 0.7; }
+button { font: inherit; padding: 8px 16px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+.hash { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; cursor: help; }
+.sealed { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+.running { color: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
+.facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 0; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; }
+.verdicts { width: 100%; border-collapse: collapse; font-size: 14px; }
+.verdicts th, .verdicts td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.verdict { animation: appear 300ms ease-out both; }
+.verdict.matched b { color: var(--matched); }
+.verdict.not_matched b { color: var(--not-matched); }
+.verdict.cant_check b { color: var(--cant); }
+.seals { padding-left: 18px; font-size: 14px; }
+.notice { background: var(--label-bg); color: var(--label-ink); padding: 10px 12px; border-radius: 8px; }
+@keyframes pulse { 50% { opacity: 0.45; } }
+@keyframes appear { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+@media (max-width: 560px) {
+  .verdicts th:nth-child(1), .verdicts td:nth-child(1) { max-width: 160px; }
+}
+
+/* D04-04 */
+.switch { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0 0; }
+.switch button.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.findings { padding-left: 18px; font-size: 14px; }
+.findings li { margin: 6px 0; }
+.findings li.chosen { font-weight: 600; }
+.findings button { padding: 2px 10px; font-size: 13px; margin-left: 6px; }
+.ok { color: var(--matched); }
+.model-panel { border-left: 3px solid var(--line); padding-left: 12px; margin-top: 12px; }
+.code { max-height: 340px; overflow: auto; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 0; font-size: 12px; line-height: 1.45; }
+.code .line { padding: 0 8px; cursor: pointer; white-space: pre; }
+.code .line:hover { background: var(--line); }
+.code .line.sel { background: var(--label-bg); color: var(--label-ink); }
+.code .ln { display: inline-block; width: 3.2em; color: var(--muted); user-select: none; }
+.link { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); color: var(--ink); flex: 1 1 280px; min-width: 0; }
+.caption { display: inline-block; margin: 8px 0 12px; }
+.progress { margin: 4px 0 0; padding-left: 20px; color: var(--muted); }
+tr.flagged td { background: var(--label-bg); color: var(--label-ink); }
+
+/* D05-04: the agent log strip. Under the flow by default (phone); a side panel on a wide screen. */
+.logstrip { max-width: 760px; margin: 0 auto 48px; padding: 0 16px; }
+.logstrip-head { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+.logstrip-head h2 { margin: 0; }
+.logstrip-note { color: var(--muted); font-size: 13px; flex: 1 1 auto; }
+.logstrip-lines { list-style: none; margin: 10px 0 0; padding: 0; background: var(--card); border: 1px solid var(--line); border-radius: 10px; max-height: 70vh; overflow-y: auto; font-size: 15px; }
+.logstrip-lines li { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0 12px; padding: 5px 12px; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.logstrip-lines li .act { grid-column: 1 / -1; }
+.logstrip-lines li:last-child { border-bottom: 0; background: var(--bg); }
+.logstrip-lines .t { color: var(--muted); font-variant-numeric: tabular-nums; }
+.logstrip-lines .who { font-weight: 600; }
+.logstrip-lines .mid { color: var(--accent); font-weight: 600; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; }
+.logstrip-lines .pc { color: var(--muted); font-weight: 400; font-size: 0.8em; }
+.logstrip-lines li.model { border-left: 4px solid var(--accent); }
+.logstrip-lines li.plain { border-left: 4px solid var(--line); }
+.logstrip-lines li.person { border-left: 4px solid var(--label-ink); }
+.logstrip-empty { color: var(--muted); white-space: normal !important; display: block !important; }
+@media (min-width: 1200px) {
+  .shell.with-strip { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 50vw); align-items: start; }
+  .shell.with-strip main { margin: 0 auto; }
+  .shell.with-strip .logstrip { position: sticky; top: 0; height: 100vh; max-width: none; margin: 0; padding: 20px 20px 20px 0; display: flex; flex-direction: column; }
+  .shell.with-strip .logstrip-lines { flex: 1 1 auto; max-height: none; font-size: 22px; line-height: 1.35; }
+  /* One line per event on the wide screen: time, who, action side by side; an action too long for the panel ends in "…" (full text on hover). */
+  .shell.with-strip .logstrip-lines li { grid-template-columns: max-content minmax(0, max-content) minmax(0, 1fr); white-space: nowrap; overflow-wrap: normal; }
+  .shell.with-strip .logstrip-lines li .act { grid-column: auto; }
+  .shell.with-strip .logstrip-lines li > span { overflow: hidden; text-overflow: ellipsis; }
+  .shell.with-strip .logstrip-head h2 { font-size: 24px; }
+  .shell.with-strip .logstrip-note { font-size: 18px; }
+  .shell:not(.with-strip) .logstrip { position: fixed; right: 16px; bottom: 16px; margin: 0; padding: 0; max-width: none; }
+  .shell:not(.with-strip) .logstrip-head h2, .shell:not(.with-strip) .logstrip-note { display: none; }
+}
+
+/* D05-05: "Ask why" */
+.why { padding-left: 18px; font-size: 14px; }
+.why li { margin: 6px 0; }
+/* The 14-market table is wider than a 390 px phone: it scrolls inside its card instead of widening the page. */
+section[data-testid="false-alarm"] { overflow-x: auto; }
+
+/* D06-01: the proposed diff (only the diff) and the plain-code "toward" text */
+.code.diff .line, .code.toward { cursor: default; }
+.code.diff .line.add { background: color-mix(in srgb, var(--matched) 14%, transparent); }
+.code.diff .line.del { background: color-mix(in srgb, var(--not-matched) 14%, transparent); }
+.code.toward { white-space: pre-wrap; padding: 8px; }
+
+/* D07-01: per-bettor counts (You · Muse Spark · Muse Spark Open). Counts only. */
+table.counts { border-collapse: collapse; margin: 8px 0 12px; width: auto; }
+table.counts th, table.counts td { padding: 4px 12px; text-align: left; border-bottom: 1px solid rgba(127, 127, 127, 0.25); vertical-align: bottom; }
+table.counts td:not(:first-child) { text-align: center; font-variant-numeric: tabular-nums; }
+.claimant label { margin-right: 12px; }
+
+/* Styles for the Atlas machines: the Anatomy kit's tokens (iso.css, MIT, see iso/LICENSE),
+   the scoreboard mark and the retry machine. Imported once by web/main.tsx. */
+.iso{
+  --anatomy-page:#0b0b0b;--anatomy-card:#131313;--anatomy-text:#a3a3a3;--anatomy-strong:#e6e6e6;--anatomy-muted:#6e6e6e;
+  --anatomy-paper:#131313;--anatomy-face:#1b1b1b;--anatomy-top:#1c1c1c;
+  --anatomy-shade-0:#0f0f0f;--anatomy-shade-1:#121212;--anatomy-shade-2:#151515;--anatomy-shade-3:#181818;
+  --anatomy-lit-top:#262626;--anatomy-lit-shade:#1d1d1d;
+  --anatomy-hi:#d4d4d4;--anatomy-mid:#6a6a6a;--anatomy-lo:#3e3e3e;--anatomy-faint:#2a2a2a;--anatomy-lit:#ffffff;
+  --anatomy-halo:#050505;--anatomy-halo-opacity:.9;--anatomy-dot:#e6e6e6;
+  --anatomy-red:#ff6b6b;--anatomy-green:#6be0a0;--anatomy-blue:#6b9bff;
+  --anatomy-weight:.6px;--anatomy-ease:cubic-bezier(.32,.72,0,1);
+  --anatomy-mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --anatomy-lift:inset 0 1px 0 0 #ffffff0a,inset 0 0 0 1px #ffffff06,0 0 0 1px #00000026,0 1px 1px -.5px #00000014,0 3px 3px -1.5px #00000014,0 6px 6px -3px #00000014,0 12px 12px -6px #00000014;
+}
+.iso[data-theme="light"]{
+  --anatomy-page:#f2f2ef;--anatomy-card:#fbfbfa;--anatomy-text:#57575a;--anatomy-strong:#18181a;--anatomy-muted:#8c8c90;
+  --anatomy-paper:#fbfbfa;--anatomy-face:#ffffff;--anatomy-top:#ffffff;
+  --anatomy-shade-0:#dcdcd9;--anatomy-shade-1:#e5e5e2;--anatomy-shade-2:#ededea;--anatomy-shade-3:#f4f4f1;
+  --anatomy-lit-top:#ffffff;--anatomy-lit-shade:#eeeeeb;
+  --anatomy-hi:#26262a;--anatomy-mid:#8a8a8f;--anatomy-lo:#b4b4b8;--anatomy-faint:#d4d4d6;--anatomy-lit:#000000;
+  --anatomy-halo:#8a8a80;--anatomy-halo-opacity:.32;--anatomy-dot:#3a3a3e;
+  --anatomy-red:#e5484d;--anatomy-green:#30a46c;--anatomy-blue:#3e63dd;
+  --anatomy-lift:inset 0 1px 0 0 #ffffff,0 0 0 1px #0000000f,0 1px 1px -.5px #0000000a,0 3px 3px -1.5px #0000000a,0 6px 6px -3px #0000000a,0 12px 12px -6px #0000000a;
+}
+.iso-svg{display:block;width:100%;height:auto;overflow:visible}
+.iso-svg path,.iso-svg circle{vector-effect:non-scaling-stroke}
+.iso-fill{fill:var(--anatomy-paper);stroke:none}
+.iso-solid[data-lit]>.iso-fill{fill:var(--anatomy-face)}
+.iso-shade,.iso-top{stroke:none}
+.iso-shade[data-shade="0"]{fill:var(--anatomy-shade-0)}
+.iso-shade[data-shade="1"]{fill:var(--anatomy-shade-1)}
+.iso-shade[data-shade="2"]{fill:var(--anatomy-shade-2)}
+.iso-shade[data-shade="3"]{fill:var(--anatomy-shade-3)}
+.iso-top{fill:var(--anatomy-top)}
+.iso-solid[data-lit]>.iso-top{fill:var(--anatomy-lit-top)}
+.iso-solid[data-lit]>.iso-shade{fill:var(--anatomy-lit-shade)}
+.iso-solid[data-seamless]>.iso-shade,.iso-solid[data-seamless]>.iso-top{stroke-width:.4;stroke-linejoin:round}
+.iso-solid[data-seamless]>.iso-shade[data-shade="0"]{stroke:var(--anatomy-shade-0)}
+.iso-solid[data-seamless]>.iso-shade[data-shade="1"]{stroke:var(--anatomy-shade-1)}
+.iso-solid[data-seamless]>.iso-shade[data-shade="2"]{stroke:var(--anatomy-shade-2)}
+.iso-solid[data-seamless]>.iso-shade[data-shade="3"]{stroke:var(--anatomy-shade-3)}
+.iso-solid[data-seamless]>.iso-top{stroke:var(--anatomy-top)}
+.iso-solid[data-seamless][data-lit]>.iso-top{stroke:var(--anatomy-lit-top)}
+.iso-solid[data-seamless][data-lit]>.iso-shade{stroke:var(--anatomy-lit-shade)}
+.iso-solid[data-lit]>.iso-edge{stroke:var(--anatomy-lit)}
+.iso-halo{fill:var(--anatomy-halo);stroke:none;filter:blur(9px);opacity:var(--anatomy-halo-opacity);transform:translateY(3px)}
+.iso-line{fill:none;stroke:var(--anatomy-lo);stroke-width:var(--anatomy-weight);stroke-linecap:round;stroke-linejoin:round}
+.iso-line[data-tone="hi"]{stroke:var(--anatomy-hi)}
+.iso-line[data-tone="mid"]{stroke:var(--anatomy-mid)}
+.iso-line[data-tone="lo"]{stroke:var(--anatomy-lo)}
+.iso-line[data-tone="faint"]{stroke:var(--anatomy-faint)}
+.iso-line[data-tone="lit"]{stroke:var(--anatomy-lit)}
+.iso-line[data-tone="red"]{stroke:var(--anatomy-red)}
+.iso-line[data-tone="green"]{stroke:var(--anatomy-green)}
+.iso-line[data-tone="blue"]{stroke:var(--anatomy-blue)}
+.iso-line[data-dotted]{stroke-dasharray:.01 3.5;stroke-width:1}
+.iso-line[data-dashed]{stroke-dasharray:3 3}
+.iso-line[data-flow]{stroke-dasharray:2 6}
+.iso-wire-end{fill:var(--anatomy-paper);stroke:var(--anatomy-lo);stroke-width:var(--anatomy-weight)}
+.iso-wire[data-tone="hi"] .iso-wire-end{stroke:var(--anatomy-hi)}
+.iso-wire[data-tone="mid"] .iso-wire-end{stroke:var(--anatomy-mid)}
+.iso-wire[data-tone="faint"] .iso-wire-end{stroke:var(--anatomy-faint)}
+.iso-wire[data-tone="lit"] .iso-wire-end{stroke:var(--anatomy-lit)}
+.iso-dots circle{fill:var(--anatomy-dot);stroke:none;opacity:.32}
+.iso-dots[data-tone="hi"] circle{opacity:.85}
+.iso-dots[data-tone="mid"] circle{opacity:.45}
+.iso-dots[data-tone="lo"] circle{opacity:.22}
+.iso-dots[data-tone="faint"] circle{opacity:.12}
+.iso-face-text{fill:var(--anatomy-mid);font-family:var(--anatomy-mono);letter-spacing:.04em}
+.iso-face-text[data-tone="hi"]{fill:var(--anatomy-hi)}
+.iso-face-text[data-tone="lo"]{fill:var(--anatomy-lo)}
+.iso-face-text[data-tone="faint"]{fill:var(--anatomy-faint)}
+.tb-body{fill:var(--anatomy-shade-2);stroke:none}
+.tb-shine{fill:var(--anatomy-top);stroke:none}
+.tb-shade{fill:var(--anatomy-shade-0);stroke:none}
+.tb-ring{fill:none;stroke:var(--anatomy-lo);stroke-width:.45;stroke-linecap:butt;stroke-linejoin:round}
+.tb-ring[data-tone="mid"]{stroke:var(--anatomy-mid)}
+.tb-ring[data-tone="faint"]{stroke:var(--anatomy-faint)}
+.tb-ring[data-tone="hi"]{stroke:var(--anatomy-hi)}
+@keyframes iso-flow{to{stroke-dashoffset:-32}}
+@keyframes iso-pulse{0%,100%{opacity:.18}12%{opacity:1}40%{opacity:.18}}
+.iso-line[data-flow]{animation:iso-flow 1600ms linear infinite}
+.iso-dots circle[data-pulse]{animation:iso-pulse 1600ms steps(1,end) infinite;animation-delay:var(--pulse-at,0ms)}
+.iso-figure{margin:32px 0 36px}
+.iso-plate{position:relative;padding:52px 24px;border-radius:0;background:var(--anatomy-card);box-shadow:0 0 0 1px var(--anatomy-mid);--anatomy-paper:var(--anatomy-card)}
+.iso-plate-corners{position:absolute;inset:18px 20px;pointer-events:none}
+.iso-plate-corner{position:absolute;color:var(--anatomy-muted);font-family:var(--anatomy-mono);font-size:10.5px;line-height:1;letter-spacing:.04em;white-space:nowrap}
+.iso-plate-corner[data-corner="fig"]{top:0;left:0;color:var(--anatomy-text)}
+.iso-plate-corner[data-corner="title"]{top:0;right:0;text-transform:uppercase;letter-spacing:.1em}
+.iso-plate-corner[data-corner="hint"]{bottom:0;left:0;text-transform:uppercase;letter-spacing:.1em}
+.iso-plate-corner[data-corner="readout"]{right:0;bottom:0;color:var(--anatomy-text);font-variant-numeric:tabular-nums}
+.iso-plate .iso-svg{margin:0 auto}
+.iso-legend{display:grid;gap:8px;margin-top:12px;color:var(--anatomy-muted);font-size:13px;line-height:1.55}
+.iso-keys{display:flex;flex-wrap:wrap;gap:6px 18px}
+.iso-key{display:inline-flex;align-items:center;gap:7px}
+.iso-swatch{width:16px;height:10px;flex:none;overflow:visible}
+.iso-swatch path{fill:none;stroke:var(--anatomy-hi);stroke-width:1;vector-effect:non-scaling-stroke;stroke-linejoin:round;stroke-linecap:round}
+.iso-swatch[data-mark="raised"] path,.iso-swatch[data-mark="flat"] path{stroke:var(--anatomy-mid)}
+.iso-swatch[data-mark="lit"] path{stroke:var(--anatomy-lit)}
+.iso-swatch[data-mark="dim"] path{stroke:var(--anatomy-lo)}
+.iso-swatch[data-mark="dotted"] path{stroke-dasharray:.01 3;stroke-width:1.4}
+.iso-swatch[data-mark="dashed"] path{stroke-dasharray:3 2.5}
+.iso-swatch[data-mark="red"] path{stroke:var(--anatomy-red)}
+.iso-swatch[data-mark="green"] path{stroke:var(--anatomy-green)}
+.iso-swatch[data-mark="blue"] path{stroke:var(--anatomy-blue)}
+.iso-swatch-crease{stroke:var(--anatomy-lo)!important}
+@media (max-width:560px){.iso-plate{padding:48px 12px 70px}.iso-plate-corner[data-corner="hint"]{bottom:18px}}
+@media (prefers-reduced-motion:reduce){.iso-line[data-flow],.iso-dots circle[data-pulse]{animation:none}}
+
+/* The scoreboard mark. Monochrome, in the page's ink, like the logo. */
+.sb { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 4px 0 16px; }
+.sb-item { margin: 0; display: flex; flex-direction: column; align-items: center; max-width: 150px; text-align: center; }
+.sb-who { list-style: none; margin: 4px 0 2px; padding: 0; font-size: 15px; line-height: 1.35; font-weight: 600; }
+.sb-mark { display: block; color: var(--ink, currentColor); overflow: visible; }
+.sb-bar { fill: currentColor; }
+.sb-dot { fill: currentColor; }
+.sb-ring { fill: none; stroke: currentColor; stroke-width: 4; }
+.sb-ring[data-faint] { opacity: 0.35; }
+.sb-line { fill: none; stroke: currentColor; stroke-width: 4; stroke-linecap: round; }
+.sb-line[data-dashed] { stroke-dasharray: 0.12 0.16; stroke-linecap: butt; }
+.sb-line[data-faint] { opacity: 0.45; }
+.sb-noreading { stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
+
+/* Motion: the lines grow from the dots toward the bar, then a matched model's ring fills. */
+.sb-grow { stroke-dasharray: 1; stroke-dashoffset: 1; animation: sb-grow 700ms cubic-bezier(.32,.72,0,1) forwards; }
+.sb-fade { opacity: 0; animation: sb-fade 600ms ease-out forwards; }
+.sb-fade[data-faint] { --sb-to: 0.45; }
+.sb-fill { fill-opacity: 0; animation: sb-fill 400ms ease-out forwards; }
+@keyframes sb-grow { to { stroke-dashoffset: 0; } }
+@keyframes sb-fade { to { opacity: var(--sb-to, 1); } }
+@keyframes sb-fill { to { fill-opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .sb-grow, .sb-fade, .sb-fill { animation: none; stroke-dashoffset: 0; opacity: initial; fill-opacity: 1; }
+}
+
+/* The retry machine's own styles, scoped to .rm (Anatomy: figure tokens stay off :root). */
+.rm { margin: 16px 0; }
+.rm .iso-figure { margin: 0; }
+.rm .iso-plate-corner[data-corner="readout"] { white-space: normal; max-width: 62%; text-align: right; line-height: 1.35; }
+.rm .iso-legend { display: block; padding: 10px 2px 0; font-size: 13px; color: var(--anatomy-text); }
+.rm .iso-keys { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 6px; }
+.rm .iso-key { display: inline-flex; gap: 6px; align-items: center; }
+.rm .iso-swatch { width: 16px; height: 10px; }
+.rm-live:focus-visible { outline: 1px solid var(--anatomy-muted); outline-offset: 6px; }
+
+/* Capsule marks: shown only once the capsule has come back with that answer. */
+.rm-capsule .rm-mark-threw, .rm-capsule .rm-mark-returned { display: none; }
+.rm-capsule[data-shows="threw"] .rm-mark-threw { display: inline; }
+.rm-capsule[data-shows="returned"] .rm-mark-returned { display: inline; }
+.rm-capsule[data-lit] .rm-mark-threw .iso-line { stroke: var(--anatomy-lit); }
+.rm-capsule-halo { opacity: 0.5; }
+
+/* Counters: an empty hole, or a filled mark for each pull / each wait done. */
+.rm-pull-marks circle, .rm-turn-marks circle { fill: none; stroke: none; }
+.rm-pull-marks circle[data-on], .rm-turn-marks circle[data-on] { fill: var(--anatomy-hi); }
+
+/* The drum pointer is the lit accent only while the drum turns. */
+.rm-drum[data-turning] .rm-drum-pointer { stroke: var(--anatomy-lit); }
+
+/* Ghost markers: faint until the verdict; a matched bet's marker goes to the strong tone. */
+.rm-ghost[data-kind="person"] { fill: var(--anatomy-lo); }
+.rm-ghost[data-kind="person"][data-matched] { fill: var(--anatomy-hi); }
+.rm-ghost[data-kind="model"] { fill: none; }
+
+@media (max-width: 480px) {
+  .rm .iso-plate { padding: 44px 6px 78px; }
+  .rm .iso-plate-corner[data-corner="readout"] { max-width: 70%; }
+}
+
+/* The price pipe's own styles, scoped to .pp (Anatomy: figure tokens stay off :root). */
+.pp { margin: 16px 0; }
+.pp .iso-figure { margin: 0; }
+.pp .iso-plate-corner[data-corner="readout"] { white-space: normal; max-width: 62%; text-align: right; line-height: 1.35; }
+.pp .iso-legend { display: block; padding: 10px 2px 0; font-size: 13px; color: var(--anatomy-text); }
+.pp .iso-keys { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 6px; }
+.pp .iso-key { display: inline-flex; gap: 6px; align-items: center; }
+.pp .iso-swatch { width: 16px; height: 10px; }
+.pp-live:focus-visible { outline: 1px solid var(--anatomy-muted); outline-offset: 6px; }
+
+/* The slot's pocket floor, a shade darker than the housing top. */
+.pp-pocket-face { fill: var(--anatomy-shade-1); stroke: none; }
+/* The ghost of the bettors' expectation: dashed, never solid, never lit. */
+.pp-ghost-outline { stroke-dasharray: 4 3; }
+
+/* Flow beads: the lit accent travelling through a pipe. */
+.pp-bead { fill: var(--anatomy-lit); }
+
+/* Ghost bet marks on the rim: faint until the verdict; a matched bet's mark goes to the strong tone. */
+.pp-ghost[data-kind="person"] { fill: var(--anatomy-mid); }
+.pp-ghost[data-kind="person"][data-matched] { fill: var(--anatomy-hi); }
+.pp-ghost[data-kind="model"] { fill: none; }
+.pp-ghost[data-kind="model"][data-matched] { stroke: var(--anatomy-hi); }
+
+.pp-level-caption { color: var(--anatomy-strong); }
+
+@media (max-width: 480px) {
+  .pp .iso-plate { padding: 44px 6px 78px; }
+  .pp .iso-plate-corner[data-corner="readout"] { max-width: 92%; }
+  /* The keys hint makes room for the readout on a phone (the keys still work). */
+  .pp .iso-plate-corner[data-corner="hint"] { display: none; }
+}
+
+
+/* D06-02 waves screen and D06-03 proof card. Colours come from the tokens in web/styles.css. */
+
+.scale-controls { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin: 12px 0; }
+.scale-slider { display: flex; flex-direction: column; gap: 4px; flex: 1 1 260px; }
+.scale-slider input[type="range"] { width: 100%; accent-color: var(--accent); }
+.scale-caption { font-weight: 600; margin: 8px 0 0; }
+.waves { margin: 8px 0 0; }
+.waves-svg { width: 100%; height: auto; display: block; }
+.waves-bar { fill: var(--accent); }
+.waves-axis { stroke: var(--line); stroke-width: 1; }
+.waves-tick { fill: var(--muted); font-size: 12px; }
+.waves-table { margin-top: 8px; }
+
+.proof-page { min-height: 100vh; padding: 24px 16px; display: flex; justify-content: center; align-items: flex-start; }
+.proof-card {
+  width: 100%; max-width: 1760px; background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+  padding: 28px 32px; display: grid; gap: 20px 40px;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  grid-template-areas: "head head" "score facts" "seals seals" "foot foot";
+}
+.pc-head { grid-area: head; display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; border-bottom: 1px solid var(--line); padding-bottom: 14px; }
+.pc-kicker { margin: 0; color: var(--muted); font-size: 15px; letter-spacing: 0.04em; text-transform: uppercase; }
+.pc-title { margin: 2px 0 0; font-size: 34px; overflow-wrap: anywhere; }
+.pc-level { margin: 4px 0 0; font-size: 17px; }
+.pc-judged { margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 17px; color: var(--muted); }
+.pc-score { grid-area: score; min-width: 0; }
+.pc-score .sb { justify-content: flex-start; }
+.pc-score .sb-mark { width: 120px; height: 120px; }
+.pc-bets { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 17px; }
+.pc-bets th, .pc-bets td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
+.pc-bets th { color: var(--muted); font-weight: 500; font-size: 14px; }
+.pc-who { font-weight: 600; }
+.pc-out { font-weight: 600; }
+.pc-matched { color: var(--matched); }
+.pc-not_matched { color: var(--not-matched); }
+.pc-cant_check { color: var(--cant); }
+.pc-facts { grid-area: facts; min-width: 0; font-size: 17px; }
+.pc-facts dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 14px; margin: 0; }
+.pc-facts dt { color: var(--muted); }
+.pc-facts dd { margin: 0; overflow-wrap: anywhere; }
+.pc-captions { margin: 14px 0 0; padding: 12px 14px 12px 30px; background: var(--label-bg); color: var(--label-ink); border-radius: 8px; }
+.pc-captions li { margin: 2px 0; }
+.pc-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; word-break: break-all; }
+.pc-seals { grid-area: seals; font-size: 14px; }
+.pc-seals ul { margin: 4px 0 0; padding-left: 18px; }
+.pc-small { font-size: 14px; margin: 0; }
+.pc-foot { grid-area: foot; display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; border-top: 1px solid var(--line); padding-top: 14px; font-size: 17px; }
+.pc-foot a { color: var(--accent); font-weight: 600; }
+.pc-replay { font-weight: 600; }
+.pc-replay.pc-same { color: var(--matched); }
+
+@media (max-width: 900px) {
+  .proof-page { padding: 12px 8px; }
+  .proof-card { grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "score" "facts" "seals" "foot"; padding: 16px; gap: 16px; }
+  .pc-title { font-size: 24px; }
+  .pc-bets { font-size: 15px; }
+  .pc-bets th:nth-child(2), .pc-bets td:nth-child(2) { display: none; }
+  .pc-bets th:nth-child(4), .pc-bets td:nth-child(4) { white-space: nowrap; overflow-wrap: normal; }
+  .pc-bets th, .pc-bets td { padding: 6px 5px; }
+  .pc-facts { font-size: 15px; }
+  .pc-facts dl { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .pc-facts dt { margin-top: 8px; }
+}
+
+body{margin:0}main{max-width:1100px;margin:0 auto;padding:24px 16px}</style></head><body><main><section class="card" aria-label="verdicts"><h2>4. Whose bet matched</h2><div class="sb" data-testid="scoreboard"><figure class="sb-item"><svg class="sb-mark" viewBox="0 0 100 100" width="96" height="96" role="img" aria-label="You: didn&#x27;t match. Muse Spark Open (meta-models/muse-spark-open-1026) · via Baseten: matched. Muse Spark 1.3 (muse-spark-1.3): matched" data-measures="calls"><g data-bettor="human" data-outcome="not_matched"><path class="sb-line sb-grow" d="M28.98 41.00L37.24 56.40" pathLength="1" style="animation-delay:0s"></path><circle class="sb-dot" data-filled="" cx="22" cy="28" r="9"></circle></g><g data-bettor="model:meta-models/muse-spark-open-1026" data-outcome="matched"><path class="sb-line sb-grow" data-reaches-bar="" d="M50.00 39.50L50.00 69.00" pathLength="1" style="animation-delay:0.12s"></path><circle class="sb-ring" cx="50" cy="28" r="7.5"></circle><circle class="sb-dot sb-fill" data-filled="" cx="50" cy="28" r="4.1" style="animation-delay:0.37s"></circle></g><g data-bettor="model:muse-spark-1.3" data-outcome="matched"><path class="sb-line sb-grow" data-reaches-bar="" d="M71.83 39.50L56.00 69.00" pathLength="1" style="animation-delay:0.24s"></path><circle class="sb-ring" cx="78" cy="28" r="7.5"></circle><circle class="sb-dot sb-fill" data-filled="" cx="78" cy="28" r="4.1" style="animation-delay:0.49s"></circle></g><rect class="sb-bar" x="24" y="69" width="52" height="11" rx="5.5"></rect></svg><ul class="sb-who" data-testid="sb-who"><li data-bettor="human">You · didn&#x27;t match</li><li data-bettor="model:meta-models/muse-spark-open-1026">Muse Spark Open (meta-models/muse-spark-open-1026) · via Baseten · matched</li><li data-bettor="model:muse-spark-1.3">Muse Spark 1.3 (muse-spark-1.3) · matched</li></ul><figcaption class="muted small">How many times will the function call the RPC?</figcaption></figure><figure class="sb-item"><svg class="sb-mark" viewBox="0 0 100 100" width="96" height="96" role="img" aria-label="You: didn&#x27;t match. Muse Spark Open (meta-models/muse-spark-open-1026) · via Baseten: matched. Muse Spark 1.3 (muse-spark-1.3): matched" data-measures="totalWaitMs"><g data-bettor="human" data-outcome="not_matched"><path class="sb-line sb-grow" d="M28.98 41.00L37.24 56.40" pathLength="1" style="animation-delay:0s"></path><circle class="sb-dot" data-filled="" cx="22" cy="28" r="9"></circle></g><g data-bettor="model:meta-models/muse-spark-open-1026" data-outcome="matched"><path class="sb-line sb-grow" data-reaches-bar="" d="M50.00 39.50L50.00 69.00" pathLength="1" style="animation-delay:0.12s"></path><circle class="sb-ring" cx="50" cy="28" r="7.5"></circle><circle class="sb-dot sb-fill" data-filled="" cx="50" cy="28" r="4.1" style="animation-delay:0.37s"></circle></g><g data-bettor="model:muse-spark-1.3" data-outcome="matched"><path class="sb-line sb-grow" data-reaches-bar="" d="M71.83 39.50L56.00 69.00" pathLength="1" style="animation-delay:0.24s"></path><circle class="sb-ring" cx="78" cy="28" r="7.5"></circle><circle class="sb-dot sb-fill" data-filled="" cx="78" cy="28" r="4.1" style="animation-delay:0.49s"></circle></g><rect class="sb-bar" x="24" y="69" width="52" height="11" rx="5.5"></rect></svg><ul class="sb-who" data-testid="sb-who"><li data-bettor="human">You · didn&#x27;t match</li><li data-bettor="model:meta-models/muse-spark-open-1026">Muse Spark Open (meta-models/muse-spark-open-1026) · via Baseten · matched</li><li data-bettor="model:muse-spark-1.3">Muse Spark 1.3 (muse-spark-1.3) · matched</li></ul><figcaption class="muted small">How long will it wait in total, in ms?</figcaption></figure><figure class="sb-item"><svg class="sb-mark" viewBox="0 0 100 100" width="96" height="96" role="img" aria-label="You: matched. Muse Spark Open (meta-models/muse-spark-open-1026) · via Baseten: matched. Muse Spark 1.3 (muse-spark-1.3): matched" data-measures="outcome"><g data-bettor="human" data-outcome="matched"><path class="sb-line sb-grow" data-reaches-bar="" d="M28.98 41.00L44.00 69.00" pathLength="1" style="animation-delay:0s"></path><circle class="sb-dot" data-filled="" cx="22" cy="28" r="9"></circle></g><g data-bettor="model:meta-models/muse-spark-open-1026" data-outcome="matched"><path class="sb-line sb-grow" data-reaches-bar="" d="M50.00 39.50L50.00 69.00" pathLength="1" style="animation-delay:0.12s"></path><circle class="sb-ring" cx="50" cy="28" r="7.5"></circle><circle class="sb-dot sb-fill" data-filled="" cx="50" cy="28" r="4.1" style="animation-delay:0.37s"></circle></g><g data-bettor="model:muse-spark-1.3" data-outcome="matched"><path class="sb-line sb-grow" data-reaches-bar="" d="M71.83 39.50L56.00 69.00" pathLength="1" style="animation-delay:0.24s"></path><circle class="sb-ring" cx="78" cy="28" r="7.5"></circle><circle class="sb-dot sb-fill" data-filled="" cx="78" cy="28" r="4.1" style="animation-delay:0.49s"></circle></g><rect class="sb-bar" x="24" y="69" width="52" height="11" rx="5.5"></rect></svg><ul class="sb-who" data-testid="sb-who"><li data-bettor="human">You · matched</li><li data-bettor="model:meta-models/muse-spark-open-1026">Muse Spark Open (meta-models/muse-spark-open-1026) · via Baseten · matched</li><li data-bettor="model:muse-spark-1.3">Muse Spark 1.3 (muse-spark-1.3) · matched</li></ul><figcaption class="muted small">How will it end: returns, throws, or pending (never settles)?</figcaption></figure></div><table class="counts small" data-testid="bettor-counts"><thead><tr><th>bets</th><th data-bettor="human">You</th><th data-bettor="model:muse-spark-1.3">Muse Spark 1.3 (muse-spark-1.3)</th><th data-bettor="model:meta-models/muse-spark-open-1026">Muse Spark Open (meta-models/muse-spark-open-1026) · via Baseten</th></tr></thead><tbody><tr><td>matched</td><td data-testid="count-matched-human">1</td><td data-testid="count-matched-model:muse-spark-1.3">3</td><td data-testid="count-matched-model:meta-models/muse-spark-open-1026">3</td></tr><tr><td>didn&#x27;t match</td><td data-testid="count-not_matched-human">2</td><td data-testid="count-not_matched-model:muse-spark-1.3">0</td><td data-testid="count-not_matched-model:meta-models/muse-spark-open-1026">0</td></tr><tr><td>can&#x27;t check</td><td data-testid="count-cant_check-human">0</td><td data-testid="count-cant_check-model:muse-spark-1.3">0</td><td data-testid="count-cant_check-model:meta-models/muse-spark-open-1026">0</td></tr><tr><td>bets placed</td><td data-testid="count-total-human">3</td><td data-testid="count-total-model:muse-spark-1.3">3</td><td data-testid="count-total-model:meta-models/muse-spark-open-1026">3</td></tr></tbody></table><table class="verdicts"><thead><tr><th>question</th><th>You</th><th>Muse Spark 1.3 (muse-spark-1.3)</th><th>Muse Spark Open (meta-models/muse-spark-open-1026) · via Baseten</th><th>observed</th></tr></thead><tbody><tr data-testid="verdict-calls"><td>How many times will the function call the RPC?</td><td class="verdict not_matched" data-testid="verdict-you-calls" data-outcome="not_matched">3 · <b>didn&#x27;t match</b></td><td class="verdict matched" data-testid="verdict-model-calls" data-outcome="matched">5 · <b>matched</b></td><td class="verdict matched" data-testid="verdict-model2-calls" data-outcome="matched">5 · <b>matched</b></td><td data-testid="observed-calls">5<div class="muted small">judged by src/judge.ts</div></td></tr><tr data-testid="verdict-totalWaitMs"><td>How long will it wait in total, in ms?</td><td class="verdict not_matched" data-testid="verdict-you-totalWaitMs" data-outcome="not_matched">3000 · <b>didn&#x27;t match</b></td><td class="verdict matched" data-testid="verdict-model-totalWaitMs" data-outcome="matched">12000 · <b>matched</b></td><td class="verdict matched" data-testid="verdict-model2-totalWaitMs" data-outcome="matched">12000 · <b>matched</b></td><td data-testid="observed-totalWaitMs">12000<div class="muted small">judged by src/judge.ts</div></td></tr><tr data-testid="verdict-outcome"><td>How will it end: returns, throws, or pending (never settles)?</td><td class="verdict matched" data-testid="verdict-you-outcome" data-outcome="matched">throws · <b>matched</b></td><td class="verdict matched" data-testid="verdict-model-outcome" data-outcome="matched">throws · <b>matched</b></td><td class="verdict matched" data-testid="verdict-model2-outcome" data-outcome="matched">throws · <b>matched</b></td><td data-testid="observed-outcome">throws<div class="muted small">judged by src/judge.ts</div></td></tr></tbody></table><h3>Seal check (done by this page, for every bettor)</h3><ul class="seals"><li data-testid="seal-check-calls" data-match="yes">You, calls: shown <code class="hash" title="1ebe4e3f11fdee5fbef98f50f67d1d0333f32ca3cee3a60bd60594b667764d3d" data-hash="1ebe4e3f11fdee5fbef98f50f67d1d0333f32ca3cee3a60bd60594b667764d3d" tabindex="0" aria-label="hash 1ebe4e3f11fdee5fbef98f50f67d1d0333f32ca3cee3a60bd60594b667764d3d">1ebe4e3f11fd…</code> · recomputed <code class="hash" title="1ebe4e3f11fdee5fbef98f50f67d1d0333f32ca3cee3a60bd60594b667764d3d" data-hash="1ebe4e3f11fdee5fbef98f50f67d1d0333f32ca3cee3a60bd60594b667764d3d" tabindex="0" aria-label="hash 1ebe4e3f11fdee5fbef98f50f67d1d0333f32ca3cee3a60bd60594b667764d3d">1ebe4e3f11fd…</code> · <b>✓ match</b> · sealed before the run started</li><li data-testid="seal-check-totalWaitMs" data-match="yes">You, totalWaitMs: shown <code class="hash" title="45b7519b83bf186213c9a1789b9faf7ad1c772836852c356aa5613f838071f25" data-hash="45b7519b83bf186213c9a1789b9faf7ad1c772836852c356aa5613f838071f25" tabindex="0" aria-label="hash 45b7519b83bf186213c9a1789b9faf7ad1c772836852c356aa5613f838071f25">45b7519b83bf…</code> · recomputed <code class="hash" title="45b7519b83bf186213c9a1789b9faf7ad1c772836852c356aa5613f838071f25" data-hash="45b7519b83bf186213c9a1789b9faf7ad1c772836852c356aa5613f838071f25" tabindex="0" aria-label="hash 45b7519b83bf186213c9a1789b9faf7ad1c772836852c356aa5613f838071f25">45b7519b83bf…</code> · <b>✓ match</b> · sealed before the run started</li><li data-testid="seal-check-outcome" data-match="yes">You, outcome: shown <code class="hash" title="e99bb86ee14e2396210bfe32bc6cf32f29c4d32bd2ff0773b178d1477c357ae7" data-hash="e99bb86ee14e2396210bfe32bc6cf32f29c4d32bd2ff0773b178d1477c357ae7" tabindex="0" aria-label="hash e99bb86ee14e2396210bfe32bc6cf32f29c4d32bd2ff0773b178d1477c357ae7">e99bb86ee14e…</code> · recomputed <code class="hash" title="e99bb86ee14e2396210bfe32bc6cf32f29c4d32bd2ff0773b178d1477c357ae7" data-hash="e99bb86ee14e2396210bfe32bc6cf32f29c4d32bd2ff0773b178d1477c357ae7" tabindex="0" aria-label="hash e99bb86ee14e2396210bfe32bc6cf32f29c4d32bd2ff0773b178d1477c357ae7">e99bb86ee14e…</code> · <b>✓ match</b> · sealed before the run started</li><li data-testid="seal-check-model-calls" data-match="yes">Muse Spark 1.3 (muse-spark-1.3), calls: shown <code class="hash" title="01fd2b0415366edab0b6cc0ac3e78e53d5fd892278310ec1fdd5b1e36461a214" data-hash="01fd2b0415366edab0b6cc0ac3e78e53d5fd892278310ec1fdd5b1e36461a214" tabindex="0" aria-label="hash 01fd2b0415366edab0b6cc0ac3e78e53d5fd892278310ec1fdd5b1e36461a214">01fd2b041536…</code> · recomputed <code class="hash" title="01fd2b0415366edab0b6cc0ac3e78e53d5fd892278310ec1fdd5b1e36461a214" data-hash="01fd2b0415366edab0b6cc0ac3e78e53d5fd892278310ec1fdd5b1e36461a214" tabindex="0" aria-label="hash 01fd2b0415366edab0b6cc0ac3e78e53d5fd892278310ec1fdd5b1e36461a214">01fd2b041536…</code> · <b>✓ match</b> · sealed before the run started</li><li data-testid="seal-check-model-totalWaitMs" data-match="yes">Muse Spark 1.3 (muse-spark-1.3), totalWaitMs: shown <code class="hash" title="06b896c461ad7fcf744fa6bf3a5f54f813876073cb94f797b116cb87da6bbd17" data-hash="06b896c461ad7fcf744fa6bf3a5f54f813876073cb94f797b116cb87da6bbd17" tabindex="0" aria-label="hash 06b896c461ad7fcf744fa6bf3a5f54f813876073cb94f797b116cb87da6bbd17">06b896c461ad…</code> · recomputed <code class="hash" title="06b896c461ad7fcf744fa6bf3a5f54f813876073cb94f797b116cb87da6bbd17" data-hash="06b896c461ad7fcf744fa6bf3a5f54f813876073cb94f797b116cb87da6bbd17" tabindex="0" aria-label="hash 06b896c461ad7fcf744fa6bf3a5f54f813876073cb94f797b116cb87da6bbd17">06b896c461ad…</code> · <b>✓ match</b> · sealed before the run started</li><li data-testid="seal-check-model-outcome" data-match="yes">Muse Spark 1.3 (muse-spark-1.3), outcome: shown <code class="hash" title="16935ed2e51fac0333ebf91061cdd98f6e60fc53a37fa9cb03c16f376e65c973" data-hash="16935ed2e51fac0333ebf91061cdd98f6e60fc53a37fa9cb03c16f376e65c973" tabindex="0" aria-label="hash 16935ed2e51fac0333ebf91061cdd98f6e60fc53a37fa9cb03c16f376e65c973">16935ed2e51f…</code> · recomputed <code class="hash" title="16935ed2e51fac0333ebf91061cdd98f6e60fc53a37fa9cb03c16f376e65c973" data-hash="16935ed2e51fac0333ebf91061cdd98f6e60fc53a37fa9cb03c16f376e65c973" tabindex="0" aria-label="hash 16935ed2e51fac0333ebf91061cdd98f6e60fc53a37fa9cb03c16f376e65c973">16935ed2e51f…</code> · <b>✓ match</b> · sealed before the run started</li><li data-testid="seal-check-model2-calls" data-match="yes">Muse Spark Open (meta-models/muse-spark-open-1026) · via Baseten, calls: shown <code class="hash" title="fe8643684bc6bb37e29ea442debdb2037c0549c9004f2142e8f8abe13fa3566a" data-hash="fe8643684bc6bb37e29ea442debdb2037c0549c9004f2142e8f8abe13fa3566a" tabindex="0" aria-label="hash fe8643684bc6bb37e29ea442debdb2037c0549c9004f2142e8f8abe13fa3566a">fe8643684bc6…</code> · recomputed <code class="hash" title="fe8643684bc6bb37e29ea442debdb2037c0549c9004f2142e8f8abe13fa3566a" data-hash="fe8643684bc6bb37e29ea442debdb2037c0549c9004f2142e8f8abe13fa3566a" tabindex="0" aria-label="hash fe8643684bc6bb37e29ea442debdb2037c0549c9004f2142e8f8abe13fa3566a">fe8643684bc6…</code> · <b>✓ match</b> · sealed before the run started</li><li data-testid="seal-check-model2-totalWaitMs" data-match="yes">Muse Spark Open (meta-models/muse-spark-open-1026) · via Baseten, totalWaitMs: shown <code class="hash" title="09ee0dbc5b39ad88f8a2b0de3492b59806e211139cff703e85d388d40157b78d" data-hash="09ee0dbc5b39ad88f8a2b0de3492b59806e211139cff703e85d388d40157b78d" tabindex="0" aria-label="hash 09ee0dbc5b39ad88f8a2b0de3492b59806e211139cff703e85d388d40157b78d">09ee0dbc5b39…</code> · recomputed <code class="hash" title="09ee0dbc5b39ad88f8a2b0de3492b59806e211139cff703e85d388d40157b78d" data-hash="09ee0dbc5b39ad88f8a2b0de3492b59806e211139cff703e85d388d40157b78d" tabindex="0" aria-label="hash 09ee0dbc5b39ad88f8a2b0de3492b59806e211139cff703e85d388d40157b78d">09ee0dbc5b39…</code> · <b>✓ match</b> · sealed before the run started</li><li data-testid="seal-check-model2-outcome" data-match="yes">Muse Spark Open (meta-models/muse-spark-open-1026) · via Baseten, outcome: shown <code class="hash" title="17dc6385d43d49ef430b57dfecc4ff63820ee7fb4a326d6959d2acc1a2ebcf08" data-hash="17dc6385d43d49ef430b57dfecc4ff63820ee7fb4a326d6959d2acc1a2ebcf08" tabindex="0" aria-label="hash 17dc6385d43d49ef430b57dfecc4ff63820ee7fb4a326d6959d2acc1a2ebcf08">17dc6385d43d…</code> · recomputed <code class="hash" title="17dc6385d43d49ef430b57dfecc4ff63820ee7fb4a326d6959d2acc1a2ebcf08" data-hash="17dc6385d43d49ef430b57dfecc4ff63820ee7fb4a326d6959d2acc1a2ebcf08" tabindex="0" aria-label="hash 17dc6385d43d49ef430b57dfecc4ff63820ee7fb4a326d6959d2acc1a2ebcf08">17dc6385d43d…</code> · <b>✓ match</b> · sealed before the run started</li></ul></section></main></body></html>
