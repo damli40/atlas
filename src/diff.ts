@@ -121,7 +121,9 @@ export function extractDiff(answer: string): { diff: string; hadProse: boolean }
     const body = m[1]!;
     if (/^(diff --git |--- )/m.test(body)) {
       const outside = text.replace(m[0], "").trim();
-      return { diff: body.endsWith("\n") ? body : `${body}\n`, hadProse: outside.length > 0 };
+      // Blank lines after the last hunk are dropped, as parseUnifiedDiff ignores them: git apply --recount
+      // would otherwise read them as empty context lines that the file does not have.
+      return { diff: `${body.replace(/\n(?:[ \t]*\n)+$/, "\n").replace(/\n?$/, "")}\n`, hadProse: outside.length > 0 };
     }
   }
   const lines = text.split("\n");

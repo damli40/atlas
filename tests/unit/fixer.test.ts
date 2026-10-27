@@ -376,3 +376,11 @@ describe("repairWith: chat-fallback (one Muse Code try, then one Spark chat with
     expect(r.ok && r.path).toBe("chat-fallback");
   });
 });
+
+describe("zero-context hunks (git apply --unidiff-zero)", () => {
+  it("a one-line hunk with no context lines is applied and then checked like any other", async () => {
+    const ctx = moonwellChangeContext();
+    const d = `--- a/${MOONWELL_CONFIG_FILE}\n+++ b/${MOONWELL_CONFIG_FILE}\n@@ -42,1 +42,1 @@\n-            OracleConfig("cbETHETH_ORACLE", "cbETH", "MOONWELL_cbETH")\n+            OracleConfig("cbETH_ORACLE", "cbETH", "MOONWELL_cbETH")\n`;
+    expect(await checkChange(d, ctx)).toEqual({ ok: false, reason: "the changed config cannot be wired: chains/8453.json has no address named cbETH_ORACLE_OEV_WRAPPER (wrapper for cbETH_ORACLE)" });
+  });
+});
