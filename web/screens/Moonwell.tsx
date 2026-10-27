@@ -5,8 +5,7 @@
 // log) → verdicts by src/judge.ts → the false-alarm table → the captions this kind of run must carry.
 
 import { useState } from "react";
-import { LEVEL2_CAPTION, level1Caption } from "../../src/atlasfile";
-import { MOONWELL_FORK_BLOCKS, MOONWELL_LEVEL_SAYS, moonwellBetContext, type MoonwellLevel } from "../../src/bet-context";
+import { MOONWELL_FORK_BLOCKS, MOONWELL_LEVEL_CAPTION, MOONWELL_LEVEL_SAYS, MOONWELL_LICENCE_LINE, moonwellBetContext, type MoonwellLevel } from "../../src/bet-context";
 import type { Question } from "../../src/gate";
 import type { Finding } from "../../src/types";
 import { formatUsd1e18 } from "../../src/units";
@@ -24,13 +23,13 @@ const LEVELS = {
     label: "Before it shipped (Level 2)",
     says: MOONWELL_LEVEL_SAYS.level2,
     params: { shape: "apply-proposal-then-read", markets: "touched" },
-    caption: LEVEL2_CAPTION,
+    caption: MOONWELL_LEVEL_CAPTION.level2,
   },
   level1: {
     label: "After the fact (Level 1)",
     says: MOONWELL_LEVEL_SAYS.level1,
     params: { shape: "price-read", markets: ["cbETH"] },
-    caption: level1Caption(PR_FORK_BLOCK.level1),
+    caption: MOONWELL_LEVEL_CAPTION.level1,
   },
 } as const;
 type Level = MoonwellLevel;
@@ -124,6 +123,7 @@ export function MoonwellFlow({ api }: { api: Api }) {
 
   const q = questions[0];
   const m = result?.run.result.measured;
+  const fileOf = (path: string) => target?.files.find((f) => f.path === path)?.text;
   return (
     <>
       <section className="card" aria-label="pull request">
@@ -140,7 +140,7 @@ export function MoonwellFlow({ api }: { api: Api }) {
           <p className="muted" data-testid="pr-target">
             <b>{target.ref}</b> · {target.title} · merge commit <code>{target.commit?.slice(0, 10)}</code> · {target.files.length} files · code fingerprint <ShortHash hash={target.codeSha256} />
             <br />
-            <span className="small">Moonwell's files: BSD-3-Clause; mip-x43.sol GPL-3.0-or-later (notices kept in contracts/lib/moonwell).</span>
+            <span className="small">{MOONWELL_LICENCE_LINE}</span>
           </p>
         )}
       </section>
@@ -175,13 +175,13 @@ export function MoonwellFlow({ api }: { api: Api }) {
                 if (sealed.length === 0) seal();
               }}
             >
-              {finding && (
-                <>
-                  <p className="muted small">What you know before betting. Muse Spark gets exactly this text, nothing more (no prices).</p>
+              {finding && fileOf(finding.file) !== undefined && (
+                <details className="small">
+                  <summary>What you know before betting. Muse Spark gets exactly this text, nothing more (no prices).</summary>
                   <pre className="code" data-testid="bet-context">
-                    {moonwellBetContext({ level, question: q, finding })}
+                    {moonwellBetContext({ level, question: q, finding, fileText: fileOf(finding.file)!, pr: { ref: target.ref, title: target.title, ...(target.commit !== undefined ? { commit: target.commit } : {}), fileCount: target.files.length, codeSha256: target.codeSha256 } })}
                   </pre>
-                </>
+                </details>
               )}
               <div className="question">
                 <label htmlFor="bet-usd">{q.text}</label>

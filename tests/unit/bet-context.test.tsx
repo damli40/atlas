@@ -17,6 +17,7 @@ import type { ChatArgs, ChatResult } from "../../server/meta/client";
 import { SEEN_CONTEXT_HEADING } from "../../server/meta/roles/claimant-bets";
 import type { GithubPrTarget } from "../../server/targets/github";
 import { FORK_BLOCK, PR578_CODE_SHA256 } from "../../runners/evm/moonwell-base";
+import { LEVEL2_CAPTION } from "../../src/atlasfile";
 import { MOONWELL_FORK_BLOCKS, blockTimeUtc, moonwellBetContext } from "../../src/bet-context";
 import type { Experiment, Run } from "../../src/types";
 import { createApi } from "../../web/api";
@@ -95,18 +96,29 @@ describe("D19: what the bettor sees", () => {
     expect(blockTimeUtc(MOONWELL_FORK_BLOCKS.level2.timestamp)).toBe("2026-02-15 18:04:31 UTC");
   });
 
-  it("the context holds the level, block, time, question, unit, tolerance and lines; never a claim", () => {
+  it("the context holds the PR line, level, caption, block, time, question, unit, tolerance and the whole file; never a claim", () => {
+    const fileText = PR.files[1]!.content!;
     const text = moonwellBetContext({
       level: "level2",
       question: { text: "After this proposal is applied, what will Moonwell's oracle report for 1 cbETH, in USD?", unit: "USD", tolerancePct: 10 },
-      finding: { file: "proposals/ChainlinkOracleConfigs.sol", lineStart: 42, lineEnd: 42, quotedSnippet: '            OracleConfig("cbETHETH_ORACLE", "cbETH", "MOONWELL_cbETH")', proposedBy: { role: "investigator", model: "muse-wonder-1.0" } },
+      finding: { file: "proposals/ChainlinkOracleConfigs.sol", lineStart: 42, lineEnd: 42, proposedBy: { role: "investigator", model: "muse-wonder-1.0" } },
+      fileText,
+      pr: { ref: PR.target.ref, title: PR.title, commit: PR.target.commit!, fileCount: 3, codeSha256: PR578_CODE_SHA256 },
     });
+    expect(text).toContain(`Pull request: moonwell-fi/moonwell-contracts-v2#578 · MIP-X43 · merge commit 9a6738e189 · 3 files · code fingerprint ${PR578_CODE_SHA256.slice(0, 12)}…`);
+    expect(text).toContain(`Read with this run: ${LEVEL2_CAPTION}`);
+    expect(text).not.toContain("test description"); // the PR description is not on screen
+    // The whole file, numbered; only the chosen line marked.
+    const lines = fileText.split("\n");
+    if (fileText.endsWith("\n")) lines.pop();
+    expect(text.split("\n").filter((l) => /^[> ] \d+\| /.test(l))).toHaveLength(lines.length);
+    expect(text.split("\n").filter((l) => l.startsWith("> "))).toEqual(['> 42|             OracleConfig("cbETHETH_ORACLE", "cbETH", "MOONWELL_cbETH")']);
+    expect(text).toContain("  41|         _oracleConfigs[BASE_CHAIN_ID].push(");
     expect(text).toContain("Fork Base at block 42194662, one block before the proposal ran");
     expect(text).toContain("Fork block: 42194662 on Base, made at 2026-02-15 18:04:31 UTC.");
     expect(text).toContain("Answer in: USD.");
     expect(text).toContain("Matched means within 10% of what the run reads.");
     expect(text).toContain("(found by muse-wonder-1.0): proposals/ChainlinkOracleConfigs.sol, line 42");
-    expect(text).toContain('42|             OracleConfig("cbETHETH_ORACLE", "cbETH", "MOONWELL_cbETH")');
   });
 
   it("the bet screen renders the same context Spark's prompt holds, and the prompt has no price", async () => {
@@ -136,15 +148,24 @@ describe("D19: what the bettor sees", () => {
 
     const shown = $('[data-testid="bet-context"]')!.textContent!;
     expect(shown).toContain("Fork block: 42194662 on Base, made at 2026-02-15 18:04:31 UTC.");
-    expect(shown).toContain('42|             OracleConfig("cbETHETH_ORACLE", "cbETH", "MOONWELL_cbETH")');
+    expect(shown).toContain('> 42|             OracleConfig("cbETHETH_ORACLE", "cbETH", "MOONWELL_cbETH")');
+    expect(shown).toContain("Pull request: moonwell-fi/moonwell-contracts-v2#578 · MIP-X43");
+    expect(shown).toContain(`Read with this run: ${LEVEL2_CAPTION}`);
     expect(calls).toHaveLength(1);
     const user = calls[0]!.messages[1]!.content;
     // The prompt holds exactly the screen's text under its heading, followed by the answer format only.
     expect(user.startsWith(`${SEEN_CONTEXT_HEADING}\n${shown}\n\nQUESTIONS`)).toBe(true);
     // Nothing else about the round: no experiment JSON, no list of markets, no wider code.
     expect(user).not.toContain('"shape"');
-    expect(user).not.toContain("touched");
-    expect(user).not.toContain("41|");
+    expect(user).not.toContain('"touched"');
+    // The screen's file viewer (a separate component): every line it renders, with its number, is in the prompt.
+    const viewer = [...host!.querySelectorAll('[data-testid="pick-code"] [data-line]')];
+    expect(viewer.length).toBeGreaterThan(40);
+    for (const div of viewer) {
+      const n = div.querySelector(".ln")!.textContent!;
+      const rest = div.textContent!.slice(n.length);
+      expect(user).toContain(`${n}| ${rest === " " ? "" : rest}\n`); // the viewer shows an empty line as one space
+    }
 
     // Seal a bet and run, so the run's numbers exist; none of them is in what Spark was given.
     act(() => setValue($('[data-testid="bet-usd"]') as HTMLInputElement, "2200"));
@@ -155,8 +176,5 @@ describe("D19: what the bettor sees", () => {
     const prompt = calls[0]!.messages.map((m) => m.content).join("\n");
     for (const n of [...Object.values(RUN_NUMBERS), "1.12", "1,12", "2206", "2,206", "0.9999"]) expect(prompt).not.toContain(n);
     expect(prompt).not.toMatch(/\$\s?\d/); // no dollar amount at all
-    // The only numbers in the context are the block, its time, the tolerance and the line number.
-    const numbers = new Set(shown.replace(/MOONWELL_cbETH|cbETHETH_ORACLE|cbETH/g, "").match(/\d+(?:\.\d+)?/g));
-    expect([...numbers].sort()).toEqual(["04", "1", "10", "15", "18", "2026", "31", "42", "42194662", "02"].sort());
   }, 30_000);
 });

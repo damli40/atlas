@@ -157,13 +157,27 @@ export const TS_GATE_CONTEXT: GateContext = { shapes: ["retry-scenario"], watchL
 /**
  * D19: the "what the bettor sees" text for an EVM (Moonwell) round, built by the same function the
  * bet screen renders (src/bet-context.ts). Undefined for any other round (the fixture keeps its prompt).
+ * `pr` is what the screen's pull request line shows; `fileText` is the chosen finding's whole file.
  */
-export function seenContextFor(exp: Experiment, questions: readonly Question[], finding: Finding): string | undefined {
+export function seenContextFor(
+  exp: Experiment,
+  questions: readonly Question[],
+  finding: Finding,
+  fileText: string,
+  pr: { title: string; fileCount: number },
+): string | undefined {
   if (exp.runner !== "evm") return undefined;
   const level = moonwellLevelOf(exp.params.shape);
   const q = questions[0];
   if (!level || !q) return undefined;
-  return moonwellBetContext({ level, question: q, finding });
+  const t = exp.target;
+  return moonwellBetContext({
+    level,
+    question: q,
+    finding,
+    fileText,
+    pr: { ref: t.ref, title: pr.title, ...(t.commit !== undefined ? { commit: t.commit } : {}), fileCount: pr.fileCount, codeSha256: t.codeSha256 },
+  });
 }
 
 // ---------- the app ----------
@@ -398,7 +412,8 @@ export function createApp(opts: AppOptions = {}) {
     // whole verbatim block whichever finding is used (fixture-finding.ts explains why).
     const contextRange = exp.target.ref === FIXTURE_FILE ? fixtureContextRange(fileText) : undefined;
     // D19: on the Moonwell PR the model gets exactly what the person's bet screen shows (src/bet-context.ts).
-    const seenContext = seenContextFor(exp, round.questions, finding);
+    const prOf = exp.target.kind === "github-pr" ? prTargets.get(exp.target.codeSha256) : undefined;
+    const seenContext = prOf ? seenContextFor(exp, round.questions, finding, fileText, { title: prOf.title, fileCount: prFiles(prOf).length }) : undefined;
     slot.status = "thinking";
     const chat = modelChat;
     const { now } = opts.modelBets;
