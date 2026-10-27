@@ -84,7 +84,7 @@ import { FIXTURE_FILE, FIXTURE_FINDING_LABEL, fixtureContextRange, fixtureFindin
 import { INVESTIGATOR_FALLBACK_MODEL, INVESTIGATOR_MODEL, runInvestigator, type InvestigatorFile } from "./meta/roles/investigator";
 import { fetchGithubPr, type GithubPrTarget } from "./targets/github";
 import { SWEEP_GATE_CONTEXT, gate, type GateContext, type Question } from "../src/gate";
-import type { Bet, Experiment, Finding, Run, Target, Verdict } from "../src/types";
+import type { AtlasFile, Bet, Experiment, Finding, Run, Target, Verdict } from "../src/types";
 import type { Executor } from "../runners/runner";
 import { localExecutor } from "../runners/executor/local";
 import { AgentEventError, createAgentLog, oneLine, sessionEmitter, type AgentLog } from "./log/agentlog";
@@ -1028,14 +1028,18 @@ export function createApp(opts: AppOptions = {}) {
     }
     const used = changesPerSession.get(sessionId) ?? 0;
     if (used >= MAX_CHANGES_PER_SESSION) return c.json({ ok: false, runId, reason: `${MUSE_CODE}: not asked (call limit reached: this session already asked for ${MAX_CHANGES_PER_SESSION} changes)`, fixer: null, toward: null } satisfies ChangeAnswer);
-    const byIp = modelRoundsByIp.take(clientOf(c));
-    if (!byIp.ok) return c.json({ ok: false, runId, reason: `${MUSE_CODE}: not asked (${byIp.reason})`, fixer: null, toward: null } satisfies ChangeAnswer);
     let slot: { release: () => void } | undefined;
     if (round.experiment.runner === "evm") {
-      // The replay forks Base (paid RPC reads): it takes a run slot like POST /runs.
+      // The replay forks Base (paid RPC reads): it takes a run slot like POST /runs. M6 (day-6 review):
+      // taken BEFORE the per-IP model-round slot, so a busy fork never spends a model round.
       const s = runGate.take(sessionId, clientOf(c));
       if (!s.ok) return c.json({ error: `change not started: ${s.reason}` }, 429);
       slot = s;
+    }
+    const byIp = modelRoundsByIp.take(clientOf(c));
+    if (!byIp.ok) {
+      slot?.release();
+      return c.json({ ok: false, runId, reason: `${MUSE_CODE}: not asked (${byIp.reason})`, fixer: null, toward: null } satisfies ChangeAnswer);
     }
     changesPerSession.set(sessionId, used + 1);
     const emitter = sessionEmitter(agentLog, sessionId);
@@ -1058,6 +1062,8 @@ export function createApp(opts: AppOptions = {}) {
     changesByRun.set(runId, work);
     try {
       const answer = await work;
+      // M6 (day-6 review): a replay that could not finish is not kept, so the run can be asked again.
+      if (!answer.ok && answer.reason.startsWith("the replay could not finish")) changesByRun.delete(runId);
       if (answer.ok) {
         keepRun(answer.replay);
         // D06-01: the change and its replay go into the round's .atlas.json (verified again as a whole).
@@ -1085,6 +1091,32 @@ export function createApp(opts: AppOptions = {}) {
     return c.json(file);
   });
 
+  /**
+   * S2 (day-6 review): a card that carries a change re-runs the change replay too (the same change on the
+   * same experiment, same seed / same fork block), and compares it with the file's replay.
+   */
+  type ReplayAnswerChange = { replayRunId: string; measuredEqual: boolean; resultDiff: string[]; controlPassed: boolean; sameOutcomes: boolean } | { error: string };
+  const rerunChange = async (file: AtlasFile, exp: Experiment, before: Run): Promise<ReplayAnswerChange | undefined> => {
+    if (!file.change || !file.replay) return undefined;
+    const stored = file.replay;
+    try {
+      const again =
+        before.runner === "evm"
+          ? scrubDeep(await (opts.evmReplay ?? ((r, ch, ctx) => evmRunner({ onProgress: ctx.onProgress }).replayWithChange(r, ch, ctx)))(before, file.change, { experiment: exp }))
+          : await (opts.tsReplay ?? ((r, ch, ctx) => tsRunner(executor).replayWithChange(r, ch, ctx)))(before, file.change, { experiment: exp });
+      const verdicts = file.bets.map((b) => judge(b, again));
+      return {
+        replayRunId: again.id,
+        measuredEqual: sameJson(stored.run.result.measured, again.result.measured),
+        resultDiff: resultDiff(stored.run.result, again.result),
+        controlPassed: again.controlPassed,
+        sameOutcomes: verdicts.every((x) => stored.verdicts.find((y) => y.betId === x.betId)?.outcome === x.outcome),
+      };
+    } catch (e) {
+      return { error: redactRpc(e instanceof Error ? e.message : String(e)) };
+    }
+  };
+
   // D04-04: re-execute a round from its .atlas.json. TS: the same seed; EVM: the same fork block.
   // Answers whether the replay's `measured` is deep-equal to the file's, and which result fields differ.
   app.get("/replay/:runId", async (c) => {
@@ -1097,6 +1129,7 @@ export function createApp(opts: AppOptions = {}) {
     const exp = file.experiments[0]!;
     const before = file.runs[0]!;
     let replay: Run;
+    let changeReplay: ReplayAnswerChange | undefined;
     if (before.runner === "evm") {
       // S5: an EVM replay forks Base and makes paid RPC reads, so it is capped per session and overall.
       // The session must be sent (not made up by the server), or the per-session cap would mean nothing.
@@ -1107,12 +1140,14 @@ export function createApp(opts: AppOptions = {}) {
       if (!slot.ok) return c.json({ error: `replay not started: ${slot.reason}` }, 429);
       try {
         replay = scrubDeep(await evmRun(exp, { forkBlock: before.forkBlock!, onProgress: () => {} }));
+        changeReplay = await rerunChange(file, exp, before);
       } finally {
         slot.release();
       }
     } else {
       const ctl = await getControl(exp.target);
       replay = await runExperiment(exp, ctl, { executor, ...(before.seed !== undefined ? { seed: before.seed } : {}) });
+      changeReplay = await rerunChange(file, exp, before);
     }
     const again = file.bets.map((b) => judge(b, replay));
     return c.json({
@@ -1125,6 +1160,7 @@ export function createApp(opts: AppOptions = {}) {
       resultDiff: resultDiff(before.result, replay.result),
       controlPassed: replay.controlPassed,
       sameOutcomes: again.every((x) => file.verdicts.find((y) => y.betId === x.betId)?.outcome === x.outcome),
+      ...(changeReplay ? { changeReplay } : {}),
       replay,
     });
   });

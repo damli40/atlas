@@ -137,9 +137,25 @@ export function proofCardModel(file: AtlasFile): ProofCardModel {
 }
 
 /** What the card says about a replay: the same result, or the fields that differ. */
-export function replayWords(r: { measuredEqual: boolean; resultDiff: string[]; sameOutcomes: boolean; controlPassed: boolean }): { same: boolean; text: string } {
-  if (!r.controlPassed) return { same: false, text: "replayed: the known-case check did not match on the replay, so it can't check" };
-  if (r.measuredEqual && r.resultDiff.length === 0 && r.sameOutcomes) return { same: true, text: "replayed: same result ✓" };
-  const diff = r.resultDiff.length > 0 ? r.resultDiff.join(", ") : r.measuredEqual ? "every measured field equal, but a verdict came out differently" : "measured fields differ";
-  return { same: false, text: `replayed: the result differs (${diff})` };
+type ReplayCheck = { measuredEqual: boolean; resultDiff: string[]; sameOutcomes: boolean; controlPassed: boolean };
+const oneRun = (r: ReplayCheck): { same: boolean; why: string } => {
+  if (!r.controlPassed) return { same: false, why: "the known-case check did not match on the replay, so it can't check" };
+  if (r.measuredEqual && r.resultDiff.length === 0 && r.sameOutcomes) return { same: true, why: "same result" };
+  return { same: false, why: r.resultDiff.length > 0 ? `differs: ${r.resultDiff.join(", ")}` : r.measuredEqual ? "every measured field equal, but a verdict came out differently" : "measured fields differ" };
+};
+
+/**
+ * The words under "Re-run it". S2 (day-6 review): on a card with a change, BOTH the original run and the
+ * change replay are re-run; "same result ✓" only when both match, otherwise which one differed.
+ */
+export function replayWords(r: ReplayCheck & { changeReplay?: ReplayCheck | { error: string } }): { same: boolean; text: string } {
+  const orig = oneRun(r);
+  if (r.changeReplay === undefined) {
+    if (!r.controlPassed) return { same: false, text: `replayed: ${orig.why}` };
+    return orig.same ? { same: true, text: "replayed: same result ✓" } : { same: false, text: `replayed: the result ${orig.why === "measured fields differ" ? "differs (measured fields differ)" : orig.why.startsWith("differs") ? `differs (${orig.why.slice("differs: ".length)})` : `differs (${orig.why})`}` };
+  }
+  if ("error" in r.changeReplay) return { same: false, text: `replayed the original run (${orig.why}); the change replay could not be re-run: ${r.changeReplay.error}` };
+  const ch = oneRun(r.changeReplay);
+  if (orig.same && ch.same) return { same: true, text: "replayed both runs (before and after the change): same result ✓" };
+  return { same: false, text: `replayed both runs: before the change, ${orig.why}; after the change, ${ch.why}` };
 }

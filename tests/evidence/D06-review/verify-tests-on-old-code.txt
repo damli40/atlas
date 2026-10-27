@@ -1,0 +1,13 @@
+     × measured edited (and verdicts recomputed to agree) → caught by the trace 724ms
+     × trace events deleted except replay_checks → caught 688ms
+     × harnessCheck.passed false while controlPassed stays true → caught 672ms
+     × finishedAt earlier than startedAt → caught 666ms
+     × the change caption missing → caught 664ms
+     × M8: a sentence in proposedBy.model → refused 699ms
+     × both re-run with the same seed: 'same result ✓' only because both match 789ms
+     × when the change replay comes out differently, the card says which one differed 774ms
+     × words: a change replay that could not run is said, never 'same result' 0ms
+     × asking again after a failed replay tries again 278ms
+⎯⎯⎯⎯⎯⎯ Failed Tests 10 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/unit/review-day6-verify.test.ts > S2: 'Re-run it' on a card with a change re-runs BOTH runs > both re-run with the same seed: 'same result ✓' only because both match
+      Tests  10 failed (10)

@@ -83,6 +83,11 @@ export interface ReplayAnswer {
   resultDiff: string[];
   controlPassed: boolean;
   sameOutcomes: boolean;
+  /**
+   * S2 (day-6 review): present when the card carries a change. The change replay re-run too (same seed /
+   * same fork block), compared with the file's replay. `error` when it could not be re-run.
+   */
+  changeReplay?: { replayRunId: string; measuredEqual: boolean; resultDiff: string[]; controlPassed: boolean; sameOutcomes: boolean } | { error: string };
 }
 
 export class ApiError extends Error {

@@ -28,6 +28,8 @@ const input = { context: tsChangeContext(REF, code), finding: { file: REF, lineS
 const usage = { promptTokens: 1, completionTokens: 1, usd: 0 };
 const usagePath = join(mkdtempSync(join(tmpdir(), "atlas-d6-fixer-")), "usage.jsonl");
 const noChat = async () => ({ ok: false as const, reason: "chat not used here" });
+/** A made-up home folder, built so this file holds no literal local path (tests/unit/no-local-paths.test.ts). */
+const FAKE_HOME = ["", "Users", "someone"].join("/");
 
 describe("S4: the model guard", () => {
   it("refuses 'contributor' anywhere in the id, in any case, with any separator or suffix", () => {
@@ -98,8 +100,8 @@ describe("S8: Muse Code's reach and its raw answer", () => {
     for (const f of ["--disable-shell", "--disable-write", "--disable-web-tools", "--approval-mode never", "--approval-judge off", "--no-foreign-personal-context", "--contributor-mode off", "--model muse-spark-1.3", "--api-key-stdin"]) expect(a).toContain(f);
   });
   it("the sandbox profile refuses file contents under the home folder and the temp roots, except its own folders", () => {
-    const p = museSandboxProfile({ workspace: "/private/var/folders/x/T/ws", home: "/private/var/folders/x/T/h", museDir: "/Users/someone/.local/bin", userHome: "/Users/someone" });
-    expect(p).toContain('(deny file-read-data file-write* (subpath "/Users/someone"))');
+    const p = museSandboxProfile({ workspace: "/private/var/folders/x/T/ws", home: "/private/var/folders/x/T/h", museDir: `${FAKE_HOME}/.local/bin`, userHome: FAKE_HOME });
+    expect(p).toContain(`(deny file-read-data file-write* (subpath "${FAKE_HOME}"))`);
     expect(p).toContain('(deny file-read-data file-write* (subpath "/private/var/folders"))');
     expect(p).toContain('(deny file-read-data file-write* (subpath "/private/tmp"))');
     expect(p).toContain('(allow file-read-data file-write* (subpath "/private/var/folders/x/T/ws") (subpath "/private/var/folders/x/T/h"))');
@@ -123,7 +125,7 @@ describe("S8: Muse Code's reach and its raw answer", () => {
   });
   it("the raw answer is kept only scrubbed: key, secret shapes and absolute paths removed", () => {
     const key = "meta-key-0123456789abcdef";
-    const raw = `I read ${key} from /Users/someone/.config/meta-model-api/env and ~/.config/atlas/rpc.env; also sk-${"a".repeat(24)}`; // secret-scan: allow
+    const raw = `I read ${key} from ${FAKE_HOME}/.config/meta-model-api/env and ~/.config/atlas/rpc.env; also sk-${"a".repeat(24)}`; // secret-scan: allow
     const s = scrubModelText(raw, key);
     expect(s).not.toContain(key);
     expect(s).not.toContain("/Users/");

@@ -29,7 +29,7 @@ import { evaluateReplayRule, falseAlarmFromRun } from "./falsealarm";
 import { chainlinkTo1e18, usdTimesRatio1e18 } from "./units";
 import { canonicalJson, sha256Hex, verifySeal } from "./seal";
 import { applyFileDiff, parseUnifiedDiff, type DiffFile } from "./diff";
-import { towardFromBets } from "./change";
+import { CHANGE_CAPTION, towardFromBets } from "./change";
 import type { AgentEvent, AtlasFile, Bet, Change, Experiment, Finding, Run, Target, Verdict } from "./types";
 
 // The two level captions live in src/captions.ts (no Node imports), so the web page can use them
@@ -208,7 +208,8 @@ export const atlasFileSchema = z
         id: z.string().min(1),
         runId: z.string().min(1),
         diff: z.string().min(1),
-        proposedBy: z.object({ role: z.literal("fixer"), model: z.string().min(1) }).strict(),
+        // M8 (day-6 review): a model id, never a sentence.
+        proposedBy: z.object({ role: z.literal("fixer"), model: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,63}$/) }).strict(),
         toward: z.string().min(1),
         replayRunId: z.string().optional(),
       })
@@ -398,6 +399,51 @@ export function evmRunAgreesWithItsTrace(r: Run): string[] {
   return out;
 }
 
+/**
+ * S1 (day-6 review): a TS run's measured values against its own trace (runners/ts/harness.ts runScenario
+ * writes both). Every count, wait, log line and the outcome must be what the trace's events add up to, so
+ * editing `measured` without the trace (or deleting trace events) is caught. Concurrency sweeps are not
+ * checked here (they have their own trace shape and no bets).
+ */
+export function tsRunAgreesWithItsTrace(r: Run): string[] {
+  const out: string[] = [];
+  const m = r.result.measured;
+  const ev = (name: string) => r.trace.filter((t) => t.event === name);
+  if (ev("stopped_watching").length > 0) {
+    for (const k of ["calls", "outcome", "waitCount", "totalWaitMs", "logCount"]) if (k in m) out.push(`its trace says Atlas stopped watching, but measured ${k} is set`);
+    return out;
+  }
+  if (!("outcome" in m)) return out.length ? out : ["it measured no outcome and its trace does not say Atlas stopped watching"];
+  const sleeps = ev("sleep").map((t) => asRecord(t.data).ms);
+  const logs = ev("log").map((t) => String(asRecord(t.data).msg));
+  const want: Record<string, unknown> = {
+    calls: ev("call").length,
+    waitCount: sleeps.length,
+    waitsMs: sleeps.join(","),
+    logCount: logs.length,
+    logAttempts: logs.map((msg) => /attempt (\d+\/\d+)/.exec(msg)?.[1] ?? "?").join(","),
+  };
+  if (sleeps.every((w) => typeof w === "number" && Number.isFinite(w) && w >= 0)) want.totalWaitMs = (sleeps as number[]).reduce((a, b) => a + b, 0);
+  const ends = [...ev("returns"), ...ev("throws"), ...ev("pending")];
+  if (ends.length !== 1) out.push(`its trace has ${ends.length} outcome events (returns / throws / pending), not 1`);
+  else {
+    const e = ends[0]!;
+    want.outcome = e.event;
+    if (e.event === "returns") {
+      want.returned = asRecord(e.data).value;
+      want.settledAtMs = e.t;
+    }
+    if (e.event === "throws") {
+      want.thrown = asRecord(e.data).error;
+      want.settledAtMs = e.t;
+    }
+  }
+  for (const [k, v] of Object.entries(want)) if (m[k] !== v) out.push(`measured ${k} is ${JSON.stringify(m[k] ?? null)}, but its trace adds up to ${JSON.stringify(v)}`);
+  return out;
+}
+
+const isRetryRun = (file: Pick<AtlasFile, "experiments">, r: Run) => r.runner === "ts" && file.experiments.find((e) => e.id === r.experimentId)?.params.shape === "retry-scenario";
+
 /** The file's Level 2 run (an EVM apply-proposal-then-read run), if it has one. */
 function isLevel2(file: Pick<AtlasFile, "experiments" | "runs">): Run | undefined {
   return file.runs.find((r) => r.runner === "evm" && file.experiments.find((e) => e.id === r.experimentId)?.params.shape === "apply-proposal-then-read");
@@ -430,7 +476,9 @@ export function verifyAtlasFile(raw: unknown): Verification {
     if (r.runner === "ts") {
       if (r.seed === undefined) say(`TS run ${r.id} has no seed`);
       else if (file.seed !== r.seed) say(`TS run ${r.id} used seed ${r.seed}, the file says ${file.seed}`);
+      if (isRetryRun(file, r)) for (const p of tsRunAgreesWithItsTrace(r)) say(`run ${r.id}: ${p}`);
     }
+    if (Date.parse(r.finishedAt) < Date.parse(r.startedAt)) say(`run ${r.id} finished before it started`);
   }
   // Experiments and runs link by id: /replay re-runs experiments[0] and compares it with runs[0].
   const ids = file.experiments.map((e) => e.id);
@@ -470,7 +518,7 @@ export function verifyAtlasFile(raw: unknown): Verification {
   for (const p of changeProblems(file)) say(`change: ${p}`);
   const required = requiredCaptions(file);
   for (const c of required) if (!file.captions.includes(c)) say(`missing caption: "${c}"`);
-  const allowed = new Set([...required, ...allowedExtraCaptions(file)]);
+  const allowed = new Set([...required, ...allowedExtraCaptions(file), ...(file.change ? [CHANGE_CAPTION] : [])]);
   for (const c of file.captions) if (!allowed.has(c)) say(`caption "${c}" is not one this run earns`);
   if (new Set(file.captions).size !== file.captions.length) say("a caption appears twice");
   // The false-alarm table is never trusted as stored: it is rebuilt from the run (src/falsealarm.ts),
@@ -584,8 +632,23 @@ export function changeProblems(file: AtlasFile): string[] {
       if (!sha.ok && sha.reason === "does not apply") out.push("its diff does not apply to the code the file names");
     }
   }
-  const checks = r.trace.find((e) => e.event === "replay_checks")?.data;
+  const checksEv = r.trace.filter((e) => e.event === "replay_checks");
+  const checks = checksEv.length === 1 ? checksEv[0]!.data : undefined;
+  if (checksEv.length !== 1) out.push(`the replay has ${checksEv.length} replay_checks events, not 1`);
   if (!checks || checks.originalCodeSha256 !== file.codeSha256) out.push("the replay's replay_checks event does not name the file's code");
+  if (checks && (checks.replayOf !== run.id || checks.changeId !== change.id)) out.push("the replay's replay_checks event does not name the original run and this change");
+  if (Date.parse(r.finishedAt) < Date.parse(r.startedAt)) out.push("the replay finished before it started");
+  if (!file.captions.includes(CHANGE_CAPTION)) out.push(`the file does not carry the caption "${CHANGE_CAPTION}"`);
+  // S1 (day-6 review): the replay is checked as strictly as the original run.
+  if (run.runner === "ts") {
+    const hc = asRecord(checks?.harnessCheck);
+    if (typeof hc.passed !== "boolean") out.push("the replay's harness check has no result");
+    else if (hc.passed !== (r.controlPassed === true)) out.push(`the replay's harness check says passed = ${hc.passed}, but its controlPassed is ${r.controlPassed}`);
+    if (r.controlPassed !== true && typeof r.result.notMeasured.control !== "string") out.push("the replay's control did not pass but notMeasured.control gives no reason");
+    if (r.controlPassed === true && r.result.notMeasured.control !== undefined) out.push("the replay's controlPassed is true but notMeasured.control says it failed");
+    if (checks && (checks.seed !== run.seed || checks.changedCodeSha256 !== r.codeSha256)) out.push("the replay's replay_checks event does not name the same seed and the changed code it ran");
+    if (isRetryRun(file, r)) for (const p of tsRunAgreesWithItsTrace(r)) out.push(`replay ${r.id}: ${p}`);
+  }
   for (const b of file.bets) {
     const v = replay.verdicts.find((x) => x.betId === b.id);
     if (!v) out.push(`bet ${b.id} has no verdict on the replay`);
@@ -621,7 +684,7 @@ function changedCodeSha256(file: AtlasFile, runner: "ts" | "evm", diff: DiffFile
 
 /** Add a change and its replay to a round's file, then verify the whole file again. Throws when it does not verify. */
 export function withChange(file: AtlasFile, change: Change, replay: NonNullable<AtlasFile["replay"]>): AtlasFile {
-  const next: AtlasFile = { ...file, change: { ...change, replayRunId: replay.run.id }, replay };
+  const next: AtlasFile = { ...file, change: { ...change, replayRunId: replay.run.id }, replay, captions: [...new Set([...file.captions, CHANGE_CAPTION])] };
   const v = verifyAtlasFile(JSON.parse(JSON.stringify(next)));
   if (!v.ok) throw new Error(`the .atlas.json with its change does not verify: ${v.problems.join("; ")}`);
   return v.file;
