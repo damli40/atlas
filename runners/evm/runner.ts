@@ -119,7 +119,6 @@ export function evmRunner(options: EvmRunnerOptions = {}): Runner {
 
         // The control runs first, on the same fork, at the same block.
         const ctl = await readControl(client, forkBlock);
-        const ctlRun = controlRun(exp.target, ctl, startedAt);
         log(ctl.passed ? "control_matched" : "control_did_not_match", { control: ctl as unknown as Record<string, unknown> });
 
         const result: RunResult = { measured: {}, notMeasured: {}, references: {} };
@@ -167,7 +166,8 @@ export function evmRunner(options: EvmRunnerOptions = {}): Runner {
           trace,
           result,
           controlPassed: ctl.passed === true,
-          controlRunId: ctlRun.id,
+          // No controlRunId: the control ran on this same fork and is in this run's trace
+          // (control_matched / control_did_not_match); a separate control Run is never stored (review M9).
           ...(opts.replayOf ? { replayOf: opts.replayOf } : {}),
         };
       });

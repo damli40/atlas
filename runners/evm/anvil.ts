@@ -52,7 +52,8 @@ function installExitHook(): void {
   for (const sig of ["SIGINT", "SIGTERM"] as const) {
     process.once(sig, () => {
       killAll();
-      process.exit(130);
+      // Exit only when nobody else handles this signal; otherwise their shutdown runs (review M10).
+      if (process.listenerCount(sig) === 0) process.exit(sig === "SIGINT" ? 130 : 143);
     });
   }
 }
@@ -78,6 +79,16 @@ export function freePort(): Promise<number> {
   });
 }
 
+/** The port in anvil's "Listening on 127.0.0.1:<port>" line, or undefined before it is printed. */
+export function listeningPort(output: string): number | undefined {
+  const m = /Listening on 127\.0\.0\.1:(\d{1,5})\b/.exec(output);
+  const n = m ? Number(m[1]) : NaN;
+  return Number.isInteger(n) && n > 0 && n < 65536 ? n : undefined;
+}
+
+/** The end of anvil's (redacted) output for an error message. */
+const tail = (output: string) => output.trim().slice(-1500) || "<none>";
+
 async function rpcAnswers(url: string): Promise<boolean> {
   try {
     const res = await fetch(url, {
@@ -94,7 +105,7 @@ async function rpcAnswers(url: string): Promise<boolean> {
   }
 }
 
-/** Start `anvil --fork-url <rpc> --fork-block-number N --port <free> --silent` and wait until it answers. */
+/** Start `anvil --fork-url <rpc> --fork-block-number N --port 0`, read the port it bound, and wait until it answers there. */
 export async function startAnvil(opts: StartAnvilOptions): Promise<AnvilFork> {
   const rpcUrl = opts.rpcUrl ?? process.env.BASE_RPC_URL;
   if (!rpcUrl) throw new Error("BASE_RPC_URL is not set: cannot fork Base");
@@ -104,18 +115,30 @@ export async function startAnvil(opts: StartAnvilOptions): Promise<AnvilFork> {
   const readyTimeoutMs = opts.readyTimeoutMs ?? 60_000;
   installExitHook();
 
-  const port = await freePort();
+  // Port 0: anvil binds a free port itself and prints "Listening on 127.0.0.1:<port>". Picking a port
+  // here first and passing it in raced with other processes: a port taken in between could make the
+  // readiness check answer from someone else's anvil (review M4).
   const child = spawn(
     "anvil",
-    ["--fork-url", rpcUrl, "--fork-block-number", String(opts.forkBlock), "--port", String(port), "--host", "127.0.0.1", "--silent"],
+    ["--fork-url", rpcUrl, "--fork-block-number", String(opts.forkBlock), "--port", "0", "--host", "127.0.0.1"],
     { stdio: ["ignore", "pipe", "pipe"] },
   );
   live.add(child);
 
   // Keep the last few KB of output, redacted, for an error message. Never printed otherwise.
   let output = "";
+  let port = 0;
+  // The port is parsed from the raw text (the redaction could hide "127.0.0.1" when the RPC itself is
+  // local); this small raw tail is never shown or kept beyond that.
+  let raw = "";
   const keep = (chunk: Buffer) => {
-    output = (output + redact(chunk.toString("utf8"), rpcUrl)).slice(-4000);
+    const text = chunk.toString("utf8");
+    output = (output + redact(text, rpcUrl)).slice(-4000);
+    if (!port) {
+      raw = (raw + text).slice(-512);
+      port = listeningPort(raw) ?? 0;
+      if (port) raw = "";
+    }
   };
   child.stdout?.on("data", keep);
   child.stderr?.on("data", keep);
@@ -152,17 +175,19 @@ export async function startAnvil(opts: StartAnvilOptions): Promise<AnvilFork> {
     return stopping;
   };
 
-  const url = `http://127.0.0.1:${port}`;
   const deadline = Date.now() + readyTimeoutMs;
   while (Date.now() < deadline) {
     if (exited) {
-      throw new Error(`anvil exited before it was ready (${exitInfo}). Output (redacted): ${output.trim() || "<none>"}`);
+      throw new Error(`anvil exited before it was ready (${exitInfo}). Output (redacted): ${tail(output)}`);
     }
-    if (await rpcAnswers(url)) return { url, port, forkBlock: opts.forkBlock, stop };
+    if (port) {
+      const url = `http://127.0.0.1:${port}`;
+      if (await rpcAnswers(url)) return { url, port, forkBlock: opts.forkBlock, stop };
+    }
     await new Promise((r) => setTimeout(r, 250));
   }
   await stop();
-  throw new Error(`anvil did not answer within ${readyTimeoutMs} ms. Output (redacted): ${output.trim() || "<none>"}`);
+  throw new Error(`anvil did not answer within ${readyTimeoutMs} ms. Output (redacted): ${tail(output)}`);
 }
 
 /** Start a fork, run `fn` against it, and always stop the fork afterwards (also on error). */

@@ -83,7 +83,7 @@ describe("pass rule evaluation (offline)", () => {
   });
   it("a failed control turns every rule line into can't check", () => {
     const lines = evaluatePassRule(fakeRecord(false));
-    for (const l of lines.filter((x) => /^[123]\./.test(x.rule) || x.rule.startsWith("Single-feed"))) expect(l.outcome).toBe("can't check");
+    for (const l of lines.filter((x) => /^[123]\./.test(x.rule) || x.rule.startsWith("Observed"))) expect(l.outcome).toBe("can't check");
   });
 });
 

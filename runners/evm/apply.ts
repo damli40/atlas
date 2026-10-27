@@ -280,6 +280,17 @@ export async function applyFeedActions(client: PublicClient, admin: Address, act
 /** latestRoundData() selector. */
 export const LATEST_ROUND_DATA_SELECTOR = "0xfeaf968c";
 
+/**
+ * Other ways to read a Chainlink price. The count follows latestRoundData() only, so when the trace
+ * reads a feed with one of these, the count could come out low: it is then recorded as not measured
+ * instead (review M1).
+ */
+export const OTHER_PRICE_SELECTORS: Record<string, string> = {
+  "0x50d25bcd": "latestAnswer()",
+  "0x9a6fc8f5": "getRoundData(uint80)",
+  "0xb5ab58dc": "getAnswer(uint256)",
+};
+
 export interface CallFrame {
   type?: string;
   to?: string;
@@ -301,7 +312,7 @@ export type SourceCount =
   | { ok: false; reason: string; rawShape: unknown };
 
 export const SOURCE_COUNT_METHOD =
-  "debug_traceCall with callTracer on getUnderlyingPrice; walk the call tree; keep calls whose input starts with latestRoundData() (0xfeaf968c); count the distinct callee addresses that make no further latestRoundData() call themselves (the aggregators the numbers come from; wrappers and Chainlink proxies pass a call through and are not counted)";
+  "debug_traceCall with callTracer on getUnderlyingPrice; walk the call tree; keep calls whose input starts with latestRoundData() (0xfeaf968c); if any call reads a price another way (latestAnswer, getRoundData, getAnswer) the count is not measured; count the distinct callee addresses that make no further latestRoundData() call themselves (the aggregators the numbers come from; wrappers and Chainlink proxies pass a call through and are not counted)";
 
 const isFrame = (x: unknown): x is CallFrame => typeof x === "object" && x !== null && !Array.isArray(x);
 
@@ -312,8 +323,11 @@ export function countPriceSources(trace: unknown): SourceCount {
   }
   const callees: string[] = [];
   const sources: string[] = [];
+  const otherReads: string[] = [];
   let malformed = false;
   const visit = (f: CallFrame): boolean => {
+    const sel = typeof f.input === "string" ? f.input.slice(0, 10).toLowerCase() : "";
+    if (OTHER_PRICE_SELECTORS[sel] && typeof f.to === "string") otherReads.push(`${OTHER_PRICE_SELECTORS[sel]} on ${f.to.toLowerCase()}`);
     // returns: did this subtree contain a latestRoundData call?
     const isLrd = typeof f.input === "string" && f.input.toLowerCase().startsWith(LATEST_ROUND_DATA_SELECTOR) && typeof f.to === "string";
     if (isLrd && !callees.includes(f.to!.toLowerCase())) callees.push(f.to!.toLowerCase()); // call order (outermost first)
@@ -336,6 +350,9 @@ export function countPriceSources(trace: unknown): SourceCount {
   visit(trace);
   if (malformed) return { ok: false, reason: "the call tree has a calls field that is not a list of frames", rawShape: summarizeShape(trace) };
   if (callees.length === 0) return { ok: false, reason: "no latestRoundData() call appears in the trace", rawShape: summarizeShape(trace) };
+  if (otherReads.length > 0) {
+    return { ok: false, reason: `the trace also reads a price with ${[...new Set(otherReads)].join(", ")}, which this count does not follow, so the count is not measured`, rawShape: summarizeShape(trace) };
+  }
   return {
     ok: true,
     sources: sources as Address[],

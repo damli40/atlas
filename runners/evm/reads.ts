@@ -35,8 +35,8 @@ export async function getFeed(client: PublicClient, symbol: string): Promise<Add
   return client.readContract({ address: CHAINLINK_ORACLE, abi: ORACLE_ABI, functionName: "getFeed", args: [symbol] });
 }
 
-export async function feedDecimals(client: PublicClient, feed: Address): Promise<number> {
-  return client.readContract({ address: feed, abi: FEED_ABI, functionName: "decimals" });
+export async function feedDecimals(client: PublicClient, feed: Address, blockNumber?: bigint): Promise<number> {
+  return client.readContract({ address: feed, abi: FEED_ABI, functionName: "decimals", ...(blockNumber !== undefined ? { blockNumber } : {}) });
 }
 
 /** Chainlink description(); null when the contract has none or the call reverts (wrappers may not expose it). */
@@ -57,11 +57,12 @@ export interface RoundData {
 }
 
 /** latestRoundData(), every number as a decimal string (bigint-safe). */
-export async function latestRoundData(client: PublicClient, feed: Address): Promise<RoundData> {
+export async function latestRoundData(client: PublicClient, feed: Address, blockNumber?: bigint): Promise<RoundData> {
   const [roundId, answer, startedAt, updatedAt, answeredInRound] = await client.readContract({
     address: feed,
     abi: FEED_ABI,
     functionName: "latestRoundData",
+    ...(blockNumber !== undefined ? { blockNumber } : {}),
   });
   return {
     roundId: roundId.toString(),

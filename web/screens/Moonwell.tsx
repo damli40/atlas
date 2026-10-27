@@ -228,7 +228,7 @@ export function MoonwellFlow({ api }: { api: Api }) {
               {typeof m["priceSources:cbETH"] === "number" && (
                 <>
                   <dt>price sources</dt>
-                  <dd>cbETH's read touched {m["priceSources:cbETH"]} price source(s) (call trace)</dd>
+                  <dd>cbETH's read touched {m["priceSources:cbETH"]} price source(s) (call trace). Observed, not part of the pre-registered rule: PASS-RULE.md counts sources only after a proposed change.</dd>
                 </>
               )}
             </dl>

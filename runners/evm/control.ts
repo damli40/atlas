@@ -205,9 +205,13 @@ export type ReferenceResult =
  */
 export async function cbEthReference(client: PublicClient, forkBlock: number): Promise<ReferenceResult> {
   try {
+    // Read AT the fork block, as the method text says (review M3). On a Level 2 fork the latest block
+    // is later (Atlas's own setFeed transactions); they do not touch these aggregators, but the
+    // reference is defined at the fork block, so it is read there.
+    const at = BigInt(forkBlock);
     const [ethDec, ratioDec] = await Promise.all([
-      feedDecimals(client, RAW_FEED.ETH_USD.address),
-      feedDecimals(client, RAW_FEED.cbETH_ETH.address),
+      feedDecimals(client, RAW_FEED.ETH_USD.address, at),
+      feedDecimals(client, RAW_FEED.cbETH_ETH.address, at),
     ]);
     if (ethDec !== RAW_FEED.ETH_USD.decimals) {
       return { ok: false, reason: `the ETH/USD aggregator reports ${ethDec} decimals on-chain, not ${RAW_FEED.ETH_USD.decimals}` };
@@ -216,8 +220,8 @@ export async function cbEthReference(client: PublicClient, forkBlock: number): P
       return { ok: false, reason: `the cbETH/ETH aggregator reports ${ratioDec} decimals on-chain, not ${RAW_FEED.cbETH_ETH.decimals}` };
     }
     const [eth, ratio] = await Promise.all([
-      latestRoundData(client, RAW_FEED.ETH_USD.address),
-      latestRoundData(client, RAW_FEED.cbETH_ETH.address),
+      latestRoundData(client, RAW_FEED.ETH_USD.address, at),
+      latestRoundData(client, RAW_FEED.cbETH_ETH.address, at),
     ]);
     if (BigInt(eth.answer) <= 0n || BigInt(ratio.answer) <= 0n) {
       return { ok: false, reason: `an aggregator answered a non-positive value (ETH/USD ${eth.answer}, cbETH/ETH ${ratio.answer})` };

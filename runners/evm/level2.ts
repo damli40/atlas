@@ -19,7 +19,7 @@ import { usdTimesRatio1e18 } from "../../src/units.ts";
 import { CONTROL_FAILED_NOTE, withinPct, diffPpm, differsByMoreThan, FALSE_ALARM_PCT, FLAG_PCT, ppmToPct, type FalseAlarmRow } from "../../src/falsealarm.ts";
 import { applyFeedActions, comparePairs, planFromPrFiles, resolveSymbols, traceUnderlyingPriceSources, type AppliedFeedAction, type FeedAction, type PairComparison, type SourceCount } from "./apply.ts";
 import { assertPreExecution, cbEthReference, inStablecoinBand, readControl, why, type EvmControlRecord, type ReferenceResult } from "./control.ts";
-import { MOONWELL_cbETH, TEMPORAL_GOVERNOR, USD_STABLECOINS } from "./moonwell-base.ts";
+import { MOONWELL_cbETH, TEMPORAL_GOVERNOR, TOUCHED_MARKETS, USD_STABLECOINS } from "./moonwell-base.ts";
 import { readMarketPrice, type MarketPriceRead } from "./reads.ts";
 
 export const LEVEL2_CAPTION = "fork of Base one block before MIP-X43 ran; Atlas applied the proposal's oracle-feed actions as the governor";
@@ -76,6 +76,13 @@ export async function runLevel2OnFork(client: PublicClient, fork: { url: string 
 
   // Derive the actions from the PR files; symbols are read on this fork, as mip-x43.sol does.
   const actions = await resolveSymbols(client, planFromPrFiles());
+  // The derived actions must be exactly the 14 markets PASS-RULE.md names (review M5); otherwise the
+  // table would silently cover a different set.
+  const derived = [...actions.map((a) => a.symbol)].sort();
+  const named = [...TOUCHED_MARKETS].sort();
+  if (derived.length !== named.length || derived.some((s, i) => s !== named[i])) {
+    throw new Error(`the actions derived from the PR files (${derived.join(", ")}) are not the ${named.length} markets PASS-RULE.md names (${named.join(", ")})`);
+  }
 
   // 3. Pre-apply reads, and the cbETH trace before the change (the old feed, for comparison).
   const pre: Record<string, MarketRead> = {};
@@ -214,7 +221,7 @@ export function evaluatePassRule(rec: Level2Record, table = falseAlarmTable(rec)
 
   const t = rec.trace.post;
   lines.push({
-    rule: "Single-feed trace (D04-02 acceptance): cbETH post-apply price touches 1 price source (no multiply)",
+    rule: "Observed, not part of the pre-registered rule: cbETH's post-apply price touches 1 price source (no multiply). PASS-RULE.md counts price sources only in rule 3, after a proposed change (2 expected).",
     outcome: gate(t.ok ? (t.count === 1 ? "matched" : "didn't match") : "can't check"),
     detail: t.ok ? `${t.count} source(s): ${t.sources.join(", ")}; latestRoundData called on (outermost first): ${t.latestRoundDataCallees.join(" → ")}` : `not measured: ${t.reason}`,
   });

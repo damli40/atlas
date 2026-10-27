@@ -386,6 +386,7 @@ export function verifyAtlasFile(raw: unknown): Verification {
   // which also makes every flag "can't check" when the run's control did not pass.
   const level2Run = isLevel2(file);
   if (level2Run && !file.falseAlarm) say("a Level 2 file must carry its false-alarm table");
+  if (level2Run && falseAlarmFromRun(level2Run).length === 0) say("a Level 2 run must record the actions it applied (its proposal_derived trace event); without them the false-alarm table would be empty");
   if (!level2Run && file.falseAlarm) say("only a Level 2 file carries a false-alarm table");
   if (level2Run && file.falseAlarm && !sameJson(falseAlarmFromRun(level2Run), file.falseAlarm)) say("the false-alarm table is not what src/falsealarm.ts rebuilds from the run");
   return problems.length ? { ok: false, problems } : { ok: true, file };

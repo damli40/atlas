@@ -81,7 +81,18 @@ export function FindingsPanel({ api, target, chosen, onChoose, locked, allowPick
               </li>
             ))}
           </ul>
-          {answer.dropped.length > 0 && <p className="muted small">{answer.dropped.length} place(s) removed by plain code: the lines did not match the file.</p>}
+          {answer.dropped.length > 0 && (
+            <div className="muted small" data-testid="dropped-places">
+              <p>{answer.dropped.length} place(s) removed by plain code:</p>
+              <ul>
+                {answer.dropped.map((d, i) => (
+                  <li key={i}>
+                    <code>{d.file}:{d.lineStart}–{d.lineEnd}</code>: {d.reason.replace(/^removed: /, "")}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <div className="model-panel" data-testid="investigator-panel">
             <h3>Model panel: what {modelName(answer.model)} said</h3>
             <p className="muted small">The model's own words about each place. Not a verdict, and not shown to the model that bets.</p>
