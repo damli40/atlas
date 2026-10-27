@@ -1,0 +1,3 @@
+$ pnpm server
+$ tsx server/index.ts
+Atlas server listening on http://localhost:8787
