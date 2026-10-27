@@ -1,6 +1,8 @@
 // D02-03: the model go/no-go table, written by plain code.
 //
 // Run: pnpm exec tsx tests/tools/go-no-go.ts
+//      pnpm exec tsx tests/tools/go-no-go.ts --only spark-open   (D07-01: re-checks only the Spark Open
+//      row; the other rows are kept from go-no-go.json as they were written, with their own date)
 // Writes tests/evidence/D02-03/go-no-go.md and go-no-go.json (the raw rows).
 //
 // One row per model, each decided by a plain rule (no judgment):
@@ -11,7 +13,8 @@
 //    answers were schema-valid.
 // 3. Spark Open on Baseten (meta-models/muse-spark-open-1026): needs a Baseten key in
 //    BASETEN_API_KEY or ~/.config/baseten/env. No key → "pending" (never faked). With a key → ONE
-//    real call to the OpenAI-style endpoint (path UNVERIFIED) with the same small request; GO only
+//    real call to Baseten's OpenAI-compatible Model API (https://inference.baseten.co/v1, checked live
+//    2026-10-27, D07-01) through the provider-aware client, with the same small request; GO only
 //    when a schema-valid answer comes back.
 //
 // Every real call goes through server/meta/client.ts, which appends its usage line to
@@ -22,14 +25,15 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
-import { chat, createMetaClient, type ChatArgs, type ChatResult } from "../../server/meta/client.ts";
+import { BASETEN_BASE_URL, chat, type ChatArgs, type ChatResult } from "../../server/meta/client.ts";
+import { SPARK_OPEN_MODEL } from "../../src/claimants.ts";
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT_DIR = join(REPO, "tests", "evidence", "D02-03");
 const SPARK_RUNS = join(REPO, "tests", "evidence", "D02-02b", "claimant-5-runs.jsonl");
 
-export const BASETEN_BASE_URL = "https://inference.baseten.co/v1"; // UNVERIFIED path
-export const BASETEN_MODEL = "meta-models/muse-spark-open-1026";
+export { BASETEN_BASE_URL };
+export const BASETEN_MODEL = SPARK_OPEN_MODEL;
 const SYSTEM_PREAMBLE =
   "You propose. You never decide. Plain code will run the code and judge. Say 'unknown' instead of guessing. Return only JSON matching the schema.";
 
@@ -142,13 +146,13 @@ function sparkRow(): Row {
 }
 
 async function basetenRow(): Promise<Row> {
-  const base = { model: BASETEN_MODEL, where: "Baseten (endpoint path UNVERIFIED)", check: "1 live call if a key exists; GO only if schema-valid" };
+  const base = { model: BASETEN_MODEL, where: "Baseten Model API (inference.baseten.co/v1, Api-Key auth)", check: "1 live call if a key exists; GO only if schema-valid" };
   const key = loadBasetenKey();
   if (!key) {
     return { ...base, result: "pending", detail: "pending: no Baseten key on this machine (credits not yet claimed); open-weights mode shows \"not available\"", usd: null };
   }
-  const client = createMetaClient({ apiKey: key, baseUrl: BASETEN_BASE_URL });
-  const res = await client.chat({ role: "investigator", model: BASETEN_MODEL, messages, json: true });
+  // The default client routes this model id to Baseten (server/meta/client.ts providerFor) and logs provider "baseten".
+  const res = await chat({ role: "investigator", model: BASETEN_MODEL, messages, json: true });
   const v = schemaVerdict(res);
   return { ...base, result: v.valid ? "GO" : "NO-GO", detail: v.detail, usd: res.usage?.usd ?? null };
 }
@@ -160,18 +164,19 @@ const FALLBACK_CHAIN = [
   "Spark Open not available → the open-weights mode switch shows \"not available\"; never faked.",
 ];
 
-function render(rows: Row[], at: string): string {
+function render(rows: Row[], at: string, note?: string): string {
   const money = (u: number | null) => (u === null ? "—" : `$${u.toFixed(6)}`);
   return [
     "# D02-03: model go/no-go",
     "",
     `Written by \`tests/tools/go-no-go.ts\` (plain code) at ${at}. Each row is decided by the rule in its "Check" column.`,
+    ...(note ? ["", note] : []),
     "",
     "| Model | Where | Check | Result | Detail | Cost |",
     "|---|---|---|---|---|---|",
     ...rows.map((r) => `| \`${r.model}\` | ${r.where} | ${r.check} | **${r.result}** | ${r.detail} | ${money(r.usd)} |`),
     "",
-    "Costs are upper bounds where the price is unverified (Spark, Baseten); every real call's usage line is in `tests/evidence/usage/usage.jsonl`.",
+    "Costs are upper bounds where the price is unverified (Spark). Baseten's price is its published per-token rate ($1.25 in, $0.15 cached in, $4.25 out per 1M). Every real call's usage line is in `tests/evidence/usage/usage.jsonl`.",
     "",
     "## Fallback chain (from the build plan, D02-03)",
     "",
@@ -181,10 +186,23 @@ function render(rows: Row[], at: string): string {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const rows = [await wonderRow(), sparkRow(), await basetenRow()];
+  const onlyOpen = process.argv.includes("--only") && process.argv[process.argv.indexOf("--only") + 1] === "spark-open";
   const at = new Date().toISOString();
+  let rows: Row[];
+  let note: string | undefined;
+  let earlierAt: string | undefined;
+  if (onlyOpen) {
+    // Keep the Wonder and Spark rows exactly as written earlier; only the Spark Open row is re-checked.
+    const before = JSON.parse(readFileSync(join(OUT_DIR, "go-no-go.json"), "utf8")) as { at: string; rows: Row[] };
+    earlierAt = before.at;
+    const open = await basetenRow();
+    rows = before.rows.map((r) => (r.model === BASETEN_MODEL ? open : r));
+    note = `The Wonder and Spark rows are from ${before.at}; only the \`${BASETEN_MODEL}\` row was re-checked at ${at} (D07-01).`;
+  } else {
+    rows = [await wonderRow(), sparkRow(), await basetenRow()];
+  }
   mkdirSync(OUT_DIR, { recursive: true });
-  writeFileSync(join(OUT_DIR, "go-no-go.md"), render(rows, at));
-  writeFileSync(join(OUT_DIR, "go-no-go.json"), JSON.stringify({ at, rows, fallbackChain: FALLBACK_CHAIN }, null, 2) + "\n");
+  writeFileSync(join(OUT_DIR, "go-no-go.md"), render(rows, earlierAt ?? at, note));
+  writeFileSync(join(OUT_DIR, "go-no-go.json"), JSON.stringify({ at: earlierAt ?? at, ...(onlyOpen ? { sparkOpenCheckedAt: at } : {}), rows, fallbackChain: FALLBACK_CHAIN }, null, 2) + "\n");
   for (const r of rows) console.log(`${r.model}: ${r.result} (${r.detail})`);
 }
