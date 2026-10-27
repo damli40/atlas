@@ -2,9 +2,12 @@
 //
 // What it does, in plain words:
 // 1. Registers the withRpcRetry fixture with POST /targets.
-// 2. For each oracle row S1–S6, seals human bets (calls, total wait, outcome) whose answers are
-//    the oracle table's expected values, then POSTs the experiment and the sealed bets to /runs.
-//    The server runs the control once, runs the real function in the sandbox, and judges.
+// 2. For each oracle row S1–S6: POST /experiments (the gate decides, plain code writes the questions),
+//    then one POST /bets per human bet (calls, total wait, outcome) whose answers are the oracle
+//    table's expected values. The SERVER seals each bet at its own time with its own nonce (D02-04).
+//    Then POST /runs {experimentId}: the server freezes the bets, runs the control once, runs the
+//    real function in the sandbox, judges, and reveals each bet in full; this script re-checks
+//    every revealed seal and that every bet was sealed before the run started.
 // 3. Adds two extra bets to show the other verdicts from real runs:
 //    - S3 calls = 4 (the run makes 5 calls) → didn't match
 //    - S6 settle time (the run never settles, so it is not measured) → can't check
@@ -14,7 +17,7 @@
 // or ATLAS_URL=http://localhost:8787 pnpm gate:day1 (a server you started with `pnpm server`).
 
 import { pathToFileURL } from "node:url";
-import { sealBet } from "../../src/seal.ts";
+import { verifySeal } from "../../src/seal.ts";
 import { OUTCOME_OPTIONS } from "../../src/units.ts";
 import { QUESTION_TEXT } from "../../src/gate.ts";
 import type { Bet, BetAnswer, ExperimentShape, Outcome, Run, Target, Verdict } from "../../src/types.ts";
@@ -71,11 +74,20 @@ export interface CaseResult {
   rows: BetRow[];
 }
 
-async function postJson<T>(request: Requester, path: string, body: unknown): Promise<T> {
-  const res = await request(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-  const json = (await res.json()) as T & { error?: string };
-  if (!res.ok) throw new Error(`${path} answered ${res.status}: ${json.error ?? "no reason given"}`);
-  return json;
+const SESSION_HEADER = "x-atlas-session";
+
+/** Posts JSON and keeps the server's session id, so experiments, bets and runs share one session. */
+function poster(request: Requester) {
+  let session: string | null = null;
+  return async function postJson<T>(path: string, body: unknown): Promise<T> {
+    const headers: Record<string, string> = { "content-type": "application/json" };
+    if (session) headers[SESSION_HEADER] = session;
+    const res = await request(path, { method: "POST", headers, body: JSON.stringify(body) });
+    session ??= res.headers.get(SESSION_HEADER);
+    const json = (await res.json()) as T & { error?: string };
+    if (!res.ok) throw new Error(`${path} answered ${res.status}: ${json.error ?? "no reason given"}`);
+    return json;
+  };
 }
 
 function betText(a: BetAnswer): string {
@@ -85,7 +97,8 @@ function betText(a: BetAnswer): string {
 /** Runs the whole gate through `request` (app.request in-process, or fetch against a server). */
 export async function runSixCases(request: Requester): Promise<{ target: Target; results: CaseResult[]; totalMs: number }> {
   const started = performance.now();
-  const target = await postJson<Target>(request, "/targets", { kind: "ts-fixture", ref: FIXTURE_REF });
+  const postJson = poster(request);
+  const target = await postJson<Target>("/targets", { kind: "ts-fixture", ref: FIXTURE_REF });
   const results: CaseResult[] = [];
 
   for (const c of CASES) {
@@ -96,12 +109,18 @@ export async function runSixCases(request: Requester): Promise<{ target: Target;
       { measures: "outcome", answer: { kind: "enum", value: c.expected.outcome, options: OUTCOMES } },
       ...(c.extraBets ?? []),
     ];
-    const bets: Bet[] = specs.map((s) =>
-      sealBet({ experimentId, who: "human", question: QUESTIONS[s.measures as keyof typeof QUESTIONS], measures: s.measures, answer: s.answer }),
-    );
-    const { run, verdicts } = await postJson<{ run: Run; verdicts: Verdict[] }>(request, "/runs", {
-      experiment: { id: experimentId, target, runner: "ts", params: c.params, proposedBy: { role: "human" } },
-      bets,
+    await postJson("/experiments", { id: experimentId, target: { ref: target.ref, codeSha256: target.codeSha256 }, params: c.params });
+    const shown: Omit<Bet, "nonce">[] = [];
+    for (const s of specs) {
+      const { bet } = await postJson<{ bet: Omit<Bet, "nonce"> }>("/bets", { experimentId, who: "human", measures: s.measures, answer: s.answer });
+      if (bet.question !== QUESTIONS[s.measures as keyof typeof QUESTIONS]) throw new Error(`the server asked "${bet.question}" for ${s.measures}`);
+      shown.push(bet);
+    }
+    const { run, verdicts, bets } = await postJson<{ run: Run; verdicts: Verdict[]; bets: Bet[] }>("/runs", { experimentId });
+    // The revealed bets must be the ones whose hashes were shown, each sealed before the run started.
+    bets.forEach((b, i) => {
+      if (b.sealedHash !== shown[i]!.sealedHash || !verifySeal(b)) throw new Error(`the revealed bet ${b.id} does not hash to the hash shown before the run`);
+      if (!(Date.parse(b.sealedAt) < Date.parse(run.startedAt))) throw new Error(`bet ${b.id} was sealed at ${b.sealedAt}, not before the run started at ${run.startedAt}`);
     });
     const rows: BetRow[] = verdicts.map((v, i) => {
       const s = specs[i]!;

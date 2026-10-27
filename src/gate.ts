@@ -307,6 +307,17 @@ export function questionsFor(params: ExperimentShape, ctx: GateContext = {}): Qu
   }
 }
 
+/**
+ * Extra questions a PERSON may bet on through POST /bets, beyond questionsFor. Never shown to a
+ * model (the Claimant answers exactly questionsFor). Today: the settle time of a retry-scenario.
+ * The TS runner does not measure `settleTime` (it records `settledAtMs` when the call settles and a
+ * reason when it never does), so a bet on it is judged "can't check" with the runner's reason.
+ * The day-1 gate uses it to show a real "can't check" from a real run.
+ */
+export function extraQuestionsFor(params: ExperimentShape): Question[] {
+  return params.shape === "retry-scenario" ? [q("settleTime", QUESTION_TEXT.settleTime, "integer")] : [];
+}
+
 /** The answer JSON a bet on this question must have, as text for a prompt. */
 export function answerTemplate(question: Question): string {
   switch (question.kind) {

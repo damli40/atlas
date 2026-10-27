@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite",
     "server": "tsx server/index.ts",
+    "dev:all": "tsx server/dev-all.ts",
     "test": "vitest run",
     "evidence": "vitest run --reporter=verbose",
     "gate:day1": "tsx tests/gate/six-cases.ts"
@@ -21,10 +22,12 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@types/jsdom": "^21.1.7",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "jsdom": "^26.1.0",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.5",
