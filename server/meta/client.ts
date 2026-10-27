@@ -5,9 +5,12 @@
 // 2. If the model ran out of room (empty content, finish_reason "length"), it retries ONCE
 //    with max_tokens 32000. Muse models are reasoning models: hidden thinking spends max_tokens.
 // 3. After every HTTP call that returned usage, it appends one JSON line to usage.jsonl
-//    (tokens, dollars, finish reason) so every cent spent is on file.
+//    (tokens, dollars, finish reason) so every cent spent is on file, even when the response
+//    then turns out to be unusable (for example a 200 with usage but no choices).
 // 4. It never throws for API trouble. It returns { ok: false, reason } instead, and the reason
 //    never contains the API key or any request header.
+// 5. It never throws because the usage file could not be written (a read-only disk when hosted):
+//    the call was already billed, so the result and its usage come back with a `warning`.
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -61,8 +64,8 @@ export interface ChatArgs {
 }
 
 export type ChatResult =
-  | { ok: true; content: string; finishReason: string; usage: Usage }
-  | { ok: false; reason: string; usage?: Usage };
+  | { ok: true; content: string; finishReason: string; usage: Usage; warning?: string }
+  | { ok: false; reason: string; usage?: Usage; warning?: string };
 
 export interface ClientOptions {
   /** Defaults to process.env.META_API_KEY, then ~/.config/meta-model-api/env. */
@@ -143,7 +146,8 @@ export function createMetaClient(opts: ClientOptions = {}) {
   const now = opts.now ?? (() => new Date());
   const usagePath = opts.usagePath ?? process.env.ATLAS_USAGE_PATH ?? DEFAULT_USAGE_PATH;
 
-  function logUsage(role: ChatRole, model: string, usage: Usage, finishReason: string): void {
+  /** Appends one usage line. Returns a warning instead of throwing when the file cannot be written. */
+  function logUsage(role: ChatRole, model: string, usage: Usage, finishReason: string): string | undefined {
     const line = {
       ts: now().toISOString(),
       role,
@@ -155,13 +159,19 @@ export function createMetaClient(opts: ClientOptions = {}) {
       finishReason,
       priceVerified: priceFor(model).verified,
     };
-    mkdirSync(dirname(usagePath), { recursive: true });
-    appendFileSync(usagePath, JSON.stringify(line) + "\n");
+    try {
+      mkdirSync(dirname(usagePath), { recursive: true });
+      appendFileSync(usagePath, JSON.stringify(line) + "\n");
+      return undefined;
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException)?.code ?? "unknown error";
+      return `the usage line could not be written (${code}); this call's usage is in the result only`;
+    }
   }
 
   type Attempt =
-    | { kind: "ok"; content: string; finishReason: string; usage?: Usage }
-    | { kind: "fail"; reason: string; status?: number; body?: string };
+    | { kind: "ok"; content: string; finishReason: string; usage?: Usage; warning?: string }
+    | { kind: "fail"; reason: string; status?: number; body?: string; usage?: Usage; warning?: string };
 
   async function once(args: ChatArgs, key: string, maxTokens: number, withFormat: boolean): Promise<Attempt> {
     const body: Record<string, unknown> = {
@@ -196,12 +206,14 @@ export function createMetaClient(opts: ClientOptions = {}) {
 
     let json: { choices?: { message?: { content?: string | null }; finish_reason?: string }[]; usage?: RawUsage };
     try { json = JSON.parse(text); } catch { return { kind: "fail", reason: "response was not JSON" }; }
+    // Usage first: a 200 that carries usage was billed, whatever else is wrong with it.
     const choice = json.choices?.[0];
-    if (!choice) return { kind: "fail", reason: "response had no choices" };
-    const finishReason = choice.finish_reason ?? "unknown";
+    const finishReason = choice ? choice.finish_reason ?? "unknown" : "no_choices";
     const usage = toUsage(args.model, json.usage);
-    if (usage) logUsage(args.role, args.model, usage, finishReason);
-    return { kind: "ok", content: choice.message?.content ?? "", finishReason, usage };
+    const warning = usage ? logUsage(args.role, args.model, usage, finishReason) : undefined;
+    const extra = { ...(usage ? { usage } : {}), ...(warning ? { warning } : {}) };
+    if (!choice) return { kind: "fail", reason: "response had no choices", ...extra };
+    return { kind: "ok", content: choice.message?.content ?? "", finishReason, ...extra };
   }
 
   async function chat(args: ChatArgs): Promise<ChatResult> {
@@ -211,6 +223,8 @@ export function createMetaClient(opts: ClientOptions = {}) {
     let maxTokens = args.maxTokens ?? DEFAULT_MAX_TOKENS;
     let total: Usage | undefined;
     let lengthRetried = false;
+    const warnings: string[] = [];
+    const tail = () => ({ ...(total ? { usage: total } : {}), ...(warnings.length ? { warning: warnings.join("; ") } : {}) });
 
     for (;;) {
       const withFormat = !!args.json && !responseFormatRejected;
@@ -221,9 +235,10 @@ export function createMetaClient(opts: ClientOptions = {}) {
         responseFormatRejected = true;
         a = await once(args, key, maxTokens, false);
       }
-      if (a.kind === "fail") return { ok: false, reason: a.reason, ...(total ? { usage: total } : {}) };
-
       total = addUsage(total, a.usage);
+      if (a.warning) warnings.push(a.warning);
+      if (a.kind === "fail") return { ok: false, reason: a.reason, ...tail() };
+
       const empty = a.content.trim() === "";
 
       if (empty && a.finishReason === "length" && !lengthRetried) {
@@ -235,10 +250,10 @@ export function createMetaClient(opts: ClientOptions = {}) {
         const why = lengthRetried
           ? `no content after retry at max_tokens ${RETRY_MAX_TOKENS} (finish_reason ${a.finishReason})`
           : `empty content (finish_reason ${a.finishReason})`;
-        return { ok: false, reason: why, ...(total ? { usage: total } : {}) };
+        return { ok: false, reason: why, ...tail() };
       }
-      if (!total) return { ok: false, reason: "response had no usage block, so the cost could not be logged" };
-      return { ok: true, content: a.content, finishReason: a.finishReason, usage: total };
+      if (!total) return { ok: false, reason: "response had no usage block, so the cost could not be logged", ...tail() };
+      return { ok: true, content: a.content, finishReason: a.finishReason, usage: total, ...(warnings.length ? { warning: warnings.join("; ") } : {}) };
     }
   }
 

@@ -1,0 +1,6 @@
+     × the hash covers who, experimentId, question, measures, answer, nonce, sealedAt, and the rationale when present 3ms
+     × the rationale IS sealed: rewriting, removing or adding it after sealing breaks the seal 1ms
+     × an unwritable usage file does not throw: it returns the result, the usage and a warning 2ms
+     × a 200 with usage but no choices still writes the usage line, then returns ok:false with the usage 1ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  4 failed | 32 passed (36)

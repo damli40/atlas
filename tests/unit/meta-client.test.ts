@@ -137,3 +137,25 @@ describe("Meta client", () => {
     expect(calls.map((c) => "response_format" in c.body)).toEqual([true, false, false]);
   });
 });
+
+// Review finding S8: chat() must never throw after a billed call, and a billed call is always logged.
+describe("Meta client: usage logging never loses a billed call", () => {
+  it("an unwritable usage file does not throw: it returns the result, the usage and a warning", async () => {
+    const { impl } = mockFetch([completion("{}", "stop")]);
+    const client = createMetaClient({ apiKey: FAKE_KEY, fetchImpl: impl, usagePath: "/dev/null/atlas-cannot-write-here/usage.jsonl" });
+    const r = await client.chat(base);
+    expect(r.ok).toBe(true);
+    expect(r.usage?.promptTokens).toBe(26);
+    expect(r.warning).toMatch(/usage line could not be written/);
+    expect(r.warning).not.toContain(FAKE_KEY);
+  });
+
+  it("a 200 with usage but no choices still writes the usage line, then returns ok:false with the usage", async () => {
+    const { client, lines } = setup([{ status: 200, body: { usage: { prompt_tokens: 500, completion_tokens: 9000 } } }]);
+    const r = await client.chat(base);
+    expect(r.ok).toBe(false);
+    expect(r.usage?.completionTokens).toBe(9000);
+    expect(lines()).toHaveLength(1);
+    expect(lines()[0]).toMatchObject({ promptTokens: 500, completionTokens: 9000, finishReason: "no_choices" });
+  });
+});
