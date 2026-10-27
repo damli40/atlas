@@ -11,6 +11,11 @@
 // - If the code is waiting on something the harness does not control (a REAL timer or real I/O),
 //   the harness cannot know when or whether it would settle, so it reports "can't check" for the
 //   outcome instead of guessing "pending".
+// - Real timers are counted by wrapping setTimeout, setInterval and setImmediate (see
+//   installRealTimerTracker). Node's own list of live resources leaves out timers that were
+//   unref()'d, so it is not enough on its own: a code path that waits on an unref'd timer would
+//   otherwise look like "never settles". The worker installs the wrappers BEFORE it imports the
+//   code under test, so the code cannot keep a reference to the unwrapped functions.
 //
 // Every number in the result is counted from what happened; nothing is copied from the oracle.
 
@@ -46,18 +51,96 @@ export interface WorkerRequest {
   exportName: string;
   runs: { id: string; scenario: RetryScenario; seed: string; label?: string; watchLimitMs?: number }[];
 }
-/** What worker.ts prints after RESULT_MARKER. */
+/** What worker.ts prints after RESULT_MARKER and the per-run marker. */
 export interface WorkerResponse {
   runs: ({ id: string } & HarnessOutput)[];
+  /** Set when the worker saw the code under test change something the result depends on. */
+  tampered?: string;
 }
+/** The result line is `${RESULT_MARKER}${marker} ${json}`; the marker is random per run (see worker.ts). */
 export const RESULT_MARKER = "ATLAS_RESULT ";
 
 export const NEVER_SETTLED_REASON = "the function never settled; Atlas stopped watching (harness limit, not the code's)";
 export const DEFAULT_WATCH_LIMIT_MS = 30_000;
 const DEFAULT_MAX_STEPS = 10_000;
 
-/** Waits until every queued promise reaction has run. */
-const drainMicrotasks = () => new Promise<void>((r) => setImmediate(r));
+// ---- real-timer tracking ----
+// Native references, captured when this module loads. In the sandbox that is before the code under
+// test is imported (worker.ts imports this file first), so the harness's own timers are never counted.
+type LooseFn = (...a: unknown[]) => unknown;
+type Starter = (cb: unknown, ...rest: unknown[]) => object;
+const nativeSetTimeout = globalThis.setTimeout as unknown as Starter;
+const nativeClearTimeout = globalThis.clearTimeout as unknown as (h: unknown) => void;
+const nativeSetInterval = globalThis.setInterval as unknown as Starter;
+const nativeClearInterval = globalThis.clearInterval as unknown as (h: unknown) => void;
+const nativeSetImmediate = globalThis.setImmediate as unknown as Starter;
+const nativeClearImmediate = globalThis.clearImmediate as unknown as (h: unknown) => void;
+
+type RealTimerKind = "setTimeout" | "setInterval" | "setImmediate";
+/** Real timers started during the current run and not yet fired or cleared. Null outside a run. */
+let currentRunTimers: Map<object, RealTimerKind> | null = null;
+let trackerInstalled = false;
+
+/**
+ * Wraps the global timer functions so Atlas knows about every real timer the code under test starts,
+ * whether or not it is unref()'d. Idempotent. Best effort: a timer from node:timers/promises is not
+ * wrapped here; it is still caught by Node's resource list unless it is created with ref: false.
+ */
+export function installRealTimerTracker(): void {
+  if (trackerInstalled) return;
+  trackerInstalled = true;
+  const track = (kind: RealTimerKind, handle: object, repeats: boolean): (() => void) => {
+    const set = currentRunTimers;
+    set?.set(handle, kind);
+    return () => {
+      if (!repeats) set?.delete(handle);
+    };
+  };
+  const g = globalThis as unknown as Record<string, unknown>;
+  g.setTimeout = function (cb: unknown, ...rest: unknown[]) {
+    if (typeof cb !== "function") return nativeSetTimeout(cb, ...rest);
+    let done = () => {};
+    const h = nativeSetTimeout((...a: unknown[]) => {
+      done();
+      return (cb as LooseFn)(...a);
+    }, ...rest);
+    done = track("setTimeout", h, false);
+    return h;
+  };
+  g.setInterval = function (cb: unknown, ...rest: unknown[]) {
+    const h = nativeSetInterval(cb, ...rest);
+    track("setInterval", h, true);
+    return h;
+  };
+  g.setImmediate = function (cb: unknown, ...rest: unknown[]) {
+    if (typeof cb !== "function") return nativeSetImmediate(cb, ...rest);
+    let done = () => {};
+    const h = nativeSetImmediate((...a: unknown[]) => {
+      done();
+      return (cb as LooseFn)(...a);
+    }, ...rest);
+    done = track("setImmediate", h, false);
+    return h;
+  };
+  const untrack = (h: unknown) => {
+    if (h && typeof h === "object") currentRunTimers?.delete(h);
+  };
+  g.clearTimeout = (h: unknown) => {
+    untrack(h);
+    nativeClearTimeout(h);
+  };
+  g.clearInterval = (h: unknown) => {
+    untrack(h);
+    nativeClearInterval(h);
+  };
+  g.clearImmediate = (h: unknown) => {
+    untrack(h);
+    nativeClearImmediate(h);
+  };
+}
+
+/** Waits until every queued promise reaction has run. Uses the native setImmediate, never the wrapped one. */
+const drainMicrotasks = () => new Promise<void>((r) => void nativeSetImmediate(r));
 
 /** Counts of the real Node resources (timers, sockets, file reads) alive right now, by type. */
 function activeResources(): Map<string, number> {
@@ -161,6 +244,10 @@ export async function runScenario(withRpcRetry: RetryFn, scenario: RetryScenario
 
   type Settled = { kind: "returns"; value: unknown; at: number } | { kind: "throws"; error: unknown; at: number };
   let settled: Settled | null = null;
+  installRealTimerTracker(); // no-op when the worker already installed it before importing the code
+  const realTimers = new Map<object, RealTimerKind>();
+  const previousRunTimers = currentRunTimers;
+  currentRunTimers = realTimers;
   const before = activeResources();
 
   emit("start", { label, ...(scenario.attempts !== undefined ? { attempts: scenario.attempts } : {}), ...(scenario.delayMs !== undefined ? { delayMs: scenario.delayMs } : {}) });
@@ -180,34 +267,54 @@ export async function runScenario(withRpcRetry: RetryFn, scenario: RetryScenario
   // did not see the end, so the counts so far are partial and are not reported as measured.
   let stop: { kind: "outside" | "watch" | "steps"; outcomeReason: string } | null = null;
   let steps = 0;
-  for (;;) {
-    await drainMicrotasks();
-    if (settled) break;
-    const outside = grownResources(before);
-    if (outside.length > 0) {
-      stop = { kind: "outside", outcomeReason: `the code is waiting on something Atlas does not control (${outside.join(", ")}); Atlas did not wait for it` };
-      break;
+  try {
+    for (;;) {
+      await drainMicrotasks();
+      if (settled) break;
+      // Real timers the code started. A setImmediate always runs on the next turn, so Atlas waits for
+      // those (counted as steps). Any other real timer is time Atlas does not control: stop, can't check.
+      if (realTimers.size > 0) {
+        const kinds = [...new Set(realTimers.values())].sort();
+        if (kinds.every((k) => k === "setImmediate")) {
+          if (++steps > maxSteps) {
+            stop = { kind: "steps", outcomeReason: `Atlas's step limit (${maxSteps} steps, Atlas's limit, not the code's) ended the run before the function finished` };
+            break;
+          }
+          continue;
+        }
+        stop = { kind: "outside", outcomeReason: `the code is waiting on a real timer Atlas does not control (${kinds.join(", ")}); Atlas did not wait for it` };
+        break;
+      }
+      const outside = grownResources(before);
+      if (outside.length > 0) {
+        stop = { kind: "outside", outcomeReason: `the code is waiting on something Atlas does not control (${outside.join(", ")}); Atlas did not wait for it` };
+        break;
+      }
+      if (timers.length === 0) break; // unsettled, nothing scheduled, queue drained: it can never settle
+      timers.sort((a, b) => a.at - b.at || a.seq - b.seq);
+      const next = timers[0]!;
+      if (next.at > watchLimitMs) {
+        stop = { kind: "watch", outcomeReason: `Atlas's watch limit (${watchLimitMs} ms of virtual time, Atlas's limit, not the code's) ended the run before the function finished` };
+        break;
+      }
+      if (++steps > maxSteps) {
+        stop = { kind: "steps", outcomeReason: `Atlas's step limit (${maxSteps} virtual timer steps, Atlas's limit, not the code's) ended the run before the function finished` };
+        break;
+      }
+      timers.shift();
+      now = next.at;
+      next.fire();
     }
-    if (timers.length === 0) break; // unsettled, nothing scheduled, queue drained: it can never settle
-    timers.sort((a, b) => a.at - b.at || a.seq - b.seq);
-    const next = timers[0]!;
-    if (next.at > watchLimitMs) {
-      stop = { kind: "watch", outcomeReason: `Atlas's watch limit (${watchLimitMs} ms of virtual time, Atlas's limit, not the code's) ended the run before the function finished` };
-      break;
-    }
-    if (++steps > maxSteps) {
-      stop = { kind: "steps", outcomeReason: `Atlas's step limit (${maxSteps} virtual timer steps, Atlas's limit, not the code's) ended the run before the function finished` };
-      break;
-    }
-    timers.shift();
-    now = next.at;
-    next.fire();
+  } finally {
+    currentRunTimers = previousRunTimers;
   }
 
   // ---- measured facts ----
   const measured: RunResult["measured"] = {};
   const notMeasured: RunResult["notMeasured"] = {};
-  const totalWait = waits.every((w) => Number.isFinite(w)) ? waits.reduce((a, b) => a + b, 0) : null;
+  // A negative or non-finite wait is not a span of time (a real timer treats it as 0), so no total is reported.
+  const badWait = waits.find((w) => !Number.isFinite(w) || w < 0);
+  const totalWait = badWait === undefined ? waits.reduce((a, b) => a + b, 0) : null;
   const s = settled as Settled | null;
 
   if (stop) {
@@ -222,7 +329,7 @@ export async function runScenario(withRpcRetry: RetryFn, scenario: RetryScenario
     notMeasured.calls = `${r}; the count so far was ${calls}`;
     notMeasured.waitCount = `${r}; the count so far was ${waits.length}`;
     notMeasured.waitsMs = `${r}; the waits asked for so far were [${waits.join(",")}]`;
-    notMeasured.totalWaitMs = `${r}; the waits asked for so far added up to ${totalWait ?? "a non-finite number of"} ms`;
+    notMeasured.totalWaitMs = `${r}; the waits asked for so far added up to ${totalWait ?? "a number that is not a real span of time (a negative or non-finite wait)"}${totalWait === null ? "" : " ms"}`;
     notMeasured.logCount = `${r}; the count so far was ${logs.length}`;
     notMeasured.logAttempts = `${r}; the log lines so far were ${logs.length}`;
     emit("stopped_watching", {
@@ -242,7 +349,7 @@ export async function runScenario(withRpcRetry: RetryFn, scenario: RetryScenario
   measured.logCount = logs.length;
   measured.logAttempts = logs.map((m) => /attempt (\d+\/\d+)/.exec(m)?.[1] ?? "?").join(",");
   if (totalWait !== null) measured.totalWaitMs = totalWait;
-  else notMeasured.totalWaitMs = "the code asked to wait a non-finite number of ms";
+  else notMeasured.totalWaitMs = `the code asked to wait ${badWait} ms, which is ${Number.isFinite(badWait) ? "negative" : "not a finite number"}; the waits do not add up to a real span of time`;
 
   if (s) {
     measured.outcome = s.kind;

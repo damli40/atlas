@@ -1,11 +1,12 @@
 // The TS runner's control, and the TS Runner itself.
 //
-// Plain words: before Atlas trusts any run of the code, it runs two cases whose answer is
-// already known (oracle rows S1 and S3) through the SAME sandbox and the SAME harness. If
-// either one doesn't match its row exactly, `controlPassed` is false and every verdict on that
-// runner becomes "can't check". The reason says which row and which field didn't match.
+// Plain words: before Atlas trusts any run of the code, it runs three cases whose answer is
+// already known (oracle rows S1 = returns at once, S3 = throws after five failures, S6 = never
+// settles) through the SAME sandbox and the SAME harness. If any one doesn't match its row exactly,
+// `controlPassed` is false and every verdict on that runner becomes "can't check". The reason says
+// which row and which field didn't match.
 
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -21,7 +22,7 @@ const FIXTURES_DIR = resolve(REPO_ROOT, "tests/fixtures");
 const ORACLE_PATH = resolve(REPO_ROOT, "tests/oracle/retry-oracle.json");
 
 /** The oracle rows the control runs. */
-export const CONTROL_CASES = ["S1", "S3"] as const;
+export const CONTROL_CASES = ["S1", "S3", "S6"] as const;
 export const CONTROL_SEED = "atlas-control";
 const EXPORT_NAME = "withRpcRetry";
 const DEFAULT_WALL_CLOCK_MS = 10_000;
@@ -44,26 +45,74 @@ function harnessFiles(code: string): Record<string, string> {
   return { "worker.ts": own("worker.ts"), "harness.ts": own("harness.ts"), "shapes.ts": own("shapes.ts"), "target.ts": code };
 }
 
-/** Runs scenarios in the sandbox. Returns per-run outputs, or a reason the sandbox gave no usable answer. */
-async function execInSandbox(
-  executor: Executor,
-  code: string,
-  request: WorkerRequest,
-  wallClockMs: number,
-): Promise<{ ok: true; runs: WorkerResponse["runs"] } | { ok: false; reason: string }> {
-  const res = await executor.exec({
-    files: { ...harnessFiles(code), "request.json": JSON.stringify(request) },
-    cmd: ["node", "--permission", "--allow-fs-read=.", "worker.ts"],
-    wallClockMs,
-    allowNetwork: false,
-  });
-  if (res.timedOut) return { ok: false, reason: `the sandbox hit Atlas's ${wallClockMs} ms wall-clock limit` };
-  const line = res.stdout.split("\n").reverse().find((l) => l.startsWith(RESULT_MARKER));
-  if (res.exitCode !== 0 || !line) {
-    const err = res.stderr.trim().split("\n").slice(-3).join(" | ");
-    return { ok: false, reason: `the sandbox exited with code ${res.exitCode} and no result${err ? ` (${err})` : ""}` };
+type SandboxAnswer = { ok: true; runs: WorkerResponse["runs"] } | { ok: false; reason: string; tampered: boolean };
+
+function isHarnessRun(r: unknown): r is WorkerResponse["runs"][number] {
+  if (!r || typeof r !== "object") return false;
+  const x = r as { id?: unknown; trace?: unknown; result?: { measured?: unknown; notMeasured?: unknown } };
+  return (
+    typeof x.id === "string" &&
+    Array.isArray(x.trace) &&
+    !!x.result &&
+    typeof x.result.measured === "object" &&
+    x.result.measured !== null &&
+    typeof x.result.notMeasured === "object" &&
+    x.result.notMeasured !== null
+  );
+}
+
+/**
+ * Reads the worker's stdout. Only lines carrying this run's marker count. The FIRST one is the
+ * result; a second one, a line that does not parse, or a result the worker flagged as tampered
+ * means the code under test interfered, so nothing from the run is trusted. Never throws.
+ */
+export function parseWorkerOutput(stdout: string, marker: string): SandboxAnswer {
+  const lines = stdout.split("\n").filter((l) => l.includes(marker));
+  if (lines.length === 0) return { ok: false, reason: "the sandbox gave no result line", tampered: false };
+  if (lines.length > 1) {
+    return { ok: false, reason: `tampering: ${lines.length} result lines carry this run's marker (only the worker writes one)`, tampered: true };
   }
-  return { ok: true, runs: (JSON.parse(line.slice(RESULT_MARKER.length)) as WorkerResponse).runs };
+  const prefix = `${RESULT_MARKER}${marker} `;
+  const line = lines[0]!;
+  if (!line.startsWith(prefix)) return { ok: false, reason: "tampering: the result line was changed", tampered: true };
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(line.slice(prefix.length));
+  } catch {
+    return { ok: false, reason: "tampering or a cut-off write: the result line is not valid JSON", tampered: true };
+  }
+  const p = parsed as { runs?: unknown; tampered?: unknown };
+  if (typeof p?.tampered === "string") return { ok: false, reason: `tampering: ${p.tampered}`, tampered: true };
+  if (!Array.isArray(p?.runs) || !p.runs.every(isHarnessRun)) {
+    return { ok: false, reason: "tampering: the result line does not have the shape the worker writes", tampered: true };
+  }
+  return { ok: true, runs: p.runs };
+}
+
+/** Runs scenarios in the sandbox. Returns per-run outputs, or a reason the sandbox gave no usable answer. */
+async function execInSandbox(executor: Executor, code: string, request: WorkerRequest, wallClockMs: number): Promise<SandboxAnswer> {
+  const marker = randomBytes(16).toString("hex"); // fresh per run; passed only as an argument
+  let res: Awaited<ReturnType<Executor["exec"]>>;
+  try {
+    res = await executor.exec({
+      files: { ...harnessFiles(code), "request.json": JSON.stringify(request) },
+      cmd: ["node", "--permission", "--allow-fs-read=.", "worker.ts", marker],
+      wallClockMs,
+      allowNetwork: false,
+    });
+  } catch (e) {
+    return { ok: false, reason: `the sandbox could not start: ${(e as Error).message}`, tampered: false };
+  }
+  if (res.timedOut) return { ok: false, reason: `the sandbox hit Atlas's ${wallClockMs} ms wall-clock limit`, tampered: false };
+  const parsed = parseWorkerOutput(res.stdout, marker);
+  if (parsed.ok && res.exitCode !== 0) {
+    return { ok: false, reason: `tampering: the sandbox wrote a result but exited with code ${res.exitCode}`, tampered: true };
+  }
+  if (!parsed.ok && !parsed.tampered) {
+    const err = res.stderr.trim().split("\n").slice(-3).join(" | ");
+    return { ok: false, reason: `the sandbox exited with code ${res.exitCode} and no result${err ? ` (${err})` : ""}`, tampered: false };
+  }
+  return parsed;
 }
 
 /** Compares one measured case to its oracle row. Returns the fields that didn't match, in plain words. */
@@ -183,7 +232,7 @@ export function readFixture(target: Target): string {
   return readFileSync(full, "utf8");
 }
 
-/** Control on a Target: reads the fixture, checks its SHA-256 against the target, runs S1 and S3. */
+/** Control on a Target: reads the fixture, checks its SHA-256 against the target, runs the CONTROL_CASES rows. */
 export async function control(target: Target, executor: Executor = localExecutor): Promise<Run> {
   return (await runControl(readFixture(target), { executor, expectedSha256: target.codeSha256 })).run;
 }
@@ -212,9 +261,15 @@ export async function runExperiment(
     { exportName: EXPORT_NAME, runs: [{ id: exp.id, scenario: scenarioFromShape(exp.params), seed, watchLimitMs: oracle.harnessWatchLimitMs }] },
     DEFAULT_WALL_CLOCK_MS,
   );
-  const out = res.ok ? res.runs[0] : undefined;
-  const result: Run["result"] = out ? out.result : { measured: {}, notMeasured: { run: res.ok ? "the sandbox returned no result" : res.reason } };
+  const out = res.ok ? res.runs.find((r) => r.id === exp.id) : undefined;
+  const result: Run["result"] = out
+    ? out.result
+    : { measured: {}, notMeasured: { run: res.ok ? "the sandbox returned no result for this experiment" : res.reason } };
   const sameCode = ctl.codeSha256 === codeSha256 && exp.target.codeSha256 === codeSha256;
+  // Tampering with the result (see worker.ts) means nothing from this run is trusted: every verdict is
+  // "can't check", with the reason in notMeasured.control (the judge shows it).
+  const tampered = !res.ok && res.tampered;
+  if (tampered) result.notMeasured.control = res.reason;
   return {
     id: nanoid(10),
     experimentId: exp.id,
@@ -226,7 +281,7 @@ export async function runExperiment(
     finishedAt: new Date().toISOString(),
     trace: out ? out.trace : [],
     result,
-    controlPassed: ctl.controlPassed && sameCode,
+    controlPassed: ctl.controlPassed === true && sameCode && !tampered,
     controlRunId: ctl.id,
     ...(opts.replayOf ? { replayOf: opts.replayOf } : {}),
   };

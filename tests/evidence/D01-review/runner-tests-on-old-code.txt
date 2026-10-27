@@ -1,0 +1,14 @@
+     × 300 attempts with no delay: 300 calls measured, not a parse error 190ms
+     × a broken target that patches process.stdout.write to print the oracle's numbers does not pass the control 98ms
+     × a forged result line printed from an exit handler is ignored (it lacks the per-run marker) 94ms
+     × a malformed forged line makes runControl return controlPassed=false or ignore it, never throw 95ms
+     × a target that defines Object.prototype.toJSON (to rewrite the result as it is written) does not pass 96ms
+     × the parser takes only the first marker line; a second marker line or bad JSON counts as tampering 0ms
+     × an UNREF'd real timer the code waits on is can't check, not 'pending' 1ms
+     × an unref'd setInterval is can't check too 0ms
+     × the code's own setImmediate is waited for (it always runs on the next turn), so the outcome is measured 0ms
+     × negative waits are not added up as if time passed 0ms
+     × CONTROL_CASES includes S6 alongside S1 and S3 0ms
+     × code that gives up on a call that never answers passes S1 and S3 but fails the control on S6 92ms
+⎯⎯⎯⎯⎯⎯ Failed Tests 12 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  12 failed (12)
