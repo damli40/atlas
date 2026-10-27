@@ -253,6 +253,11 @@ describe("R2-M3: names resolve in their real scope; when unsure, nothing is conf
     expect(calls(r, "app.py")).toEqual([]);
   });
 
+  it("Python type annotations are types, not uses (as TypeScript types are skipped)", () => {
+    const m = buildCodeMap([file("t.py", "class Proto:\n    pass\n"), file("u.py", "from t import Proto\n\nx: Proto = None\n\ndef f(a: Proto, b: int = 1) -> Proto:\n    return Proto()\n")]);
+    expect(m.edges.filter((e) => e.kind !== "imports").map((e) => [e.kind, e.lines])).toEqual([["calls", [6]]]);
+  });
+
   it("JS: a top-level for-of or block variable hides the import (TypeScript's binder decides)", () => {
     const m = buildCodeMap([file("db.ts", "export function saveUser(x: number) {}\n"), file("app.ts", "import { saveUser } from './db';\nfor (const saveUser of [() => 1]) saveUser();\n{ const saveUser = () => 2; saveUser(); }\nsaveUser(3);\n")]);
     expect(m.edges.filter((e) => e.kind === "calls").flatMap((e) => e.lines)).toEqual([4]);

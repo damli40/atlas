@@ -493,11 +493,41 @@ export function parsePyFile(text: string): ParsedFile {
         }
       }
     }
+    // Type annotations (`x: T = …`, `def f(a: T) -> R:`) are types, not uses: skipped, as TypeScript types are.
+    const inAnn = new Array<boolean>(t.length).fill(false);
+    {
+      const k = isName(t[0], "async") && isName(t[1], "def") ? 1 : 0;
+      if (isName(t[k], "def") && isOp(t[k + 2], "(")) {
+        let d = 0;
+        let ann = false;
+        for (let j = k + 2; j < t.length; j++) {
+          const x = t[j]!;
+          if (x.t === "op" && "([{".includes(x.v)) d++;
+          if (x.t === "op" && ")]}".includes(x.v)) d--;
+          if (d === 1 && isOp(x, ":")) ann = true;
+          else if (d === 1 && (isOp(x, ",") || isOp(x, "="))) ann = false;
+          else if (d === 0 && isOp(x, "->")) ann = true;
+          else if (d === 0 && isOp(x, ":")) ann = false;
+          else if (d === 0 && isOp(x, ")")) ann = false;
+          inAnn[j] = ann && x.t === "name";
+        }
+      } else if (isName(t[0]) && !KEYWORDS.has(t[0]!.v) && isOp(t[1], ":")) {
+        let d = 0;
+        for (let j = 2; j < t.length; j++) {
+          const x = t[j]!;
+          if (x.t === "op" && "([{".includes(x.v)) d++;
+          if (x.t === "op" && ")]}".includes(x.v)) d--;
+          if (d === 0 && isOp(x, "=")) break;
+          inAnn[j] = true;
+        }
+      }
+    }
     let depth = 0;
     for (let j = 0; j < t.length; j++) {
       const tok = t[j]!;
       if (tok.t === "op" && "([{".includes(tok.v)) depth++;
       if (tok.t === "op" && ")]}".includes(tok.v)) depth--;
+      if (inAnn[j]) continue;
       if (tok.t !== "name" || KEYWORDS.has(tok.v) || isOp(t[j - 1], ".") || isName(t[j - 1], "def") || isName(t[j - 1], "class")) continue;
       const d = dotted(t, j);
       if (!d) continue;
