@@ -35,6 +35,13 @@ export interface GateContext {
   watchLimitMs?: number;
 }
 
+/**
+ * D06-02: the waves screen (POST /sweeps) runs exactly one shape, "concurrency-sweep", inside its bounds
+ * (1..200 callers). Separate from the round's TS context, so the Claimant is never offered a shape
+ * nobody bets on.
+ */
+export const SWEEP_GATE_CONTEXT: GateContext = { shapes: ["concurrency-sweep"] };
+
 export type GateDecision =
   | { allowed: true; params: ExperimentShape }
   | { allowed: false; reason: string };

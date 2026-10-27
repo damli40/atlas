@@ -49,7 +49,8 @@ export interface HarnessOutput {
 export interface WorkerRequest {
   /** Named export to call in target.ts. */
   exportName: string;
-  runs: { id: string; scenario: RetryScenario; seed: string; label?: string; watchLimitMs?: number }[];
+  /** `callers` set (D06-02, "concurrency-sweep"): that many callers run at once on one virtual clock (runSweep). */
+  runs: { id: string; scenario: RetryScenario; seed: string; label?: string; watchLimitMs?: number; callers?: number }[];
 }
 /** What worker.ts prints after RESULT_MARKER and the per-run marker. */
 export interface WorkerResponse {
@@ -374,5 +375,178 @@ export async function runScenario(withRpcRetry: RetryFn, scenario: RetryScenario
     emit("pending", { reason: "unsettled, no timers left, queue drained" });
   }
 
+  return { trace, result: { measured, notMeasured } };
+}
+
+// ---------------------------------------------------------------------------------------------
+// D06-02: many callers at once ("concurrency-sweep").
+//
+// Plain words: N callers each call the real function at virtual time 0, at the same moment. Every
+// caller gets its own fake chain read with the SAME failure pattern (fails its first failTimes calls,
+// then answers). All callers share ONE virtual clock, so when they wait the same fixed time, they wake
+// at the same virtual moment and call again together. The harness writes down the virtual time of
+// every call; nothing here assumes the schedule, it is counted from what happened.
+// `callTimesMs` is written as "t:count,t:count" in time order; web/screens/scale-model.ts parseCallTimes reads it.
+
+/** What a sweep runs: how many callers, and the one failure pattern every caller's fake read follows. */
+export interface SweepScenario {
+  callers: number;
+  failTimes: number | "always";
+  /** Passed to the function as opts.delayMs only when set; otherwise the code's own default runs. */
+  delayMs?: number;
+}
+
+export async function runSweep(withRpcRetry: RetryFn, sweep: SweepScenario, opts: HarnessOptions): Promise<HarnessOutput> {
+  const label = opts.label ?? "atlas-read";
+  const watchLimitMs = opts.watchLimitMs ?? DEFAULT_WATCH_LIMIT_MS;
+  const maxSteps = opts.maxSteps ?? DEFAULT_MAX_STEPS;
+  const random = seededRandom(opts.seed);
+  const n = sweep.callers;
+
+  let now = 0;
+  let seq = 0;
+  const timers: { at: number; seq: number; fire: () => void }[] = [];
+  const schedule = (at: number, fire: () => void) => timers.push({ at, seq: seq++, fire });
+
+  /** Virtual time of every call, per caller, in call order. */
+  const callTimes: number[][] = Array.from({ length: n }, () => []);
+  const waits: number[][] = Array.from({ length: n }, () => []);
+  let logLines = 0;
+  type Settled = { kind: "returns" | "throws"; at: number };
+  const settled: (Settled | null)[] = Array.from({ length: n }, () => null);
+  let settledCount = 0;
+
+  const retryOptsFor = (i: number): Parameters<RetryFn>[2] => {
+    const sleep = (ms: number): Promise<void> => {
+      waits[i]!.push(ms);
+      const at = now + (Number.isFinite(ms) && ms > 0 ? ms : 0);
+      return new Promise<void>((resolve) => schedule(at, resolve));
+    };
+    const o: Parameters<RetryFn>[2] = { sleep, log: () => void (logLines += 1) };
+    if (sweep.delayMs !== undefined) o.delayMs = sweep.delayMs;
+    return o;
+  };
+  const fnFor = (i: number) => (): Promise<unknown> => {
+    callTimes[i]!.push(now);
+    const k = callTimes[i]!.length;
+    if (sweep.failTimes === "always" || k <= sweep.failTimes) {
+      const pick = FAKE_RPC_ERRORS[Math.floor(random() * FAKE_RPC_ERRORS.length)]!;
+      const err = new Error(`${pick.message} (caller ${i + 1}, call ${k})`);
+      err.name = pick.name;
+      return Promise.reject(err);
+    }
+    return Promise.resolve(SUCCESS_VALUE);
+  };
+
+  installRealTimerTracker();
+  const realTimers = new Map<object, RealTimerKind>();
+  const previousRunTimers = currentRunTimers;
+  currentRunTimers = realTimers;
+  const before = activeResources();
+
+  for (let i = 0; i < n; i++) {
+    Promise.resolve()
+      .then(() => withRpcRetry(label, fnFor(i), retryOptsFor(i)))
+      .then(
+        () => {
+          settled[i] = { kind: "returns", at: now };
+          settledCount += 1;
+        },
+        () => {
+          settled[i] = { kind: "throws", at: now };
+          settledCount += 1;
+        },
+      );
+  }
+
+  // The same virtual event loop as runScenario, for all callers at once.
+  let stop: string | null = null;
+  let steps = 0;
+  try {
+    for (;;) {
+      await drainMicrotasks();
+      if (settledCount === n) break;
+      if (realTimers.size > 0) {
+        const kinds = [...new Set(realTimers.values())].sort();
+        if (kinds.every((k) => k === "setImmediate")) {
+          if (++steps > maxSteps) {
+            stop = `Atlas's step limit (${maxSteps} steps, Atlas's limit, not the code's) ended the run before every caller finished`;
+            break;
+          }
+          continue;
+        }
+        stop = `the code is waiting on a real timer Atlas does not control (${kinds.join(", ")}); Atlas did not wait for it`;
+        break;
+      }
+      const outside = grownResources(before);
+      if (outside.length > 0) {
+        stop = `the code is waiting on something Atlas does not control (${outside.join(", ")}); Atlas did not wait for it`;
+        break;
+      }
+      if (timers.length === 0) break; // some callers can never settle: nothing left that could wake them
+      timers.sort((a, b) => a.at - b.at || a.seq - b.seq);
+      const next = timers[0]!;
+      if (next.at > watchLimitMs) {
+        stop = `Atlas's watch limit (${watchLimitMs} ms of virtual time, Atlas's limit, not the code's) ended the run before every caller finished`;
+        break;
+      }
+      if (++steps > maxSteps) {
+        stop = `Atlas's step limit (${maxSteps} virtual timer steps, Atlas's limit, not the code's) ended the run before every caller finished`;
+        break;
+      }
+      timers.shift();
+      now = next.at;
+      next.fire();
+    }
+  } finally {
+    currentRunTimers = previousRunTimers;
+  }
+
+  // ---- what happened, counted ----
+  const byTime = new Map<number, number>();
+  for (const list of callTimes) for (const t of list) byTime.set(t, (byTime.get(t) ?? 0) + 1);
+  const instants = [...byTime.entries()].sort((a, b) => a[0] - b[0]);
+  const callTimesText = instants.map(([t, c]) => `${t}:${c}`).join(",");
+  const totalCalls = instants.reduce((a, [, c]) => a + c, 0);
+
+  const trace: TraceEvent[] = [{ t: 0, event: "start", data: { label, callers: n, failTimes: sweep.failTimes, ...(sweep.delayMs !== undefined ? { delayMs: sweep.delayMs } : {}) } }];
+  const settles = new Map<number, { returns: number; throws: number }>();
+  for (const s of settled) {
+    if (!s) continue;
+    const e = settles.get(s.at) ?? { returns: 0, throws: 0 };
+    e[s.kind] += 1;
+    settles.set(s.at, e);
+  }
+  const moments = [...new Set([...byTime.keys(), ...settles.keys()])].sort((a, b) => a - b);
+  for (const t of moments) {
+    if (byTime.has(t)) trace.push({ t, event: "calls", data: { count: byTime.get(t)! } });
+    if (settles.has(t)) trace.push({ t, event: "settled", data: settles.get(t)! });
+  }
+
+  const measured: RunResult["measured"] = {};
+  const notMeasured: RunResult["notMeasured"] = {};
+  if (stop) {
+    for (const f of ["calls", "callTimesMs", "waveCount", "largestWave", "sameScheduleCallers", "returnedCount", "threwCount", "pendingCount", "lastSettledAtMs"]) {
+      notMeasured[f] = f === "callTimesMs" ? `${stop}; the calls so far were at ${callTimesText || "no time"}` : stop;
+    }
+    trace.push({ t: now, event: "stopped_watching", data: { reason: stop, partial: true, callsSoFar: totalCalls } });
+    return { trace, result: { measured, notMeasured } };
+  }
+
+  measured.callers = n;
+  measured.calls = totalCalls;
+  measured.callTimesMs = callTimesText;
+  measured.waveCount = instants.length;
+  measured.largestWave = instants.reduce((a, [, c]) => Math.max(a, c), 0);
+  // How many callers called at exactly the same virtual times as caller 1 (the "same schedule").
+  const first = callTimes[0]!.join(",");
+  measured.sameScheduleCallers = callTimes.filter((l) => l.join(",") === first).length;
+  measured.callerWaitsMs = waits.every((w) => w.join(",") === waits[0]!.join(",")) ? waits[0]!.join(",") : "not the same for every caller";
+  measured.logCount = logLines;
+  measured.returnedCount = settled.filter((s) => s?.kind === "returns").length;
+  measured.threwCount = settled.filter((s) => s?.kind === "throws").length;
+  measured.pendingCount = settled.filter((s) => s === null).length;
+  if (settledCount === n) measured.lastSettledAtMs = settled.reduce((a, s) => Math.max(a, s!.at), 0);
+  else notMeasured.lastSettledAtMs = `${n - settledCount} caller(s) never settled, so there is no last settle time`;
   return { trace, result: { measured, notMeasured } };
 }

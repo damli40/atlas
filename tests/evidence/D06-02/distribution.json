@@ -1,0 +1,303 @@
+{
+  "made": "2026-10-27T08:42:11.004Z",
+  "target": {
+    "ref": "tests/fixtures/with-rpc-retry.ts",
+    "codeSha256": "f3d2c59f05151be85d8a950c009e63de8015e638d3af6f2fd1c2a729393ad101"
+  },
+  "runs": [
+    {
+      "failTimes": 3,
+      "callers": 1,
+      "status": 200,
+      "runId": "voBokg4NxW",
+      "seed": "Hj-H4c5aVC",
+      "controlPassed": true,
+      "realMs": 217,
+      "measured": {
+        "callers": 1,
+        "calls": 4,
+        "callTimesMs": "0:1,3000:1,6000:1,9000:1",
+        "waveCount": 4,
+        "largestWave": 1,
+        "sameScheduleCallers": 1,
+        "callerWaitsMs": "3000,3000,3000",
+        "logCount": 3,
+        "returnedCount": 1,
+        "threwCount": 0,
+        "pendingCount": 0,
+        "lastSettledAtMs": 9000
+      },
+      "shareAt0_3000_6000_9000": 1
+    },
+    {
+      "failTimes": 3,
+      "callers": 10,
+      "status": 200,
+      "runId": "rEg_DT0ZA4",
+      "seed": "cJd_UaAlO8",
+      "controlPassed": true,
+      "realMs": 106,
+      "measured": {
+        "callers": 10,
+        "calls": 40,
+        "callTimesMs": "0:10,3000:10,6000:10,9000:10",
+        "waveCount": 4,
+        "largestWave": 10,
+        "sameScheduleCallers": 10,
+        "callerWaitsMs": "3000,3000,3000",
+        "logCount": 30,
+        "returnedCount": 10,
+        "threwCount": 0,
+        "pendingCount": 0,
+        "lastSettledAtMs": 9000
+      },
+      "shareAt0_3000_6000_9000": 1
+    },
+    {
+      "failTimes": 3,
+      "callers": 50,
+      "status": 200,
+      "runId": "9XJYw8ddcU",
+      "seed": "ls6Bms_4yl",
+      "controlPassed": true,
+      "realMs": 94,
+      "measured": {
+        "callers": 50,
+        "calls": 200,
+        "callTimesMs": "0:50,3000:50,6000:50,9000:50",
+        "waveCount": 4,
+        "largestWave": 50,
+        "sameScheduleCallers": 50,
+        "callerWaitsMs": "3000,3000,3000",
+        "logCount": 150,
+        "returnedCount": 50,
+        "threwCount": 0,
+        "pendingCount": 0,
+        "lastSettledAtMs": 9000
+      },
+      "shareAt0_3000_6000_9000": 1
+    },
+    {
+      "failTimes": 3,
+      "callers": 100,
+      "status": 200,
+      "runId": "lmWRrujGM5",
+      "seed": "x3IPB4ffL4",
+      "controlPassed": true,
+      "realMs": 98,
+      "measured": {
+        "callers": 100,
+        "calls": 400,
+        "callTimesMs": "0:100,3000:100,6000:100,9000:100",
+        "waveCount": 4,
+        "largestWave": 100,
+        "sameScheduleCallers": 100,
+        "callerWaitsMs": "3000,3000,3000",
+        "logCount": 300,
+        "returnedCount": 100,
+        "threwCount": 0,
+        "pendingCount": 0,
+        "lastSettledAtMs": 9000
+      },
+      "shareAt0_3000_6000_9000": 1
+    },
+    {
+      "failTimes": 3,
+      "callers": 150,
+      "status": 200,
+      "runId": "McP6EXa5lB",
+      "seed": "r8SOaYdvTq",
+      "controlPassed": true,
+      "realMs": 99,
+      "measured": {
+        "callers": 150,
+        "calls": 600,
+        "callTimesMs": "0:150,3000:150,6000:150,9000:150",
+        "waveCount": 4,
+        "largestWave": 150,
+        "sameScheduleCallers": 150,
+        "callerWaitsMs": "3000,3000,3000",
+        "logCount": 450,
+        "returnedCount": 150,
+        "threwCount": 0,
+        "pendingCount": 0,
+        "lastSettledAtMs": 9000
+      },
+      "shareAt0_3000_6000_9000": 1
+    },
+    {
+      "failTimes": 3,
+      "callers": 200,
+      "status": 200,
+      "runId": "fMPMjhMyP_",
+      "seed": "0xTgAE8PqX",
+      "controlPassed": true,
+      "realMs": 110,
+      "measured": {
+        "callers": 200,
+        "calls": 800,
+        "callTimesMs": "0:200,3000:200,6000:200,9000:200",
+        "waveCount": 4,
+        "largestWave": 200,
+        "sameScheduleCallers": 200,
+        "callerWaitsMs": "3000,3000,3000",
+        "logCount": 600,
+        "returnedCount": 200,
+        "threwCount": 0,
+        "pendingCount": 0,
+        "lastSettledAtMs": 9000
+      },
+      "shareAt0_3000_6000_9000": 1
+    },
+    {
+      "failTimes": "always",
+      "callers": 1,
+      "status": 200,
+      "runId": "NRG0-d-0SS",
+      "seed": "VlmTDfTiW9",
+      "controlPassed": true,
+      "realMs": 96,
+      "measured": {
+        "callers": 1,
+        "calls": 5,
+        "callTimesMs": "0:1,3000:1,6000:1,9000:1,12000:1",
+        "waveCount": 5,
+        "largestWave": 1,
+        "sameScheduleCallers": 1,
+        "callerWaitsMs": "3000,3000,3000,3000",
+        "logCount": 4,
+        "returnedCount": 0,
+        "threwCount": 1,
+        "pendingCount": 0,
+        "lastSettledAtMs": 12000
+      },
+      "shareAt0_3000_6000_9000": 0.8
+    },
+    {
+      "failTimes": "always",
+      "callers": 10,
+      "status": 200,
+      "runId": "8yG1nm9bzK",
+      "seed": "VEPIA_hb9r",
+      "controlPassed": true,
+      "realMs": 108,
+      "measured": {
+        "callers": 10,
+        "calls": 50,
+        "callTimesMs": "0:10,3000:10,6000:10,9000:10,12000:10",
+        "waveCount": 5,
+        "largestWave": 10,
+        "sameScheduleCallers": 10,
+        "callerWaitsMs": "3000,3000,3000,3000",
+        "logCount": 40,
+        "returnedCount": 0,
+        "threwCount": 10,
+        "pendingCount": 0,
+        "lastSettledAtMs": 12000
+      },
+      "shareAt0_3000_6000_9000": 0.8
+    },
+    {
+      "failTimes": "always",
+      "callers": 50,
+      "status": 200,
+      "runId": "WaCz8reBCA",
+      "seed": "qsCk7lY0k3",
+      "controlPassed": true,
+      "realMs": 110,
+      "measured": {
+        "callers": 50,
+        "calls": 250,
+        "callTimesMs": "0:50,3000:50,6000:50,9000:50,12000:50",
+        "waveCount": 5,
+        "largestWave": 50,
+        "sameScheduleCallers": 50,
+        "callerWaitsMs": "3000,3000,3000,3000",
+        "logCount": 200,
+        "returnedCount": 0,
+        "threwCount": 50,
+        "pendingCount": 0,
+        "lastSettledAtMs": 12000
+      },
+      "shareAt0_3000_6000_9000": 0.8
+    },
+    {
+      "failTimes": "always",
+      "callers": 100,
+      "status": 200,
+      "runId": "OuvI1COm7m",
+      "seed": "8ogelctuth",
+      "controlPassed": true,
+      "realMs": 109,
+      "measured": {
+        "callers": 100,
+        "calls": 500,
+        "callTimesMs": "0:100,3000:100,6000:100,9000:100,12000:100",
+        "waveCount": 5,
+        "largestWave": 100,
+        "sameScheduleCallers": 100,
+        "callerWaitsMs": "3000,3000,3000,3000",
+        "logCount": 400,
+        "returnedCount": 0,
+        "threwCount": 100,
+        "pendingCount": 0,
+        "lastSettledAtMs": 12000
+      },
+      "shareAt0_3000_6000_9000": 0.8
+    },
+    {
+      "failTimes": "always",
+      "callers": 150,
+      "status": 200,
+      "runId": "ynxUW8jHWL",
+      "seed": "JFI4-Hdy8N",
+      "controlPassed": true,
+      "realMs": 101,
+      "measured": {
+        "callers": 150,
+        "calls": 750,
+        "callTimesMs": "0:150,3000:150,6000:150,9000:150,12000:150",
+        "waveCount": 5,
+        "largestWave": 150,
+        "sameScheduleCallers": 150,
+        "callerWaitsMs": "3000,3000,3000,3000",
+        "logCount": 600,
+        "returnedCount": 0,
+        "threwCount": 150,
+        "pendingCount": 0,
+        "lastSettledAtMs": 12000
+      },
+      "shareAt0_3000_6000_9000": 0.8
+    },
+    {
+      "failTimes": "always",
+      "callers": 200,
+      "status": 200,
+      "runId": "PWE0dPgLon",
+      "seed": "ZbnKRtwaDd",
+      "controlPassed": true,
+      "realMs": 103,
+      "measured": {
+        "callers": 200,
+        "calls": 1000,
+        "callTimesMs": "0:200,3000:200,6000:200,9000:200,12000:200",
+        "waveCount": 5,
+        "largestWave": 200,
+        "sameScheduleCallers": 200,
+        "callerWaitsMs": "3000,3000,3000,3000",
+        "logCount": 800,
+        "returnedCount": 0,
+        "threwCount": 200,
+        "pendingCount": 0,
+        "lastSettledAtMs": 12000
+      },
+      "shareAt0_3000_6000_9000": 0.8
+    }
+  ],
+  "refused201": {
+    "status": 422,
+    "body": {
+      "error": "gate: rejected (callers 201 is outside the allowed range (1 to 200)); nothing will run"
+    }
+  }
+}

@@ -1,0 +1,10 @@
+1080p: callers 200 · 200 callers made 800 calls in 4 waves; the largest wave held 200 calls at the same virtual millisecond. 200 of 200 callers called at exactly the same times. Bars: calls per 250 ms of virtual time. This sweep took 113 ms of real time, control included.
+1080p: caption in DOM: "mechanism, not an incident: every caller retries on the same fixed schedule"
+1080p: bars (bucket start ms : calls) 0:200, 3000:200, 6000:200, 9000:200
+1080p every call fails: 200 callers made 1,000 calls in 5 waves; the largest wave held 200 calls at the same virtual millisecond. 200 of 200 callers called at exactly the same times. Bars: calls per 250 ms of virtual time. This sweep took 122 ms of real time, control included.
+1080p slider at 20: 20 callers made 100 calls in 5 waves; the largest wave held 20 calls at the same virtual millisecond. 20 of 20 callers called at exactly the same times. Bars: calls per 250 ms of virtual time. This sweep took 99 ms of real time, control included.
+1080p: horizontal scroll: no · page errors: none
+390: callers 200 · 200 callers made 800 calls in 4 waves; the largest wave held 200 calls at the same virtual millisecond. 200 of 200 callers called at exactly the same times. Bars: calls per 250 ms of virtual time. This sweep took 105 ms of real time, control included.
+390: caption in DOM: "mechanism, not an incident: every caller retries on the same fixed schedule"
+390: bars (bucket start ms : calls) 0:200, 3000:200, 6000:200, 9000:200
+390: horizontal scroll: no · page errors: none

@@ -3,7 +3,7 @@
 // In development, Vite forwards /api/* to the Hono server on port 8787 (vite.config.ts).
 
 import type { Question } from "../src/gate";
-import type { Bet, Experiment, Finding, Run, Target, Verdict } from "../src/types";
+import type { AtlasFile, Bet, Experiment, Finding, Run, Target, Verdict } from "../src/types";
 import type { FalseAlarmRow } from "../runners/evm/level2";
 import type { ModelSlotView, SealedOnly } from "../server/bets";
 
@@ -54,6 +54,36 @@ export type HumanAnswer = { kind: "integer"; value: number } | { kind: "enum"; v
 
 const SESSION_HEADER = "x-atlas-session";
 
+/** A session id made by the page (12 letters and digits), used only when the server has not handed one back yet. */
+function newSessionId(): string {
+  const abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  const bytes = new Uint8Array(12);
+  globalThis.crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => abc[b % abc.length]).join("");
+}
+
+/** D06-02: what POST /sweeps answers. */
+export interface SweepAnswer {
+  experiment: Experiment;
+  run: Run;
+  control: { runId: string; passed: boolean };
+}
+
+/** D06-03: what GET /replay/:runId answers. */
+export interface ReplayAnswer {
+  runId: string;
+  replayRunId: string;
+  runner: "ts" | "evm";
+  forkBlock?: number;
+  replayForkBlock?: number;
+  seed?: string;
+  replaySeed?: string;
+  measuredEqual: boolean;
+  resultDiff: string[];
+  controlPassed: boolean;
+  sameOutcomes: boolean;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -79,7 +109,27 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
     if (!res.ok || json === undefined) throw new ApiError(json?.error ?? `the server answered ${res.status}`, res.status);
     return json;
   }
+  async function get<T>(path: string): Promise<T> {
+    // The replay route counts EVM replays per session and needs the header, so the page always sends
+    // one: the server's, once it handed one back, else one made here (the server accepts any well-formed id).
+    session ??= newSessionId();
+    const res = await fetchFn(`${base}${path}`, { method: "GET", headers: { [SESSION_HEADER]: session } });
+    let json: (T & { error?: string }) | undefined;
+    try {
+      json = (await res.json()) as T & { error?: string };
+    } catch {
+      json = undefined;
+    }
+    if (!res.ok || json === undefined) throw new ApiError(json?.error ?? `the server answered ${res.status}`, res.status);
+    return json;
+  }
   return {
+    /** D06-02: many callers at once on the fixture; the gate allows only "concurrency-sweep" there. */
+    sweep: (target: Target, params: unknown) => post<SweepAnswer>("/sweeps", { target: { ref: target.ref, codeSha256: target.codeSha256 }, params }),
+    /** D06-03: a round's .atlas.json, as the server kept it. */
+    proof: (runId: string) => get<AtlasFile>(`/proofs/${encodeURIComponent(runId)}`),
+    /** D06-03: re-run a round from its .atlas.json (same seed, or same fork block) and compare `measured`. */
+    replay: (runId: string) => get<ReplayAnswer>(`/replay/${encodeURIComponent(runId)}`),
     /** The session id the server handed back (null before the first answer). */
     session: () => session,
     target: (ref: string) => post<Target>("/targets", { kind: "ts-fixture", ref }),

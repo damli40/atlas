@@ -15,7 +15,7 @@ import type { Change, Experiment, Run, Target, TraceEvent } from "../../src/type
 import { localExecutor } from "../executor/local.ts";
 import type { Executor, Runner } from "../runner.ts";
 import { RESULT_MARKER, type HarnessOutput, type WorkerRequest, type WorkerResponse } from "./harness.ts";
-import { SUCCESS_VALUE, scenarioFromOracleInput, scenarioFromShape, type OracleInput } from "./shapes.ts";
+import { SUCCESS_VALUE, harnessInputFromShape, scenarioFromOracleInput, type OracleInput } from "./shapes.ts";
 
 const REPO_ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const FIXTURES_DIR = resolve(REPO_ROOT, "tests/fixtures");
@@ -258,7 +258,7 @@ export async function runExperiment(
   const res = await execInSandbox(
     executor,
     code,
-    { exportName: EXPORT_NAME, runs: [{ id: exp.id, scenario: scenarioFromShape(exp.params), seed, watchLimitMs: oracle.harnessWatchLimitMs }] },
+    { exportName: EXPORT_NAME, runs: [{ id: exp.id, ...harnessInputFromShape(exp.params), seed, watchLimitMs: oracle.harnessWatchLimitMs }] },
     DEFAULT_WALL_CLOCK_MS,
   );
   const out = res.ok ? res.runs.find((r) => r.id === exp.id) : undefined;
