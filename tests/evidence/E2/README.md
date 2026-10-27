@@ -301,3 +301,12 @@ objects"):
     call: I tried 27 padding sizes, with and without stalling the parent, and the OS never split the harness's own
     line, so a natural reproduction is timing-dependent (it needs the pipe full while the parent is busy).
 - **Counts after the fix:** 87 files, 1,059 passed, 19 skipped.
+
+## Adversarial review (2026-10-27): ship, 0 blockers
+
+An independent reviewer attacked the real path (sandbox-exec → boot → harness) on CPython 3.14.7: key extraction through every frame route, forged lines, sandbox escapes, hangs and false-fact probes. Every attack ended as "can't check", never a false measured fact. Full suite 1,059 passed.
+
+Known limits, logged and not fixed (release line drawn):
+- **Standard-library modules outside the preload list give "can't check".** Examples: argparse, gzip, configparser, email, xml.etree, zoneinfo. The ~40 most common modules work. Widening the list is planned.
+- **`sys.monitoring` is not fully refused.** Only `register_callback` is refused; `use_tool_id` and `set_events` pass. This is not exploitable, because no callback can run without registering. The earlier wording that it is "refused" overstated it.
+- **`returnedType` names the innermost non-JSON value.** For example `{"a":[1,2,nan]}` reports "number (NaN)". The JavaScript side does the same.
