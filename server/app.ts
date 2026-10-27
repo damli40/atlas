@@ -294,6 +294,8 @@ const changeBody = z.object({ runId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/) }
 
 /** S5: per client address, an hour (env ATLAS_MODEL_ROUNDS_PER_IP_PER_HOUR, ATLAS_INVESTIGATIONS_PER_IP_PER_HOUR). */
 export const DEFAULT_MODEL_ROUNDS_PER_IP_PER_HOUR = 20;
+/** M5 (day-6 review): sweeps one client address may run per hour (sessions are free to make). */
+export const DEFAULT_SWEEPS_PER_IP_PER_HOUR = 120;
 export const DEFAULT_INVESTIGATIONS_PER_IP_PER_HOUR = 6;
 const envCount = (raw: string | undefined, fallback: number) => (raw !== undefined && /^\d{1,4}$/.test(raw.trim()) ? Number(raw.trim()) : fallback);
 
@@ -953,9 +955,13 @@ export function createApp(opts: AppOptions = {}) {
 
   // D06-02: the waves screen. Many callers at once, same failure pattern, one virtual clock, in the sandbox.
   const sweepsRunning = new Set<string>();
+  const sweepsByIp = createHourlyLimit(envCount(process.env.ATLAS_SWEEPS_PER_IP_PER_HOUR, DEFAULT_SWEEPS_PER_IP_PER_HOUR), "sweeps");
   app.post("/sweeps", async (c) => {
     const sessionId = sessionIdOf(c);
     if (sessionId === null) return c.json({ error: BAD_SESSION }, 400);
+    // M5: counted per client address before anything else (a gate refusal also writes a file).
+    const perIp = sweepsByIp.take(clientOf(c));
+    if (!perIp.ok) return c.json({ error: `sweep not started: ${perIp.reason}` }, 429);
     const raw = await readJson(c.req.raw);
     if (!raw.ok) return c.json({ error: "the request body is not JSON" }, 400);
     const parsed = sweepBody.safeParse(raw.body);

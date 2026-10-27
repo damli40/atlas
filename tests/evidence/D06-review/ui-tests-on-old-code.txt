@@ -1,0 +1,20 @@
+     × the title carries the label 28ms
+     × the diff carries it too; M1: no 'Fixer' wording 9ms
+     × the real fixture passes: 1 and 3 callers land exactly on oracle row S3's times 0ms
+     × code that behaves differently only when callers overlap passes the one-caller control but not the sweep's 0ms
+     × full caption only when every caller kept the same schedule 0ms
+     × plurals: 1 caller, 4 waves 0ms
+     × S3: when the proof file could not take the change, the screen says so 4ms
+     × S5: the file changed is shown as data in a code element, sanitised 3ms
+     × over the hourly limit, a sweep is refused before it runs 377ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 9 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/unit/review-day6-ui.test.tsx > S6: the proof card labels pre-existing code, on the card and on the diff > the title carries the label
+ FAIL  tests/unit/review-day6-ui.test.tsx > S6: the proof card labels pre-existing code, on the card and on the diff > the diff carries it too; M1: no 'Fixer' wording
+ FAIL  tests/unit/review-day6-ui.test.tsx > S7: the waves are shown as fact only when runSweep matched its own known case > the real fixture passes: 1 and 3 callers land exactly on oracle row S3's times
+ FAIL  tests/unit/review-day6-ui.test.tsx > S7: the waves are shown as fact only when runSweep matched its own known case > code that behaves differently only when callers overlap passes the one-caller control but not the sweep's
+ FAIL  tests/unit/review-day6-ui.test.tsx > M2: the waves caption is earned > full caption only when every caller kept the same schedule
+ FAIL  tests/unit/review-day6-ui.test.tsx > M2: the waves caption is earned > plurals: 1 caller, 4 waves
+ FAIL  tests/unit/review-day6-ui.test.tsx > S3 and S5 on the Change screen > S3: when the proof file could not take the change, the screen says so
+ FAIL  tests/unit/review-day6-ui.test.tsx > S3 and S5 on the Change screen > S5: the file changed is shown as data in a code element, sanitised
+ FAIL  tests/unit/review-day6-ui.test.tsx > M5: sweeps are counted per client address > over the hourly limit, a sweep is refused before it runs
+      Tests  9 failed (9)

@@ -14,6 +14,10 @@ import { SAY, proofCardModel, replayWords } from "./proofcard-model";
 import { DiffView } from "./Change";
 import { AFTER_LABEL, BEFORE_LABEL, CHANGE_CAPTION } from "../../src/change";
 
+/** S6: the pre-existing label, from the file when it carries one. */
+const preExistingLabel = (file: AtlasFile) =>
+  file.target.preExisting ? `${file.target.preExisting.label} (listed in ${file.target.preExisting.listedIn})` : "Pre-existing (listed in PRE-EXISTING.md)";
+
 /** A link to a round's proof card, for the end of a round. */
 export function ProofLink({ runId }: { runId: string }) {
   return (
@@ -83,6 +87,12 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
         <div>
           <p className="pc-kicker">Atlas · proof card</p>
           <h1 className="pc-title">{card.target.kind === "github-pr" ? card.target.ref : "withRpcRetry"}</h1>
+          {card.target.kind === "ts-fixture" && (
+            // S6 (day-6 review): mandatory label, this code was written before the hackathon (PRE-EXISTING.md).
+            <span className="label" data-testid="pc-pre-existing">
+              {preExistingLabel(file)}
+            </span>
+          )}
           {card.level && (
             <p className="pc-level" data-testid="pc-level">
               {card.level}
@@ -216,8 +226,13 @@ function ProofChange({ file, said }: { file: AtlasFile; said: Record<string, str
         {CHANGE_CAPTION}
       </p>
       <p className="pc-small">
-        Proposed by {change.proposedBy.model} (Fixer) · replay {replay.run.id}, {same} · judged by src/judge.ts
+        Change proposed by {change.proposedBy.model} · replay {replay.run.id}, {same} · judged by src/judge.ts
       </p>
+      {file.target.kind === "ts-fixture" && (
+        <p className="pc-small" data-testid="pc-change-pre-existing">
+          <span className="label">{preExistingLabel(file)}</span> The diff below is a proposed change to that code, not code written for it.
+        </p>
+      )}
       <DiffView diff={change.diff} />
       <table className="pc-bets" data-testid="pc-change-table">
         <thead>

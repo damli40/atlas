@@ -60,6 +60,8 @@ export type ChangeAnswer =
       after: { run: Pick<Run, "id" | "seed" | "forkBlock" | "codeSha256">; verdicts: Verdict[] };
       /** EVM: PASS-RULE.md rule 3 applied literally to the replay, one line per check. */
       passRule?: PassRuleLine[];
+      /** Set by POST /changes: whether the change and replay went into the round's .atlas.json (S3: shown when not). */
+      proof?: { ok: true; runId: string; published?: boolean; error?: string } | { ok: false; runId: string; reason: string };
     };
 
 export interface ChangeDeps {

@@ -222,6 +222,55 @@ export async function runControl(
   return reason ? { run, reason } : { run };
 }
 
+// ── S7 (day-6 review): the sweep's own known-case check ─────────────────────────────────────────
+//
+// Plain words: the retry control above runs one caller at a time (runScenario). The waves chart comes
+// from a different piece of code, runSweep (many callers on one clock). So before a sweep's chart is
+// shown as fact, runSweep itself is checked on a case whose answer is known: oracle row S3 (every call
+// fails, five calls, four 3 s waits). With 1 caller the calls must land at exactly the oracle's times
+// (0, 3000, 6000, 9000, 12000 ms), one each; with 3 callers, three each, every caller on that same
+// schedule, all three throwing. Any difference and the sweep is not shown as fact.
+
+export const SWEEP_CONTROL_ROW = "S3";
+const SWEEP_CONTROL_CALLERS = [1, 3] as const;
+
+export async function runSweepControl(code: string, executor: Executor = localExecutor, wallClockMs = DEFAULT_WALL_CLOCK_MS): Promise<{ passed: boolean; reason?: string }> {
+  const oracle = loadOracle();
+  const row = oracle.cases.find((c) => c.id === SWEEP_CONTROL_ROW);
+  if (!row) return { passed: false, reason: `the oracle has no row ${SWEEP_CONTROL_ROW}` };
+  const sc = scenarioFromOracleInput(row.input);
+  const times: number[] = [0];
+  for (const w of row.expected.waitsMs) times.push(times[times.length - 1]! + w);
+  const res = await execInSandbox(
+    executor,
+    code,
+    {
+      exportName: EXPORT_NAME,
+      runs: SWEEP_CONTROL_CALLERS.map((n) => ({ id: `sweep-${n}`, scenario: { failTimes: sc.failTimes, failure: "error", errorKind: "seeded" }, callers: n, seed: CONTROL_SEED, watchLimitMs: oracle.harnessWatchLimitMs })),
+    },
+    wallClockMs,
+  );
+  if (!res.ok) return { passed: false, reason: res.reason };
+  const problems: string[] = [];
+  for (const n of SWEEP_CONTROL_CALLERS) {
+    const m = res.runs.find((r) => r.id === `sweep-${n}`)?.result.measured;
+    if (!m) {
+      problems.push(`${n} caller(s): no result`);
+      continue;
+    }
+    const want: Record<string, unknown> = {
+      callTimesMs: times.map((t) => `${t}:${n}`).join(","),
+      calls: row.expected.calls * n,
+      waveCount: times.length,
+      sameScheduleCallers: n,
+      threwCount: row.expected.outcome === "throws" ? n : 0,
+      returnedCount: row.expected.outcome === "returns" ? n : 0,
+    };
+    for (const [k, v] of Object.entries(want)) if (m[k] !== v) problems.push(`${n} caller(s): ${k} was ${JSON.stringify(m[k] ?? "not measured")}, the oracle row ${SWEEP_CONTROL_ROW} gives ${JSON.stringify(v)}`);
+  }
+  return problems.length ? { passed: false, reason: problems.join("; ") } : { passed: true };
+}
+
 /** Reads the reason from a control Run's trace (Run has no reason field). */
 export function controlReason(run: Run): string | undefined {
   const ev = run.trace.find((t) => t.event === "control_did_not_match");
@@ -276,6 +325,15 @@ export async function runExperiment(
   // "can't check", with the reason in notMeasured.control (the judge shows it).
   const tampered = !res.ok && res.tampered;
   if (tampered) result.notMeasured.control = res.reason;
+  // S7: a sweep is shown as fact only when runSweep itself matched its known case on these bytes.
+  let sweepOk = true;
+  const trace = out ? [...out.trace] : [];
+  if (exp.params.shape === "concurrency-sweep") {
+    const sc = await runSweepControl(code, executor);
+    sweepOk = sc.passed;
+    trace.push({ t: 0, event: sc.passed ? "sweep_control_matched" : "sweep_control_did_not_match", data: { row: SWEEP_CONTROL_ROW, callers: [...SWEEP_CONTROL_CALLERS], ...(sc.reason ? { reason: sc.reason } : {}) } });
+    if (!sc.passed && !tampered) result.notMeasured.control = `the sweep's own known-case check (oracle row ${SWEEP_CONTROL_ROW} with 1 and 3 callers) did not match: ${sc.reason}`;
+  }
   return {
     id: nanoid(10),
     experimentId: exp.id,
@@ -285,9 +343,9 @@ export async function runExperiment(
     seed,
     startedAt,
     finishedAt: new Date().toISOString(),
-    trace: out ? out.trace : [],
+    trace,
     result,
-    controlPassed: ctl.controlPassed === true && sameCode && !tampered,
+    controlPassed: ctl.controlPassed === true && sameCode && !tampered && sweepOk,
     controlRunId: ctl.id,
     ...(opts.replayOf ? { replayOf: opts.replayOf } : {}),
   };

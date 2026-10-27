@@ -45,5 +45,20 @@ export function shareInWaves(instants: readonly CallInstant[], times: readonly n
   return instants.filter((x) => want.has(x.t)).reduce((a, x) => a + x.count, 0) / total;
 }
 
-/** The DOM caption the waves chart always carries (never an outage, never "hangs"). "fixed" means unchanging here, not a verdict. */
+/** The DOM caption the waves chart carries when the run earns it (never an outage, never "hangs"). "fixed" means unchanging here, not a verdict. */
 export const WAVES_CAPTION = "mechanism, not an incident: every caller retries on the same fixed schedule"; // wording-lint: allow
+/** M2 (day-6 review): the caption when the run did not show every caller on one schedule (or has not run yet). */
+export const WAVES_CAPTION_PLAIN = "mechanism, not an incident";
+
+/**
+ * M2: the full caption only when the run measured it: every caller called at exactly the same times
+ * (sameScheduleCallers === callers). Otherwise only "mechanism, not an incident".
+ */
+export function wavesCaption(measured: Record<string, unknown> | null | undefined, shownAsFact: boolean): string {
+  if (!measured || !shownAsFact) return WAVES_CAPTION_PLAIN;
+  const n = measured.callers;
+  return typeof n === "number" && n > 0 && measured.sameScheduleCallers === n ? WAVES_CAPTION : WAVES_CAPTION_PLAIN;
+}
+
+/** "1 caller", "200 callers". */
+export const plural = (n: number, word: string) => `${n.toLocaleString("en-US")} ${word}${n === 1 ? "" : "s"}`;

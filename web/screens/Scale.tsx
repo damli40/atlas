@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Run, Target } from "../../src/types";
 import { notShownAsFact } from "../../src/trust";
 import type { Api } from "../api";
-import { WAVES_CAPTION, bucketCallTimes, parseCallTimes, type Bucket } from "./scale-model";
+import { bucketCallTimes, parseCallTimes, plural, wavesCaption, type Bucket } from "./scale-model";
 import { FIXTURE_REF } from "../scenarios";
 
 export const PATTERNS = [
@@ -124,7 +124,7 @@ export function ScaleScreen({ api }: { api: Api }) {
       </div>
       {run && <WavesChart run={run} realMs={realMs} />}
       <p className="scale-caption" data-testid="waves-caption">
-        {WAVES_CAPTION}
+        {wavesCaption(run?.result.measured, run ? notShownAsFact(run) === null : false)}
       </p>
       {error && (
         <p className="notice" role="alert">
@@ -160,8 +160,8 @@ export function WavesChart({ run, realMs = null }: { run: Run; realMs?: number |
     <figure className="waves" data-testid="waves">
       <BarChart buckets={buckets} />
       <figcaption className="muted small" data-testid="waves-summary">
-        {fmt(Number(m.callers))} callers made {fmt(Number(m.calls))} calls in {m.waveCount} waves; the largest wave held {fmt(Number(m.largestWave))} calls at the same virtual
-        millisecond. {fmt(Number(m.sameScheduleCallers))} of {fmt(Number(m.callers))} callers called at exactly the same times. Bars: calls per {BUCKET_MS} ms of virtual time.
+        {plural(Number(m.callers), "caller")} made {plural(Number(m.calls), "call")} in {plural(Number(m.waveCount), "wave")}; the largest wave held {plural(Number(m.largestWave), "call")} at the same virtual
+        millisecond. {fmt(Number(m.sameScheduleCallers))} of {plural(Number(m.callers), "caller")} called at exactly the same times. Bars: calls per {BUCKET_MS} ms of virtual time.
         {realMs !== null && ` This sweep took ${fmt(realMs)} ms of real time, control included.`}
       </figcaption>
       <table className="verdicts waves-table" data-testid="waves-table">

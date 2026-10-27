@@ -9,6 +9,7 @@
 
 import { useState } from "react";
 import { AFTER_LABEL, BEFORE_LABEL, CHANGE_CAPTION } from "../../src/change";
+import { parseUnifiedDiff } from "../../src/diff";
 import type { Bet, Outcome, Verdict } from "../../src/types";
 import type { Api, ChangeAnswer, RunAnswer } from "../api";
 import { useRunnerProgress } from "../progress";
@@ -51,6 +52,29 @@ export function DiffView({ diff }: { diff: string }) {
   );
 }
 
+/**
+ * S5 (day-6 review): a path from the diff is data, never part of Atlas's sentence: shown in a code element,
+ * only characters a path needs, at most 120 of them.
+ */
+export function safePath(p: string | null): string {
+  if (p === null) return "(none)";
+  const clean = p.replace(/[^A-Za-z0-9._/-]/g, "?").slice(0, 120);
+  return clean === "" ? "(empty)" : clean;
+}
+
+function DiffFiles({ diff }: { diff: string }) {
+  const parsed = parseUnifiedDiff(diff);
+  if (!parsed.ok) return null;
+  return (
+    <p className="muted small" data-testid="change-files">
+      File changed:{" "}
+      {parsed.files.map((f, i) => (
+        <code key={i}>{safePath(f.newPath)}</code>
+      ))}
+    </p>
+  );
+}
+
 export function ChangeResult({ answer, modelName, format = asStored }: { answer: ChangeAnswer; modelName?: string | null; format?: FormatValue }) {
   if (!answer.ok) {
     return (
@@ -82,8 +106,15 @@ export function ChangeResult({ answer, modelName, format = asStored }: { answer:
         {CHANGE_CAPTION}
       </p>
       <p className="muted small" data-testid="change-by">
-        Proposed by {by}. Checked by plain code before it ran: only the allowed file, at most 200 lines, applied with git apply in a scratch copy.
+        Proposed by {by}. Checked by plain code before it ran: only the allowed file, at most 200 lines, placed by Atlas's own reader and by git apply in a scratch copy (both
+        must agree).
       </p>
+      {answer.proof && !answer.proof.ok && (
+        <p className="notice" data-testid="change-proof-refused">
+          The change ran, but the proof file could not take it, so the proof card does not show it: {answer.proof.reason}
+        </p>
+      )}
+      <DiffFiles diff={answer.diff} />
       <DiffView diff={answer.diff} />
       <table className="verdicts" data-testid="change-table">
         <thead>
