@@ -150,7 +150,21 @@ function fakeEvmRun(calls: { forkBlock: number }[]) {
       chainId: 8453,
       startedAt: now,
       finishedAt: now,
-      trace: level2 ? [{ t: 0, event: "proposal_derived", data: { count: 2, actions: [{ symbol: "USDC" }, { symbol: "cbETH" }] } }] : [],
+      // The trace holds what the measured values claim (src/atlasfile.ts checks they agree).
+      trace: [
+        { t: 0, event: "fork_started", data: { forkBlock: opts.forkBlock, chainId: 8453 } },
+        { t: 1, event: "control_matched", data: {} },
+        ...(level2
+          ? [
+              { t: 2, event: "proposal_derived", data: { count: 2, actions: [{ symbol: "USDC" }, { symbol: "cbETH" }] } },
+              { t: 3, event: "price_read", data: { phase: "pre-apply", symbol: "USDC", priceUsd1e18: "999900000000000000" } },
+              { t: 4, event: "price_read", data: { phase: "pre-apply", symbol: "cbETH", priceUsd1e18: "2206683650838065175827" } },
+              { t: 5, event: "price_read", data: { phase: "post-apply", symbol: "USDC", priceUsd1e18: "999900000000000000" } },
+            ]
+          : []),
+        { t: 6, event: "price_read", data: { ...(level2 ? { phase: "post-apply" } : {}), symbol: "cbETH", priceUsd1e18: "1122662744874806300" } },
+        { t: 7, event: "reference", data: { key: "refUsd1e18:cbETH", value: "2206683650838065175827", method: "ETH/USD × cbETH/ETH, raw Chainlink, same block", inputs: { ethUsd: { decimals: 8, answer: "196558018952" }, cbEthEth: { decimals: 18, answer: "1122662744874806300" } } } },
+      ],
       result: {
         measured: {
           "priceUsd1e18:cbETH": "1122662744874806300",

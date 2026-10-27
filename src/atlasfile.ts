@@ -8,14 +8,22 @@
 // - every bet's seal recomputes (src/seal.ts) and was made before its run started;
 // - every verdict is exactly what src/judge.ts gives today for that bet and run (re-judged here);
 // - the code fingerprint, fork block and seed agree everywhere they appear;
-// - the captions this kind of run requires are present (pre-existing label, "after the fact", fork wording).
+// - the captions are exactly the ones this run earns: the required ones (pre-existing label, Level 2 at
+//   fork 42194662 with the apply shape, Level 1 at fork 42194663 with the price-read shape) plus, only
+//   when a person's finding quotes the cbETH config line, the "picked by a person" caption;
+// - an EVM run's measured values equal its own trace (every price read, the reference, the call-trace
+//   counts, the applied actions), the reference recomputes from its recorded Chainlink inputs, and the
+//   trace's control event agrees with controlPassed;
+// - experiments and runs link by id (runs[0] is the run of experiments[0], which /replay relies on);
 // - a Level 2 file's false-alarm table is exactly what src/falsealarm.ts rebuilds from its run (so a run
 //   whose control failed shows "can't check" on every flag, never a stored "flagged").
 // No I/O, no clock (except `createdAt`, passed in), no model.
 
 import { z } from "zod";
 import { judge } from "./judge";
+import { FORK_BLOCK } from "../runners/evm/moonwell-base";
 import { falseAlarmFromRun } from "./falsealarm";
+import { chainlinkTo1e18, usdTimesRatio1e18 } from "./units";
 import { canonicalJson, verifySeal } from "./seal";
 import type { AgentEvent, AtlasFile, Bet, Experiment, Finding, Run, Target, Verdict } from "./types";
 
@@ -205,6 +213,102 @@ export function requiredCaptions(file: Pick<AtlasFile, "target" | "experiments" 
   return [...new Set(out)];
 }
 
+/**
+ * Captions a file may carry beyond the required ones. The "picked by a person" caption needs a finding
+ * a person picked that quotes the cbETH oracle-config line (OracleConfig(..., "MOONWELL_cbETH")).
+ * Whether the Investigator pointed elsewhere is not stored in the file, so that half is the server's word.
+ */
+export function allowedExtraCaptions(file: Pick<AtlasFile, "findings">): string[] {
+  const human = (file.findings ?? []).some((f) => f.proposedBy.role === "human" && /OracleConfig\(\s*"cbETHETH_ORACLE"\s*,\s*"cbETH"\s*,\s*"MOONWELL_cbETH"\s*\)/.test(f.quotedSnippet));
+  return human ? [HUMAN_PICKED_CBETH_CAPTION] : [];
+}
+
+const asRecord = (x: unknown): Record<string, unknown> => (x && typeof x === "object" && !Array.isArray(x) ? (x as Record<string, unknown>) : {});
+
+/** The cbETH reference recomputed from its recorded raw-Chainlink inputs (decimals must be 8 and 18), or a reason. */
+export function recomputeReference(inputs: unknown): { ok: true; value: string } | { ok: false; reason: string } {
+  const i = asRecord(inputs);
+  const eth = asRecord(i.ethUsd);
+  const ratio = asRecord(i.cbEthEth);
+  if (eth.decimals !== 8 || ratio.decimals !== 18) return { ok: false, reason: "its recorded feed decimals are not 8 (ETH/USD) and 18 (cbETH/ETH)" };
+  if (typeof eth.answer !== "string" || typeof ratio.answer !== "string" || !/^\d+$/.test(eth.answer) || !/^\d+$/.test(ratio.answer)) return { ok: false, reason: "its recorded answers are not whole numbers" };
+  return { ok: true, value: usdTimesRatio1e18(chainlinkTo1e18(BigInt(eth.answer), 8), chainlinkTo1e18(BigInt(ratio.answer), 18)).toString() };
+}
+
+const POST_READ_FIELDS = ["priceUsd1e18", "rawUnderlyingPrice", "feedAddress", "feedDecimals", "feedDescription", "tokenDecimals"] as const;
+const PRE_READ_FIELDS = { priceUsd1e18: "preApplyPriceUsd1e18", feedAddress: "preApplyFeedAddress" } as const;
+
+/**
+ * An EVM run's measured values against its own trace. Every number a verdict or the table uses must
+ * be the number the trace recorded when it was read, so editing one without the other is caught.
+ * (The trace and the measured values are both in the file: this proves they agree, not that the chain
+ * said them. /replay re-runs the fork for that.)
+ */
+export function evmRunAgreesWithItsTrace(r: Run): string[] {
+  const out: string[] = [];
+  const m = r.result.measured;
+  const ev = (name: string) => r.trace.filter((t) => t.event === name);
+  // Control: exactly one control event, agreeing with controlPassed; a failed control says why.
+  const ctl = r.trace.filter((t) => t.event === "control_matched" || t.event === "control_did_not_match");
+  if (ctl.length !== 1) out.push(`its trace has ${ctl.length} control events, not 1`);
+  else if ((ctl[0]!.event === "control_matched") !== (r.controlPassed === true)) out.push(`its trace says ${ctl[0]!.event} but controlPassed is ${r.controlPassed}`);
+  if (r.controlPassed !== true && typeof r.result.notMeasured.control !== "string") out.push("its control did not pass but notMeasured.control gives no reason");
+  if (r.controlPassed === true && r.result.notMeasured.control !== undefined) out.push("controlPassed is true but notMeasured.control says the control failed");
+  const fork = ev("fork_started");
+  if (fork.length !== 1 || asRecord(fork[0]!.data).forkBlock !== r.forkBlock) out.push("its fork_started event does not name the run's fork block");
+
+  // Price reads.
+  const seen = new Set<string>();
+  for (const t of ev("price_read")) {
+    const d = asRecord(t.data);
+    const sym = String(d.symbol);
+    const pre = d.phase === "pre-apply";
+    const k = `${pre ? "pre" : "post"}:${sym}`;
+    if (seen.has(k)) out.push(`its trace reads ${sym} (${pre ? "pre-apply" : "post-apply"}) twice`);
+    seen.add(k);
+    if (pre) {
+      for (const [f, key] of Object.entries(PRE_READ_FIELDS)) if (m[`${key}:${sym}`] !== d[f]) out.push(`measured ${key}:${sym} is not the value its trace read (${String(d[f])})`);
+    } else {
+      for (const f of POST_READ_FIELDS) if (m[`${f}:${sym}`] !== d[f]) out.push(`measured ${f}:${sym} is not the value its trace read (${String(d[f])})`);
+    }
+  }
+  for (const key of Object.keys(m)) {
+    const pre = /^preApplyPriceUsd1e18:(.+)$/.exec(key);
+    const post = /^priceUsd1e18:(.+)$/.exec(key);
+    if (pre && !seen.has(`pre:${pre[1]}`)) out.push(`measured ${key} has no price_read in its trace`);
+    if (post && !seen.has(`post:${post[1]}`)) out.push(`measured ${key} has no price_read in its trace`);
+  }
+
+  // References: equal to the trace's reference event, and recomputed from its inputs.
+  const refs = r.result.references ?? {};
+  const refEvents = ev("reference");
+  for (const [key, ref] of Object.entries(refs)) {
+    const e = refEvents.filter((t) => asRecord(t.data).key === key);
+    if (e.length !== 1) {
+      out.push(`reference ${key} has ${e.length} reference events in its trace, not 1`);
+      continue;
+    }
+    const d = asRecord(e[0]!.data);
+    if (d.value !== ref.value || d.method !== ref.method) out.push(`reference ${key} is not the value its trace recorded`);
+    const again = recomputeReference(d.inputs);
+    if (!again.ok) out.push(`reference ${key} cannot be recomputed: ${again.reason}`);
+    else if (again.value !== ref.value) out.push(`reference ${key} is ${ref.value}, but its recorded inputs give ${again.value}`);
+  }
+  for (const t of refEvents) if (!(String(asRecord(t.data).key) in refs)) out.push(`its trace has a reference ${String(asRecord(t.data).key)} the result does not`);
+
+  // Price-source counts and applied actions.
+  for (const t of ev("call_trace")) {
+    const d = asRecord(t.data);
+    const key = d.phase === "pre-apply" ? "preApplyPriceSources:cbETH" : "priceSources:cbETH";
+    if (d.ok === true) {
+      if (m[key] !== d.count) out.push(`measured ${key} is not the count its trace recorded (${String(d.count)})`);
+      if (!Array.isArray(d.sources) || d.sources.length !== d.count) out.push(`its ${String(d.phase)} call trace counts ${String(d.count)} sources but lists ${Array.isArray(d.sources) ? d.sources.length : "none"}`);
+    } else if (m[key] !== undefined) out.push(`measured ${key} is set but its trace says the count was not measured`);
+  }
+  if ("appliedFeedActions" in m && m.appliedFeedActions !== ev("feed_set").length) out.push(`measured appliedFeedActions is ${String(m.appliedFeedActions)} but its trace has ${ev("feed_set").length} feed_set events`);
+  return out;
+}
+
 /** The file's Level 2 run (an EVM apply-proposal-then-read run), if it has one. */
 function isLevel2(file: Pick<AtlasFile, "experiments" | "runs">): Run | undefined {
   return file.runs.find((r) => r.runner === "evm" && file.experiments.find((e) => e.id === r.experimentId)?.params.shape === "apply-proposal-then-read");
@@ -239,6 +343,20 @@ export function verifyAtlasFile(raw: unknown): Verification {
       else if (file.seed !== r.seed) say(`TS run ${r.id} used seed ${r.seed}, the file says ${file.seed}`);
     }
   }
+  // Experiments and runs link by id: /replay re-runs experiments[0] and compares it with runs[0].
+  const ids = file.experiments.map((e) => e.id);
+  if (new Set(ids).size !== ids.length) say("two experiments share an id");
+  if (file.runs[0]!.experimentId !== file.experiments[0]!.id) say(`runs[0] is the run of experiment ${file.runs[0]!.experimentId}, not of experiments[0] (${file.experiments[0]!.id})`);
+  for (const e of file.experiments) if (!file.runs.some((r) => r.experimentId === e.id)) say(`experiment ${e.id} has no run`);
+  for (const b of file.bets) if (!file.experiments.some((e) => e.id === b.experimentId)) say(`bet ${b.id} names experiment ${b.experimentId}, which is not in the file`);
+  // The fork block is fixed by the shape (server/evm-round.ts forkBlockFor), never by the file.
+  for (const r of file.runs) {
+    if (r.runner !== "evm") continue;
+    const shape = file.experiments.find((e) => e.id === r.experimentId)?.params.shape;
+    if (shape === "apply-proposal-then-read" && r.forkBlock !== FORK_BLOCK.beforeProposal) say(`a Level 2 (apply-proposal-then-read) run must fork at ${FORK_BLOCK.beforeProposal}, run ${r.id} forked at ${r.forkBlock}`);
+    if (shape === "price-read" && r.forkBlock !== FORK_BLOCK.proposalExecuted) say(`a Level 1 (price-read) run must fork at ${FORK_BLOCK.proposalExecuted}, run ${r.id} forked at ${r.forkBlock}`);
+    for (const p of evmRunAgreesWithItsTrace(r)) say(`run ${r.id}: ${p}`);
+  }
   const runOf = (b: Bet) => file.runs.find((r) => r.experimentId === b.experimentId);
   for (const b of file.bets) {
     if (!verifySeal(b)) say(`bet ${b.id}: its fields do not hash to its sealedHash`);
@@ -259,7 +377,11 @@ export function verifyAtlasFile(raw: unknown): Verification {
     if (!sameJson(again, v)) say(`the verdict on bet ${b.id} is not what src/judge.ts gives for it (stored ${v.outcome}, judged ${again.outcome})`);
   }
   for (const v of file.verdicts) if (!file.bets.some((b) => b.id === v.betId)) say(`verdict names bet ${v.betId}, which is not in the file`);
-  for (const c of requiredCaptions(file)) if (!file.captions.includes(c)) say(`missing caption: "${c}"`);
+  const required = requiredCaptions(file);
+  for (const c of required) if (!file.captions.includes(c)) say(`missing caption: "${c}"`);
+  const allowed = new Set([...required, ...allowedExtraCaptions(file)]);
+  for (const c of file.captions) if (!allowed.has(c)) say(`caption "${c}" is not one this run earns`);
+  if (new Set(file.captions).size !== file.captions.length) say("a caption appears twice");
   // The false-alarm table is never trusted as stored: it is rebuilt from the run (src/falsealarm.ts),
   // which also makes every flag "can't check" when the run's control did not pass.
   const level2Run = isLevel2(file);

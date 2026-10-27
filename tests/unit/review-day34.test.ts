@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { falseAlarmFromRun, falseAlarmTable, type Level2Record } from "../../runners/evm/level2.ts";
-import { buildAtlasFile, verifyAtlasFile } from "../../src/atlasfile";
+import { buildAtlasFile, HUMAN_PICKED_CBETH_CAPTION, level1Caption, verifyAtlasFile } from "../../src/atlasfile";
 import { judge } from "../../src/judge";
 import type { AtlasFile, Run } from "../../src/types";
 
@@ -89,5 +89,86 @@ describe("B1: a run whose control failed never shows a flag", () => {
     const v = verifyAtlasFile(forged);
     expect(v.ok).toBe(false);
     expect(JSON.stringify(v)).toMatch(/false-alarm table is not what src\/falsealarm.ts rebuilds/);
+  });
+});
+
+describe("S3: verify recomputes the file instead of trusting it", () => {
+  const good = () => rebuild(liveLevel2().runs[0]!);
+  const problems = (f: unknown) => {
+    const v = verifyAtlasFile(JSON.parse(JSON.stringify(f)));
+    return v.ok ? [] : v.problems;
+  };
+
+  it("the live Level 2 run, rebuilt, verifies", () => {
+    expect(problems(good())).toEqual([]);
+  });
+
+  it("(a) the cbETH price edited to the person's bet and every verdict re-judged: refused", () => {
+    // Before the fix: verified ok, with the human verdict flipped to matched.
+    const f = good();
+    const human = f.bets.find((b) => b.who === "human")!;
+    f.runs[0]!.result.measured["priceUsd1e18:cbETH"] = (BigInt(Math.round((human.answer as { value: number }).value)) * 10n ** 18n).toString();
+    f.verdicts = f.bets.map((b) => judge(b, f.runs[0]!));
+    f.falseAlarm = falseAlarmFromRun(f.runs[0]!);
+    expect(f.verdicts.find((v) => v.betId === human.id)!.outcome).toBe("matched");
+    expect(problems(f).join("\n")).toMatch(/measured priceUsd1e18:cbETH is not the value its trace read/);
+  });
+
+  it("(a2) the reference edited: it no longer recomputes from its recorded Chainlink inputs", () => {
+    const f = good();
+    const r = f.runs[0]!;
+    const v = "1000000000000000000000";
+    r.result.references!["refUsd1e18:cbETH"]!.value = v;
+    (r.trace.find((t) => t.event === "reference")!.data as { value: string }).value = v;
+    f.verdicts = f.bets.map((b) => judge(b, r));
+    f.falseAlarm = falseAlarmFromRun(r);
+    expect(problems(f).join("\n")).toMatch(/its recorded inputs give 2206683650838065175827/);
+  });
+
+  it("(a3) the price-source count edited: refused", () => {
+    const f = good();
+    f.runs[0]!.result.measured["priceSources:cbETH"] = 2;
+    expect(problems(f).join("\n")).toMatch(/priceSources:cbETH is not the count its trace recorded/);
+  });
+
+  it("(b) the Level 1 caption on a Level 2 file, and the person-picked caption without a person's cbETH finding: refused", () => {
+    const f = good();
+    f.captions.push(level1Caption(42194663));
+    expect(problems(f).join("\n")).toMatch(/caption "re-run after the fact, on a fork of Base at block 42194663" is not one this run earns/);
+    const g = good();
+    g.findings = g.findings!.map((x) => ({ ...x, proposedBy: { role: "investigator" as const, model: "muse-wonder-1.0" } }));
+    expect(g.captions).toContain(HUMAN_PICKED_CBETH_CAPTION);
+    expect(problems(g).join("\n")).toMatch(/the cbETH line was picked by a person.*is not one this run earns/);
+  });
+
+  it("(c) the trace says the control did not match while controlPassed is true: refused", () => {
+    const f = good();
+    f.runs[0]!.trace.find((t) => t.event === "control_matched")!.event = "control_did_not_match";
+    expect(problems(f).join("\n")).toMatch(/its trace says control_did_not_match but controlPassed is true/);
+  });
+
+  it("(d) a Level 2 shape at the Level 1 block: refused", () => {
+    const f = good();
+    f.forkBlock = 42194663;
+    f.runs[0]!.forkBlock = 42194663;
+    (f.runs[0]!.trace.find((t) => t.event === "fork_started")!.data as { forkBlock: number }).forkBlock = 42194663;
+    expect(problems(f).join("\n")).toMatch(/a Level 2 \(apply-proposal-then-read\) run must fork at 42194662/);
+  });
+
+  it("(e) experiments[0] is not the experiment of runs[0]: refused", () => {
+    const f = good();
+    const other = structuredClone(f.experiments[0]!);
+    other.id = "other";
+    other.params = { shape: "price-read", markets: ["cbETH"] } as never;
+    f.experiments.unshift(other);
+    const p = problems(f).join("\n");
+    expect(p).toMatch(/runs\[0\] is the run of experiment .*, not of experiments\[0\] \(other\)/);
+    expect(p).toMatch(/experiment other has no run/);
+  });
+
+  it("(f) a bet changed after sealing: refused (its seal no longer verifies)", () => {
+    const f = good();
+    (f.bets[0]!.answer as { value: number }).value += 1;
+    expect(problems(f).join("\n")).toMatch(/do not hash to its sealedHash/);
   });
 });
