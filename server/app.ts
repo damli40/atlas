@@ -488,7 +488,11 @@ export function createApp(opts: AppOptions = {}) {
    * round (a finding, the per-client and per-session limits) run once; each model then gets the SAME
    * prompt (D18, D19) and seals its own bets. Neither sees the other's bets.
    */
-  const startModelBets = (round: Round, sessionId: string, clientIp: string, mode: ClaimantMode = DEFAULT_CLAIMANT_MODE): void => {
+  /**
+   * `slotTaken`: the caller already counted this round against the model-bets limits (day-7 review S4: the
+   * autonomous round's POST /adversary takes ONE experiment slot and ONE per-address round for the whole round).
+   */
+  const startModelBets = (round: Round, sessionId: string, clientIp: string, mode: ClaimantMode = DEFAULT_CLAIMANT_MODE, slotTaken = false): void => {
     const wanted = opts.modelBets?.model && mode === DEFAULT_CLAIMANT_MODE ? [opts.modelBets.model] : modelsFor(mode);
     const slots: ModelSlot[] = wanted.map((model) => ({ model, who: `model:${model}`, display: modelDisplay(model), status: "off" }));
     round.models = slots;
@@ -522,11 +526,13 @@ export function createApp(opts: AppOptions = {}) {
       for (const s of askable) s.reason = `no finding chosen yet for ${exp.target.ref}`;
       return;
     }
-    const byIp = modelRoundsByIp.take(clientIp);
-    const allowed = byIp.ok ? budget.startExperiment(sessionId) : byIp;
-    if (!allowed.ok) {
-      for (const s of askable) s.reason = allowed.reason; // e.g. "call limit reached": the person's round goes on without the model
-      return;
+    if (!slotTaken) {
+      const byIp = modelRoundsByIp.take(clientIp);
+      const allowed = byIp.ok ? budget.startExperiment(sessionId) : byIp;
+      if (!allowed.ok) {
+        for (const s of askable) s.reason = allowed.reason; // e.g. "call limit reached": the person's round goes on without the model
+        return;
+      }
     }
     const { finding, label: findingLabelText, fileText } = picked;
     // The retry defaults sit more than 20 lines above the loop, so for the fixture the model sees the
@@ -1290,7 +1296,24 @@ export function createApp(opts: AppOptions = {}) {
       } catch {
         // a refused log line never stops the round
       }
-      startModelBets(next, sessionId, clientIp, claimant.mode); // the claimant model(s) bet on the plain-code questions, sealed before the run
+      // The claimant model(s) bet on the plain-code questions, sealed before the run. This round's model-bets
+      // limits were counted once above, for the whole round (S4).
+      startModelBets(next, sessionId, clientIp, claimant.mode, true);
+      await modelsSettled(next);
+      const seated = modelSlotsOf(next).filter((s) => s.status === "sealed");
+      if (seated.length === 0) {
+        // S4: nobody bet, so there is nothing to judge: the code is not run (on Moonwell, no paid fork for nobody).
+        rounds.delete(id);
+        const why = modelSlotsOf(next)
+          .map((s) => `${s.display}: ${s.status === "no_usable_answer" ? `no usable answer (${s.reason ?? "no reason given"})` : `not asked (${s.reason ?? "no reason given"})`}`)
+          .join("; ");
+        try {
+          emitter.emit({ role: "runner", action: oneLine(`does not run ${id}: no bettor sealed a bet`), ref: { kind: "experiment", id } });
+        } catch {
+          // a refused log line never stops the answer
+        }
+        return { ok: false, fromRunId: runId, reason: `no bettor sealed a bet, so Atlas did not run it: ${why || "no model was asked"}`, adversary, person, round: { experiment, questions: next.questions, model: modelSlotView(next), models: modelSlotViews(next) } };
+      }
       let r: Awaited<ReturnType<typeof runRound>>;
       try {
         r = await runRound(sessionId, next);
@@ -1307,8 +1330,10 @@ export function createApp(opts: AppOptions = {}) {
     adversaryByRun.set(runId, work);
     try {
       const answer = await work;
-      // A run that could not finish is not kept, so "what else?" can be asked again (within the session cap).
-      if (!answer.ok && answer.reason?.startsWith("the run could not finish")) adversaryByRun.delete(runId);
+      // M6 (day-7 review): an answer with no finished run is not kept, so "what else?" can be asked again
+      // (within the session cap of MAX_ADVERSARY_PER_SESSION). A finished run is kept: asking again shows it.
+      const ran = (answer.round as { run?: unknown } | undefined)?.run !== undefined;
+      if (!answer.ok && !ran) adversaryByRun.delete(runId);
       return c.json(answer);
     } finally {
       slot?.release();

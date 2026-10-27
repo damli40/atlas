@@ -1,0 +1,10 @@
+     × experimentsPerSession 2: one normal round + 'What else?' still seats Muse Spark (the Adversary's slot covers the round) 360ms
+     × 2 model rounds an hour per address: the same, the address limit is counted once 301ms
+     × every model gave no usable answer: the code is not run, and the answer says why in plain words 307ms
+     × 'the server could not finish' is not cached 215ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: expected [ 'off' ] to deeply equal [ 'sealed' ]
+AssertionError: expected [ 'off' ] to deeply equal [ 'sealed' ]
+AssertionError: expected true to be false // Object.is equality
+AssertionError: expected false to be true // Object.is equality
+      Tests  4 failed | 1 passed (5)
