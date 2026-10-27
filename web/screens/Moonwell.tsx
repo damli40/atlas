@@ -16,6 +16,7 @@ import { ShortHash } from "./Bets";
 import { FindingsPanel } from "./Findings";
 import { ModelSlotCard } from "./ModelPanel";
 import { VerdictScreen, type FormatValue } from "./Verdict";
+import { modelTextsOf, WhyScreen } from "./Why";
 
 export const PR_FORK_BLOCK = { level2: MOONWELL_FORK_BLOCKS.level2.block, level1: MOONWELL_FORK_BLOCKS.level1.block } as const;
 
@@ -278,6 +279,8 @@ export function MoonwellFlow({ api }: { api: Api }) {
           )}
         </section>
       )}
+
+      {result && <WhyScreen run={result.run} finding={finding} modelTexts={modelTextsOf(result.bets, finding)} />}
 
       {error && (
         <p className="notice" role="alert">

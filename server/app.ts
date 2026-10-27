@@ -30,6 +30,8 @@
 //   On the PR, the gate allows apply-proposal-then-read (Level 2, fork 42194662) and price-read
 //   (Level 1, fork 42194663); the round asks the one cbETH question. POST /runs forks Base with anvil
 //   (30–90 s; each step is a runner line on the agent-log SSE), judges, and returns the false-alarm rows.
+//   EVM runs are capped at once and per hour, per session and overall (env ATLAS_RUNS_*); over a cap the
+//   answer is 429 with the reason, and the round stays open so the person can run it later.
 // - Every completed round becomes an .atlas.json (src/atlasfile.ts), kept in memory and written to
 //   <proofs dir>/<runId>/.atlas.json + run.json only when the caller turns publishing on
 //   (server/index.ts: ATLAS_PUBLISH_PROOFS=1). GET /proofs/:runId returns it. GET /replay/:runId
@@ -62,7 +64,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { z } from "zod";
 import { judge } from "../src/judge";
 import { verifySeal } from "../src/seal";
@@ -88,9 +90,9 @@ import { DEFAULT_WATCH_LIMIT_MS } from "../runners/ts/harness";
 import { evmRunner } from "../runners/evm/runner";
 import { falseAlarmFromRun } from "../runners/evm/level2";
 import { redactRpc, scrubDeep } from "../runners/evm/redact";
-import { createReplayGate, type ReplayGate } from "./replay-limits";
+import { createReplayGate, createRunGate, type ReplayGate } from "./replay-limits";
 import { buildAtlasFile, resultDiff, sameJson, verifyAtlasFile } from "../src/atlasfile";
-import { ASKED_FIELD, createProofStore, EVM_GATE_CONTEXT, evmTargetRefusal, extraCaptionsFor, forkBlockFor, humanFinding, type ProofStore } from "./evm-round";
+import { ASKED_FIELD, createProofStore, EVM_GATE_CONTEXT, evmTargetRefusal, extraCaptionsFor, forkBlockFor, humanFinding, recordedFindings, type ProofStore } from "./evm-round";
 import { control as runTsControl, readFixture, runExperiment } from "../runners/ts/control";
 
 const REPO_ROOT = fileURLToPath(new URL("../", import.meta.url));
@@ -254,6 +256,8 @@ export interface AppOptions {
   proofs?: ProofStore;
   /** Caps on EVM replays (S5). Default: createReplayGate() with limits from the environment (server/replay-limits.ts). */
   replayGate?: ReplayGate;
+  /** Caps on EVM runs (POST /runs). Default: createRunGate() with limits from the environment (ATLAS_RUNS_*). */
+  runGate?: ReplayGate;
 }
 
 const defaultEvmRun: NonNullable<AppOptions["evmRun"]> = (exp, opts) => evmRunner({ onProgress: opts.onProgress }).run(exp, { forkBlock: opts.forkBlock });
@@ -306,6 +310,7 @@ export function createApp(opts: AppOptions = {}) {
   };
   const evmRun = opts.evmRun ?? defaultEvmRun;
   const replayGate = opts.replayGate ?? createReplayGate();
+  const runGate = opts.runGate ?? createRunGate();
   const proofStore = opts.proofs ?? createProofStore({ publish: false });
   /** The text of one file of a target, as Atlas read it. */
   const fileTextOf = (target: Target, file: string): string | undefined => {
@@ -370,7 +375,7 @@ export function createApp(opts: AppOptions = {}) {
         bets,
         run,
         verdicts,
-        ...(round.finding ? { findings: [round.finding] } : {}),
+        ...(round.finding ? { findings: recordedFindings(round.finding, investigatorFindings) } : {}),
         agentLog: agentLog.history(sessionId).map((e) => e.event),
         extraCaptions: extraCaptionsFor(round.finding, investigatorFindings),
         createdAt: new Date().toISOString(),
@@ -781,6 +786,24 @@ export function createApp(opts: AppOptions = {}) {
     }
     if (round.status !== "open") return c.json({ error: `experiment ${experiment.id} already ran (started ${round.betsFrozenAt ?? "earlier"}); start a new experiment to run again` }, 409);
     if (round.bets.length === 0) return c.json({ error: "place at least one bet first: a run only happens after bets are sealed" }, 409);
+    // An EVM run forks Base and makes paid RPC reads, so it is capped at once and per hour, per session
+    // and overall (server/replay-limits.ts). Checked before the bets freeze, so a refused run can be retried.
+    let runSlot: { release: () => void } | undefined;
+    if (experiment.runner === "evm") {
+      const slot = runGate.take(sessionId);
+      if (!slot.ok) return c.json({ error: `run not started: ${slot.reason}` }, 429);
+      runSlot = slot;
+    }
+    try {
+      return await runRound(c, sessionId, round);
+    } finally {
+      runSlot?.release();
+    }
+  });
+
+  /** The body of POST /runs once the request is accepted (and, on the EVM runner, holds a run slot). */
+  async function runRound(c: Context, sessionId: string, round: Round) {
+    const experiment = round.experiment;
     betStore.touch(sessionId);
 
     // Freeze the person's bets NOW, before any await: from here every POST /bets on this experiment gets 409.
@@ -880,7 +903,7 @@ export function createApp(opts: AppOptions = {}) {
     const falseAlarm = experiment.runner === "evm" && experiment.params.shape === "apply-proposal-then-read" ? falseAlarmFromRun(run) : undefined;
     // Reveal every bet in full (with its nonce) so the browser can recompute each hash itself.
     return c.json({ run, verdicts, bets, betsFrozenAt: round.betsFrozenAt, model: modelSlotView(round), proof, ...(falseAlarm ? { falseAlarm } : {}) });
-  });
+  }
 
   // D04-04: the round's .atlas.json, as kept (memory) or published (disk).
   app.get("/proofs/:runId", (c) => {

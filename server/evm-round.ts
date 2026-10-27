@@ -17,7 +17,7 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { nanoid } from "nanoid";
 import type { GateContext } from "../src/gate";
-import { HUMAN_PICKED_CBETH_CAPTION } from "../src/atlasfile";
+import { chosenLineCaptions } from "../src/atlasfile";
 import type { AtlasFile, ExperimentShape, Finding } from "../src/types";
 import { FORK_BLOCK, PR578_CODE_SHA256, TOUCHED_MARKETS } from "../runners/evm/moonwell-base";
 import { planFromPrFiles } from "../runners/evm/apply";
@@ -57,22 +57,17 @@ export function cbEthConfigSpan(): { file: string; from: number; to: number } | 
   return a ? { file: "proposals/ChainlinkOracleConfigs.sol", from: a.config.line, to: a.config.line + 2 } : undefined;
 }
 
-const covers = (f: Pick<Finding, "file" | "lineStart" | "lineEnd">, at: { file: string; from: number; to: number }) => f.file === at.file && f.lineStart <= at.to && at.from <= f.lineEnd;
-
 /**
- * True when the round's finding was picked by a person, covers the cbETH config line, AND the
- * Investigator returned findings on this target and none of them covers that line.
+ * M7: the findings an .atlas.json records: the round's finding first, then every verified Investigator
+ * finding on the same code (not the chosen one twice). src/atlasfile.ts chosenLineCaptions decides the
+ * caption from exactly this list, here and again when the file is verified.
  */
-export function humanPickedCbEthWhileInvestigatorLookedElsewhere(finding: Finding | undefined, investigatorFindings: readonly Finding[]): boolean {
-  if (!finding || finding.proposedBy.role !== "human") return false;
-  const at = cbEthConfigSpan();
-  if (!at || !covers(finding, at)) return false;
-  const byModel = investigatorFindings.filter((f) => f.proposedBy.role === "investigator");
-  return byModel.length > 0 && !byModel.some((f) => covers(f, at));
+export function recordedFindings(finding: Finding | undefined, investigatorFindings: readonly Finding[]): Finding[] {
+  if (!finding) return [];
+  return [finding, ...investigatorFindings.filter((f) => f.id !== finding.id && f.proposedBy.role === "investigator" && f.verified)];
 }
 
-export const extraCaptionsFor = (finding: Finding | undefined, investigatorFindings: readonly Finding[]) =>
-  humanPickedCbEthWhileInvestigatorLookedElsewhere(finding, investigatorFindings) ? [HUMAN_PICKED_CBETH_CAPTION] : [];
+export const extraCaptionsFor = (finding: Finding | undefined, investigatorFindings: readonly Finding[]) => chosenLineCaptions(recordedFindings(finding, investigatorFindings));
 
 /** The most lines a person may pick (the same limit the Investigator's places have). */
 export const MAX_PICKED_LINES = 41;
