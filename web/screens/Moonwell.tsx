@@ -12,7 +12,7 @@ import type { Finding } from "../../src/types";
 import { formatUsd1e18 } from "../../src/units";
 import { rowWords, tableCounts } from "../../src/falsealarm";
 import type { Api, FalseAlarmRow, PrTarget, RunAnswer, ShownBet } from "../api";
-import { shownName, useModelSlots, verdictColumns } from "./Claimant";
+import { useModelSlots, verdictColumns } from "./Claimant";
 import { useRunnerProgress } from "../progress";
 import { ShortHash } from "./Bets";
 import { FindingsPanel } from "./Findings";
@@ -287,7 +287,7 @@ export function MoonwellFlow({ api }: { api: Api }) {
       {result && <WhyScreen run={result.run} finding={finding} modelTexts={modelTextsOf(result.bets, finding)} />}
 
       {result && experimentId && result.run.runner === "evm" && (
-        <ChangePanel api={api} result={result} experimentId={experimentId} modelName={models.slots[0] ? shownName(models.slots[0]) : null} format={usd} />
+        <ChangePanel api={api} result={result} experimentId={experimentId} format={usd} />
       )}
 
       {result && result.run.runner === "evm" && <AdversaryPanel api={api} runId={result.run.id} format={usd} />}

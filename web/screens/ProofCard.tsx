@@ -13,7 +13,7 @@ import { Scoreboard, bettorName } from "../machines/scoreboard/Scoreboard";
 import { SAY, proofCardModel, replayWords } from "./proofcard-model";
 import { DiffView } from "./Change";
 import { BettorCounts } from "./Claimant";
-import { MODEL_DISPLAY, orderModelBettors } from "../../src/claimants";
+import { bettorNames, changeProposer, orderModelBettors } from "../../src/claimants";
 import { AFTER_LABEL, BEFORE_LABEL, CHANGE_CAPTION, theoryCaptions } from "../../src/change";
 
 /** S6: the pre-existing label, from the file when it carries one. */
@@ -64,12 +64,7 @@ type ReplayState = { kind: "idle" } | { kind: "running" } | { kind: "done"; answ
 
 /** D10 + D07-01: each model bettor of the file by product name AND id (src/claimants.ts). An unknown id is shown as itself. */
 export function modelNames(file: Pick<AtlasFile, "bets">): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const b of file.bets) {
-    const shown = MODEL_DISPLAY[b.who.replace(/^model:/, "")];
-    if (b.who !== "human" && shown) out[b.who] = shown;
-  }
-  return out;
+  return bettorNames(file.bets.map((b) => b.who));
 }
 
 export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?: Api; replay?: ReplayAnswer }) {
@@ -250,7 +245,7 @@ function ProofChange({ file, said }: { file: AtlasFile; said: Record<string, str
         </p>
       ))}
       <p className="pc-small">
-        Change proposed by {change.proposedBy.model} · replay {replay.run.id}, {same} · judged by src/judge.ts
+        Change proposed by {change.proposedBy.path ? changeProposer(change.proposedBy.path, change.proposedBy.model) : change.proposedBy.model} · replay {replay.run.id}, {same} · judged by src/judge.ts
       </p>
       {file.target.kind === "ts-fixture" && (
         <p className="pc-small" data-testid="pc-change-pre-existing">

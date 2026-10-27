@@ -179,7 +179,7 @@ describe("the Fixer with a mocked Muse Code", () => {
     expect(r.path).toBe("chat-fallback");
     expect(r.model).toBe("muse-spark-1.3");
     expect(events[0]!.action).toMatch(/^Muse Code gave no answer \(muse exec could not start: spawn ENOENT\); falls back to muse-spark-1.3 chat/);
-    expect(events[1]!.action).toMatch(/^muse-spark-1.3 \(chat fallback\) proposes a change to tests\/fixtures\/with-rpc-retry.ts/);
+    expect(events[1]!.action).toMatch(/^Muse Spark 1.3 \(chat fallback\) proposes a change to tests\/fixtures\/with-rpc-retry.ts/);
   });
 
   it("parses muse exec JSON lines: final text, model id and usage", () => {

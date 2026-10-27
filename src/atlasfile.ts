@@ -210,7 +210,7 @@ export const atlasFileSchema = z
         runId: z.string().min(1),
         diff: z.string().min(1),
         // M8 (day-6 review): a model id, never a sentence.
-        proposedBy: z.object({ role: z.literal("fixer"), model: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,63}$/) }).strict(),
+        proposedBy: z.object({ role: z.literal("fixer"), model: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,63}$/), path: z.enum(["muse-exec", "chat-fallback"]).optional() }).strict(),
         toward: z.string().min(1),
         replayRunId: z.string().optional(),
         // D20: the theoretical-direct-wire mode and the feeds wired directly (recomputed below).

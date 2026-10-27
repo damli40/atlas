@@ -16,6 +16,8 @@ import { useRunnerProgress } from "../progress";
 import { RetryMachine } from "../machines/retry/RetryMachine";
 import { PricePipe } from "../machines/pricepipe/PricePipe";
 import type { FormatValue } from "./Verdict";
+import { bettorNames, changeProposer } from "../../src/claimants";
+import { bettorName } from "../machines/scoreboard/Scoreboard";
 
 const SAY: Record<Outcome, string> = { matched: "matched", not_matched: "didn't match", cant_check: "can't check" };
 const asStored: FormatValue = (_m, v) => String(v);
@@ -75,7 +77,7 @@ function DiffFiles({ diff }: { diff: string }) {
   );
 }
 
-export function ChangeResult({ answer, modelName, format = asStored }: { answer: ChangeAnswer; modelName?: string | null; format?: FormatValue }) {
+export function ChangeResult({ answer, format = asStored }: { answer: ChangeAnswer; format?: FormatValue }) {
   if (!answer.ok) {
     return (
       <div data-testid="change-refused">
@@ -95,8 +97,10 @@ export function ChangeResult({ answer, modelName, format = asStored }: { answer:
       </div>
     );
   }
-  const label = (who: string) => (who === "human" ? "You" : (modelName ?? who.replace(/^model:/, "")));
-  const by = answer.fixer.path === "muse-exec" ? `Muse Code (muse exec, ${answer.fixer.model})` : `${answer.fixer.model} (chat fallback: Muse Code gave no answer)`;
+  // Day-7 review S1: each model bettor by its own product name and id, from the bets themselves (as the proof card does).
+  const names = bettorNames(answer.bets.map((b) => b.who));
+  const label = (who: string) => bettorName(who, names);
+  const by = changeProposer(answer.fixer.path, answer.fixer.model);
   const r = answer.replay;
   const checks = r.trace.at(-1)?.event === "replay_checks" ? (r.trace.at(-1)!.data as Record<string, unknown>) : undefined;
   const harness = checks?.harnessCheck as { passed?: boolean } | undefined;
@@ -113,7 +117,7 @@ export function ChangeResult({ answer, modelName, format = asStored }: { answer:
         </p>
       ))}
       <p className="muted small" data-testid="change-by">
-        Proposed by {by}. Checked by plain code before it ran: only the allowed file, at most 200 lines, placed by Atlas's own reader and by git apply in a scratch copy (both
+        Change proposed by {by}. Checked by plain code before it ran: only the allowed file, at most 200 lines, placed by Atlas's own reader and by git apply in a scratch copy (both
         must agree).
       </p>
       {answer.proof && !answer.proof.ok && (
@@ -174,7 +178,7 @@ export function ChangeResult({ answer, modelName, format = asStored }: { answer:
   );
 }
 
-export function ChangePanel({ api, result, experimentId, modelName, format }: { api: Api; result: RunAnswer; experimentId: string; modelName?: string | null; format?: FormatValue }) {
+export function ChangePanel({ api, result, experimentId, format }: { api: Api; result: RunAnswer; experimentId: string; format?: FormatValue }) {
   const [answer, setAnswer] = useState<ChangeAnswer | null>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -213,7 +217,7 @@ export function ChangePanel({ api, result, experimentId, modelName, format }: { 
           )}
         </div>
       )}
-      {answer && <ChangeResult answer={answer} modelName={modelName ?? null} {...(format ? { format } : {})} />}
+      {answer && <ChangeResult answer={answer} {...(format ? { format } : {})} />}
       {error && (
         <p className="notice" role="alert">
           {error}

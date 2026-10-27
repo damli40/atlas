@@ -109,7 +109,7 @@ export async function changeAndReplay(round: Round, deps: ChangeDeps): Promise<C
     id: nanoid(10),
     runId: run.id,
     diff: fx.diff,
-    proposedBy: { role: "fixer", model: fx.model },
+    proposedBy: { role: "fixer", model: fx.model, path: fx.path },
     toward,
     // D20: the theoretical mode, exactly as plain code derived it (runners/change.ts planChangedConfig).
     ...(fx.checked.mode ? { mode: fx.checked.mode, directWired: fx.checked.directWired ?? [] } : {}),

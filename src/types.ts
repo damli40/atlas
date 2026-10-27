@@ -131,7 +131,8 @@ export interface Change {
   runId: string;
   /** Unified diff proposed by the Fixer. Applied in a scratch copy only. */
   diff: string;
-  proposedBy: { role: "fixer"; model: string };
+  /** D07-04: `path` says which Fixer path ran ("muse-exec" = Muse Code, "chat-fallback" = Muse Spark chat). Older files have none. */
+  proposedBy: { role: "fixer"; model: string; path?: "muse-exec" | "chat-fallback" };
   /** What the bettors expected; the change is "toward" this, never "a fix". */
   toward: string;
   replayRunId?: string;

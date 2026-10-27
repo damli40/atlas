@@ -33,7 +33,7 @@ const page = (title: string, body: string) =>
 const change = renderToStaticMarkup(
   <section className="card" aria-label="change and re-run" data-testid="change">
     <h2>5. Change it toward what you expected</h2>
-    <ChangeResult answer={answer} modelName="Muse Spark 1.3 (muse-spark-1.3)" format={usd} />
+    <ChangeResult answer={answer} format={usd} />
   </section>,
 );
 writeFileSync(join(HERE, "change.html"), page("D20 change and theoretical replay", change));

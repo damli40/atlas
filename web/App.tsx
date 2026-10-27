@@ -12,7 +12,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Question } from "../src/gate";
 import type { Target } from "../src/types";
 import { createApi, type Api, type ClaimantMode, type HumanAnswer, type RunAnswer, type ShownBet } from "./api";
-import { ClaimantToggle, shownName, useModelSlots, verdictColumns } from "./screens/Claimant";
+import { ClaimantToggle, useModelSlots, verdictColumns } from "./screens/Claimant";
 import { DEFAULT_SCENARIO, FIXTURE_REF, SCENARIOS } from "./scenarios";
 import { Bets, TargetCard } from "./screens/Bets";
 import { RunScreen } from "./screens/Run";
@@ -209,7 +209,7 @@ function FixtureFlow({ api }: { api: Api }) {
       {result && <VerdictScreen shown={sealed} typed={answers} modelShown={[]} modelName={null} models={verdictColumns(models.slots)} result={result} />}
       {result && <WhyScreen run={result.run} finding={finding} modelTexts={modelTextsOf(result.bets, finding)} />}
       {result?.proof?.ok && <ProofLink runId={result.proof.runId} />}
-      {result && experimentId && <ChangePanel api={api} result={result} experimentId={experimentId} modelName={models.slots[0] ? shownName(models.slots[0]) : null} />}
+      {result && experimentId && <ChangePanel api={api} result={result} experimentId={experimentId} />}
       {result && <AdversaryPanel api={api} runId={result.run.id} />}
       {error && (
         <p className="notice" role="alert">

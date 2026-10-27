@@ -67,7 +67,7 @@ describe("POST /changes", () => {
     expect(a.diff).toBe(DIFF);
     // S8 (day-6): the model's raw answer never reaches the browser, only the accepted diff.
     expect(a.fixer.attempts.some((x) => "answer" in x)).toBe(false);
-    expect(a.change.proposedBy).toEqual({ role: "fixer", model: "muse-spark-1.3" });
+    expect(a.change.proposedBy).toEqual({ role: "fixer", model: "muse-spark-1.3", path: "muse-exec" });
     expect(a.change.toward).toContain("The person bet on");
     expect(a.replay.seed).toBe(run.seed);
     expect(a.after.run.seed).toBe(a.before.run.seed);
@@ -81,7 +81,7 @@ describe("POST /changes", () => {
     const ev = agentLog.history(session).map((e) => e.event);
     const fixerLine = ev.find((e) => e.role === "fixer")!;
     expect(fixerLine.model).toBe("muse-spark-1.3");
-    expect(fixerLine.action).toMatch(/^Muse Code \(muse exec, muse-spark-1.3\) proposes a change to tests\/fixtures\/with-rpc-retry.ts/);
+    expect(fixerLine.action).toMatch(/^Muse Code \(muse-spark-1.3\) proposes a change to tests\/fixtures\/with-rpc-retry.ts/);
     expect(ev.some((e) => e.role === "runner" && /same seed/.test(e.action))).toBe(true);
     // D06-01: the change and its replay are in the round's .atlas.json, and verify recomputes them.
     const { verifyAtlasFile } = await import("../../src/atlasfile");

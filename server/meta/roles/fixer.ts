@@ -38,6 +38,7 @@ import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { extractDiff } from "../../../src/diff";
 import type { Experiment } from "../../../src/types";
+import { changeProposer } from "../../../src/claimants";
 import { checkChange, MAX_CHANGED_LINES, type ChangeContext, type CheckedChange } from "../../../runners/change";
 import { makeScratch } from "../../../runners/scratch";
 import { chat as realChat, costUsd, DEFAULT_USAGE_PATH, loadApiKey, modelRefusal, priceFor, shownModelId, type ChatArgs, type ChatResult, type Usage } from "../client";
@@ -433,7 +434,7 @@ function logMuseUsage(path: string, model: string, usage: Usage, finishReason: s
 
 // ── the role ────────────────────────────────────────────────────────────────────────────────────
 
-const pathLabel = (p: FixerPath, model: string) => (p === "muse-exec" ? `${MUSE_CODE} (muse exec, ${model})` : `${model} (chat fallback)`);
+const pathLabel = (p: FixerPath, model: string) => changeProposer(p, model);
 
 /** Ask for a change, check it by plain code, one repair try. Never throws for model trouble. */
 export async function runFixer(input: FixerInput, deps: FixerDeps = {}): Promise<FixerResult> {

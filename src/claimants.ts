@@ -26,6 +26,20 @@ export const MODEL_DISPLAY: Record<string, string> = {
 export const modelDisplay = (model: string): string => MODEL_DISPLAY[model] ?? model;
 
 /**
+ * Day-7 review S1: one name per model bettor ("model:<id>" → product name and id), built from the bettors
+ * themselves, so two models in one round never share a name. The proof card and the Change screen both
+ * use it. An unknown id gets no entry (the screens then show the id itself).
+ */
+export function bettorNames(whos: readonly string[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const w of whos) {
+    const shown = MODEL_DISPLAY[w.replace(/^model:/, "")];
+    if (w !== "human" && shown) out[w] = shown;
+  }
+  return out;
+}
+
+/**
  * Model bettors ("model:<id>") in a fixed column order: Muse Spark, then Muse Spark Open, then any other id
  * as first seen. The order never depends on which model answered first.
  */
@@ -61,3 +75,13 @@ export interface ClaimantsInfo {
 
 /** The toggle's words when Muse Spark Open cannot be asked. Never a score. */
 export const sparkOpenUnavailableText = (reason: string) => `Muse Spark Open: not available (${reason})`;
+
+/** The product name a model id is shown with, without its id (e.g. "Muse Spark 1.3"). Unknown id: the id. */
+const PRODUCT: Record<string, string> = { [SPARK_MODEL]: "Muse Spark 1.3", [SPARK_OPEN_MODEL]: "Muse Spark Open" };
+
+/**
+ * D07-04: who proposed a change, in one phrase. Muse Code ran: "Muse Code (muse-spark-1.3)". The chat
+ * fallback ran (Muse Code gave no answer): "Muse Spark 1.3 (chat fallback)".
+ */
+export const changeProposer = (path: string, model: string): string =>
+  path === "muse-exec" ? (model === "Muse Code" ? "Muse Code" : `Muse Code (${model})`) : `${PRODUCT[model] ?? model} (chat fallback)`;
