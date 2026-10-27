@@ -71,10 +71,11 @@ import { checkAnswer, createBetStore, humanBetBody, humanBetsBody, MAX_BETS, MAX
 import type { ChatArgs, ChatResult } from "./meta/client";
 import { CLAIMANT_MODEL } from "./meta/roles/claimant";
 import { modelDisplay, runClaimantBets } from "./meta/roles/claimant-bets";
+import { moonwellBetContext, moonwellLevelOf } from "../src/bet-context";
 import { FIXTURE_FILE, FIXTURE_FINDING_LABEL, fixtureContextRange, fixtureFinding } from "./meta/roles/fixture-finding";
 import { INVESTIGATOR_FALLBACK_MODEL, INVESTIGATOR_MODEL, runInvestigator, type InvestigatorFile } from "./meta/roles/investigator";
 import { fetchGithubPr, type GithubPrTarget } from "./targets/github";
-import { gate, type GateContext } from "../src/gate";
+import { gate, type GateContext, type Question } from "../src/gate";
 import type { Bet, Experiment, Finding, Run, Target, Verdict } from "../src/types";
 import type { Executor } from "../runners/runner";
 import { localExecutor } from "../runners/executor/local";
@@ -152,6 +153,18 @@ function listedAsPreExisting(fixturePath: string): boolean {
 
 /** What the gate allows on a TS fixture today: only "retry-scenario" has a runner (no concurrency-sweep runner yet). */
 export const TS_GATE_CONTEXT: GateContext = { shapes: ["retry-scenario"], watchLimitMs: DEFAULT_WATCH_LIMIT_MS };
+
+/**
+ * D19: the "what the bettor sees" text for an EVM (Moonwell) round, built by the same function the
+ * bet screen renders (src/bet-context.ts). Undefined for any other round (the fixture keeps its prompt).
+ */
+export function seenContextFor(exp: Experiment, questions: readonly Question[], finding: Finding): string | undefined {
+  if (exp.runner !== "evm") return undefined;
+  const level = moonwellLevelOf(exp.params.shape);
+  const q = questions[0];
+  if (!level || !q) return undefined;
+  return moonwellBetContext({ level, question: q, finding });
+}
 
 // ---------- the app ----------
 
@@ -384,6 +397,8 @@ export function createApp(opts: AppOptions = {}) {
     // The retry defaults sit more than 20 lines above the loop, so for the fixture the model sees the
     // whole verbatim block whichever finding is used (fixture-finding.ts explains why).
     const contextRange = exp.target.ref === FIXTURE_FILE ? fixtureContextRange(fileText) : undefined;
+    // D19: on the Moonwell PR the model gets exactly what the person's bet screen shows (src/bet-context.ts).
+    const seenContext = seenContextFor(exp, round.questions, finding);
     slot.status = "thinking";
     const chat = modelChat;
     const { now } = opts.modelBets;
@@ -396,7 +411,7 @@ export function createApp(opts: AppOptions = {}) {
     });
     slot.settled = Promise.race([
       runClaimantBets(
-        { experiment: exp, questions: round.questions, finding, findingLabel: findingLabelText, ...(contextRange ? { contextRange } : {}), fileText, gateContext: round.gateContext ?? TS_GATE_CONTEXT, model },
+        { experiment: exp, questions: round.questions, finding, findingLabel: findingLabelText, ...(contextRange ? { contextRange } : {}), ...(seenContext !== undefined ? { seenContext } : {}), fileText, gateContext: round.gateContext ?? TS_GATE_CONTEXT, model },
         { chat, log: sessionEmitter(agentLog, sessionId), ...(now ? { now } : {}) },
       ),
       late, // an answer after the deadline is never sealed into this round

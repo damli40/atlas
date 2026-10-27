@@ -6,6 +6,7 @@
 
 import { useState } from "react";
 import { LEVEL2_CAPTION, level1Caption } from "../../src/atlasfile";
+import { MOONWELL_FORK_BLOCKS, MOONWELL_LEVEL_SAYS, moonwellBetContext, type MoonwellLevel } from "../../src/bet-context";
 import type { Question } from "../../src/gate";
 import type { Finding } from "../../src/types";
 import { formatUsd1e18 } from "../../src/units";
@@ -16,23 +17,23 @@ import { FindingsPanel } from "./Findings";
 import { ModelSlotCard } from "./ModelPanel";
 import { VerdictScreen, type FormatValue } from "./Verdict";
 
-export const PR_FORK_BLOCK = { level2: 42194662, level1: 42194663 } as const;
+export const PR_FORK_BLOCK = { level2: MOONWELL_FORK_BLOCKS.level2.block, level1: MOONWELL_FORK_BLOCKS.level1.block } as const;
 
 const LEVELS = {
   level2: {
     label: "Before it shipped (Level 2)",
-    says: `Fork Base at block ${PR_FORK_BLOCK.level2}, one block before the proposal ran, apply the proposal's oracle-feed actions as the governor, then read the prices.`,
+    says: MOONWELL_LEVEL_SAYS.level2,
     params: { shape: "apply-proposal-then-read", markets: "touched" },
     caption: LEVEL2_CAPTION,
   },
   level1: {
     label: "After the fact (Level 1)",
-    says: `Fork Base at block ${PR_FORK_BLOCK.level1}, the block the proposal ran in, and read the price.`,
+    says: MOONWELL_LEVEL_SAYS.level1,
     params: { shape: "price-read", markets: ["cbETH"] },
     caption: level1Caption(PR_FORK_BLOCK.level1),
   },
 } as const;
-type Level = keyof typeof LEVELS;
+type Level = MoonwellLevel;
 
 /** "https://github.com/o/r/pull/578", "github.com/o/r/pull/578/files" or "o/r#578" → "o/r#578". */
 export function prRefFromLink(link: string): string | null {
@@ -174,6 +175,14 @@ export function MoonwellFlow({ api }: { api: Api }) {
                 if (sealed.length === 0) seal();
               }}
             >
+              {finding && (
+                <>
+                  <p className="muted small">What you know before betting. Muse Spark gets exactly this text, nothing more (no prices).</p>
+                  <pre className="code" data-testid="bet-context">
+                    {moonwellBetContext({ level, question: q, finding })}
+                  </pre>
+                </>
+              )}
               <div className="question">
                 <label htmlFor="bet-usd">{q.text}</label>
                 <p className="muted small">Written by plain code (src/gate.ts). Muse Spark answers the same question. Matched means within {q.tolerancePct}% of what the run reads.</p>
