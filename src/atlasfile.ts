@@ -510,6 +510,31 @@ export function callRunAgreesWithItsTrace(r: Run): string[] {
   return out;
 }
 
+/**
+ * D31 (E4 review round 1): a call-function run names the control it relied on in its call_checks event. That control
+ * may be reused for up to 10 minutes, so its time is recorded too. When present, it must be the run's own
+ * controlRunId, and it must have finished before the run started and at most 10 minutes earlier (plus 1 minute for
+ * clocks). Older files without these fields are still accepted.
+ */
+export function callRunControlProblems(r: Run): string[] {
+  const ev = r.trace.find((t) => t.event === "call_checks");
+  if (!ev) return [];
+  const d = asRecord(ev.data);
+  const out: string[] = [];
+  if (d.controlRunId !== undefined && d.controlRunId !== r.controlRunId) out.push(`its trace relied on control run ${String(d.controlRunId)}, but the run names ${String(r.controlRunId)}`);
+  if (d.controlFinishedAt !== undefined) {
+    const at = typeof d.controlFinishedAt === "string" ? Date.parse(d.controlFinishedAt) : NaN;
+    const started = Date.parse(r.startedAt);
+    if (Number.isNaN(at)) out.push("its control time is not a date");
+    else if (at > started) out.push("the control it relied on finished after the run started");
+    else if (started - at > CALL_CONTROL_MAX_AGE_MS) out.push(`the control it relied on was ${Math.round((started - at) / 1000)} s old, more than the 10 minutes a control may be reused`);
+  }
+  return out;
+}
+
+/** D31: 10 minutes of reuse, plus 1 minute for the run's own start. */
+const CALL_CONTROL_MAX_AGE_MS = 11 * 60_000;
+
 const isCallRun = (file: Pick<AtlasFile, "experiments">, r: Run) => r.runner === "ts" && file.experiments.find((e) => e.id === r.experimentId)?.params.shape === "call-function";
 
 const isRetryRun = (file: Pick<AtlasFile, "experiments">, r: Run) => r.runner === "ts" && file.experiments.find((e) => e.id === r.experimentId)?.params.shape === "retry-scenario";
@@ -568,6 +593,7 @@ function verifyAtlasFileChecked(raw: unknown): Verification {
       else if (file.seed !== r.seed) say(`TS run ${r.id} used seed ${r.seed}, the file says ${file.seed}`);
       if (isRetryRun(file, r)) for (const p of tsRunAgreesWithItsTrace(r)) say(`run ${r.id}: ${p}`);
       if (isCallRun(file, r)) for (const p of callRunAgreesWithItsTrace(r)) say(`run ${r.id}: ${p}`);
+      if (isCallRun(file, r)) for (const p of callRunControlProblems(r)) say(`run ${r.id}: ${p}`);
     }
     if (Date.parse(r.finishedAt) < Date.parse(r.startedAt)) say(`run ${r.id} finished before it started`);
   }

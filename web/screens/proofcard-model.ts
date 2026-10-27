@@ -87,6 +87,12 @@ export function controlLines(run: Run): string[] {
     const why = run.result.notMeasured.control;
     return [`known-case check did not match${why ? `: ${why}` : ""}`];
   }
+  const calls = run.trace.find((t) => t.event === "call_checks")?.data as { controlRunId?: unknown; controlFinishedAt?: unknown } | undefined;
+  if (run.runner === "ts" && typeof calls?.controlFinishedAt === "string") {
+    // D31: a call-function run relies on a control of Atlas's measuring code that may be up to 10 minutes old.
+    const age = Math.max(0, Math.round((Date.parse(run.startedAt) - Date.parse(calls.controlFinishedAt)) / 1000));
+    return [`known-case check of Atlas's measuring code matched at ${calls.controlFinishedAt} (control run ${String(calls.controlRunId ?? run.controlRunId ?? "?")}), ${age} s before this run`];
+  }
   if (run.runner === "ts") {
     return [`known-case check matched before this run, on the same code bytes${run.controlRunId ? ` (control run ${run.controlRunId})` : ""}`];
   }

@@ -18,7 +18,7 @@ import { checkChange, tsChangeContext } from "../change.ts";
 import { BUILTINS_CHANGED_REASON, type HarnessOutput, type WorkerRequest, type WorkerResponse } from "./harness.ts";
 import { SUCCESS_VALUE, harnessInputFromShape, scenarioFromOracleInput, type OracleInput } from "./shapes.ts";
 import { TS_TARGET_EXPORTS } from "../../src/target-name.ts";
-import { resultMac, runCallControl, runCallExperiment } from "./call-runner.ts";
+import { callControlFor, resultMac, runCallExperiment } from "./call-runner.ts";
 import { runPyCallControl, runPyCallExperiment } from "../py/py-runner.ts";
 import { pythonSandboxExecutor } from "../executor/sandbox-exec-python.ts";
 
@@ -124,6 +124,7 @@ async function execInSandbox(executor: Executor, code: string, request: WorkerRe
     return { ok: false, reason: `the sandbox could not start: ${(e as Error).message}`, tampered: false, notStarted: true };
   }
   if (res.timedOut) return { ok: false, reason: `the sandbox hit Atlas's ${wallClockMs} ms wall-clock limit`, tampered: false };
+  if (res.stopped !== undefined) return { ok: false, reason: res.stopped, tampered: false }; // E4 review round 1 (F)
   const parsed = parseWorkerOutput(res.stdout, key);
   if (parsed.ok && res.exitCode !== 0) {
     return { ok: false, reason: `tampering: the sandbox wrote a result but exited with code ${res.exitCode}`, tampered: true };
@@ -383,7 +384,7 @@ export function tsRunner(executor: Executor = localExecutor, pyExecutor: Executo
       target.kind === "pasted"
         ? target.language === "py"
           ? (await runPyCallControl({ executor: pyExecutor })).run
-          : (await runCallControl({ executor })).run
+          : (await callControlFor({ executor })).run // D31: reused up to 10 min
         : control(target, executor),
     async run(exp: Experiment, opts): Promise<Run> {
       if (!exp.gate.allowed) throw new Error(`experiment ${exp.id} was rejected by the gate: ${exp.gate.reason}`);
@@ -394,7 +395,7 @@ export function tsRunner(executor: Executor = localExecutor, pyExecutor: Executo
           const pyCtl = await runPyCallControl({ executor: pyExecutor });
           return runPyCallExperiment(exp, pyCtl.run, { executor: pyExecutor, ...(opts.replayOf ? { replayOf: opts.replayOf } : {}) });
         }
-        const ctl = await runCallControl({ executor });
+        const ctl = await callControlFor({ executor }); // D31
         return runCallExperiment(exp, ctl.run, { executor, ...(opts.replayOf ? { replayOf: opts.replayOf } : {}) });
       }
       const ctl = await runControl(readFixture(exp.target), { executor, expectedSha256: exp.target.codeSha256 });
