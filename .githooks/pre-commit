@@ -1,0 +1,5 @@
+#!/bin/sh
+# Blocks a commit when a staged file holds the real Meta API key, the real Base RPC URL, or a
+# generic secret shape. Prints only file paths, never the secret. See tests/tools/secret-scan.mjs.
+# Enable once per clone: git config core.hooksPath .githooks
+exec node tests/tools/secret-scan.mjs --staged

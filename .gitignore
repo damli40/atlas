@@ -28,6 +28,8 @@
 !/public/
 !/proofs/
 !/.github/
+# the pre-commit secret scan (tests/tools/secret-scan.mjs); public on purpose
+!/.githooks/
 
 # --- public: the logo only (not the exploration page) ---
 !/brand/

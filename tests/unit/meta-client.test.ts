@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 import { _resetResponseFormatFlag, createMetaClient, costUsd } from "../../server/meta/client";
 
-const FAKE_KEY = "sk-fake-test-key-0123456789abcdef";
+const FAKE_KEY = "sk-fake-test-key-0123456789abcdef"; // secret-scan: allow (an obviously fake key)
 
 interface Call { url: string; body: Record<string, unknown>; headers: Record<string, string> }
 
