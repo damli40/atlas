@@ -239,7 +239,9 @@ describe("POST /investigate (D04-03)", () => {
     const run = await s.post("/runs", { experimentId: "e1" });
     expect(run.status).toBe(200);
     const claimantPrompt = s.bets.calls[0]!.messages[1]!.content;
-    expect(claimantPrompt).toContain("FINDING (found by muse-wonder-1.0; file, lines and quote checked by plain code)");
+    // Final review M4 (D18): the place (file and lines) and the code only; not who found it, not its kind.
+    expect(claimantPrompt).toContain("PLACE IN THE CODE");
+    expect(claimantPrompt).not.toContain("muse-wonder-1.0");
     expect(claimantPrompt).toContain("lines 55-56");
     expect(claimantPrompt).not.toContain(FIXTURE_FINDING_LABEL);
     // The retry defaults (fixture line 14) are still in view, as with the hand-written finding.

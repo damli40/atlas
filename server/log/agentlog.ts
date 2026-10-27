@@ -45,7 +45,7 @@ export const agentEventSchema = z
       .max(160)
       .refine((s) => !/[\r\n]/.test(s), "action must be one line"),
     ref: z
-      .object({ kind: z.enum(["finding", "experiment", "bet", "run", "verdict", "change"]), id: z.string().min(1) })
+      .object({ kind: z.enum(["finding", "experiment", "bet", "run", "verdict", "change", "target"]), id: z.string().min(1) })
       .strict()
       .optional(),
     usage: usageSchema.optional(),

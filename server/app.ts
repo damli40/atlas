@@ -90,7 +90,7 @@ import { FIXTURE_FILE, FIXTURE_FINDING_LABEL, fixtureContextRange, fixtureFindin
 import { INVESTIGATOR_FALLBACK_MODEL, INVESTIGATOR_MODEL, runInvestigator, type InvestigatorFile } from "./meta/roles/investigator";
 import { fetchGithubPr, type GithubPrTarget } from "./targets/github";
 import { SWEEP_GATE_CONTEXT, gate, type GateContext, type Question } from "../src/gate";
-import type { AtlasFile, Bet, BettorSlot, Experiment, Finding, Run, Target, Verdict } from "../src/types";
+import type { AtlasFile, Bet, BettorSlot, Experiment, Finding, Run, RunAttempt, Target, Verdict } from "../src/types";
 import type { Executor } from "../runners/runner";
 import { localExecutor } from "../runners/executor/local";
 import { AgentEventError, createAgentLog, oneLine, sessionEmitter, type AgentLog } from "./log/agentlog";
@@ -100,6 +100,7 @@ import { DEFAULT_WATCH_LIMIT_MS } from "../runners/ts/harness";
 import { evmRunner } from "../runners/evm/runner";
 import { falseAlarmFromRun } from "../runners/evm/level2";
 import { redactRpc, scrubDeep } from "../runners/evm/redact";
+import { RunDidNotFinish, runFailureReason } from "./run-failure";
 import { createHourlyLimit, createReplayGate, createRunGate, type ReplayGate } from "./replay-limits";
 import { clientIpOf, trustProxyFromEnv } from "./client-ip";
 import { buildAtlasFile, resultDiff, sameJson, verifyAtlasFile, withChange } from "../src/atlasfile";
@@ -488,7 +489,8 @@ export function createApp(opts: AppOptions = {}) {
         ...(round.finding ? { findings: recordedFindings(round.finding, investigatorFindings) } : {}),
         agentLog: log,
         bettors: bettorSlotsOf(round, bets),
-        extraCaptions: extraCaptionsFor(round.finding, investigatorFindings, log),
+        extraCaptions: extraCaptionsFor(round.finding, investigatorFindings, log, exp.target.codeSha256),
+        ...(round.attempts && round.attempts.length ? { attempts: round.attempts } : {}),
         createdAt: new Date().toISOString(),
       });
       const put = proofStore.put(file, run);
@@ -886,6 +888,9 @@ export function createApp(opts: AppOptions = {}) {
     if (!round) return c.json({ error: `this session has no experiment ${experimentId}: create it with POST /experiments first` }, 404);
     if (!round.experiment.gate.allowed) return c.json({ error: `the gate refused experiment ${experimentId}, so it takes no bets` }, 422);
     if (round.autonomous) return c.json({ error: `${experimentId} is an autonomous round (proposed by the Adversary, run by Atlas): no person is asked, so it takes no person's bets` }, 409);
+    // Final review S2: after a run attempt that did not finish, the bets stay frozen (the same set runs again).
+    const tried = round.attempts?.at(-1);
+    if (tried) return c.json({ error: `bets on ${experimentId} are frozen: a run was tried at ${tried.startedAt} and did not finish; try the run again (the sealed bets stay as they are), so this bet was not sealed` }, 409);
     // Bets are frozen at run start. Checked with no await between here and the push below.
     if (round.status !== "open") {
       const when = round.betsFrozenAt ? `its run started at ${round.betsFrozenAt}` : "its run is starting";
@@ -943,6 +948,7 @@ export function createApp(opts: AppOptions = {}) {
       const why = round.betsFrozenAt ? `its run started at ${round.betsFrozenAt}` : "its run is waiting for the model's bets";
       return c.json({ error: `experiment ${experiment.id} is already running: ${why}` }, 409);
     }
+    if (round.status === "stopped") return c.json({ error: `experiment ${experiment.id} stopped: ${round.stoppedReason ?? "no reason recorded"}; start a new experiment` }, 409);
     if (round.status !== "open") return c.json({ error: `experiment ${experiment.id} already ran (started ${round.betsFrozenAt ?? "earlier"}); start a new experiment to run again` }, 409);
     if (round.bets.length === 0) return c.json({ error: "place at least one bet first: a run only happens after bets are sealed" }, 409);
     // An EVM run forks Base and makes paid RPC reads, so it is capped at once and per hour, per session
@@ -956,6 +962,11 @@ export function createApp(opts: AppOptions = {}) {
     try {
       const r = await runRound(sessionId, round);
       return c.json(r.body, r.status);
+    } catch (e) {
+      // Final review S2: the run did not finish. Nothing was judged; the experiment and its sealed bets stay,
+      // and the same experiment can run again (POST /runs). 503: the server could not do it right now.
+      if (e instanceof RunDidNotFinish) return c.json({ error: e.message, didNotFinish: { reason: e.reason, attempts: round.attempts ?? [] } }, 503);
+      throw e;
     } finally {
       runSlot?.release();
     }
@@ -983,19 +994,22 @@ export function createApp(opts: AppOptions = {}) {
     const reach = Date.now() + 20;
     const lastSeal = Math.max(0, ...bets.map((b) => Date.parse(b.sealedAt)).filter((t) => t <= reach));
     while (Date.now() <= lastSeal) await new Promise((ok) => setTimeout(ok, 1));
-    round.betsFrozenAt = new Date().toISOString();
+    const frozenAt = new Date().toISOString();
+    round.betsFrozenAt = frozenAt;
 
     // Seals before anything runs: a bet whose hash does not match its fields is never judged, and nothing runs.
     const unsealed = bets.filter((b) => !verifySeal(b)).map((b) => b.id);
     log.seals(bets.length, unsealed);
     if (unsealed.length > 0) {
       round.status = "stopped";
+      round.stoppedReason = `the seal did not verify for bet ${unsealed.join(", ")}`;
       return { status: 409, body: { error: `the seal did not verify for bet ${unsealed.join(", ")}: its fields do not hash to its sealedHash, so it was not judged and nothing ran`, betIds: unsealed } };
     }
     // Every bet sealed strictly before the bets were frozen (server clock). Checked again against the run below.
     const late = sealedAfter(bets, round.betsFrozenAt);
     if (late.length > 0) {
       round.status = "stopped";
+      round.stoppedReason = `bet ${late.join(", ")} was not sealed before the run started`;
       return { status: 409, body: { error: `bet ${late.join(", ")} was not sealed before the run started, so nothing ran`, betIds: late } };
     }
 
@@ -1021,10 +1035,19 @@ export function createApp(opts: AppOptions = {}) {
         run = await runExperiment(experiment, ctl, { executor });
       }
     } catch (e) {
-      round.status = "stopped";
-      const message = redactRpc(e instanceof Error ? e.message : String(e));
-      log.runnerStopped(experiment, message);
-      throw new Error(message);
+      // Final review S2: the runner stopped before a Run existed (no RPC, anvil failed or was slow, the sandbox
+      // could not start). That is not a result: nothing is judged. The attempt is recorded, the bets stay
+      // frozen, and the round is open again so the SAME experiment can run with the SAME sealed bets. An
+      // autonomous round has no "try again" button, so it stops (the Adversary can be asked again).
+      const reason = runFailureReason(e);
+      const attempt: RunAttempt = { attempt: (round.attempts?.length ?? 0) + 1, startedAt: frozenAt, stoppedAt: new Date().toISOString(), reason };
+      (round.attempts ??= []).push(attempt);
+      if (round.autonomous) {
+        round.status = "stopped";
+        round.stoppedReason = `the run did not finish: ${reason}`;
+      } else round.status = "open";
+      log.runDidNotFinish(experiment, attempt);
+      throw new RunDidNotFinish(reason);
     }
     keepRun(run);
     log.runner(experiment, run);
@@ -1032,6 +1055,7 @@ export function createApp(opts: AppOptions = {}) {
     const lateForRun = sealedAfter(bets, run.startedAt);
     if (lateForRun.length > 0) {
       round.status = "stopped";
+      round.stoppedReason = `bet ${lateForRun.join(", ")} was not sealed before run ${run.id} started`;
       return { status: 409, body: { error: `bet ${lateForRun.join(", ")} was not sealed before run ${run.id} started, so it was not judged`, betIds: lateForRun } };
     }
     const verdicts: Verdict[] = bets.map((b) => judge(b, run));
@@ -1339,8 +1363,8 @@ export function createApp(opts: AppOptions = {}) {
       try {
         r = await runRound(sessionId, next);
       } catch (e) {
-        const message = redactRpc(e instanceof Error ? e.message : String(e));
-        return { ok: false, fromRunId: runId, reason: `the run could not finish: ${message}`, adversary, person, round: { experiment, questions: next.questions, model: modelSlotView(next), models: modelSlotViews(next) } };
+        const message = e instanceof RunDidNotFinish ? e.message : `the run did not finish: ${redactRpc(e instanceof Error ? e.message : String(e))}`;
+        return { ok: false, fromRunId: runId, reason: message, adversary, person, round: { experiment, questions: next.questions, model: modelSlotView(next), models: modelSlotViews(next) } };
       }
       if (r.status !== 200) return { ok: false, fromRunId: runId, reason: String(r.body.error), adversary, person, round: { experiment, questions: next.questions, model: modelSlotView(next), models: modelSlotViews(next) } };
       return { ok: true, fromRunId: runId, adversary, person, round: { experiment, questions: next.questions, ...r.body } };

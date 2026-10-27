@@ -306,7 +306,7 @@ export async function runAdversary(input: AdversaryInput, deps: AdversaryDeps = 
       sayGate("allowed (src/gate.ts)");
       return { ok: true, model, params: v.params, name: experimentName(v.params), why: v.why, rejected, attempts, ...(usage ? { usage } : {}) };
     }
-    const repairNote = attempt === 0 ? "; one repair try" : "";
+    const repairNote = attempt === 0 ? "; asks again" : "";
     if (v.gateRejection) {
       const id = nanoid(10);
       const safeReason = safeGateReason(v.gateRejection.reason, input.gateContext);

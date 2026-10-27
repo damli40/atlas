@@ -170,7 +170,7 @@ describe("runAdversary (role, mocked model)", () => {
     expect(r.why).toBe(WHY);
     const events = log.history("s").map((e) => e.event);
     expect(events.map((e) => `${e.role}: ${e.action}`)).toEqual([
-      "adversary: proposes retry-scenario · failTimes 5 · failure error; one repair try",
+      "adversary: proposes retry-scenario · failTimes 5 · failure error; asks again", // final review M12: plain words
       "gate: allowed, then refused by the repeat check: retry-scenario · failTimes 5 · failure error already ran on this target",
       "adversary: proposes retry-scenario · failTimes 2 · failure error",
       "gate: allowed (src/gate.ts)",
@@ -292,7 +292,7 @@ describe("POST /adversary: one autonomous round, no click", () => {
     const idx = (re: RegExp) => tail.findIndex((l) => re.test(l));
     const order = [
       /^human: asks what else, after run /,
-      /^adversary \(muse-spark-1\.3\): proposes retry-scenario · failTimes 5 · failure error; one repair try$/,
+      /^adversary \(muse-spark-1\.3\): proposes retry-scenario · failTimes 5 · failure error; asks again$/,
       /^gate: allowed, then refused by the repeat check/,
       /^adversary \(muse-spark-1\.3\): proposes retry-scenario · failTimes 2 · failure error$/,
       /^gate: allowed \(src\/gate\.ts\)$/,

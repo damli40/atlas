@@ -154,14 +154,15 @@ describe("S1: one redaction on every runner error path", () => {
 });
 
 describe("S1 at the server: SSE, HTTP bodies (/runs and /replay) and the .atlas.json", () => {
-  it("a runner error that still carries the URL is redacted in the 500 body and the agent log", async () => {
+  it("a runner error that still carries the URL is redacted in the 503 body and the agent log", async () => {
     const { r, agentLog, session } = await level2Round(async () => {
       throw new Error(ECHO);
     });
-    expect(r.status).toBe(500);
+    // Final review S2: a run that did not finish is a 503 ("try the run again"), no longer a 500.
+    expect(r.status).toBe(503);
     expect(leaks(r.text)).toEqual([]);
     expect(leaks(JSON.stringify(agentLog.history(session)))).toEqual([]);
-    expect(JSON.stringify(agentLog.history(session))).toMatch(/could not finish/);
+    expect(JSON.stringify(agentLog.history(session))).toMatch(/the run did not finish/);
   });
 
   it("a finished run whose strings carry the URL is scrubbed before the answer and the .atlas.json", async () => {

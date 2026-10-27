@@ -70,8 +70,15 @@ export function createModelBudget(opts: BudgetOptions = {}): ModelBudget {
     if (!money.ok) return refused(money.reason);
     const calls = callCheck();
     if (!calls.ok) return refused(calls.reason);
-    callTimes.push(now());
+    const at = now();
+    callTimes.push(at);
     const res = await call();
+    // Final review M7: a call refused before it was sent (no key, refused model id) used nothing: it does not
+    // count against the hourly limit, so a keyless server does not run out of calls without making one.
+    if ((res as { notSent?: true }).notSent === true) {
+      const i = callTimes.indexOf(at);
+      if (i >= 0) callTimes.splice(i, 1);
+    }
     if (res.usage && Number.isFinite(res.usage.usd) && res.usage.usd > 0) spent += res.usage.usd;
     return res;
   };

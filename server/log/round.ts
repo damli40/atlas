@@ -4,15 +4,16 @@
 // person wrote the finding by hand; the Investigator model arrives Oct 30) → gate → seal → runner → judge.
 // Model bets (who "model:…") get no line here: the Claimant role writes its own model line, with usage.
 
-import type { Bet, Experiment, Run, Verdict } from "../../src/types";
+import type { Bet, Experiment, Run, RunAttempt, Verdict } from "../../src/types";
 import { oneLine, type SessionEmitter } from "./agentlog";
+import { targetName } from "../../src/target-name";
 
 export const INVESTIGATOR_STUB_ACTION = "uses a fixture finding, written by hand (Investigator arrives Oct 30)";
 export const GATE_STUB_ACTION = "allowed (src/gate.ts)";
 
-/** What the screen calls the code under test. Today only the TS runner's one export exists. */
+/** What the screen calls the code under test: the target's own name (src/target-name.ts, final review M6). */
 function codeName(exp: Experiment): string {
-  return exp.runner === "ts" ? "withRpcRetry" : exp.target.ref;
+  return targetName(exp.target);
 }
 
 export function roundLog(emit: SessionEmitter) {
@@ -48,6 +49,10 @@ export function roundLog(emit: SessionEmitter) {
     },
     runnerStopped(exp: Experiment, message: string) {
       emit.emit({ role: "runner", action: oneLine(`could not finish ${exp.id}: ${message}`), ref: { kind: "experiment", id: exp.id } });
+    },
+    /** Final review S2: a run attempt that did not finish. Not a verdict: the sealed bets stay and the run can be tried again. */
+    runDidNotFinish(exp: Experiment, attempt: RunAttempt) {
+      emit.emit({ role: "runner", action: oneLine(`the run did not finish (attempt ${attempt.attempt}): ${attempt.reason}; nothing was judged, the sealed bets stay as they are`), ref: { kind: "experiment", id: exp.id } });
     },
     judge(verdicts: Verdict[], run: Run) {
       const n = verdicts.length;

@@ -30,7 +30,6 @@ import { claimantBetsOnlySchema, zodReason } from "../schemas";
 import type { SessionEmitter } from "../../log/agentlog";
 import { oneLine } from "../../log/agentlog";
 import { CLAIMANT_MODEL, COST_UNKNOWN, NO_USAGE, SYSTEM_PREAMBLE, addUsage, zodSafeReason, contextRangeFor, numbered, repairMessage, validateBetsFor, type ClaimantAttempt } from "./claimant";
-import { FIXTURE_FINDING_LABEL } from "./fixture-finding";
 import { plural } from "../../../src/words";
 
 /**
@@ -48,6 +47,7 @@ export interface BetOnlyInput {
   /** The text of finding.file, exactly as Atlas read it. */
   fileText: string;
   gateContext: GateContext;
+  /** Who found the place, for the person's screen. Final review M4: never sent to the model (D18). */
   findingLabel?: string;
   /** Lines of the file to show, when wider than the finding ±20 (always widened to cover the finding). */
   contextRange?: { from: number; to: number };
@@ -90,10 +90,12 @@ export function buildBetOnlyMessages(input: BetOnlyInput): ChatMessage[] {
   const from = Math.max(1, range.from);
   const to = Math.min(range.to, lineCount);
   const shape = input.experiment.params.shape;
-  const label = input.findingLabel ?? FIXTURE_FINDING_LABEL;
+  // D18 + final review M4: Spark gets the PLACE (file and lines) and the code only. Who found the place
+  // (e.g. "found by muse-wonder-1.0") and the Investigator's own kind label are left out, like its sentence,
+  // so the two models guess independently. `findingLabel` is still shown to the person on screen.
   const user = [
-    `FINDING${label ? ` (${label})` : ""}`,
-    `file: ${f.file}, lines ${f.lineStart}-${f.lineEnd}, kind: ${f.kind}`,
+    "PLACE IN THE CODE",
+    `file: ${f.file}, lines ${f.lineStart}-${f.lineEnd}`,
     "",
     `CODE (${f.file}, lines ${from}-${to}):`,
     numbered(input.fileText, from, to),
@@ -210,7 +212,7 @@ export async function runClaimantBets(input: BetOnlyInput, deps: BetOnlyDeps = {
       return { ok: true, bets, attempts, ...(usage ? { usage } : {}) };
     }
     // Before the run, the log names only the kind of problem, never the model's values (S2).
-    if (attempt === 0) say(`answers (not usable: ${v.safe}); one repair try`, res.usage);
+    if (attempt === 0) say(`answers (not usable: ${v.safe}); asks again`, res.usage);
     else return fail(v.safe, res.usage, v.error);
     lastError = v.error;
     lastSafe = v.safe;

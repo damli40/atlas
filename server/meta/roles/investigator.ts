@@ -1,6 +1,6 @@
 // The Investigator: a Meta model (muse-wonder-1.0) reads a target's files and points at up to 3
-// places where a reader's expectation of what the code does is most likely wrong. Behaviours, not
-// bugs. If Wonder gives no usable answer, the same request goes to muse-spark-1.3, and the log says so.
+// places where what a reader expects the code to do is most likely to differ from what it does.
+// Behaviours, not bugs. If Wonder gives no usable answer, the same request goes to muse-spark-1.3, and the log says so.
 //
 // Plain words on who decides what:
 // - The model proposes places (file, lines, kind, a one-sentence claim, a quoted snippet).
@@ -38,7 +38,8 @@ export const MEDIUM_EFFORT_ABOVE_TOKENS = 50_000;
 
 export const INVESTIGATE_INSTRUCTION =
   // The Investigator's instruction, word for word. A prompt to the model, never shown as a verdict.
-  "Find up to 3 places where a reader's expectation of what this code does is most likely wrong. These are behaviours, not bugs. For each: file, lineStart, lineEnd, kind (retry/price/other), a one-sentence claim written as 'People expect X; the code does Y', and quotedSnippet copied exactly from those lines."; // wording-lint: allow
+  // Final review M13: neutral wording ("most likely to differ"), so the public prompt files carry no judgement word.
+  "Find up to 3 places where what a reader expects this code to do is most likely to differ from what it does. These are behaviours, not bugs. For each: file, lineStart, lineEnd, kind (retry/price/other), a one-sentence claim written as 'People expect X; the code does Y', and quotedSnippet copied exactly from those lines.";
 
 const KINDS: readonly FindingKind[] = ["retry", "price", "other"];
 
@@ -322,7 +323,8 @@ export async function runInvestigator(input: InvestigatorInput, deps: Investigat
   // Log lines never carry the claim or the quoted snippet: file, lines and reasons only.
   const sayModel = (model: string, action: string, callUsage: Usage | undefined) => {
     try {
-      deps.log?.model({ role: "investigator", model, action: oneLine(callUsage ? action : `${action} (${COST_UNKNOWN})`), usage: callUsage ?? NO_USAGE });
+      // Final review M3: the line names the code it read, so a round can tell whether the Investigator read ITS code.
+      deps.log?.model({ role: "investigator", model, action: oneLine(callUsage ? action : `${action} (${COST_UNKNOWN})`), usage: callUsage ?? NO_USAGE, ref: { kind: "target", id: input.target.codeSha256 } });
     } catch {
       // The log refused the line; the role's answer still stands.
     }
@@ -367,7 +369,7 @@ export async function runInvestigator(input: InvestigatorInput, deps: Investigat
       });
       const read = `reads ${plural(input.files.length, "file")} (${plural(totalLines, "line")}, about ${tokens} tokens, effort ${effort})`;
       if (a.error) {
-        sayModel(model, `${read}; answer not usable (${a.error})${attempt === 1 ? "; one repair try" : ""}`, res.usage);
+        sayModel(model, `${read}; answer not usable (${a.error})${attempt === 1 ? "; asks again" : ""}`, res.usage);
       } else {
         sayModel(model, `${read}; proposes ${plural(a.kept.length + a.dropped.length, "place")}`, res.usage);
       }

@@ -68,9 +68,12 @@ export function recordedFindings(finding: Finding | undefined, investigatorFindi
   return [finding, ...investigatorFindings.filter((f) => f.id !== finding.id && f.proposedBy.role === "investigator" && f.verified)];
 }
 
-/** `agentLog` is the log the .atlas.json will carry: "the Investigator was not asked" is read from it, as verify reads it. */
-export const extraCaptionsFor = (finding: Finding | undefined, investigatorFindings: readonly Finding[], agentLog: readonly Pick<AgentEvent, "role" | "model">[]) =>
-  chosenLineCaptions(recordedFindings(finding, investigatorFindings), investigatorWasAsked(agentLog));
+/**
+ * `agentLog` is the log the .atlas.json will carry: "the Investigator was not asked" is read from it, as verify
+ * reads it, for the round's own code (`codeSha256`, final review M3).
+ */
+export const extraCaptionsFor = (finding: Finding | undefined, investigatorFindings: readonly Finding[], agentLog: readonly Pick<AgentEvent, "role" | "model" | "ref">[], codeSha256?: string) =>
+  chosenLineCaptions(recordedFindings(finding, investigatorFindings), investigatorWasAsked(agentLog, codeSha256));
 
 /** The most lines a person may pick (the same limit the Investigator's places have). */
 export const MAX_PICKED_LINES = 41;

@@ -24,6 +24,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AgentEvent } from "../../src/types";
 import { SPARK_OPEN_MODEL } from "../../src/claimants";
+import { priceConfirmed } from "../../src/cost";
 
 export const META_BASE_URL = "https://api.meta.ai/v1";
 /** Baseten's OpenAI-compatible Model API (per-token billing; no dedicated deployment). Live check 2026-10-27: HTTP 200. */
@@ -54,10 +55,11 @@ export const SPARK_PRICE_UNVERIFIED: Price = { inPerM: 4, outPerM: 20 };
  */
 export const SPARK_OPEN_PRICE: Price = { inPerM: 1.25, outPerM: 4.25, cachedInPerM: 0.15 };
 
+// `verified` comes from src/cost.ts (final review S7), the same list the screens use for "upper bound".
 const PRICES: Record<string, { price: Price; verified: boolean }> = {
-  "muse-wonder-1.0": { price: WONDER_PRICE, verified: true },
-  "muse-spark-1.3": { price: SPARK_PRICE_UNVERIFIED, verified: false },
-  [SPARK_OPEN_MODEL]: { price: SPARK_OPEN_PRICE, verified: true },
+  "muse-wonder-1.0": { price: WONDER_PRICE, verified: priceConfirmed("muse-wonder-1.0") },
+  "muse-spark-1.3": { price: SPARK_PRICE_UNVERIFIED, verified: priceConfirmed("muse-spark-1.3") },
+  [SPARK_OPEN_MODEL]: { price: SPARK_OPEN_PRICE, verified: priceConfirmed(SPARK_OPEN_MODEL) },
 };
 
 /** Who serves a model. Only Muse Spark Open goes to Baseten; every other id is Meta's API. */
@@ -88,7 +90,7 @@ export interface ChatArgs {
 
 export type ChatResult =
   | { ok: true; content: string; finishReason: string; usage: Usage; warning?: string }
-  | { ok: false; reason: string; usage?: Usage; warning?: string };
+  | { ok: false; reason: string; usage?: Usage; warning?: string; /** Final review M7: refused before any request was sent (no key, refused model id). */ notSent?: true };
 
 export interface ClientOptions {
   /** Defaults to process.env.META_API_KEY, then ~/.config/meta-model-api/env. */
@@ -304,13 +306,14 @@ export function createMetaClient(opts: ClientOptions = {}) {
 
   async function chat(args: ChatArgs): Promise<ChatResult> {
     const refused = modelRefusal(args.model);
-    if (refused) return { ok: false, reason: refused };
+    if (refused) return { ok: false, reason: refused, notSent: true };
     const provider = providerFor(args.model);
     const key = provider === "baseten" ? (opts.basetenApiKey ?? loadBasetenKey()) : (opts.apiKey ?? loadApiKey());
     if (!key) {
       return {
         ok: false,
         reason: provider === "baseten" ? "no Baseten API key: set BASETEN_API_KEY or ~/.config/baseten/env" : "no Meta API key: set META_API_KEY or ~/.config/meta-model-api/env",
+        notSent: true,
       };
     }
 

@@ -17,6 +17,7 @@ import type { Executor, ReplayContext, Runner } from "../runner.ts";
 import { checkChange, tsChangeContext } from "../change.ts";
 import { BUILTINS_CHANGED_REASON, RESULT_MARKER, type HarnessOutput, type WorkerRequest, type WorkerResponse } from "./harness.ts";
 import { SUCCESS_VALUE, harnessInputFromShape, scenarioFromOracleInput, type OracleInput } from "./shapes.ts";
+import { TS_TARGET_EXPORTS } from "../../src/target-name.ts";
 
 const REPO_ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const FIXTURES_DIR = resolve(REPO_ROOT, "tests/fixtures");
@@ -25,7 +26,8 @@ const ORACLE_PATH = resolve(REPO_ROOT, "tests/oracle/retry-oracle.json");
 /** The oracle rows the control runs. */
 export const CONTROL_CASES = ["S1", "S3", "S6"] as const;
 export const CONTROL_SEED = "atlas-control";
-const EXPORT_NAME = "withRpcRetry";
+/** The function the harness calls: the fixture's export, named once in src/target-name.ts (final review M6). */
+const EXPORT_NAME = TS_TARGET_EXPORTS["tests/fixtures/with-rpc-retry.ts"]!;
 const DEFAULT_WALL_CLOCK_MS = 10_000;
 
 interface OracleCase {
@@ -46,7 +48,8 @@ function harnessFiles(code: string): Record<string, string> {
   return { "worker.ts": own("worker.ts"), "harness.ts": own("harness.ts"), "shapes.ts": own("shapes.ts"), "primordials.ts": own("primordials.ts"), "target.ts": code };
 }
 
-type SandboxAnswer = { ok: true; runs: WorkerResponse["runs"] } | { ok: false; reason: string; tampered: boolean };
+/** `notStarted`: the executor itself failed (final review S2): the machine, not the code, so no result exists. */
+type SandboxAnswer = { ok: true; runs: WorkerResponse["runs"] } | { ok: false; reason: string; tampered: boolean; notStarted?: true };
 
 function isHarnessRun(r: unknown): r is WorkerResponse["runs"][number] {
   if (!r || typeof r !== "object") return false;
@@ -107,7 +110,7 @@ async function execInSandbox(executor: Executor, code: string, request: WorkerRe
       allowNetwork: false,
     });
   } catch (e) {
-    return { ok: false, reason: `the sandbox could not start: ${(e as Error).message}`, tampered: false };
+    return { ok: false, reason: `the sandbox could not start: ${(e as Error).message}`, tampered: false, notStarted: true };
   }
   if (res.timedOut) return { ok: false, reason: `the sandbox hit Atlas's ${wallClockMs} ms wall-clock limit`, tampered: false };
   const parsed = parseWorkerOutput(res.stdout, marker);
@@ -316,6 +319,10 @@ export async function runExperiment(
     { exportName: EXPORT_NAME, runs: [{ id: exp.id, ...harnessInputFromShape(exp.params), seed, watchLimitMs: oracle.harnessWatchLimitMs }] },
     DEFAULT_WALL_CLOCK_MS,
   );
+  // Final review S2: the sandbox never started (the machine, not the code), so this is not a run with a result.
+  // The server keeps the experiment and its sealed bets and the same experiment can run again. A run that
+  // started and then hit the wall-clock limit or crashed IS a result about the code: it stays "can't check".
+  if (!res.ok && res.notStarted) throw new Error(res.reason);
   const out = res.ok ? res.runs.find((r) => r.id === exp.id) : undefined;
   const result: Run["result"] = out
     ? out.result

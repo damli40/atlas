@@ -150,7 +150,8 @@ export interface AgentEvent {   // one line of the on-screen agent log
   role: "investigator" | "claimant" | "gate" | "runner" | "judge" | "fixer" | "adversary" | "seal" | "human";
   model?: string;               // Meta model id, always shown on screen when a model acted
   action: string;               // short, present tense: "reads 6 files (31,204 tokens)", "proposes retry-scenario", "allowed", "forks Base @ 42194662"
-  ref?: { kind: "finding" | "experiment" | "bet" | "run" | "verdict" | "change"; id: string };
+  /** "target": final review M3, the code a model read (id = its codeSha256), so a round can tell whether the Investigator read ITS code. */
+  ref?: { kind: "finding" | "experiment" | "bet" | "run" | "verdict" | "change" | "target"; id: string };
   usage?: { promptTokens: number; completionTokens: number; reasoningTokens?: number; usd: number };
 }
 
@@ -163,6 +164,19 @@ export interface BettorSlot {
   who: "human" | `model:${string}`;
   status: "sealed" | "no_usable_answer" | "not_asked";
   reason?: string;
+}
+
+/**
+ * Final review S2: a run attempt that did not finish (no RPC, anvil failed, the sandbox could not start). The
+ * experiment and its sealed bets stay as they were and the same experiment can run again. An attempt is never
+ * a verdict: it has no measurement and judges nothing. `reason` is plain code's, with the RPC URL removed.
+ */
+export interface RunAttempt {
+  attempt: number;
+  /** When the bets were frozen for this attempt (server clock). */
+  startedAt: string;
+  stoppedAt: string;
+  reason: string;
 }
 
 export interface AtlasFile {
@@ -189,6 +203,8 @@ export interface AtlasFile {
   agentLog: AgentEvent[];
   /** Added day-7 review: every bettor of the round, including those who sealed nothing. Older files have none. */
   bettors?: BettorSlot[];
+  /** Added final review S2: earlier attempts of this experiment that did not finish, oldest first. Older files have none. */
+  attempts?: RunAttempt[];
   /** Text a replayer must show: pre-existing labels, "replayed on a fork", "mechanism, not an incident". */
   captions: string[];
   createdAt: string;

@@ -27,7 +27,7 @@ import { nanoid } from "nanoid";
 import { z } from "zod";
 import { extraQuestionsFor, questionsFor, type GateContext, type Question } from "../src/gate";
 import { sealBet } from "../src/seal";
-import type { Bet, BetAnswer, Experiment, Finding, Run, Verdict } from "../src/types";
+import type { Bet, BetAnswer, Experiment, Finding, Run, RunAttempt, Verdict } from "../src/types";
 import type { ClaimantMode } from "../src/claimants";
 
 export const MAX_SESSIONS = 500;
@@ -147,6 +147,13 @@ export interface Round {
   autonomous?: { fromRunId: string; adversaryModel: string };
   /** D07-01 / day-7 review M4: who was asked to bet on this round (the x-atlas-claimant mode it started with). */
   claimantMode?: ClaimantMode;
+  /**
+   * Final review S2: run attempts that did not finish. After the first one the bets stay frozen (no new bet)
+   * but the round is "open" again, so the SAME experiment can run with the SAME sealed bets.
+   */
+  attempts?: RunAttempt[];
+  /** Why a "stopped" round stopped, in plain words (shown when POST /runs is asked again). */
+  stoppedReason?: string;
 }
 
 /** How long a session holding sealed-but-unrun bets is kept safe from eviction, after its last use. */

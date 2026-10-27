@@ -139,7 +139,7 @@ describe("D07-01 client: provider routing", () => {
     try {
       const { client, calls, lines } = setupClient({ basetenKey: null });
       const r = await client.chat(ask(SPARK_OPEN_MODEL));
-      expect(r).toEqual({ ok: false, reason: "no Baseten API key: set BASETEN_API_KEY or ~/.config/baseten/env" });
+      expect(r).toEqual({ ok: false, notSent: true, reason: "no Baseten API key: set BASETEN_API_KEY or ~/.config/baseten/env" });
       expect(calls).toHaveLength(0);
       expect(lines()).toHaveLength(0);
     } finally {

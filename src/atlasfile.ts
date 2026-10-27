@@ -31,7 +31,7 @@ import { canonicalJson, sha256Hex, verifySeal } from "./seal";
 import { applyFileDiff, parseUnifiedDiff, type DiffFile } from "./diff";
 import { CHANGE_CAPTION, theoryCaptions, towardFromBets } from "./change";
 import { planChangedConfig } from "../runners/change";
-import type { AgentEvent, AtlasFile, Bet, BettorSlot, Change, Experiment, Finding, Run, Target, Verdict } from "./types";
+import type { AgentEvent, AtlasFile, Bet, BettorSlot, Change, Experiment, Finding, Run, RunAttempt, Target, Verdict } from "./types";
 
 // The two level captions live in src/captions.ts (no Node imports), so the web page can use them
 // without loading this file, which reads the Moonwell copy from disk.
@@ -169,7 +169,7 @@ const agentEventSchema = z
     role: z.enum(["investigator", "claimant", "gate", "runner", "judge", "fixer", "adversary", "seal", "human"]),
     model: z.string().optional(),
     action: z.string().min(1),
-    ref: z.object({ kind: z.enum(["finding", "experiment", "bet", "run", "verdict", "change"]), id: z.string() }).strict().optional(),
+    ref: z.object({ kind: z.enum(["finding", "experiment", "bet", "run", "verdict", "change", "target"]), id: z.string() }).strict().optional(),
     usage: z.object({ promptTokens: z.number(), completionTokens: z.number(), reasoningTokens: z.number().optional(), usd: z.number() }).strict().optional(),
   })
   .strict();
@@ -241,6 +241,11 @@ export const atlasFileSchema = z
           })
           .strict(),
       )
+      .optional(),
+    // Final review S2: earlier attempts that did not finish (never a verdict). Checked below.
+    attempts: z
+      .array(z.object({ attempt: z.number().int().positive(), startedAt: iso, stoppedAt: iso, reason: z.string().min(1).max(500) }).strict())
+      .max(20)
       .optional(),
     captions: z.array(z.string().min(1)).min(1),
     createdAt: iso,
@@ -321,12 +326,21 @@ export function chosenLineCaptions(findings: readonly Finding[] | undefined, inv
   return [`${first}; ${second}`];
 }
 
-/** m5: the file's agent log shows the Investigator (a Meta model) was called in this session. */
-export const investigatorWasAsked = (agentLog: readonly Pick<AgentEvent, "role" | "model">[]) => agentLog.some((e) => e.role === "investigator" && typeof e.model === "string" && e.model.length > 0);
+/**
+ * m5 + final review M3: the file's agent log shows the Investigator (a Meta model) read THIS code. Since the
+ * final review each Investigator line names the code it read (`ref: { kind: "target", id: codeSha256 }`), so a
+ * call on another target in the same session does not count. A log with no such ref on any Investigator line
+ * was written before that change: then any Investigator call counts, as it did, so older files still verify.
+ */
+export const investigatorWasAsked = (agentLog: readonly Pick<AgentEvent, "role" | "model" | "ref">[], codeSha256?: string) => {
+  const calls = agentLog.filter((e) => e.role === "investigator" && typeof e.model === "string" && e.model.length > 0);
+  if (codeSha256 !== undefined && calls.some((e) => e.ref?.kind === "target")) return calls.some((e) => e.ref?.kind === "target" && e.ref.id === codeSha256);
+  return calls.length > 0;
+};
 
 /** Captions a file may carry beyond the required ones: exactly the chosen-line caption its findings earn. */
-export function allowedExtraCaptions(file: Pick<AtlasFile, "findings" | "agentLog">): string[] {
-  return chosenLineCaptions(file.findings, investigatorWasAsked(file.agentLog));
+export function allowedExtraCaptions(file: Pick<AtlasFile, "findings" | "agentLog"> & { codeSha256?: string }): string[] {
+  return chosenLineCaptions(file.findings, investigatorWasAsked(file.agentLog, file.codeSha256));
 }
 
 const asRecord = (x: unknown): Record<string, unknown> => (x && typeof x === "object" && !Array.isArray(x) ? (x as Record<string, unknown>) : {});
@@ -542,6 +556,19 @@ export function verifyAtlasFile(raw: unknown): Verification {
     for (const b of file.bets) if (!whos.includes(b.who)) say(`bet ${b.id} is from ${b.who}, who is not in bettors`);
     const autonomous = file.experiments[0]!.proposedBy.role === "adversary";
     if (autonomous && file.bets.some((b) => b.who === "human")) say("an autonomous round (proposed by the Adversary) cannot hold a person's bet");
+  }
+  // Final review S2: an attempt that did not finish ran before the run that did, on the SAME frozen bets: every
+  // bet was sealed before the first attempt started, and every attempt stopped before the run started.
+  if (file.attempts) {
+    const run0 = file.runs[0]!;
+    file.attempts.forEach((a, i) => {
+      if (a.attempt !== i + 1) say(`attempt ${i + 1} is numbered ${a.attempt}`);
+      if (Date.parse(a.stoppedAt) < Date.parse(a.startedAt)) say(`attempt ${a.attempt} stopped before it started`);
+      if (!(Date.parse(a.stoppedAt) < Date.parse(run0.startedAt))) say(`attempt ${a.attempt} did not stop before run ${run0.id} started`);
+      if (i > 0 && Date.parse(a.startedAt) < Date.parse(file.attempts![i - 1]!.stoppedAt)) say(`attempt ${a.attempt} started before attempt ${a.attempt - 1} stopped`);
+    });
+    const first = file.attempts[0];
+    if (first) for (const b of file.bets) if (!(Date.parse(b.sealedAt) < Date.parse(first.startedAt))) say(`bet ${b.id} was not sealed before the first attempt started (the bets must stay frozen across attempts)`);
   }
   for (const p of findingProblems(file)) say(p);
   for (const p of changeProblems(file)) say(`change: ${p}`);
@@ -761,6 +788,8 @@ export interface BuildInput {
   bettors?: BettorSlot[];
   /** Captions beyond the required ones (e.g. chosenLineCaptions(findings)). Required ones are added here. */
   extraCaptions?: string[];
+  /** Final review S2: earlier attempts of this experiment that did not finish. */
+  attempts?: RunAttempt[];
   createdAt: string;
 }
 
@@ -783,6 +812,7 @@ export function buildAtlasFile(input: BuildInput): AtlasFile {
     ...(isLevel2(base) ? { falseAlarm: falseAlarmFromRun(input.run) } : {}),
     agentLog: input.agentLog,
     ...(input.bettors && input.bettors.length ? { bettors: input.bettors } : {}),
+    ...(input.attempts && input.attempts.length ? { attempts: input.attempts } : {}),
     captions,
     createdAt: input.createdAt,
   };

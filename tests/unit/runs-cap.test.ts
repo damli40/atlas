@@ -104,7 +104,7 @@ describe("POST /runs: EVM runs are capped", () => {
     );
     const x = await s.ready("a");
     const y = await s.ready("a");
-    expect((await s.run("a", x)).status).toBe(500);
+    expect((await s.run("a", x)).status).toBe(503); // final review S2: "the run did not finish", try again
     fail = false;
     expect((await s.run("a", y)).status).toBe(200);
   });
