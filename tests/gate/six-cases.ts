@@ -8,9 +8,11 @@
 //    Then POST /runs {experimentId}: the server freezes the bets, runs the control once, runs the
 //    real function in the sandbox, judges, and reveals each bet in full; this script re-checks
 //    every revealed seal and that every bet was sealed before the run started.
-// 3. Adds two extra bets to show the other verdicts from real runs:
-//    - S3 calls = 4 (the run makes 5 calls) → didn't match
-//    - S6 settle time (the run never settles, so it is not measured) → can't check
+// 3. Changes or adds a few bets to show the other verdicts from real runs. One bet per question per
+//    bettor (the server refuses a second one with 409), so an off bet REPLACES the oracle bet:
+//    - S3 calls = 4 instead of 5 (the run makes 5 calls) → didn't match
+//    - S3 settle time = 12000 ms (the run throws at 12000 ms of virtual time) → matched, judged on the real value
+//    - S6 settle time (the run never settles, so there is no settle time) → can't check, with the runner's reason
 // 4. Prints one line per bet, and the total real time.
 //
 // Run: `pnpm gate:day1` (starts the server on a free local port and talks to it over HTTP),
@@ -18,7 +20,7 @@
 
 import { pathToFileURL } from "node:url";
 import { verifySeal } from "../../src/seal.ts";
-import { OUTCOME_OPTIONS } from "../../src/units.ts";
+import { OUTCOME_OPTIONS, SETTLE_FIELD } from "../../src/units.ts";
 import { QUESTION_TEXT } from "../../src/gate.ts";
 import type { Bet, BetAnswer, ExperimentShape, Outcome, Run, Target, Verdict } from "../../src/types.ts";
 
@@ -35,6 +37,7 @@ interface CaseSpec {
   params: ExperimentShape;
   /** Hard-coded from tests/oracle/retry-oracle.json (the vitest test checks they still equal it). */
   expected: { calls: number; totalWaitMs: number; outcome: string };
+  /** Bets that replace the oracle bet on the same question, or add a question (one bet per question). */
   extraBets?: { measures: keyof typeof QUESTIONS; answer: BetAnswer; note: string }[];
 }
 
@@ -45,7 +48,10 @@ export const CASES: CaseSpec[] = [
     id: "S3",
     params: { shape: "retry-scenario", failTimes: 5, failure: "error" },
     expected: { calls: 5, totalWaitMs: 12000, outcome: "throws" },
-    extraBets: [{ measures: "calls", answer: { kind: "integer", value: 4 }, note: "deliberately off by one" }],
+    extraBets: [
+      { measures: "calls", answer: { kind: "integer", value: 4 }, note: "deliberately off by one (replaces the bet of 5)" },
+      { measures: SETTLE_FIELD, answer: { kind: "integer", value: 12000 }, note: "settle time of a run that settles" },
+    ],
   },
   { id: "S4", params: { shape: "retry-scenario", failTimes: 1, failure: "error", errorKind: "429" }, expected: { calls: 2, totalWaitMs: 3000, outcome: "returns" } },
   { id: "S5", params: { shape: "retry-scenario", failTimes: 0, failure: "error", resolvesWith: { status: 429 } }, expected: { calls: 1, totalWaitMs: 0, outcome: "returns" } },
@@ -53,7 +59,7 @@ export const CASES: CaseSpec[] = [
     id: "S6",
     params: { shape: "retry-scenario", failTimes: "always", failure: "never_settles" },
     expected: { calls: 1, totalWaitMs: 0, outcome: "pending" },
-    extraBets: [{ measures: "settleTime", answer: { kind: "integer", value: 30000 }, note: "a field the run cannot measure" }],
+    extraBets: [{ measures: SETTLE_FIELD, answer: { kind: "integer", value: 30000 }, note: "settle time of a run that never settles" }],
   },
 ];
 
@@ -107,8 +113,12 @@ export async function runSixCases(request: Requester): Promise<{ target: Target;
       { measures: "calls", answer: { kind: "integer", value: c.expected.calls } },
       { measures: "totalWaitMs", answer: { kind: "integer", value: c.expected.totalWaitMs } },
       { measures: "outcome", answer: { kind: "enum", value: c.expected.outcome, options: OUTCOMES } },
-      ...(c.extraBets ?? []),
     ];
+    for (const x of c.extraBets ?? []) {
+      const i = specs.findIndex((s) => s.measures === x.measures);
+      if (i >= 0) specs[i] = x;
+      else specs.push(x);
+    }
     await postJson("/experiments", { id: experimentId, target: { ref: target.ref, codeSha256: target.codeSha256 }, params: c.params });
     const shown: Omit<Bet, "nonce">[] = [];
     for (const s of specs) {

@@ -50,7 +50,7 @@ describe("TS harness against the oracle table (real withRpcRetry, virtual clock)
     expect(out.result.measured.outcome).toBe("pending");
     expect(out.result.measured.calls).toBe(1);
     expect(out.result.measured.totalWaitMs).toBe(0);
-    expect(out.result.notMeasured.settleTime).toBe(NEVER_SETTLED_REASON);
+    expect(out.result.notMeasured.settledAtMs).toBe(NEVER_SETTLED_REASON);
     expect(wallMs).toBeLessThan(200);
   });
 

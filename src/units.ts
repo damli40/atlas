@@ -133,6 +133,13 @@ export type MeasuredUnit = "count" | "ms" | "USD" | "enum";
 /** The outcome words, exactly as the TS harness writes them. Bets on `outcome` must use these. */
 export const OUTCOME_OPTIONS = ["returns", "throws", "pending"] as const;
 
+/**
+ * The ONE name of the settle-time field: the TS runner measures it (runners/ts/harness.ts writes
+ * `settledAtMs`, virtual ms from the call to when it returned or threw) and the settle-time question
+ * measures the same field (src/gate.ts). A run that never settles leaves it in notMeasured with why.
+ */
+export const SETTLE_FIELD = "settledAtMs" as const;
+
 const PRICE_FIELD_PREFIX = "priceUsd1e18:";
 
 const FIELD_UNITS: Readonly<Record<string, MeasuredUnit>> = {
@@ -142,7 +149,6 @@ const FIELD_UNITS: Readonly<Record<string, MeasuredUnit>> = {
   thrownFromCall: "count",
   totalWaitMs: "ms",
   settledAtMs: "ms",
-  settleTime: "ms",
   outcome: "enum",
 };
 

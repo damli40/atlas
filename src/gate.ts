@@ -13,7 +13,7 @@
 // No I/O, no clock, no randomness.
 
 import type { BetAnswer, ExperimentShape, JsonValue } from "./types";
-import { OUTCOME_OPTIONS, measuredUnit, type MeasuredUnit } from "./units";
+import { OUTCOME_OPTIONS, SETTLE_FIELD, measuredUnit, type MeasuredUnit } from "./units";
 
 export type ShapeName = ExperimentShape["shape"];
 
@@ -208,6 +208,22 @@ function isJsonValue(v: unknown, depth: number): v is JsonValue {
 }
 
 /**
+ * A retry-scenario field the fake chain read can never use, so setting it would change nothing
+ * while the person (or a model) thinks it did. Undefined when every set field can act.
+ */
+function retryFieldWithoutEffect(p: Record<string, unknown>): string | undefined {
+  if (p.errorKind !== undefined && p.failure === "never_settles") {
+    return 'errorKind has no effect with failure "never_settles": a failing call never answers, so it never returns an error';
+  }
+  if (p.errorKind !== undefined && p.failTimes === 0) return "errorKind has no effect with failTimes 0: no call fails";
+  if (p.failTimes === "always") {
+    const unused = ["resolvesWith", "resolveAfterMs"].filter((f) => p[f] !== undefined);
+    if (unused.length > 0) return `${unused.join(" and ")} ${unused.length > 1 ? "have" : "has"} no effect with failTimes "always": no call ever answers`;
+  }
+  return undefined;
+}
+
+/**
  * Decide whether an experiment may run. Never throws. On "allowed", `params` is a fresh copy
  * holding only the shape's own fields (nothing else rides along to the runner).
  */
@@ -241,6 +257,10 @@ export function gate(params: unknown, ctx: GateContext = {}): GateDecision {
     const why = checkField(field, fs, params[field], ctx);
     if (why) return refuse(why);
   }
+  if (name === "retry-scenario") {
+    const why = retryFieldWithoutEffect(params);
+    if (why) return refuse(why);
+  }
   // A deep copy through JSON: every allowed field is plain JSON by now.
   return { allowed: true, params: JSON.parse(JSON.stringify(params)) as ExperimentShape };
 }
@@ -252,7 +272,7 @@ export const QUESTION_TEXT = {
   calls: "How many times will the function call the RPC?",
   totalWaitMs: "How long will it wait in total, in ms?",
   outcome: "How will it end: returns, throws, or pending (never settles)?",
-  settleTime: "How long until it settles, in ms?",
+  [SETTLE_FIELD]: "How long until it settles (returns or throws), in ms?",
 } as const;
 
 export const PRICE_TOLERANCE_PCT = 10;
@@ -310,12 +330,12 @@ export function questionsFor(params: ExperimentShape, ctx: GateContext = {}): Qu
 /**
  * Extra questions a PERSON may bet on through POST /bets, beyond questionsFor. Never shown to a
  * model (the Claimant answers exactly questionsFor). Today: the settle time of a retry-scenario.
- * The TS runner does not measure `settleTime` (it records `settledAtMs` when the call settles and a
- * reason when it never does), so a bet on it is judged "can't check" with the runner's reason.
- * The day-1 gate uses it to show a real "can't check" from a real run.
+ * It measures SETTLE_FIELD, the same field the TS runner writes, so a run that settles is judged on
+ * its real settle time. A run that never settles has no settle time; the runner says so, and a bet
+ * on it is "can't check" with that reason (a real one, not staged).
  */
 export function extraQuestionsFor(params: ExperimentShape): Question[] {
-  return params.shape === "retry-scenario" ? [q("settleTime", QUESTION_TEXT.settleTime, "integer")] : [];
+  return params.shape === "retry-scenario" ? [q(SETTLE_FIELD, QUESTION_TEXT[SETTLE_FIELD], "integer")] : [];
 }
 
 /** The answer JSON a bet on this question must have, as text for a prompt. */

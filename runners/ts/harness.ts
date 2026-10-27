@@ -60,7 +60,12 @@ export interface WorkerResponse {
 /** The result line is `${RESULT_MARKER}${marker} ${json}`; the marker is random per run (see worker.ts). */
 export const RESULT_MARKER = "ATLAS_RESULT ";
 
-export const NEVER_SETTLED_REASON = "the function never settled; Atlas stopped watching (harness limit, not the code's)";
+/**
+ * Why a run that provably never finishes has no settle time. Not a watch limit: the function was
+ * still waiting with nothing left that could wake it (no timers, no pending work), so it can never
+ * settle and there is no time to measure.
+ */
+export const NEVER_SETTLED_REASON = "the function never settled: it was still waiting with nothing left that could wake it, so it has no settle time";
 export const DEFAULT_WATCH_LIMIT_MS = 30_000;
 const DEFAULT_MAX_STEPS = 10_000;
 
@@ -324,7 +329,6 @@ export async function runScenario(withRpcRetry: RetryFn, scenario: RetryScenario
     // into the trace, marked partial; none of them is reported as measured.
     const r = stop.outcomeReason;
     notMeasured.outcome = `${r}, so how it ends was not seen`;
-    notMeasured.settleTime = r;
     notMeasured.settledAtMs = r;
     notMeasured.calls = `${r}; the count so far was ${calls}`;
     notMeasured.waitCount = `${r}; the count so far was ${waits.length}`;
@@ -366,7 +370,7 @@ export async function runScenario(withRpcRetry: RetryFn, scenario: RetryScenario
   } else {
     // Unsettled, no virtual timers left, nothing outside Atlas pending, queue drained: it can never settle.
     measured.outcome = "pending";
-    notMeasured.settleTime = NEVER_SETTLED_REASON;
+    notMeasured.settledAtMs = NEVER_SETTLED_REASON; // the settle-time field (SETTLE_FIELD in src/units.ts)
     emit("pending", { reason: "unsettled, no timers left, queue drained" });
   }
 

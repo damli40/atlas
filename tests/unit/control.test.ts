@@ -67,6 +67,6 @@ describe("TS control (oracle rows S1, S3 and S6 through the local executor)", ()
     expect(run.controlPassed).toBe(true);
     expect(run.result.measured.outcome).toBe("pending");
     expect(run.result.measured.calls).toBe(1);
-    expect(run.result.notMeasured.settleTime).toMatch(/never settled/);
+    expect(run.result.notMeasured.settledAtMs).toMatch(/never settled/);
   });
 });

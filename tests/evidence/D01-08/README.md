@@ -8,6 +8,19 @@ bet is sealed first: it gets a hash that changes if any part of the bet changes.
 every seal, runs the control once (rows S1 and S3, whose answers are known), runs the real
 function in the sandbox, and lets `src/judge.ts` compare each bet to what the run measured.
 
+**Re-run 2026-10-27 after the Day-2 review fixes (D02-review, S1 and S6).** `six-cases.txt` was
+re-made with the same command, and its text changed in three places:
+1. One bet per question per bettor (S1): the deliberate off-by-one S3 bet `calls = 4` now REPLACES
+   the oracle bet of 5 (before, both were placed). So S3 has 2 plain matched bets, not 3.
+2. The settle-time question now measures `settledAtMs`, the field the runner really writes (S6;
+   it was `settleTime`, which no run ever measured, so every bet on it was "can't check"). S3 gains
+   a settle-time bet of 12000 ms, judged **matched** on the real value.
+3. The S6 settle-time bet is still **can't check**, now with the true reason: "the function never
+   settled: it was still waiting with nothing left that could wake it, so it has no settle time"
+   (before, it said "Atlas stopped watching (harness limit…)", which was not why).
+Totals now: 18 matched, 1 didn't match, 1 can't check; 693 ms. The table below describes the
+original run and is kept as written.
+
 ## Commands and output
 
 | Command | Output | Result |

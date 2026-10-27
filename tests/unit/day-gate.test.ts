@@ -38,14 +38,19 @@ describe("D01-08 day gate: six known cases end to end", () => {
     for (const r of out.results) {
       expect(r.run.controlPassed, r.caseId).toBe(true);
       const plain = r.rows.filter((x) => !x.note);
-      expect(plain.map((x) => x.verdict), r.caseId).toEqual(["matched", "matched", "matched"]);
+      expect(plain.every((x) => x.verdict === "matched"), r.caseId).toBe(true);
+      expect(plain.length, r.caseId).toBe(r.caseId === "S3" ? 2 : 3); // S3's calls bet is the off one
     }
     const extra = out.results.flatMap((r) => r.rows.filter((x) => x.note));
     expect(extra.map((x) => [x.caseId, x.measures, x.verdict])).toEqual([
       ["S3", "calls", "not_matched"],
-      ["S6", "settleTime", "cant_check"],
+      ["S3", "settledAtMs", "matched"],
+      ["S6", "settledAtMs", "cant_check"],
     ]);
-    expect(extra[1]!.reason).toMatch(/never settled/);
+    // S3 settles, so its settle time is judged on the real measured value...
+    expect(extra[1]!.observed).toBe("12000");
+    // ...and S6 never settles, so there is no settle time: can't check, with the runner's own reason.
+    expect(extra[2]!.reason).toMatch(/never settled: it was still waiting with nothing left that could wake it/);
     // The control ran once and was reused.
     expect(new Set(out.results.map((r) => r.run.controlRunId)).size).toBe(1);
     // The new shape fields reached the sandbox (counts alone would not show it).
