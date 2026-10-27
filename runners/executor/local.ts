@@ -53,6 +53,7 @@ function safePath(dir: string, p: string): string {
 
 export const localExecutor: Executor = {
   kind: "local",
+  fingerprint: `local node ${process.version}`,
   async exec(req: ExecRequest): Promise<ExecResult> {
     if (req.cmd[0] !== "node") throw new Error(`local executor runs only "node" commands; got "${req.cmd[0] ?? ""}"`);
     if (!(req.wallClockMs > 0)) throw new Error("wallClockMs must be a positive number");

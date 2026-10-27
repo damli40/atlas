@@ -91,13 +91,14 @@ describe("what Atlas sends to Modal", () => {
     const q = quiet();
     const ex = createModalExecutor({ backend: b, log: q.log });
     await ex.exec(req());
-    // stdins: [unpack (the files as JSON), python --version (empty), the run]
+    // stdins: unpack (the files as JSON) and python --version (empty) run side by side, then the run.
     expect(b.rec.stdins).toHaveLength(3);
+    expect(b.rec.stdins.filter((x) => x.includes(KEY))).toEqual([`${KEY}\n`]);
     expect(b.rec.stdins[2]).toBe(`${KEY}\n`);
     const elsewhere = [JSON.stringify(b.rec.specs), JSON.stringify(b.rec.cmds), b.rec.stdins[0]!, b.rec.stdins[1]!, ...q.lines];
     for (const text of elsewhere) expect(text).not.toContain(KEY);
     // The files arrived through the unpacker's stdin, as JSON.
-    expect(JSON.parse(b.rec.stdins[0]!)).toEqual(req().files);
+    expect(b.rec.stdins.slice(0, 2).map((x) => (x ? JSON.parse(x) : null))).toContainEqual(req().files);
     expect(b.rec.cmds[0]).toEqual([NODE_BIN, "-e", UNPACK_JS, SANDBOX_DIR]);
   });
 
@@ -117,7 +118,7 @@ describe("what Atlas reports back", () => {
     const b = scriptedBackend({ run: { stdout: ["a", "b\n"], stderr: "warn", exitCode: 3 } });
     const r = await createModalExecutor({ backend: b, log: () => {} }).exec(req());
     expect(r).toMatchObject({ stdout: "ab\n", stderr: "warn", exitCode: 3, timedOut: false });
-    expect(r.runtime).toEqual({ executor: "modal", node: MODAL_IMAGE.nodeVersion, python: MODAL_IMAGE.pythonVersion, image: expect.stringContaining(MODAL_IMAGE.base), sandboxId: "sb-fake-0" });
+    expect(r.runtime).toEqual({ executor: "modal", backend: "v2", node: MODAL_IMAGE.nodeVersion, python: MODAL_IMAGE.pythonVersion, image: expect.stringContaining(MODAL_IMAGE.base), sandboxId: "sb-fake-0" });
   });
 
   it("stdout is capped at 16 MiB, and the rest is read and dropped (a 20 MB flood)", async () => {
@@ -168,12 +169,12 @@ describe("what Atlas reports back", () => {
     await vi.waitFor(() => expect(b.rec.terminated).toEqual(["sb-fake-0"]));
   });
 
-  it("Python is checked once per executor, not per run", async () => {
+  it("review round 1 (J): Python's version is read in EACH sandbox (alongside the files), so a run's runtime is its own", async () => {
     const b = scriptedBackend();
     const ex = createModalExecutor({ backend: b, log: () => {} });
     await ex.exec(req());
     await ex.exec(req());
-    expect(b.rec.cmds.filter((c) => c[0] === "/usr/local/bin/python3")).toHaveLength(1);
+    expect(b.rec.cmds.filter((c) => c[0] === "/usr/local/bin/python3")).toHaveLength(2);
   });
 });
 

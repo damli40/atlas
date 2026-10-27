@@ -29,6 +29,12 @@ export interface ScriptedAnswer {
   hang?: boolean;
   /** exec itself rejects with this message. */
   execError?: string;
+  /** exec never answers. */
+  execHang?: boolean;
+  /** Streams close normally, but wait() rejects with this message (the sandbox went away under the command). */
+  waitError?: string;
+  /** Writing stdin fails with this message (and the process never exits until terminate). */
+  stdinError?: string;
 }
 
 /** A process whose answer is fixed. Streams emit `stdout` chunks then close; `wait` gives the exit code. */
@@ -38,7 +44,7 @@ export function scriptedProcess(a: ScriptedAnswer, onStdin: (s: string) => void,
   const stream = (parts: string[]) =>
     new ReadableStream<string>({
       async start(c) {
-        if (a.hang) {
+        if (a.hang || a.stdinError) {
           await killed;
           c.error(new Error("sandbox terminated"));
           return;
@@ -50,13 +56,19 @@ export function scriptedProcess(a: ScriptedAnswer, onStdin: (s: string) => void,
   return {
     stdin: {
       writeText: async (t) => {
+        if (a.stdinError) throw new Error(a.stdinError);
         input += t;
       },
       close: async () => onStdin(input),
     },
     stdout: stream(chunks),
     stderr: stream(a.stderr ? [a.stderr] : []),
-    wait: () => (a.hang ? killed.then(() => Promise.reject(new Error("sandbox terminated"))) : Promise.resolve(a.exitCode ?? 0)),
+    wait: () =>
+      a.hang || a.stdinError
+        ? killed.then(() => Promise.reject(new Error("sandbox terminated")))
+        : a.waitError
+          ? Promise.reject(new Error(a.waitError))
+          : Promise.resolve(a.exitCode ?? 0),
   };
 }
 
@@ -94,6 +106,7 @@ export function scriptedBackend(opts: {
           else if (cmd[0] === PYTHON_BIN) a = opts.python ?? { stdout: `${MODAL_IMAGE.pythonVersion}\n` };
           else a = opts.runFor?.(i) ?? opts.run ?? { stdout: "ok\n" };
           if (a.execError) throw new Error(a.execError);
+          if (a.execHang) await killed;
           return scriptedProcess(a, (s) => rec.stdins.push(s), killed);
         },
         async terminate() {

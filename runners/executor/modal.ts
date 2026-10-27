@@ -1,7 +1,9 @@
 // Modal executor (E4, D16/D25): every exec gets its own throwaway Modal Sandbox, a small cloud container that is
 // made for this one command and deleted right after it.
 //
-// The boundary, in plain words (each layer would stop pasted code on its own; together they are defence in depth):
+// The boundary, in plain words. Each layer would stop pasted code from ESCAPING (reaching the network, a secret,
+// another run) on its own; together they are defence in depth. None of them protects the result key from code in
+// the SAME process if Node's permission model were bypassed (review round 1, D): see the E4 evidence, Known limits.
 // 1. A fresh container per exec. Nothing from an earlier run is in it, and it is terminated in a `finally`
 //    (after success, an error or a timeout). If this server dies first, Modal kills it at its own timeout.
 // 2. No network at all: the sandbox is created with `blockNetwork: true`, so even a DNS lookup fails.
@@ -13,7 +15,7 @@
 //    folder, no writes, no network, no child processes.
 // 6. Hard limits: CPU and memory caps on the container, Atlas's own wall-clock kill (the container is terminated
 //    and the result says `timedOut: true`), stdout/stderr capped at 16 MiB each, and a cap on how many sandboxes
-//    run at once.
+//    run at once, and a daily cap on sandbox starts and sandbox-seconds (review round 1, C).
 //
 // The per-run result key (call-worker.ts) travels on the command's STDIN only. The files go in through a separate
 // first command (an unpacker that reads them as JSON on its own stdin), so the key is never in a file, argv, env
@@ -25,6 +27,11 @@
 //
 // The SDK is Modal's own JavaScript SDK (`modal` on npm, pinned to 0.11.0), loaded only when the first sandbox is
 // made, so a server on the local executor never loads it. Tests replace it with a fake `ModalBackend`.
+// Review round 1:
+// - A: sandboxes are made with the SDK's V2 backend (`experimentalCreate`) explicitly. Plain `create` picks V1 or V2
+//   from the machine's Modal config; V2 is the one the live suite tested, so it is pinned, and runs record it.
+// - B: the SDK's CBOR library would load a native add-on (`cbor-extract`, a prebuilt .node binary from npm) into
+//   this server process. `loadModalSdk` sets CBOR_NATIVE_ACCELERATION_DISABLED=true first, so it uses plain JS.
 
 import { posix } from "node:path";
 import type { ExecRequest, ExecResult, ExecRuntime, Executor } from "../runner.ts";
@@ -60,6 +67,10 @@ export const NOBODY = 65534;
 /** Same cap as the local executor, per stream. */
 export const MAX_OUTPUT_CHARS = 16 * 1024 * 1024;
 export const MODAL_APP_NAME = "atlas-sandboxes";
+/** Review round 1 (A): the sandbox backend, pinned. */
+export const MODAL_BACKEND = "v2" as const;
+/** What a control run's validity depends on besides Atlas's own files (D31's cache key). */
+export const MODAL_FINGERPRINT = `modal ${MODAL_BACKEND} ${MODAL_IMAGE_LABEL}`;
 
 /** Writes the files given as JSON on stdin into the folder named by argv[1], then prints the Node version. */
 export const UNPACK_JS = [
@@ -120,6 +131,21 @@ export interface ModalExecutorOptions {
   memoryLimitMiB?: number;
   /** One line per sandbox (no code, no output, no key). Default: stderr. */
   log?: (line: string) => void;
+  /** Review round 1 (C): sandboxes this executor may start per UTC day (default 2,000). */
+  maxSandboxesPerDay?: number;
+  /** Review round 1 (C): sandbox-seconds (create to terminate) per UTC day (default 7,200 = 2 hours). */
+  maxSandboxSecondsPerDay?: number;
+  /** The clock, for tests. */
+  now?: () => number;
+}
+
+/**
+ * Review round 1 (B): loads Modal's SDK with the CBOR library's native add-on switched off, so no native code from
+ * npm is loaded into this server. Every load of the SDK goes through here.
+ */
+export async function loadModalSdk(): Promise<typeof import("modal")> {
+  process.env.CBOR_NATIVE_ACCELERATION_DISABLED = "true";
+  return import("modal");
 }
 
 /** The real backend: Modal's JS SDK, credentials from ~/.modal.toml or MODAL_TOKEN_ID/SECRET (read by the SDK, never by Atlas). */
@@ -127,13 +153,14 @@ export function sdkBackend(appName = MODAL_APP_NAME): ModalBackend {
   type Ready = { create: (spec: SandboxSpec) => Promise<ModalSandbox> };
   let ready: Promise<Ready> | null = null;
   const init = async (): Promise<Ready> => {
-    const { ModalClient } = await import("modal");
+    const { ModalClient } = await loadModalSdk();
     const client = new ModalClient();
     const app = await client.apps.fromName(appName, { createIfMissing: true });
     const image = await client.images.fromRegistry(MODAL_IMAGE.base).dockerfileCommands([...MODAL_IMAGE_COMMANDS]).build(app);
     return {
       create: async (spec) => {
-        const sb = await client.sandboxes.create(app, image, { ...spec });
+        // A: V2, explicitly (plain `create` would follow the machine's sandbox_v2 / MODAL_SANDBOX_V2 setting).
+        const sb = await client.sandboxes.experimentalCreate(app, image, { ...spec });
         return {
           sandboxId: sb.sandboxId,
           exec: async (cmd, opts) => (await sb.exec(cmd, opts.workdir ? { workdir: opts.workdir } : {})) as unknown as ModalProcess,
@@ -159,6 +186,40 @@ export function sdkBackend(appName = MODAL_APP_NAME): ModalBackend {
 
 /** Thrown when the concurrency cap and the queue are both full. */
 export class ModalBusyError extends Error {}
+/** Review round 1 (C): thrown when today's sandbox budget is used up. Nothing runs, so nothing is judged. */
+export class ModalBudgetError extends Error {}
+
+/** Review round 1 (C): sandbox starts and sandbox-seconds per UTC day, kept in this process (a restart resets it). */
+function dailyBudget(maxStarts: number, maxSeconds: number, now: () => number) {
+  let day = "";
+  let starts = 0;
+  let seconds = 0;
+  const today = () => {
+    const d = new Date(now()).toISOString().slice(0, 10);
+    if (d !== day) {
+      day = d;
+      starts = 0;
+      seconds = 0;
+    }
+  };
+  return {
+    /** Counts one start, or throws when the day's budget is used up. */
+    take(): void {
+      today();
+      if (starts >= maxStarts || seconds >= maxSeconds) {
+        throw new ModalBudgetError(
+          `Atlas's daily sandbox budget is used up (${starts} of ${maxStarts} sandboxes, ${Math.round(seconds)} of ${maxSeconds} sandbox-seconds today); it resets at 00:00 UTC`,
+        );
+      }
+      starts++;
+    },
+    spend(ms: number): void {
+      today();
+      seconds += ms / 1000;
+    },
+    stats: () => (today(), { day, starts, seconds: Math.round(seconds) }),
+  };
+}
 
 function slots(max: number, maxQueued: number) {
   let running = 0;
@@ -262,12 +323,29 @@ async function runSmall(sb: ModalSandbox, cmd: string[], stdin?: string): Promis
   return { stdout: out.text, stderr: err.text, exitCode };
 }
 
-const message = (e: unknown) => (e instanceof Error ? e.message : String(e)).replaceAll(/\s+/g, " ").slice(0, 300);
+/**
+ * Review round 1 (E): Modal's own plumbing text (task and sandbox ids, internal RPC names, its "waiting on pid"
+ * lines) is removed from anything a person may see. Lines that are only Modal's are dropped; ids are masked.
+ */
+export function cleanModalText(text: string): string {
+  return text
+    .split("\n")
+    .filter((l) => !/urpc method|waiting on pid \d+|containerManager\.|TaskExecWait|FAILED_PRECONDITION/i.test(l))
+    .join("\n")
+    .replaceAll(/\b(?:ta|sb|ap|im|fu|in)-[A-Za-z0-9]{10,}\b/g, "<modal-id>");
+}
+
+const message = (e: unknown) => cleanModalText((e instanceof Error ? e.message : String(e)).replaceAll(/\s+/g, " ")).slice(0, 300);
+
+/** A Modal error that means the sandbox went away under a running command (out of memory, killed, shutting down). */
+const sandboxGone = (e: unknown) => /shutting down|NOT_FOUND|terminated|FAILED_PRECONDITION|EOF|UNAVAILABLE/i.test(e instanceof Error ? e.message : String(e));
 
 export interface ModalExecutor extends Executor {
   kind: "modal";
   /** Sandboxes running now and execs waiting for one (for tests and the startup note). */
   stats(): { running: number; queued: number };
+  /** Review round 1 (C): today's starts and sandbox-seconds. */
+  budget(): { day: string; starts: number; seconds: number };
 }
 
 export function createModalExecutor(opts: ModalExecutorOptions = {}): ModalExecutor {
@@ -275,15 +353,24 @@ export function createModalExecutor(opts: ModalExecutorOptions = {}): ModalExecu
   const pool = slots(Math.max(1, opts.maxConcurrent ?? 4), Math.max(0, opts.maxQueued ?? 16));
   const startupMs = opts.startupTimeoutMs ?? 120_000;
   const log = opts.log ?? ((line: string) => process.stderr.write(`${line}\n`));
-  let python: Promise<string> | null = null;
+  const now = opts.now ?? Date.now;
+  const daily = dailyBudget(opts.maxSandboxesPerDay ?? 2_000, opts.maxSandboxSecondsPerDay ?? 7_200, now);
 
   return {
     kind: "modal",
+    fingerprint: MODAL_FINGERPRINT,
     stats: () => ({ running: pool.running, queued: pool.queued }),
+    budget: () => daily.stats(),
     async exec(req: ExecRequest): Promise<ExecResult> {
       checkRequest(req);
       const cmd = containerCommand(req); // throws on a widening flag or a host list, before any sandbox exists
       const release = await pool.acquire();
+      try {
+        daily.take(); // C: before any sandbox exists
+      } catch (e) {
+        release();
+        throw e;
+      }
       const t0 = performance.now();
       const since = () => Math.round(performance.now() - t0);
       let sb: ModalSandbox | undefined;
@@ -292,6 +379,7 @@ export function createModalExecutor(opts: ModalExecutorOptions = {}): ModalExecu
       let status = "error";
       let exitCode: number | null = null;
       let timedOut = false;
+      let stopped: string | undefined;
       const out = { text: "", chars: 0 };
       const err = { text: "", chars: 0 };
       try {
@@ -305,38 +393,34 @@ export function createModalExecutor(opts: ModalExecutorOptions = {}): ModalExecu
         };
         sb = await deadline(backend.createSandbox(spec), startupMs, `Modal did not start a sandbox within ${startupMs} ms`, (late) => void late.terminate().catch(() => {}));
         times.createMs = since();
+        const box = sb;
 
+        // The files go in, and Python's version is read in THIS sandbox, at the same time (J: per sandbox, each
+        // with a deadline, so one slow sandbox never holds another exec).
         phase = "write the files into";
-        const unpack = await deadline(runSmall(sb, [NODE_BIN, "-e", UNPACK_JS, SANDBOX_DIR], JSON.stringify(req.files)), startupMs, `writing the files took more than ${startupMs} ms`);
+        const [unpack, pyCheck] = await deadline(
+          Promise.all([runSmall(box, [NODE_BIN, "-e", UNPACK_JS, SANDBOX_DIR], JSON.stringify(req.files)), runSmall(box, [PYTHON_BIN, "--version"])]),
+          startupMs,
+          `writing the files took more than ${startupMs} ms`,
+        );
         if (unpack.exitCode !== 0) throw new Error(`the unpacker exited with code ${unpack.exitCode}${unpack.stderr ? ` (${message(unpack.stderr)})` : ""}`);
         const node = unpack.stdout.trim();
         if (node !== MODAL_IMAGE.nodeVersion) throw new Error(`the image runs Node ${node.slice(0, 40) || "(none)"}, not the pinned ${MODAL_IMAGE.nodeVersion}`);
-        phase = "check Python in";
-        const first = sb;
-        const pyNow = (python ??= runSmall(first, [PYTHON_BIN, "--version"]).then((r) => {
-          const v = `${r.stdout}${r.stderr}`.trim();
-          if (r.exitCode !== 0 || v !== MODAL_IMAGE.pythonVersion) throw new Error(`the image runs ${v.slice(0, 40) || "no Python"}, not the pinned ${MODAL_IMAGE.pythonVersion}`);
-          return v;
-        }));
-        let py: string;
-        try {
-          py = await pyNow;
-        } catch (e) {
-          if (python === pyNow) python = null;
-          throw e;
-        }
+        const py = `${pyCheck.stdout}${pyCheck.stderr}`.trim();
+        if (pyCheck.exitCode !== 0 || py !== MODAL_IMAGE.pythonVersion) throw new Error(`the image runs ${py.slice(0, 40) || "no Python"}, not the pinned ${MODAL_IMAGE.pythonVersion}`);
         times.setupMs = since() - times.createMs;
 
         phase = "run the command in";
-        const proc = await sb.exec(cmd, { workdir: SANDBOX_DIR });
+        const proc = await deadline(box.exec(cmd, { workdir: SANDBOX_DIR }), startupMs, `starting the command took more than ${startupMs} ms`); // J
         const started = performance.now();
-        // stdin: the request's text (the per-run key), then EOF. A command that exits before reading it is its answer.
+        // stdin: the request's text (the per-run key), then EOF. G: a failure is remembered, not swallowed.
+        let stdinError: string | undefined;
         const stdinDone = (async () => {
           try {
             if (req.stdin !== undefined) await proc.stdin.writeText(req.stdin);
             await proc.stdin.close();
-          } catch {
-            // the process may already be gone
+          } catch (e) {
+            stdinError = message(e);
           }
         })();
         const exitP = proc.wait();
@@ -345,24 +429,49 @@ export function createModalExecutor(opts: ModalExecutorOptions = {}): ModalExecu
         for (const p of [exitP, outP, errP, stdinDone]) (p as Promise<unknown>).catch(() => {});
         let timer: ReturnType<typeof setTimeout> | undefined;
         const limit = new Promise<"timeout">((r) => (timer = setTimeout(() => r("timeout"), req.wallClockMs)));
-        const done = await Promise.race([Promise.all([exitP, outP, errP]).then(([code]) => ({ code })), limit]).finally(() => clearTimeout(timer));
+        let done: { code: number } | "timeout";
+        try {
+          done = await Promise.race([Promise.all([exitP, outP, errP]).then(([code]) => ({ code })), limit]);
+        } catch (e) {
+          // F: the command DID start; the sandbox went away under it (out of memory, killed). That is a fact about
+          // this run, never "could not start".
+          if (!sandboxGone(e)) throw e;
+          stopped = `the sandbox stopped while the code ran (${message(e).slice(0, 120)}); this usually means the code used more than the sandbox's ${spec.memoryLimitMiB} MiB of memory`;
+          done = { code: -1 };
+        } finally {
+          clearTimeout(timer);
+        }
         times.runMs = Math.round(performance.now() - started);
         if (done === "timeout") {
+          // G: if the run's input never arrived, the code was waiting for Atlas, not looping.
+          if (stdinError !== undefined) throw new Error(`Modal did not deliver the run's input (stdin): ${stdinError}`);
           timedOut = true;
           status = "timed out";
+        } else if (stopped !== undefined) {
+          status = "stopped";
         } else {
           exitCode = done.code;
           status = "done";
         }
-        const runtime: ExecRuntime = { executor: "modal", node, python: py, image: MODAL_IMAGE_LABEL, sandboxId: sb.sandboxId };
-        return { stdout: out.text, stderr: err.text, exitCode, timedOut, durationMs: times.runMs, runtime };
+        const runtime: ExecRuntime = { executor: "modal", backend: MODAL_BACKEND, node, python: py, image: MODAL_IMAGE_LABEL, sandboxId: box.sandboxId };
+        return {
+          stdout: out.text,
+          stderr: cleanModalText(err.text), // E
+          exitCode,
+          timedOut,
+          durationMs: times.runMs,
+          runtime,
+          ...(stopped !== undefined ? { stopped } : {}),
+        };
       } catch (e) {
+        if (e instanceof ModalBudgetError) throw e;
         throw new Error(`Modal could not ${phase} a sandbox: ${message(e)}`);
       } finally {
         if (sb) {
           const id = sb.sandboxId;
           await deadline(sb.terminate(), 15_000, "terminate took more than 15 s").catch((e: unknown) => log(`modal sandbox ${id} terminate failed (Modal's own timeout still ends it): ${message(e)}`));
         }
+        daily.spend(performance.now() - t0); // C: create to terminate, as Atlas measured it
         release();
         log(
           `modal sandbox ${sb?.sandboxId ?? "(none)"} ${status} exit=${exitCode ?? "none"} timedOut=${timedOut} createMs=${times.createMs} setupMs=${times.setupMs} runMs=${times.runMs} totalMs=${since()} stdoutChars=${out.chars} stderrChars=${err.chars}`,
