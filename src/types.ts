@@ -2,6 +2,7 @@
 // All on-chain numbers are decimal strings of integers (bigint-safe), never JS numbers.
 
 import type { FalseAlarmRow, PassRuleLine } from "./falsealarm";
+import type { OutlineSection } from "./outline/types";
 export type TargetKind = "ts-fixture" | "github-pr" | "pasted";
 export interface Target {
   kind: TargetKind;
@@ -258,5 +259,10 @@ export interface AtlasFile {
   attempts?: RunAttempt[];
   /** Text a replayer must show: pre-existing labels, "replayed on a fork", "mechanism, not an incident". */
   captions: string[];
+  /**
+   * Added X1: the code explorer's outline (source files + hashes, code map, Wonder's outline, plain code's verified
+   * outline, usage). Verify rebuilds the code map and the verification from the stored files, without any model.
+   */
+  outline?: OutlineSection;
   createdAt: string;
 }

@@ -31,6 +31,7 @@ import { canonicalJson, jsonDepth, sha256Hex, verifySeal } from "./seal";
 import { applyFileDiff, parseUnifiedDiff, type DiffFile } from "./diff";
 import { CHANGE_CAPTION, theoryCaptions, towardFromBets } from "./change";
 import { planChangedConfig } from "../runners/change";
+import type { OutlineSection } from "./outline/types";
 import type { AgentEvent, AtlasFile, Bet, BettorSlot, Change, Experiment, Finding, Run, RunAttempt, Target, Verdict } from "./types";
 
 // The two level captions live in src/captions.ts (no Node imports), so the web page can use them
@@ -38,6 +39,7 @@ import type { AgentEvent, AtlasFile, Bet, BettorSlot, Change, Experiment, Findin
 import { LEVEL2_CAPTION, PASTED_CAPTION, level1Caption } from "./captions";
 import { lineSpan } from "./words";
 import { pastedTargetProblems } from "./pasted-code";
+import { outlineSectionProblems } from "./outline/section";
 export { LEVEL2_CAPTION, level1Caption };
 /** M7: the two halves of the "chosen line" caption. Each half is earned from the file's findings (chosenLineCaptions). */
 export const CBETH_PICKED_BY_PERSON = "the cbETH line was picked by a person";
@@ -261,6 +263,8 @@ export const atlasFileSchema = z
       .optional(),
     captions: z.array(z.string().min(1)).min(1),
     createdAt: iso,
+    // X1: the code explorer's outline (src/outline/section.ts checks it, recomputing everything from its file texts).
+    outline: z.unknown().optional(),
   })
   .strict();
 
@@ -684,6 +688,8 @@ function verifyAtlasFileChecked(raw: unknown): Verification {
   }
   for (const p of findingProblems(file)) say(p);
   for (const p of changeProblems(file)) say(`change: ${p}`);
+  // X1: the outline is re-judged without any model: code map and verified outline rebuilt from the stored file texts.
+  if (file.outline !== undefined) for (const p of outlineSectionProblems(file.outline)) say(`outline: ${p}`);
   const required = requiredCaptions(file);
   for (const c of required) if (!file.captions.includes(c)) say(`missing caption: "${c}"`);
   const allowed = new Set([...required, ...allowedExtraCaptions(file), ...(file.change ? [CHANGE_CAPTION, ...theoryCaptions(file.change)] : [])]);
@@ -902,6 +908,8 @@ export interface BuildInput {
   extraCaptions?: string[];
   /** Final review S2: earlier attempts of this experiment that did not finish. */
   attempts?: RunAttempt[];
+  /** X1: the code explorer's outline this round's part came from (checked again with the file). */
+  outline?: OutlineSection;
   createdAt: string;
 }
 
@@ -925,6 +933,7 @@ export function buildAtlasFile(input: BuildInput): AtlasFile {
     agentLog: input.agentLog,
     ...(input.bettors && input.bettors.length ? { bettors: input.bettors } : {}),
     ...(input.attempts && input.attempts.length ? { attempts: input.attempts } : {}),
+    ...(input.outline ? { outline: input.outline } : {}),
     captions,
     createdAt: input.createdAt,
   };
