@@ -1,0 +1,13 @@
+$ vitest run
+
+ RUN  v5.0.5 <home>/Documents/Atlas-Meta
+
+
+ Test Files  64 passed (64)
+      Tests  653 passed | 3 skipped (656)
+   Start at  11:36:30
+   Duration  26.86s (tests 79%, import 19%, transform 1%)
+
+    Isolate  64 workers spawned · ~240ms startup each (spawn + environment, per file)
+             at least ~1.47s faster with isolate: false — reuses workers across files instead of one per file
+

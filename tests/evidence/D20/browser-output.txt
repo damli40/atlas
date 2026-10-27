@@ -1,0 +1,8 @@
+change screen theory caption: In theory: Atlas wired cbETH_ORACLE directly; the real proposal would first need a new cbETH_ORACLE_OEV_WRAPPER contract deployed.
+change screen table: question bettor sealed bet Before change After change After this proposal is applied, what will Moonwell's oracle report for 1 cbETH, in USD? You 2200 USD (±10%) didn't match observed $1.12 matched observed $2,206.68 After this proposal is applied, what will Moonwell's oracle report for 1 cbETH, in USD? Muse Spark 1.3 (muse-spark-1.3) declined can't check observed $1.12 (the bettor declined) can't check observed $2,206.68 (the bettor declined)
+price pipe: multiply gear drawn = true; theory caption: In theory: Atlas wired cbETH_ORACLE directly; the real proposal would first need a new cbETH_ORACLE_OEV_WRAPPER contract deployed.
+proof card theory caption: In theory: Atlas wired cbETH_ORACLE directly; the real proposal would first need a new cbETH_ORACLE_OEV_WRAPPER contract deployed.
+proof card pass-rule note: PASS-RULE.md replay lines, in theory (about the theoretical replay, not the real proposal):
+proof card captions: fork of Base one block before MIP-X43 ran; Atlas applied the proposal's oracle-feed actions as the governor the cbETH line was picked by a person; the Investigator was not asked changed toward what you expected, then re-run In theory: Atlas wired cbETH_ORACLE directly; the real proposal would first need a new cbETH_ORACLE_OEV_WRAPPER contract deployed.
+re-run it (both runs, 9 s): replayed both runs (before and after the change): same result ✓ · same fork block 42194662
+page errors: none

@@ -1,0 +1,10 @@
+applies the change to the proposal's config in a scratch copy
+In theory: Atlas wired cbETH_ORACLE directly; the real proposal would first need a new cbETH_ORACLE_OEV_WRAPPER contract deployed.
+re-derives 14 oracle-feed actions from the changed config
+forks Base @ 42194662 (the original run's block)
+checks the fork at 42194662 is before the proposal ran
+runs the known-case control (WETH, stablecoins)
+reads 14 markets before applying
+applies 14 oracle-feed actions as the governor
+reads 14 markets after applying
+computes the cbETH reference from the raw Chainlink feeds and traces the price read
