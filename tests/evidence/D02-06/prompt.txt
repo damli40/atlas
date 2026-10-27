@@ -1,0 +1,99 @@
+[system]
+You propose. You never decide. Plain code will run the code and judge. Say 'unknown' instead of guessing. Return only JSON matching the schema.
+
+[user]
+FINDING (fixture finding, written by hand (Investigator arrives Oct 30))
+file: tests/fixtures/with-rpc-retry.ts, lines 49-66, kind: retry
+claim: People expect withRpcRetry to turn a flaky chain read into a dependable one within a short, predictable time; the code repeats the read in a loop whose number of calls, waits between them and final result depend on its attempt and delay settings and on how each call behaves.
+
+CODE (tests/fixtures/with-rpc-retry.ts, lines 11-66):
+11| /** Retry budget for a single chain read. 5 attempts, 3s apart — measured against
+12|  *  the lag that produced the failures these retries exist for (a load-balanced RPC
+13|  *  answering from a node one or two blocks behind a just-landed transaction). */
+14| export const RPC_RETRY_ATTEMPTS = 5;
+15| export const RPC_RETRY_DELAY_MS = 3000;
+16| 
+17| /** The slice of a viem PublicClient this module uses. Structural on purpose: tests
+18|  *  inject a plain object and exercise the failure branches, which are the branches
+19|  *  that matter and the ones a live RPC will not reproduce on demand. */
+20| export interface ChainReadClient {
+21|   readContract(args: any): Promise<any>;
+22|   getTransactionReceipt(args: { hash: `0x${string}` }): Promise<{ blockNumber: bigint }>;
+23| }
+24| 
+25| export interface RetryOptions {
+26|   attempts?: number;
+27|   delayMs?: number;
+28|   /** Injectable so tests do not spend 12 real seconds proving the retry budget. */
+29|   sleep?: (ms: number) => Promise<void>;
+30|   log?: (msg: string) => void;
+31| }
+32| 
+33| const realSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+34| 
+35| /**
+36|  * Every chain read on the guardian path goes through here.
+37|  *
+38|  * KeeperHub reports an execution `completed` as soon as ITS node has the receipt,
+39|  * while a public RPC endpoint is load-balanced — so the very next read can land on a
+40|  * node one or two blocks behind and throw (`BlockNotFoundError`, seen live on
+41|  * rehearsal run-005) or answer from stale state. Block-pinned reads are MORE exposed
+42|  * to this than `latest` reads, not less: a node that has not seen the block cannot
+43|  * serve a query against it at all.
+44|  *
+45|  * **Fail-closed.** Rethrows the last error after the final attempt rather than
+46|  * returning a default. Each caller decides what a permanent failure means for its own
+47|  * artifact — and none of them may drop the artifact.
+48|  */
+49| export async function withRpcRetry<T>(label: string, fn: () => Promise<T>, opts: RetryOptions = {}): Promise<T> {
+50|   const attempts = opts.attempts ?? RPC_RETRY_ATTEMPTS;
+51|   const delayMs = opts.delayMs ?? RPC_RETRY_DELAY_MS;
+52|   const sleep = opts.sleep ?? realSleep;
+53|   const log = opts.log ?? console.log;
+54|   let last: unknown;
+55|   for (let i = 1; i <= attempts; i++) {
+56|     try { return await fn(); }
+57|     catch (e) {
+58|       last = e;
+59|       if (i < attempts) {
+60|         log(`${label}: chain read failed (attempt ${i}/${attempts}, likely RPC lag) — retrying in ${delayMs / 1000}s`);
+61|         await sleep(delayMs);
+62|       }
+63|     }
+64|   }
+65|   throw last;
+66| }
+
+EXPERIMENT (already chosen and allowed; it will run exactly as written)
+{"shape":"retry-scenario","failTimes":5,"failure":"error"}
+Fields it leaves out use the code's own defaults.
+
+WHAT THE FIELDS MEAN
+Allowed experiments. Anything else is refused: an unknown shape, an extra field, or a value outside its bounds.
+
+shape "retry-scenario": calls the function once; the chain read it retries is a fake that fails on its first failTimes calls, then answers.
+  required failTimes: whole number 0..10 or "always" (how many calls fail before one answers)
+  required failure: "error" | "never_settles" (error = a failing call throws; never_settles = a failing call never answers)
+  optional attempts: whole number 1..10 (passed to the function as opts.attempts)
+  optional delayMs: whole number 0..60000 (passed to the function as opts.delayMs)
+  optional resolveAfterMs: whole number 0..60000 (an answering call answers this many ms after it is made)
+  optional errorKind: "seeded" | "429" (seeded = varied RPC errors; 429 = an HTTP 429 error every time)
+  optional resolvesWith: any JSON value, at most 1000 characters (the value an answering call returns)
+  Atlas's clock is virtual: waits cost no real time. Atlas watches a run for at most 30000 ms of virtual time.
+  Two different endings: a run where the function provably can never finish (it is still waiting and nothing is left that could wake it: no timers, no pending work) is measured, with outcome "pending". A run that Atlas's watch limit cuts off before the end is "can't check".
+
+QUESTIONS (written by plain code; a person answers the same ones)
+1. measures "calls": How many times will the function call the RPC?
+   answer: {"kind":"integer","value":<whole number, a count>}
+2. measures "totalWaitMs": How long will it wait in total, in ms?
+   answer: {"kind":"integer","value":<whole number, milliseconds>}
+3. measures "outcome": How will it end: returns, throws, or pending (never settles)?
+   answer: {"kind":"enum","value":<one of "returns" | "throws" | "pending">,"options":["returns","throws","pending"]}
+
+TASK
+Bet on what this experiment's run will measure:
+exactly one bet per question, using the answer JSON shown for it.
+If you do not know an answer, bet {"kind":"declined","reason":"unknown: <why>"} instead of guessing.
+
+Return only this JSON object:
+{"bets": [{"measures": "<field>", "answer": {...}, "rationale": "<one or two sentences>"}]}

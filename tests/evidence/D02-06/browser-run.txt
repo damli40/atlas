@@ -1,0 +1,21 @@
+# Headless Chromium (playwright-core 1.58.1, cached chrome-headless-shell 1228, reducedMotion: "reduce")
+# driving `pnpm dev:all` (Hono on 8787 with model bets on, Vite on 5173). Live muse-spark-1.3 call. Script: drive.mjs
+default scenario: S3
+model slot: sealed (waited 3311 ms after the person sealed)
+model slot text: Model's bets: Muse Spark 1.3 (muse-spark-1.3) Muse Spark 1.3 (muse-spark-1.3) has sealed 3 bets. Its answers stay hidden until the run; only the hashes are shown now. calls: sealed at 2026-10-27T05:09:37.153Z · hash fb76f9968cec… totalWaitMs: sealed at 2026-10-27T05:09:37.153Z · hash a9dd04b2b12c… outcome: sealed at 2026-10-27T05:09:37.153Z · hash f731da6bf4a2…
+your hashes before Break it: {"calls":"8d6ed33b63d044f642072a9e862d17f671d23f1355433a57323e8d418e6d387d","totalWaitMs":"1a791b59220a3dbe9df0320746022b96e7b73156c1070d377646f03c8b796416","outcome":"02372ac1a61f06b30917ec5b3bffe0d6b90a1a66482d57db96a761dc0a369c28"}
+Muse Spark hashes before Break it: {"calls":"fb76f9968cecfd89a2f21dab6a09c2936e0aa5a716a7689c5a2040be3500d1c8","totalWaitMs":"a9dd04b2b12ce08f7dce8b77c8d0b5a08d70f6c51782bbe48569032eaeb4044c","outcome":"f731da6bf4a2089f2ff74da1ce331a98ade828b98892c80e66cdc131d3ccdaa5"}
+pre-run responses: 7; any holding a model answer, rationale or nonce: 0
+model panel shows a revealed answer before the run: false
+table columns: ["question","You","Muse Spark 1.3 (muse-spark-1.3)","observed"]
+row calls: How many times will the function call the RPC? 5 · matched 5 · matched 5 judged by src/judge.ts
+row totalWaitMs: How long will it wait in total, in ms? 12000 · matched 12000 · matched 12000 judged by src/judge.ts
+row outcome: How will it end: returns, throws, or pending (never settles)? throws · matched throws · matched throws judged by src/judge.ts
+seal check: yes | You, calls: shown 8d6ed33b63d0… · recomputed 8d6ed33b63d0… · ✓ match · sealed before the run started
+seal check: yes | You, totalWaitMs: shown 1a791b59220a… · recomputed 1a791b59220a… · ✓ match · sealed before the run started
+seal check: yes | You, outcome: shown 02372ac1a61f… · recomputed 02372ac1a61f… · ✓ match · sealed before the run started
+seal check: yes | Muse Spark 1.3 (muse-spark-1.3), calls: shown fb76f9968cec… · recomputed fb76f9968cec… · ✓ match · sealed before the run started
+seal check: yes | Muse Spark 1.3 (muse-spark-1.3), totalWaitMs: shown a9dd04b2b12c… · recomputed a9dd04b2b12c… · ✓ match · sealed before the run started
+seal check: yes | Muse Spark 1.3 (muse-spark-1.3), outcome: shown f731da6bf4a2… · recomputed f731da6bf4a2… · ✓ match · sealed before the run started
+model panel: calls: 5 · "Defaults give 5 attempts and all 5 fail since failTimes is 5, so fn is called 5 times." totalWaitMs: 12000 · "Sleep of 3000ms occurs after each failed attempt except the last, so 4 sleeps total 12000ms." outcome: throws · "All attempts fail so loop exhausts and rethrows the last error."
+page errors: none

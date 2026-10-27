@@ -1,0 +1,4 @@
+call 1 (model calls 1, control passed, $0.030240): calls bet 5 vs 5 → matched; totalWaitMs bet 12000 vs 12000 → matched; outcome bet throws vs throws → matched
+call 2 (model calls 1, control passed, $0.019340): calls bet 5 vs 5 → matched; totalWaitMs bet 12000 vs 12000 → matched; outcome bet throws vs throws → matched
+call 3 (model calls 1, control passed, $0.023780): calls bet 5 vs 5 → matched; totalWaitMs bet 12000 vs 12000 → matched; outcome bet throws vs throws → matched
+cost (upper bound, Spark price unverified): $0.073360
