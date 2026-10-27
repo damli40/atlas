@@ -3,6 +3,8 @@
 // browser's own seal check.
 // D02-06: as soon as the experiment exists, the server asks Muse Spark for its bets on the SAME
 // questions. The page shows only "has sealed N bets" + hashes until the run, then both columns.
+// D04-04: a target switcher (the withRpcRetry fixture, or a pull request link: Moonwell PR #578 on
+// the EVM runner), and a findings panel (the Investigator's places, checked against the file).
 
 import { useEffect, useMemo, useState } from "react";
 import type { Question } from "../src/gate";
@@ -13,9 +15,38 @@ import { Bets, TargetCard } from "./screens/Bets";
 import { RunScreen } from "./screens/Run";
 import { VerdictScreen } from "./screens/Verdict";
 import { ModelSlotCard } from "./screens/ModelPanel";
+import { FindingsPanel } from "./screens/Findings";
+import { MoonwellFlow } from "./screens/Moonwell";
+import type { Finding } from "../src/types";
+
+type Mode = "fixture" | "pr";
 
 export function App({ api: given }: { api?: Api } = {}) {
-  const api = useMemo(() => given ?? createApi(), [given]);
+  const [mode, setMode] = useState<Mode>("fixture");
+  // One API client (one session) per target, so switching starts a clean round.
+  const fixtureApi = useMemo(() => given ?? createApi(), [given]);
+  const prApi = useMemo(() => given ?? createApi(), [given]);
+  return (
+    <main>
+      <header>
+        <h1>Atlas</h1>
+        <p className="muted">Know what your AI-written code does before you trust it.</p>
+      </header>
+      <nav className="switch" aria-label="what to test">
+        <button type="button" className={mode === "fixture" ? "on" : undefined} aria-pressed={mode === "fixture"} onClick={() => setMode("fixture")}>
+          withRpcRetry (TypeScript)
+        </button>
+        <button type="button" className={mode === "pr" ? "on" : undefined} aria-pressed={mode === "pr"} onClick={() => setMode("pr")} data-testid="mode-pr">
+          A pull request link (Solidity, Base fork)
+        </button>
+      </nav>
+      {mode === "fixture" ? <FixtureFlow api={fixtureApi} /> : <MoonwellFlow api={prApi} />}
+    </main>
+  );
+}
+
+function FixtureFlow({ api }: { api: Api }) {
+  const [finding, setFinding] = useState<Finding | null>(null);
   const [target, setTarget] = useState<Target | null>(null);
   const [scenarioId, setScenarioId] = useState(DEFAULT_SCENARIO);
   const [experimentId, setExperimentId] = useState<string | null>(null);
@@ -55,7 +86,7 @@ export function App({ api: given }: { api?: Api } = {}) {
     step(async () => {
       if (!target) return;
       const scenario = SCENARIOS.find((s) => s.id === scenarioId)!;
-      const out = await api.experiment(target, scenario.params);
+      const out = await api.experiment(target, scenario.params, finding?.id);
       setExperimentId(out.experiment.id);
       setQuestions(out.questions);
       setModelSlot(out.model);
@@ -114,12 +145,9 @@ export function App({ api: given }: { api?: Api } = {}) {
   };
 
   return (
-    <main>
-      <header>
-        <h1>Atlas</h1>
-        <p className="muted">Know what your AI-written code does before you trust it.</p>
-      </header>
+    <>
       <TargetCard target={target} />
+      <FindingsPanel api={api} target={target} chosen={finding} onChoose={setFinding} locked={experimentId !== null} />
       <Bets
         scenarioId={scenarioId}
         onScenario={setScenarioId}
@@ -149,6 +177,6 @@ export function App({ api: given }: { api?: Api } = {}) {
           {error}
         </p>
       )}
-    </main>
+    </>
   );
 }

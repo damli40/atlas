@@ -3,10 +3,27 @@
 // In development, Vite forwards /api/* to the Hono server on port 8787 (vite.config.ts).
 
 import type { Question } from "../src/gate";
-import type { Bet, Experiment, Run, Target, Verdict } from "../src/types";
+import type { Bet, Experiment, Finding, Run, Target, Verdict } from "../src/types";
+import type { FalseAlarmRow } from "../runners/evm/level2";
 import type { ModelSlotView, SealedOnly } from "../server/bets";
 
-export type { ModelSlotView, SealedOnly };
+export type { ModelSlotView, SealedOnly, FalseAlarmRow };
+
+/** A pull request target as the server registered it, with its files (D04-04). */
+export type PrTarget = Target & { title: string; files: { path: string; text: string }[] };
+
+export interface InvestigateAnswer {
+  ok: boolean;
+  reason?: string;
+  model: string;
+  findings: Finding[];
+  dropped: { file: string; lineStart: number; lineEnd: number; reason: string }[];
+  fellBack?: boolean;
+  usage?: { promptTokens: number; completionTokens: number; usd: number } | null;
+}
+
+/** The round's .atlas.json, as the server reports it after the run (D04-04). */
+export type ProofInfo = { ok: true; runId: string; captions: string[]; published: boolean; error?: string } | { ok: false; runId: string; reason: string };
 
 export type FetchLike = (url: string, init: RequestInit) => Promise<Response>;
 
@@ -27,9 +44,13 @@ export interface RunAnswer {
   bets: Bet[];
   betsFrozenAt: string;
   model?: ModelSlotView | null;
+  /** D04-04: the round's .atlas.json (kept, and written when publishing is on). */
+  proof?: ProofInfo;
+  /** D04-04, Level 2 only: one row per market the proposal touches. */
+  falseAlarm?: FalseAlarmRow[];
 }
 
-export type HumanAnswer = { kind: "integer"; value: number } | { kind: "enum"; value: string };
+export type HumanAnswer = { kind: "integer"; value: number } | { kind: "enum"; value: string } | { kind: "number"; value: number };
 
 const SESSION_HEADER = "x-atlas-session";
 
@@ -59,9 +80,17 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
     return json;
   }
   return {
+    /** The session id the server handed back (null before the first answer). */
+    session: () => session,
     target: (ref: string) => post<Target>("/targets", { kind: "ts-fixture", ref }),
-    experiment: (target: Target, params: unknown) =>
-      post<ExperimentAnswer>("/experiments", { target: { ref: target.ref, codeSha256: target.codeSha256 }, params }),
+    /** D04-04: a pull request, read by the server at its merge commit. */
+    prTarget: (ref: string) => post<PrTarget>("/targets", { kind: "github-pr", ref }),
+    investigate: (target: Target) => post<InvestigateAnswer>("/investigate", { target: { ref: target.ref, codeSha256: target.codeSha256 } }),
+    /** D04-04: lines a person picked themselves. */
+    pickLines: (target: Target, file: string, lineStart: number, lineEnd: number) =>
+      post<{ finding: Finding }>("/findings", { target: { ref: target.ref, codeSha256: target.codeSha256 }, file, lineStart, lineEnd }).then((r) => r.finding),
+    experiment: (target: Target, params: unknown, findingId?: string) =>
+      post<ExperimentAnswer>("/experiments", { target: { ref: target.ref, codeSha256: target.codeSha256 }, params, ...(findingId ? { findingId } : {}) }),
     bet: (experimentId: string, measures: string, answer: HumanAnswer) =>
       post<{ bet: ShownBet }>("/bets", { experimentId, who: "human", measures, answer }).then((r) => r.bet),
     /**

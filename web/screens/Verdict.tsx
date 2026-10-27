@@ -62,8 +62,13 @@ export function checkSeals(shown: ShownBefore[], result: RunAnswer): SealCheck[]
 
 function answerText(b: Bet | undefined): string {
   if (!b) return "-";
+  if (b.answer.kind === "number") return `${b.answer.value} ${b.answer.unit} (±${b.answer.tolerancePct}%)`;
   return b.answer.kind === "declined" ? "declined" : String(b.answer.value);
 }
+
+/** D04-04: a stored value for the screen. USD 1e18 prices become dollars; everything else as stored. */
+export type FormatValue = (measures: string, value: string | number | boolean | null) => string;
+const asStored: FormatValue = (_m, v) => String(v);
 
 export interface VerdictProps {
   /** The person's bets as shown before the run. */
@@ -77,6 +82,8 @@ export interface VerdictProps {
   /** Shown in the model's column when it has no bets (e.g. "no usable answer (…)"). */
   modelEmpty?: string;
   result: RunAnswer;
+  /** How to show observed and reference values (default: as stored). */
+  format?: FormatValue;
 }
 
 function Cell({ bet, verdict, testId }: { bet: Bet | undefined; verdict: Verdict | undefined; testId: string }) {
@@ -90,7 +97,7 @@ function Cell({ bet, verdict, testId }: { bet: Bet | undefined; verdict: Verdict
   );
 }
 
-export function VerdictScreen({ shown, typed, modelShown, modelName, modelEmpty, result }: VerdictProps) {
+export function VerdictScreen({ shown, typed, modelShown, modelName, modelEmpty, result, format = asStored }: VerdictProps) {
   const shownBefore = [...shown, ...modelShown];
   const checks = checkSeals(shownBefore, result);
   // The table shows the JUDGED bets (the run's revealed set), so the page and the server agree on it.
@@ -100,6 +107,8 @@ export function VerdictScreen({ shown, typed, modelShown, modelName, modelEmpty,
   const measures = [...new Set([...shown.map((b) => b.measures), ...judgedYou.map((b) => b.measures), ...modelShown.map((b) => b.measures), ...judgedModel.map((b) => b.measures)])];
   const showModel = modelName !== null || judgedModel.length > 0;
   const label = (who: string) => (who === "human" ? "You" : (modelName ?? who));
+  // D04-04: a reference column when the runner computed one (EVM: the raw-Chainlink price, same block).
+  const showReference = result.verdicts.some((v) => v.reference !== undefined);
   return (
     <section className="card" aria-label="verdicts">
       <h2>4. Whose bet matched</h2>
@@ -110,6 +119,7 @@ export function VerdictScreen({ shown, typed, modelShown, modelName, modelEmpty,
             <th>You</th>
             {showModel && <th>{modelName ?? judgedModel[0]?.who}</th>}
             <th>observed</th>
+            {showReference && <th>reference</th>}
           </tr>
         </thead>
         <tbody>
@@ -129,10 +139,16 @@ export function VerdictScreen({ shown, typed, modelShown, modelName, modelEmpty,
                       {modelEmpty ?? "no bet"}
                     </td>
                   ))}
-                <td>
-                  {v?.observed === undefined ? "-" : String(v.observed)}
+                <td data-testid={`observed-${m}`}>
+                  {v?.observed === undefined ? "-" : format(m, v.observed)}
                   <div className="muted small">judged by {v?.judgedBy ?? "src/judge.ts"}</div>
                 </td>
+                {showReference && (
+                  <td data-testid={`reference-${m}`}>
+                    {v?.reference ? format(m, v.reference.value) : "-"}
+                    {v?.reference && <div className="muted small">{v.reference.method}</div>}
+                  </td>
+                )}
               </tr>
             );
           })}
@@ -146,7 +162,11 @@ export function VerdictScreen({ shown, typed, modelShown, modelName, modelEmpty,
           const revealed = result.bets.find((x) => x.id === c.betId);
           // The server sealed what the person typed? (The page kept its own copy of the answer.)
           const typedRaw = b.who === "human" && typed ? typed[b.measures]?.trim() : undefined;
-          const typedOk = typedRaw === undefined || (revealed !== undefined && revealed.answer.kind !== "declined" && String(revealed.answer.value) === typedRaw);
+          const typedOk =
+            typedRaw === undefined ||
+            (revealed !== undefined &&
+              revealed.answer.kind !== "declined" &&
+              (revealed.answer.kind === "number" ? Number(typedRaw) === revealed.answer.value : String(revealed.answer.value) === typedRaw));
           return (
             <li key={c.betId} data-testid={testId} data-match={c.match && typedOk ? "yes" : "no"}>
               {label(b.who)}, {b.measures}:{" "}

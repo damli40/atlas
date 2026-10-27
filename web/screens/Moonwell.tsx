@@ -1,0 +1,316 @@
+// D04-04: one round on a pull request link (Moonwell PR #578, MIP-X43), on the EVM runner.
+// link → the server reads the PR at its merge commit → a finding (the Investigator's, or lines the
+// person picks) → the plain-code question about cbETH → the person's sealed bet, and Muse Spark's
+// sealed beside it (hashes only) → a real run on a fork of Base (30–90 s, progress from the agent
+// log) → verdicts by src/judge.ts → the false-alarm table → the captions this kind of run must carry.
+
+import { useState } from "react";
+import { LEVEL2_CAPTION, level1Caption } from "../../src/atlasfile";
+import type { Question } from "../../src/gate";
+import type { Finding } from "../../src/types";
+import { formatUsd1e18 } from "../../src/units";
+import type { Api, FalseAlarmRow, ModelSlotView, PrTarget, RunAnswer, ShownBet } from "../api";
+import { useRunnerProgress } from "../progress";
+import { ShortHash } from "./Bets";
+import { FindingsPanel } from "./Findings";
+import { ModelSlotCard } from "./ModelPanel";
+import { VerdictScreen, type FormatValue } from "./Verdict";
+
+export const PR_FORK_BLOCK = { level2: 42194662, level1: 42194663 } as const;
+
+const LEVELS = {
+  level2: {
+    label: "Before it shipped (Level 2)",
+    says: `Fork Base at block ${PR_FORK_BLOCK.level2}, one block before the proposal ran, apply the proposal's oracle-feed actions as the governor, then read the prices.`,
+    params: { shape: "apply-proposal-then-read", markets: "touched" },
+    caption: LEVEL2_CAPTION,
+  },
+  level1: {
+    label: "After the fact (Level 1)",
+    says: `Fork Base at block ${PR_FORK_BLOCK.level1}, the block the proposal ran in, and read the price.`,
+    params: { shape: "price-read", markets: ["cbETH"] },
+    caption: level1Caption(PR_FORK_BLOCK.level1),
+  },
+} as const;
+type Level = keyof typeof LEVELS;
+
+/** "https://github.com/o/r/pull/578", "github.com/o/r/pull/578/files" or "o/r#578" → "o/r#578". */
+export function prRefFromLink(link: string): string | null {
+  const t = link.trim();
+  const url = /^(?:https?:\/\/)?(?:www\.)?github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)\/pull\/(\d+)(?:[/?#].*)?$/.exec(t);
+  if (url) return `${url[1]}/${url[2]}#${url[3]}`;
+  return /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+#\d+$/.test(t) ? t : null;
+}
+
+const usd: FormatValue = (m, v) => (/^(priceUsd1e18|preApplyPriceUsd1e18|refUsd1e18):/.test(m) && typeof v === "string" && /^-?\d+$/.test(v) ? formatUsd1e18(BigInt(v)) : String(v));
+const usdOf = (v: string | null) => (v === null ? "not read" : formatUsd1e18(BigInt(v)));
+
+export function MoonwellFlow({ api }: { api: Api }) {
+  const [link, setLink] = useState("");
+  const [target, setTarget] = useState<PrTarget | null>(null);
+  const [finding, setFinding] = useState<Finding | null>(null);
+  const [level, setLevel] = useState<Level>("level2");
+  const [experimentId, setExperimentId] = useState<string | null>(null);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [answer, setAnswer] = useState("");
+  const [sealed, setSealed] = useState<ShownBet[]>([]);
+  const [modelSlot, setModelSlot] = useState<ModelSlotView | null>(null);
+  const [result, setResult] = useState<RunAnswer | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const progress = useRunnerProgress(api.session(), experimentId, running);
+
+  const step = async (fn: () => Promise<void>) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await fn();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const read = () =>
+    step(async () => {
+      const ref = prRefFromLink(link);
+      if (!ref) throw new Error("paste a pull request link like https://github.com/owner/repo/pull/123");
+      setTarget(await api.prTarget(ref));
+    });
+
+  const ask = () =>
+    step(async () => {
+      if (!target || !finding) return;
+      const out = await api.experiment(target, LEVELS[level].params, finding.id);
+      setExperimentId(out.experiment.id);
+      setQuestions(out.questions);
+      setModelSlot(out.model);
+      if (out.model?.status === "thinking") {
+        const thinking = out.model;
+        api.modelBets(out.experiment.id).then(
+          (m) => setModelSlot(m),
+          (e: Error) => setModelSlot({ ...thinking, status: "no_usable_answer", reason: `the page could not reach the server: ${e.message}`, sealed: [] }),
+        );
+      }
+    });
+
+  const seal = () =>
+    step(async () => {
+      if (!experimentId) return;
+      const q = questions[0]!;
+      const n = Number(answer.trim());
+      if (answer.trim() === "" || !Number.isFinite(n) || n < 0) throw new Error(`"${q.text}" needs a number of US dollars`);
+      const set = await api.bets(experimentId, [{ measures: q.measures, answer: { kind: "number", value: n } }]);
+      setSealed(set);
+    });
+
+  const run = async () => {
+    if (!experimentId) return;
+    setRunning(true);
+    setError(null);
+    try {
+      const r = await api.run(experimentId);
+      if (r.model && modelSlot?.status !== "sealed") setModelSlot({ ...r.model, sealed: [] });
+      setResult(r);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const q = questions[0];
+  const m = result?.run.result.measured;
+  return (
+    <>
+      <section className="card" aria-label="pull request">
+        <h2>Paste a pull request link</h2>
+        <div className="row">
+          <input data-testid="pr-link" className="link" type="text" placeholder="https://github.com/owner/repo/pull/123" value={link} disabled={!!target || busy} onChange={(e) => setLink(e.target.value)} />
+          {!target && (
+            <button type="button" onClick={read} disabled={busy || link.trim() === ""}>
+              Read it
+            </button>
+          )}
+        </div>
+        {target && (
+          <p className="muted" data-testid="pr-target">
+            <b>{target.ref}</b> · {target.title} · merge commit <code>{target.commit?.slice(0, 10)}</code> · {target.files.length} files · code fingerprint <ShortHash hash={target.codeSha256} />
+            <br />
+            <span className="small">Moonwell's files: BSD-3-Clause; mip-x43.sol GPL-3.0-or-later (notices kept in contracts/lib/moonwell).</span>
+          </p>
+        )}
+      </section>
+
+      {target && <FindingsPanel api={api} target={target} chosen={finding} onChoose={setFinding} locked={experimentId !== null} allowPick />}
+
+      {target && (
+        <section className="card" aria-label="bet">
+          <h2>Place your bet</h2>
+          <fieldset disabled={experimentId !== null || busy}>
+            {(Object.keys(LEVELS) as Level[]).map((k) => (
+              <label key={k} className="choice">
+                <input type="radio" name="level" value={k} checked={level === k} onChange={() => setLevel(k)} />
+                <span>
+                  <b>{LEVELS[k].label}</b> {LEVELS[k].says}
+                </span>
+              </label>
+            ))}
+          </fieldset>
+          <p className="label caption" data-testid="level-caption">
+            {LEVELS[level].caption}
+          </p>
+          {!experimentId && (
+            <button type="button" onClick={ask} disabled={busy || !finding}>
+              {finding ? "Show the question" : "Choose a place in the code first"}
+            </button>
+          )}
+          {q && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (sealed.length === 0) seal();
+              }}
+            >
+              <div className="question">
+                <label htmlFor="bet-usd">{q.text}</label>
+                <p className="muted small">Written by plain code (src/gate.ts). Muse Spark answers the same question. Matched means within {q.tolerancePct}% of what the run reads.</p>
+                <input id="bet-usd" data-testid="bet-usd" type="number" inputMode="decimal" min={0} step="any" value={answer} disabled={sealed.length > 0 || busy} onChange={(e) => setAnswer(e.target.value)} /> USD
+                {sealed[0] && (
+                  <p className="sealed">
+                    sealed at {sealed[0].sealedAt} · hash <ShortHash hash={sealed[0].sealedHash} testId="hash-usd" />
+                  </p>
+                )}
+              </div>
+              {sealed.length === 0 && (
+                <button type="submit" disabled={busy || answer.trim() === ""}>
+                  Seal my bet
+                </button>
+              )}
+            </form>
+          )}
+        </section>
+      )}
+
+      <ModelSlotCard slot={modelSlot} revealed={result && modelSlot ? result.bets.filter((b) => b.who === modelSlot.who) : null} />
+
+      {sealed.length > 0 && (
+        <section className="card" aria-label="run">
+          <h2>Run it</h2>
+          {!result && (
+            <button type="button" className="primary" onClick={run} disabled={running || busy || modelSlot?.status === "thinking"}>
+              Run it on a fork of Base
+            </button>
+          )}
+          {running && (
+            <div role="status" data-testid="run-progress">
+              <p className="running">Running on a fork of Base. This takes 30–90 seconds.</p>
+              <ol className="progress small">
+                {progress.map((l, i) => (
+                  <li key={i}>{l}</li>
+                ))}
+              </ol>
+            </div>
+          )}
+          {result && m && (
+            <dl className="facts" data-testid="run-facts">
+              <dt>run</dt>
+              <dd>
+                {result.run.id} · fork of Base at block {result.run.forkBlock} · chain {result.run.chainId}
+              </dd>
+              <dt>known-case check first</dt>
+              <dd>{result.run.controlPassed ? "passed (WETH exact, USD stablecoins about $1)" : "did not pass, so every verdict is can't check"}</dd>
+              <dt>cbETH, read</dt>
+              <dd>{typeof m["priceUsd1e18:cbETH"] === "string" ? usd("priceUsd1e18:cbETH", m["priceUsd1e18:cbETH"]) : "not read"}</dd>
+              {typeof m["priceSources:cbETH"] === "number" && (
+                <>
+                  <dt>price sources</dt>
+                  <dd>cbETH's read touched {m["priceSources:cbETH"]} price source(s) (call trace)</dd>
+                </>
+              )}
+            </dl>
+          )}
+        </section>
+      )}
+
+      {result && (
+        <VerdictScreen
+          shown={sealed}
+          typed={q ? { [q.measures]: answer } : undefined}
+          modelShown={modelSlot?.sealed ?? []}
+          modelName={modelSlot && modelSlot.status !== "off" ? modelSlot.display : null}
+          modelEmpty={modelSlot?.status === "no_usable_answer" ? `no usable answer (${modelSlot.reason ?? "no reason given"})` : undefined}
+          result={result}
+          format={usd}
+        />
+      )}
+
+      {result?.falseAlarm && <FalseAlarmTable rows={result.falseAlarm} />}
+
+      {result?.proof && (
+        <section className="card" aria-label="captions" data-testid="captions">
+          <h2>Read with this run</h2>
+          {result.proof.ok ? (
+            <>
+              <ul>
+                {result.proof.captions.map((c) => (
+                  <li key={c}>{c}</li>
+                ))}
+              </ul>
+              <p className="muted small">
+                .atlas.json for run {result.proof.runId}: {result.proof.published ? "written to the proofs folder" : "kept on the server (not published)"}. Anyone can replay it at /replay/{result.proof.runId}.
+              </p>
+            </>
+          ) : (
+            <p className="notice">The .atlas.json could not be built: {result.proof.reason}</p>
+          )}
+        </section>
+      )}
+
+      {error && (
+        <p className="notice" role="alert">
+          {error}
+        </p>
+      )}
+    </>
+  );
+}
+
+export function FalseAlarmTable({ rows }: { rows: FalseAlarmRow[] }) {
+  const flagged = rows.filter((r) => r.flagged === true).length;
+  const quiet = rows.filter((r) => r.flagged === false).length;
+  return (
+    <section className="card" aria-label="false-alarm table" data-testid="false-alarm">
+      <h2>Every market the proposal touches</h2>
+      <p className="muted">
+        {rows.length} markets: {quiet} unchanged, {flagged} flagged. A market is flagged when its price after the proposal differs by more than 50% from what it is compared with: cbETH with the raw Chainlink price (ETH/USD × cbETH/ETH, same block), every other market with its own price before the proposal.
+      </p>
+      <table className="verdicts">
+        <thead>
+          <tr>
+            <th>market</th>
+            <th>before</th>
+            <th>after</th>
+            <th>compared with</th>
+            <th>difference</th>
+            <th>flagged</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.market} data-testid={`fa-${r.market}`} className={r.flagged ? "flagged" : undefined}>
+              <td>{r.market}</td>
+              <td>{usdOf(r.preUsd1e18)}</td>
+              <td>{usdOf(r.postUsd1e18)}</td>
+              <td>{r.market === "cbETH" ? `raw Chainlink ${usdOf(r.flagReferenceUsd1e18)}` : "its price before"}</td>
+              <td>{r.diffVsFlagReferencePct ?? "-"}</td>
+              <td>{r.flagged === null ? "can't check" : r.flagged ? <b>yes</b> : "no"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
+}
