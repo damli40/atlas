@@ -22,8 +22,8 @@ type Tok = { t: "name" | "op" | "str" | "num"; v: string; line: number; start: n
 const SIG_MAX = 200;
 const squash = (s: string) => s.replace(/\s+/g, " ").trim();
 const cap = (s: string, n = SIG_MAX) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
-const isNameStart = (c: string) => /[A-Za-z_ -￿]/.test(c);
-const isNamePart = (c: string) => /[\w -￿]/.test(c);
+const isNameStart = (c: string) => /[A-Za-z_\u00A0-\uFFFF]/.test(c);
+const isNamePart = (c: string) => /[\w\u00A0-\uFFFF]/.test(c);
 const STRING_PREFIX = /^(?:[rRbBuUfF]|[rR][bBfF]|[bBfF][rR])$/;
 const MAX_FSTRING_NESTING = 16;
 const MULTI_OPS = ["->", "**", ":=", "==", "!=", "<=", ">="];
