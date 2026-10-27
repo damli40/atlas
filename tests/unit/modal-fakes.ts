@@ -5,7 +5,7 @@
 // - emulatingBackend: runs the commands on THIS machine, so the real call-worker runs through the Modal executor's
 //   code path end to end. It strips the container-only prefix (`env -i ... setpriv ...`), keeps the env pairs, and
 //   swaps the container folder for a temp folder. It is a stand-in for Modal's plumbing, not for its isolation:
-//   the isolation is tested live (tests/live/modal-live.test.ts).
+//   the isolation is tested live (tests/unit/modal-live.test.ts).
 
 import { spawn } from "node:child_process";
 import { mkdtempSync, realpathSync, rmSync } from "node:fs";

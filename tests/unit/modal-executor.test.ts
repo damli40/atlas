@@ -7,7 +7,7 @@
 // - the concurrency cap and the busy refusal;
 // - selection by ATLAS_EXECUTOR, and no fallback to local when Modal cannot be reached;
 // - end to end through the real call-worker (emulated plumbing): the control passes and the run says "modal".
-// The live suite (tests/live/modal-live.test.ts) checks the real isolation on Modal.
+// The live suite (tests/unit/modal-live.test.ts) checks the real isolation on Modal.
 
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
@@ -274,5 +274,45 @@ describe("end to end through the real call-worker (Modal plumbing emulated on th
     expect(forged.result.notMeasured.wholeRun).toMatch(/tampering/);
     expect(forged.result.measured).toEqual({});
     expect(b.rec.terminated).toEqual(["sb-emulated-0", "sb-emulated-1", "sb-emulated-2"]);
+  });
+});
+
+describe("through the server (the retry fixture, which every executor also runs)", () => {
+  const wire = async (executor: ReturnType<typeof createModalExecutor>, session: string) => {
+    const { createApp } = await import("../../server/app.ts");
+    const { createProofStore } = await import("../../server/evm-round.ts");
+    const { FIXTURE_FILE } = await import("../../server/meta/roles/fixture-finding.ts");
+    const app = createApp({ executor, proofs: createProofStore({ publish: false }) });
+    const h = { "content-type": "application/json", "x-atlas-session": session };
+    const ask = async (path: string, body?: unknown) => {
+      const res = await app.request(path, body === undefined ? { headers: h } : { method: "POST", headers: h, body: JSON.stringify(body) });
+      return { status: res.status, body: (await res.json()) as any };
+    };
+    const t = (await ask("/targets", { kind: "ts-fixture", ref: FIXTURE_FILE })).body;
+    expect((await ask("/experiments", { id: "e-m", target: { ref: t.ref, codeSha256: t.codeSha256 }, params: { shape: "retry-scenario", failTimes: 5, failure: "error" } })).status).toBe(200);
+    expect((await ask("/bets", { experimentId: "e-m", who: "human", bets: [{ measures: "calls", answer: { kind: "integer", value: 5 } }] })).status).toBe(200);
+    return ask;
+  };
+
+  it("Modal unreachable: 'the run did not finish' with Modal's reason; nothing judged, nothing run locally", async () => {
+    const local = vi.spyOn(localExecutor, "exec");
+    const ask = await wire(createModalExecutor({ backend: scriptedBackend({ createError: "UNAVAILABLE: Modal is down" }), log: () => {} }), "e4-down");
+    const r = await ask("/runs", { experimentId: "e-m" });
+    expect(r.status).toBe(503);
+    expect(r.body.error).toMatch(/^the run did not finish: .*Modal could not create a sandbox: UNAVAILABLE: Modal is down/);
+    expect(r.body).not.toHaveProperty("verdicts");
+    expect(local).not.toHaveBeenCalled();
+  });
+
+  it("Modal up (plumbing emulated): the fixture's control and run go through it, and the run says modal", async () => {
+    const b = emulatingBackend();
+    const ask = await wire(createModalExecutor({ backend: b, log: () => {} }), "e4-up");
+    const r = await ask("/runs", { experimentId: "e-m" });
+    expect(r.status, JSON.stringify(r.body).slice(0, 300)).toBe(200);
+    expect(r.body.run.executor).toBe("modal");
+    expect(r.body.run.controlPassed).toBe(true);
+    expect(r.body.verdicts.map((v: { outcome: string }) => v.outcome)).toEqual(["matched"]);
+    expect(b.rec.specs.length).toBeGreaterThanOrEqual(2); // the control and the run, each in its own sandbox
+    expect(b.rec.terminated).toHaveLength(b.rec.specs.length);
   });
 });
