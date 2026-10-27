@@ -16,7 +16,7 @@
 import type { Bet, Outcome, Verdict } from "../../../src/types";
 
 /** Who placed a bet, as the verdict screen knows it. */
-export type Bettor = Pick<Bet, "id" | "who" | "measures"> & Partial<Pick<Bet, "question">>;
+export type Bettor = Pick<Bet, "id" | "who" | "measures"> & Partial<Pick<Bet, "question" | "experimentId">>;
 
 export interface DotState {
   who: string;
@@ -36,6 +36,8 @@ export interface DotState {
 }
 
 export interface MarkState {
+  /** One mark per question of one experiment (m7, day-5 review: two experiments' "calls" bets are two marks). */
+  key: string;
   measures: string;
   question: string;
   dots: DotState[];
@@ -74,17 +76,18 @@ const isPerson = (who: string) => who === "human";
 /** One mark per question that has at least one judged bet; the person first, then models by name. */
 export function scoreboardMarks(verdicts: Verdict[], bettors: Bettor[]): MarkState[] {
   const byId = new Map(bettors.map((b) => [b.id, b]));
-  const questions: string[] = [];
+  const keyOf = (b: Bettor) => `${b.experimentId ?? ""}\u0000${b.measures}`;
+  const questions: { key: string; measures: string; experimentId: string | undefined }[] = [];
   for (const v of verdicts) {
     const b = byId.get(v.betId);
-    if (b && !questions.includes(b.measures)) questions.push(b.measures);
+    if (b && !questions.some((q) => q.key === keyOf(b))) questions.push({ key: keyOf(b), measures: b.measures, experimentId: b.experimentId });
   }
   const whoAll = [...new Set(bettors.map((b) => b.who))].sort((a, b) => (isPerson(a) === isPerson(b) ? a.localeCompare(b) : isPerson(a) ? -1 : 1));
-  return questions.map((measures) => {
+  return questions.map(({ key, measures, experimentId }) => {
     const xs = dotXs(whoAll.length);
     const lands = landXs(whoAll.length);
     const dots = whoAll.map((who, i): DotState => {
-      const bet = bettors.find((b) => b.who === who && b.measures === measures);
+      const bet = bettors.find((b) => b.who === who && b.measures === measures && b.experimentId === experimentId);
       const verdict = bet ? verdicts.find((v) => v.betId === bet.id) : undefined;
       const outcome = verdict?.outcome ?? null;
       const kind = isPerson(who) ? "person" : "model";
@@ -119,7 +122,7 @@ export function scoreboardMarks(verdicts: Verdict[], bettors: Bettor[]): MarkSta
         line,
       };
     });
-    const q = bettors.find((b) => b.measures === measures)?.question ?? measures;
-    return { measures, question: q, dots };
+    const q = bettors.find((b) => b.measures === measures && b.experimentId === experimentId)?.question ?? measures;
+    return { key, measures, question: q, dots };
   });
 }

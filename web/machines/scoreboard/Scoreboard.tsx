@@ -27,7 +27,17 @@ export function useStill(): boolean {
   );
 }
 
-const name = (who: string, names: Record<string, string>) => (who === "human" ? "You" : (names[who] ?? who.replace(/^model:/, "")));
+/**
+ * The bettor's name as shown. A model's name always carries its Meta model id (D10: Meta model names stay
+ * visible on screen), e.g. "Muse Spark 1.3 (muse-spark-1.3)"; with no display name, the id itself.
+ */
+export const bettorName = (who: string, names: Record<string, string>) => {
+  if (who === "human") return "You";
+  const id = who.replace(/^model:/, "");
+  const shown = names[who];
+  return shown && shown.includes(id) ? shown : shown ? `${shown} (${id})` : id;
+};
+const name = bettorName;
 
 function Dot({ d, still, i }: { d: DotState; still: boolean; i: number }) {
   const delay = { animationDelay: `${0.25 + i * 0.12}s` };
@@ -92,8 +102,16 @@ export function Scoreboard({ verdicts, bets, names, still }: ScoreboardProps) {
   return (
     <div className="sb" data-testid="scoreboard" data-still={calm ? "" : undefined}>
       {marks.map((m) => (
-        <figure key={m.measures} className="sb-item">
+        <figure key={m.key} className="sb-item">
           <Mark mark={m} still={calm} names={names ?? {}} />
+          {/* S6 (day-5 review): who bet and how it came out, as visible text, not only in aria-label. */}
+          <ul className="sb-who" data-testid="sb-who">
+            {m.dots.map((d) => (
+              <li key={d.who} data-bettor={d.who}>
+                {name(d.who, names ?? {})} · {d.outcome ? SAY[d.outcome] : "no bet"}
+              </li>
+            ))}
+          </ul>
           <figcaption className="muted small">{m.question}</figcaption>
         </figure>
       ))}
