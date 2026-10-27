@@ -263,6 +263,7 @@ function checkCallArgs(name: string, value: unknown): string | undefined {
   if (!Array.isArray(value)) return `${name} must be a list`;
   if (value.length > BOUNDS.callArgs) return `${name} has ${value.length} arguments; the limit is ${BOUNDS.callArgs}`;
   const jsonParts: JsonValue[] = [];
+  const texts: string[] = [];
   const names = new Set<string>();
   for (let i = 0; i < value.length; i++) {
     const a = value[i] as unknown;
@@ -282,6 +283,7 @@ function checkCallArgs(name: string, value: unknown): string | undefined {
     if (typeof a.name !== "string" || !IDENTIFIER.test(a.name) || a.name.length > BOUNDS.standInNameChars) {
       return `${at}.name must be a name (letters, digits, _ or $, at most ${BOUNDS.standInNameChars} characters); got ${show(a.name)}`;
     }
+    texts.push(a.name);
     if (names.has(a.name)) return `two stand-ins are named "${a.name}"; each needs its own name (its call count is measured by name)`;
     names.add(a.name);
     if (typeof a.async !== "boolean") return `${at}.async must be true or false`;
@@ -315,6 +317,7 @@ function checkCallArgs(name: string, value: unknown): string | undefined {
           return `${sat}.errorName must be a name like TimeoutError (letters, digits, _ or $, at most ${BOUNDS.errorNameChars} characters); got ${show(s.errorName)}`;
         }
         if (typeof s.message !== "string" || s.message.length > BOUNDS.errorMessageChars) return `${sat}.message must be text of at most ${BOUNDS.errorMessageChars} characters`;
+        texts.push(s.errorName, s.message);
       } else if (s.do === "never_settle") {
         const bad = fields(["do"]);
         if (bad) return bad;
@@ -324,8 +327,12 @@ function checkCallArgs(name: string, value: unknown): string | undefined {
       }
     }
   }
-  const chars = canonicalJson(jsonParts).length - 2 - Math.max(0, jsonParts.length - 1); // the values alone, without the list's brackets and commas
-  if (chars > BOUNDS.argsJsonChars) return `the JSON values in ${name} are ${chars} characters as canonical JSON; the limit is ${BOUNDS.argsJsonChars}`;
+  // E3 review r2 B3: the budget counts every text the test carries (JSON values, stand-in names, error names and
+  // messages), each measured as every bettor reads it: after visibleText (a hidden character counts as its escape).
+  let chars = 0;
+  for (const part of jsonParts) chars += visibleText(canonicalJson(part)).length;
+  for (const t of texts) chars += visibleText(t).length;
+  if (chars > BOUNDS.argsJsonChars) return `the texts in ${name} (JSON values, names and messages, with hidden characters written as escapes) are ${chars} characters; the limit is ${BOUNDS.argsJsonChars}`;
   return undefined;
 }
 
@@ -362,7 +369,8 @@ function retryFieldWithoutEffect(p: Record<string, unknown>): string | undefined
  * holding only the shape's own fields (nothing else rides along to the runner).
  */
 export function gate(params: unknown, ctx: GateContext = {}): GateDecision {
-  const refuse = (reason: string): GateDecision => ({ allowed: false, reason });
+  // E3 review minor 2: a reason quotes values, so hidden characters in them are shown as escapes (visibleText).
+  const refuse = (reason: string): GateDecision => ({ allowed: false, reason: visibleText(reason) });
   if (!isRecord(params)) return refuse("the experiment must be an object with a \"shape\" field");
   const shape = params.shape;
   if (typeof shape !== "string" || !Object.prototype.hasOwnProperty.call(SHAPES, shape)) {

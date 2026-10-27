@@ -149,3 +149,28 @@ table.counts td:not(:first-child) { text-align: center; font-variant-numeric: ta
 .chain-facts { margin: 8px 0 12px; }
 .chain-facts p { margin: 2px 0; overflow-wrap: anywhere; }
 .chain-facts .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+/* E3: the paste flow */
+textarea.paste { display: block; width: 100%; min-width: 0; font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 8px; margin: 6px 0 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); color: var(--ink); resize: vertical; }
+textarea.paste.small-area { font-size: 13px; margin: 0; }
+.arg { border-top: 1px solid var(--line); padding: 8px 0; }
+.standin .steps { margin: 6px 0; padding-left: 22px; }
+.standin .steps li { margin: 4px 0; }
+.link.short { flex: 1 1 140px; }
+input.tiny { min-width: 0; width: 7em; }
+.proposals { padding-left: 20px; }
+.proposals li { margin: 10px 0; }
+.proposals p { margin: 4px 0; }
+.seen summary { cursor: pointer; font-weight: 600; }
+.seen-text { white-space: pre-wrap; overflow-wrap: anywhere; padding: 8px; margin: 6px 0 0; }
+.facts-table td { overflow-wrap: anywhere; }
+fieldset { min-width: 0; }
+.question select, .question input, .question textarea { max-width: 100%; }
+@media (max-width: 560px) {
+  .verdicts { table-layout: fixed; }
+  .verdicts th, .verdicts td { overflow-wrap: anywhere; }
+}
+@media (prefers-color-scheme: dark) {
+  /* E3 (seen in the 390 px dark run): white text on the light dark-mode accent was below 4.5:1. */
+  button.primary, .switch button.on { color: #10131c; }
+}

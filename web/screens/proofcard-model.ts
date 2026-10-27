@@ -114,7 +114,10 @@ export function proofCardModel(file: AtlasFile): ProofCardModel {
   const where =
     run.runner === "evm"
       ? `Base (chain ${run.chainId ?? file.chainId ?? "?"}), fork block ${run.forkBlock ?? file.forkBlock ?? "?"}`
-      : `seed ${run.seed ?? file.seed ?? "?"} (same seed = same run)`;
+      : exp.params.shape === "call-function"
+        ? // E3: a call-function run has no seed: nothing is random on Atlas's side (the run's seed field says "none").
+          "no seed: nothing is random on Atlas's side (code that uses Math.random or crypto is not seeded, so its replay can differ); the virtual clock starts at 2026-01-01T00:00:00Z"
+        : `seed ${run.seed ?? file.seed ?? "?"} (same seed = same run)`;
   const bets: CardBet[] = file.bets.map((b) => {
     const v = file.verdicts.find((x) => x.betId === b.id);
     let holds = false;

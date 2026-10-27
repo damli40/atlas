@@ -4,7 +4,7 @@
 // before the run (kept from the seal step, not taken from the run's answer). Model bets are checked
 // the same way, against the hashes the page showed while their answers were still hidden.
 
-import { computeSealHash } from "../../src/seal";
+import { canonicalJson, computeSealHash } from "../../src/seal";
 import type { Bet, Outcome, Verdict } from "../../src/types";
 import type { RunAnswer, SealedOnly } from "../api";
 import { ShortHash } from "./Bets";
@@ -62,10 +62,26 @@ export function checkSeals(shown: ShownBefore[], result: RunAnswer): SealCheck[]
   return out;
 }
 
-function answerText(b: Bet | undefined): string {
+export function answerText(b: Bet | undefined): string {
   if (!b) return "-";
   if (b.answer.kind === "number") return `${b.answer.value} ${b.answer.unit} (±${b.answer.tolerancePct}%)`;
+  // E3: a JSON answer is shown as the judge compares it (canonical JSON), never as "[object Object]".
+  if (b.answer.kind === "json") return canonicalJson(b.answer.value);
   return b.answer.kind === "declined" ? "declined" : String(b.answer.value);
+}
+
+/** E3: whether the sealed answer is the one the person typed (JSON compared as canonical JSON). */
+function sameAsTyped(answer: Bet["answer"], typedRaw: string): boolean {
+  if (answer.kind === "declined") return false;
+  if (answer.kind === "number") return Number(typedRaw) === answer.value;
+  if (answer.kind === "json") {
+    try {
+      return canonicalJson(JSON.parse(typedRaw)) === canonicalJson(answer.value);
+    } catch {
+      return false;
+    }
+  }
+  return String(answer.value) === typedRaw;
 }
 
 /** D04-04: a stored value for the screen. USD 1e18 prices become dollars; everything else as stored. */
@@ -91,6 +107,10 @@ export interface VerdictProps {
   result: RunAnswer;
   /** How to show observed and reference values (default: as stored). */
   format?: FormatValue;
+  /** E3: how a question is printed (default: as the bet holds it). Pasted rounds drop the call description. */
+  questionText?: (question: string) => string;
+  /** E3 review r2 minor 4: the section heading (default "4. Whose bet matched"; the paste flow numbers it 6). */
+  heading?: string;
 }
 
 function Cell({ bet, verdict, testId }: { bet: Bet | undefined; verdict: Verdict | undefined; testId: string }) {
@@ -123,7 +143,7 @@ function legacyColumns(modelShown: ShownBefore[], modelName: string | null, mode
 /** testids: the first model keeps the original ids ("verdict-model-<field>"); later ones add their position. */
 const colTag = (i: number) => (i === 0 ? "model" : `model${i + 1}`);
 
-export function VerdictScreen({ shown, typed, modelShown, modelName, modelEmpty, models, result, format = asStored }: VerdictProps) {
+export function VerdictScreen({ shown, typed, modelShown, modelName, modelEmpty, models, result, format = asStored, questionText = (q) => q, heading = "4. Whose bet matched" }: VerdictProps) {
   // The table shows the JUDGED bets (the run's revealed set), so the page and the server agree on it.
   const judgedYou = result.bets.filter((b) => b.who === "human");
   const judgedModel = result.bets.filter((b) => b.who !== "human");
@@ -145,8 +165,8 @@ export function VerdictScreen({ shown, typed, modelShown, modelName, modelEmpty,
   const showReference = result.verdicts.some((v) => v.reference !== undefined);
   return (
     <section className="card" aria-label="verdicts">
-      <h2>4. Whose bet matched</h2>
-      <Scoreboard verdicts={result.verdicts} bets={result.bets} names={names} />
+      <h2>{heading}</h2>
+      <Scoreboard verdicts={result.verdicts} bets={result.bets} names={names} caption={questionText} />
       {cols.length > 1 && <BettorCounts verdicts={result.verdicts} bets={result.bets} names={names} columns={cols.map((c) => c.who)} unseated={unseated} />}
       <table className="verdicts">
         <thead>
@@ -168,7 +188,7 @@ export function VerdictScreen({ shown, typed, modelShown, modelName, modelEmpty,
             const v = verdictOf(youBet?.id) ?? verdictOf(modelBet?.id);
             return (
               <tr key={m} data-testid={`verdict-${m}`}>
-                <td>{youBet?.question ?? modelBet?.question ?? m}</td>
+                <td>{questionText(youBet?.question ?? modelBet?.question ?? m)}</td>
                 <Cell bet={youBet} verdict={verdictOf(youBet?.id)} testId={`verdict-you-${m}`} />
                 {cols.map((col, i) => {
                   const mb = modelBets[i];
@@ -206,9 +226,7 @@ export function VerdictScreen({ shown, typed, modelShown, modelName, modelEmpty,
           const typedRaw = b.who === "human" && typed ? typed[b.measures]?.trim() : undefined;
           const typedOk =
             typedRaw === undefined ||
-            (revealed !== undefined &&
-              revealed.answer.kind !== "declined" &&
-              (revealed.answer.kind === "number" ? Number(typedRaw) === revealed.answer.value : String(revealed.answer.value) === typedRaw));
+            (revealed !== undefined && sameAsTyped(revealed.answer, typedRaw));
           return (
             <li key={c.betId} data-testid={testId} data-match={c.match && typedOk ? "yes" : "no"}>
               {label(b.who)}, {b.measures}:{" "}

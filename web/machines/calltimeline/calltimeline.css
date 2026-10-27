@@ -1,0 +1,20 @@
+/* The call timeline's own styles, scoped to .ct (Anatomy: figure tokens stay off :root). */
+.ct { margin: 16px 0; }
+.ct .iso-figure { margin: 0; }
+.ct .iso-plate-corner[data-corner="readout"] { white-space: normal; max-width: 64%; text-align: right; line-height: 1.35; }
+.ct .iso-legend { display: block; padding: 10px 2px 0; font-size: 13px; color: var(--anatomy-text); }
+.ct .iso-keys { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 6px; }
+.ct .iso-key { display: inline-flex; gap: 6px; align-items: center; }
+.ct .iso-swatch { width: 16px; height: 10px; flex: none; }
+.ct-live:focus-visible { outline: 1px solid var(--anatomy-muted); outline-offset: 6px; }
+.ct-halo { opacity: 0.5; }
+.ct-run { margin-top: 6px; }
+
+@media (max-width: 480px) {
+  .ct .iso-plate { padding: 44px 6px 92px; }
+  .ct .iso-plate-corner[data-corner="readout"] { max-width: 78%; }
+}
+.ct-detail { margin: 8px 0 0; }
+@media (max-width: 480px) {
+  .ct .iso-plate-corner[data-corner="hint"] { display: none; }
+}

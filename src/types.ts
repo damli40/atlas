@@ -58,6 +58,11 @@ export interface Bet {
   sealedHash: string;
   /** Model bets only: what the model said; shown in the model panel. Sealed with the bet when present. */
   rationale?: string;
+  /**
+   * Added E3 review r2 (M2): the round repeats a test already run in this session, so the person may know its result.
+   * Sealed with the bet. A track record (X3) can leave these bets out.
+   */
+  repeat?: true;
 }
 
 /** A plain JSON value (what a fake RPC call may resolve with). */
@@ -114,7 +119,13 @@ export interface Experiment {
   target: Target;
   runner: "ts" | "evm";
   params: ExperimentShape;
-  proposedBy: { role: "claimant" | "adversary" | "human"; model?: string };
+  /** Added E3: "investigator" = Muse Wonder proposed this call-function test for pasted code. */
+  proposedBy: {
+    role: "claimant" | "adversary" | "human" | "investigator";
+    model?: string;
+    /** Added E3 review (D10): a person's test edited from a model's proposal names that model and proposal too. */
+    editedFrom?: { model: string; proposalId: string };
+  };
   /** Set by src/gate.ts. A rejected experiment is kept (and shown in the log strip) but never run. */
   gate: { allowed: true } | { allowed: false; reason: string };
 }

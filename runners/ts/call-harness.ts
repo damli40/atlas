@@ -96,6 +96,13 @@ const MESSAGE_MAX_CHARS = 500;
 const MAX_JSON_DEPTH = 100;
 /** How long (real ms, about) Atlas waits for background work when nothing else is left. */
 const OUTSIDE_WAIT_MS = 2_000;
+/**
+ * E3 review B4: the most trace events one run keeps (a loop calling a stand-in 60,000 times made a 7.6 MB answer and
+ * kept ~42 MB per run). Past it, events are counted but not kept, and one "trace_cut" event says how many were
+ * dropped and how many stand-in calls each name lost, so every count stays exact. The endings are always kept.
+ */
+export const MAX_TRACE_EVENTS = 1_000;
+const ALWAYS_KEPT: Record<string, true> = { __proto__: null, start: true, returned: true, threw: true, never_settled: true, still_running_at_watch_limit: true, stopped_watching: true, stopped_watching_after_settle: true } as unknown as Record<string, true>;
 
 // ---------------------------------------------------------------------------------------------
 // The request (written by runners/ts/call-runner.ts; JSON values travel as text so they arrive as ordinary
@@ -903,7 +910,14 @@ export async function runCall(fn: unknown, req: CallRunRequest, opts: CallHarnes
   const watchLimitMs = req.watchLimitMs;
   const clock = new VirtualClock(req.id);
   const trace: TraceEvent[] = [];
+  let dropped = 0;
+  const droppedCalls = record<Record<string, number>>();
   const emit = (event: string, data?: Record<string, unknown>) => {
+    if (trace.length >= MAX_TRACE_EVENTS && ALWAYS_KEPT[event] !== true) {
+      dropped++;
+      if (event === "stand_in_call" && data && typeof data.name === "string") put(droppedCalls, data.name, (droppedCalls[data.name] ?? 0) + 1);
+      return;
+    }
     const ev = record<TraceEvent>();
     put(ev, "t", clock.now);
     put(ev, "event", event);
@@ -1055,6 +1069,15 @@ export async function runCall(fn: unknown, req: CallRunRequest, opts: CallHarnes
   if (raced) emit("stopped_watching", { reason: stop ?? "background work raced a timer" });
   else if (s === null && settledAt === null) emit(limitHit ? "still_running_at_watch_limit" : stop ? "stopped_watching" : "never_settled", stop ? { reason: stop } : undefined);
   else if (stop || limitHit) emit("stopped_watching_after_settle", { reason: stop ?? `Atlas's watch limit (${watchLimitMs} ms of virtual time) ran out while the code's timers were still running after it settled` });
+
+  if (dropped > 0) {
+    const ev = record<TraceEvent>();
+    put(ev, "t", clock.now);
+    put(ev, "event", "trace_cut");
+    // E3 review r2 minor 9: `kept` is the number really kept (the endings are kept past the cap).
+    put(ev, "data", { kept: trace.length, dropped, droppedCalls });
+    append(trace, ev);
+  }
 
   // ---- measured facts ----
   const measured = record<RunResult["measured"]>();

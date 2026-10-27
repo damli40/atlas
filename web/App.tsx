@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Question } from "../src/gate";
 import type { Target } from "../src/types";
-import { createApi, didNotFinish, type Api, type ClaimantMode, type HumanAnswer, type RunAnswer, type ShownBet } from "./api";
+import { PASTE_SESSION_KEY, createApi, didNotFinish, storeSession, storedSession, type Api, type ClaimantMode, type HumanAnswer, type RunAnswer, type ShownBet } from "./api";
 import { targetName } from "../src/target-name";
 import { ClaimantToggle, useModelSlots, verdictColumns } from "./screens/Claimant";
 import { DEFAULT_SCENARIO, FIXTURE_REF, SCENARIOS } from "./scenarios";
@@ -28,8 +28,11 @@ import { modelTextsOf, WhyDroppedContext, WhyScreen } from "./screens/Why";
 import { ScaleScreen } from "./screens/Scale";
 import { ProofCardPage, ProofLink } from "./screens/ProofCard";
 import type { Finding } from "../src/types";
+import { PasteFlow } from "./screens/Paste";
+import { PASTE_WORDS } from "../src/paste-words";
 
-type Mode = "fixture" | "pr" | "scale";
+type Mode = "fixture" | "pr" | "scale" | "paste";
+type RoundMode = Exclude<Mode, "scale">;
 
 /** D06-03: `?proof=<runId>` opens one round's proof card on its own (the end frame). */
 export function proofIdFromLocation(search: string): string | null {
@@ -39,7 +42,7 @@ export function proofIdFromLocation(search: string): string | null {
 
 export function App({ api: given }: { api?: Api } = {}) {
   const proofId = typeof window === "undefined" ? null : proofIdFromLocation(window.location.search);
-  if (proofId) return <ProofCardPage api={given ?? createApi()} runId={proofId} />;
+  if (proofId) return <ProofCardPage api={given ?? createApi(undefined, undefined, { session: storedSession(PASTE_SESSION_KEY) })} runId={proofId} />;
   return <Rounds {...(given ? { api: given } : {})} />;
 }
 
@@ -49,21 +52,25 @@ function Rounds({ api: given }: { api?: Api }) {
   const fixtureApi = useMemo(() => given ?? createApi(), [given]);
   const prApi = useMemo(() => given ?? createApi(), [given]);
   const scaleApi = useMemo(() => given ?? createApi(), [given]);
+  const pasteApi = useMemo(() => given ?? createApi(undefined, undefined, { onSession: (s) => storeSession(PASTE_SESSION_KEY, s) }), [given]);
+  const apiOf = (m: Mode) => (m === "fixture" ? fixtureApi : m === "pr" ? prApi : m === "paste" ? pasteApi : scaleApi);
   // D07-01: who bets with the person on the next experiment (sent as the x-atlas-claimant header).
   const [claimant, setClaimant] = useState<ClaimantMode>("spark");
   // M4 (day-7 review): while a round is open (its experiment exists, its run has not finished) the toggle is locked.
-  const [roundOpen, setRoundOpen] = useState<Record<"fixture" | "pr", boolean>>({ fixture: false, pr: false });
+  const [roundOpen, setRoundOpen] = useState<Record<RoundMode, boolean>>({ fixture: false, pr: false, paste: false });
   const reportFixtureOpen = useCallback((open: boolean) => setRoundOpen((r) => (r.fixture === open ? r : { ...r, fixture: open })), []);
   const reportPrOpen = useCallback((open: boolean) => setRoundOpen((r) => (r.pr === open ? r : { ...r, pr: open })), []);
+  const reportPasteOpen = useCallback((open: boolean) => setRoundOpen((r) => (r.paste === open ? r : { ...r, paste: open })), []);
   const pickClaimant = (m: ClaimantMode) => {
     setClaimant(m);
     fixtureApi.setClaimant(m);
     prApi.setClaimant(m);
+    pasteApi.setClaimant(m);
   };
   // D05-04: the agent log strip. A side panel on a wide screen (toggled), under the flow on a phone.
   const [stripOpen, setStripOpen] = useState(true);
   // D05-05: how many "Ask why" sentences were dropped (no run evidence), per target, for the strip.
-  const [dropped, setDropped] = useState<Record<"fixture" | "pr", { count: number; at: string } | null>>({ fixture: null, pr: null });
+  const [dropped, setDropped] = useState<Record<RoundMode, { count: number; at: string } | null>>({ fixture: null, pr: null, paste: null });
   const reportDropped = useCallback(
     (count: number) => {
       if (mode === "scale") return; // no "Ask why" on the waves screen
@@ -88,13 +95,24 @@ function Rounds({ api: given }: { api?: Api }) {
           <button type="button" className={mode === "scale" ? "on" : undefined} aria-pressed={mode === "scale"} onClick={() => setMode("scale")} data-testid="mode-scale">
             Many callers at once
           </button>
+          <button type="button" className={mode === "paste" ? "on" : undefined} aria-pressed={mode === "paste"} onClick={() => setMode("paste")} data-testid="mode-paste">
+            {PASTE_WORDS.modeButton}
+          </button>
         </nav>
-        {mode !== "scale" && <ClaimantToggle api={mode === "fixture" ? fixtureApi : prApi} mode={claimant} onMode={pickClaimant} locked={roundOpen[mode]} />}
+        {mode !== "scale" && <ClaimantToggle api={apiOf(mode)} mode={claimant} onMode={pickClaimant} locked={roundOpen[mode]} />}
         <WhyDroppedContext.Provider value={reportDropped}>
-          {mode === "fixture" ? <FixtureFlow api={fixtureApi} onRoundOpen={reportFixtureOpen} /> : mode === "pr" ? <MoonwellFlow api={prApi} onRoundOpen={reportPrOpen} /> : <ScaleScreen api={scaleApi} />}
+          {mode === "fixture" ? (
+            <FixtureFlow api={fixtureApi} onRoundOpen={reportFixtureOpen} />
+          ) : mode === "pr" ? (
+            <MoonwellFlow api={prApi} onRoundOpen={reportPrOpen} />
+          ) : mode === "paste" ? (
+            <PasteFlow api={pasteApi} onRoundOpen={reportPasteOpen} />
+          ) : (
+            <ScaleScreen api={scaleApi} />
+          )}
         </WhyDroppedContext.Provider>
       </main>
-      <LiveLogStrip key={mode} api={mode === "fixture" ? fixtureApi : mode === "pr" ? prApi : scaleApi} dropped={mode === "scale" ? null : dropped[mode]} open={stripOpen} onToggle={() => setStripOpen((o) => !o)} />
+      <LiveLogStrip key={mode} api={apiOf(mode)} dropped={mode === "scale" ? null : dropped[mode]} open={stripOpen} onToggle={() => setStripOpen((o) => !o)} />
     </div>
   );
 }

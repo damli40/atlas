@@ -76,7 +76,7 @@ import { fileURLToPath } from "node:url";
 import { Hono, type Context } from "hono";
 import { z } from "zod";
 import { judge } from "../src/judge";
-import { verifySeal } from "../src/seal";
+import { canonicalJson, verifySeal } from "../src/seal";
 import { bodyLimit } from "hono/body-limit";
 import { createModelBudget, type ModelBudget } from "./meta/budget";
 import { cleanRecord, type RefusalWriter } from "./proofs/refusals";
@@ -91,7 +91,7 @@ import { createChainFactsReader } from "../runners/evm/chain-facts";
 import { FIXTURE_FILE, FIXTURE_FINDING_LABEL, fixtureContextRange, fixtureFinding } from "./meta/roles/fixture-finding";
 import { INVESTIGATOR_FALLBACK_MODEL, INVESTIGATOR_MODEL, runInvestigator, type InvestigatorFile } from "./meta/roles/investigator";
 import { fetchGithubPr, type GithubPrTarget } from "./targets/github";
-import { SWEEP_GATE_CONTEXT, gate, type GateContext, type Question } from "../src/gate";
+import { CALL_DEFAULT_WATCH_LIMIT_MS, SWEEP_GATE_CONTEXT, gate, type GateContext, type Question } from "../src/gate";
 import type { AtlasFile, Bet, BettorSlot, Experiment, Finding, Run, RunAttempt, Target, Verdict } from "../src/types";
 import type { Executor } from "../runners/runner";
 import { localExecutor } from "../runners/executor/local";
@@ -103,9 +103,9 @@ import { evmRunner } from "../runners/evm/runner";
 import { falseAlarmFromRun } from "../runners/evm/level2";
 import { redactRpc, scrubDeep } from "../runners/evm/redact";
 import { RunDidNotFinish, runFailureReason } from "./run-failure";
-import { createHourlyLimit, createReplayGate, createRunGate, type ReplayGate } from "./replay-limits";
-import { clientIpOf, trustProxyFromEnv } from "./client-ip";
-import { buildAtlasFile, resultDiff, sameJson, verifyAtlasFile, withChange } from "../src/atlasfile";
+import { createHourlyLimit, createReplayGate, createRunGate, createSandboxGate, type ReplayGate } from "./replay-limits";
+import { clientIpOf, trustProxyFromEnv, trustedHopsFromEnv } from "./client-ip";
+import { buildAtlasFile, callRunAgreesWithItsTrace, resultDiff, sameJson, verifyAtlasFile, withChange } from "../src/atlasfile";
 import { ASKED_FIELD, createProofStore, EVM_GATE_CONTEXT, evmTargetRefusal, extraCaptionsFor, forkBlockFor, humanFinding, recordedFindings, type ProofStore } from "./evm-round";
 import { control as runTsControl, readFixture, runExperiment, tsRunner } from "../runners/ts/control";
 import { changeAndReplay, type ChangeAnswer, type ReplayFn } from "./changes";
@@ -113,6 +113,14 @@ import { MUSE_CODE, type MuseExec } from "./meta/roles/fixer";
 import { ADVERSARY_MODEL, runAdversary } from "./meta/roles/adversary";
 import { functionDefaults } from "../src/experiment-name";
 import { fileLines } from "../src/words";
+import { createPaste, DEFAULT_PASTES_PER_IP_PER_HOUR, PASTE_BODY_BYTES, PASTE_SWEEP_MS, type PasteOptions } from "./paste";
+
+/** E3 review r3: all pasted proof files together, at most this many characters (the oldest drops first). */
+export const MAX_PASTED_PROOF_CHARS = 64 * 1024 * 1024;
+import { guardPastedChat } from "./meta/pasted-guard";
+import { pastedBetHead } from "../src/paste-context";
+import { pastedSeenCap } from "./meta/roles/claimant-bets";
+import { MAX_PASTED_PROMPT_CHARS } from "./meta/pasted-guard";
 
 const REPO_ROOT = fileURLToPath(new URL("../", import.meta.url));
 const PRE_EXISTING_PATH = resolve(REPO_ROOT, "PRE-EXISTING.md");
@@ -142,8 +150,12 @@ const experimentBody = z.object({
   runner: z.enum(["ts", "evm"]).optional(),
   /** D04-04: the finding this round works on (from POST /investigate or POST /findings in this session). */
   findingId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/).optional(),
+  /** E3: a pasted target's test proposed by Muse Wonder in this session (POST /paste/proposals), used instead of params. */
+  proposalId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/).optional(),
+  /** E3 review (D10): the person's test was edited from this proposal of Muse Wonder's (POST /paste/proposals). */
+  editedFrom: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/).optional(),
   // The params are checked by src/gate.ts below (not here), so a refusal carries the gate's plain reason.
-  params: z.unknown(),
+  params: z.unknown().optional(),
   // Human-proposed only, for now (the Claimant's model bets arrive through the server, not this route).
   proposedBy: z.object({ role: z.literal("human") }).optional(),
 });
@@ -213,6 +225,46 @@ export function seenContextFor(
     pr: { ref: t.ref, title: pr.title, ...(t.commit !== undefined ? { commit: t.commit } : {}), fileCount: pr.fileCount, codeSha256: t.codeSha256 },
     ...(chainFacts !== undefined ? { chainFacts } : {}),
   });
+}
+
+/** E3 review r3 minor 3: a call-function test with every left-out field set to what the run uses anyway. */
+export function withCallDefaults(params: unknown): unknown {
+  const p = params as { shape?: string; watchLimitMs?: number; args?: unknown[] };
+  if (!p || p.shape !== "call-function" || !Array.isArray(p.args)) return params;
+  return {
+    ...p,
+    watchLimitMs: p.watchLimitMs ?? CALL_DEFAULT_WATCH_LIMIT_MS,
+    args: p.args.map((a) => {
+      const arg = a as { kind?: string; calls?: { do?: string; afterMs?: number }[] };
+      if (arg.kind !== "stand-in" || !Array.isArray(arg.calls)) return a;
+      return { ...arg, calls: arg.calls.map((st) => (st.do === "return" ? { ...st, afterMs: st.afterMs ?? 0 } : st)) };
+    }),
+  };
+}
+
+/** E3: a pasted experiment as the routes return it: the page already has the code, so the source is not echoed back. */
+export function withoutSource(exp: Experiment): Experiment {
+  if (exp.target.kind !== "pasted") return exp;
+  const { source: _kept, ...target } = exp.target;
+  return { ...exp, target };
+}
+
+/** E3 review M4: a pasted round's proof file as anyone but its session sees it: the source removed, the fingerprint kept. */
+export function withheldSource(file: AtlasFile): AtlasFile & { sourceWithheld: true } {
+  const strip = <T extends { kind: string; source?: string }>(t: T): T => {
+    if (t.kind !== "pasted") return t;
+    const { source: _s, ...rest } = t;
+    return rest as T;
+  };
+  // E3 review r2 M1: nor the session's activity log (other pastes' fingerprints, gate reasons quoting values). The
+  // test, the facts, the verdicts and the models' bets stay: they are what the proof is.
+  return { ...file, target: strip(file.target), experiments: file.experiments.map((e) => ({ ...e, target: strip(e.target) })), agentLog: [], sourceWithheld: true };
+}
+
+/** E3: the stand-in "finding" a pasted round hands the bet role (the whole file; never in a prompt or a proof file). */
+export function wholeFileFinding(ref: string, source: string): Finding {
+  const lines = (source.endsWith("\n") ? source.slice(0, -1) : source).split("\n").length;
+  return { id: "pasted-file", file: ref, lineStart: 1, lineEnd: lines, kind: "other", claim: "", verified: true, quotedSnippet: "", proposedBy: { role: "human", model: "none: picked by a person" } };
 }
 
 // ---------- the app ----------
@@ -298,6 +350,8 @@ export interface AppOptions {
   replayGate?: ReplayGate;
   /** Caps on EVM runs (POST /runs). Default: createRunGate() with limits from the environment (ATLAS_RUNS_*). */
   runGate?: ReplayGate;
+  /** E3 review B5: caps on every sandbox start (TS runs, sweeps, change replays, replays). Default: createSandboxGate() (ATLAS_SANDBOX_*). */
+  sandboxGate?: ReplayGate;
   /** S5: read the client address from X-Forwarded-For's first hop (behind a proxy). Default: ATLAS_TRUST_PROXY=1. */
   trustProxy?: boolean;
   /** S5: model rounds (experiments that ask the model) and investigations one client address may start an hour. */
@@ -317,6 +371,11 @@ export interface AppOptions {
    * and the answer says so. Spark's bets in that round use `modelBets` (absent: Spark's slot says "not asked").
    */
   adversary?: { chat: (args: ChatArgs) => Promise<ChatResult>; model?: string; budget?: ModelBudget };
+  /**
+   * E3, the paste flow (server/paste.ts): Muse Wonder's test proposals (`proposer`, absent = not asked) and the
+   * runners by language (default runners/pasted-registry.ts).
+   */
+  paste?: PasteOptions;
 }
 
 /** D07-02: "what else?" questions one session may ask (each is up to 2 Adversary calls, Spark's bets and one run). */
@@ -365,7 +424,7 @@ export function createApp(opts: AppOptions = {}) {
   const betStore = opts.betStore ?? createBetStore(); // D02-04: experiments and server-sealed bets, per session
   const agentLog = opts.agentLog ?? createAgentLog(); // D02-05: per-session agent events
   const refusals: RefusalWriter = opts.refusals ?? (() => {});
-  const budget = opts.modelBets?.budget ?? opts.investigator?.budget ?? opts.adversary?.budget ?? (opts.modelBets || opts.investigator || opts.adversary ? createModelBudget() : undefined);
+  const budget = opts.modelBets?.budget ?? opts.investigator?.budget ?? opts.adversary?.budget ?? opts.paste?.proposer?.budget ?? (opts.modelBets || opts.investigator || opts.adversary || opts.paste?.proposer ? createModelBudget() : undefined);
   const modelChat = opts.modelBets && budget ? budget.wrap(opts.modelBets.chat) : undefined;
   const investigatorChat = opts.investigator && budget ? budget.wrap(opts.investigator.chat) : undefined;
   const adversaryChat = opts.adversary && budget ? budget.wrap(opts.adversary.chat) : undefined;
@@ -433,11 +492,109 @@ export function createApp(opts: AppOptions = {}) {
   };
   const replayGate = opts.replayGate ?? createReplayGate();
   const runGate = opts.runGate ?? createRunGate();
+  const sandboxGate = opts.sandboxGate ?? createSandboxGate();
+  /** E3 review B5/M4: which session made each pasted round (its source and its replays are that session's only). */
+  const pastedOwners = new Map<string, string>();
   const trustProxy = opts.trustProxy ?? trustProxyFromEnv();
-  const clientOf = (c: Context) => clientIpOf(c, trustProxy);
+  const proxyHops = trustedHopsFromEnv(); // E3 review r2 M4: read once; an invalid value throws here, not per request
+  const clientOf = (c: Context) => clientIpOf(c, trustProxy, proxyHops);
   const modelRoundsByIp = createHourlyLimit(opts.perClientModelLimits?.modelRoundsPerHour ?? envCount(process.env.ATLAS_MODEL_ROUNDS_PER_IP_PER_HOUR, DEFAULT_MODEL_ROUNDS_PER_IP_PER_HOUR), "model rounds");
   const investigationsByIp = createHourlyLimit(opts.perClientModelLimits?.investigationsPerHour ?? envCount(process.env.ATLAS_INVESTIGATIONS_PER_IP_PER_HOUR, DEFAULT_INVESTIGATIONS_PER_IP_PER_HOUR), "investigations");
   const proofStore = opts.proofs ?? createProofStore({ publish: false });
+  // E3: a pasted round's .atlas.json holds the pasted source, so it is kept in memory only, never published to disk
+  // (the proofs folder is part of the public repo), whatever the main store does.
+  // E3 review r3 M2 / minor 1: a pasted proof file is kept WITHOUT its source; the source is re-attached from the one
+  // shared copy (server/paste.ts) when the file is read, so the file lives exactly as long as the source (2 hours after
+  // its last paste), not "until 200 later runs". All pasted proof files together are capped at MAX_PASTED_PROOF_CHARS
+  // (oldest dropped first).
+  const pastedFiles = new Map<string, { file: AtlasFile; chars: number }>();
+  let pastedFileChars = 0;
+  const stripSource = <T extends { kind: string; source?: string }>(t: T): T => {
+    const { source: _s, ...rest } = t;
+    return rest as T;
+  };
+  const pastedProofs = {
+    put(file: AtlasFile, _run: unknown) {
+      const bare: AtlasFile = { ...file, target: stripSource(file.target), experiments: file.experiments.map((e) => ({ ...e, target: stripSource(e.target) })) };
+      const chars = JSON.stringify(bare).length;
+      const id = file.runs[0]!.id;
+      const old = pastedFiles.get(id);
+      if (old) pastedFileChars -= old.chars;
+      pastedFiles.set(id, { file: bare, chars });
+      pastedFileChars += chars;
+      while (pastedFileChars > MAX_PASTED_PROOF_CHARS && pastedFiles.size > 1) {
+        const [k, v] = pastedFiles.entries().next().value!;
+        pastedFiles.delete(k);
+        pastedOwners.delete(k);
+        pastedFileChars -= v.chars;
+      }
+      return { published: false } as { published: boolean; error?: string };
+    },
+    get(runId: string): AtlasFile | undefined {
+      const e = pastedFiles.get(runId);
+      if (!e) return undefined;
+      const shared = paste.sourceTarget(e.file.target);
+      if (!shared || typeof shared.source !== "string") {
+        pastedFiles.delete(runId);
+        pastedOwners.delete(runId);
+        pastedFileChars -= e.chars;
+        return undefined; // the source expired, and the file with it
+      }
+      const withSource = <T extends { kind: string }>(t: T): T => ({ ...t, source: shared.source });
+      return { ...e.file, target: withSource(e.file.target), experiments: e.file.experiments.map((x) => ({ ...x, target: withSource(x.target) })) };
+    },
+  };
+  /** E3 review r2 M1 / r3 B1: drop everything made from a pasted source 2 hours after it was last pasted. */
+  const expirePasted = () => {
+    for (const o of paste.expire()) betStore.peek(o.sessionId)?.delete(o.experimentId);
+    for (const id of [...pastedFiles.keys()]) pastedProofs.get(id); // drops files whose source expired
+  };
+  // Checked every minute, and before every request (at most once a second), so nothing expired is ever served.
+  const sweeper = setInterval(expirePasted, PASTE_SWEEP_MS);
+  (sweeper as { unref?: () => void }).unref?.();
+  let lastSweep = 0;
+  const sweepSoon = () => {
+    const now = Date.now();
+    if (now - lastSweep < 1_000) return;
+    lastSweep = now;
+    expirePasted();
+  };
+  /** E3 review r3 minor 1: a round that is running, or holds the person's sealed bets that have not run, is never dropped. */
+  const keepRound = (sid: string, eid: string) => {
+    const r = betStore.peek(sid)?.get(eid);
+    // The person's sealed bets, not the models' (they seal on every round by themselves); the session's 50-experiment
+    // cap still bounds what a person can protect.
+    return r !== undefined && (r.status === "running" || (r.status === "open" && r.bets.some((b) => b.who === "human")));
+  };
+  const proofOf = (runId: string) => proofStore.get(runId) ?? pastedProofs.get(runId);
+  const pastedExperimentsByIp = createHourlyLimit(envCount(process.env.ATLAS_PASTED_EXPERIMENTS_PER_IP_PER_HOUR, 200), "experiments on pasted code");
+  const pastesByIp = createHourlyLimit(envCount(process.env.ATLAS_PASTES_PER_IP_PER_HOUR, DEFAULT_PASTES_PER_IP_PER_HOUR), "pastes");
+  const paste = createPaste(opts.paste ?? {}, { agentLog, betStore, ...(budget ? { budget } : {}), takeModelRound: (c) => modelRoundsByIp.take(clientOf(c)), takePaste: (c) => pastesByIp.take(clientOf(c)), executorKind: executor.kind });
+  opts.paste?.expose?.(paste);
+  /** E3 review r2 B3: a pasted round's bettor text: its shared test part, then the file's shared numbered block. */
+  const seenOf = (round: Round): string | undefined => {
+    if (round.seenHead === undefined || !round.seenFile) return undefined;
+    return `${round.seenHead}\n${paste.fileBlock(round.seenFile.codeSha256, round.experiment.target.source ?? "", round.seenFile.exportLine)}`;
+  };
+  /**
+   * E3: the known-case check of a pasted language's runner on this server's executor. E4 (D31) reuses a passed
+   * control for up to 10 minutes per (harness, executor); the run records the control it relied on.
+   */
+  const pastedControl = async (lang: "js" | "ts" | "py"): Promise<Run> => {
+    const runner = paste.runners[lang];
+    if (!runner) throw new Error(`this server has no runner for ${lang}`);
+    const run = await runner.control(executor);
+    keepRun(run);
+    return run;
+  };
+  /** E3: one pasted experiment through its language's runner, after that runner's known-case check. */
+  const runPasted = async (exp: Experiment): Promise<Run> => {
+    const lang = exp.target.language ?? "js";
+    const runner = paste.runners[lang];
+    if (!runner) throw new Error(`this server has no runner for ${lang}`);
+    const ctl = await pastedControl(lang);
+    return runner.run(exp, ctl, executor);
+  };
   /** The text of one file of a target, as Atlas read it. */
   const fileTextOf = (target: Target, file: string): string | undefined => {
     if (target.kind === "ts-fixture") return file === target.ref ? readFixture(target) : undefined;
@@ -526,7 +683,11 @@ export function createApp(opts: AppOptions = {}) {
         ...(round.attempts && round.attempts.length ? { attempts: round.attempts } : {}),
         createdAt: new Date().toISOString(),
       });
-      const put = proofStore.put(file, run);
+      const put = (exp.target.kind === "pasted" ? pastedProofs : proofStore).put(file, run);
+      if (exp.target.kind === "pasted") {
+        pastedOwners.set(run.id, sessionId);
+        while (pastedOwners.size > 2000) pastedOwners.delete(pastedOwners.keys().next().value!);
+      }
       return { ok: true as const, runId: run.id, captions: file.captions, published: put.published, ...(put.error ? { error: put.error } : {}) };
     } catch (e) {
       return { ok: false as const, runId: run.id, reason: redactRpc(e instanceof Error ? e.message : String(e)) };
@@ -568,7 +729,12 @@ export function createApp(opts: AppOptions = {}) {
     // the session's Investigator finding or the hand-written one. D18: the model sees its file,
     // lines and the code around them, never a claim sentence.
     let picked: { finding: Finding; label: string; fileText: string } | undefined;
-    if (round.finding) {
+    if (exp.target.kind === "pasted" && typeof exp.target.source === "string") {
+      // E3: pasted code has no finding. The models bet on the whole file the person sees (round.seenContext, D19);
+      // this stand-in finding only satisfies the bet role's input and never reaches the prompt or the proof file.
+      const src = exp.target.source;
+      picked = { finding: wholeFileFinding(exp.target.ref, src), label: "", fileText: src };
+    } else if (round.finding) {
       const text = fileTextOf(exp.target, round.finding.file);
       if (text !== undefined) picked = { finding: round.finding, label: findingLabel(round.finding), fileText: text };
     } else if (exp.target.kind === "ts-fixture" && exp.target.ref === FIXTURE_FILE) {
@@ -595,8 +761,13 @@ export function createApp(opts: AppOptions = {}) {
     const contextRange = exp.target.ref === FIXTURE_FILE ? fixtureContextRange(fileText) : undefined;
     // D19: on the Moonwell PR the model gets exactly what the person's bet screen shows (src/bet-context.ts).
     const prOf = exp.target.kind === "github-pr" ? prTargets.get(exp.target.codeSha256) : undefined;
-    const seenContext = prOf ? seenContextFor(exp, round.questions, finding, fileText, { title: prOf.title, fileCount: prFiles(prOf).length }, round.chainFacts) : undefined;
-    const chat = modelChat;
+    const seenContext = exp.target.kind === "pasted" ? seenOf(round) : prOf ? seenContextFor(exp, round.questions, finding, fileText, { title: prOf.title, fileCount: prFiles(prOf).length }, round.chainFacts) : undefined;
+    if (exp.target.kind === "pasted" && seenContext === undefined) {
+      for (const s of askable) s.reason = "the bet screen's text was not built, so no model is asked";
+      return;
+    }
+    // E3: a call carrying pasted code may only reach a non-contributor Meta model (server/meta/pasted-guard.ts).
+    const chat = exp.target.kind === "pasted" ? guardPastedChat(modelChat) : modelChat;
     const { now } = opts.modelBets;
     const deadlineMs = opts.modelBets.deadlineMs ?? MODEL_BETS_DEADLINE_MS;
     for (const slot of askable) {
@@ -610,7 +781,7 @@ export function createApp(opts: AppOptions = {}) {
       });
       slot.settled = Promise.race([
         runClaimantBets(
-          { experiment: exp, questions: round.questions, finding, findingLabel: findingLabelText, ...(contextRange ? { contextRange } : {}), ...(seenContext !== undefined ? { seenContext } : {}), fileText, gateContext: round.gateContext ?? TS_GATE_CONTEXT, model },
+          { experiment: exp, questions: round.questions, finding, findingLabel: findingLabelText, ...(contextRange ? { contextRange } : {}), ...(seenContext !== undefined ? { seenContext } : {}), ...(exp.target.kind === "pasted" ? { seenInstruction: null } : {}), ...(round.repeatOf ? { repeat: true as const } : {}), fileText, gateContext: round.gateContext ?? TS_GATE_CONTEXT, model },
           { chat, log: sessionEmitter(agentLog, sessionId), ...(now ? { now } : {}) },
         ),
         late, // an answer after the deadline is never sealed into this round
@@ -643,7 +814,13 @@ export function createApp(opts: AppOptions = {}) {
   const app = new Hono();
 
   // One large POST must not be read whole into memory.
-  app.use("*", bodyLimit({ maxSize: MAX_BODY_BYTES, onError: (c) => c.json({ error: `the request body is larger than ${MAX_BODY_BYTES} bytes` }, 413) }));
+  // E3: POST /paste carries up to 64 KB of code, escaped as JSON, so it has its own (larger) limit.
+  const defaultLimit = bodyLimit({ maxSize: MAX_BODY_BYTES, onError: (c) => c.json({ error: `the request body is larger than ${MAX_BODY_BYTES} bytes` }, 413) });
+  const pasteLimit = bodyLimit({ maxSize: PASTE_BODY_BYTES, onError: (c) => c.json({ error: `the request body is larger than ${PASTE_BODY_BYTES} bytes; Atlas reads one file of at most 64 KB` }, 413) });
+  app.use("*", (c, next) => {
+    sweepSoon(); // E3 review r3 B1: nothing made from an expired paste is ever served
+    return c.req.path === "/paste" ? pasteLimit(c, next) : defaultLimit(c, next);
+  });
 
   app.get("/health", (c) => c.json({ ok: true }));
   // D07-01: what the page's claimant toggle offers. No model call: availability is known at startup.
@@ -657,6 +834,7 @@ export function createApp(opts: AppOptions = {}) {
     return c.json(info);
   });
   registerEventRoutes(app, agentLog); // D02-05: GET /events/:sessionId (SSE)
+  paste.register(app); // E3: GET /paste/languages, POST /paste, /paste/proposals, /paste/claim
 
   app.post("/targets", async (c) => {
     if (sessionIdOf(c) === null) return c.json({ error: BAD_SESSION }, 400); // D02-05
@@ -713,13 +891,37 @@ export function createApp(opts: AppOptions = {}) {
     const claimant = parseClaimantMode(c.req.header(CLAIMANT_HEADER));
     if (!claimant.ok) return c.json({ error: claimant.reason }, 400);
 
-    const target = targets.get(body.target.codeSha256);
+    // E3: a pasted target lives in the session that pasted it (POST /paste), never in the shared target list.
+    const pastedEntry = paste.entryOf(sessionId, body.target);
+    const target = pastedEntry?.target ?? targets.get(body.target.codeSha256);
     if (!target || target.ref !== body.target.ref) {
-      return c.json({ error: "unknown target: register it with POST /targets first (same ref and codeSha256)" }, 400);
+      return c.json({ error: "unknown target: register it with POST /targets first (same ref and codeSha256), or paste it in this session (POST /paste)" }, 400);
     }
     // D04-04: the runner and the gate's allow-list follow the target, never the request.
     const runnerKind = target.kind === "github-pr" ? ("evm" as const) : ("ts" as const);
-    const gateCtx = runnerKind === "evm" ? EVM_GATE_CONTEXT : TS_GATE_CONTEXT;
+    const gateCtx: GateContext = pastedEntry ? { shapes: ["call-function"], exportNames: pastedEntry.exports.map((e) => e.name) } : runnerKind === "evm" ? EVM_GATE_CONTEXT : TS_GATE_CONTEXT;
+    // E3: a test Muse Wonder proposed in this session, used as proposed (an edited one comes as params, from the person).
+    if (body.params === undefined && body.proposalId === undefined) return c.json({ error: "body: send params (the experiment) or, for pasted code, proposalId" }, 400);
+    let fromProposal: { setId: string; model: string; params: unknown } | undefined;
+    let editedFrom: { setId: string; model: string; proposalId: string } | undefined;
+    if (body.proposalId !== undefined) {
+      if (!pastedEntry) return c.json({ error: "proposalId is for pasted code only" }, 400);
+      if (body.params !== undefined || body.editedFrom !== undefined) return c.json({ error: "send proposalId alone, or params (with editedFrom when you edited a proposal)" }, 400);
+      const found = paste.proposalOf(sessionId, body.proposalId, target.codeSha256);
+      if ("error" in found) return c.json({ error: found.error }, found.status);
+      fromProposal = { setId: found.set.id, model: found.set.model, params: found.proposal.params };
+    }
+    if (body.editedFrom !== undefined) {
+      if (!pastedEntry) return c.json({ error: "editedFrom is for pasted code only" }, 400);
+      const found = paste.proposalOf(sessionId, body.editedFrom, target.codeSha256, true);
+      if ("error" in found) return c.json({ error: found.error }, found.status);
+      editedFrom = { setId: found.set.id, model: found.set.model, proposalId: body.editedFrom };
+    }
+    // E3 review B3: experiments on pasted code are counted per client address (each holds a bet-screen text and a run).
+    if (pastedEntry) {
+      const perIp = pastedExperimentsByIp.take(clientOf(c));
+      if (!perIp.ok) return c.json({ error: `experiment not made: ${perIp.reason}` }, 429);
+    }
     if (body.runner !== undefined && body.runner !== runnerKind) return c.json({ error: `${target.ref} runs on the ${runnerKind} runner, not ${body.runner}` }, 400);
     let finding: Finding | undefined;
     if (body.findingId !== undefined) {
@@ -737,13 +939,18 @@ export function createApp(opts: AppOptions = {}) {
     if (rounds.size >= MAX_EXPERIMENTS) return c.json({ error: `a session holds at most ${MAX_EXPERIMENTS} experiments; start a new session` }, 409);
 
     const log = roundLog(sessionEmitter(agentLog, sessionId));
-    const decision = gate(body.params, gateCtx);
+    const asked = fromProposal ? fromProposal.params : body.params;
+    const decision = gate(asked, gateCtx);
     const experiment = {
       id,
       target,
       runner: runnerKind,
-      params: decision.allowed ? decision.params : body.params,
-      proposedBy: { role: "human" as const },
+      params: decision.allowed ? decision.params : asked,
+      proposedBy: fromProposal
+        ? { role: "investigator" as const, model: fromProposal.model }
+        : editedFrom
+          ? { role: "human" as const, editedFrom: { model: editedFrom.model, proposalId: editedFrom.proposalId } }
+          : { role: "human" as const },
       gate: decision.allowed ? { allowed: true as const } : { allowed: false as const, reason: decision.reason },
     } as Experiment;
     const round = newRound(experiment, gateCtx);
@@ -756,7 +963,39 @@ export function createApp(opts: AppOptions = {}) {
       if (asked.length > 0) round.questions = asked;
       round.extraQuestions = [];
     }
+    // E3 review r2 M2 (coordinator's decision): a test canonically equal to one already run in this session is
+    // accepted, said on screen and to every model, and its bets are sealed with repeat: true.
+    if (decision.allowed) {
+      // E3 review r3 minor 3: compared with the defaults filled in, so writing a default out does not hide a repeat.
+      const asRun = (p: unknown) => canonicalJson(withCallDefaults(p));
+      const same = [...rounds.values()].find((r) => r.run !== undefined && r.experiment.target.codeSha256 === target.codeSha256 && asRun(r.experiment.params) === asRun(experiment.params));
+      if (same) round.repeatOf = same.experiment.id;
+    }
+    if (pastedEntry && decision.allowed) {
+      // D19: the bet screen's text; the page shows it and every betting model gets it. E3 review r2 B2/B3/M3: the
+      // test part is keyed on everything that appears in it, length-checked against the one limit (the prompt cap
+      // minus the prompt's fixed part) BEFORE it is cached, and shared by every round with the same text; the
+      // numbered file is kept once per file and joined on when the text is served.
+      const call = experiment.params as Extract<Experiment["params"], { shape: "call-function" }>;
+      const line = pastedEntry.exports.find((e) => e.name === call.exportName)?.line ?? 0;
+      const key = [target.codeSha256, target.language, line, canonicalJson(experiment.proposedBy), canonicalJson(experiment.params), round.repeatOf ?? ""].join("\n");
+      const block = paste.fileBlock(target.codeSha256, target.source ?? "", line);
+      const cap = pastedSeenCap(round.questions, MAX_PASTED_PROMPT_CHARS);
+      const got = paste.headFor(
+        key,
+        () => pastedBetHead({ experiment, questions: round.questions, exportLine: line, ...(round.repeatOf ? { repeatOf: round.repeatOf } : {}) }),
+        (head) => (head.length + 1 + block.length > cap ? `the text every bettor gets for this test would be ${head.length + 1 + block.length} characters; with the questions around it, a model's prompt may hold at most ${cap}, so this test is not made` : null),
+      );
+      if (!got.ok) return c.json({ error: got.reason }, 413);
+      round.seenHead = got.head;
+      round.seenFile = { codeSha256: target.codeSha256, exportLine: line };
+    }
     rounds.set(id, round); // a refused experiment is kept too (shown, never run)
+    if (pastedEntry) {
+      // E3 review r2 B3: pasted rounds are capped per session and overall; the oldest that is not running is dropped.
+      const dropped = paste.trackRound(sessionId, id, (round.seenHead?.length ?? 0) + 2_000, paste.sourceKeyOf(target), keepRound);
+      for (const d of dropped) betStore.peek(d.sessionId)?.delete(d.experimentId);
+    }
     // The stand-in line only when the hand-written fixture finding is the one in use.
     const usesInvestigatorFinding = (investigations.get(sessionId)?.findings.get(target.codeSha256)?.length ?? 0) > 0;
     if (decision.allowed && target.kind === "ts-fixture" && !finding && !usesInvestigatorFinding) log.investigatorStub(experiment);
@@ -770,23 +1009,29 @@ export function createApp(opts: AppOptions = {}) {
       if (!(e instanceof AgentEventError)) throw e; // a refused log line never hides the gate's answer
     }
     if (!decision.allowed) {
-      record({
-        kind: "gate_rejection",
-        id,
-        experimentId: id,
-        time: new Date().toISOString(),
-        role: "human",
-        trigger: "POST /experiments: the gate refused the experiment, so it never ran",
-        experiment: body.params,
-        reason: decision.reason,
-      });
-      return c.json({ error: `gate: rejected (${decision.reason}); nothing will run`, experiment }, 422);
+      // E3: a refusal about pasted code is not written to the public proofs folder (its values may come from the
+      // judge's own code); it is kept in the round and shown.
+      if (target.kind !== "pasted") {
+        record({
+          kind: "gate_rejection",
+          id,
+          experimentId: id,
+          time: new Date().toISOString(),
+          role: "human",
+          trigger: "POST /experiments: the gate refused the experiment, so it never ran",
+          experiment: body.params,
+          reason: decision.reason,
+        });
+      }
+      // E3 review minor 4: the refusal never echoes the pasted source back.
+      return c.json({ error: `gate: rejected (${decision.reason}); nothing will run`, experiment: withoutSource(experiment) }, 422);
     }
+    if (pastedEntry && (fromProposal || editedFrom)) paste.linkExperiment(id, sessionId, (fromProposal ?? editedFrom)!.setId);
     // D22: the chain facts at block 42194662 are read before anyone is asked to bet; the page and every model get the same object.
     const facts = await chainFactsFor(experiment);
     if (facts !== undefined) round.chainFacts = facts;
     startModelBets(round, sessionId, clientOf(c), claimant.mode); // D02-06: the model bets on this SAME experiment, from the questions only
-    return c.json({ experiment, questions: round.questions, extraQuestions: round.extraQuestions, model: modelSlotView(round), models: modelSlotViews(round), claimant: claimant.mode, ...(round.chainFacts ? { chainFacts: round.chainFacts } : {}) });
+    return c.json({ experiment: target.kind === "pasted" ? withoutSource(experiment) : experiment, questions: round.questions, extraQuestions: round.extraQuestions, model: modelSlotView(round), models: modelSlotViews(round), claimant: claimant.mode, ...(round.chainFacts ? { chainFacts: round.chainFacts } : {}), ...(round.seenHead !== undefined ? { seenContext: seenOf(round) } : {}), ...(round.repeatOf ? { repeatOf: round.repeatOf } : {}) });
   });
 
   app.post("/investigate", async (c) => {
@@ -924,6 +1169,9 @@ export function createApp(opts: AppOptions = {}) {
     if (!round) return c.json({ error: `this session has no experiment ${experimentId}: create it with POST /experiments first` }, 404);
     if (!round.experiment.gate.allowed) return c.json({ error: `the gate refused experiment ${experimentId}, so it takes no bets` }, 422);
     if (round.autonomous) return c.json({ error: `${experimentId} is an autonomous round (proposed by the Adversary, run by Atlas): no person is asked, so it takes no person's bets` }, 409);
+    // E3 review B2: once Muse Wonder's sentence for this round's tests has been shown, no more bets are sealed on it.
+    const closed = paste.betsClosed(sessionId, experimentId);
+    if (closed) return c.json({ error: `${closed}, so this bet was not sealed` }, 409);
     // Final review S2: after a run attempt that did not finish, the bets stay frozen (the same set runs again).
     const tried = round.attempts?.at(-1);
     if (tried) return c.json({ error: `bets on ${experimentId} are frozen: a run was tried at ${tried.startedAt} and did not finish; try the run again (the sealed bets stay as they are), so this bet was not sealed` }, 409);
@@ -992,6 +1240,11 @@ export function createApp(opts: AppOptions = {}) {
     let runSlot: { release: () => void } | undefined;
     if (experiment.runner === "evm") {
       const slot = runGate.take(sessionId, clientOf(c));
+      if (!slot.ok) return c.json({ error: `run not started: ${slot.reason}` }, 429);
+      runSlot = slot;
+    } else {
+      // E3 review B5: a sandbox start, capped like every other.
+      const slot = sandboxGate.take(sessionId, clientOf(c));
       if (!slot.ok) return c.json({ error: `run not started: ${slot.reason}` }, 429);
       runSlot = slot;
     }
@@ -1071,6 +1324,9 @@ export function createApp(opts: AppOptions = {}) {
             }
           },
         }));
+      } else if (experiment.target.kind === "pasted") {
+        // E3: the pasted file's language picks its runner (runners/pasted-registry.ts).
+        run = await runPasted(experiment);
       } else {
         const ctl = await getControl(experiment.target);
         run = await runExperiment(experiment, ctl, { executor });
@@ -1091,6 +1347,7 @@ export function createApp(opts: AppOptions = {}) {
       throw new RunDidNotFinish(reason);
     }
     keepRun(run);
+    if (experiment.target.kind === "pasted") for (const d of paste.noteRoundChars(experiment.id, JSON.stringify(run).length, keepRound)) betStore.peek(d.sessionId)?.delete(d.experimentId);
     log.runner(experiment, run);
     // The promise this route makes: every bet's sealedAt is earlier than run.startedAt.
     const lateForRun = sealedAfter(bets, run.startedAt);
@@ -1104,6 +1361,7 @@ export function createApp(opts: AppOptions = {}) {
     // S7: every can't-check verdict from a real run gets a public refusal record.
     for (const v of verdicts) {
       if (v.outcome !== "cant_check") continue;
+      if (experiment.target.kind === "pasted") continue; // E3: never written to the public folder (see POST /experiments)
       const b = bets.find((x) => x.id === v.betId)!;
       const model = b.who === "human" ? undefined : b.who.slice("model:".length);
       record({
@@ -1125,10 +1383,22 @@ export function createApp(opts: AppOptions = {}) {
     round.status = "done";
     round.run = run;
     round.verdicts = verdicts;
-    const proof = keepProof(sessionId, round, run, bets, verdicts);
+    let proof = keepProof(sessionId, round, run, bets, verdicts);
+    // E3 review r3 M1: a pasted run with no proof file is never judged silently. When the run's own record does not
+    // hold together (e.g. its trace lost the ending), its facts are not complete, so every verdict becomes "can't
+    // check" with the reason; otherwise the verdicts stand and the page shows why there is no proof file.
+    if (!proof.ok && experiment.target.kind === "pasted") {
+      const broken = callRunAgreesWithItsTrace(run);
+      if (broken.length > 0) {
+        const reason = `no proof file could be made, because the run's record does not hold together (${broken.join("; ")}), so nothing from it is judged`;
+        for (let i = 0; i < verdicts.length; i++) verdicts[i] = { betId: verdicts[i]!.betId, runId: run.id, outcome: "cant_check", reason, judgedBy: "src/judge.ts" };
+        round.verdicts = verdicts;
+        proof = { ok: false as const, runId: run.id, reason };
+      }
+    }
     const falseAlarm = experiment.runner === "evm" && experiment.params.shape === "apply-proposal-then-read" ? falseAlarmFromRun(run) : undefined;
     // Reveal every bet in full (with its nonce) so the browser can recompute each hash itself.
-    return { status: 200, body: { run, verdicts, bets, betsFrozenAt: round.betsFrozenAt, model: modelSlotView(round), models: modelSlotViews(round), proof, ...(falseAlarm ? { falseAlarm } : {}) } };
+    return { status: 200, body: { run, verdicts, bets, betsFrozenAt: round.betsFrozenAt, model: modelSlotView(round), models: modelSlotViews(round), proof, ...(falseAlarm ? { falseAlarm } : {}), ...(experiment.target.kind === "pasted" ? { experiment: withoutSource(experiment) } : {}) } };
   }
 
   // D06-02: the waves screen. Many callers at once, same failure pattern, one virtual clock, in the sandbox.
@@ -1165,6 +1435,8 @@ export function createApp(opts: AppOptions = {}) {
       return c.json({ error: `gate: rejected (${decision.reason}); nothing will run` }, 422);
     }
     if (sweepsRunning.has(sessionId)) return c.json({ error: "a sweep is already running for this session; wait for it to finish" }, 429);
+    const sandboxSlot = sandboxGate.take(sessionId, clientOf(c)); // E3 review B5
+    if (!sandboxSlot.ok) return c.json({ error: `sweep not started: ${sandboxSlot.reason}` }, 429);
     const experiment: Experiment = { id, target, runner: "ts", params: decision.params, proposedBy: { role: "human" }, gate: { allowed: true } };
     sweepsRunning.add(sessionId);
     let run: Run;
@@ -1174,6 +1446,7 @@ export function createApp(opts: AppOptions = {}) {
       run = await runExperiment(experiment, ctl, { executor });
     } finally {
       sweepsRunning.delete(sessionId);
+      sandboxSlot.release();
     }
     keepRun(run);
     const p = decision.params as Extract<Experiment["params"], { shape: "concurrency-sweep" }>;
@@ -1207,6 +1480,11 @@ export function createApp(opts: AppOptions = {}) {
     // One change per run: asking again returns the same answer (no new model call, no new replay).
     const known = changesByRun.get(runId);
     if (known) return c.json(await known);
+    // E3: pasted code is never sent to Muse Code (a `muse exec` call is not behind the pasted-code model guard), and
+    // replaying a change on pasted code is not built, so no model is asked.
+    if (round.experiment.target.kind === "pasted") {
+      return c.json({ ok: false, runId, reason: `${MUSE_CODE}: not asked (changes to pasted code are not built yet)`, fixer: null, toward: null } satisfies ChangeAnswer);
+    }
     if (!opts.fixer || !fixerBudget) {
       return c.json({ ok: false, runId, reason: `${MUSE_CODE}: not asked (this server asks no Meta model for changes)`, fixer: null, toward: null } satisfies ChangeAnswer);
     }
@@ -1217,6 +1495,10 @@ export function createApp(opts: AppOptions = {}) {
       // The replay forks Base (paid RPC reads): it takes a run slot like POST /runs. M6 (day-6 review):
       // taken BEFORE the per-IP model-round slot, so a busy fork never spends a model round.
       const s = runGate.take(sessionId, clientOf(c));
+      if (!s.ok) return c.json({ error: `change not started: ${s.reason}` }, 429);
+      slot = s;
+    } else {
+      const s = sandboxGate.take(sessionId, clientOf(c)); // E3 review B5: the change replay starts the sandbox
       if (!s.ok) return c.json({ error: `change not started: ${s.reason}` }, 429);
       slot = s;
     }
@@ -1311,6 +1593,7 @@ export function createApp(opts: AppOptions = {}) {
     const used = adversaryPerSession.get(sessionId) ?? 0;
     if (used >= MAX_ADVERSARY_PER_SESSION) return notAsked(`call limit reached: this session already asked ${MAX_ADVERSARY_PER_SESSION} times`);
     if (rounds.size >= MAX_EXPERIMENTS) return notAsked(`a session holds at most ${MAX_EXPERIMENTS} experiments; start a new session`);
+    if (round.experiment.target.kind === "pasted") return notAsked("what else on pasted code is not built yet");
     const picked = roundFinding(sessionId, round);
     if (!picked) return notAsked(`no finding on ${round.experiment.target.ref} for this run`);
     let slot: { release: () => void } | undefined;
@@ -1403,11 +1686,16 @@ export function createApp(opts: AppOptions = {}) {
         return { ok: false, fromRunId: runId, reason: `no bettor sealed a bet, so Atlas did not run it: ${why || "no model was asked"}`, adversary, person, round: { experiment, questions: next.questions, model: modelSlotView(next), models: modelSlotViews(next) } };
       }
       let r: Awaited<ReturnType<typeof runRound>>;
+      // E3 review B5: an autonomous TypeScript round starts the sandbox too.
+      const sbx = next.experiment.runner === "evm" ? null : sandboxGate.take(sessionId, clientIp);
+      if (sbx && !sbx.ok) return { ok: false, fromRunId: runId, reason: `the run did not start: ${sbx.reason}`, adversary, person, round: { experiment, questions: next.questions, model: modelSlotView(next), models: modelSlotViews(next) } };
       try {
         r = await runRound(sessionId, next);
       } catch (e) {
         const message = e instanceof RunDidNotFinish ? e.message : `the run did not finish: ${redactRpc(e instanceof Error ? e.message : String(e))}`;
         return { ok: false, fromRunId: runId, reason: message, adversary, person, round: { experiment, questions: next.questions, model: modelSlotView(next), models: modelSlotViews(next) } };
+      } finally {
+        if (sbx?.ok) sbx.release();
       }
       if (r.status !== 200) return { ok: false, fromRunId: runId, reason: String(r.body.error), adversary, person, round: { experiment, questions: next.questions, model: modelSlotView(next), models: modelSlotViews(next) } };
       return { ok: true, fromRunId: runId, adversary, person, round: { experiment, questions: next.questions, ...r.body } };
@@ -1430,8 +1718,13 @@ export function createApp(opts: AppOptions = {}) {
 
   // D04-04: the round's .atlas.json, as kept (memory) or published (disk).
   app.get("/proofs/:runId", (c) => {
-    const file = proofStore.get(c.req.param("runId"));
+    const file = proofOf(c.req.param("runId"));
     if (!file) return c.json({ error: `no .atlas.json for run ${c.req.param("runId")}` }, 404);
+    // E3 review M4: a pasted round's source is the owning session's. Anyone else gets the card without it (the
+    // fingerprint stays, so the card still says which code ran).
+    // E3 review r2 minor 5: the source only when an owner is on record AND the header names it.
+    const owner = pastedOwners.get(c.req.param("runId"));
+    if (file.target.kind === "pasted" && (owner === undefined || c.req.header("x-atlas-session") !== owner)) return c.json(withheldSource(file));
     return c.json(file);
   });
 
@@ -1465,13 +1758,27 @@ export function createApp(opts: AppOptions = {}) {
   // Answers whether the replay's `measured` is deep-equal to the file's, and which result fields differ.
   app.get("/replay/:runId", async (c) => {
     const runId = c.req.param("runId");
-    const stored = proofStore.get(runId);
+    const stored = proofOf(runId);
     if (!stored) return c.json({ error: `no .atlas.json for run ${runId}` }, 404);
     const v = verifyAtlasFile(stored);
     if (!v.ok) return c.json({ error: `the .atlas.json does not verify: ${v.problems.join("; ")}` }, 422);
     const file = v.file;
     const exp = file.experiments[0]!;
     const before = file.runs[0]!;
+    // E3 review B5: a pasted round replays only for the session that made it; every TS replay takes a sandbox slot.
+    if (exp.target.kind === "pasted" && (c.req.header("x-atlas-session") === undefined || c.req.header("x-atlas-session") !== pastedOwners.get(runId))) {
+      return c.json({ error: "a replay of pasted code is for the session that pasted it" }, 403);
+    }
+    let sbx: { release: () => void } | undefined;
+    if (before.runner !== "evm") {
+      // The per-address and overall caps hold whatever session is sent (pasted code also needs its owner's, above).
+      const sid = sessionIdOf(c);
+      if (sid === null) return c.json({ error: BAD_SESSION }, 400);
+      const s = sandboxGate.take(sid, clientOf(c));
+      if (!s.ok) return c.json({ error: `replay not started: ${s.reason}` }, 429);
+      sbx = s;
+    }
+    try {
     let replay: Run;
     let changeReplay: ReplayAnswerChange | undefined;
     if (before.runner === "evm") {
@@ -1488,6 +1795,10 @@ export function createApp(opts: AppOptions = {}) {
       } finally {
         slot.release();
       }
+    } else if (exp.target.kind === "pasted") {
+      // E3: the pasted source travels in the file; its language's runner runs it again (nothing random on Atlas's side).
+      if (!paste.runnable(exp.target.language ?? "js")) return c.json({ error: `this server has no runner for ${exp.target.language}` }, 422);
+      replay = await runPasted(exp);
     } else {
       const ctl = await getControl(exp.target);
       replay = await runExperiment(exp, ctl, { executor, ...(before.seed !== undefined ? { seed: before.seed } : {}) });
@@ -1507,6 +1818,9 @@ export function createApp(opts: AppOptions = {}) {
       ...(changeReplay ? { changeReplay } : {}),
       replay,
     });
+    } finally {
+      sbx?.release();
+    }
   });
 
   app.onError((err, c) => {

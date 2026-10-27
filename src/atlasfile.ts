@@ -99,6 +99,7 @@ const betSchema = z
     sealedAt: iso,
     sealedHash: sha,
     rationale: z.string().optional(),
+    repeat: z.literal(true).optional(),
   })
   .strict();
 
@@ -108,7 +109,13 @@ const experimentSchema = z
     target: targetSchema,
     runner: z.enum(["ts", "evm"]),
     params: z.object({ shape: z.string() }).loose(),
-    proposedBy: z.object({ role: z.enum(["claimant", "adversary", "human"]), model: z.string().optional() }).strict(),
+    proposedBy: z
+      .object({
+        role: z.enum(["claimant", "adversary", "human", "investigator"]),
+        model: z.string().optional(),
+        editedFrom: z.object({ model: z.string().min(1), proposalId: z.string().min(1) }).strict().optional(),
+      })
+      .strict(),
     gate: z.union([z.object({ allowed: z.literal(true) }).strict(), z.object({ allowed: z.literal(false), reason: z.string() }).strict()]),
   })
   .strict();
@@ -502,10 +509,20 @@ export function callRunAgreesWithItsTrace(r: Run): string[] {
   if (end.event !== "returned" && end.event !== "threw" && "virtualMs" in m) out.push("measured virtualMs is set, but the call did not settle");
   const counts = new Map<string, number>();
   for (const t of r.trace) if (t.event === "stand_in_call") counts.set(String(asRecord(t.data).name), (counts.get(String(asRecord(t.data).name)) ?? 0) + 1);
+  // E3 review B4: a cut trace says how many calls of each stand-in it did not keep (the counts stay exact).
+  // A cut trace with no per-name tally (the Python harness writes only how many events it did not keep) cannot
+  // recount the calls; then the kept calls must not exceed the measured count.
+  let uncounted = false;
+  for (const t of r.trace) {
+    if (t.event !== "trace_cut") continue;
+    const d = asRecord(t.data);
+    if (d.droppedCalls === undefined) uncounted = true;
+    for (const [name, n] of Object.entries(asRecord(d.droppedCalls))) if (typeof n === "number") counts.set(name, (counts.get(name) ?? 0) + n);
+  }
   for (const [k, v] of Object.entries(m)) {
     if (!k.startsWith("calls:")) continue;
     const n = counts.get(k.slice("calls:".length)) ?? 0;
-    if (v !== n) out.push(`measured ${k} is ${JSON.stringify(v)}, but its trace has ${n} calls of that stand-in`);
+    if (uncounted ? !(typeof v === "number" && v >= n) : v !== n) out.push(`measured ${k} is ${JSON.stringify(v)}, but its trace has ${n} calls of that stand-in`);
   }
   return out;
 }
@@ -518,9 +535,17 @@ export function callRunAgreesWithItsTrace(r: Run): string[] {
  */
 export function callRunControlProblems(r: Run): string[] {
   const ev = r.trace.find((t) => t.event === "call_checks");
-  if (!ev) return [];
+  // E3 review r3 minor 2: every call run writes this line; without it the run's control cannot be checked.
+  if (!ev) return ["its trace has no call_checks line, so the control it relied on cannot be checked"];
   const d = asRecord(ev.data);
   const out: string[] = [];
+  if (d.controlRunId === undefined) out.push("its call_checks line names no control run");
+  if (d.controlFinishedAt === undefined) out.push("its call_checks line says not when its control finished");
+  if (d.controlPassed !== r.controlPassed) out.push(`its trace says the control ${d.controlPassed === true ? "passed" : "did not pass"}, but the run says ${r.controlPassed === true ? "it passed" : "it did not"}`);
+  const rt = asRecord(d.runtime);
+  if (d.runtime !== undefined && rt.executor !== r.executor) out.push(`its trace says it ran on ${String(rt.executor)}, but the run says ${r.executor}`);
+  // A Modal run always records the runtime Modal reported; a "modal" run without one did not run on Modal.
+  if (r.executor === "modal" && rt.executor !== "modal") out.push("the run says it ran on modal, but its trace has no Modal runtime");
   if (d.controlRunId !== undefined && d.controlRunId !== r.controlRunId) out.push(`its trace relied on control run ${String(d.controlRunId)}, but the run names ${String(r.controlRunId)}`);
   if (d.controlFinishedAt !== undefined) {
     const at = typeof d.controlFinishedAt === "string" ? Date.parse(d.controlFinishedAt) : NaN;

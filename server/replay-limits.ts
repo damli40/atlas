@@ -170,3 +170,22 @@ export function createHourlyLimit(perHour: number, what: string, now: () => numb
 
 /** The gate for POST /runs on the EVM runner (limits from ATLAS_RUNS_* by default). */
 export const createRunGate = (limits: ReplayLimits = runLimitsFromEnv(), now: () => number = Date.now): ReplayGate => createReplayGate(limits, now, "EVM run");
+
+/**
+ * E3 review B5: every sandbox start (TypeScript runs, sweeps, change replays and replays; fixture and pasted code
+ * alike) takes one of these slots. On Modal (D25) each start is a paid container, and pasted code is chosen by
+ * whoever pastes it, so starts are capped at once and per hour, per session, per client address and overall.
+ * Env ATLAS_SANDBOX_* (the same names as the run limits, with SANDBOX).
+ */
+export const DEFAULT_SANDBOX_LIMITS: Required<ReplayLimits> = { globalConcurrent: 4, globalPerHour: 1000, sessionConcurrent: 2, sessionPerHour: 120, ipConcurrent: 2, ipPerHour: 240, reservedForNewClients: 0 };
+const SANDBOX_ENV: Record<keyof ReplayLimits, string> = {
+  globalConcurrent: "ATLAS_SANDBOX_MAX_CONCURRENT",
+  globalPerHour: "ATLAS_SANDBOX_MAX_PER_HOUR",
+  sessionConcurrent: "ATLAS_SANDBOX_SESSION_MAX_CONCURRENT",
+  sessionPerHour: "ATLAS_SANDBOX_SESSION_MAX_PER_HOUR",
+  ipConcurrent: "ATLAS_SANDBOX_IP_MAX_CONCURRENT",
+  ipPerHour: "ATLAS_SANDBOX_IP_MAX_PER_HOUR",
+  reservedForNewClients: "ATLAS_SANDBOX_RESERVED_FOR_NEW_CLIENTS",
+};
+export const sandboxLimitsFromEnv = (env: Record<string, string | undefined> = process.env): ReplayLimits => limitsFromEnv(DEFAULT_SANDBOX_LIMITS, SANDBOX_ENV, env);
+export const createSandboxGate = (limits: ReplayLimits = sandboxLimitsFromEnv(), now: () => number = Date.now): ReplayGate => createReplayGate(limits, now, "sandbox run");

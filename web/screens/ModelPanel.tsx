@@ -7,6 +7,7 @@
 import type { Bet } from "../../src/types";
 import type { ModelSlotView } from "../api";
 import { ShortHash } from "./Bets";
+import { answerText } from "./Verdict";
 
 export function ModelSlotCard({ slot, revealed }: { slot: ModelSlotView | null; revealed: Bet[] | null }) {
   if (!slot) return null;
@@ -53,7 +54,7 @@ export function ModelSlotCard({ slot, revealed }: { slot: ModelSlotView | null; 
           <ul className="seals" data-testid="model-panel">
             {revealed.map((b) => (
               <li key={b.id} data-testid={`model-said-${b.measures}`}>
-                <b>{b.measures}</b>: {b.answer.kind === "declined" ? `declined (${b.answer.reason})` : String(b.answer.value)}
+                <b>{b.measures}</b>: {b.answer.kind === "declined" ? `declined (${b.answer.reason})` : b.answer.kind === "json" ? answerText(b) : String(b.answer.value)}
                 {b.rationale && <span className="muted"> · "{b.rationale}"</span>}
               </li>
             ))}

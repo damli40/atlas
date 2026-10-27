@@ -158,6 +158,15 @@ export interface Round {
   stoppedReason?: string;
   /** D22 (Moonwell rounds): the chain facts read at block 42194662 before any bet was asked for, or why there are none. */
   chainFacts?: ChainFactsResult;
+  /**
+   * E3 (pasted rounds): the bet screen's text (src/paste-context.ts); the page shows it and every betting model gets it
+   * (D19). E3 review r2 B3: kept as its test part (`seenHead`, shared by every round with the same text) and the
+   * file's key; the numbered file is joined on when the text is served (server/paste.ts fileBlock).
+   */
+  seenHead?: string;
+  seenFile?: { codeSha256: string; exportLine: number };
+  /** E3 review r2 M2: this round repeats a test already run in this session (that round's experiment id). */
+  repeatOf?: string;
 }
 
 /** How long a session holding sealed-but-unrun bets is kept safe from eviction, after its last use. */
@@ -320,7 +329,7 @@ export function checkAnswer(question: Question, answer: HumanBetBody["answer"]):
 
 /** Seal a checked human bet with the SERVER's clock and a fresh server nonce. */
 export function sealHumanBet(round: Round, question: Question, answer: BetAnswer, now: Date = new Date()): Bet {
-  return sealBet({ experimentId: round.experiment.id, who: "human", question: question.text, measures: question.measures, answer }, now);
+  return sealBet({ experimentId: round.experiment.id, who: "human", question: question.text, measures: question.measures, answer, ...(round.repeatOf ? { repeat: true as const } : {}) }, now);
 }
 
 /**

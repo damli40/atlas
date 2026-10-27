@@ -70,6 +70,14 @@ export function jsonBetValueProblem(value: unknown): string | null {
     return `the value is not plain JSON (${(e as Error).message.replace(/^canonicalJson: /, "")})`;
   }
   if (text.length > MAX_BET_JSON_CHARS) return `the value is ${text.length} characters as JSON; a run stores at most ${MAX_BET_JSON_CHARS}, so it could never match`;
+  // E3 review r3 minor 4: a whole number beyond 2^53 cannot be held exactly (9007199254740993 reads as …992), so a
+  // bet on it would be sealed and judged as a different number than the one written. Refused, for people and models.
+  const stack: unknown[] = [value];
+  while (stack.length > 0) {
+    const v = stack.pop();
+    if (typeof v === "number" && Number.isInteger(v) && !Number.isSafeInteger(v)) return `the value holds the whole number ${v}, beyond 2^53, which cannot be stored exactly, so it cannot be compared exactly`;
+    if (v && typeof v === "object") for (const x of Object.values(v)) stack.push(x);
+  }
   return null;
 }
 
@@ -191,7 +199,7 @@ export function sha256Hex(text: string): string {
 
 export type BetToSeal = Omit<Bet, "id" | "nonce" | "sealedAt" | "sealedHash"> & { id?: string };
 
-type SealedFields = Pick<Bet, "who" | "experimentId" | "question" | "measures" | "answer" | "nonce" | "sealedAt" | "rationale">;
+type SealedFields = Pick<Bet, "who" | "experimentId" | "question" | "measures" | "answer" | "nonce" | "sealedAt" | "rationale" | "repeat">;
 
 function sealPayload(bet: SealedFields) {
   return {
@@ -203,6 +211,8 @@ function sealPayload(bet: SealedFields) {
     nonce: bet.nonce,
     sealedAt: bet.sealedAt,
     ...(bet.rationale !== undefined ? { rationale: bet.rationale } : {}),
+    // Added E3 review r2 M2: sealed too, so a bet cannot be relabelled as a first look after the fact.
+    ...(bet.repeat === true ? { repeat: true } : {}),
   };
 }
 

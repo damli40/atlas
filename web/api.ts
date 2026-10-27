@@ -45,6 +45,10 @@ export interface ExperimentAnswer {
   models?: ModelSlotView[];
   /** D22 (Moonwell rounds): the chain facts read at block 42194662 before any bet, or why there are none. */
   chainFacts?: ChainFactsResult;
+  /** E3 (pasted rounds): the bet screen's text; every betting model gets exactly this (D19). */
+  seenContext?: string;
+  /** E3 review r2 M2: this test repeats one already run in the session (that experiment's id). */
+  repeatOf?: string;
 }
 
 export interface RunAnswer {
@@ -62,7 +66,42 @@ export interface RunAnswer {
   falseAlarm?: FalseAlarmRow[];
 }
 
-export type HumanAnswer = { kind: "integer"; value: number } | { kind: "enum"; value: string } | { kind: "number"; value: number };
+export type HumanAnswer = { kind: "integer"; value: number } | { kind: "enum"; value: string } | { kind: "number"; value: number } | { kind: "json"; value: unknown };
+
+/** E3: what POST /paste answers. */
+export interface PasteAnswer {
+  target: Pick<Target, "kind" | "ref" | "codeSha256" | "language">;
+  language: { chosen: "js" | "ts" | "py"; guessed: "js" | "ts" | "py"; why: string; chosenBy: "person" | "plain code" };
+  languages: PasteLanguage[];
+  runnable: boolean;
+  reason?: string;
+  exports: { name: string; line: number; declaredAs: string }[];
+  cantCheck: string | null;
+  lines: number;
+}
+export interface PasteLanguage {
+  language: "js" | "ts" | "py";
+  name: string;
+  runnable: boolean;
+}
+/** E3: one of Muse Wonder's proposed tests. `says` is plain code's description (allowed tests only). */
+export interface ShownProposal {
+  id: string;
+  attempt: number;
+  params: unknown;
+  gate: { allowed: true } | { allowed: false; reason: string };
+  says?: string;
+}
+export interface ProposalsAnswer {
+  ok: boolean;
+  model: string;
+  display: string;
+  setId?: string;
+  reason?: string;
+  proposals: ShownProposal[];
+  claimHeld?: boolean;
+  usage?: { promptTokens: number; completionTokens: number; usd: number } | null;
+}
 
 const SESSION_HEADER = "x-atlas-session";
 
@@ -116,8 +155,29 @@ export const didNotFinish = (e: unknown): boolean => e instanceof ApiError && e.
 /** D07-01: the slots an answer carries: `models` when present, else the single `model`. */
 export const slotsOf = (a: { model?: ModelSlotView | null; models?: ModelSlotView[] }): ModelSlotView[] => (a.models && a.models.length > 0 ? a.models : a.model ? [a.model] : []);
 
-export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/api") {
-  let session: string | null = null;
+/**
+ * E3 review M4/B5: the paste flow's session is kept in this tab (sessionStorage), so the proof card it links to,
+ * opened in the same tab, is read and re-run as the session that pasted the code (others never get the source).
+ */
+export const PASTE_SESSION_KEY = "atlas-paste-session";
+export function storedSession(key: string): string | null {
+  try {
+    const s = globalThis.sessionStorage?.getItem(key) ?? null;
+    return s && /^[A-Za-z0-9_-]{1,64}$/.test(s) ? s : null;
+  } catch {
+    return null;
+  }
+}
+export function storeSession(key: string, s: string): void {
+  try {
+    globalThis.sessionStorage?.setItem(key, s);
+  } catch {
+    // no storage (private window, tests): the session lives as long as the page
+  }
+}
+
+export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/api", opts: { session?: string | null; onSession?: (s: string) => void } = {}) {
+  let session: string | null = opts.session ?? null;
   /** D07-01: who places the model's bets on the next experiment (the x-atlas-claimant header). */
   let claimant: ClaimantMode = DEFAULT_CLAIMANT_MODE;
   async function post<T>(path: string, body: unknown): Promise<T> {
@@ -125,7 +185,10 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
     if (session) headers[SESSION_HEADER] = session;
     if (claimant !== DEFAULT_CLAIMANT_MODE) headers[CLAIMANT_HEADER] = claimant;
     const res = await fetchFn(`${base}${path}`, { method: "POST", headers, body: JSON.stringify(body) });
-    session ??= res.headers.get(SESSION_HEADER);
+    if (session === null) {
+      session = res.headers.get(SESSION_HEADER);
+      if (session) opts.onSession?.(session);
+    }
     let json: (T & { error?: string }) | undefined;
     try {
       json = (await res.json()) as T & { error?: string };
@@ -138,7 +201,10 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
   async function get<T>(path: string): Promise<T> {
     // The replay route counts EVM replays per session and needs the header, so the page always sends
     // one: the server's, once it handed one back, else one made here (the server accepts any well-formed id).
-    session ??= newSessionId();
+    if (session === null) {
+      session = newSessionId();
+      opts.onSession?.(session);
+    }
     const res = await fetchFn(`${base}${path}`, { method: "GET", headers: { [SESSION_HEADER]: session } });
     let json: (T & { error?: string }) | undefined;
     try {
@@ -172,8 +238,8 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
     /** D04-04: lines a person picked themselves. */
     pickLines: (target: Target, file: string, lineStart: number, lineEnd: number) =>
       post<{ finding: Finding }>("/findings", { target: { ref: target.ref, codeSha256: target.codeSha256 }, file, lineStart, lineEnd }).then((r) => r.finding),
-    experiment: (target: Target, params: unknown, findingId?: string) =>
-      post<ExperimentAnswer>("/experiments", { target: { ref: target.ref, codeSha256: target.codeSha256 }, params, ...(findingId ? { findingId } : {}) }),
+    experiment: (target: Pick<Target, "ref" | "codeSha256">, params: unknown, findingId?: string, editedFrom?: string) =>
+      post<ExperimentAnswer>("/experiments", { target: { ref: target.ref, codeSha256: target.codeSha256 }, params, ...(findingId ? { findingId } : {}), ...(editedFrom ? { editedFrom } : {}) }),
     bet: (experimentId: string, measures: string, answer: HumanAnswer) =>
       post<{ bet: ShownBet }>("/bets", { experimentId, who: "human", measures, answer }).then((r) => r.bet),
     /**
@@ -190,6 +256,17 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
     modelSlots: (experimentId: string) =>
       post<{ model: ModelSlotView | null; models?: ModelSlotView[] }>(`/experiments/${encodeURIComponent(experimentId)}/model-bets`, {}).then(slotsOf),
     run: (experimentId: string) => post<RunAnswer>("/runs", { experimentId }),
+    /** E3: which languages this server runs (a language with no runner shows as "coming"). */
+    pasteLanguages: () => get<{ languages: PasteLanguage[]; maxBytes: number; executor: "local" | "modal"; privacy: string }>("/paste/languages"),
+    /** E3: one pasted file, kept in this session's memory on the server. */
+    paste: (code: string, language?: "js" | "ts" | "py") => post<PasteAnswer>("/paste", { code, ...(language ? { language } : {}) }),
+    /** E3: Muse Wonder proposes up to 3 tests for one export; the gate checks each. */
+    proposals: (target: Pick<Target, "ref" | "codeSha256">, exportName: string) => post<ProposalsAnswer>("/paste/proposals", { target: { ref: target.ref, codeSha256: target.codeSha256 }, exportName }),
+    /** E3: a test Muse Wonder proposed, used as proposed. */
+    experimentFromProposal: (target: Pick<Target, "ref" | "codeSha256">, proposalId: string) =>
+      post<ExperimentAnswer>("/experiments", { target: { ref: target.ref, codeSha256: target.codeSha256 }, proposalId }),
+    /** E3: Muse Wonder's sentence, once the person's bets on this experiment are sealed. */
+    claim: (experimentId: string) => post<{ model: string; display: string; claim: string }>("/paste/claim", { experimentId }),
     /** D06-01: Muse Code proposes a change toward the bets; the same experiment re-runs; the same bets are judged. */
     change: (runId: string) => post<ChangeAnswer>("/changes", { runId }),
     /** D07-02: "what else?": the Adversary proposes one more experiment; Atlas runs it with no click. */

@@ -714,9 +714,16 @@ def main(key_text):
 
     TRACE_MAX = 5000
 
+    # E3 review r3 M1: the endings (and the start) are always kept past the cap, as in the JavaScript harness, so a
+    # cut trace still says how the call ended and the proof file verifies. Dropped stand-in calls are tallied per name.
+    ALWAYS_KEPT = ("python", "start", "returned", "threw", "never_settled", "still_running_at_watch_limit", "stopped_watching", "stopped_watching_after_settle")
+
     def emit(ctx, event, data=None):
-        if len(ctx["trace"]) >= TRACE_MAX:
+        if len(ctx["trace"]) >= TRACE_MAX and event not in ALWAYS_KEPT:
             ctx["traceCut"] = ctx.get("traceCut", 0) + 1  # counts stay exact; only the event list is cut
+            if event == "stand_in_call" and data is not None and type(data.get("name")) is str:
+                dropped = ctx.setdefault("droppedCalls", {})
+                dropped[data["name"]] = dropped.get(data["name"], 0) + 1
             return
         ev = {"t": ms(ctx["clock"]), "event": event}
         if data is not None:
@@ -1081,7 +1088,7 @@ def main(key_text):
                 return None
 
         if ctx.get("traceCut"):
-            ctx["trace"].append({"t": ms(ctx["clock"]), "event": "trace_cut", "data": {"eventsNotKept": ctx["traceCut"], "kept": TRACE_MAX}})
+            ctx["trace"].append({"t": ms(ctx["clock"]), "event": "trace_cut", "data": {"eventsNotKept": ctx["traceCut"], "kept": len(ctx["trace"]), "droppedCalls": dict(ctx.get("droppedCalls", {}))}})
         if settled is None and stop is None and limit:
             emit(ctx, "still_running_at_watch_limit")
         elif settled is None and stop is not None:

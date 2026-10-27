@@ -96,10 +96,12 @@ export interface ScoreboardProps {
   who?: boolean;
   /** D07-04: the mark's drawn size in px (CSS may still scale it). */
   size?: number;
+  /** E3: how a question is printed under its mark (default: as the bet holds it). Pasted rounds drop the call description. */
+  caption?: (question: string) => string;
 }
 
 /** One mark per question, each with its question underneath (the question text is the bet's own). */
-export function Scoreboard({ verdicts, bets, names, still, who = true, size }: ScoreboardProps) {
+export function Scoreboard({ verdicts, bets, names, still, who = true, size, caption }: ScoreboardProps) {
   const asked = useStill();
   const calm = still ?? asked;
   const marks = scoreboardMarks(verdicts, bets);
@@ -120,7 +122,7 @@ export function Scoreboard({ verdicts, bets, names, still, who = true, size }: S
               ))}
             </ul>
           )}
-          <figcaption className="muted small">{m.question}</figcaption>
+          <figcaption className="muted small">{caption ? caption(m.question) : m.question}</figcaption>
         </figure>
       ))}
     </div>
