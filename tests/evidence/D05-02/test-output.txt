@@ -1,0 +1,7 @@
+ ✓ tests/unit/machines-retry.test.tsx > D05-02 retry machine > model.ts imports nothing but the types of its input 2ms
+ ✓ tests/unit/machines-retry.test.tsx > D05-02 retry machine > parts manifest: 40–80 parts, every drawn part is listed and every listed part is drawn, none forbidden 29ms
+ ✓ tests/unit/machines-retry.test.tsx > D05-02 retry machine > S3 real run: the readout prints calls 5, waits 4 × 3,000 ms, threw the 5th error, the same as the trace 18ms
+ ✓ tests/unit/machines-retry.test.tsx > D05-02 retry machine > S6 real run: the lever never moves, 0 retries, and how it ended is a caption under the card 8ms
+ ✓ tests/unit/machines-retry.test.tsx > D05-02 retry machine > a run stopped at Atlas's watch limit says so as a caption, with 0 retries so far 1ms
+ ✓ tests/unit/machines-retry.test.tsx > D05-02 retry machine > ghost markers are drawn from Bet[] only: none without bets; person solid and model ring from the D04-04 bets 19ms
+ ✓ tests/unit/machines-retry.test.tsx > D05-02 retry machine > reduced motion: the first paint is the end state (every capsule in its slot, final readout) 44ms
