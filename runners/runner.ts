@@ -20,7 +20,31 @@ export interface Executor {
     stdin?: string;
     wallClockMs: number;                    // the harness's OWN limit; the code under test has none
     allowNetwork: false | { hosts: string[] };  // evm: only the anvil port on localhost
-  }): Promise<{ stdout: string; stderr: string; exitCode: number | null; timedOut: boolean; durationMs: number }>;
+  }): Promise<{
+    stdout: string;
+    stderr: string;
+    exitCode: number | null;
+    timedOut: boolean;
+    durationMs: number;
+    /**
+     * Added E4: where the command actually ran, as measured by the executor (not as configured). Optional so older
+     * fakes and executors still type-check; the call-function runner copies it into the run's trace.
+     */
+    runtime?: ExecRuntime;
+  }>;
+}
+
+/** Added E4: the place and the exact versions a command ran with. */
+export interface ExecRuntime {
+  executor: "local" | "modal";
+  /** `process.version` of the node that ran the command, e.g. "v25.8.1". */
+  node: string;
+  /** `python3 --version` inside the Modal image, e.g. "Python 3.14.7" (Modal only). */
+  python?: string;
+  /** The Modal image the sandbox was made from (base image digest + the pinned Node tarball). */
+  image?: string;
+  /** Modal's id of the throwaway sandbox (one per exec). */
+  sandboxId?: string;
 }
 
 export type ExecRequest = Parameters<Executor["exec"]>[0];

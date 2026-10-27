@@ -23,7 +23,7 @@ import { gate } from "../../src/gate.ts";
 import { staticRefusal } from "../../src/pasted-code.ts";
 import type { ArgSpec, Experiment, ExperimentShape, JsonValue, Run, Target, TraceEvent } from "../../src/types.ts";
 import { localExecutor } from "../executor/local.ts";
-import type { Executor } from "../runner.ts";
+import type { ExecRuntime, Executor } from "../runner.ts";
 import { CALL_DEFAULT_WATCH_LIMIT_MS, type CallRunRequest, type CallWorkerRequest, type CallWorkerResponse, type WireArg } from "./call-harness.ts";
 import { BUILTINS_CHANGED_REASON, RESULT_MARKER } from "./harness.ts";
 
@@ -74,9 +74,13 @@ function runRequest(id: string, p: CallShape): CallRunRequest {
   return { id, exportName: p.exportName, args: toWire(p.args), watchLimitMs: p.watchLimitMs ?? CALL_DEFAULT_WATCH_LIMIT_MS };
 }
 
-type CallAnswer =
+type CallAnswer = (
   | { ok: true; runs: NonNullable<CallWorkerResponse["runs"]> }
-  | { ok: false; reason: string; kind: "wholeRun" | "tampered" | "noResult" | "notStarted" };
+  | { ok: false; reason: string; kind: "wholeRun" | "tampered" | "noResult" | "notStarted" }
+) & {
+  /** E4: where the sandbox ran and with which versions, as the executor measured it (absent when it never started). */
+  runtime?: ExecRuntime;
+};
 
 function isRun(r: unknown): r is NonNullable<CallWorkerResponse["runs"]>[number] {
   if (!r || typeof r !== "object") return false;
@@ -135,6 +139,11 @@ export function parseCallWorkerOutput(stdout: string, key: string, expectedIds?:
 
 /** Runs the worker on `code` in the sandbox. */
 export async function runInSandbox(executor: Executor, code: string, language: "js" | "ts", request: Omit<CallWorkerRequest, "targetFile">, wallClockMs: number): Promise<CallAnswer> {
+  const answer = await sandboxAnswer(executor, code, language, request, wallClockMs);
+  return answer.res?.runtime ? { ...answer.parsed, runtime: answer.res.runtime } : answer.parsed;
+}
+
+async function sandboxAnswer(executor: Executor, code: string, language: "js" | "ts", request: Omit<CallWorkerRequest, "targetFile">, wallClockMs: number): Promise<{ parsed: CallAnswer; res?: Awaited<ReturnType<Executor["exec"]>> }> {
   const key = randomBytes(32).toString("hex"); // fresh per run; sent on stdin only
   const targetFile = language === "ts" ? "target.ts" : "target.mjs";
   const files: Record<string, string> = {};
@@ -151,18 +160,18 @@ export async function runInSandbox(executor: Executor, code: string, language: "
       allowNetwork: false,
     });
   } catch (e) {
-    return { ok: false, reason: `the sandbox could not start: ${(e as Error).message}`, kind: "notStarted" };
+    return { parsed: { ok: false, reason: `the sandbox could not start: ${(e as Error).message}`, kind: "notStarted" } };
   }
   if (res.timedOut) {
-    return { ok: false, reason: `the code ran past Atlas's ${wallClockMs} ms limit of REAL time (it may loop without ever handing control back), so Atlas stopped it`, kind: "noResult" };
+    return { res, parsed: { ok: false, reason: `the code ran past Atlas's ${wallClockMs} ms limit of REAL time (it may loop without ever handing control back), so Atlas stopped it`, kind: "noResult" } };
   }
   const parsed = parseCallWorkerOutput(res.stdout, key, request.runs.map((r) => r.id));
-  if (parsed.ok && res.exitCode !== 0) return { ok: false, reason: `tampering: the sandbox wrote a result but exited with code ${res.exitCode}`, kind: "tampered" };
+  if (parsed.ok && res.exitCode !== 0) return { res, parsed: { ok: false, reason: `tampering: the sandbox wrote a result but exited with code ${res.exitCode}`, kind: "tampered" } };
   if (!parsed.ok && parsed.kind === "noResult") {
     const err = res.stderr.trim().split("\n").filter((l) => /Error|error:|failed/.test(l)).slice(0, 2).join(" | ").replaceAll(/\/[^\s'"]*atlas-exec-[^\s/'"]*\/?/g, "<sandbox>/");
-    return { ok: false, reason: `the sandbox exited with code ${res.exitCode} and no result${err ? ` (${err.slice(0, 300)})` : ""}`, kind: "noResult" };
+    return { res, parsed: { ok: false, reason: `the sandbox exited with code ${res.exitCode} and no result${err ? ` (${err.slice(0, 300)})` : ""}`, kind: "noResult" } };
   }
-  return parsed;
+  return { res, parsed };
 }
 
 // ── the control ──────────────────────────────────────────────────────────────────────────────────
@@ -306,7 +315,8 @@ export async function runCallControl(opts: { executor?: Executor; wallClockMs?: 
   const controlPassed = reasons.length === 0;
   const reason = controlPassed ? undefined : reasons.join("; ");
   if (reason && notMeasured.control === undefined) notMeasured.control = `the known-case check did not match: ${reason}`;
-  trace.push({ t: 0, event: controlPassed ? "control_matched" : "control_did_not_match", data: reason ? { reason, harnessSha256: callHarnessSha256() } : { cases: CALL_CONTROL_CASES.map((c) => c.id), harnessSha256: callHarnessSha256() } });
+  const ran = res.runtime ? { runtime: res.runtime } : {};
+  trace.push({ t: 0, event: controlPassed ? "control_matched" : "control_did_not_match", data: reason ? { reason, harnessSha256: callHarnessSha256(), ...ran } : { cases: CALL_CONTROL_CASES.map((c) => c.id), harnessSha256: callHarnessSha256(), ...ran } });
   const run: Run = {
     id: nanoid(10),
     experimentId: CALL_CONTROL_ID,
@@ -347,6 +357,7 @@ export async function runCallExperiment(exp: Experiment, ctl: Run, opts: { execu
   const startedAt = new Date().toISOString();
   let result: Run["result"];
   let trace: TraceEvent[] = [];
+  let runtime: ExecRuntime | undefined;
   const refused = staticRefusal(source);
   if (refused) {
     result = { measured: {}, notMeasured: { wholeRun: refused } };
@@ -354,6 +365,7 @@ export async function runCallExperiment(exp: Experiment, ctl: Run, opts: { execu
   } else {
     const res = await runInSandbox(executor, source, language, { runs: [runRequest(exp.id, exp.params)] }, opts.wallClockMs ?? DEFAULT_WALL_CLOCK_MS);
     if (!res.ok && res.kind === "notStarted") throw new Error(res.reason);
+    runtime = res.runtime;
     const out = res.ok ? res.runs.find((r) => r.id === exp.id) : undefined;
     if (out) {
       result = out.result;
@@ -364,7 +376,7 @@ export async function runCallExperiment(exp: Experiment, ctl: Run, opts: { execu
       trace.push({ t: 0, event: "whole_run_cant_check", data: { reason: why } });
     }
   }
-  trace.push({ t: trace.length ? trace[trace.length - 1]!.t : 0, event: "call_checks", data: { harnessSha256: callHarnessSha256(), controlRunId: ctl.id, controlPassed: ctl.controlPassed === true } });
+  trace.push({ t: trace.length ? trace[trace.length - 1]!.t : 0, event: "call_checks", data: { harnessSha256: callHarnessSha256(), controlRunId: ctl.id, controlPassed: ctl.controlPassed === true, ...(runtime ? { runtime } : {}) } });
   if (ctl.controlPassed !== true) {
     const why = ctl.result.notMeasured.control;
     result.notMeasured.control = typeof why === "string" ? why : "the call-function known-case check did not pass";
