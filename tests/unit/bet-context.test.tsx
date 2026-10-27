@@ -173,6 +173,10 @@ describe("D19: what the bettor sees", () => {
     await until(() => $('[data-testid="hash-usd"]') !== null, "the sealed hash");
     await act(async () => byText("button", "Run it on a fork of Base")!.click());
     await until(() => $('[data-testid="run-facts"]') !== null, "the run");
+    // D05-03: the price pipe is drawn on the Moonwell run screen from the run that just came back.
+    const pipe = $('[data-testid="price-pipe"]');
+    expect(pipe).not.toBeNull();
+    expect(pipe!.querySelector("[data-readout]")!.textContent).toMatch(/^cbETH (read \$|: can't check)/);
     const prompt = calls[0]!.messages.map((m) => m.content).join("\n");
     for (const n of [...Object.values(RUN_NUMBERS), "1.12", "1,12", "2206", "2,206", "0.9999"]) expect(prompt).not.toContain(n);
     expect(prompt).not.toMatch(/\$\s?\d/); // no dollar amount at all
