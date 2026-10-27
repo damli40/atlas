@@ -39,6 +39,17 @@ describe("gate: every shape inside its bounds is allowed", () => {
     { shape: "apply-proposal-then-read", markets: ["WETH"] },
     { shape: "liquidatable-at-price", market: "cbETH", priceUsd1e18: "1120000000000000000" },
     { shape: "liquidatable-at-price", market: "USDC", priceUsd1e18: (1_000_000n * 10n ** 18n).toString() },
+    // E1: call-function at its smallest and at its bounds
+    { shape: "call-function", exportName: "f", args: [] },
+    {
+      shape: "call-function",
+      exportName: "f",
+      watchLimitMs: 600_000,
+      args: [
+        { kind: "json", value: { a: [1, "x", null, true] } },
+        { kind: "stand-in", name: "g", async: true, then: "throw_exhausted", calls: [{ do: "return", value: 1, afterMs: 600_000 }, { do: "throw", errorName: "E", message: "" }, { do: "never_settle" }] },
+      ],
+    },
   ];
   it.each(inside.map((p) => [p.shape, p] as const))("%s %j", (_name, params) => {
     const d = gate(params, EVM);

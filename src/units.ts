@@ -136,11 +136,25 @@ export function formatUsd1e18(value: bigint): string {
 // compared with a price stored in USD 1e18. A field missing from this table has no known unit, and
 // the judge will not compare a bet with it.
 
-/** "count" = a whole number of things; "ms" = milliseconds (virtual); "USD" = a price stored as USD 1e18; "enum" = one word from a fixed list. */
-export type MeasuredUnit = "count" | "ms" | "USD" | "enum";
+/**
+ * "count" = a whole number of things; "ms" = milliseconds (virtual); "USD" = a price stored as USD 1e18; "enum" = one
+ * word from a fixed list; "json" (added E1) = a value stored as canonical JSON text (src/seal.ts canonicalJson).
+ */
+export type MeasuredUnit = "count" | "ms" | "USD" | "enum" | "json";
 
-/** The outcome words, exactly as the TS harness writes them. Bets on `outcome` must use these. */
+/** The outcome words, exactly as the TS harness writes them for retry-scenario. Bets on `outcome` there use these. */
 export const OUTCOME_OPTIONS = ["returns", "throws", "pending"] as const;
+
+/**
+ * Added E1: the outcome words of a "call-function" run (runners/ts/call-harness.ts writes them). The field has the
+ * same name, `outcome`, so a bet must draw ALL its options from ONE of the two lists (src/judge.ts checks).
+ * "never_settled": still waiting with nothing left that could wake it. "still_running_at_watch_limit": still
+ * working (a timer was set) when Atlas's watch limit of virtual time ran out.
+ */
+export const CALL_OUTCOME_OPTIONS = ["returned", "threw", "never_settled", "still_running_at_watch_limit"] as const;
+
+/** Added E1: the prefix of a stand-in's call-count field, `calls:<standInName>`. */
+export const STAND_IN_CALLS_PREFIX = "calls:";
 
 /**
  * The ONE name of the settle-time field: the TS runner measures it (runners/ts/harness.ts writes
@@ -159,15 +173,28 @@ const FIELD_UNITS: Readonly<Record<string, MeasuredUnit>> = {
   totalWaitMs: "ms",
   settledAtMs: "ms",
   outcome: "enum",
+  // Added E1 ("call-function"). thrownName / thrownMessage / returnedType are measured but have no unit: no bet kind
+  // compares them yet, so the judge says "can't check" for a bet on them rather than guess a comparison.
+  returnedJson: "json",
+  virtualMs: "ms",
 };
 
-/** The fixed list of words an enum field can hold. */
+/** The fixed list of words an enum field can hold (retry-scenario's outcome words; kept for older callers). */
 export const ENUM_FIELD_OPTIONS: Readonly<Record<string, readonly string[]>> = {
   outcome: OUTCOME_OPTIONS,
+};
+
+/**
+ * Added E1: every fixed list an enum field can hold, one per runner shape. A bet's options must all come from
+ * one list (src/judge.ts), so a call-function bet ("returned") is never mixed with retry words ("returns").
+ */
+export const ENUM_FIELD_OPTION_SETS: Readonly<Record<string, readonly (readonly string[])[]>> = {
+  outcome: [OUTCOME_OPTIONS, CALL_OUTCOME_OPTIONS],
 };
 
 /** The unit of a measured field, or undefined when Atlas has none on file for it. */
 export function measuredUnit(field: string): MeasuredUnit | undefined {
   if (field.startsWith(PRICE_FIELD_PREFIX)) return "USD";
+  if (field.startsWith(STAND_IN_CALLS_PREFIX) && field.length > STAND_IN_CALLS_PREFIX.length) return "count";
   return Object.prototype.hasOwnProperty.call(FIELD_UNITS, field) ? FIELD_UNITS[field] : undefined;
 }

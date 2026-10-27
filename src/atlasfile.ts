@@ -35,8 +35,9 @@ import type { AgentEvent, AtlasFile, Bet, BettorSlot, Change, Experiment, Findin
 
 // The two level captions live in src/captions.ts (no Node imports), so the web page can use them
 // without loading this file, which reads the Moonwell copy from disk.
-import { LEVEL2_CAPTION, level1Caption } from "./captions";
+import { LEVEL2_CAPTION, PASTED_CAPTION, level1Caption } from "./captions";
 import { lineSpan } from "./words";
+import { pastedTargetProblems } from "./pasted-code";
 export { LEVEL2_CAPTION, level1Caption };
 /** M7: the two halves of the "chosen line" caption. Each half is earned from the file's findings (chosenLineCaptions). */
 export const CBETH_PICKED_BY_PERSON = "the cbETH line was picked by a person";
@@ -67,11 +68,14 @@ const scalar = z.union([z.string(), z.number(), z.boolean(), z.null()]);
 
 const targetSchema = z
   .object({
-    kind: z.enum(["ts-fixture", "github-pr"]),
+    kind: z.enum(["ts-fixture", "github-pr", "pasted"]),
     ref: z.string().min(1),
     codeSha256: sha,
     commit: z.string().regex(/^[0-9a-f]{40}$/).optional(),
     preExisting: z.object({ label: z.string().min(1), listedIn: z.literal("PRE-EXISTING.md") }).strict().optional(),
+    // E1: a pasted target carries its language and its source (verify recomputes the SHA-256 from it).
+    language: z.enum(["js", "ts", "py"]).optional(),
+    source: z.string().optional(),
   })
   .strict();
 
@@ -80,6 +84,7 @@ const answerSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("number"), value: z.number(), tolerancePct: z.number(), unit: z.string() }).strict(),
   z.object({ kind: z.literal("enum"), value: z.string(), options: z.array(z.string()) }).strict(),
   z.object({ kind: z.literal("declined"), reason: z.string() }).strict(),
+  z.object({ kind: z.literal("json"), value: z.json() }).strict(),
 ]);
 
 const betSchema = z
@@ -265,6 +270,7 @@ export function requiredCaptions(file: Pick<AtlasFile, "target" | "experiments" 
   const out: string[] = [];
   const pre = preExistingCaption(file.target);
   if (pre) out.push(pre);
+  if (file.target.kind === "pasted") out.push(PASTED_CAPTION);
   for (const run of file.runs) {
     if (run.runner !== "evm") continue;
     const exp = file.experiments.find((e) => e.id === run.experimentId);
@@ -472,6 +478,40 @@ export function tsRunAgreesWithItsTrace(r: Run): string[] {
   return out;
 }
 
+/**
+ * E1: a call-function run's measured values against its own trace (runners/ts/call-harness.ts writes both):
+ * one ending event, the outcome it names, its time as virtualMs, and each stand-in's call count equal to its
+ * `stand_in_call` events. A run whose runner wrote `wholeRun` measured nothing, and must not claim to.
+ */
+export function callRunAgreesWithItsTrace(r: Run): string[] {
+  const out: string[] = [];
+  const m = r.result.measured;
+  if (Object.prototype.hasOwnProperty.call(r.result.notMeasured, "wholeRun")) {
+    return Object.keys(m).length > 0 ? ["it says nothing in the run counts (wholeRun), but it has measured values"] : [];
+  }
+  // "stopped_watching": Atlas stopped before it could report how the call ended (even if it had settled).
+  if (r.trace.some((t) => t.event === "stopped_watching")) {
+    for (const k of ["outcome", "virtualMs", "returnedJson", "thrownName"]) if (k in m) out.push(`its trace says Atlas stopped watching, but measured ${k} is set`);
+    return out;
+  }
+  const ends = r.trace.filter((t) => ["returned", "threw", "never_settled", "still_running_at_watch_limit"].includes(t.event));
+  if (ends.length !== 1) return [`its trace has ${ends.length} ending events, not 1`];
+  const end = ends[0]!;
+  if (m.outcome !== end.event) out.push(`measured outcome is ${JSON.stringify(m.outcome ?? null)}, but its trace ends with ${end.event}`);
+  if ((end.event === "returned" || end.event === "threw") && m.virtualMs !== end.t) out.push(`measured virtualMs is ${JSON.stringify(m.virtualMs ?? null)}, but its trace settles at ${end.t}`);
+  if (end.event !== "returned" && end.event !== "threw" && "virtualMs" in m) out.push("measured virtualMs is set, but the call did not settle");
+  const counts = new Map<string, number>();
+  for (const t of r.trace) if (t.event === "stand_in_call") counts.set(String(asRecord(t.data).name), (counts.get(String(asRecord(t.data).name)) ?? 0) + 1);
+  for (const [k, v] of Object.entries(m)) {
+    if (!k.startsWith("calls:")) continue;
+    const n = counts.get(k.slice("calls:".length)) ?? 0;
+    if (v !== n) out.push(`measured ${k} is ${JSON.stringify(v)}, but its trace has ${n} calls of that stand-in`);
+  }
+  return out;
+}
+
+const isCallRun = (file: Pick<AtlasFile, "experiments">, r: Run) => r.runner === "ts" && file.experiments.find((e) => e.id === r.experimentId)?.params.shape === "call-function";
+
 const isRetryRun = (file: Pick<AtlasFile, "experiments">, r: Run) => r.runner === "ts" && file.experiments.find((e) => e.id === r.experimentId)?.params.shape === "retry-scenario";
 
 /** The file's Level 2 run (an EVM apply-proposal-then-read run), if it has one. */
@@ -492,6 +532,9 @@ export function verifyAtlasFile(raw: unknown): Verification {
   const say = (p: string) => problems.push(p);
 
   if (file.codeSha256 !== file.target.codeSha256) say("codeSha256 differs from target.codeSha256");
+  // E1: a pasted target's source must hash to its fingerprint and its ref must name that fingerprint.
+  for (const p of pastedTargetProblems(file.target)) say(p);
+  if (file.target.kind !== "pasted" && (file.target.source !== undefined || file.target.language !== undefined)) say("only a pasted target carries source and language");
   for (const e of file.experiments) {
     if (e.target.codeSha256 !== file.codeSha256 || e.target.ref !== file.target.ref) say(`experiment ${e.id} is about other code than the file's target`);
     if (!e.gate.allowed) say(`experiment ${e.id} was refused by the gate, so it has no run to replay`);
@@ -507,6 +550,7 @@ export function verifyAtlasFile(raw: unknown): Verification {
       if (r.seed === undefined) say(`TS run ${r.id} has no seed`);
       else if (file.seed !== r.seed) say(`TS run ${r.id} used seed ${r.seed}, the file says ${file.seed}`);
       if (isRetryRun(file, r)) for (const p of tsRunAgreesWithItsTrace(r)) say(`run ${r.id}: ${p}`);
+      if (isCallRun(file, r)) for (const p of callRunAgreesWithItsTrace(r)) say(`run ${r.id}: ${p}`);
     }
     if (Date.parse(r.finishedAt) < Date.parse(r.startedAt)) say(`run ${r.id} finished before it started`);
   }

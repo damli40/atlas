@@ -5,6 +5,8 @@
 // match, or the sandbox never finished the run, nothing from that run is shown as fact: no machine
 // motion, no readout numbers, no "Ask why" sentence. The page shows the reason instead.
 // Same rule as src/judge.ts step 1: only a strict `controlPassed === true` counts.
+// Added E1: a run whose runner wrote `notMeasured.wholeRun` (the code needed a package, the sandbox refused an
+// access, the export was missing, ...) is not shown as fact either; the page shows that reason.
 // Imports types only; no I/O, no clock, no model.
 
 import type { Run } from "./types";
@@ -30,6 +32,8 @@ export function notShownAsFact(run: Pick<Run, "controlPassed" | "trace" | "resul
           : "the run has no control result";
     return `Atlas's known-case check did not match, so this run is not shown as fact: ${reason}`;
   }
+  const whole = own(notMeasured, "wholeRun");
+  if (typeof whole === "string" && whole.trim()) return `Atlas could not check this run, so nothing from it is shown as fact: ${whole}`;
   const sandbox = own(notMeasured, "run");
   if (typeof sandbox === "string" && sandbox.trim()) return `The sandbox did not finish this run, so nothing from it is shown as fact: ${sandbox}`;
   if (!Array.isArray(run.trace) || run.trace.length === 0) return "The sandbox did not finish this run, so nothing from it is shown as fact: the run recorded no trace";

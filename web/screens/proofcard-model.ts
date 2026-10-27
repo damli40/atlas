@@ -9,7 +9,8 @@
 import { moonwellLevelOf } from "../../src/bet-context";
 import { verifySeal } from "../../src/seal";
 import { notShownAsFact } from "../../src/trust";
-import type { AtlasFile, Bet, BettorSlot, Outcome, Run } from "../../src/types";
+import type { AtlasFile, Bet, BettorSlot, Outcome, Run, TargetKind } from "../../src/types";
+import { canonicalJson } from "../../src/seal";
 import { AUTONOMOUS_PERSON_REASON, orderModelBettors } from "../../src/claimants";
 import { formatUsd1e18 } from "../../src/units";
 import { appliedFeedActions, forkEventsWarning, level2Header } from "../../src/captions";
@@ -34,7 +35,7 @@ export interface CardBet {
 export interface ProofCardModel {
   runId: string;
   createdAt: string;
-  target: { kind: "ts-fixture" | "github-pr"; ref: string; codeSha256: string; commit?: string };
+  target: { kind: TargetKind; ref: string; codeSha256: string; commit?: string };
   /** "seed tFjD64Wn2K (same seed = same run)" or "Base (chain 8453), fork block 42194662". */
   where: string;
   /** Level 2 / Level 1 for a Moonwell round, from the experiment's shape; absent otherwise. */
@@ -74,6 +75,9 @@ export function showAnswer(b: Pick<Bet, "answer">): string {
       return a.value;
     case "number":
       return a.unit === "USD" ? `$${a.value.toLocaleString("en-US")} (±${a.tolerancePct}%)` : `${a.value} ${a.unit} (±${a.tolerancePct}%)`;
+    case "json":
+      // E1: a JSON answer is printed as the judge compares it (canonical JSON).
+      return canonicalJson(a.value);
   }
 }
 

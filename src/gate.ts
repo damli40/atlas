@@ -12,8 +12,9 @@
 //
 // No I/O, no clock, no randomness.
 
-import type { BetAnswer, ExperimentShape, JsonValue } from "./types";
-import { OUTCOME_OPTIONS, SETTLE_FIELD, measuredUnit, type MeasuredUnit } from "./units";
+import type { ArgSpec, BetAnswer, ExperimentShape, JsonValue, StandInStep } from "./types";
+import { canonicalJson } from "./seal";
+import { CALL_OUTCOME_OPTIONS, OUTCOME_OPTIONS, SETTLE_FIELD, STAND_IN_CALLS_PREFIX, measuredUnit, type MeasuredUnit } from "./units";
 
 export type ShapeName = ExperimentShape["shape"];
 
@@ -23,6 +24,7 @@ export const ALL_SHAPES: readonly ShapeName[] = [
   "price-read",
   "apply-proposal-then-read",
   "liquidatable-at-price",
+  "call-function",
 ];
 
 /** What the gate needs to know about the target. */
@@ -33,6 +35,11 @@ export interface GateContext {
   touchedMarkets?: readonly string[];
   /** Shown in the rendered allow-list only: how long Atlas watches a run (virtual ms). The gate does not use it. */
   watchLimitMs?: number;
+  /**
+   * Added E1: the names a pasted file exports, found by plain code (src/pasted-code.ts). When set, a
+   * call-function experiment may only call one of them.
+   */
+  exportNames?: readonly string[];
 }
 
 /**
@@ -58,7 +65,26 @@ export const BOUNDS = {
   resolvesWithChars: 1_000,
   /** A price to test liquidation at, in USD 1e18 (a whole-number string): above 0, at most $1,000,000. */
   priceUsd1e18: { min: 1n, max: 1_000_000n * 10n ** 18n },
+  // ---- added E1: "call-function" ----
+  /** At most this many arguments. */
+  callArgs: 8,
+  /** The JSON values in the args (json args and stand-in return values) together, as canonical JSON. */
+  argsJsonChars: 4_096,
+  /** Steps a stand-in may have. */
+  standInSteps: { min: 1, max: 50 },
+  /** Atlas's watch limit in virtual ms. */
+  watchLimitMs: { min: 1, max: 600_000 },
+  /** A stand-in step's virtual delay. */
+  afterMs: { min: 0, max: 600_000 },
+  /** Lengths of the names and the message a person or model may write. */
+  exportNameChars: 100,
+  standInNameChars: 40,
+  errorNameChars: 60,
+  errorMessageChars: 500,
 } as const;
+
+/** Added E1: Atlas's default watch limit for a call-function run (virtual ms), as the any-code spec says. */
+export const CALL_DEFAULT_WATCH_LIMIT_MS = 30_000;
 
 type FieldSpec =
   | { kind: "int"; min: number; max: number; orAlways?: boolean }
@@ -66,7 +92,10 @@ type FieldSpec =
   | { kind: "json"; maxChars: number }
   | { kind: "markets"; allowTouchedWord: boolean }
   | { kind: "market" }
-  | { kind: "usd1e18"; min: bigint; max: bigint };
+  | { kind: "usd1e18"; min: bigint; max: bigint }
+  // Added E1
+  | { kind: "exportName" }
+  | { kind: "callArgs" };
 
 interface ShapeSpec {
   runner: "ts" | "evm";
@@ -132,6 +161,17 @@ export const SHAPES: Readonly<Record<ShapeName, ShapeSpec>> = {
     does: "sets one market's price and checks which positions could be liquidated",
     required: { market: { kind: "market" }, priceUsd1e18: { kind: "usd1e18", min: BOUNDS.priceUsd1e18.min, max: BOUNDS.priceUsd1e18.max } },
     optional: {},
+  },
+  "call-function": {
+    runner: "ts",
+    does: "calls one exported function of the pasted file once, with plain JSON arguments and stand-in functions Atlas controls",
+    required: { exportName: { kind: "exportName" }, args: { kind: "callArgs" } },
+    optional: { watchLimitMs: int(BOUNDS.watchLimitMs) },
+    notes: {
+      exportName: "the exported function to call",
+      args: `at most ${BOUNDS.callArgs}; each {"kind":"json","value":<JSON>} or a stand-in function {"kind":"stand-in","name":<identifier>,"async":<true|false>,"calls":[<1 to ${BOUNDS.standInSteps.max} steps>],"then":"repeat_last"|"throw_exhausted"}; a step is {"do":"return","value":<JSON>,"afterMs"?:<virtual ms, async only>} or {"do":"throw","errorName":<identifier>,"message":<text>} or {"do":"never_settle"} (async only)`,
+      watchLimitMs: `how long Atlas watches, in virtual ms (default ${CALL_DEFAULT_WATCH_LIMIT_MS})`,
+    },
   },
 };
 
@@ -199,7 +239,94 @@ function checkField(name: string, spec: FieldSpec, value: unknown, ctx: GateCont
       if (v < spec.min || v > spec.max) return `${name} ${value} is outside the allowed range (above 0, at most $1,000,000 in USD 1e18)`;
       return undefined;
     }
+    case "exportName": {
+      if (typeof value !== "string" || !IDENTIFIER.test(value) || value.length > BOUNDS.exportNameChars) {
+        return `${name} must be the name of an exported function (letters, digits, _ or $, at most ${BOUNDS.exportNameChars} characters); got ${show(value)}`;
+      }
+      if (ctx.exportNames && !ctx.exportNames.includes(value)) {
+        return ctx.exportNames.length === 0
+          ? `the pasted code exports nothing Atlas can call, so ${show(value)} cannot be called`
+          : `the pasted code does not export ${show(value)}; it exports ${ctx.exportNames.join(", ")}`;
+      }
+      return undefined;
+    }
+    case "callArgs":
+      return checkCallArgs(name, value);
   }
+}
+
+/** A JavaScript-style name: what a stand-in, an error name and an exported function may be called. */
+const IDENTIFIER = /^[A-Za-z_$][\w$]*$/;
+
+/** E1: the args of a call-function experiment, every bound checked; undefined when all are fine. */
+function checkCallArgs(name: string, value: unknown): string | undefined {
+  if (!Array.isArray(value)) return `${name} must be a list`;
+  if (value.length > BOUNDS.callArgs) return `${name} has ${value.length} arguments; the limit is ${BOUNDS.callArgs}`;
+  const jsonParts: JsonValue[] = [];
+  const names = new Set<string>();
+  for (let i = 0; i < value.length; i++) {
+    const a = value[i] as unknown;
+    const at = `${name}[${i}]`;
+    if (!isRecord(a)) return `${at} must be an object with a "kind" field`;
+    if (a.kind === "json") {
+      const extra = Object.keys(a).filter((k) => k !== "kind" && k !== "value");
+      if (extra.length) return `${at} (json) has no field ${extra.map(show).join(", ")}; its fields are kind, value`;
+      if (!Object.prototype.hasOwnProperty.call(a, "value")) return `${at} (json) needs value`;
+      if (!isJsonValue(a.value, 0)) return `${at}.value must be plain JSON (text, numbers, true/false, null, lists, objects)`;
+      jsonParts.push(a.value);
+      continue;
+    }
+    if (a.kind !== "stand-in") return `${at}.kind must be "json" or "stand-in"; got ${show(a.kind)}`;
+    const extra = Object.keys(a).filter((k) => !["kind", "name", "async", "calls", "then"].includes(k));
+    if (extra.length) return `${at} (stand-in) has no field ${extra.map(show).join(", ")}; its fields are kind, name, async, calls, then`;
+    if (typeof a.name !== "string" || !IDENTIFIER.test(a.name) || a.name.length > BOUNDS.standInNameChars) {
+      return `${at}.name must be a name (letters, digits, _ or $, at most ${BOUNDS.standInNameChars} characters); got ${show(a.name)}`;
+    }
+    if (names.has(a.name)) return `two stand-ins are named "${a.name}"; each needs its own name (its call count is measured by name)`;
+    names.add(a.name);
+    if (typeof a.async !== "boolean") return `${at}.async must be true or false`;
+    if (a.then !== "repeat_last" && a.then !== "throw_exhausted") return `${at}.then must be "repeat_last" or "throw_exhausted"; got ${show(a.then)}`;
+    if (!Array.isArray(a.calls) || a.calls.length < BOUNDS.standInSteps.min || a.calls.length > BOUNDS.standInSteps.max) {
+      return `${at}.calls must be a list of ${BOUNDS.standInSteps.min} to ${BOUNDS.standInSteps.max} steps`;
+    }
+    for (let j = 0; j < a.calls.length; j++) {
+      const s = a.calls[j] as unknown;
+      const sat = `${at}.calls[${j}]`;
+      if (!isRecord(s)) return `${sat} must be an object with a "do" field`;
+      const fields = (allowed: string[]) => {
+        const bad = Object.keys(s).filter((k) => !allowed.includes(k));
+        return bad.length ? `${sat} (${String(s.do)}) has no field ${bad.map(show).join(", ")}; its fields are ${allowed.join(", ")}` : undefined;
+      };
+      if (s.do === "return") {
+        const bad = fields(["do", "value", "afterMs"]);
+        if (bad) return bad;
+        if (!Object.prototype.hasOwnProperty.call(s, "value")) return `${sat} (return) needs value`;
+        if (!isJsonValue(s.value, 0)) return `${sat}.value must be plain JSON`;
+        jsonParts.push(s.value);
+        if (s.afterMs !== undefined) {
+          if (!a.async) return `${sat}.afterMs needs an async stand-in: a plain function returns at once, it cannot answer later`;
+          const why = checkField(`${sat}.afterMs`, int(BOUNDS.afterMs), s.afterMs, {});
+          if (why) return why;
+        }
+      } else if (s.do === "throw") {
+        const bad = fields(["do", "errorName", "message"]);
+        if (bad) return bad;
+        if (typeof s.errorName !== "string" || !IDENTIFIER.test(s.errorName) || s.errorName.length > BOUNDS.errorNameChars) {
+          return `${sat}.errorName must be a name like TimeoutError (letters, digits, _ or $, at most ${BOUNDS.errorNameChars} characters); got ${show(s.errorName)}`;
+        }
+        if (typeof s.message !== "string" || s.message.length > BOUNDS.errorMessageChars) return `${sat}.message must be text of at most ${BOUNDS.errorMessageChars} characters`;
+      } else if (s.do === "never_settle") {
+        const bad = fields(["do"]);
+        if (bad) return bad;
+        if (!a.async) return `${sat} never_settle needs an async stand-in: a plain function cannot leave its caller waiting`;
+      } else {
+        return `${sat}.do must be "return", "throw" or "never_settle"; got ${show(s.do)}`;
+      }
+    }
+  }
+  const chars = canonicalJson(jsonParts).length - 2 - Math.max(0, jsonParts.length - 1); // the values alone, without the list's brackets and commas
+  if (chars > BOUNDS.argsJsonChars) return `the JSON values in ${name} are ${chars} characters as canonical JSON; the limit is ${BOUNDS.argsJsonChars}`;
+  return undefined;
 }
 
 function isJsonValue(v: unknown, depth: number): v is JsonValue {
@@ -283,6 +410,61 @@ export const QUESTION_TEXT = {
 } as const;
 
 export const PRICE_TOLERANCE_PCT = 10;
+/** Added E1: a bet on a call-function run's virtual settle time must use this tolerance (share of the observed ms). */
+export const VIRTUAL_MS_TOLERANCE_PCT = 10;
+
+// ---------- E1: the call-function question text (plain code, from the gate-checked params) ----------
+
+/** JSON as it appears in a question: compact, and cut at 60 characters with "…" (the full value is in the experiment). */
+function shortJson(v: JsonValue): string {
+  const s = canonicalJson(v);
+  return s.length > 60 ? `${s.slice(0, 59)}…` : s;
+}
+
+function stepWords(step: StandInStep): string {
+  switch (step.do) {
+    case "return":
+      return `returns ${shortJson(step.value)}${step.afterMs ? ` after ${step.afterMs} ms` : ""}`;
+    case "throw":
+      return `throws ${step.errorName}${step.message ? ` ("${step.message.length > 60 ? `${step.message.slice(0, 59)}…` : step.message}")` : ""}`;
+    case "never_settle":
+      return "never answers";
+  }
+}
+
+/** "fetchRate (async) throws TimeoutError on call 1, then returns 42 on calls 2–3; any later call does the same as the last." */
+function standInWords(a: Extract<ArgSpec, { kind: "stand-in" }>): string {
+  const groups: { from: number; to: number; words: string }[] = [];
+  a.calls.forEach((step, i) => {
+    const words = stepWords(step);
+    const last = groups[groups.length - 1];
+    if (last && last.words === words) last.to = i + 1;
+    else groups.push({ from: i + 1, to: i + 1, words });
+  });
+  const parts = groups.map((g) => `${g.words} on call${g.from === g.to ? ` ${g.from}` : `s ${g.from}–${g.to}`}`);
+  const after = a.then === "repeat_last" ? `every later call ${groups[groups.length - 1]!.words.replace(/^returns/, "returns").trim()} too` : "any later call throws AtlasStandInExhausted";
+  return `${a.name}${a.async ? " (async)" : ""} ${parts.join(", then ")}; ${after}.`;
+}
+
+/** The sentence every call-function question starts with: what Atlas will call, and what each stand-in does. */
+export function describeCall(params: Extract<ExperimentShape, { shape: "call-function" }>): string {
+  const args = params.args.map((a) => (a.kind === "json" ? shortJson(a.value) : a.name)).join(", ");
+  const standIns = params.args.filter((a): a is Extract<ArgSpec, { kind: "stand-in" }> => a.kind === "stand-in").map(standInWords);
+  return [`Atlas calls ${params.exportName}(${args}).`, ...standIns].join(" ");
+}
+
+/** The questions about one call-function experiment, every text written here. */
+function callFunctionQuestions(params: Extract<ExperimentShape, { shape: "call-function" }>): Question[] {
+  const d = describeCall(params);
+  const fn = params.exportName;
+  const out: Question[] = [
+    q("outcome", `${d} What does ${fn} do?`, "enum", { options: CALL_OUTCOME_OPTIONS }),
+    q("returnedJson", `${d} If ${fn} returns, what value does it return, as JSON?`, "json"),
+    q("virtualMs", `${d} How long until ${fn} returns or throws, in ms of Atlas's virtual clock?`, "number", { tolerancePct: VIRTUAL_MS_TOLERANCE_PCT }),
+  ];
+  for (const a of params.args) if (a.kind === "stand-in") out.push(q(`${STAND_IN_CALLS_PREFIX}${a.name}`, `${d} How many times does ${fn} call ${a.name}?`, "integer"));
+  return out;
+}
 
 const priceQuestion = (market: string, after: boolean) =>
   after
@@ -328,6 +510,8 @@ export function questionsFor(params: ExperimentShape, ctx: GateContext = {}): Qu
       const after = params.shape === "apply-proposal-then-read";
       return markets.map((m) => q(`priceUsd1e18:${m}`, priceQuestion(m, after), "number", { tolerancePct: PRICE_TOLERANCE_PCT }));
     }
+    case "call-function":
+      return callFunctionQuestions(params);
     case "concurrency-sweep":
     case "liquidatable-at-price":
       return [];
@@ -354,6 +538,8 @@ export function answerTemplate(question: Question): string {
       return `{"kind":"enum","value":<one of ${(question.options ?? []).map((o) => `"${o}"`).join(" | ")}>,"options":${JSON.stringify(question.options ?? [])}}`;
     case "number":
       return `{"kind":"number","value":<number>,"tolerancePct":${question.tolerancePct ?? PRICE_TOLERANCE_PCT},"unit":"${question.unit}"}`;
+    case "json":
+      return `{"kind":"json","value":<any JSON value>}`;
   }
 }
 
@@ -377,6 +563,10 @@ function renderField(name: string, spec: FieldSpec, ctx: GateContext): string {
     }
     case "usd1e18":
       return `${name}: whole-number string, USD x 1e18, above 0 and at most 1000000e18`;
+    case "exportName":
+      return `${name}: ${ctx.exportNames ? `one of [${ctx.exportNames.map((n) => `"${n}"`).join(", ") || "(none)"}]` : "an exported function's name"}`;
+    case "callArgs":
+      return `${name}: list of arguments`;
   }
 }
 
@@ -396,7 +586,10 @@ export function renderAllowList(ctx: GateContext = {}): string {
     const note = (f: string) => (spec.notes?.[f] ? ` (${spec.notes[f]})` : "");
     for (const [f, fs] of Object.entries(spec.required)) lines.push(`  required ${renderField(f, fs, ctx)}${note(f)}`);
     for (const [f, fs] of Object.entries(spec.optional)) lines.push(`  optional ${renderField(f, fs, ctx)}${note(f)}`);
-    if (spec.runner === "ts" && ctx.watchLimitMs !== undefined) {
+    if (name === "call-function") {
+      lines.push(`  Atlas's clock is virtual: waits (setTimeout, a stand-in's afterMs) cost no real time. Atlas watches for at most watchLimitMs of virtual time (default ${CALL_DEFAULT_WATCH_LIMIT_MS}).`);
+      lines.push(`  How a call ends is one of ${CALL_OUTCOME_OPTIONS.map((o) => `"${o}"`).join(", ")}. "never_settled": still waiting with nothing left that could wake it. "still_running_at_watch_limit": still working when the watch limit ran out.`);
+    } else if (spec.runner === "ts" && ctx.watchLimitMs !== undefined) {
       lines.push(`  Atlas's clock is virtual: waits cost no real time. Atlas watches a run for at most ${ctx.watchLimitMs} ms of virtual time.`);
       lines.push(`  Two different endings: a run where the function provably can never finish (it is still waiting and nothing is left that could wake it: no timers, no pending work) is measured, with outcome "pending". A run that Atlas's watch limit cuts off before the end is "can't check".`);
     }

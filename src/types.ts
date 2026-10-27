@@ -2,10 +2,10 @@
 // All on-chain numbers are decimal strings of integers (bigint-safe), never JS numbers.
 
 import type { FalseAlarmRow, PassRuleLine } from "./falsealarm";
-export type TargetKind = "ts-fixture" | "github-pr";
+export type TargetKind = "ts-fixture" | "github-pr" | "pasted";
 export interface Target {
   kind: TargetKind;
-  /** ts-fixture: path inside tests/fixtures; github-pr: owner/repo#number */
+  /** ts-fixture: path inside tests/fixtures; github-pr: owner/repo#number; pasted: "pasted:<first 12 hex of codeSha256>" */
   ref: string;
   /** SHA-256 of the exact bytes Atlas read (file, or the concatenated PR files in path order). */
   codeSha256: string;
@@ -13,6 +13,10 @@ export interface Target {
   commit?: string;
   /** Label shown on screen when the target predates Oct 27 (PRE-EXISTING.md). */
   preExisting?: { label: string; listedIn: "PRE-EXISTING.md" };
+  /** Added E1 (any-code spec): pasted only. The language of the pasted file. */
+  language?: "js" | "ts" | "py";
+  /** Added E1: pasted only. The pasted file itself (one file, at most 64 KB), so a run can be replayed and verified. */
+  source?: string;
 }
 
 export type FindingKind = "retry" | "price" | "other";
@@ -36,6 +40,7 @@ export type BetAnswer =
   | { kind: "integer"; value: number }                                   // exact match
   | { kind: "number"; value: number; tolerancePct: number; unit: string } // |run - value| <= tolerancePct% of run
   | { kind: "enum"; value: string; options: string[] }                   // exact match
+  | { kind: "json"; value: JsonValue }                                   // Added E1: canonical-JSON equality (returnedJson)
   | { kind: "declined"; reason: string };                                // the bettor would not guess → verdict "cant_check"
 
 export interface Bet {
@@ -68,10 +73,41 @@ export type ExperimentShape =
       resolvesWith?: JsonValue;
     }
   | { shape: "concurrency-sweep"; callers: number; failTimes: number | "always"; failure: "error"; delayMs?: number }  // callers 1..200
+  // Added E1 (any-code spec): call one exported function of a pasted file with JSON args and stand-ins.
+  | {
+      shape: "call-function";
+      /** An exported function of the pasted file, found by plain code (src/pasted-code.ts). */
+      exportName: string;
+      /** At most 8. The JSON values in them total at most 4 KB as canonical JSON. */
+      args: ArgSpec[];
+      /** Atlas's watch limit in VIRTUAL ms. Default 30_000, at most 600_000. */
+      watchLimitMs?: number;
+    }
   // EVM runner
   | { shape: "price-read"; markets: string[] }                                   // read getUnderlyingPrice at the fork block
   | { shape: "apply-proposal-then-read"; markets: string[] | "touched" }         // Level 2
   | { shape: "liquidatable-at-price"; market: string; priceUsd1e18: string };    // cut first if time slips
+
+/**
+ * Added E1: one argument of a "call-function" experiment. A stand-in is a fake function passed as an argument
+ * (the general form of retry-scenario's fake RPC). Its name is for display only.
+ */
+export type ArgSpec =
+  | { kind: "json"; value: JsonValue }
+  | {
+      kind: "stand-in";
+      name: string;
+      async: boolean;
+      /** 1..50 steps, used in call order. */
+      calls: StandInStep[];
+      /** After the last step: do the last step again, or throw (AtlasStandInExhausted). */
+      then: "repeat_last" | "throw_exhausted";
+    };
+/** What a stand-in does on one call. afterMs (virtual) and never_settle are for async stand-ins only. */
+export type StandInStep =
+  | { do: "return"; value: JsonValue; afterMs?: number }
+  | { do: "throw"; errorName: string; message: string }
+  | { do: "never_settle" };
 
 export interface Experiment {
   id: string;
@@ -88,7 +124,11 @@ export interface TraceEvent { t: number; event: string; data?: Record<string, un
 export interface RunResult {
   /** Every field here was MEASURED by the runner. A field absent = not measured = "cant_check". */
   measured: Record<string, string | number | boolean | null>;
-  /** Fields the runner knows it did NOT measure, with why (shown as "can't check: <why>"). */
+  /**
+   * Fields the runner knows it did NOT measure, with why (shown as "can't check: <why>").
+   * Added E1: the key `wholeRun` means nothing in the run counts (the code needs a package, the sandbox refused
+   * an access, the export is missing, ...). Every verdict on such a run is "cant_check" with that reason.
+   */
   notMeasured: Record<string, string>;
   /** EVM: independent references computed by plain code at the same block, e.g. "refUsd1e18:cbETH". */
   references?: Record<string, { value: string; method: string }>;

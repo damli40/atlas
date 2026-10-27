@@ -17,7 +17,7 @@
 //
 // No I/O, no clock, no model.
 
-import type { GateContext } from "./gate";
+import { CALL_DEFAULT_WATCH_LIMIT_MS, type GateContext } from "./gate";
 import type { ExperimentShape } from "./types";
 import { SUCCESS_VALUE } from "../runners/ts/shapes";
 
@@ -63,6 +63,7 @@ function withDefaults(params: ExperimentShape, fn: FunctionDefaults): Record<str
     if (params.failTimes !== "always") fill("resolvesWith", HARNESS_DEFAULTS.resolvesWith);
   }
   if (params.shape === "concurrency-sweep") fill("delayMs", fn.delayMs);
+  if (params.shape === "call-function") fill("watchLimitMs", CALL_DEFAULT_WATCH_LIMIT_MS);
   // Day-7 review M1: with failTimes 0 no call fails, so how a failing call would fail never happens: the
   // harness never reads `failure` (runners/ts/harness.ts). Provably the same run, so the same experiment.
   // attempts and delayMs are NOT merged: they go into the code under test, which may use them any way.
@@ -94,6 +95,14 @@ export function experimentName(params: ExperimentShape): string {
     case "liquidatable-at-price":
       parts.push(`market ${params.market}`, `priceUsd1e18 ${params.priceUsd1e18}`);
       break;
+    case "call-function": {
+      // E1: the export name is gate-checked against the file's exports; stand-in names and JSON values are
+      // free text, so only their counts are printed.
+      const standIns = params.args.filter((a) => a.kind === "stand-in").length;
+      parts.push(`exportName ${params.exportName}`, `${params.args.length} args (${params.args.length - standIns} JSON, ${standIns} stand-in)`);
+      if (params.watchLimitMs !== undefined) parts.push(`watchLimitMs ${params.watchLimitMs}`);
+      break;
+    }
   }
   return parts.join(" · ");
 }

@@ -10,13 +10,20 @@
 // It refuses (cant_check) when:
 // - the run's control did not pass, or there is no control result (only controlPassed === true counts);
 // - the bet's kind or unit is not the measured field's unit (src/units.ts holds the one table);
-// - an enum bet's answer, or the observed value, is not one of the bet's options.
+// - an enum bet's answer, or the observed value, is not one of the bet's options;
+// - (added E1) the run says nothing in it counts (`notMeasured.wholeRun`: the code needed a package, the
+//   sandbox refused an access, the export was missing, ...): every bet on it, whatever it is about;
+// - (added E1) a json bet's value is not plain JSON, or the run stored the field as anything but JSON text.
+//
+// A json bet matches when its value, written as canonical JSON (src/seal.ts), is exactly the text the
+// runner stored. Canonical JSON sorts keys, so {"a":1,"b":2} and {"b":2,"a":1} are the same answer.
 //
 // Tolerance is a share of the OBSERVED value. So when the observed value is 0, only a bet of
 // exactly 0 can match, at any tolerance; this follows from the rule and is intended.
 
 import type { Bet, Run, Verdict } from "./types";
-import { ENUM_FIELD_OPTIONS, alignDecimals, measuredUnit, parseExactDecimal, usdToUsd1e18, type ExactDecimal } from "./units";
+import { canonicalJson } from "./seal";
+import { ENUM_FIELD_OPTION_SETS, alignDecimals, measuredUnit, parseExactDecimal, usdToUsd1e18, type ExactDecimal } from "./units";
 
 const USD_1E18_PREFIX = "priceUsd1e18:";
 const REF_USD_1E18_PREFIX = "refUsd1e18:";
@@ -68,6 +75,9 @@ export function judge(bet: Bet, run: Run): Verdict {
     if (typeof why === "string") return cantCheck(`the run is not trusted: ${why}`);
     return cantCheck(run.controlPassed === false ? "control run did not match the known case" : "the run has no control result (controlPassed is not true)");
   }
+  // 1a. Added E1: the runner says nothing in this run counts. Same answer for every bet on it.
+  const wholeRun = own(run.result?.notMeasured, "wholeRun");
+  if (typeof wholeRun === "string") return cantCheck(wholeRun);
   // 1b. A bet can only be judged against a run of the experiment it was placed on.
   if (bet.experimentId !== run.experimentId) {
     return cantCheck("the bet is for a different experiment than this run");
@@ -104,7 +114,7 @@ export function judge(bet: Bet, run: Run): Verdict {
   // 5. Units: the bet must be in the field's own unit (src/units.ts).
   const unit = measuredUnit(field);
   if (unit === undefined) return cantCheck(`Atlas has no unit on file for ${field}, so a bet on it cannot be compared`, observed, reference);
-  const betUnit = answer.kind === "integer" ? "whole number" : answer.kind === "enum" ? "enum" : answer.unit;
+  const betUnit = answer.kind === "integer" ? "whole number" : answer.kind === "enum" ? "enum" : answer.kind === "json" ? "json" : answer.unit;
   const unitFits = answer.kind === "integer" ? unit === "count" || unit === "ms" : betUnit === unit;
   if (!unitFits) return cantCheck(`bet unit "${betUnit}" does not match measured unit "${unit}"`, observed, reference);
 
@@ -124,10 +134,16 @@ export function judge(bet: Bet, run: Run): Verdict {
     case "enum": {
       if (typeof observed !== "string") return unreadable("text");
       const options = Array.isArray(answer.options) ? answer.options : [];
-      const allowed = own(ENUM_FIELD_OPTIONS, field);
-      const unknown = allowed ? options.find((o) => !allowed.includes(o)) : undefined;
-      if (unknown !== undefined) {
-        return cantCheck(`the bet's options include "${unknown}", which the runner never reports (it reports ${allowed!.join(", ")})`, observed, reference);
+      // E1: a field may have more than one fixed list (one per shape); the bet's options must all come from ONE.
+      const sets = own(ENUM_FIELD_OPTION_SETS, field);
+      if (sets) {
+        const fits = sets.find((set) => options.every((o) => set.includes(o)));
+        if (!fits) {
+          // Name the list closest to the bet (most options in common), as before when there was one list.
+          const closest = [...sets].sort((a, b) => options.filter((o) => b.includes(o)).length - options.filter((o) => a.includes(o)).length)[0]!;
+          const unknown = options.find((o) => !closest.includes(o));
+          return cantCheck(`the bet's options include "${unknown}", which the runner never reports (it reports ${closest.join(", ")})`, observed, reference);
+        }
       }
       if (!options.includes(answer.value)) return cantCheck("the bet's answer is not one of its own options", observed, reference);
       if (!options.includes(observed)) return cantCheck("observed value is not one of the options", observed, reference);
@@ -175,6 +191,18 @@ export function judge(bet: Bet, run: Run): Verdict {
         return cantCheck("the bet is not a number", observed, reference);
       }
       return decided(withinTolerance(obs, val, tolerance));
+    }
+
+    case "json": {
+      // E1: the runner stores the value as canonical JSON text; the bet's value is written the same way.
+      if (typeof observed !== "string") return unreadable("JSON text");
+      let want: string;
+      try {
+        want = canonicalJson(answer.value);
+      } catch {
+        return cantCheck("the bet's value is not plain JSON", observed, reference);
+      }
+      return decided(observed === want);
     }
 
     default: {

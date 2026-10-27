@@ -10,6 +10,7 @@
 
 import { useState } from "react";
 import { notShownAsFact } from "../../src/trust";
+import { canonicalJson } from "../../src/seal";
 import { MOONWELL_LEVEL_SAYS, moonwellLevelOf } from "../../src/bet-context";
 import { LEVEL2_CAPTION, level1Caption } from "../../src/captions";
 import type { Question } from "../../src/gate";
@@ -38,6 +39,8 @@ export interface AutonomousRound {
 function answerText(b: Bet, format: FormatValue): string {
   if (b.answer.kind === "declined") return "declined";
   if (b.answer.kind === "number") return `${b.answer.value} ${b.answer.unit} (±${b.answer.tolerancePct}%)`;
+  // E1: a JSON answer is printed as the judge compares it (canonical JSON).
+  if (b.answer.kind === "json") return canonicalJson(b.answer.value);
   return format(b.measures, b.answer.value);
 }
 
