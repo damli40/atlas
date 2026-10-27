@@ -1,0 +1,5 @@
+ ✓ tests/unit/machines-scoreboard.test.tsx > D05-01 scoreboard as the mark > person didn't match, model matched: the hollow dot fills, the solid dot's line stops short of the bar 18ms
+ ✓ tests/unit/machines-scoreboard.test.tsx > D05-01 scoreboard as the mark > person matched, model can't check: the person's line lands on the bar; the model is an outline with a level dash and a dashed faint line 3ms
+ ✓ tests/unit/machines-scoreboard.test.tsx > D05-01 scoreboard as the mark > prefers-reduced-motion: the end state on first paint, with no animation classes 3ms
+ ✓ tests/unit/machines-scoreboard.test.tsx > D05-01 scoreboard as the mark > is drawn from the verdicts only: a bettor with no judged bet gets a faint outline and no line 0ms
+ ✓ tests/unit/machines-scoreboard.test.tsx > D05-01 scoreboard as the mark > is wired into the verdict screen (both flows use it), one mark per question, from the real D04-04 round 6ms

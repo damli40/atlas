@@ -1,6 +1,7 @@
 // Screen 2: the "Break it" button and what the run was. Enabled only once bets are sealed.
 
 import type { RunAnswer } from "../api";
+import { RetryMachine } from "../machines/retry/RetryMachine";
 
 export interface RunProps {
   canRun: boolean;
@@ -40,6 +41,7 @@ export function RunScreen({ canRun, running, result, onBreak }: RunProps) {
           </dd>
         </dl>
       )}
+      {result && result.run.runner === "ts" && <RetryMachine run={result.run} bets={result.bets} verdicts={result.verdicts} />}
     </section>
   );
 }

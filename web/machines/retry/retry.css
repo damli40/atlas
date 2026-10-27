@@ -1,0 +1,33 @@
+/* The retry machine's own styles, scoped to .rm (Anatomy: figure tokens stay off :root). */
+.rm { margin: 16px 0; }
+.rm .iso-figure { margin: 0; }
+.rm .iso-plate-corner[data-corner="readout"] { white-space: normal; max-width: 62%; text-align: right; line-height: 1.35; }
+.rm .iso-legend { display: block; padding: 10px 2px 0; font-size: 13px; color: var(--anatomy-text); }
+.rm .iso-keys { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 6px; }
+.rm .iso-key { display: inline-flex; gap: 6px; align-items: center; }
+.rm .iso-swatch { width: 16px; height: 10px; }
+.rm-live:focus-visible { outline: 1px solid var(--anatomy-muted); outline-offset: 6px; }
+
+/* Capsule marks: shown only once the capsule has come back with that answer. */
+.rm-capsule .rm-mark-threw, .rm-capsule .rm-mark-returned { display: none; }
+.rm-capsule[data-shows="threw"] .rm-mark-threw { display: inline; }
+.rm-capsule[data-shows="returned"] .rm-mark-returned { display: inline; }
+.rm-capsule[data-lit] .rm-mark-threw .iso-line { stroke: var(--anatomy-lit); }
+.rm-capsule-halo { opacity: 0.5; }
+
+/* Counters: an empty hole, or a filled mark for each pull / each wait done. */
+.rm-pull-marks circle, .rm-turn-marks circle { fill: none; stroke: none; }
+.rm-pull-marks circle[data-on], .rm-turn-marks circle[data-on] { fill: var(--anatomy-hi); }
+
+/* The drum pointer is the lit accent only while the drum turns. */
+.rm-drum[data-turning] .rm-drum-pointer { stroke: var(--anatomy-lit); }
+
+/* Ghost markers: faint until the verdict; a matched bet's marker goes to the strong tone. */
+.rm-ghost[data-kind="person"] { fill: var(--anatomy-lo); }
+.rm-ghost[data-kind="person"][data-matched] { fill: var(--anatomy-hi); }
+.rm-ghost[data-kind="model"] { fill: none; }
+
+@media (max-width: 480px) {
+  .rm .iso-plate { padding: 44px 6px 78px; }
+  .rm .iso-plate-corner[data-corner="readout"] { max-width: 70%; }
+}

@@ -1,0 +1,745 @@
+[
+  {
+    "id": "S3",
+    "runId": "reH2bzAGbI",
+    "trace": [
+      {
+        "t": 0,
+        "event": "start",
+        "data": {
+          "label": "atlas-read"
+        }
+      },
+      {
+        "t": 0,
+        "event": "call",
+        "data": {
+          "n": 1
+        }
+      },
+      {
+        "t": 0,
+        "event": "reject",
+        "data": {
+          "n": 1,
+          "error": "BlockNotFoundError: Block at number 42194663 could not be found. (call 1)"
+        }
+      },
+      {
+        "t": 0,
+        "event": "log",
+        "data": {
+          "msg": "atlas-read: chain read failed (attempt 1/5, likely RPC lag) — retrying in 3s"
+        }
+      },
+      {
+        "t": 0,
+        "event": "sleep",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 3000,
+        "event": "wake",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 3000,
+        "event": "call",
+        "data": {
+          "n": 2
+        }
+      },
+      {
+        "t": 3000,
+        "event": "reject",
+        "data": {
+          "n": 2,
+          "error": "HttpRequestError: HTTP request failed. Status: 502 (call 2)"
+        }
+      },
+      {
+        "t": 3000,
+        "event": "log",
+        "data": {
+          "msg": "atlas-read: chain read failed (attempt 2/5, likely RPC lag) — retrying in 3s"
+        }
+      },
+      {
+        "t": 3000,
+        "event": "sleep",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 6000,
+        "event": "wake",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 6000,
+        "event": "call",
+        "data": {
+          "n": 3
+        }
+      },
+      {
+        "t": 6000,
+        "event": "reject",
+        "data": {
+          "n": 3,
+          "error": "InternalRpcError: An internal error was received. (code -32603) (call 3)"
+        }
+      },
+      {
+        "t": 6000,
+        "event": "log",
+        "data": {
+          "msg": "atlas-read: chain read failed (attempt 3/5, likely RPC lag) — retrying in 3s"
+        }
+      },
+      {
+        "t": 6000,
+        "event": "sleep",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 9000,
+        "event": "wake",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 9000,
+        "event": "call",
+        "data": {
+          "n": 4
+        }
+      },
+      {
+        "t": 9000,
+        "event": "reject",
+        "data": {
+          "n": 4,
+          "error": "InternalRpcError: An internal error was received. (code -32603) (call 4)"
+        }
+      },
+      {
+        "t": 9000,
+        "event": "log",
+        "data": {
+          "msg": "atlas-read: chain read failed (attempt 4/5, likely RPC lag) — retrying in 3s"
+        }
+      },
+      {
+        "t": 9000,
+        "event": "sleep",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 12000,
+        "event": "wake",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 12000,
+        "event": "call",
+        "data": {
+          "n": 5
+        }
+      },
+      {
+        "t": 12000,
+        "event": "reject",
+        "data": {
+          "n": 5,
+          "error": "TimeoutError: The request took too long to respond. (call 5)"
+        }
+      },
+      {
+        "t": 12000,
+        "event": "throws",
+        "data": {
+          "error": "TimeoutError: The request took too long to respond. (call 5)"
+        }
+      }
+    ],
+    "measured": {
+      "calls": 5,
+      "waitCount": 4,
+      "waitsMs": "3000,3000,3000,3000",
+      "logCount": 4,
+      "logAttempts": "1/5,2/5,3/5,4/5",
+      "totalWaitMs": 12000,
+      "outcome": "throws",
+      "settledAtMs": 12000,
+      "thrown": "TimeoutError: The request took too long to respond. (call 5)",
+      "thrownFromCall": 5
+    },
+    "bets": [
+      {
+        "who": "human",
+        "measures": "calls",
+        "answer": {
+          "kind": "integer",
+          "value": 5
+        }
+      },
+      {
+        "who": "human",
+        "measures": "totalWaitMs",
+        "answer": {
+          "kind": "integer",
+          "value": 12000
+        }
+      },
+      {
+        "who": "human",
+        "measures": "outcome",
+        "answer": {
+          "kind": "enum",
+          "value": "throws",
+          "options": [
+            "returns",
+            "throws",
+            "pending"
+          ]
+        }
+      }
+    ],
+    "verdicts": [
+      {
+        "betId": "jx4ycR7bsJ",
+        "outcome": "matched",
+        "observed": 5
+      },
+      {
+        "betId": "yJm8yOV-bT",
+        "outcome": "matched",
+        "observed": 12000
+      },
+      {
+        "betId": "ejgJ0t81u1",
+        "outcome": "matched",
+        "observed": "throws"
+      }
+    ]
+  },
+  {
+    "id": "S6",
+    "runId": "MWciDNv9Ij",
+    "trace": [
+      {
+        "t": 0,
+        "event": "start",
+        "data": {
+          "label": "atlas-read"
+        }
+      },
+      {
+        "t": 0,
+        "event": "call",
+        "data": {
+          "n": 1
+        }
+      },
+      {
+        "t": 0,
+        "event": "no_answer",
+        "data": {
+          "n": 1
+        }
+      },
+      {
+        "t": 0,
+        "event": "pending",
+        "data": {
+          "reason": "unsettled, no timers left, queue drained"
+        }
+      }
+    ],
+    "measured": {
+      "calls": 1,
+      "waitCount": 0,
+      "waitsMs": "",
+      "logCount": 0,
+      "logAttempts": "",
+      "totalWaitMs": 0,
+      "outcome": "pending"
+    },
+    "bets": [
+      {
+        "who": "human",
+        "measures": "calls",
+        "answer": {
+          "kind": "integer",
+          "value": 5
+        }
+      },
+      {
+        "who": "human",
+        "measures": "totalWaitMs",
+        "answer": {
+          "kind": "integer",
+          "value": 0
+        }
+      },
+      {
+        "who": "human",
+        "measures": "outcome",
+        "answer": {
+          "kind": "enum",
+          "value": "pending",
+          "options": [
+            "returns",
+            "throws",
+            "pending"
+          ]
+        }
+      }
+    ],
+    "verdicts": [
+      {
+        "betId": "UKit85mIO8",
+        "outcome": "not_matched",
+        "observed": 1
+      },
+      {
+        "betId": "k-_2JByrL8",
+        "outcome": "matched",
+        "observed": 0
+      },
+      {
+        "betId": "WhFm2TTLZs",
+        "outcome": "matched",
+        "observed": "pending"
+      }
+    ]
+  },
+  {
+    "id": "S2",
+    "runId": "nQ_JlUMv22",
+    "trace": [
+      {
+        "t": 0,
+        "event": "start",
+        "data": {
+          "label": "atlas-read"
+        }
+      },
+      {
+        "t": 0,
+        "event": "call",
+        "data": {
+          "n": 1
+        }
+      },
+      {
+        "t": 0,
+        "event": "reject",
+        "data": {
+          "n": 1,
+          "error": "BlockNotFoundError: Block at number 42194663 could not be found. (call 1)"
+        }
+      },
+      {
+        "t": 0,
+        "event": "log",
+        "data": {
+          "msg": "atlas-read: chain read failed (attempt 1/5, likely RPC lag) — retrying in 3s"
+        }
+      },
+      {
+        "t": 0,
+        "event": "sleep",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 3000,
+        "event": "wake",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 3000,
+        "event": "call",
+        "data": {
+          "n": 2
+        }
+      },
+      {
+        "t": 3000,
+        "event": "resolve",
+        "data": {
+          "n": 2,
+          "value": "\"the value\""
+        }
+      },
+      {
+        "t": 3000,
+        "event": "returns",
+        "data": {
+          "value": "\"the value\""
+        }
+      }
+    ],
+    "measured": {
+      "calls": 2,
+      "waitCount": 1,
+      "waitsMs": "3000",
+      "logCount": 1,
+      "logAttempts": "1/5",
+      "totalWaitMs": 3000,
+      "outcome": "returns",
+      "settledAtMs": 3000,
+      "returned": "\"the value\""
+    },
+    "bets": [
+      {
+        "who": "human",
+        "measures": "calls",
+        "answer": {
+          "kind": "integer",
+          "value": 2
+        }
+      },
+      {
+        "who": "human",
+        "measures": "totalWaitMs",
+        "answer": {
+          "kind": "integer",
+          "value": 3000
+        }
+      },
+      {
+        "who": "human",
+        "measures": "outcome",
+        "answer": {
+          "kind": "enum",
+          "value": "returns",
+          "options": [
+            "returns",
+            "throws",
+            "pending"
+          ]
+        }
+      }
+    ],
+    "verdicts": [
+      {
+        "betId": "buEyCWE7Rb",
+        "outcome": "matched",
+        "observed": 2
+      },
+      {
+        "betId": "W3YyxQzvPw",
+        "outcome": "matched",
+        "observed": 3000
+      },
+      {
+        "betId": "2l1c5H70nM",
+        "outcome": "matched",
+        "observed": "returns"
+      }
+    ]
+  },
+  {
+    "id": "S3-person-and-spark",
+    "runId": "GFNRq1eJx7",
+    "trace": [
+      {
+        "t": 0,
+        "event": "start",
+        "data": {
+          "label": "atlas-read"
+        }
+      },
+      {
+        "t": 0,
+        "event": "call",
+        "data": {
+          "n": 1
+        }
+      },
+      {
+        "t": 0,
+        "event": "reject",
+        "data": {
+          "n": 1,
+          "error": "BlockNotFoundError: Block at number 42194663 could not be found. (call 1)"
+        }
+      },
+      {
+        "t": 0,
+        "event": "log",
+        "data": {
+          "msg": "atlas-read: chain read failed (attempt 1/5, likely RPC lag) — retrying in 3s"
+        }
+      },
+      {
+        "t": 0,
+        "event": "sleep",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 3000,
+        "event": "wake",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 3000,
+        "event": "call",
+        "data": {
+          "n": 2
+        }
+      },
+      {
+        "t": 3000,
+        "event": "reject",
+        "data": {
+          "n": 2,
+          "error": "BlockNotFoundError: Block at number 42194663 could not be found. (call 2)"
+        }
+      },
+      {
+        "t": 3000,
+        "event": "log",
+        "data": {
+          "msg": "atlas-read: chain read failed (attempt 2/5, likely RPC lag) — retrying in 3s"
+        }
+      },
+      {
+        "t": 3000,
+        "event": "sleep",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 6000,
+        "event": "wake",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 6000,
+        "event": "call",
+        "data": {
+          "n": 3
+        }
+      },
+      {
+        "t": 6000,
+        "event": "reject",
+        "data": {
+          "n": 3,
+          "error": "InternalRpcError: An internal error was received. (code -32603) (call 3)"
+        }
+      },
+      {
+        "t": 6000,
+        "event": "log",
+        "data": {
+          "msg": "atlas-read: chain read failed (attempt 3/5, likely RPC lag) — retrying in 3s"
+        }
+      },
+      {
+        "t": 6000,
+        "event": "sleep",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 9000,
+        "event": "wake",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 9000,
+        "event": "call",
+        "data": {
+          "n": 4
+        }
+      },
+      {
+        "t": 9000,
+        "event": "reject",
+        "data": {
+          "n": 4,
+          "error": "HttpRequestError: HTTP request failed. Status: 502 (call 4)"
+        }
+      },
+      {
+        "t": 9000,
+        "event": "log",
+        "data": {
+          "msg": "atlas-read: chain read failed (attempt 4/5, likely RPC lag) — retrying in 3s"
+        }
+      },
+      {
+        "t": 9000,
+        "event": "sleep",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 12000,
+        "event": "wake",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 12000,
+        "event": "call",
+        "data": {
+          "n": 5
+        }
+      },
+      {
+        "t": 12000,
+        "event": "reject",
+        "data": {
+          "n": 5,
+          "error": "HttpRequestError: HTTP request failed. Status: 502 (call 5)"
+        }
+      },
+      {
+        "t": 12000,
+        "event": "throws",
+        "data": {
+          "error": "HttpRequestError: HTTP request failed. Status: 502 (call 5)"
+        }
+      }
+    ],
+    "measured": {
+      "calls": 5,
+      "waitCount": 4,
+      "waitsMs": "3000,3000,3000,3000",
+      "logCount": 4,
+      "logAttempts": "1/5,2/5,3/5,4/5",
+      "totalWaitMs": 12000,
+      "outcome": "throws",
+      "settledAtMs": 12000,
+      "thrown": "HttpRequestError: HTTP request failed. Status: 502 (call 5)",
+      "thrownFromCall": 5
+    },
+    "bets": [
+      {
+        "who": "human",
+        "measures": "calls",
+        "answer": {
+          "kind": "integer",
+          "value": 5
+        }
+      },
+      {
+        "who": "human",
+        "measures": "totalWaitMs",
+        "answer": {
+          "kind": "integer",
+          "value": 15000
+        }
+      },
+      {
+        "who": "human",
+        "measures": "outcome",
+        "answer": {
+          "kind": "enum",
+          "value": "throws",
+          "options": [
+            "returns",
+            "throws",
+            "pending"
+          ]
+        }
+      },
+      {
+        "who": "model:muse-spark-1.3",
+        "measures": "calls",
+        "answer": {
+          "kind": "integer",
+          "value": 5
+        }
+      },
+      {
+        "who": "model:muse-spark-1.3",
+        "measures": "totalWaitMs",
+        "answer": {
+          "kind": "integer",
+          "value": 12000
+        }
+      },
+      {
+        "who": "model:muse-spark-1.3",
+        "measures": "outcome",
+        "answer": {
+          "kind": "enum",
+          "value": "throws",
+          "options": [
+            "returns",
+            "throws",
+            "pending"
+          ]
+        }
+      }
+    ],
+    "verdicts": [
+      {
+        "betId": "jTtm79gwK4",
+        "outcome": "matched",
+        "observed": 5
+      },
+      {
+        "betId": "XgGILxdBF1",
+        "outcome": "not_matched",
+        "observed": 12000
+      },
+      {
+        "betId": "usDHSFO69G",
+        "outcome": "matched",
+        "observed": "throws"
+      },
+      {
+        "betId": "63wJuHhSk4",
+        "outcome": "matched",
+        "observed": 5
+      },
+      {
+        "betId": "_G9egZpST1",
+        "outcome": "matched",
+        "observed": 12000
+      },
+      {
+        "betId": "iUe3m3j-Wc",
+        "outcome": "matched",
+        "observed": "throws"
+      }
+    ]
+  }
+]

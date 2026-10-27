@@ -1,0 +1,24 @@
+/* The scoreboard mark. Monochrome, in the page's ink, like the logo. */
+.sb { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 4px 0 16px; }
+.sb-item { margin: 0; display: flex; flex-direction: column; align-items: center; max-width: 150px; text-align: center; }
+.sb-mark { display: block; color: var(--ink, currentColor); overflow: visible; }
+.sb-bar { fill: currentColor; }
+.sb-dot { fill: currentColor; }
+.sb-ring { fill: none; stroke: currentColor; stroke-width: 4; }
+.sb-ring[data-faint] { opacity: 0.35; }
+.sb-line { fill: none; stroke: currentColor; stroke-width: 4; stroke-linecap: round; }
+.sb-line[data-dashed] { stroke-dasharray: 0.12 0.16; stroke-linecap: butt; }
+.sb-line[data-faint] { opacity: 0.45; }
+.sb-noreading { stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
+
+/* Motion: the lines grow from the dots toward the bar, then a matched model's ring fills. */
+.sb-grow { stroke-dasharray: 1; stroke-dashoffset: 1; animation: sb-grow 700ms cubic-bezier(.32,.72,0,1) forwards; }
+.sb-fade { opacity: 0; animation: sb-fade 600ms ease-out forwards; }
+.sb-fade[data-faint] { --sb-to: 0.45; }
+.sb-fill { fill-opacity: 0; animation: sb-fill 400ms ease-out forwards; }
+@keyframes sb-grow { to { stroke-dashoffset: 0; } }
+@keyframes sb-fade { to { opacity: var(--sb-to, 1); } }
+@keyframes sb-fill { to { fill-opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .sb-grow, .sb-fade, .sb-fill { animation: none; stroke-dashoffset: 0; opacity: initial; fill-opacity: 1; }
+}
