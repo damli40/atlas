@@ -68,7 +68,11 @@ export function RetryMachine({ run, bets, verdicts, still, theme, at }: RetryMac
   const ghosts = model.ghosts
     .map((g) => `${nameOf(g.who)} bet: ${g.value} ${g.value === 1 ? "call" : "calls"}${g.offScale ? ` (drawn at the ruler's end, slot ${g.slot})` : ""}`)
     .join(" · ");
-  const waits = model.waits.length ? `${model.waits.length} ${model.waits.length === 1 ? "wait" : "waits"} of ${model.waits.map((w) => grouped(w.ms)).join(", ")} ms of virtual time` : "no waits";
+  const done = model.waits.filter((w) => w.finished);
+  const cut = model.waits.filter((w) => !w.finished);
+  const waits =
+    (done.length ? `${done.length} ${done.length === 1 ? "wait" : "waits"} of ${done.map((w) => grouped(w.ms)).join(", ")} ms of virtual time` : "no finished waits") +
+    (cut.length ? ` (one drum turn each), and ${cut.length} asked-for wait of ${cut.map((w) => grouped(w.ms)).join(", ")} ms that Atlas's watch limit cut off (half a turn, never counted)` : "");
   return (
     <div className="iso rm" data-theme={shown === "light" ? "light" : undefined} data-testid="retry-machine">
       <Plate
@@ -83,7 +87,7 @@ export function RetryMachine({ run, bets, verdicts, still, theme, at }: RetryMac
         ]}
         caption={
           <>
-            {`Drawn from run ${run.id}'s trace only: ${model.calls.length} ${model.calls.length === 1 ? "call" : "calls"} (one capsule each), ${model.pulls} ${model.pulls === 1 ? "pull" : "pulls"} of the retry lever, ${waits} (one drum turn each). The drum's turns are virtual time: nothing waited for real.`}
+            {`Drawn from run ${run.id}'s trace only: ${model.calls.length} ${model.calls.length === 1 ? "call" : "calls"} (one capsule each), ${model.pulls} ${model.pulls === 1 ? "pull" : "pulls"} of the retry lever, ${waits}${cut.length ? "" : " (one drum turn each)"}. The drum's turns are virtual time: nothing waited for real.`}
             {ghosts ? ` ${ghosts}.` : ""}
             {model.endCaption ? (
               <span className="rm-end-caption" data-testid="retry-end-caption">

@@ -149,12 +149,26 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 function tsSentences(run: Run): WhySentence[] {
   const out: WhySentence[] = [];
   const t = run.trace;
-  const sleeps = t.map((e, i) => ({ e, i })).filter((x) => x.e.event === "sleep");
+  // m1: a wait counts as waited only when its "wake" is in the trace; a wait the watch limit cut off is said apart.
+  const all = t.map((e, i) => ({ e, i })).filter((x) => x.e.event === "sleep");
+  const woke = (i: number) => {
+    for (let j = i + 1; j < t.length; j++) {
+      if (t[j]!.event === "wake") return true;
+      if (t[j]!.event === "sleep") return false;
+    }
+    return false;
+  };
+  const sleeps = all.filter((x) => woke(x.i));
+  const cut = all.filter((x) => !woke(x.i));
   if (sleeps.length > 0) {
     const ms = sleeps.map((x) => Number(rec(x.e.data).ms));
     const same = ms.every((m) => m === ms[0]);
     const shownIx = sleeps.length <= 6 ? sleeps.map((x) => x.i) : [sleeps[0]!.i, sleeps.at(-1)!.i];
     out.push({ text: `it waited ${plural(sleeps.length, "time", "times")}${same ? `, ${ms[0]} ms each` : ""} (${refs(shownIx)})`, by: PLAIN });
+  }
+  for (const c of cut) {
+    const stop = t.findIndex((e, j) => j > c.i && e.event === "stopped_watching");
+    if (stop >= 0) out.push({ text: `it asked to wait ${Number(rec(c.e.data).ms)} ms more, and Atlas's watch limit ended the run during that wait (trace #${c.i}, #${stop})`, by: PLAIN });
   }
   const end = t.findIndex((e) => e.event === "throws" || e.event === "returns" || e.event === "pending");
   if (end >= 0) {
@@ -164,7 +178,7 @@ function tsSentences(run: Run): WhySentence[] {
     const ev = t[end]!.event;
     if (ev === "throws" && n > 0 && !callsAfter) out.push({ text: `call ${n} threw; no more attempts (trace #${end})`, by: PLAIN });
     if (ev === "returns" && n > 0 && !callsAfter) out.push({ text: `call ${n} returned a value; no more attempts (trace #${end})`, by: PLAIN });
-    if (ev === "pending") out.push({ text: `the call never settled: no timers were left and nothing was pending (trace #${end})`, by: PLAIN });
+    if (ev === "pending") out.push({ text: `the call never settled: no timers were left and nothing outside it was left to run (trace #${end})`, by: PLAIN });
   }
   return out;
 }

@@ -41,6 +41,8 @@ export interface WaitPart {
   /** The wait the code asked for, in virtual ms. */
   ms: number;
   t: number;
+  /** The trace has its "wake": the wait finished. False when Atlas's watch limit ended the run during it (m1). */
+  finished: boolean;
 }
 
 export type Ending =
@@ -54,7 +56,7 @@ export type Step =
   | { kind: "send"; n: number; dur: number }
   | { kind: "back"; n: number; answer: "returned" | "threw"; dur: number }
   | { kind: "lost"; n: number; dur: number }
-  | { kind: "wait"; i: number; ms: number; dur: number };
+  | { kind: "wait"; i: number; ms: number; dur: number; finished: boolean };
 
 export interface Ghost {
   who: string;
@@ -109,11 +111,15 @@ export function grouped(n: number): string {
     .replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
-function waitsText(waits: WaitPart[]): string {
-  if (waits.length === 0) return "waits 0";
+function waitsText(all: WaitPart[]): string {
+  // m1: only finished waits are counted as waits; a wait the watch limit cut off is said apart.
+  const waits = all.filter((w) => w.finished);
+  const cut = all.length - waits.length;
+  const cutText = cut > 0 ? ` + ${cut} cut off` : "";
+  if (waits.length === 0) return `waits 0${cutText}`;
   const first = waits[0]!.ms;
-  if (waits.every((w) => w.ms === first)) return `waits ${waits.length} × ${grouped(first)} ms`;
-  return `waits ${waits.map((w) => grouped(w.ms)).join(" + ")} ms`;
+  if (waits.every((w) => w.ms === first)) return `waits ${waits.length} × ${grouped(first)} ms${cutText}`;
+  return `waits ${waits.map((w) => grouped(w.ms)).join(" + ")} ms${cutText}`;
 }
 
 function endingText(e: Ending | null): string {
@@ -156,9 +162,17 @@ export function retryModel({ run, bets, verdicts }: RetryInput): RetryModel {
       }
     } else if (ev.event === "sleep") {
       const ms = num(d.ms) ?? 0;
-      const w = { i: waits.length + 1, ms, t: ev.t };
+      const w: WaitPart = { i: waits.length + 1, ms, t: ev.t, finished: false };
       waits.push(w);
-      steps.push({ kind: "wait", i: w.i, ms, dur: DUR.wait });
+      steps.push({ kind: "wait", i: w.i, ms, dur: DUR.wait, finished: false });
+    } else if (ev.event === "wake") {
+      // The latest wait that has not woken yet is now finished.
+      const w = [...waits].reverse().find((x) => !x.finished);
+      if (w) {
+        w.finished = true;
+        const st = steps.find((x) => x.kind === "wait" && x.i === w.i);
+        if (st && st.kind === "wait") st.finished = true;
+      }
     } else if (ev.event === "returns") {
       ending = { kind: "returned", value: str(d.value) ?? "" };
     } else if (ev.event === "throws") {
@@ -180,11 +194,12 @@ export function retryModel({ run, bets, verdicts }: RetryInput): RetryModel {
     endCaption = `Still pending when Atlas stopped watching: nothing was left that could wake it (the trace says "${ending.reason}"). ${pulls} ${pulls === 1 ? "retry" : "retries"}.`;
   } else if (ending?.kind === "stopped") {
     const atLimit = /watch limit/.test(ending.reason);
-    endCaption = `${atLimit ? "Still pending at Atlas's watch limit" : "Still waiting when Atlas stopped watching"}: ${ending.reason}. ${pulls} ${pulls === 1 ? "retry" : "retries"} so far.`;
+    endCaption = `${atLimit ? "Still running at Atlas's watch limit" : "Still waiting when Atlas stopped watching"}: ${ending.reason}. ${pulls} ${pulls === 1 ? "retry" : "retries"} so far.`;
   }
   const first = waits[0]?.ms;
   const engraving =
     waits.length === 0 ? "no waits" : waits.every((w) => w.ms === first) ? `${grouped(first! / 1000)} s (virtual)` : "per wait (virtual)";
+
 
   const verdictOf = (id: string) => verdicts.find((v) => v.betId === id && v.runId === run.id) ?? verdicts.find((v) => v.betId === id);
   const ghosts: Ghost[] = [];
@@ -267,8 +282,9 @@ export function poseAt(model: RetryModel, s: number): Pose {
       const c = caps.get(st.n);
       if (c) c.lit = false;
     } else if (st.kind === "wait") {
-      drumTurns = waitsDone + ease(p);
-      if (p >= 1) waitsDone++;
+      // m1: a wait the watch limit cut off turns the drum only half way and never lights its counter mark.
+      drumTurns = waitsDone + (st.finished ? ease(p) : 0.5 * ease(p));
+      if (p >= 1 && st.finished) waitsDone++;
     }
   }
   // At the end, the one lit capsule is the call whose answer the function ended with.

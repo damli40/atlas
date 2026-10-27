@@ -126,7 +126,7 @@ describe("D05-02 retry machine", () => {
     const out = await runScenario(withRpcRetry as RetryFn, { failTimes: 0, failure: "error", resolveAfterMs: 40_000 }, { seed: "w", watchLimitMs: 30_000 });
     const run = { ...rounds.get("S6")!.run, trace: out.trace, result: out.result };
     const m = retryModel({ run, bets: [], verdicts: [] });
-    expect(m.endCaption).toMatch(/^Still pending at Atlas's watch limit: Atlas's watch limit \(30000 ms of virtual time/);
+    expect(m.endCaption).toMatch(/^Still running at Atlas's watch limit: Atlas's watch limit \(30000 ms of virtual time/); // day-5 m2: was "Still pending"
     expect(m.endCaption).toMatch(/0 retries so far\.$/);
     expect(m.readout).toBe("calls 1 · waits 0 · still waiting when Atlas stopped watching");
   });
