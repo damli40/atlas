@@ -27,7 +27,8 @@ export interface Finding {
   verified: boolean;
   /** The exact text the model quoted; verification compares it (whitespace-normalised) to the file. */
   quotedSnippet: string;
-  proposedBy: { role: "investigator"; model: string };   // e.g. "muse-wonder-1.0"
+  /** Changed D04-04: a person may pick the lines themselves (role "human", no model); their finding has an empty claim. */
+  proposedBy: { role: "investigator"; model: string } | { role: "human"; model: "none: picked by a person" };   // e.g. "muse-wonder-1.0"
 }
 
 export type BetAnswer =
@@ -154,6 +155,8 @@ export interface AtlasFile {
   runs: Run[];
   verdicts: Verdict[];
   change?: Change;
+  /** Added D04-04: the finding(s) the round worked on, with who proposed them (investigator model or a person). */
+  findings?: Finding[];
   agentLog: AgentEvent[];
   /** Text a replayer must show: pre-existing labels, "replayed on a fork", "mechanism, not an incident". */
   captions: string[];
