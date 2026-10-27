@@ -1,5 +1,5 @@
 // X1 review round 1: one test (or more) per finding, each written from the reviewer's inputs
-// (scratchpad x1r/ver.ts, py.ts, bomb.ts, cost.ts). Each failed on the code before this round.
+// (scratchpad x1r/ver.ts, py.ts, bomb.ts, cost.ts). Not re-run against the old code (most use functions this round added).
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -53,6 +53,22 @@ describe("B1: a join counts only calls and imports made inside the part's lines,
     ]), "muse-wonder-1.0");
     expect(v.joins[0]).toMatchObject({ status: "confirmed", codeEdges: ["calls:util.ts->db.ts:saveUser"], wonderEvidence: { matches: true } });
     expect(v.joins[1]).toMatchObject({ status: "confirmed", wonderEvidence: { matches: false }, reason: expect.stringMatching(/not the line of an import or call/) });
+  });
+
+  it("each import statement keeps its own names: two `from .timed import …` lines reach two different parts", () => {
+    const f2 = [
+      file("pkg/__init__.py", "from .timed import TimedSerializer as TimedSerializer\nfrom .timed import TimestampSigner as TimestampSigner\n"),
+      file("pkg/timed.py", "class TimestampSigner:\n    pass\n\n\nclass TimedSerializer:\n    pass\n"),
+    ];
+    const m2 = buildCodeMap(f2);
+    const o: WonderOutline = {
+      parts: [
+        { id: "api", name: "a", purpose: "p", files: [{ path: "pkg/__init__.py", lineStart: 1, lineEnd: 2, quotedSnippet: "from .timed import TimedSerializer as TimedSerializer" }], patterns: [] },
+        { id: "signer", name: "s", purpose: "p", files: [{ path: "pkg/timed.py", lineStart: 1, lineEnd: 2, quotedSnippet: "class TimestampSigner:" }], patterns: [] },
+      ],
+      joins: [{ from: "api", to: "signer", kind: "imports", evidence: { path: "pkg/__init__.py", line: 2, quotedSnippet: "from .timed import TimestampSigner as TimestampSigner" } }],
+    };
+    expect(verifyOutline(f2, m2, o, "m").joins[0]).toMatchObject({ status: "confirmed", codeEdges: ["imports:pkg/__init__.py->pkg/timed.py:.timed@2"], wonderEvidence: { matches: true } });
   });
 
   it("the target must lie inside the other part: a call of saveUser does not join to a part holding only dropAll", () => {

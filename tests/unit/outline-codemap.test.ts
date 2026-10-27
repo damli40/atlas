@@ -64,8 +64,8 @@ describe("JS/TS code map (TypeScript compiler parser)", () => {
 
   it("re-exports: q.push() through queue/index.ts reaches the file that defines push", () => {
     expect(m.edges.find((e) => e.id === "calls:a.ts->queue/impl.ts:q.push")).toMatchObject({ toSymbol: "queue/impl.ts#push" });
-    expect(edgeIds(m)).toContain("imports:queue/index.ts->queue/impl.ts:./impl");
-    expect(edgeIds(m)).toContain("imports:queue/index.ts->queue/more.ts:./more");
+    expect(edgeIds(m)).toContain("imports:queue/index.ts->queue/impl.ts:./impl@1");
+    expect(edgeIds(m)).toContain("imports:queue/index.ts->queue/more.ts:./more@2");
     expect(fileOf(m, "queue/index.ts").imports.map((i) => i.kind)).toEqual(["re-export", "re-export", "re-export"]);
   });
 
@@ -87,8 +87,8 @@ describe("JS/TS code map (TypeScript compiler parser)", () => {
 
   it("circular imports (a.ts ↔ queue/impl.ts) terminate and give one edge each way", () => {
     expect(edgeIds(m)).toContain("calls:queue/impl.ts->a.ts:run");
-    expect(edgeIds(m)).toContain("imports:a.ts->queue/index.ts:./queue/index.js");
-    expect(edgeIds(m)).toContain("imports:queue/impl.ts->a.ts:../a");
+    expect(edgeIds(m)).toContain("imports:a.ts->queue/index.ts:./queue/index.js@2");
+    expect(edgeIds(m)).toContain("imports:queue/impl.ts->a.ts:../a@1");
   });
 
   it("a self-referencing re-export cycle does not loop", () => {
@@ -189,7 +189,7 @@ describe("Python code map (pure-TS scanner)", () => {
 
   it("circular Python imports terminate", () => {
     const c = buildCodeMap([f("a.py", "from b import g\ndef f():\n    return g()\n"), f("b.py", "from a import f\ndef g():\n    return f()\n")]);
-    expect(edgeIds(c)).toEqual(["calls:a.py->b.py:g", "calls:b.py->a.py:f", "imports:a.py->b.py:b", "imports:b.py->a.py:a"]);
+    expect(edgeIds(c)).toEqual(["calls:a.py->b.py:g", "calls:b.py->a.py:f", "imports:a.py->b.py:b@1", "imports:b.py->a.py:a@1"]);
   });
 
   it("an unclosed string is noted and what came before it is kept", () => {

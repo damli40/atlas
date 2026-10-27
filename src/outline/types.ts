@@ -116,7 +116,7 @@ export interface CodeMapFile {
  * 24,000), never one edge per line.
  */
 export interface CodeEdge {
-  /** Stable id: "<kind>:<from>-><to>:<what>" ("#type" added for a type-only import). */
+  /** Stable id: "calls:<from>-><to>:<what>", or "imports:<from>-><to>:<what>@<line>" (one per import statement; "#type" before "@" for a type-only one). */
   id: string;
   kind: "imports" | "calls";
   from: string;

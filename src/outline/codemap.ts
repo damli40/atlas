@@ -378,7 +378,9 @@ export function buildCodeMap(files: ReadonlyArray<Pick<OutlineFile, "path" | "la
   const edges = new Map<string, CodeEdge & { all: number[] }>();
   const addEdge = (e: Omit<CodeEdge, "id" | "line" | "lines" | "count">, line: number) => {
     if (e.from === e.to) return;
-    const id = `${e.kind}:${e.from}->${e.to}:${e.what}${e.typeOnly ? "#type" : ""}`;
+    // Calls of one name are one edge (review M1). Each import statement stays its own edge, so the definitions it
+    // names stay tied to its line (two `from .timed import …` lines name different classes).
+    const id = `${e.kind}:${e.from}->${e.to}:${e.what}${e.typeOnly ? "#type" : ""}${e.kind === "imports" ? `@${line}` : ""}`;
     const had = edges.get(id);
     if (had) had.all.push(line);
     else edges.set(id, { id, ...e, line, lines: [], count: 0, all: [line] });

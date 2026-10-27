@@ -12,8 +12,8 @@
 //     every reason. A path like "../../etc/passwd" is simply not a file of the codebase.
 //   - a join is CONFIRMED only when both parts are confirmed and the code map holds an import or call that happens
 //     on a line INSIDE the first part's ranges and reaches a definition INSIDE the second part's ranges (or a file
-//     the second part holds whole) (review B1). "calls" needs a call; "imports" an import (a type-only import is
-//     labelled so); "data" either, in either direction, never a type-only import. Otherwise MODEL-ONLY: "Wonder
+//     the second part holds whole) (review B1). "calls" needs a call; "imports" an import or a call made through
+//     one (a type-only import is labelled so); "data" either, in either direction, never a type-only import. Otherwise MODEL-ONLY: "Wonder
 //     says; the code doesn't show it", with the reason. Wonder's evidence "matches" only when it quotes, from its
 //     first line, a line where such an import or call happens.
 //   - edges between two confirmed parts, under the same rule, that Wonder did not join become CODE-ONLY joins.
@@ -214,7 +214,10 @@ function edgeShows(e: CodeEdge, a: readonly Region[], b: readonly Region[], symb
 }
 
 /** Does this code-map edge show a join of this kind (direction checked by the caller)? */
-const edgeFits = (kind: JoinKind, e: CodeEdge) => (kind === "calls" ? e.kind === "calls" : kind === "imports" ? e.kind === "imports" : !e.typeOnly);
+// "imports" is also shown by a call: plain code records a call only through an imported name, so a call from inside
+// A's lines to B's definition means A's file imports it and A's lines use it (the import line itself usually sits at
+// the top of the file, outside any part's definitions).
+const edgeFits = (kind: JoinKind, e: CodeEdge) => (kind === "calls" ? e.kind === "calls" : kind === "imports" ? true : !e.typeOnly);
 
 /** Plain code's verdict on Wonder's outline. Pure; never throws for any outline value that passed the schema. */
 export function verifyOutline(files: ReadonlyArray<Pick<OutlineFile, "path" | "text">>, codeMap: CodeMap, outline: WonderOutline, model: string): VerifiedOutline {

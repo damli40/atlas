@@ -102,7 +102,7 @@ describe("verifyOutline: joins", () => {
     expect(j.reason).toMatch(/no call from inside retry's lines reaching a definition inside api's lines/);
   });
 
-  it("kind matters: 'calls' needs a call edge, 'imports' an import edge, 'data' either", () => {
+  it("kind matters: 'calls' needs a call edge, 'imports' an import or a call made through one, 'data' either", () => {
     const o = clone(GOOD);
     o.parts[1]!.files[0] = { path: "src/client.ts", lineStart: 1, lineEnd: 5, quotedSnippet: 'import { retry } from "./retry";' };
     o.joins = [
@@ -110,7 +110,11 @@ describe("verifyOutline: joins", () => {
       { from: "client", to: "retry", kind: "data", evidence: { path: "src/client.ts", line: 4, quotedSnippet: 'return retry(() => fetch("https://example.com/u/" + id), 3);' } },
     ];
     const v = verify(o);
-    expect(v.joins[0]).toMatchObject({ status: "confirmed", codeEdges: ["imports:src/client.ts->src/retry.ts:./retry"] });
+    expect(v.joins[0]).toMatchObject({ status: "confirmed", codeEdges: ["calls:src/client.ts->src/retry.ts:retry", "imports:src/client.ts->src/retry.ts:./retry@1"] });
+    // A "calls" join is never confirmed by an import alone.
+    const o3 = clone(o);
+    o3.joins = [{ ...o.joins[0]!, kind: "calls" }];
+    expect(verify(o3).joins[0]!.codeEdges).toEqual(["calls:src/client.ts->src/retry.ts:retry"]);
     expect(v.joins[1]!.status).toBe("confirmed");
     expect(v.joins[1]!.codeEdges).toHaveLength(2);
   });
