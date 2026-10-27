@@ -260,6 +260,11 @@ objects"):
   standard-library list in `py-words.ts` is 3.14's.
 - **macOS only.** `sandbox-exec` is deprecated by Apple but works on this Darwin 25 machine. The loader needs
   `/usr/lib` and the dyld shared cache readable (system libraries, not user data).
+- **The code can choose the detail inside a "can't check" reason.** Any code can raise Atlas's own signal
+  (`sys.audit("atlas.cantcheck", "access", "pretend")`); the result is only ever "can't check", never a measured
+  fact, but the words in the brackets are the code's (cut to 80 characters, hidden characters escaped). Probed by
+  hand, not in the test files. Calling the boot function again from the code fails (stdin is closed), and running a
+  stand-in generator's code object fails (it needs its closure): both probed by hand too.
 - **No memory limit**, as in E1. Output past 16 MB is cut, which loses the result line: "can't check".
 - **No separate adversarial reviewer has looked at this yet.** The spec plans one per batch. My own review is in
   the next section.
