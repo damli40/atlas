@@ -1,0 +1,85 @@
+{
+  "about": "The FeedSet events Moonwell's ChainlinkOracle emitted in the MIP-X43 execution transaction on Base. Test data for D04-01: Atlas compares its derived (symbol, wrapper) pairs against these; it never derives from them.",
+  "chainId": 8453,
+  "oracle": "0xEC942bE8A8114bFD0396A5052c36027f2cA6a9d0",
+  "txHash": "0xd26baf29dcba7bf66db4be17b46a49bb4dacca41ace968c98c8a5b09a03ae812",
+  "blockNumber": 42194663,
+  "txStatus": "success",
+  "event": "event FeedSet(address feed, string symbol)",
+  "topic0": "0xd9e7d1778ca05570ced72c9aeb12a41fcc76f7f57ea25853dea228f8836d0022",
+  "method": "eth_getTransactionReceipt, logs from the oracle filtered by topic0, decoded with viem decodeEventLog",
+  "fetchedAt": "2026-10-27T05:50:15.151Z",
+  "count": 14,
+  "events": [
+    {
+      "logIndex": 811,
+      "symbol": "DAI",
+      "wrapper": "0x4916EC6773e14CA873be3d65022BB122CB8b89a2"
+    },
+    {
+      "logIndex": 813,
+      "symbol": "USDC",
+      "wrapper": "0x7600b9068bB0aFEA6adf70eD6CD0f8492117236d"
+    },
+    {
+      "logIndex": 815,
+      "symbol": "USDbC",
+      "wrapper": "0x7600b9068bB0aFEA6adf70eD6CD0f8492117236d"
+    },
+    {
+      "logIndex": 817,
+      "symbol": "cbETH",
+      "wrapper": "0x67996D1ff7a3711a91E2839d1059Fcb950C0495D"
+    },
+    {
+      "logIndex": 819,
+      "symbol": "AERO",
+      "wrapper": "0xdC79C7D5D4dA3b237D2d078a1ee06F2FD1FfEf98"
+    },
+    {
+      "logIndex": 821,
+      "symbol": "cbBTC",
+      "wrapper": "0x6a3c960Bcfb69BAe78f706c9c6B168bB7693E119"
+    },
+    {
+      "logIndex": 823,
+      "symbol": "EURC",
+      "wrapper": "0xd5669e0175D01cc5F6Be9607129668D0833DcbEC"
+    },
+    {
+      "logIndex": 825,
+      "symbol": "WELL",
+      "wrapper": "0xBA5220805E43194Ff12A434fBb745f3a2E1a09db"
+    },
+    {
+      "logIndex": 827,
+      "symbol": "USDS",
+      "wrapper": "0x6621069673C61a143DaDF376389e82DA372BF405"
+    },
+    {
+      "logIndex": 829,
+      "symbol": "tBTC",
+      "wrapper": "0xBfAaA8B347dA80B909504d403CB4C8F245e921ab"
+    },
+    {
+      "logIndex": 831,
+      "symbol": "VIRTUAL",
+      "wrapper": "0x12EC8CfEbCF5728774925feC1502733f906CB6e3"
+    },
+    {
+      "logIndex": 833,
+      "symbol": "MORPHO",
+      "wrapper": "0x09793267120dbF519B2B0e8Ea77A689e2Ba453F0"
+    },
+    {
+      "logIndex": 835,
+      "symbol": "cbXRP",
+      "wrapper": "0xf2Ac6F14A094A82A6f9489364CdE9e1ba2548d49"
+    },
+    {
+      "logIndex": 837,
+      "symbol": "MAMO",
+      "wrapper": "0xfbA86a013f7FD93B5454e147242CF2Bf419e120D"
+    }
+  ]
+}

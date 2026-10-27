@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { comparePairs, loadAddressBook, parseBaseOracleConfigs, planFeedActions, stripSolidityComments } from "../../runners/evm/apply.ts";
 import { TOUCHED_MARKETS } from "../../runners/evm/moonwell-base.ts";
 import { level2Precheck, plannedFromPr, prFiles } from "../tools/level2-precheck.ts";
+import { derivedVsReal, realFeedSetPairs } from "../tools/level2-derive.ts";
 
 const HAS_RPC = Boolean(process.env.BASE_RPC_URL);
 const HAS_ANVIL = spawnSync("anvil", ["--version"]).status === 0;
@@ -77,8 +78,17 @@ describe("ChainlinkOracleConfigs.sol parser (offline)", () => {
     expect(comparePairs([a, a], [a]).duplicatesDerived).toEqual([a]);
   });
 
-  it("TOUCHED_MARKETS lists 14 markets", () => {
-    expect(TOUCHED_MARKETS).toHaveLength(14);
+  it("the stored real FeedSet data holds 14 events whose symbols are TOUCHED_MARKETS", () => {
+    const real = realFeedSetPairs();
+    expect(real).toHaveLength(14);
+    expect(real.map((p) => p.symbol)).toEqual([...TOUCHED_MARKETS]);
+  });
+
+  it("probe: using the config's token name as the setFeed key (instead of symbol() on-chain) would get 3 of 14 wrong", () => {
+    const wrong = plannedFromPr().map((p) => ({ symbol: p.config.tokenKey, wrapper: p.wrapper }));
+    const r = comparePairs(wrong, realFeedSetPairs());
+    expect(r.equal).toBe(false);
+    expect(r.onlyDerived.map((p) => p.symbol).sort()).toEqual(["TBTC", "USDBC", "xWELL_PROXY"]);
   });
 });
 
@@ -89,5 +99,13 @@ describe.skipIf(!HAS_RPC || !HAS_ANVIL)("Level 2 pre-flight on a Base fork at 42
     expect(r.wrapperCount).toBe(14);
     expect(r.adminIsTemporalGovernor).toBe(true);
     expect(r.passed).toBe(true);
+  }, 180_000);
+
+  it("the 14 derived (symbol, wrapper) pairs equal the 14 real FeedSet pairs as a set", async () => {
+    const r = await derivedVsReal();
+    expect(r.comparison.onlyDerived).toEqual([]);
+    expect(r.comparison.onlyReal).toEqual([]);
+    expect(r.derivedCount).toBe(14);
+    expect(r.setEqual).toBe(true);
   }, 180_000);
 });

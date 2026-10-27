@@ -1,0 +1,257 @@
+{
+  "checkedAt": "2026-10-27T05:50:37.471Z",
+  "forkBlock": 42194662,
+  "method": "ChainlinkOracleConfigs.sol uncommented BASE_CHAIN_ID pushes (A, B, C) -> wrapper = chains/8453.json[A + \"_OEV_WRAPPER\"], symbol = ERC20(chains/8453.json[B]).symbol() on the fork (mip-x43.sol _wireCoreFeeds)",
+  "derivedCount": 14,
+  "realCount": 14,
+  "setEqual": true,
+  "comparison": {
+    "equal": true,
+    "onlyDerived": [],
+    "onlyReal": [],
+    "duplicatesDerived": [],
+    "duplicatesReal": []
+  },
+  "derived": [
+    {
+      "line": 28,
+      "config": [
+        "DAI_ORACLE",
+        "DAI",
+        "MOONWELL_DAI"
+      ],
+      "token": "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb",
+      "symbolOnChain": "DAI",
+      "wrapperName": "DAI_ORACLE_OEV_WRAPPER",
+      "wrapper": "0x4916EC6773e14CA873be3d65022BB122CB8b89a2",
+      "mToken": "0x73b06D8d18De422E269645eaCe15400DE7462417"
+    },
+    {
+      "line": 31,
+      "config": [
+        "CHAINLINK_USDC_USD",
+        "USDC",
+        "MOONWELL_USDC"
+      ],
+      "token": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "symbolOnChain": "USDC",
+      "wrapperName": "CHAINLINK_USDC_USD_OEV_WRAPPER",
+      "wrapper": "0x7600b9068bB0aFEA6adf70eD6CD0f8492117236d",
+      "mToken": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22"
+    },
+    {
+      "line": 34,
+      "config": [
+        "CHAINLINK_USDC_USD",
+        "USDBC",
+        "MOONWELL_USDBC"
+      ],
+      "token": "0xd9aAEc86B65D86f6A7B5B1b0c42FFA531710b6CA",
+      "symbolOnChain": "USDbC",
+      "wrapperName": "CHAINLINK_USDC_USD_OEV_WRAPPER",
+      "wrapper": "0x7600b9068bB0aFEA6adf70eD6CD0f8492117236d",
+      "mToken": "0x703843C3379b52F9FF486c9f5892218d2a065cC8"
+    },
+    {
+      "line": 41,
+      "config": [
+        "cbETHETH_ORACLE",
+        "cbETH",
+        "MOONWELL_cbETH"
+      ],
+      "token": "0x2Ae3F1Ec7F1F5012CFEab0185bfc7aa3cf0DEc22",
+      "symbolOnChain": "cbETH",
+      "wrapperName": "cbETHETH_ORACLE_OEV_WRAPPER",
+      "wrapper": "0x67996D1ff7a3711a91E2839d1059Fcb950C0495D",
+      "mToken": "0x3bf93770f2d4a794c3d9EBEfBAeBAE2a8f09A5E5"
+    },
+    {
+      "line": 54,
+      "config": [
+        "CHAINLINK_AERO_ORACLE",
+        "AERO",
+        "MOONWELL_AERO"
+      ],
+      "token": "0x940181a94a35a4569e4529a3cdfb74e38fd98631",
+      "symbolOnChain": "AERO",
+      "wrapperName": "CHAINLINK_AERO_ORACLE_OEV_WRAPPER",
+      "wrapper": "0xdC79C7D5D4dA3b237D2d078a1ee06F2FD1FfEf98",
+      "mToken": "0x73902f619CEB9B31FD8EFecf435CbDf89E369Ba6"
+    },
+    {
+      "line": 57,
+      "config": [
+        "CHAINLINK_BTC_USD",
+        "cbBTC",
+        "MOONWELL_cbBTC"
+      ],
+      "token": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+      "symbolOnChain": "cbBTC",
+      "wrapperName": "CHAINLINK_BTC_USD_OEV_WRAPPER",
+      "wrapper": "0x6a3c960Bcfb69BAe78f706c9c6B168bB7693E119",
+      "mToken": "0xF877ACaFA28c19b96727966690b2f44d35aD5976"
+    },
+    {
+      "line": 60,
+      "config": [
+        "CHAINLINK_EURC_USD",
+        "EURC",
+        "MOONWELL_EURC"
+      ],
+      "token": "0x60a3e35cc302bfa44cb288bc5a4f316fdb1adb42",
+      "symbolOnChain": "EURC",
+      "wrapperName": "CHAINLINK_EURC_USD_OEV_WRAPPER",
+      "wrapper": "0xd5669e0175D01cc5F6Be9607129668D0833DcbEC",
+      "mToken": "0xb682c840B5F4FC58B20769E691A6fa1305A501a2"
+    },
+    {
+      "line": 66,
+      "config": [
+        "CHAINLINK_WELL_USD",
+        "xWELL_PROXY",
+        "MOONWELL_WELL"
+      ],
+      "token": "0xA88594D404727625A9437C3f886C7643872296AE",
+      "symbolOnChain": "WELL",
+      "wrapperName": "CHAINLINK_WELL_USD_OEV_WRAPPER",
+      "wrapper": "0xBA5220805E43194Ff12A434fBb745f3a2E1a09db",
+      "mToken": "0xdC7810B47eAAb250De623F0eE07764afa5F71ED1"
+    },
+    {
+      "line": 69,
+      "config": [
+        "CHAINLINK_USDS_USD",
+        "USDS",
+        "MOONWELL_USDS"
+      ],
+      "token": "0x820c137fa70c8691f0e44dc420a5e53c168921dc",
+      "symbolOnChain": "USDS",
+      "wrapperName": "CHAINLINK_USDS_USD_OEV_WRAPPER",
+      "wrapper": "0x6621069673C61a143DaDF376389e82DA372BF405",
+      "mToken": "0xb6419c6C2e60c4025D6D06eE4F913ce89425a357"
+    },
+    {
+      "line": 72,
+      "config": [
+        "CHAINLINK_TBTC_USD",
+        "TBTC",
+        "MOONWELL_TBTC"
+      ],
+      "token": "0x236aa50979d5f3de3bd1eeb40e81137f22ab794b",
+      "symbolOnChain": "tBTC",
+      "wrapperName": "CHAINLINK_TBTC_USD_OEV_WRAPPER",
+      "wrapper": "0xBfAaA8B347dA80B909504d403CB4C8F245e921ab",
+      "mToken": "0x9A858ebfF1bEb0D3495BB0e2897c1528eD84A218"
+    },
+    {
+      "line": 78,
+      "config": [
+        "CHAINLINK_VIRTUAL_USD",
+        "VIRTUAL",
+        "MOONWELL_VIRTUAL"
+      ],
+      "token": "0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b",
+      "symbolOnChain": "VIRTUAL",
+      "wrapperName": "CHAINLINK_VIRTUAL_USD_OEV_WRAPPER",
+      "wrapper": "0x12EC8CfEbCF5728774925feC1502733f906CB6e3",
+      "mToken": "0xdE8Df9d942D78edE3Ca06e60712582F79CFfFC64"
+    },
+    {
+      "line": 81,
+      "config": [
+        "CHAINLINK_MORPHO_USD",
+        "MORPHO",
+        "MOONWELL_MORPHO"
+      ],
+      "token": "0xBAa5CC21fd487B8Fcc2F632f3F4E8D37262a0842",
+      "symbolOnChain": "MORPHO",
+      "wrapperName": "CHAINLINK_MORPHO_USD_OEV_WRAPPER",
+      "wrapper": "0x09793267120dbF519B2B0e8Ea77A689e2Ba453F0",
+      "mToken": "0x6308204872BdB7432dF97b04B42443c714904F3E"
+    },
+    {
+      "line": 84,
+      "config": [
+        "CHAINLINK_cbXRP_USD",
+        "cbXRP",
+        "MOONWELL_cbXRP"
+      ],
+      "token": "0xcb585250f852c6c6bf90434ab21a00f02833a4af",
+      "symbolOnChain": "cbXRP",
+      "wrapperName": "CHAINLINK_cbXRP_USD_OEV_WRAPPER",
+      "wrapper": "0xf2Ac6F14A094A82A6f9489364CdE9e1ba2548d49",
+      "mToken": "0xb4fb8fed5b3AaA8434f0B19b1b623d977e07e86d"
+    },
+    {
+      "line": 87,
+      "config": [
+        "CHAINLINK_MAMO_USD",
+        "MAMO",
+        "MOONWELL_MAMO"
+      ],
+      "token": "0x7300B37DfdfAb110d83290A29DfB31B1740219fE",
+      "symbolOnChain": "MAMO",
+      "wrapperName": "CHAINLINK_MAMO_USD_OEV_WRAPPER",
+      "wrapper": "0xfbA86a013f7FD93B5454e147242CF2Bf419e120D",
+      "mToken": "0x2F90Bb22eB3979f5FfAd31EA6C3F0792ca66dA32"
+    }
+  ],
+  "real": [
+    {
+      "symbol": "DAI",
+      "wrapper": "0x4916EC6773e14CA873be3d65022BB122CB8b89a2"
+    },
+    {
+      "symbol": "USDC",
+      "wrapper": "0x7600b9068bB0aFEA6adf70eD6CD0f8492117236d"
+    },
+    {
+      "symbol": "USDbC",
+      "wrapper": "0x7600b9068bB0aFEA6adf70eD6CD0f8492117236d"
+    },
+    {
+      "symbol": "cbETH",
+      "wrapper": "0x67996D1ff7a3711a91E2839d1059Fcb950C0495D"
+    },
+    {
+      "symbol": "AERO",
+      "wrapper": "0xdC79C7D5D4dA3b237D2d078a1ee06F2FD1FfEf98"
+    },
+    {
+      "symbol": "cbBTC",
+      "wrapper": "0x6a3c960Bcfb69BAe78f706c9c6B168bB7693E119"
+    },
+    {
+      "symbol": "EURC",
+      "wrapper": "0xd5669e0175D01cc5F6Be9607129668D0833DcbEC"
+    },
+    {
+      "symbol": "WELL",
+      "wrapper": "0xBA5220805E43194Ff12A434fBb745f3a2E1a09db"
+    },
+    {
+      "symbol": "USDS",
+      "wrapper": "0x6621069673C61a143DaDF376389e82DA372BF405"
+    },
+    {
+      "symbol": "tBTC",
+      "wrapper": "0xBfAaA8B347dA80B909504d403CB4C8F245e921ab"
+    },
+    {
+      "symbol": "VIRTUAL",
+      "wrapper": "0x12EC8CfEbCF5728774925feC1502733f906CB6e3"
+    },
+    {
+      "symbol": "MORPHO",
+      "wrapper": "0x09793267120dbF519B2B0e8Ea77A689e2Ba453F0"
+    },
+    {
+      "symbol": "cbXRP",
+      "wrapper": "0xf2Ac6F14A094A82A6f9489364CdE9e1ba2548d49"
+    },
+    {
+      "symbol": "MAMO",
+      "wrapper": "0xfbA86a013f7FD93B5454e147242CF2Bf419e120D"
+    }
+  ]
+}
