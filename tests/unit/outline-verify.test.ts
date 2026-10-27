@@ -99,7 +99,8 @@ describe("verifyOutline: joins", () => {
     o.joins.push({ from: "retry", to: "api", kind: "calls", evidence: { path: "src/retry.ts", line: 5, quotedSnippet: "return await fn();" } });
     const j = verify(o).joins.find((x) => x.id === "wonder:1")!;
     expect(j).toMatchObject({ status: "model-only", codeEdges: [] });
-    expect(j.reason).toMatch(/no call from inside retry's lines reaching a definition inside api's lines/);
+    expect(j.reason).toBe("Atlas found no import or call for this: no file of retry imports a file of api");
+    expect(j.noLinkFound).toBe(true);
   });
 
   it("kind matters: 'calls' needs a call edge, 'imports' an import or a call made through one, 'data' either", () => {
@@ -116,7 +117,8 @@ describe("verifyOutline: joins", () => {
     o3.joins = [{ ...o.joins[0]!, kind: "calls" }];
     expect(verify(o3).joins[0]!.codeEdges).toEqual(["calls:src/client.ts->src/retry.ts:retry"]);
     expect(v.joins[1]!.status).toBe("confirmed");
-    expect(v.joins[1]!.codeEdges).toHaveLength(2);
+    // "data" needs a real use inside the part's lines: the call, never the import line (review round 2, B1).
+    expect(v.joins[1]!.codeEdges).toEqual(["calls:src/client.ts->src/retry.ts:retry"]);
   });
 
   it("a join to an unconfirmed part, to a part not in the outline, or to itself is model-only", () => {
@@ -125,7 +127,7 @@ describe("verifyOutline: joins", () => {
     o.joins.push({ from: "api", to: "ghost", kind: "calls", evidence: GOOD.joins[0]!.evidence });
     o.joins.push({ from: "api", to: "api", kind: "calls", evidence: GOOD.joins[0]!.evidence });
     const v = verify(o);
-    expect(v.joins[0]!.reason).toMatch(/part client is unconfirmed/);
+    expect(v.joins[0]!.reason).toMatch(/plain code could not check it: part client's lines were not confirmed/);
     expect(v.joins[1]!.reason).toMatch(/part ghost is not in Wonder's outline/);
     expect(v.joins[2]!.reason).toMatch(/two different parts/);
     expect(v.notInAnyPart).toEqual(["src/client.ts", "src/log.ts"]);
@@ -137,7 +139,7 @@ describe("verifyOutline: joins", () => {
     o.parts[1]!.files.push({ path: "src/retry.ts", lineStart: 1, lineEnd: 11, quotedSnippet: "export async function retry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {" });
     o.joins = [{ from: "client", to: "retry", kind: "calls", evidence: { path: "src/client.ts", line: 4, quotedSnippet: 'return retry(() => fetch("https://example.com/u/" + id), 3);' } }];
     const v = verify(o);
-    expect(v.joins[0]).toMatchObject({ status: "model-only", reason: expect.stringMatching(/no call from inside client's lines/) });
+    expect(v.joins[0]).toMatchObject({ status: "model-only", reason: expect.stringMatching(/could not check it: it found no call inside client's lines/) });
     expect(v.joins.filter((j) => j.status === "code-only").map((j) => j.id)).toEqual(["code:api->client"]);
   });
 
@@ -146,7 +148,7 @@ describe("verifyOutline: joins", () => {
     o.joins[0]!.evidence.quotedSnippet = "return fetchUser(somethingElse);";
     const j = verify(o).joins[0]!;
     expect(j).toMatchObject({ status: "confirmed", wonderEvidence: { matches: false } });
-    expect(j.reason).toMatch(/is not the line of an import or call/);
+    expect(j.reason).toMatch(/is not the line of an import, call or use/);
   });
 });
 

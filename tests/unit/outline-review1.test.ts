@@ -52,7 +52,7 @@ describe("B1: a join counts only calls and imports made inside the part's lines,
       { from: "persist", to: "db", kind: "calls", evidence: { path: "util.ts", line: 8, quotedSnippet: "export function persistAll(xs: number[]) {" } },
     ]), "muse-wonder-1.0");
     expect(v.joins[0]).toMatchObject({ status: "confirmed", codeEdges: ["calls:util.ts->db.ts:saveUser"], wonderEvidence: { matches: true } });
-    expect(v.joins[1]).toMatchObject({ status: "confirmed", wonderEvidence: { matches: false }, reason: expect.stringMatching(/not the line of an import or call/) });
+    expect(v.joins[1]).toMatchObject({ status: "confirmed", wonderEvidence: { matches: false }, reason: expect.stringMatching(/not the line of an import, call or use/) });
   });
 
   it("each import statement keeps its own names: two `from .timed import …` lines reach two different parts", () => {
@@ -163,14 +163,14 @@ describe("B3: quote checks take linear time; a too-large outline is 'can't check
 
 // ---------- M1 ----------
 
-describe("M1: the code map, the prompt and the worst-case cost are bounded before any paid call", () => {
+describe("M1: the code map, the prompt and the worst-case cost are bounded before any paid call", { timeout: 120_000 }, () => {
   it("24,000 calls of one name are one edge with a count, not 24,000 edges", () => {
     const calls = "from b import f\n" + "f()\n".repeat(24000);
     const m = buildCodeMap([file("a.py", calls), file("b.py", "def f():\n    pass\n")]);
     const call = m.edges.find((e) => e.kind === "calls")!;
     expect(m.edges).toHaveLength(2);
     expect(call).toMatchObject({ id: "calls:a.py->b.py:f", count: 24000, line: 2 });
-    expect(call.lines).toHaveLength(100);
+    expect(call.lines).toHaveLength(24000); // review round 2 (minor 3): every line is kept
     expect(codeMapTooLarge(m)).toBeNull();
   });
 
@@ -206,10 +206,10 @@ describe("M1: the code map, the prompt and the worst-case cost are bounded befor
     const post = (s: string) => app.request("/outline/jobs", { method: "POST", headers: { "content-type": "application/json", "x-atlas-session": s }, body: JSON.stringify({ files: FILES.map((f) => ({ path: f.path, text: f.text })) }) });
     const get = (s: string, id: string) => app.request(`/outline/jobs/${id}`, { headers: { "x-atlas-session": s } });
     const settle = async (s: string, id: string) => {
-      for (let i = 0; i < 200; i++) {
+      for (let i = 0; i < 1500; i++) {
         const st = ((await (await get(s, id)).json()) as { status?: string }).status;
         if (st === "done" || st === "failed") return st;
-        await new Promise((r) => setTimeout(r, 5));
+        await new Promise((r) => setTimeout(r, 10));
       }
       return "timeout";
     };
@@ -252,7 +252,7 @@ describe("M2/M3: .jsx .mts .cts are read; tsconfig paths resolve; aliases are ne
     const m = buildCodeMap(files, [tsconfig]);
     const imps = fileOf(m, "src/main.ts").imports;
     expect(imps.map((i) => i.target)).toEqual([{ kind: "file", path: "src/app/x.ts" }, { kind: "file", path: "src/lib/q.ts" }]);
-    expect(m.notes).toContain('path aliases read from tsconfig.json (1 pattern, baseUrl; "extends" is not followed)');
+    expect(m.notes).toContain("path aliases read from tsconfig.json (1 pattern, a base folder)");
     const bare = buildCodeMap(files);
     const t = fileOf(bare, "src/main.ts").imports.map((i) => i.target);
     expect(t[1]).toMatchObject({ kind: "unresolved", reason: expect.stringMatching(/may be a path alias/) });

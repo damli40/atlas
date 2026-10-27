@@ -385,9 +385,16 @@ export function parsePyFile(text: string): ParsedFile {
     for (const s of out.symbols) if (s.parent === undefined) s.exported = listed.has(s.name);
   }
 
-  // Review minor 1: names each function declares for itself (parameters, `x = ...`, `for x in`, `with ... as x`,
-  // `except E as x`, inner def/class). A call of such a name inside that function is not a call of the import.
-  const scopes: { from: number; to: number; names: Set<string> }[] = [];
+  // ---- scopes (review round 2, M3) ----
+  // Each `def` (any depth) is a scope: its parameters and the names its body binds (`x = …`, `for x in`, `with … as
+  // x`, `except … as x`, inner def/class). An import INSIDE a def binds only within that def. A name used inside a
+  // def that the def binds itself is not the module's import.
+  interface Scope {
+    from: number;
+    to: number;
+    names: Set<string>;
+  }
+  const scopes: Scope[] = [];
   lines.forEach((l, idx) => {
     const t = l.toks;
     const k = isName(t[0], "async") && isName(t[1], "def") ? 1 : 0;
@@ -413,42 +420,106 @@ export function parsePyFile(text: string): ParsedFile {
       end = lastLine(lines[j]!);
       if (isName(b[0]) && !KEYWORDS.has(b[0]!.v) && (isOp(b[1], "=") || isOp(b[1], ":") || isOp(b[1], ","))) names.add(b[0]!.v);
       if ((isName(b[0], "def") || isName(b[0], "class")) && isName(b[1])) names.add(b[1]!.v);
+      if (isName(b[0], "async") && isName(b[1], "def") && isName(b[2])) names.add(b[2]!.v);
       if (isName(b[0], "for")) for (let q = 1; q < b.length && !isName(b[q], "in"); q++) if (isName(b[q])) names.add(b[q]!.v);
       for (let q = 0; q + 1 < b.length; q++) if (isName(b[q], "as") && isName(b[q + 1]) && !(isName(b[0], "import") || isName(b[0], "from"))) names.add(b[q + 1]!.v);
     }
     scopes.push({ from: t[0]!.line, to: end, names });
   });
-  const shadowed = (local: string, line: number) => scopes.some((sc) => sc.from <= line && line <= sc.to && sc.names.has(local.split(".")[0]!));
+  /** The innermost def scope holding a line (null = module level). */
+  const scopeAt = (line: number): Scope | null => {
+    let best: Scope | null = null;
+    for (const sc of scopes) if (sc.from <= line && line <= sc.to && (!best || sc.from >= best.from)) best = sc;
+    return best;
+  };
+  const importScope = out.imports.map((imp) => scopeAt(imp.line));
+  /** Names the module defines at top level (def, class, assignment): an import of the same name is then unsure. */
+  const topDefined = new Set(out.symbols.filter((s) => s.parent === undefined).map((s) => s.name));
+  const ownCallable = new Set(out.symbols.filter((s) => s.parent === undefined && (s.kind === "function" || s.kind === "class")).map((s) => s.name));
 
-  // Calls of imported names: `f(` where f was imported by name, or `m.f(` / `pkg.mod.f(` through a module import.
-  const bound = new Map<string, true>();
-  for (const i of out.imports) for (const n of i.names) if (n.local !== "*") bound.set(n.local, true);
-  // importlib.import_module("x") / __import__("x"): dynamic imports, never followed.
+  /** The import (or own definition) a dotted name used at `line` refers to, or null (shadowed, unsure, unknown). */
+  const resolveChain = (parts: string[], line: number, lineLocals: Set<string>): { imp: number; local: string; member: string } | { own: true; local: string; member: string } | null => {
+    const first = parts[0]!;
+    if (lineLocals.has(first)) return null; // a lambda parameter or comprehension variable on this line
+    const findImport = (scope: Scope | null) => {
+      for (let p = parts.length; p >= 1; p--) {
+        const local = parts.slice(0, p).join(".");
+        const i = out.imports.findIndex((imp, k) => importScope[k] === scope && imp.kind !== "dynamic" && imp.names.some((n) => n.local === local));
+        if (i >= 0) return { imp: i, local, member: parts.slice(p).join(".") };
+      }
+      return null;
+    };
+    // From the innermost def outwards: a def's own import wins; a name the def binds itself hides the outer one.
+    const enclosing = scopes.filter((sc) => sc.from <= line && line <= sc.to).sort((x, y) => y.from - x.from);
+    for (const sc of enclosing) {
+      const hit = findImport(sc);
+      if (hit) return hit;
+      if (sc.names.has(first)) return null;
+    }
+    const mod = findImport(null);
+    if (mod) return topDefined.has(first) ? null : mod; // redefined at module level: plain code cannot tell which one runs
+    if (ownCallable.has(first)) return { own: true, local: first, member: parts.slice(1).join(".") };
+    return null;
+  };
+
+  /** Names a line binds for itself: lambda parameters and comprehension variables (`for x in` inside brackets). */
+  const lineLocalsOf = (t: Tok[]): Set<string> => {
+    const out = new Set<string>();
+    let d = 0;
+    for (let j = 0; j < t.length; j++) {
+      const x = t[j]!;
+      if (x.t === "op" && "([{".includes(x.v)) d++;
+      if (x.t === "op" && ")]}".includes(x.v)) d--;
+      if (isName(x, "lambda")) for (let q = j + 1; q < t.length && !isOp(t[q], ":"); q++) if (isName(t[q])) out.add(t[q]!.v);
+      if (d > 0 && isName(x, "for")) for (let q = j + 1; q < t.length && !isName(t[q], "in"); q++) if (isName(t[q])) out.add(t[q]!.v);
+    }
+    return out;
+  };
+
+  // ---- every use of an imported name or a top-level def/class ----
   for (const l of lines) {
     const t = l.toks;
+    if (isName(t[0], "import") || (isName(t[0], "from") && !isOp(t[1], "("))) continue;
+    const lineLocals = lineLocalsOf(t);
+    const isClassLine = isName(t[0], "class") && isName(t[1]) && isOp(t[2], "(");
+    let classClose = -1;
+    if (isClassLine) {
+      let d = 0;
+      for (let j = 2; j < t.length; j++) {
+        if (t[j]!.t === "op" && "([{".includes(t[j]!.v)) d++;
+        if (t[j]!.t === "op" && ")]}".includes(t[j]!.v) && --d === 0) {
+          classClose = j;
+          break;
+        }
+      }
+    }
+    let depth = 0;
     for (let j = 0; j < t.length; j++) {
       const tok = t[j]!;
-      if (tok.t !== "name" || isOp(t[j - 1], ".") || isName(t[j - 1], "def") || isName(t[j - 1], "class")) continue;
+      if (tok.t === "op" && "([{".includes(tok.v)) depth++;
+      if (tok.t === "op" && ")]}".includes(tok.v)) depth--;
+      if (tok.t !== "name" || KEYWORDS.has(tok.v) || isOp(t[j - 1], ".") || isName(t[j - 1], "def") || isName(t[j - 1], "class")) continue;
       const d = dotted(t, j);
       if (!d) continue;
-      if (isOp(t[d.next], "(")) {
-        if (d.name === "importlib.import_module" || d.name === "__import__") {
-          const arg = t[d.next + 1];
-          const lit = arg?.t === "str" && isOp(t[d.next + 2], ")") ? /^[rRuU]?(['"])(.*)\1$/.exec(arg.v)?.[2] : undefined;
-          out.imports.push({ line: tok.line, specifier: lit ?? "<computed>", kind: "dynamic", names: [], ...(lit === undefined ? { computed: true } : {}) });
-        } else {
-          // Longest bound prefix: "pkg.mod.f" with "pkg.mod" bound → local "pkg.mod", member "f".
-          const parts = d.name.split(".");
-          for (let p = parts.length; p >= 1; p--) {
-            const local = parts.slice(0, p).join(".");
-            if (!bound.has(local)) continue;
-            if (shadowed(local, tok.line)) break;
-            const member = parts.slice(p).join(".");
-            const call: RawCall = { line: tok.line, local, ...(member ? { member } : {}), form: "call" };
-            out.calls.push(call);
-            break;
-          }
-        }
+      const next = t[d.next];
+      // `name=` inside a call is a keyword argument; `name = …` at the start of a statement is a binding, not a use.
+      if (isOp(next, "=") && (j === 0 || (depth > 0 && (isOp(t[j - 1], "(") || isOp(t[j - 1], ","))))) {
+        j = d.next - 1;
+        continue;
+      }
+      if (isOp(next, "(") && (d.name === "importlib.import_module" || d.name === "__import__")) {
+        const arg = t[d.next + 1];
+        const lit = arg?.t === "str" && isOp(t[d.next + 2], ")") ? /^[rRuU]?(['"])(.*)\1$/.exec(arg.v)?.[2] : undefined;
+        out.imports.push({ line: tok.line, specifier: lit ?? "<computed>", kind: "dynamic", names: [], ...(lit === undefined ? { computed: true } : {}) });
+        importScope.push(scopeAt(tok.line));
+        j = d.next - 1;
+        continue;
+      }
+      const r = resolveChain(d.name.split("."), tok.line, lineLocals);
+      if (r) {
+        const form: RawCall["form"] = isClassLine && j > 2 && j < classClose ? "extends" : isOp(t[0], "@") && j === 1 ? "call" : isOp(next, "(") ? "call" : "ref";
+        const use: RawCall = { line: tok.line, local: r.local, ...(r.member ? { member: r.member } : {}), form, ...("imp" in r ? { imp: r.imp } : { own: true as const }) };
+        out.calls.push(use);
       }
       j = d.next - 1;
     }

@@ -25,8 +25,6 @@ import type { CodeEdge, CodeImport, CodeMap, CodeMapFile, CodeSymbol, ConfigFile
 
 /** Brackets nested deeper than this are not parsed (a hostile file must not exhaust the parser's stack). */
 export const MAX_BRACKET_DEPTH = 400;
-/** An edge keeps at most this many of its lines (its count is still exact). */
-export const MAX_EDGE_LINES = 100;
 
 const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
@@ -40,7 +38,7 @@ export function languageOf(path: string): OutlineLanguage | null {
 }
 
 /** Config files Atlas reads for path aliases (never as code). */
-export const isConfigFile = (path: string) => /(?:^|\/)(?:tsconfig|jsconfig)\.json$/.test(path);
+export const isConfigFile = (path: string) => /(?:^|\/)(?:tsconfig|jsconfig)(?:\.[A-Za-z0-9_-]+)?\.json$/.test(path);
 
 /** Lines as an editor numbers them: a final "\n" does not start a new line. 0 for an empty file. */
 export function countLines(text: string): number {
@@ -111,7 +109,10 @@ function fileFor(base: string, files: ReadonlySet<string>): string | undefined {
 export interface PathAliases {
   config: string;
   dir: string;
+  /** baseUrl's folder (bare names resolve from it), or null. */
   baseDir: string | null;
+  /** The folder `paths` targets are relative to (baseUrl's, else the folder of the config that sets them). */
+  pathsDir: string;
   paths: { pattern: string; targets: string[] }[];
 }
 
@@ -139,28 +140,55 @@ function stripJsonc(text: string): string {
   return out.replace(/,(\s*[}\]])/g, "$1");
 }
 
-/** Reads `compilerOptions.baseUrl` and `paths` of a tsconfig/jsconfig. `extends` is not followed. Null when unreadable. */
-export function readPathAliases(cfg: Pick<ConfigFile, "path" | "text">): PathAliases | null {
-  let json: unknown;
+/** One config's raw JSON, or a reason it cannot be read. */
+function parseConfig(cfg: Pick<ConfigFile, "path" | "text">): { ok: true; json: Record<string, unknown> } | { ok: false; why: string } {
   try {
-    json = JSON.parse(stripJsonc(cfg.text));
+    const json = JSON.parse(stripJsonc(cfg.text)) as unknown;
+    return json && typeof json === "object" && !Array.isArray(json) ? { ok: true, json: json as Record<string, unknown> } : { ok: false, why: "is not a JSON object" };
   } catch {
-    return null;
+    return { ok: false, why: "could not be read as JSON" };
   }
-  const co = (json as { compilerOptions?: { baseUrl?: unknown; paths?: unknown } } | null)?.compilerOptions;
-  if (!co || typeof co !== "object") return null;
-  const dir = dirOf(cfg.path);
-  const baseDir = typeof co.baseUrl === "string" ? joinPath(dir, co.baseUrl) : null;
-  const paths: PathAliases["paths"] = [];
-  if (co.paths && typeof co.paths === "object" && !Array.isArray(co.paths)) {
-    for (const [pattern, targets] of Object.entries(co.paths as Record<string, unknown>)) {
-      if ((pattern.match(/\*/g) ?? []).length > 1 || !Array.isArray(targets)) continue;
-      paths.push({ pattern, targets: targets.filter((t): t is string => typeof t === "string").slice(0, 10) });
+}
+
+/**
+ * Reads `compilerOptions.baseUrl` and `paths` of a tsconfig/jsconfig, following `extends` to another config the
+ * codebase holds (a relative path, up to 5 steps; the child's options win; baseUrl and paths are relative to the
+ * config that sets them). Returns the aliases, or why there are none (review round 2, minor 5).
+ */
+export function readPathAliases(cfg: Pick<ConfigFile, "path" | "text">, all: ReadonlyArray<Pick<ConfigFile, "path" | "text">> = [cfg]): { ok: true; aliases: PathAliases; followed: string[] } | { ok: false; why: string } {
+  let baseUrl: { dir: string; value: string } | null = null;
+  let paths: { dir: string; value: Record<string, unknown> } | null = null;
+  const followed: string[] = [];
+  let cur: Pick<ConfigFile, "path" | "text"> | undefined = cfg;
+  for (let step = 0; cur && step < 6; step++) {
+    const r = parseConfig(cur);
+    if (!r.ok) return step === 0 ? { ok: false, why: r.why } : { ok: false, why: `extends ${cur.path}, which ${r.why}` };
+    const co = r.json.compilerOptions as { baseUrl?: unknown; paths?: unknown } | undefined;
+    const dir = dirOf(cur.path);
+    if (co && typeof co === "object") {
+      if (baseUrl === null && typeof co.baseUrl === "string") baseUrl = { dir, value: co.baseUrl };
+      if (paths === null && co.paths && typeof co.paths === "object" && !Array.isArray(co.paths)) paths = { dir, value: co.paths as Record<string, unknown> };
     }
+    const ext = r.json.extends;
+    if (typeof ext !== "string" || !ext.startsWith(".")) {
+      if (typeof ext === "string") followed.push(`${ext} (a package: not followed)`);
+      break;
+    }
+    const target = joinPath(dir, ext.endsWith(".json") ? ext : `${ext}.json`);
+    cur = target === null ? undefined : all.find((c) => c.path === target);
+    followed.push(cur ? cur.path : `${ext} (not among the files Atlas read)`);
+  }
+  if (baseUrl === null && paths === null) return { ok: false, why: "sets no baseUrl or paths" };
+  const out: PathAliases["paths"] = [];
+  for (const [pattern, targets] of Object.entries(paths?.value ?? {})) {
+    if ((pattern.match(/\*/g) ?? []).length > 1 || !Array.isArray(targets)) continue;
+    out.push({ pattern, targets: targets.filter((t): t is string => typeof t === "string").slice(0, 10) });
   }
   // TypeScript picks the pattern with the longest prefix before "*".
-  paths.sort((a, b) => b.pattern.split("*")[0]!.length - a.pattern.split("*")[0]!.length || cmp(a.pattern, b.pattern));
-  return { config: cfg.path, dir, baseDir, paths };
+  out.sort((a, b) => b.pattern.split("*")[0]!.length - a.pattern.split("*")[0]!.length || cmp(a.pattern, b.pattern));
+  const baseDir = baseUrl ? joinPath(baseUrl.dir, baseUrl.value) : null;
+  // Without baseUrl, paths are relative to the config that sets them.
+  return { ok: true, aliases: { config: cfg.path, dir: dirOf(cfg.path), baseDir, pathsDir: baseDir ?? paths?.dir ?? dirOf(cfg.path), paths: out }, followed };
 }
 
 /** Where a JS/TS import goes. */
@@ -178,9 +206,10 @@ export function resolveJs(importer: string, imp: Pick<RawImport, "specifier" | "
   if (spec.startsWith("/")) return { kind: "unresolved", reason: "an absolute path: plain code does not follow it" };
   if (spec.startsWith("node:")) return { kind: "external", name: shown };
   // Review M3: tsconfig/jsconfig `paths`, then `baseUrl`, from the nearest config whose folder holds the importer.
-  const cfg = aliases.filter((a) => a.dir === "" || importer.startsWith(`${a.dir}/`)).sort((a, b) => b.dir.length - a.dir.length || cmp(a.config, b.config))[0];
+  const plain = (c: PathAliases) => (/(?:^|\/)(?:tsconfig|jsconfig)\.json$/.test(c.config) ? 0 : 1);
+  const cfg = aliases.filter((a) => a.dir === "" || importer.startsWith(`${a.dir}/`)).sort((a, b) => b.dir.length - a.dir.length || plain(a) - plain(b) || cmp(a.config, b.config))[0];
   if (cfg) {
-    const root = cfg.baseDir ?? cfg.dir;
+    const root = cfg.pathsDir;
     for (const p of cfg.paths) {
       const [pre, post] = p.pattern.includes("*") ? (p.pattern.split("*") as [string, string]) : [p.pattern, null];
       let star: string | null = null;
@@ -263,6 +292,16 @@ export function resolvePy(importer: string, imp: RawImport, files: ReadonlySet<s
   let target: ImportTarget;
   if (dots > 0) {
     let dir: string | null = dirOf(importer);
+    // Review round 2 (minor 1): Python refuses a relative import that is not inside a package, or that climbs
+    // above the top package. Each folder climbed (the importer's own and dots−1 above it) must hold __init__.py.
+    const isPkg = (d: string) => files.has(d === "" ? "__init__.py" : `${d}/__init__.py`);
+    let check: string | null = dir;
+    for (let k = 0; k < dots; k++) {
+      if (check === null || !isPkg(check)) {
+        return [{ ...base, names: imp.names, target: { kind: "unresolved", reason: `Python refuses "${imp.specifier}" here: the folder it climbs through is not a package (no __init__.py)${check === null ? " or it climbs above the codebase" : ""}` } }];
+      }
+      check = check === "" ? null : dirOf(check);
+    }
     for (let k = 1; k < dots && dir !== null; k++) dir = dir === "" ? null : dirOf(dir);
     if (dir === null) return [{ ...base, names: imp.names, target: { kind: "unresolved", reason: `"${imp.specifier}" climbs above the codebase` } }];
     const hit = pyModuleAt(dir, mod, files);
@@ -276,8 +315,17 @@ export function resolvePy(importer: string, imp: RawImport, files: ReadonlySet<s
       target = { kind: "file", path: hit };
       pkgDir = hit.endsWith("/__init__.py") || hit === "__init__.py" ? dirOf(hit) : hit.replace(/\.py$/, "");
     } else {
-      target = { kind: "external", name: top };
-      pkgDir = null;
+      // Review round 2 (minor 2): a folder of .py files without __init__.py is a namespace package. It is not an
+      // outside package; a submodule named in `from ns.sub import mod` still resolves below.
+      const rel = mod.split(".").join("/");
+      const ns = PYTHON_STDLIB.has(top) ? undefined : pyRoots(importer, files).map((r) => (r === "" ? rel : `${r}/${rel}`)).find((d) => [...files].some((f) => f.startsWith(`${d}/`)));
+      if (ns !== undefined) {
+        target = { kind: "unresolved", reason: `"${imp.specifier}" is a namespace package (a folder without __init__.py), which plain code does not read as a module` };
+        pkgDir = ns;
+      } else {
+        target = { kind: "external", name: top };
+        pkgDir = null;
+      }
     }
   }
   if (plainImport || pkgDir === null) return [{ ...base, names: imp.names, target }];
@@ -310,17 +358,53 @@ export function buildCodeMap(files: ReadonlyArray<Pick<OutlineFile, "path" | "la
   const notes: string[] = [];
   if (sorted.some((f) => f.language === "py")) notes.push(`Python standard library: the module list of CPython ${PYTHON_STDLIB_VERSION}`);
   const aliases: PathAliases[] = [];
-  for (const c of [...configs].sort((a, b) => cmp(a.path, b.path))) {
-    const a = readPathAliases(c);
-    notes.push(a ? `path aliases read from ${c.path} (${plural(a.paths.length, "pattern")}${a.baseDir !== null ? ", baseUrl" : ""}; "extends" is not followed)` : `${c.path} could not be read as JSON, so its path aliases are not used`);
-    if (a) aliases.push(a);
+  const sortedConfigs = [...configs].sort((a, b) => cmp(a.path, b.path));
+  for (const c of sortedConfigs) {
+    const a = readPathAliases(c, sortedConfigs);
+    if (a.ok) {
+      notes.push(`path aliases read from ${c.path} (${plural(a.aliases.paths.length, "pattern")}${a.aliases.baseDir !== null ? ", a base folder" : ""}${a.followed.length ? `; extends ${a.followed.join(" then ")}` : ""})`);
+      aliases.push(a.aliases);
+    } else notes.push(`${c.path} ${a.why}, so it gives no path aliases`);
   }
 
+  try {
+    return buildChecked(sorted, paths, aliases, notes);
+  } catch (e) {
+    if (!(e instanceof TooComplex)) throw e;
+    // Review round 2 (B2): past the counted work budget the map is given up, the same way on every machine.
+    return {
+      version: 1,
+      files: sorted.map((f) => ({ path: f.path, language: f.language, lines: countLines(f.text), symbols: [], imports: [], parseNotes: [] })),
+      edges: [],
+      externals: [],
+      notes,
+      cantMap: TOO_COMPLEX_TO_MAP,
+    };
+  }
+}
+
+/** Review round 2 (B2): the most steps (re-export lookups, uses) one code map may take. */
+export const MAX_MAP_WORK = 3_000_000;
+export const TOO_COMPLEX_TO_MAP = "can't check: the codebase is too complex to map (its re-exports and uses need more steps than Atlas allows)";
+class TooComplex extends Error {}
+
+function buildChecked(sorted: ReadonlyArray<Pick<OutlineFile, "path" | "language" | "text">>, paths: ReadonlySet<string>, aliases: readonly PathAliases[], notes: string[]): CodeMap {
+  const byPath = new Map<string, Parsed>();
+  let work = 0;
+  const spend = (n = 1) => {
+    work += n;
+    if (work > MAX_MAP_WORK) throw new TooComplex();
+  };
+  /** For each file, its imports grouped by the parser's import index (a Python import line may become several). */
+  const byRaw = new Map<string, CodeImport[][]>();
   for (const f of sorted) {
     const parsed = parseOne(f);
-    const imports: CodeImport[] = parsed.imports.flatMap((imp) =>
+    spend(Math.ceil(f.text.length / 100));
+    const groups: CodeImport[][] = parsed.imports.map((imp) =>
       f.language === "py" ? resolvePy(f.path, imp, paths) : [{ line: imp.line, specifier: visibleText(imp.specifier), kind: imp.kind, names: imp.names, target: resolveJs(f.path, imp, paths, aliases) }],
     );
+    byRaw.set(f.path, groups);
+    const imports = groups.flat();
     imports.sort((a, b) => a.line - b.line || cmp(a.specifier, b.specifier) || cmp(a.kind, b.kind) || cmp(JSON.stringify(a.names), JSON.stringify(b.names)));
     const seen = new Map<string, number>();
     const symbols: CodeSymbol[] = [...parsed.symbols]
@@ -341,12 +425,29 @@ export function buildCodeMap(files: ReadonlyArray<Pick<OutlineFile, "path" | "la
   }
 
   type Found = { path: string; symbol?: string; note?: string };
-  /** The file (and symbol) that defines `name` as exported by `path`, following re-exports. Cycle-safe. */
-  const definer = (path: string, name: string, seen = new Set<string>()): Found => {
+  const memo = new Map<string, Found>();
+  const inProgress = new Set<string>();
+  /**
+   * The file (and symbol) that defines `name` as exported by `path`, following re-exports. Review round 2 (B2):
+   * every (file, name) is worked out once and remembered, and `export *` / `from .x import *` chains are walked
+   * breadth-first with ONE visited set, so the time grows with files × star links, never with the number of paths.
+   */
+  const definer = (path: string, name: string): Found => {
     const key = `${path}\u0000${name}`;
+    const known = memo.get(key);
+    if (known) return known;
+    if (inProgress.has(key)) return { path }; // a cycle of named re-exports: nothing defines it
+    inProgress.add(key);
+    const found = lookup(path, name);
+    inProgress.delete(key);
+    memo.set(key, found);
+    return found;
+  };
+  /** Own definition or named re-export only (no `*`). */
+  const direct = (path: string, name: string): Found | null => {
+    spend();
     const p = byPath.get(path);
-    if (!p || seen.has(key) || seen.size > 50) return { path };
-    seen.add(key);
+    if (!p) return { path };
     const exportedAs = p.parsed.exportedLocals.find((e) => e.exported === name);
     const local = exportedAs?.local ?? name;
     const own = name === "default" ? p.symbols.find((s) => s.parent === undefined && s.isDefault) : p.symbols.find((s) => s.parent === undefined && s.name === local);
@@ -358,26 +459,53 @@ export function buildCodeMap(files: ReadonlyArray<Pick<OutlineFile, "path" | "la
       const n = imp.names.find((x) => x.local === local && x.local !== "*");
       if (!n) continue;
       if (p.file.language !== "py" && imp.kind !== "re-export" && !exportedAs) continue;
-      return n.imported === "*" ? { path: imp.target.path } : definer(imp.target.path, n.imported, seen);
+      return n.imported === "*" ? { path: imp.target.path } : definer(imp.target.path, n.imported);
     }
-    // export * from "./x" / from .x import *: when several give the name, TypeScript calls it ambiguous; so does Atlas.
-    const stars: Found[] = [];
-    for (const imp of p.imports) {
-      if (imp.target.kind !== "file" || !imp.names.some((x) => x.local === "*")) continue;
-      const d = definer(imp.target.path, name, new Set(seen));
-      if (d.symbol && !stars.some((s) => s.symbol === d.symbol)) stars.push(d);
+    return null;
+  };
+  const starTargets = (path: string) => (byPath.get(path)?.imports ?? []).filter((i) => i.target.kind === "file" && i.names.some((x) => x.local === "*")).map((i) => (i.target as { path: string }).path);
+  const lookup = (path: string, name: string): Found => {
+    const d = direct(path, name);
+    if (d) return d;
+    // export * from "./x" / from .x import *: breadth-first; a file that defines the name ends that branch. When
+    // several files give the name, TypeScript calls it ambiguous; so does Atlas (no symbol, and a note why).
+    const hits: Found[] = [];
+    const visited = new Set<string>([path]);
+    const queue = [...starTargets(path)];
+    while (queue.length > 0) {
+      spend();
+      const g = queue.shift()!;
+      if (visited.has(g)) continue;
+      visited.add(g);
+      const h = name === "default" ? null : direct(g, name);
+      if (h?.symbol) {
+        if (!hits.some((x) => x.symbol === h.symbol)) hits.push(h);
+        continue;
+      }
+      for (const t of starTargets(g)) if (!visited.has(t)) queue.push(t);
     }
-    if (stars.length === 1) return stars[0]!;
-    if (stars.length > 1) {
-      const where = stars.map((s) => s.path).sort(cmp);
+    if (hits.length === 1) return hits[0]!;
+    if (hits.length > 1) {
+      const where = hits.map((x) => x.path).sort(cmp);
       return { path, note: `"${visibleText(name)}" is exported by ${plural(where.length, "file")} through "export *" (${where.slice(0, 3).join(", ")}), so plain code does not pick one` };
     }
     return { path };
   };
+  /** Review round 2 (M1): `Cls.method` → the method's own definition when the code map knows it, else the class. */
+  const memberOf = (found: Found, member: string | undefined): Found => {
+    if (!found.symbol || !member) return found;
+    const p = byPath.get(found.path);
+    const cls = p?.symbols.find((s) => s.id === found.symbol);
+    if (!cls || cls.kind !== "class") return found;
+    const m = p!.symbols.find((s) => s.parent === cls.name && s.name === member.split(".")[0]);
+    return m ? { ...found, symbol: m.id } : found;
+  };
 
   const edges = new Map<string, CodeEdge & { all: number[] }>();
   const addEdge = (e: Omit<CodeEdge, "id" | "line" | "lines" | "count">, line: number) => {
-    if (e.from === e.to) return;
+    spend();
+    // A use inside one file is an edge only when it names the definition it reaches (review round 2, M2).
+    if (e.from === e.to && !e.toSymbol) return;
     // Calls of one name are one edge (review M1). Each import statement stays its own edge, so the definitions it
     // names stay tied to its line (two `from .timed import …` lines name different classes).
     const id = `${e.kind}:${e.from}->${e.to}:${e.what}${e.typeOnly ? "#type" : ""}${e.kind === "imports" ? `@${line}` : ""}`;
@@ -395,15 +523,30 @@ export function buildCodeMap(files: ReadonlyArray<Pick<OutlineFile, "path" | "la
       const toSymbols = [...new Set(named.filter((x): x is string => x !== undefined))].sort(cmp);
       addEdge({ kind: "imports", from, to: imp.target.path, what: imp.specifier, ...(toSymbols.length ? { toSymbols } : {}), ...(imp.kind === "type-only" ? { typeOnly: true as const } : {}) }, imp.line);
     }
-    for (const call of p.parsed.calls) {
-      // The import that bound this local name (Python "pkg.mod" locals included).
-      const imp = p.imports.find((i) => i.target.kind === "file" && i.kind !== "type-only" && i.names.some((n) => n.local === call.local));
-      if (!imp || imp.target.kind !== "file") continue;
-      const n = imp.names.find((x) => x.local === call.local)!;
-      const wanted = n.imported === "*" ? call.member?.split(".")[0] : n.imported;
-      const d: Found = wanted !== undefined ? definer(imp.target.path, wanted) : { path: imp.target.path };
-      const shown = visibleText(`${call.form === "new" ? "new " : call.form === "jsx" ? "<" : ""}${call.member ? `${call.local}.${call.member}` : call.local}${call.form === "jsx" ? ">" : ""}`);
-      addEdge({ kind: "calls", from, to: d.path, what: shown, ...(d.symbol ? { toSymbol: d.symbol } : {}), ...(d.note ? { note: d.note } : {}) }, call.line);
+    const groups = byRaw.get(from) ?? [];
+    for (const use of p.parsed.calls) {
+      const kind = use.form === "extends" || use.form === "ref" ? ("uses" as const) : ("calls" as const);
+      const shown = visibleText(
+        `${use.form === "new" ? "new " : use.form === "jsx" ? "<" : use.form === "extends" ? "extends " : ""}${use.member ? `${use.local}.${use.member}` : use.local}${use.form === "jsx" ? ">" : ""}`,
+      );
+      if (use.own) {
+        // A use of this file's own top-level definition (a call inside one file, a base class, a reference).
+        const sym = p.symbols.find((s) => s.parent === undefined && s.name === use.local);
+        if (!sym) continue;
+        const d = memberOf({ path: from, symbol: sym.id }, use.member);
+        addEdge({ kind, from, to: from, what: shown, toSymbol: d.symbol! }, use.line);
+        continue;
+      }
+      if (use.imp === undefined) continue;
+      // The import that bound this name, in its real scope (Python "pkg.mod" locals included).
+      const imp = (groups[use.imp] ?? []).find((i) => i.names.some((n) => n.local === use.local));
+      if (!imp || imp.target.kind !== "file" || imp.kind === "type-only") continue;
+      const n = imp.names.find((x) => x.local === use.local)!;
+      const parts = use.member?.split(".") ?? [];
+      const wanted = n.imported === "*" ? parts[0] : n.imported;
+      const rest = n.imported === "*" ? parts.slice(1).join(".") : use.member;
+      const d: Found = wanted !== undefined ? memberOf(definer(imp.target.path, wanted), rest || undefined) : { path: imp.target.path };
+      addEdge({ kind, from, to: d.path, what: shown, ...(d.symbol ? { toSymbol: d.symbol } : {}), ...(d.note ? { note: d.note } : {}) }, use.line);
     }
   }
 
@@ -421,11 +564,12 @@ export function buildCodeMap(files: ReadonlyArray<Pick<OutlineFile, "path" | "la
   return {
     version: 1,
     files: mapFiles,
+    // Review round 2 (minor 3): every line is kept (the work budget bounds them), so no part loses its uses.
     edges: [...edges.values()]
       .sort((a, b) => cmp(a.id, b.id))
       .map(({ all, ...e }) => {
         const lines = [...new Set(all)].sort((x, y) => x - y);
-        return { ...e, line: lines[0]!, lines: lines.slice(0, MAX_EDGE_LINES), count: all.length };
+        return { ...e, line: lines[0]!, lines, count: all.length };
       }),
     externals: [...externals.entries()].sort((a, b) => cmp(a[0], b[0])).map(([name, by]) => ({ name, importedBy: [...by].sort(cmp) })),
     notes,

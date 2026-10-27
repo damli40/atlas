@@ -30,12 +30,19 @@ export interface RawImport {
   computed?: boolean;
 }
 
-/** A call of an imported name: `local` is the binding used; `member` the property read on it (ns.member()). */
+/**
+ * A use of a name the file imports, or of one of the file's own top-level definitions (review round 2).
+ * `local` is the name used; `member` the property read on it (ns.member(), Store.put()). `imp` is the index in
+ * `imports` of the import that binds it (decided with the name's real scope); `own` marks a top-level definition of
+ * this same file. form: a call, `new`, a JSX tag, a base class (`extends B`, `class A(B)`), or any other reference.
+ */
 export interface RawCall {
   line: number;
   local: string;
   member?: string;
-  form: "call" | "new" | "jsx";
+  form: "call" | "new" | "jsx" | "extends" | "ref";
+  imp?: number;
+  own?: true;
 }
 
 export interface ParsedFile {
@@ -53,35 +60,6 @@ const cap = (s: string, n = SIG_MAX) => (s.length > n ? `${s.slice(0, n - 1)}…
 
 const scriptKind = (path: string, language: OutlineLanguage): ts.ScriptKind =>
   path.endsWith(".tsx") ? ts.ScriptKind.TSX : path.endsWith(".jsx") ? ts.ScriptKind.JSX : language === "ts" ? ts.ScriptKind.TS : ts.ScriptKind.JS;
-
-const isFunctionLike = (n: ts.Node): n is ts.SignatureDeclarationBase =>
-  ts.isFunctionDeclaration(n) || ts.isFunctionExpression(n) || ts.isArrowFunction(n) || ts.isMethodDeclaration(n) || ts.isConstructorDeclaration(n) || ts.isGetAccessorDeclaration(n) || ts.isSetAccessorDeclaration(n);
-
-/** Names a binding pattern or identifier declares. */
-function boundNames(name: ts.BindingName, out: Set<string>): void {
-  if (ts.isIdentifier(name)) out.add(name.text);
-  else for (const el of name.elements) if (!ts.isOmittedExpression(el)) boundNames(el.name, out);
-}
-
-/**
- * Review minor 1: the names a function declares for its own body (parameters, var/let/const, inner function and
- * class names, catch variables), not looking inside nested functions. A call of such a name is not a call of the
- * import with the same name. Block scope is not modelled: a name declared anywhere in the function counts for the
- * whole function, which can only turn a real call into "not seen" (a join then shows as Wonder's), never the reverse.
- */
-function localNames(fn: ts.SignatureDeclarationBase & { body?: ts.Node }): Set<string> {
-  const out = new Set<string>();
-  for (const p of fn.parameters) boundNames(p.name, out);
-  const walk = (n: ts.Node): void => {
-    if (ts.isVariableDeclaration(n)) boundNames(n.name, out);
-    else if ((ts.isFunctionDeclaration(n) || ts.isClassDeclaration(n)) && n.name) out.add(n.name.text);
-    else if (ts.isCatchClause(n) && n.variableDeclaration) boundNames(n.variableDeclaration.name, out);
-    if (isFunctionLike(n) || ts.isClassLike(n)) return; // their insides are their own scope
-    ts.forEachChild(n, walk);
-  };
-  if (fn.body) ts.forEachChild(fn.body, walk);
-  return out;
-}
 
 const hasModifier = (n: ts.Node, kind: ts.SyntaxKind) => !!(ts.canHaveModifiers(n) && ts.getModifiers(n)?.some((m) => m.kind === kind));
 
@@ -253,26 +231,15 @@ export function parseJsFile(path: string, text: string, language: OutlineLanguag
   }
   for (const s of out.symbols) if (s.parent !== undefined) s.exported = out.symbols.some((c) => c.parent === undefined && c.name === s.parent && c.exported);
 
-  // ---- everywhere: nested require()/import(), and calls of imported names ----
-  const bindings = new Set<string>();
-  for (const i of out.imports) for (const n of i.names) if (n.local !== "*" && i.kind !== "re-export") bindings.add(n.local);
-
+  // ---- everywhere: nested require()/import() ----
   const topRequires = new Set(out.imports.filter((i) => i.kind === "require").map((i) => i.line));
-  const scopes: Set<string>[] = [];
-  const shadowed = (name: string) => scopes.some((sc) => sc.has(name));
-  const visit = (n: ts.Node): void => {
-    if (isFunctionLike(n)) {
-      scopes.push(localNames(n as ts.SignatureDeclarationBase & { body?: ts.Node }));
-      ts.forEachChild(n, visit);
-      scopes.pop();
-      return;
-    }
+  const findImports = (n: ts.Node): void => {
     if (ts.isCallExpression(n)) {
       const callee = n.expression;
       if (callee.kind === ts.SyntaxKind.ImportKeyword) {
         const spec = strOf(n.arguments[0]);
         out.imports.push({ line: startLine(n), specifier: spec ?? "<computed>", kind: "dynamic", names: [], ...(spec === undefined ? { computed: true } : {}) });
-      } else if (ts.isIdentifier(callee) && callee.text === "require" && n.arguments.length === 1 && !bindings.has("require")) {
+      } else if (ts.isIdentifier(callee) && callee.text === "require" && n.arguments.length === 1) {
         const line = startLine(n);
         // A top-level `const x = require(...)` was recorded above with its names.
         const parentDecl = n.parent && ts.isVariableDeclaration(n.parent) && n.parent.parent?.parent && ts.isVariableStatement(n.parent.parent.parent) && n.parent.parent.parent.parent === sf;
@@ -280,24 +247,98 @@ export function parseJsFile(path: string, text: string, language: OutlineLanguag
           const spec = strOf(n.arguments[0]);
           out.imports.push({ line, specifier: spec ?? "<computed>", kind: "require", names: [], ...(spec === undefined ? { computed: true } : {}) });
         }
-      } else {
-        const c = calleeOf(callee);
-        if (c && bindings.has(c.local) && !shadowed(c.local)) out.calls.push({ line: startLine(n), ...c, form: "call" });
       }
-    } else if (ts.isNewExpression(n)) {
-      const c = calleeOf(n.expression);
-      if (c && bindings.has(c.local) && !shadowed(c.local)) out.calls.push({ line: startLine(n), ...c, form: "new" });
-    } else if (ts.isJsxOpeningElement(n) || ts.isJsxSelfClosingElement(n)) {
-      const c = calleeOf(n.tagName as ts.Expression);
-      if (c && bindings.has(c.local) && !shadowed(c.local)) out.calls.push({ line: startLine(n), ...c, form: "jsx" });
     }
-    ts.forEachChild(n, visit);
+    ts.forEachChild(n, findImports);
   };
-  const calleeOf = (e: ts.Expression): { local: string; member?: string } | null => {
-    if (ts.isIdentifier(e)) return { local: e.text };
-    if (ts.isPropertyAccessExpression(e) && ts.isIdentifier(e.expression) && ts.isIdentifier(e.name)) return { local: e.expression.text, member: e.name.text };
-    return null;
+  ts.forEachChild(sf, findImports);
+
+  // ---- every use of an imported name or of a top-level definition, with its real scope ----
+  // Review round 2 (M3): the TypeScript binder decides what each name refers to (a parameter, a block-scoped
+  // `for (const x of …)`, a local, the import, or the file's own top-level definition), so shadowing is exact.
+  // A one-file program with no library and no module resolution: it only binds names; nothing is loaded or run.
+  const fileName = `/atlas/${path}`;
+  const bound = ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest, true, scriptKind(path, language));
+  const host: ts.CompilerHost = {
+    getSourceFile: (n) => (n === fileName ? bound : undefined),
+    writeFile: () => {},
+    getDefaultLibFileName: () => "/atlas/no-lib.d.ts",
+    useCaseSensitiveFileNames: () => true,
+    getCanonicalFileName: (f) => f,
+    getCurrentDirectory: () => "/atlas",
+    getNewLine: () => "\n",
+    fileExists: (n) => n === fileName,
+    readFile: () => undefined,
   };
-  ts.forEachChild(sf, visit);
+  const program = ts.createProgram({ rootNames: [fileName], options: { noLib: true, noResolve: true, allowJs: true, jsx: ts.JsxEmit.Preserve, types: [] }, host });
+  const checker = program.getTypeChecker();
+  const bline = (n: ts.Node) => bound.getLineAndCharacterOfPosition(n.getStart(bound)).line + 1;
+  const importIndex = new Map<string, number>();
+  out.imports.forEach((imp, i) => {
+    if (imp.kind === "re-export" || imp.kind === "dynamic") return;
+    for (const n of imp.names) if (n.local !== "*" && !importIndex.has(n.local)) importIndex.set(n.local, i);
+  });
+  const topLevel = (d: ts.Node): boolean => {
+    if (ts.isFunctionDeclaration(d) || ts.isClassDeclaration(d)) return d.parent === bound;
+    if (ts.isVariableDeclaration(d)) return d.parent?.parent?.parent === bound;
+    return false;
+  };
+  const isRequireBinding = (d: ts.Node): boolean => {
+    let v: ts.Node | undefined = d;
+    while (v && ts.isBindingElement(v)) v = v.parent?.parent;
+    return !!v && ts.isVariableDeclaration(v) && !!v.initializer && ts.isCallExpression(v.initializer) && ts.isIdentifier(v.initializer.expression) && v.initializer.expression.text === "require" && v.parent?.parent?.parent === bound;
+  };
+  const inType = (n: ts.Node): boolean => {
+    for (let p: ts.Node | undefined = n.parent; p; p = p.parent) {
+      if (ts.isExpressionWithTypeArguments(p) && ts.isHeritageClause(p.parent)) return p.parent.token !== ts.SyntaxKind.ExtendsKeyword || !ts.isClassLike(p.parent.parent);
+      if (ts.isTypeNode(p)) return true;
+      if (ts.isStatement(p) || ts.isExpressionStatement(p)) return false;
+    }
+    return false;
+  };
+  const useOf = (id: ts.Identifier): void => {
+    const parent = id.parent;
+    if (!parent || ts.isImportSpecifier(parent) || ts.isImportClause(parent) || ts.isNamespaceImport(parent) || ts.isImportEqualsDeclaration(parent) || ts.isExportSpecifier(parent)) return;
+    if ((ts.isPropertyAccessExpression(parent) || ts.isQualifiedName(parent)) && (parent as ts.PropertyAccessExpression).name === id) return;
+    if (ts.isPropertyAssignment(parent) && parent.name === id) return;
+    // The name a declaration declares (a variable, a parameter, a function, a property...) is not a use.
+    if ((parent as { name?: ts.Node }).name === id) return;
+    if (inType(id)) return;
+    const sym = checker.getSymbolAtLocation(id);
+    const decl = sym?.declarations?.[0];
+    if (!decl) return;
+    let local = id.text;
+    let imp: number | undefined;
+    let own = false;
+    if (ts.isImportSpecifier(decl) || ts.isImportClause(decl) || ts.isNamespaceImport(decl) || ts.isImportEqualsDeclaration(decl) || isRequireBinding(decl)) {
+      imp = importIndex.get(local);
+      if (imp === undefined) return;
+    } else if (topLevel(decl)) {
+      own = true;
+      if (ts.isVariableDeclaration(decl) && !(decl.initializer && (ts.isArrowFunction(decl.initializer) || ts.isFunctionExpression(decl.initializer) || ts.isClassExpression(decl.initializer)))) return;
+    } else return;
+    // What kind of use it is.
+    let member: string | undefined;
+    let form: RawCall["form"] = "ref";
+    let callee: ts.Node = id;
+    if (ts.isPropertyAccessExpression(parent) && parent.expression === id) {
+      member = parent.name.text;
+      callee = parent;
+    }
+    const cp = callee.parent;
+    if (cp && ts.isCallExpression(cp) && cp.expression === callee) form = "call";
+    else if (cp && ts.isNewExpression(cp) && cp.expression === callee) form = "new";
+    else if (cp && (ts.isJsxOpeningElement(cp) || ts.isJsxSelfClosingElement(cp) || ts.isJsxClosingElement(cp)) && cp.tagName === callee) {
+      if (ts.isJsxClosingElement(cp)) return;
+      form = "jsx";
+    } else if (cp && ts.isExpressionWithTypeArguments(cp) && ts.isHeritageClause(cp.parent)) form = "extends";
+    else if (cp && ts.isDecorator(cp)) form = "call";
+    out.calls.push({ line: bline(id), local, ...(member ? { member } : {}), form, ...(imp !== undefined ? { imp } : {}), ...(own ? { own: true as const } : {}) });
+  };
+  const walk = (n: ts.Node): void => {
+    if (ts.isIdentifier(n)) useOf(n);
+    ts.forEachChild(n, walk);
+  };
+  ts.forEachChild(bound, walk);
   return out;
 }

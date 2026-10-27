@@ -168,9 +168,13 @@ interface FileInfo {
   lines: string[];
   count: number;
   symbols: CodeSymbol[];
-  /** Prefix sums of line lengths (for the work count). */
+  /** codeBefore[n] = how many of lines 1..n hold code (for "only comments or blank lines between" in O(1)). */
+  codeBefore: number[];
+  /** chars[n] = characters in lines 1..n (the quote check reads that many). */
   chars: number[];
 }
+
+class OverBudget extends Error {}
 
 /**
  * Review M4: why a range does not sit on whole definitions (null when it does). It must start at line 1 or at the
@@ -178,11 +182,12 @@ interface FileInfo {
  * file's last line or at the last line of a definition (only comments or blank lines after it). A range over
  * MAX_RANGE_LINES lines must be the whole file.
  */
-function boundaryProblem(f: FileInfo, a: number, b: number): string | null {
+function boundaryProblem(f: FileInfo, a: number, b: number, spend: (n: number) => void): string | null {
   if (!(Number.isInteger(a) && Number.isInteger(b) && a >= 1 && b >= a && b <= f.count)) return null; // anchoredProblem says why
   const whole = a === 1 && b === f.count;
   if (b - a + 1 > MAX_RANGE_LINES && !whole) return `a range over ${MAX_RANGE_LINES} lines must be the whole file (lines 1–${f.count})`;
-  const gapOk = (from: number, to: number) => f.lines.slice(from - 1, to).every(notCode);
+  spend(f.symbols.length);
+  const gapOk = (from: number, to: number) => to < from || f.codeBefore[to]! - f.codeBefore[from - 1]! === 0;
   const startOk = a === 1 || f.symbols.some((s) => s.lineStart >= a && s.lineStart <= b && gapOk(a, s.lineStart - 1));
   if (!startOk) return `line ${a} is not the start of a definition the code map knows (or line 1)`;
   const endOk = b === f.count || f.symbols.some((s) => s.lineEnd <= b && s.lineEnd >= a && gapOk(s.lineEnd + 1, b));
@@ -191,67 +196,69 @@ function boundaryProblem(f: FileInfo, a: number, b: number): string | null {
 }
 
 interface Region {
-  path: string;
+  part: string;
   lineStart: number;
   lineEnd: number;
   whole: boolean;
 }
 
-const inRegions = (rs: readonly Region[], path: string, line: number) => rs.some((r) => r.path === path && r.lineStart <= line && line <= r.lineEnd);
-const holdsSymbol = (rs: readonly Region[], path: string, s: CodeSymbol) => rs.some((r) => r.path === path && r.lineStart <= s.lineStart && s.lineEnd <= r.lineEnd);
-const holdsFile = (rs: readonly Region[], path: string) => rs.some((r) => r.path === path && r.whole);
-
-/**
- * Review B1: does this edge show part A reaching part B? Only when a line where it happens lies inside A's ranges
- * (and not inside B's), and what it reaches lies inside B's ranges (and not inside A's): the definition it calls or
- * imports when plain code can name it, else B must hold the whole target file.
- */
-function edgeShows(e: CodeEdge, a: readonly Region[], b: readonly Region[], symbol: (id: string) => CodeSymbol | undefined): boolean {
-  if (!e.lines.some((l) => inRegions(a, e.from, l) && !inRegions(b, e.from, l))) return false;
-  const targets = (e.toSymbol ? [e.toSymbol] : (e.toSymbols ?? [])).map(symbol).filter((x): x is CodeSymbol => x !== undefined);
-  if (targets.some((t) => holdsSymbol(b, e.to, t) && !holdsSymbol(a, e.to, t))) return true;
-  return holdsFile(b, e.to) && !holdsFile(a, e.to);
-}
-
-/** Does this code-map edge show a join of this kind (direction checked by the caller)? */
-// "imports" is also shown by a call: plain code records a call only through an imported name, so a call from inside
-// A's lines to B's definition means A's file imports it and A's lines use it (the import line itself usually sits at
-// the top of the file, outside any part's definitions).
-const edgeFits = (kind: JoinKind, e: CodeEdge) => (kind === "calls" ? e.kind === "calls" : kind === "imports" ? true : !e.typeOnly);
+/** Wonder-only: what plain code can and cannot say (review round 2, M2). */
+export const COULD_NOT_CHECK = "Wonder says this; plain code could not check it";
+export const FOUND_NO_LINK = "Atlas found no import or call for this";
 
 /** Plain code's verdict on Wonder's outline. Pure; never throws for any outline value that passed the schema. */
 export function verifyOutline(files: ReadonlyArray<Pick<OutlineFile, "path" | "text">>, codeMap: CodeMap, outline: WonderOutline, model: string): VerifiedOutline {
+  try {
+    return verifyCounted(files, codeMap, outline, model, false);
+  } catch (e) {
+    if (!(e instanceof OverBudget)) throw e;
+    return verifyCounted(files, codeMap, outline, model, true);
+  }
+}
+
+function verifyCounted(files: ReadonlyArray<Pick<OutlineFile, "path" | "text">>, codeMap: CodeMap, outline: WonderOutline, model: string, overBudget: boolean): VerifiedOutline {
+  // Review round 2 (M4): every comparison is counted as it is made; past MAX_VERIFY_WORK the whole outline is
+  // "can't check" (the second pass, with overBudget set, does no comparisons). A count, not a clock.
+  let work = 0;
+  const spend = (n: number) => {
+    work += n;
+    if (!overBudget && work > MAX_VERIFY_WORK) throw new OverBudget();
+  };
+  const cantCheck = overBudget ? TOO_LARGE_TO_VERIFY : undefined;
   const symbolsOf = new Map(codeMap.files.map((f) => [f.path, f.symbols] as const));
   const info = new Map<string, FileInfo>();
   for (const f of files) {
     const lines = f.text.split("\n");
+    const codeBefore = [0];
     const chars = [0];
-    for (const l of lines) chars.push(chars[chars.length - 1]! + l.length + 1);
-    info.set(f.path, { lines, count: countLines(f.text), symbols: symbolsOf.get(f.path) ?? [], chars });
+    for (const l of lines) {
+      codeBefore.push(codeBefore[codeBefore.length - 1]! + (notCode(l) ? 0 : 1));
+      chars.push(chars[chars.length - 1]! + l.length + 1);
+    }
+    spend(f.text.length);
+    info.set(f.path, { lines, count: countLines(f.text), symbols: symbolsOf.get(f.path) ?? [], codeBefore, chars });
   }
   const symbolById = new Map(codeMap.files.flatMap((f) => f.symbols.map((s) => [s.id, s] as const)));
-  const symbol = (id: string) => symbolById.get(id);
   const by = `model:${model}` as const;
-
-  // Review B3: the work this verification would take, counted before doing any of it.
-  let work = 0;
-  for (const p of outline.parts)
-    for (const s of p.files) {
-      const f = info.get(s.path);
-      if (f && Number.isInteger(s.lineStart) && Number.isInteger(s.lineEnd)) work += f.chars[Math.min(f.lines.length, Math.max(0, s.lineEnd))]! - f.chars[Math.min(f.lines.length, Math.max(0, s.lineStart - 1))]!;
-      work += s.quotedSnippet.length;
-    }
-  work += (outline.joins.length + outline.parts.length * outline.parts.length) * codeMap.edges.length * 4;
-  const cantCheck = work > MAX_VERIFY_WORK ? TOO_LARGE_TO_VERIFY : undefined;
 
   const parts: VerifiedPart[] = outline.parts.map((p) => {
     const reasons: string[] = [];
     const spans = p.files.map((s) => {
       const f = info.get(s.path);
       const whole = f !== undefined && s.lineStart === 1 && s.lineEnd === f.count;
-      const reason = cantCheck ?? (!f ? `${shown(s.path)} is not a file of this codebase` : (boundaryProblem(f, s.lineStart, s.lineEnd) ?? anchoredProblem(f.lines, f.count, s.lineStart, s.lineEnd, s.quotedSnippet)));
+      let reason: string | null | undefined = cantCheck;
+      if (!reason) {
+        if (!f) reason = `${shown(s.path)} is not a file of this codebase`;
+        else {
+          // The quote check squashes every character of the range once, then compares the quote once.
+          const from = Math.min(f.lines.length, Math.max(0, s.lineStart - 1));
+          const to = Math.min(f.lines.length, Math.max(from, s.lineEnd));
+          spend(f.chars[to]! - f.chars[from]! + s.quotedSnippet.length);
+          reason = boundaryProblem(f, s.lineStart, s.lineEnd, spend) ?? anchoredProblem(f.lines, f.count, s.lineStart, s.lineEnd, s.quotedSnippet);
+        }
+      }
       if (reason && (reason !== cantCheck || reasons.length === 0)) reasons.push(f && reason !== cantCheck ? `${shown(s.path)}: ${reason}` : reason);
-      return { path: visibleText(s.path), lineStart: s.lineStart, lineEnd: s.lineEnd, ok: reason === undefined || reason === null, ...(reason ? { reason } : {}), ...(whole && !reason ? { wholeFile: true as const } : {}) };
+      return { path: visibleText(s.path), lineStart: s.lineStart, lineEnd: s.lineEnd, ok: !reason, ...(reason ? { reason } : {}), ...(whole && !reason ? { wholeFile: true as const } : {}) };
     });
     const confirmed = reasons.length === 0;
     const patterns = p.patterns.map((label) => ({ label: visibleText(label), known: (KNOWN_PATTERNS as readonly string[]).includes(label.trim().toLowerCase()) }));
@@ -267,34 +274,98 @@ export function verifyOutline(files: ReadonlyArray<Pick<OutlineFile, "path" | "t
     };
   });
   const partOf = new Map(parts.map((p) => [p.id, p] as const));
-  const regionsOf = new Map(
-    outline.parts.map((p) => {
-      const v = partOf.get(p.id)!;
-      return [p.id, v.status === "confirmed" ? p.files.map((s) => ({ path: s.path, lineStart: s.lineStart, lineEnd: s.lineEnd, whole: s.lineStart === 1 && s.lineEnd === info.get(s.path)!.count })) : []] as const;
-    }),
-  );
-  /** The edges that show a → b, both directions for "data". */
-  const shownEdges = (kind: JoinKind, a: string, b: string) => {
-    const ra = regionsOf.get(a)!;
-    const rb = regionsOf.get(b)!;
-    const forward = codeMap.edges.filter((e) => edgeFits(kind, e) && edgeShows(e, ra, rb, symbol));
-    return kind === "data" ? [...forward, ...codeMap.edges.filter((e) => edgeFits(kind, e) && edgeShows(e, rb, ra, symbol))] : forward;
+
+  // ---- which parts each edge links (review B1, round 2 B1 and M4) ----
+  // Regions by file, for the confirmed parts.
+  const regions = new Map<string, Region[]>();
+  for (const p of outline.parts) {
+    if (partOf.get(p.id)!.status !== "confirmed") continue;
+    for (const s of p.files) (regions.get(s.path) ?? regions.set(s.path, []).get(s.path)!).push({ part: p.id, lineStart: s.lineStart, lineEnd: s.lineEnd, whole: s.lineStart === 1 && s.lineEnd === info.get(s.path)!.count });
+  }
+  const partsAt = (path: string, line: number): Set<string> => {
+    const rs = regions.get(path) ?? [];
+    spend(rs.length + 1);
+    return new Set(rs.filter((r) => r.lineStart <= line && line <= r.lineEnd).map((r) => r.part));
+  };
+  const wholeHolders = (path: string): Set<string> => new Set((regions.get(path) ?? []).filter((r) => r.whole).map((r) => r.part));
+  /** Parts that hold what the edge reaches: its definition(s), or the whole target file. */
+  const targetParts = (e: CodeEdge): Set<string> => {
+    const out = wholeHolders(e.to);
+    const rs = regions.get(e.to) ?? [];
+    for (const id of e.toSymbol ? [e.toSymbol] : (e.toSymbols ?? [])) {
+      const s = symbolById.get(id);
+      if (!s) continue;
+      spend(rs.length + 1);
+      for (const r of rs) if (r.lineStart <= s.lineStart && s.lineEnd <= r.lineEnd) out.add(r.part);
+    }
+    return out;
+  };
+  /** pair "A\0B" → the edges that show A reaching B. */
+  const linked = new Map<string, CodeEdge[]>();
+  if (!cantCheck && !codeMap.cantMap) {
+    for (const e of codeMap.edges) {
+      const targets = targetParts(e);
+      if (targets.size === 0) continue;
+      // Review round 2 (B1): an import statement counts only for a part that holds the importing file whole. A part
+      // that holds some definitions of the file links through the uses its own lines make (calls, references).
+      const sources: Set<string>[] = [];
+      if (e.kind === "imports") sources.push(wholeHolders(e.from));
+      else {
+        const seenSets = new Set<string>();
+        for (const line of e.lines) {
+          const at = partsAt(e.from, line);
+          const key = [...at].sort().join("\u0000");
+          if (!seenSets.has(key)) {
+            seenSets.add(key);
+            sources.push(at);
+          }
+        }
+      }
+      for (const src of sources) {
+        for (const a of src) {
+          if (targets.has(a)) continue;
+          for (const b of targets) {
+            if (src.has(b)) continue;
+            spend(1);
+            const k = `${a}\u0000${b}`;
+            const list = linked.get(k) ?? linked.set(k, []).get(k)!;
+            if (!list.includes(e)) list.push(e);
+          }
+        }
+      }
+    }
+  }
+  const edgesFor = (kind: JoinKind, a: string, b: string): CodeEdge[] => {
+    const fwd = linked.get(`${a}\u0000${b}`) ?? [];
+    if (kind === "calls") return fwd.filter((e) => e.kind === "calls");
+    if (kind === "imports") return fwd;
+    // "data": a real use inside the parts' lines (a call or a reference, never a bare import line or a type), either way.
+    return [...fwd, ...(linked.get(`${b}\u0000${a}`) ?? [])].filter((e) => e.kind !== "imports" && !e.typeOnly);
+  };
+  /** Plain code positively found nothing: different files, no file of A imports a file of B, nothing it cannot follow. */
+  const foundNothing = (a: VerifiedPart, b: VerifiedPart): boolean => {
+    if (codeMap.cantMap || a.files.some((f) => b.files.includes(f))) return false;
+    const mapFiles = codeMap.files.filter((f) => a.files.includes(f.path));
+    if (mapFiles.some((f) => f.parseNotes.length > 0 || f.imports.some((i) => i.target.kind === "unresolved"))) return false;
+    return !codeMap.edges.some((e) => a.files.includes(e.from) && b.files.includes(e.to));
   };
 
   const joins: VerifiedJoin[] = outline.joins.map((j, index) => {
     const id = `wonder:${index}`;
     const ev = j.evidence;
     const base = { id, from: j.from, to: j.to, kind: j.kind };
-    const modelOnly = (reason: string, matches = false): VerifiedJoin => ({ ...base, status: "model-only", codeEdges: [], reason, wonderEvidence: { path: visibleText(ev.path), line: ev.line, matches } });
+    const modelOnly = (reason: string, extra: Partial<VerifiedJoin> = {}): VerifiedJoin => ({ ...base, status: "model-only", codeEdges: [], reason, wonderEvidence: { path: visibleText(ev.path), line: ev.line, matches: false }, ...extra });
+    const couldNot = (why: string) => modelOnly(`${COULD_NOT_CHECK}: ${why}`);
     if (cantCheck) return modelOnly(cantCheck);
     const a = partOf.get(j.from);
     const b = partOf.get(j.to);
-    if (j.from === j.to) return modelOnly("a join must link two different parts");
-    if (!a) return modelOnly(`part ${shown(j.from)} is not in Wonder's outline`);
-    if (!b) return modelOnly(`part ${shown(j.to)} is not in Wonder's outline`);
-    if (a.status !== "confirmed") return modelOnly(`part ${shown(j.from)} is unconfirmed, so plain code does not know its lines`);
-    if (b.status !== "confirmed") return modelOnly(`part ${shown(j.to)} is unconfirmed, so plain code does not know its lines`);
-    const edges = shownEdges(j.kind, j.from, j.to);
+    if (j.from === j.to) return couldNot("a join must link two different parts");
+    if (!a) return couldNot(`part ${shown(j.from)} is not in Wonder's outline`);
+    if (!b) return couldNot(`part ${shown(j.to)} is not in Wonder's outline`);
+    if (a.status !== "confirmed") return couldNot(`part ${shown(j.from)}'s lines were not confirmed`);
+    if (b.status !== "confirmed") return couldNot(`part ${shown(j.to)}'s lines were not confirmed`);
+    if (codeMap.cantMap) return couldNot(codeMap.cantMap);
+    const edges = edgesFor(j.kind, j.from, j.to);
     // Wonder's evidence matches only when it quotes, from its first line, a line where a counted edge happens.
     const f = info.get(ev.path);
     const matches =
@@ -303,8 +374,9 @@ export function verifyOutline(files: ReadonlyArray<Pick<OutlineFile, "path" | "t
       anchoredProblem(f.lines, f.count, ev.line, Math.min(f.count, ev.line + 20), ev.quotedSnippet) === null;
     const wonderEvidence = { path: visibleText(ev.path), line: ev.line, matches };
     if (edges.length === 0) {
-      const what = j.kind === "calls" ? "call" : j.kind === "imports" ? "import" : "import or call (type-only imports do not count)";
-      return { ...modelOnly(`plain code found no ${what} from inside ${shown(j.from)}'s lines reaching a definition inside ${shown(j.to)}'s lines${j.kind === "data" ? " (either way)" : ""}`), wonderEvidence };
+      if (foundNothing(a, b)) return modelOnly(`${FOUND_NO_LINK}: no file of ${shown(j.from)} imports a file of ${shown(j.to)}`, { wonderEvidence, noLinkFound: true });
+      const what = j.kind === "calls" ? "call" : j.kind === "imports" ? "import or use" : "call or use (an import line alone does not count)";
+      return modelOnly(`${COULD_NOT_CHECK}: it found no ${what} inside ${shown(j.from)}'s lines reaching ${shown(j.to)}'s lines${j.kind === "data" ? " (either way)" : ""}, and it does not see every kind of link`, { wonderEvidence });
     }
     const typeOnly = edges.every((e) => e.typeOnly);
     return {
@@ -313,22 +385,20 @@ export function verifyOutline(files: ReadonlyArray<Pick<OutlineFile, "path" | "t
       codeEdges: [...new Set(edges.map((e) => e.id))].sort(cmp),
       wonderEvidence,
       ...(typeOnly ? { typeOnly: true as const } : {}),
-      ...(matches ? {} : { reason: `Wonder's quoted evidence is not the line of an import or call it names (${shown(ev.path)} line ${ev.line}); the code map's own edges are listed instead` }),
+      ...(matches ? {} : { reason: `Wonder's quoted evidence is not the line of an import, call or use it names (${shown(ev.path)} line ${ev.line}); the code map's own edges are listed instead` }),
     };
   });
 
-  // Code-only: edges between two confirmed parts that no confirmed Wonder join (in that direction) covers.
+  // Code-only: links between two confirmed parts that no confirmed Wonder join (that way, or "data" either way) covers.
   const confirmedParts = parts.filter((p) => p.status === "confirmed");
   const joinedPairs = new Set(joins.filter((j) => j.status === "confirmed").flatMap((j) => (j.kind === "data" ? [`${j.from}\u0000${j.to}`, `${j.to}\u0000${j.from}`] : [`${j.from}\u0000${j.to}`])));
-  if (!cantCheck) {
-    for (const a of confirmedParts) {
-      for (const b of confirmedParts) {
-        if (a.id === b.id || joinedPairs.has(`${a.id}\u0000${b.id}`)) continue;
-        const edges = codeMap.edges.filter((e) => edgeShows(e, regionsOf.get(a.id)!, regionsOf.get(b.id)!, symbol));
-        if (edges.length === 0) continue;
-        const typeOnly = edges.every((e) => e.typeOnly);
-        joins.push({ id: `code:${a.id}->${b.id}`, from: a.id, to: b.id, kind: edges.some((e) => e.kind === "calls") ? "calls" : "imports", status: "code-only", codeEdges: edges.map((e) => e.id).sort(cmp), ...(typeOnly ? { typeOnly: true as const } : {}) });
-      }
+  for (const a of confirmedParts) {
+    for (const b of confirmedParts) {
+      if (a.id === b.id || joinedPairs.has(`${a.id}\u0000${b.id}`)) continue;
+      const edges = linked.get(`${a.id}\u0000${b.id}`) ?? [];
+      if (edges.length === 0) continue;
+      const typeOnly = edges.every((e) => e.typeOnly);
+      joins.push({ id: `code:${a.id}->${b.id}`, from: a.id, to: b.id, kind: edges.some((e) => e.kind === "calls") ? "calls" : "imports", status: "code-only", codeEdges: edges.map((e) => e.id).sort(cmp), ...(typeOnly ? { typeOnly: true as const } : {}) });
     }
   }
 

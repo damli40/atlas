@@ -164,7 +164,8 @@ describe("Python code map (pure-TS scanner)", () => {
     expect(core.find((i) => i.specifier === "..outside")!.target).toMatchObject({ kind: "unresolved" });
     const deep = fileOf(m, "pkg/sub/deep.py").imports;
     expect(deep.find((i) => i.specifier === "..")!.target).toEqual({ kind: "file", path: "pkg/util.py" });
-    expect(deep.find((i) => i.specifier === "...pkg")!.target).toEqual({ kind: "file", path: "pkg/core.py" });
+    // Review round 2 (minor 1): three dots from pkg/sub climb above the top package "pkg": Python refuses it.
+    expect(deep.find((i) => i.specifier === "...pkg")!.target).toMatchObject({ kind: "unresolved", reason: expect.stringMatching(/Python refuses/) });
     expect(deep.find((i) => i.specifier === ".")!.target).toEqual({ kind: "file", path: "pkg/sub/__init__.py" });
   });
 

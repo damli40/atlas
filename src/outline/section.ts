@@ -144,6 +144,8 @@ function sectionProblems(raw: unknown): string[] {
     if (bytes !== f.bytes) say(`file ${f.path}: it is ${bytes} bytes, not the ${f.bytes} recorded`);
     if (bytes > MAX_OUTLINE_FILE_BYTES) say(`file ${f.path}: over the ${MAX_OUTLINE_FILE_BYTES}-byte limit for one file`);
     if (sha256Text(f.text) !== f.sha256) say(`file ${f.path}: its text does not hash to its recorded SHA-256`);
+    // Review round 2 (minor 4): a GitHub codebase records every file's git blob id; removing them is caught.
+    if (s.source.kind === "github" && f.gitBlob === undefined) say(`file ${f.path}: a GitHub codebase must record each file's git blob id`);
     if (f.gitBlob !== undefined && gitBlobOf(f.text) !== f.gitBlob) say(`file ${f.path}: its text is not the git blob ${f.gitBlob.slice(0, 12)}… it records`);
   }
   for (const c of s.configFiles ?? []) {
@@ -183,7 +185,8 @@ function sectionProblems(raw: unknown): string[] {
     else {
       const sum = (k: "promptTokens" | "completionTokens") => used.reduce((n, u) => n + u[k], 0);
       const usd = used.reduce((n, u) => n + u.usd, 0);
-      if (s.usage.promptTokens !== sum("promptTokens") || s.usage.completionTokens !== sum("completionTokens") || Math.abs(s.usage.usd - usd) > 1e-9) say("the usage total is not the sum of the recorded calls");
+      const reasoning = used.some((u) => u.reasoningTokens !== undefined) ? used.reduce((n, u) => n + (u.reasoningTokens ?? 0), 0) : undefined;
+      if (s.usage.promptTokens !== sum("promptTokens") || s.usage.completionTokens !== sum("completionTokens") || s.usage.reasoningTokens !== reasoning || Math.abs(s.usage.usd - usd) > 1e-9) say("the usage total is not the sum of the recorded calls");
     }
   }
   return out;

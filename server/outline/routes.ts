@@ -19,9 +19,10 @@
 import type { Context, Hono } from "hono";
 import { nanoid } from "nanoid";
 import { z } from "zod";
-import { buildCodeMap, codeMapTooLarge } from "../../src/outline/codemap";
+import { codeMapTooLarge } from "../../src/outline/codemap";
 import { partDetails } from "../../src/outline/details";
-import { codebaseSha256, makeOutlineSection, MAX_OUTLINE_FILE_BYTES } from "../../src/outline/section";
+import { codebaseSha256, MAX_OUTLINE_FILE_BYTES } from "../../src/outline/section";
+import { childProcessOffLoop, type OffLoop } from "./offloop";
 import type { OutlineAtlasFile, OutlineSection } from "../../src/outline/types";
 import { plural } from "../../src/words";
 import { oneLine, sessionEmitter, type AgentLog } from "../log/agentlog";
@@ -51,6 +52,8 @@ export interface OutlineOptions {
   outliner?: { chat: (args: ChatArgs) => Promise<ChatResult>; model?: string; /** The shared model budget (server/app.ts uses the first one any role gives). */ budget?: ModelBudget };
   /** Reads a GitHub repo (default server/outline/intake.ts intakeGithub). Tests pass a stand-in. */
   readGithub?: (req: RepoRequest) => Promise<Codebase>;
+  /** Where the code map and the check run (default: a separate Node process with a wall-clock limit, review round 2 B2). */
+  offLoop?: OffLoop;
   now?: () => Date;
 }
 
@@ -107,6 +110,7 @@ export function createOutlineRoutes(opts: OutlineOptions, deps: OutlineDeps) {
   // The role adds the code guard in front of this (refused ids are never counted or sent).
   const outlinerChat = opts.outliner && deps.budget ? deps.budget.wrap(opts.outliner.chat) : undefined;
   const readGithub = opts.readGithub ?? ((req: RepoRequest) => intakeGithub(req));
+  const offLoop = opts.offLoop ?? childProcessOffLoop();
   const jobs = new Map<string, Job>();
   const started = new Map<string, number>();
 
@@ -151,7 +155,8 @@ export function createOutlineRoutes(opts: OutlineOptions, deps: OutlineDeps) {
       job.status = "mapping";
       const kb = Math.ceil(codebase.files.reduce((n, f) => n + f.bytes, 0) / 1024);
       const label = codebase.source.kind === "github" ? `${codebase.source.repo}@${codebase.source.commit.slice(0, 12)}${codebase.source.subfolder ? ` (${codebase.source.subfolder})` : ""}` : "uploaded files";
-      const codeMap = buildCodeMap(codebase.files, codebase.configFiles);
+      // Off the event loop (review round 2, B2): a hostile codebase slows only its own job.
+      const codeMap = await offLoop.map(codebase.files, codebase.configFiles);
       const tooBig = codeMapTooLarge(codeMap);
       if (tooBig) throw new OutlineIntakeError("too_large", tooBig);
       // The fingerprint is computed by the section below; this log line names the files only by count and size.
@@ -166,7 +171,7 @@ export function createOutlineRoutes(opts: OutlineOptions, deps: OutlineDeps) {
         wonder = r.ok ? { model: r.model, outline: r.outline, attempts: r.attempts } : { model: r.model, outline: null, attempts: r.attempts, failure: oneLine(r.reason, 600) };
       }
       job.status = "checking";
-      const section = makeOutlineSection({ source: codebase.source, files: codebase.files, configFiles: codebase.configFiles, skipped: codebase.skipped, codeMap, wonder });
+      const section = await offLoop.section({ source: codebase.source, files: codebase.files, configFiles: codebase.configFiles, skipped: codebase.skipped, codeMap, wonder });
       if (section.verified) {
         const n = section.verified.counts;
         say(job.sessionId, "gate", `checks ${model}'s outline: ${n.confirmedParts} of ${n.confirmedParts + n.unconfirmedParts} parts confirmed; joins ${n.confirmedJoins} confirmed, ${n.modelOnlyJoins} model-only, ${n.codeOnlyJoins} found by plain code`, section.codeSha256);
@@ -281,8 +286,9 @@ export function createOutlineRoutes(opts: OutlineOptions, deps: OutlineDeps) {
         wonder: { model: s.wonder.model, attempts: s.wonder.attempts, ...(s.wonder.failure ? { failure: s.wonder.failure } : {}) },
         usage: s.usage,
         labels: {
-          parts: `Parts, names, purposes and patterns: ${s.wonder.model}'s words. Plain code checked every file and line.`,
-          joins: "confirmed: Wonder said it and plain code found the import or call. model-only: Wonder says; the code doesn't show it. code-only: found by plain code; Wonder did not say it.",
+          parts: `Parts, names, purposes and patterns: ${s.wonder.model}'s words. "confirmed" means plain code found these lines in the code, on whole definitions; it does not mean the purpose is true.`,
+          joins:
+            'confirmed: Wonder said it and plain code found an import, call or use inside the first part\'s lines reaching the second part\'s lines. model-only: "Wonder says this; plain code could not check it" (the reason says why), or, when marked noLinkFound, "Atlas found no import or call for this". code-only: found by plain code; Wonder did not say it. A "data" join is linked either direction.',
         },
       });
       return c.body(d.job.outlineJson, 200, { "content-type": "application/json; charset=UTF-8" });

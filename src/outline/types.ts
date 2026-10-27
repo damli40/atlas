@@ -111,19 +111,21 @@ export interface CodeMapFile {
 }
 
 /**
- * An edge between two DIFFERENT files, found by plain code. Review M1: every import or call of the same name from
+ * An edge found by plain code: between two files, or (review round 2) inside one file when it names the definition
+ * it reaches. Review M1: every import or call of the same name from
  * one file to another is ONE edge, with the lines where it happens (so 24,000 calls of `f()` are one edge, count
  * 24,000), never one edge per line.
  */
 export interface CodeEdge {
   /** Stable id: "calls:<from>-><to>:<what>", or "imports:<from>-><to>:<what>@<line>" (one per import statement; "#type" before "@" for a type-only one). */
   id: string;
-  kind: "imports" | "calls";
+  /** imports: an import statement. calls: a call, `new` or JSX tag. uses: a base class (`extends B`, `class A(B)`) or any other reference to the name (review round 2). */
+  kind: "imports" | "calls" | "uses";
   from: string;
   to: string;
   /** The first line in `from` where it happens. */
   line: number;
-  /** Every line in `from` where it happens, sorted, at most MAX_EDGE_LINES (src/outline/codemap.ts). */
+  /** Every line in `from` where it happens, sorted. */
   lines: number[];
   /** How many times it happens (calls on the same line count separately). */
   count: number;
@@ -149,6 +151,8 @@ export interface CodeMap {
   externals: { name: string; importedBy: string[] }[];
   /** How plain code read this codebase (the Python standard-library list used, the tsconfig files read). */
   notes: string[];
+  /** Review round 2 (B2): set when the map was given up past its counted work budget (then it has no edges). */
+  cantMap?: string;
 }
 
 /** A tsconfig.json / jsconfig.json of the codebase (read for its `paths` and `baseUrl`, never run). */
@@ -232,7 +236,8 @@ export interface VerifiedJoin {
   kind: JoinKind;
   /**
    * confirmed: Wonder said it AND plain code found an import or call between the two parts' files.
-   * model-only: Wonder said it; the code does not show it ("Wonder says; the code doesn't show it").
+   * model-only: Wonder said it; plain code could not check it (the reason says why), or, with `noLinkFound`, Atlas
+   *   found no import or call for it.
    * code-only: plain code found it; Wonder did not say it.
    */
   status: "confirmed" | "model-only" | "code-only";
@@ -244,6 +249,8 @@ export interface VerifiedJoin {
   wonderEvidence?: { path: string; line: number; matches: boolean };
   /** Review minor 3: every edge that shows it is a type-only import (no link at run time). */
   typeOnly?: true;
+  /** Review round 2 (M2): model-only, and plain code positively looked: no file of one part imports a file of the other. */
+  noLinkFound?: true;
 }
 
 export interface VerifiedOutline {

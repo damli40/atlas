@@ -10,7 +10,7 @@ import { createModelBudget } from "../../server/meta/budget";
 import type { ChatArgs, ChatResult } from "../../server/meta/client";
 import { codeModelRefusal, runOutliner } from "../../server/meta/roles/outliner";
 import { gitBlobSha1, intakeGithub, intakeUpload, OutlineIntakeError, parseRepoRequest, type Codebase } from "../../server/outline/intake";
-import { verifyOutlineFile } from "../../src/outline/section";
+import { gitBlobOf, verifyOutlineFile } from "../../src/outline/section";
 import type { OutlineAtlasFile, VerifiedOutline } from "../../src/outline/types";
 import type { PartDetails } from "../../src/outline/details";
 import { FILES, GOOD, MAP } from "../tools/outline-fixtures";
@@ -175,15 +175,15 @@ function setup(over: { chat?: (a: ChatArgs) => Promise<ChatResult>; readGithub?:
 }
 
 async function waitDone(get: (p: string) => Response | Promise<Response>, id: string) {
-  for (let i = 0; i < 200; i++) {
+  for (let i = 0; i < 1500; i++) {
     const s = (await (await get(`/outline/jobs/${id}`)).json()) as { status: string };
     if (s.status === "done" || s.status === "failed") return s;
-    await new Promise((r) => setTimeout(r, 5));
+    await new Promise((r) => setTimeout(r, 10));
   }
   throw new Error("job did not finish");
 }
 
-describe("outline routes", () => {
+describe("outline routes (the code map and the check run in a child process)", { timeout: 60_000 }, () => {
   it("upload → job → verified outline, part details from the code, an outline file that verifies", async () => {
     const { req, calls } = setup();
     const a = req("x1-a");
@@ -197,7 +197,8 @@ describe("outline routes", () => {
     expect(o.verified.notInAnyPart).toEqual(["src/log.ts"]);
     expect(o.files[0]).not.toHaveProperty("text"); // the outline view does not echo the code
     expect(o.usage).toEqual(USAGE);
-    expect(o.labels.joins).toMatch(/Wonder says; the code doesn't show it/);
+    expect(o.labels.joins).toMatch(/Wonder says this; plain code could not check it/);
+    expect(o.labels.joins).not.toMatch(/doesn't show it/);
 
     const part = (await (await a.get(`/outline/jobs/${jobId}/parts/retry`)).json()) as PartDetails;
     expect(part.definitions.map((d) => [d.name, d.params, d.returns, d.readFrom])).toEqual([["retry", ["fn: () => Promise<T>", "attempts = 3"], "Promise<T>", "the code"]]);
@@ -247,7 +248,8 @@ describe("outline routes", () => {
   });
 
   it("a GitHub job (reader stubbed): source recorded; an intake error fails the job with its reason", async () => {
-    const codebase: Codebase = { ...intakeUpload(UPLOAD), source: { kind: "github", repo: "o/r", commit: "b".repeat(40), subfolder: "src" } };
+    const up = intakeUpload(UPLOAD);
+    const codebase: Codebase = { ...up, files: up.files.map((f) => ({ ...f, gitBlob: gitBlobOf(f.text) })), source: { kind: "github", repo: "o/r", commit: "b".repeat(40), subfolder: "src" } };
     const { req } = setup({ readGithub: async () => codebase });
     const a = req("x1-gh");
     const { jobId } = (await (await a.post("/outline/jobs", { repo: "o/r", subfolder: "src" })).json()) as { jobId: string };
