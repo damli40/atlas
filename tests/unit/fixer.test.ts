@@ -86,6 +86,13 @@ describe("unified diff reading (offline)", () => {
     expect(parseUnifiedDiff("I changed the retry loop.").ok).toBe(false);
   });
 
+  it("does not trust a hunk header's line counts (like git apply --recount): a miscounted header is still read and applied", async () => {
+    const miscounted = TIME_LIMIT_DIFF.replace(/^@@ -(\d+),(\d+) \+(\d+),(\d+) @@/m, "@@ -$1,99 +$3,1 @@");
+    expect(miscounted).not.toBe(TIME_LIMIT_DIFF);
+    const r = await checkChange(miscounted, tsChangeContext(FIXTURE_REF, code));
+    expect(r.ok && r.changedFiles[FIXTURE_REF]).toBe(withTimeLimit);
+  });
+
   it("takes only the diff out of an answer and says when there was prose around it", () => {
     const got = extractDiff(`Here is the change:\n\`\`\`diff\n${TIME_LIMIT_DIFF}\`\`\`\nThis adds a time limit.`);
     expect(got?.diff).toBe(TIME_LIMIT_DIFF);

@@ -2,7 +2,8 @@
 //
 // Plain words: Atlas never edits the code it checks. To try a change, it writes the target's files
 // into a fresh temp folder (a "scratch copy"), runs `git apply --check` there (does the diff fit
-// these exact bytes?), then `git apply`, and reads the changed files back. The folder is deleted
+// these exact bytes?), then `git apply`, and reads the changed files back. Both use --recount: git
+// infers each hunk's line counts from its lines instead of trusting the header (models miscount them). The folder is deleted
 // afterwards. The repository's own files are never touched.
 
 import { execFile } from "node:child_process";
@@ -60,7 +61,7 @@ function git(cwd: string, args: string[], input?: string): Promise<{ code: numbe
 
 /** `git apply --check`: does the diff apply to the scratch copy's exact bytes? Never changes a file. */
 export async function applyCheck(scratch: Scratch, diff: string): Promise<{ ok: true } | { ok: false; reason: string }> {
-  const r = await git(scratch.dir, ["apply", "--check", "--whitespace=nowarn", "-"], diff);
+  const r = await git(scratch.dir, ["apply", "--check", "--recount", "--whitespace=nowarn", "-"], diff);
   if (r.code === 0) return { ok: true };
   const why = r.stderr.trim().split("\n").slice(0, 3).join(" | ").replaceAll(scratch.dir, "<scratch>");
   return { ok: false, reason: `git apply --check refused the diff: ${why || `exit ${r.code}`}` };
@@ -70,7 +71,7 @@ export async function applyCheck(scratch: Scratch, diff: string): Promise<{ ok: 
 export async function applyDiff(scratch: Scratch, diff: string): Promise<{ ok: true } | { ok: false; reason: string }> {
   const check = await applyCheck(scratch, diff);
   if (!check.ok) return check;
-  const r = await git(scratch.dir, ["apply", "--whitespace=nowarn", "-"], diff);
+  const r = await git(scratch.dir, ["apply", "--recount", "--whitespace=nowarn", "-"], diff);
   if (r.code === 0) return { ok: true };
   return { ok: false, reason: `git apply failed: ${r.stderr.trim().split("\n")[0]?.replaceAll(scratch.dir, "<scratch>") ?? `exit ${r.code}`}` };
 }

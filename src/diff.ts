@@ -7,8 +7,11 @@
 // that touches another file, is too large, or adds a network import. It does NOT apply the diff:
 // `git apply --check` in a scratch copy does that (runners/scratch.ts).
 //
-// Hunk line counts are followed exactly, so a removed line whose text starts with "-- " is never
-// mistaken for a new file header.
+// The line counts in a hunk header ("@@ -56,1 +56,6 @@") are NOT trusted: a model often miscounts
+// them. Like `git apply --recount` (which runners/scratch.ts uses), the hunk is read line by line
+// until the next hunk or file header, and the counts are inferred. The diff's text is never changed.
+// Blank lines at the very end of the text are ignored; a blank line inside a hunk is an empty
+// context line (as git reads it).
 
 export interface DiffFile {
   /** Path after stripping "a/"; null for /dev/null (a created file). */
@@ -45,7 +48,7 @@ function stripPrefix(p: string, prefix: "a/" | "b/"): string | null {
 /** Parse a unified diff. Refuses anything that is not plain line edits to existing files. */
 export function parseUnifiedDiff(text: string): DiffParse {
   const lines = text.replace(/\r\n/g, "\n").split("\n");
-  if (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
+  while (lines.length > 0 && lines[lines.length - 1]!.trim() === "") lines.pop();
   const files: DiffFile[] = [];
   let cur: DiffFile | null = null;
   let i = 0;
@@ -67,36 +70,26 @@ export function parseUnifiedDiff(text: string): DiffParse {
     const h = HUNK.exec(line);
     if (h) {
       if (!cur) return { ok: false, reason: `line ${i + 1} is a hunk with no file header before it` };
-      let oldLeft = h[2] === undefined ? 1 : Number(h[2]);
-      let newLeft = h[4] === undefined ? 1 : Number(h[4]);
-      cur.hunks++;
+      const file = cur;
+      file.hunks++;
       i++;
-      while (oldLeft > 0 || newLeft > 0) {
-        const l = lines[i];
-        if (l === undefined) return { ok: false, reason: `the diff ends inside a hunk of ${cur.newPath ?? cur.oldPath} (it promised more lines)` };
+      let body = 0;
+      // Read until the next hunk, the next file header, or the end (the counts are inferred, see above).
+      while (i < lines.length) {
+        const l = lines[i]!;
+        if (HUNK.test(l) || l.startsWith("diff --git ") || (l.startsWith("--- ") && (lines[i + 1] ?? "").startsWith("+++ "))) break;
         if (l.startsWith("\\")) {
           i++; // "\ No newline at end of file"
           continue;
         }
         const tag = l[0];
-        const body = l.slice(1);
-        if (tag === " " || l === "") {
-          // An empty line inside a hunk is a kept empty line whose leading space was trimmed.
-          oldLeft--;
-          newLeft--;
-        } else if (tag === "-") {
-          cur.removed.push(body);
-          oldLeft--;
-        } else if (tag === "+") {
-          cur.added.push(body);
-          newLeft--;
-        } else {
-          return { ok: false, reason: `line ${i + 1} inside a hunk of ${cur.newPath ?? cur.oldPath} does not start with " ", "-" or "+"` };
-        }
-        if (oldLeft < 0 || newLeft < 0) return { ok: false, reason: `a hunk of ${cur.newPath ?? cur.oldPath} has more lines than its @@ header says` };
+        if (tag === "-") file.removed.push(l.slice(1));
+        else if (tag === "+") file.added.push(l.slice(1));
+        else if (tag !== " " && l !== "") return { ok: false, reason: `line ${i + 1} inside a hunk of ${file.newPath ?? file.oldPath} does not start with " ", "-" or "+"` };
+        body++;
         i++;
       }
-      while (lines[i]?.startsWith("\\")) i++;
+      if (body === 0) return { ok: false, reason: `a hunk of ${file.newPath ?? file.oldPath} has no lines` };
       continue;
     }
     if (line.trim() === "") {

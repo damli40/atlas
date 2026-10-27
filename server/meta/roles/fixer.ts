@@ -6,7 +6,9 @@
 //   write them (--disable-write), run a shell (--disable-shell), use the web (--disable-web-tools),
 //   ask a person anything (--disable-request-user-input) or load anyone's personal skills (a fresh,
 //   empty HOME and --no-foreign-personal-context). Its answer is text: the instruction asks for a
-//   unified diff only. Contributor mode is OFF (Meta does not train on these inputs).
+//   unified diff only. The model is named (--model muse-spark-1.3) and contributor mode is asked OFF;
+//   the model id muse exec REPORTS is what the log and the answer show, and an attempt answered by a
+//   "-contributor" model is flagged (contributorModel: true).
 // - If `muse exec` cannot give an answer at all (missing binary, no key, timeout, a failed run),
 //   the fallback is one muse-spark-1.3 chat completion with the same prompt. The log says which
 //   path ran and which model id answered.
@@ -39,10 +41,18 @@ export const FIXER_INSTRUCTION = "Change the code toward what the bettors expect
 /** What the screen calls the agent (D10: Meta's names stay visible). */
 export const MUSE_CODE = "Muse Code";
 export const FIXER_FALLBACK_MODEL = "muse-spark-1.3";
+/**
+ * The model Muse Code is asked to use. Named explicitly: on Oct 27 a run with only
+ * `--contributor-mode off` still reported "muse-spark-1.3-contributor" (tests/evidence/D06-01).
+ */
+export const FIXER_MUSE_MODEL = "muse-spark-1.3";
 export { CHANGE_CAPTION } from "../../../src/change";
 export const MUSE_BIN_DEFAULT = join(homedir(), ".local", "bin", "muse");
 export const MUSE_TIMEOUT_MS = 240_000;
-export const MUSE_MAX_STEPS = 8;
+/** Muse Code's model steps per attempt. The files are in the prompt, so one step can answer; 3 leaves room to read. */
+export const MUSE_MAX_STEPS = 3;
+/** Tool output fed back per call (bytes): keeps a read of the 41 KB address book from filling the context. */
+export const MUSE_MAX_TOOL_OUTPUT_BYTES = 20_000;
 
 export type FixerPath = "muse-exec" | "chat-fallback";
 
@@ -73,6 +83,10 @@ export interface FixerAttempt {
   /** Why the answer was not used (absent when it was). */
   reason?: string;
   usage?: Usage;
+  /** The model's whole answer, kept for the record (evidence). Never rendered as Atlas's words: the page shows only the diff. */
+  answer?: string;
+  /** True when the model id that answered is a "-contributor" model (Meta may train on its inputs). */
+  contributorModel?: boolean;
 }
 
 export type FixerResult =
@@ -183,6 +197,7 @@ export function museArgs(workspace: string, promptFile: string): string[] {
     "--json",
     "--api-key-stdin",
     "--workspace", workspace,
+    "--model", FIXER_MUSE_MODEL,
     "--contributor-mode", "off",
     "--disable-web-tools",
     "--disable-shell",
@@ -194,6 +209,7 @@ export function museArgs(workspace: string, promptFile: string): string[] {
     "--no-session-log",
     "--reasoning-effort", "low",
     "--max-model-steps", String(MUSE_MAX_STEPS),
+    "--max-tool-output-bytes", String(MUSE_MAX_TOOL_OUTPUT_BYTES),
     "--prompt-file", promptFile,
   ];
 }
@@ -390,14 +406,15 @@ export async function runFixer(input: FixerInput, deps: FixerDeps = {}): Promise
     }
     const got = extractDiff(r.text);
     const checked: CheckedChange = got ? await checkChange(got.diff, input.context) : { ok: false, reason: "the answer holds no unified diff" };
+    const kept = { answer: r.text.slice(0, 20_000), ...(/-contributor$/.test(model) ? { contributorModel: true } : {}) };
     if (checked.ok) {
-      attempts.push({ attempt, path, model, ok: true, ...(r.usage ? { usage: r.usage } : {}) });
+      attempts.push({ attempt, path, model, ok: true, ...(r.usage ? { usage: r.usage } : {}), ...kept });
       const files = checked.diffFiles.map((f) => f.newPath).join(", ");
       say(model, `${pathLabel(path, model)} proposes a change to ${files} (${checked.changedLines} lines); plain code accepted it`, r.usage);
       return { ok: true, diff: got!.diff, path, model, attempts, ...(total ? { usage: total } : {}), checked };
     }
     lastReason = checked.reason;
-    attempts.push({ attempt, path, model, ok: false, reason: checked.reason, ...(r.usage ? { usage: r.usage } : {}) });
+    attempts.push({ attempt, path, model, ok: false, reason: checked.reason, ...(r.usage ? { usage: r.usage } : {}), ...kept });
     say(model, `${pathLabel(path, model)}: answer refused by plain code (${checked.reason})${attempt === 1 ? "; one repair try" : ""}`, r.usage);
     prompt = repairPrompt(base, checked.reason, got?.diff ?? null);
   }
