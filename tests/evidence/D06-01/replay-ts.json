@@ -1,0 +1,479 @@
+{
+  "ok": true,
+  "runId": "Gfn5pjlKRH",
+  "change": {
+    "id": "c2fntNda9B",
+    "runId": "Gfn5pjlKRH",
+    "diff": "--- a/tests/fixtures/with-rpc-retry.ts\n+++ b/tests/fixtures/with-rpc-retry.ts\n@@ -49,21 +49,44 @@\n export async function withRpcRetry<T>(label: string, fn: () => Promise<T>, opts: RetryOptions = {}): Promise<T> {\n   const attempts = opts.attempts ?? RPC_RETRY_ATTEMPTS;\n   const delayMs = opts.delayMs ?? RPC_RETRY_DELAY_MS;\n   const sleep = opts.sleep ?? realSleep;\n   const log = opts.log ?? console.log;\n-  let last: unknown;\n+  let last: unknown = new Error(`${label}: chain read failed`);\n   for (let i = 1; i <= attempts; i++) {\n-    try { return await fn(); }\n-    catch (e) {\n-      last = e;\n-      if (i < attempts) {\n-        log(`${label}: chain read failed (attempt ${i}/${attempts}, likely RPC lag) — retrying in ${delayMs / 1000}s`);\n-        await sleep(delayMs);\n-      }\n+    let settled = false;\n+    let failed = false;\n+    let value: T | undefined = undefined;\n+    let error: unknown = undefined;\n+    let p: Promise<T>;\n+    try {\n+      p = fn();\n+    } catch (e) {\n+      last = e;\n+      if (i < attempts) {\n+        log(`${label}: chain read failed (attempt ${i}/${attempts}, likely RPC lag) — retrying in ${delayMs / 1000}s`);\n+        await sleep(delayMs);\n+        continue;\n+      }\n+      throw last;\n     }\n+    p.then(\n+      (v) => { settled = true; value = v; },\n+      (e) => { settled = true; failed = true; error = e; },\n+    );\n+    // Let an already-settled fn settle without spending virtual time.\n+    await Promise.resolve();\n+    await Promise.resolve();\n+    if (settled) {\n+      if (!failed) return value as T;\n+      last = error;\n+      if (i < attempts) {\n+        log(`${label}: chain read failed (attempt ${i}/${attempts}, likely RPC lag) — retrying in ${delayMs / 1000}s`);\n+        await sleep(delayMs);\n+      }\n+      continue;\n+    }\n+    // Still pending (never settles): count this attempt as failed and move on.\n+    if (i < attempts) {\n+      log(`${label}: chain read failed (attempt ${i}/${attempts}, likely RPC lag) — retrying in ${delayMs / 1000}s`);\n+      await sleep(delayMs);\n+    }\n   }\n   throw last;\n }\n",
+    "proposedBy": {
+      "role": "fixer",
+      "model": "muse-spark-1.3"
+    },
+    "toward": "- The person bet on \"How many times will the function call the RPC?\" (calls): 5. The run measured: 1.\n- The person bet on \"How long will it wait in total, in ms?\" (totalWaitMs): 12000. The run measured: 0.\n- The person bet on \"How will it end: returns, throws, or pending (never settles)?\" (outcome): throws. The run measured: pending.",
+    "replayRunId": "lRnGhlj5Z4"
+  },
+  "fixer": {
+    "path": "muse-exec",
+    "model": "muse-spark-1.3",
+    "attempts": [
+      {
+        "attempt": 1,
+        "path": "muse-exec",
+        "model": "muse-spark-1.3",
+        "ok": true,
+        "usage": {
+          "promptTokens": 24272,
+          "completionTokens": 2512,
+          "reasoningTokens": 1841,
+          "usd": 0.147328
+        },
+        "answer": "--- a/tests/fixtures/with-rpc-retry.ts\n+++ b/tests/fixtures/with-rpc-retry.ts\n@@ -49,21 +49,44 @@\n export async function withRpcRetry<T>(label: string, fn: () => Promise<T>, opts: RetryOptions = {}): Promise<T> {\n   const attempts = opts.attempts ?? RPC_RETRY_ATTEMPTS;\n   const delayMs = opts.delayMs ?? RPC_RETRY_DELAY_MS;\n   const sleep = opts.sleep ?? realSleep;\n   const log = opts.log ?? console.log;\n-  let last: unknown;\n+  let last: unknown = new Error(`${label}: chain read failed`);\n   for (let i = 1; i <= attempts; i++) {\n-    try { return await fn(); }\n-    catch (e) {\n-      last = e;\n-      if (i < attempts) {\n-        log(`${label}: chain read failed (attempt ${i}/${attempts}, likely RPC lag) — retrying in ${delayMs / 1000}s`);\n-        await sleep(delayMs);\n-      }\n+    let settled = false;\n+    let failed = false;\n+    let value: T | undefined = undefined;\n+    let error: unknown = undefined;\n+    let p: Promise<T>;\n+    try {\n+      p = fn();\n+    } catch (e) {\n+      last = e;\n+      if (i < attempts) {\n+        log(`${label}: chain read failed (attempt ${i}/${attempts}, likely RPC lag) — retrying in ${delayMs / 1000}s`);\n+        await sleep(delayMs);\n+        continue;\n+      }\n+      throw last;\n     }\n+    p.then(\n+      (v) => { settled = true; value = v; },\n+      (e) => { settled = true; failed = true; error = e; },\n+    );\n+    // Let an already-settled fn settle without spending virtual time.\n+    await Promise.resolve();\n+    await Promise.resolve();\n+    if (settled) {\n+      if (!failed) return value as T;\n+      last = error;\n+      if (i < attempts) {\n+        log(`${label}: chain read failed (attempt ${i}/${attempts}, likely RPC lag) — retrying in ${delayMs / 1000}s`);\n+        await sleep(delayMs);\n+      }\n+      continue;\n+    }\n+    // Still pending (never settles): count this attempt as failed and move on.\n+    if (i < attempts) {\n+      log(`${label}: chain read failed (attempt ${i}/${attempts}, likely RPC lag) — retrying in ${delayMs / 1000}s`);\n+      await sleep(delayMs);\n+    }\n   }\n   throw last;\n }\n"
+      }
+    ],
+    "usage": {
+      "promptTokens": 24272,
+      "completionTokens": 2512,
+      "reasoningTokens": 1841,
+      "usd": 0.147328
+    }
+  },
+  "diff": "--- a/tests/fixtures/with-rpc-retry.ts\n+++ b/tests/fixtures/with-rpc-retry.ts\n@@ -49,21 +49,44 @@\n export async function withRpcRetry<T>(label: string, fn: () => Promise<T>, opts: RetryOptions = {}): Promise<T> {\n   const attempts = opts.attempts ?? RPC_RETRY_ATTEMPTS;\n   const delayMs = opts.delayMs ?? RPC_RETRY_DELAY_MS;\n   const sleep = opts.sleep ?? realSleep;\n   const log = opts.log ?? console.log;\n-  let last: unknown;\n+  let last: unknown = new Error(`${label}: chain read failed`);\n   for (let i = 1; i <= attempts; i++) {\n-    try { return await fn(); }\n-    catch (e) {\n-      last = e;\n-      if (i < attempts) {\n-        log(`${label}: chain read failed (attempt ${i}/${attempts}, likely RPC lag) — retrying in ${delayMs / 1000}s`);\n-        await sleep(delayMs);\n-      }\n+    let settled = false;\n+    let failed = false;\n+    let value: T | undefined = undefined;\n+    let error: unknown = undefined;\n+    let p: Promise<T>;\n+    try {\n+      p = fn();\n+    } catch (e) {\n+      last = e;\n+      if (i < attempts) {\n+        log(`${label}: chain read failed (attempt ${i}/${attempts}, likely RPC lag) — retrying in ${delayMs / 1000}s`);\n+        await sleep(delayMs);\n+        continue;\n+      }\n+      throw last;\n     }\n+    p.then(\n+      (v) => { settled = true; value = v; },\n+      (e) => { settled = true; failed = true; error = e; },\n+    );\n+    // Let an already-settled fn settle without spending virtual time.\n+    await Promise.resolve();\n+    await Promise.resolve();\n+    if (settled) {\n+      if (!failed) return value as T;\n+      last = error;\n+      if (i < attempts) {\n+        log(`${label}: chain read failed (attempt ${i}/${attempts}, likely RPC lag) — retrying in ${delayMs / 1000}s`);\n+        await sleep(delayMs);\n+      }\n+      continue;\n+    }\n+    // Still pending (never settles): count this attempt as failed and move on.\n+    if (i < attempts) {\n+      log(`${label}: chain read failed (attempt ${i}/${attempts}, likely RPC lag) — retrying in ${delayMs / 1000}s`);\n+      await sleep(delayMs);\n+    }\n   }\n   throw last;\n }\n",
+  "caption": "changed toward what you expected, then re-run",
+  "replay": {
+    "id": "lRnGhlj5Z4",
+    "experimentId": "YgVeMaxu8I",
+    "runner": "ts",
+    "executor": "local",
+    "codeSha256": "29678efe81ac45173a112e72a8ccf7d1dac2423a9bbbb076dd2352da92f0b8ac",
+    "seed": "bf-5Cr93TU",
+    "startedAt": "2026-10-27T08:56:07.870Z",
+    "finishedAt": "2026-10-27T08:56:07.955Z",
+    "trace": [
+      {
+        "t": 0,
+        "event": "start",
+        "data": {
+          "label": "atlas-read"
+        }
+      },
+      {
+        "t": 0,
+        "event": "call",
+        "data": {
+          "n": 1
+        }
+      },
+      {
+        "t": 0,
+        "event": "no_answer",
+        "data": {
+          "n": 1
+        }
+      },
+      {
+        "t": 0,
+        "event": "log",
+        "data": {
+          "msg": "atlas-read: chain read failed (attempt 1/5, likely RPC lag) — retrying in 3s"
+        }
+      },
+      {
+        "t": 0,
+        "event": "sleep",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 3000,
+        "event": "wake",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 3000,
+        "event": "call",
+        "data": {
+          "n": 2
+        }
+      },
+      {
+        "t": 3000,
+        "event": "no_answer",
+        "data": {
+          "n": 2
+        }
+      },
+      {
+        "t": 3000,
+        "event": "log",
+        "data": {
+          "msg": "atlas-read: chain read failed (attempt 2/5, likely RPC lag) — retrying in 3s"
+        }
+      },
+      {
+        "t": 3000,
+        "event": "sleep",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 6000,
+        "event": "wake",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 6000,
+        "event": "call",
+        "data": {
+          "n": 3
+        }
+      },
+      {
+        "t": 6000,
+        "event": "no_answer",
+        "data": {
+          "n": 3
+        }
+      },
+      {
+        "t": 6000,
+        "event": "log",
+        "data": {
+          "msg": "atlas-read: chain read failed (attempt 3/5, likely RPC lag) — retrying in 3s"
+        }
+      },
+      {
+        "t": 6000,
+        "event": "sleep",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 9000,
+        "event": "wake",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 9000,
+        "event": "call",
+        "data": {
+          "n": 4
+        }
+      },
+      {
+        "t": 9000,
+        "event": "no_answer",
+        "data": {
+          "n": 4
+        }
+      },
+      {
+        "t": 9000,
+        "event": "log",
+        "data": {
+          "msg": "atlas-read: chain read failed (attempt 4/5, likely RPC lag) — retrying in 3s"
+        }
+      },
+      {
+        "t": 9000,
+        "event": "sleep",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 12000,
+        "event": "wake",
+        "data": {
+          "ms": 3000
+        }
+      },
+      {
+        "t": 12000,
+        "event": "call",
+        "data": {
+          "n": 5
+        }
+      },
+      {
+        "t": 12000,
+        "event": "no_answer",
+        "data": {
+          "n": 5
+        }
+      },
+      {
+        "t": 12000,
+        "event": "throws",
+        "data": {
+          "error": "Error: atlas-read: chain read failed"
+        }
+      },
+      {
+        "t": 12000,
+        "event": "replay_checks",
+        "data": {
+          "replayOf": "Gfn5pjlKRH",
+          "changeId": "c2fntNda9B",
+          "sameSeed": true,
+          "seed": "bf-5Cr93TU",
+          "originalSeed": "bf-5Cr93TU",
+          "originalCodeSha256": "f3d2c59f05151be85d8a950c009e63de8015e638d3af6f2fd1c2a729393ad101",
+          "changedCodeSha256": "29678efe81ac45173a112e72a8ccf7d1dac2423a9bbbb076dd2352da92f0b8ac",
+          "changedLines": 45,
+          "harnessSha256": "5b2fda1c4941243216dc94b7c41685d9fd89a59c4cda7ee3dfac76a4c5ddc42d",
+          "harnessCheck": {
+            "on": "original code",
+            "rows": [
+              "S1",
+              "S3",
+              "S6"
+            ],
+            "passed": true,
+            "runId": "DTKtWKvxnn"
+          },
+          "changedCodeOnKnownRows": {
+            "note": "recorded only, not a gate: these rows are known answers of the original function",
+            "rows": [
+              "S1",
+              "S3",
+              "S6"
+            ],
+            "allStillMatch": false,
+            "differences": "S6: calls was 5, the oracle row says 1; S6: waits (ms) was \"3000,3000,3000,3000\", the oracle row says \"\"; S6: total wait (ms) was 12000, the oracle row says 0; S6: log lines was 4, the oracle row says 0; S6: log attempts was \"1/5,2/5,3/5,4/5\", the oracle row says \"\"; S6: outcome was \"throws\", the oracle row says \"pending\""
+          }
+        }
+      }
+    ],
+    "result": {
+      "measured": {
+        "calls": 5,
+        "waitCount": 4,
+        "waitsMs": "3000,3000,3000,3000",
+        "logCount": 4,
+        "logAttempts": "1/5,2/5,3/5,4/5",
+        "totalWaitMs": 12000,
+        "outcome": "throws",
+        "settledAtMs": 12000,
+        "thrown": "Error: atlas-read: chain read failed",
+        "thrownFromCall": null
+      },
+      "notMeasured": {}
+    },
+    "controlPassed": true,
+    "controlRunId": "DTKtWKvxnn",
+    "replayOf": {
+      "runId": "Gfn5pjlKRH",
+      "changeId": "c2fntNda9B"
+    }
+  },
+  "bets": [
+    {
+      "experimentId": "YgVeMaxu8I",
+      "who": "human",
+      "question": "How many times will the function call the RPC?",
+      "measures": "calls",
+      "answer": {
+        "kind": "integer",
+        "value": 5
+      },
+      "id": "84vh_3peOT",
+      "nonce": "bc7727351216ac1958db156a4089ee57",
+      "sealedAt": "2026-10-27T08:55:48.943Z",
+      "sealedHash": "dc1e78f2146d0c26357e670bd275093f93b2338b71a033ef83225854ab22a3d7"
+    },
+    {
+      "experimentId": "YgVeMaxu8I",
+      "who": "human",
+      "question": "How long will it wait in total, in ms?",
+      "measures": "totalWaitMs",
+      "answer": {
+        "kind": "integer",
+        "value": 12000
+      },
+      "id": "2P3Eqt5dW2",
+      "nonce": "9adf667c2db3e63b54cfabf694b3e507",
+      "sealedAt": "2026-10-27T08:55:48.943Z",
+      "sealedHash": "9d43e9086975835d105fd5d779f0c95551813eb773c9def8b27c8172ae352aa7"
+    },
+    {
+      "experimentId": "YgVeMaxu8I",
+      "who": "human",
+      "question": "How will it end: returns, throws, or pending (never settles)?",
+      "measures": "outcome",
+      "answer": {
+        "kind": "enum",
+        "value": "throws",
+        "options": [
+          "returns",
+          "throws",
+          "pending"
+        ]
+      },
+      "id": "PDXDqsPi3R",
+      "nonce": "b450c8238299122d3f3e60f14d71d969",
+      "sealedAt": "2026-10-27T08:55:48.943Z",
+      "sealedHash": "36e5c7aa5221fb621fa2fcd1dac6d5efffb7e424aa678ce21f34a5b486bbd6af"
+    },
+    {
+      "experimentId": "YgVeMaxu8I",
+      "who": "model:muse-spark-1.3",
+      "question": "How many times will the function call the RPC?",
+      "measures": "calls",
+      "answer": {
+        "kind": "integer",
+        "value": 1
+      },
+      "rationale": "Defaults to 5 attempts, but failTimes always with never_settles hangs on first fn() await, so loop never advances to a second call.",
+      "id": "D7LUR6K8zu",
+      "nonce": "bdb685237329fe5e84554173200bb428",
+      "sealedAt": "2026-10-27T08:55:54.931Z",
+      "sealedHash": "dff4175820eb1d29f66f5d59472bd5756afaae9038a407155dcbeddf48321e59"
+    },
+    {
+      "experimentId": "YgVeMaxu8I",
+      "who": "model:muse-spark-1.3",
+      "question": "How long will it wait in total, in ms?",
+      "measures": "totalWaitMs",
+      "answer": {
+        "kind": "integer",
+        "value": 0
+      },
+      "rationale": "Sleep is only awaited after a caught error; a never-settling call never throws so no delay timer is started.",
+      "id": "Of54lVn8vQ",
+      "nonce": "34ff1b5b89718c5d84618bf0e5b7098c",
+      "sealedAt": "2026-10-27T08:55:54.931Z",
+      "sealedHash": "9c28e966bfa70db6a4267ba8a334a871e02270650c69b896b04c03096308224a"
+    },
+    {
+      "experimentId": "YgVeMaxu8I",
+      "who": "model:muse-spark-1.3",
+      "question": "How will it end: returns, throws, or pending (never settles)?",
+      "measures": "outcome",
+      "answer": {
+        "kind": "enum",
+        "value": "pending",
+        "options": [
+          "returns",
+          "throws",
+          "pending"
+        ]
+      },
+      "rationale": "First await never resolves nor rejects, so function neither returns nor reaches throw last, remaining pending with nothing to wake it.",
+      "id": "Y4XuOWm6fY",
+      "nonce": "f029f4c0b83d0ee43dd352b4085092af",
+      "sealedAt": "2026-10-27T08:55:54.931Z",
+      "sealedHash": "eb76ee7ebcd20afe89d3ea84bbce550efbf4339ce6d89f9e8912c86b96d95fbb"
+    }
+  ],
+  "before": {
+    "run": {
+      "id": "Gfn5pjlKRH",
+      "seed": "bf-5Cr93TU",
+      "codeSha256": "f3d2c59f05151be85d8a950c009e63de8015e638d3af6f2fd1c2a729393ad101"
+    },
+    "verdicts": [
+      {
+        "betId": "84vh_3peOT",
+        "runId": "Gfn5pjlKRH",
+        "judgedBy": "src/judge.ts",
+        "outcome": "not_matched",
+        "observed": 1
+      },
+      {
+        "betId": "2P3Eqt5dW2",
+        "runId": "Gfn5pjlKRH",
+        "judgedBy": "src/judge.ts",
+        "outcome": "not_matched",
+        "observed": 0
+      },
+      {
+        "betId": "PDXDqsPi3R",
+        "runId": "Gfn5pjlKRH",
+        "judgedBy": "src/judge.ts",
+        "outcome": "not_matched",
+        "observed": "pending"
+      },
+      {
+        "betId": "D7LUR6K8zu",
+        "runId": "Gfn5pjlKRH",
+        "judgedBy": "src/judge.ts",
+        "outcome": "matched",
+        "observed": 1
+      },
+      {
+        "betId": "Of54lVn8vQ",
+        "runId": "Gfn5pjlKRH",
+        "judgedBy": "src/judge.ts",
+        "outcome": "matched",
+        "observed": 0
+      },
+      {
+        "betId": "Y4XuOWm6fY",
+        "runId": "Gfn5pjlKRH",
+        "judgedBy": "src/judge.ts",
+        "outcome": "matched",
+        "observed": "pending"
+      }
+    ]
+  },
+  "after": {
+    "run": {
+      "id": "lRnGhlj5Z4",
+      "seed": "bf-5Cr93TU",
+      "codeSha256": "29678efe81ac45173a112e72a8ccf7d1dac2423a9bbbb076dd2352da92f0b8ac"
+    },
+    "verdicts": [
+      {
+        "betId": "84vh_3peOT",
+        "runId": "lRnGhlj5Z4",
+        "judgedBy": "src/judge.ts",
+        "outcome": "matched",
+        "observed": 5
+      },
+      {
+        "betId": "2P3Eqt5dW2",
+        "runId": "lRnGhlj5Z4",
+        "judgedBy": "src/judge.ts",
+        "outcome": "matched",
+        "observed": 12000
+      },
+      {
+        "betId": "PDXDqsPi3R",
+        "runId": "lRnGhlj5Z4",
+        "judgedBy": "src/judge.ts",
+        "outcome": "matched",
+        "observed": "throws"
+      },
+      {
+        "betId": "D7LUR6K8zu",
+        "runId": "lRnGhlj5Z4",
+        "judgedBy": "src/judge.ts",
+        "outcome": "not_matched",
+        "observed": 5
+      },
+      {
+        "betId": "Of54lVn8vQ",
+        "runId": "lRnGhlj5Z4",
+        "judgedBy": "src/judge.ts",
+        "outcome": "not_matched",
+        "observed": 12000
+      },
+      {
+        "betId": "Y4XuOWm6fY",
+        "runId": "lRnGhlj5Z4",
+        "judgedBy": "src/judge.ts",
+        "outcome": "not_matched",
+        "observed": "throws"
+      }
+    ]
+  }
+}

@@ -1,0 +1,58 @@
+--- a/tests/fixtures/with-rpc-retry.ts
++++ b/tests/fixtures/with-rpc-retry.ts
+@@ -49,21 +49,44 @@
+ export async function withRpcRetry<T>(label: string, fn: () => Promise<T>, opts: RetryOptions = {}): Promise<T> {
+   const attempts = opts.attempts ?? RPC_RETRY_ATTEMPTS;
+   const delayMs = opts.delayMs ?? RPC_RETRY_DELAY_MS;
+   const sleep = opts.sleep ?? realSleep;
+   const log = opts.log ?? console.log;
+-  let last: unknown;
++  let last: unknown = new Error(`${label}: chain read failed`);
+   for (let i = 1; i <= attempts; i++) {
+-    try { return await fn(); }
+-    catch (e) {
+-      last = e;
+-      if (i < attempts) {
+-        log(`${label}: chain read failed (attempt ${i}/${attempts}, likely RPC lag) — retrying in ${delayMs / 1000}s`);
+-        await sleep(delayMs);
+-      }
++    let settled = false;
++    let failed = false;
++    let value: T | undefined = undefined;
++    let error: unknown = undefined;
++    let p: Promise<T>;
++    try {
++      p = fn();
++    } catch (e) {
++      last = e;
++      if (i < attempts) {
++        log(`${label}: chain read failed (attempt ${i}/${attempts}, likely RPC lag) — retrying in ${delayMs / 1000}s`);
++        await sleep(delayMs);
++        continue;
++      }
++      throw last;
+     }
++    p.then(
++      (v) => { settled = true; value = v; },
++      (e) => { settled = true; failed = true; error = e; },
++    );
++    // Let an already-settled fn settle without spending virtual time.
++    await Promise.resolve();
++    await Promise.resolve();
++    if (settled) {
++      if (!failed) return value as T;
++      last = error;
++      if (i < attempts) {
++        log(`${label}: chain read failed (attempt ${i}/${attempts}, likely RPC lag) — retrying in ${delayMs / 1000}s`);
++        await sleep(delayMs);
++      }
++      continue;
++    }
++    // Still pending (never settles): count this attempt as failed and move on.
++    if (i < attempts) {
++      log(`${label}: chain read failed (attempt ${i}/${attempts}, likely RPC lag) — retrying in ${delayMs / 1000}s`);
++      await sleep(delayMs);
++    }
+   }
+   throw last;
+ }
