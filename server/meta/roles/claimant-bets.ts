@@ -51,6 +51,12 @@ export interface BetOnlyInput {
   /** Lines of the file to show, when wider than the finding ±20 (always widened to cover the finding). */
   contextRange?: { from: number; to: number };
   model?: string;
+  /**
+   * D19 (Moonwell rounds): the "what the bettor sees" text from src/bet-context.ts. When given, it is
+   * the ONLY context about the round in the prompt: it replaces the finding, code, experiment JSON
+   * and field list sections, so Spark gets exactly what the person sees on screen before betting.
+   */
+  seenContext?: string;
 }
 
 export interface BetOnlyDeps {
@@ -72,7 +78,11 @@ export type BetOnlyResult =
       usage?: Usage;
     };
 
+/** The heading the D19 context sits under in Spark's prompt. */
+export const SEEN_CONTEXT_HEADING = "WHAT THE PERSON SEES BEFORE BETTING (you get exactly this; the person sees the same text on screen)";
+
 export function buildBetOnlyMessages(input: BetOnlyInput): ChatMessage[] {
+  if (input.seenContext !== undefined) return buildSeenContextMessages(input.seenContext, input.questions);
   const f = input.finding;
   const lineCount = input.fileText.split("\n").length;
   const range = contextRangeFor(input);
@@ -97,6 +107,29 @@ export function buildBetOnlyMessages(input: BetOnlyInput): ChatMessage[] {
     "",
     "QUESTIONS (written by plain code; a person answers the same ones)",
     renderQuestions(input.questions),
+    "",
+    "TASK",
+    "Bet on what this experiment's run will measure:",
+    "exactly one bet per question, using the answer JSON shown for it.",
+    'If you do not know an answer, bet {"kind":"declined","reason":"unknown: <why>"} instead of guessing.',
+    "",
+    "Return only this JSON object:",
+    '{"bets": [{"measures": "<field>", "answer": {...}, "rationale": "<one or two sentences>"}]}',
+  ].join("\n");
+  return [
+    { role: "system", content: SYSTEM_PREAMBLE },
+    { role: "user", content: user },
+  ];
+}
+
+/** D19: the prompt for a round whose context is "what the bettor sees". Only the answer format is added. */
+function buildSeenContextMessages(seen: string, questions: readonly Question[]): ChatMessage[] {
+  const user = [
+    SEEN_CONTEXT_HEADING,
+    seen,
+    "",
+    "QUESTIONS (written by plain code; a person answers the same ones)",
+    renderQuestions(questions),
     "",
     "TASK",
     "Bet on what this experiment's run will measure:",

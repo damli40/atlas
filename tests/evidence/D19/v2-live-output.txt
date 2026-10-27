@@ -1,0 +1,46 @@
+call 1: {"kind":"declined","reason":"unknown: historical cbETH/USD price at Base block 42194662 requires on-chain oracle read unavailable offline"} · $0.0259
+call 2: {"kind":"declined","reason":"unknown: no oracle price data available for cbETH at that fork block"} · $0.0197
+call 3: {"kind":"declined","reason":"unknown: cbETH USD price at Base block 42194662 (2026-02-15) requires on-chain oracle read after OEV wrapper activation, not available offline"} · $0.0225
+  runner: forks Base @ 42194662
+  runner: checks the fork at 42194662 is before the proposal ran
+  runner: runs the known-case control (WETH, stablecoins)
+  runner: reads 14 markets before applying
+  runner: applies 14 oracle-feed actions as the governor
+  runner: reads 14 markets after applying
+  runner: computes the cbETH reference from the raw Chainlink feeds and traces the price read
+{
+  "context": "v2 context: same as screen",
+  "model": "muse-spark-1.3",
+  "calls": 3,
+  "forkBlock": 42194662,
+  "controlPassed": true,
+  "observedCbEthUsd1e18": "1122662744874806300",
+  "referenceCbEthUsd1e18": "2206683650838065175827",
+  "verdicts": [
+    {
+      "call": 1,
+      "answer": {
+        "kind": "declined",
+        "reason": "unknown: historical cbETH/USD price at Base block 42194662 requires on-chain oracle read unavailable offline"
+      },
+      "verdict": "cant_check"
+    },
+    {
+      "call": 2,
+      "answer": {
+        "kind": "declined",
+        "reason": "unknown: no oracle price data available for cbETH at that fork block"
+      },
+      "verdict": "cant_check"
+    },
+    {
+      "call": 3,
+      "answer": {
+        "kind": "declined",
+        "reason": "unknown: cbETH USD price at Base block 42194662 (2026-02-15) requires on-chain oracle read after OEV wrapper activation, not available offline"
+      },
+      "verdict": "cant_check"
+    }
+  ],
+  "spentUsd": 0.068108
+}

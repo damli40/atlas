@@ -1,0 +1,24 @@
+=== system ===
+You propose. You never decide. Plain code will run the code and judge. Say 'unknown' instead of guessing. Return only JSON matching the schema.
+
+=== user ===
+WHAT THE PERSON SEES BEFORE BETTING (you get exactly this; the person sees the same text on screen)
+What will run: Fork Base at block 42194662, one block before the proposal ran, apply the proposal's oracle-feed actions as the governor, then read the prices.
+Fork block: 42194662 on Base, made at 2026-02-15 18:04:31 UTC.
+Question: After this proposal is applied, what will Moonwell's oracle report for 1 cbETH, in USD?
+Answer in: USD.
+Matched means within 10% of what the run reads.
+The code this round works on (picked by a person): proposals/ChainlinkOracleConfigs.sol, line 42
+42|             OracleConfig("cbETHETH_ORACLE", "cbETH", "MOONWELL_cbETH")
+
+QUESTIONS (written by plain code; a person answers the same ones)
+1. measures "priceUsd1e18:cbETH": After this proposal is applied, what will Moonwell's oracle report for 1 cbETH, in USD?
+   answer: {"kind":"number","value":<number>,"tolerancePct":10,"unit":"USD"}
+
+TASK
+Bet on what this experiment's run will measure:
+exactly one bet per question, using the answer JSON shown for it.
+If you do not know an answer, bet {"kind":"declined","reason":"unknown: <why>"} instead of guessing.
+
+Return only this JSON object:
+{"bets": [{"measures": "<field>", "answer": {...}, "rationale": "<one or two sentences>"}]}

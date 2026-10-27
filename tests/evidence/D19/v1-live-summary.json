@@ -1,0 +1,35 @@
+{
+  "model": "muse-spark-1.3",
+  "calls": 3,
+  "forkBlock": 42194662,
+  "controlPassed": true,
+  "observedCbEthUsd1e18": "1122662744874806300",
+  "referenceCbEthUsd1e18": "2206683650838065175827",
+  "verdicts": [
+    {
+      "call": 1,
+      "answer": {
+        "kind": "declined",
+        "reason": "unknown: no feed addresses or market price data provided for cbETH at fork block"
+      },
+      "verdict": "cant_check"
+    },
+    {
+      "call": 2,
+      "answer": {
+        "kind": "declined",
+        "reason": "unknown: cannot determine post-proposal oracle price without executing fork simulation"
+      },
+      "verdict": "cant_check"
+    },
+    {
+      "call": 3,
+      "answer": {
+        "kind": "declined",
+        "reason": "unknown: cannot read fork state or proposal feed addresses to determine reported price"
+      },
+      "verdict": "cant_check"
+    }
+  ],
+  "spentUsd": 0.038336
+}
