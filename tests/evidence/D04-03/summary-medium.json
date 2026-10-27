@@ -1,0 +1,29 @@
+{
+  "fixture": {
+    "withRpcRetryLines": [
+      49,
+      66
+    ],
+    "runs": 0,
+    "runsWithAVerifiedFindingInside": 0
+  },
+  "pr578": {
+    "commit": "9a6738e189fa903bffa0abf10b9dd7ed2fe73a18",
+    "codeSha256": "6c431aaec1a5631719cb0c90128b0b2b0f294bafb3634c775cb93fee0670f7c7",
+    "cbETHETHOraclePushLine": {
+      "file": "proposals/ChainlinkOracleConfigs.sol",
+      "line": 42
+    },
+    "runs": 2,
+    "runsWithAVerifiedFindingCoveringIt": 0
+  },
+  "usageLog": {
+    "usdBefore": 2.527516,
+    "usdAfter": 3.038596,
+    "spentThisScript": 0.5110800000000002,
+    "linesBefore": 27,
+    "linesAfter": 29,
+    "mostExpensiveCallUsd": 0.2658
+  },
+  "stoppedOverOneDollar": false
+}

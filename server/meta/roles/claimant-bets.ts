@@ -45,6 +45,8 @@ export interface BetOnlyInput {
   fileText: string;
   gateContext: GateContext;
   findingLabel?: string;
+  /** Lines of the file to show, when wider than the finding ±20 (always widened to cover the finding). */
+  contextRange?: { from: number; to: number };
   model?: string;
 }
 

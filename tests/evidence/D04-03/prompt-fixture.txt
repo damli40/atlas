@@ -1,0 +1,85 @@
+[system]
+You propose. You never decide. Plain code will run the code and judge. Say 'unknown' instead of guessing. Return only JSON matching the schema.
+
+[user]
+TARGET: tests/fixtures/with-rpc-retry.ts
+
+FILES (each line starts with its line number and "| "; the number and "| " are not part of the file)
+=== tests/fixtures/with-rpc-retry.ts (lines 1–67)
+ 1| // PRE-EXISTING (listed in PRE-EXISTING.md). Atlas checks this code; it is not part of Atlas.
+ 2| //
+ 3| // Source: Dami's production LayerZero monitor (private repo), file chain-reads.ts,
+ 4| // lines 31–86, copied verbatim. SHA-256 of the whole original file:
+ 5| // bf2d018c092deba95fb40fc6c4a934e2b2992b58bcde2b83d08590d197059fb6
+ 6| //
+ 7| // Nothing between the BEGIN and END markers may be edited.
+ 8| // tests/unit/fixture.test.ts compares it to the original when the original is present.
+ 9| 
+10| // ---- BEGIN VERBATIM (chain-reads.ts lines 31–86) ----
+11| /** Retry budget for a single chain read. 5 attempts, 3s apart — measured against
+12|  *  the lag that produced the failures these retries exist for (a load-balanced RPC
+13|  *  answering from a node one or two blocks behind a just-landed transaction). */
+14| export const RPC_RETRY_ATTEMPTS = 5;
+15| export const RPC_RETRY_DELAY_MS = 3000;
+16| 
+17| /** The slice of a viem PublicClient this module uses. Structural on purpose: tests
+18|  *  inject a plain object and exercise the failure branches, which are the branches
+19|  *  that matter and the ones a live RPC will not reproduce on demand. */
+20| export interface ChainReadClient {
+21|   readContract(args: any): Promise<any>;
+22|   getTransactionReceipt(args: { hash: `0x${string}` }): Promise<{ blockNumber: bigint }>;
+23| }
+24| 
+25| export interface RetryOptions {
+26|   attempts?: number;
+27|   delayMs?: number;
+28|   /** Injectable so tests do not spend 12 real seconds proving the retry budget. */
+29|   sleep?: (ms: number) => Promise<void>;
+30|   log?: (msg: string) => void;
+31| }
+32| 
+33| const realSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+34| 
+35| /**
+36|  * Every chain read on the guardian path goes through here.
+37|  *
+38|  * KeeperHub reports an execution `completed` as soon as ITS node has the receipt,
+39|  * while a public RPC endpoint is load-balanced — so the very next read can land on a
+40|  * node one or two blocks behind and throw (`BlockNotFoundError`, seen live on
+41|  * rehearsal run-005) or answer from stale state. Block-pinned reads are MORE exposed
+42|  * to this than `latest` reads, not less: a node that has not seen the block cannot
+43|  * serve a query against it at all.
+44|  *
+45|  * **Fail-closed.** Rethrows the last error after the final attempt rather than
+46|  * returning a default. Each caller decides what a permanent failure means for its own
+47|  * artifact — and none of them may drop the artifact.
+48|  */
+49| export async function withRpcRetry<T>(label: string, fn: () => Promise<T>, opts: RetryOptions = {}): Promise<T> {
+50|   const attempts = opts.attempts ?? RPC_RETRY_ATTEMPTS;
+51|   const delayMs = opts.delayMs ?? RPC_RETRY_DELAY_MS;
+52|   const sleep = opts.sleep ?? realSleep;
+53|   const log = opts.log ?? console.log;
+54|   let last: unknown;
+55|   for (let i = 1; i <= attempts; i++) {
+56|     try { return await fn(); }
+57|     catch (e) {
+58|       last = e;
+59|       if (i < attempts) {
+60|         log(`${label}: chain read failed (attempt ${i}/${attempts}, likely RPC lag) — retrying in ${delayMs / 1000}s`);
+61|         await sleep(delayMs);
+62|       }
+63|     }
+64|   }
+65|   throw last;
+66| }
+67| // ---- END VERBATIM ----
+
+TASK
+Find up to 3 places where a reader's expectation of what this code does is most likely wrong. These are behaviours, not bugs. For each: file, lineStart, lineEnd, kind (retry/price/other), a one-sentence claim written as 'People expect X; the code does Y', and quotedSnippet copied exactly from those lines.
+- file: the path exactly as written after "===".
+- lineStart and lineEnd: line numbers as shown, 1-based, inclusive; lineEnd - lineStart at most 40.
+- quotedSnippet: one or more whole consecutive lines from inside lineStart..lineEnd, copied exactly, without the line numbers.
+- kind: "retry", "price" or "other".
+
+Return only this JSON object:
+{"findings": [{"file": "<path>", "lineStart": 1, "lineEnd": 1, "kind": "other", "claim": "People expect X; the code does Y.", "quotedSnippet": "<exact lines>"}]}

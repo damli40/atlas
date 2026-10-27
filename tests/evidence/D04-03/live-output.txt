@@ -1,0 +1,39 @@
+fixture: withRpcRetry is lines 49–66; prompt ≈ 1103 tokens (low)
+PR #578 at 9a6738e189fa903bffa0abf10b9dd7ed2fe73a18: 6 files, cbETHETH_ORACLE push on proposals/ChainlinkOracleConfigs.sol line 42; prompt ≈ 37406 tokens (low)
+fixture run 1: ok (muse-wonder-1.0); kept [with-rpc-retry.ts:55-63(retry)*, with-rpc-retry.ts:56-56(retry)*, with-rpc-retry.ts:54-65(retry)*]; dropped 0; calls 1; $0.0445; 20 s
+fixture run 2: ok (muse-wonder-1.0); kept [with-rpc-retry.ts:56-58(retry)*, with-rpc-retry.ts:55-56(retry)*, with-rpc-retry.ts:61-61(retry)*]; dropped 0; calls 1; $0.0362; 15 s
+fixture run 3: ok (muse-wonder-1.0); kept [with-rpc-retry.ts:55-64(retry)*, with-rpc-retry.ts:49-61(retry)*, with-rpc-retry.ts:54-66(retry)*]; dropped 0; calls 1; $0.0321; 12 s
+pr578 run 1: ok (muse-wonder-1.0); kept [ChainlinkOracleConfigs.sol:44-53(other), mip-x43.sol:147-169(price), ChainlinkOracleConfigs.sol:139-144(price)]; dropped 0; calls 1; $0.2376; 14 s
+pr578 run 2: ok (muse-wonder-1.0); kept [ChainlinkOracleConfigs.sol:44-53(other), ChainlinkOracleConfigs.sol:142-144(price), mip-x43.sol:306-321(price)]; dropped 0; calls 1; $0.2446; 17 s
+pr578 run 3: ok (muse-wonder-1.0); kept [ChainlinkOracleConfigs.sol:31-36(price), ChainlinkOracleConfigs.sol:130-132(price), ChainlinkOracleConfigs.sol:44-53(other)]; dropped 0; calls 1; $0.2362; 13 s
+pr578 run 4: ok (muse-wonder-1.0); kept [ChainlinkOracleConfigs.sol:44-53(other), ChainlinkOracleConfigs.sol:31-36(price), mip-x43.sol:306-321(price)]; dropped 0; calls 1; $0.2372; 11 s
+pr578 run 5: ok (muse-wonder-1.0); kept [ChainlinkOracleConfigs.sol:44-53(other), ChainlinkOracleConfigs.sol:31-36(price), mip-x43.sol:306-321(other)]; dropped 0; calls 1; $0.2426; 15 s
+{
+  "fixture": {
+    "withRpcRetryLines": [
+      49,
+      66
+    ],
+    "runs": 3,
+    "runsWithAVerifiedFindingInside": 3
+  },
+  "pr578": {
+    "commit": "9a6738e189fa903bffa0abf10b9dd7ed2fe73a18",
+    "codeSha256": "6c431aaec1a5631719cb0c90128b0b2b0f294bafb3634c775cb93fee0670f7c7",
+    "cbETHETHOraclePushLine": {
+      "file": "proposals/ChainlinkOracleConfigs.sol",
+      "line": 42
+    },
+    "runs": 5,
+    "runsWithAVerifiedFindingCoveringIt": 0
+  },
+  "usageLog": {
+    "usdBefore": 0.49052400000000007,
+    "usdAfter": 1.8014759999999999,
+    "spentThisScript": 1.310952,
+    "linesBefore": 16,
+    "linesAfter": 24,
+    "mostExpensiveCallUsd": 0.24464
+  },
+  "stoppedOverOneDollar": false
+}
