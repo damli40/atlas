@@ -1,0 +1,19 @@
+control true; verdict not_matched
+matched       Control: WETH exact (getUnderlyingPrice(MOONWELL_WETH) = ETH/USD answer × 10^10, wired feed and raw aggregator)
+matched       Control: USD stablecoins between 0.95 and 1.05 USD (pre-apply and post-apply)
+matched       1. Flag rule: cbETH post-apply differs from the reference by more than 50% → surfaced
+matched       2. False-alarm rule: DAI within 2% of its pre-apply price → not surfaced
+matched       2. False-alarm rule: USDC within 2% of its pre-apply price → not surfaced
+matched       2. False-alarm rule: USDbC within 2% of its pre-apply price → not surfaced
+matched       2. False-alarm rule: AERO within 2% of its pre-apply price → not surfaced
+matched       2. False-alarm rule: cbBTC within 2% of its pre-apply price → not surfaced
+matched       2. False-alarm rule: EURC within 2% of its pre-apply price → not surfaced
+matched       2. False-alarm rule: WELL within 2% of its pre-apply price → not surfaced
+matched       2. False-alarm rule: USDS within 2% of its pre-apply price → not surfaced
+matched       2. False-alarm rule: tBTC within 2% of its pre-apply price → not surfaced
+matched       2. False-alarm rule: VIRTUAL within 2% of its pre-apply price → not surfaced
+matched       2. False-alarm rule: MORPHO within 2% of its pre-apply price → not surfaced
+matched       2. False-alarm rule: cbXRP within 2% of its pre-apply price → not surfaced
+matched       2. False-alarm rule: MAMO within 2% of its pre-apply price → not surfaced
+matched       Single-feed trace (D04-02 acceptance): cbETH post-apply price touches 1 price source (no multiply)
+can't check   3. Replay rule (after a proposed change: cbETH within 2% of reference and 2 sources)

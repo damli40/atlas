@@ -1,0 +1,37 @@
+
+ RUN  v5.0.5 /Users/Admin/Documents/Atlas-wt/level2
+
+ ✓ tests/unit/evm-apply.test.ts > ChainlinkOracleConfigs.sol parser (offline) > finds the 14 uncommented Base pushes in the PR file, with their lines, and skips the 6 commented ones 2ms
+ ✓ tests/unit/evm-apply.test.ts > ChainlinkOracleConfigs.sol parser (offline) > handles a push split over lines, // and /* */ comments, and a // inside a string 0ms
+ ✓ tests/unit/evm-apply.test.ts > ChainlinkOracleConfigs.sol parser (offline) > refuses a Base push it cannot read instead of dropping it 0ms
+ ✓ tests/unit/evm-apply.test.ts > ChainlinkOracleConfigs.sol parser (offline) > maps each config to its wrapper, token and market through the PR's chains/8453.json 1ms
+ ✓ tests/unit/evm-apply.test.ts > ChainlinkOracleConfigs.sol parser (offline) > a name missing from the address book throws, and a repeated name is refused 0ms
+ ✓ tests/unit/evm-apply.test.ts > ChainlinkOracleConfigs.sol parser (offline) > pair comparison is a set comparison that reports both sides and repeats 0ms
+ ✓ tests/unit/evm-apply.test.ts > ChainlinkOracleConfigs.sol parser (offline) > the stored real FeedSet data holds 14 events whose symbols are TOUCHED_MARKETS 0ms
+ ✓ tests/unit/evm-apply.test.ts > ChainlinkOracleConfigs.sol parser (offline) > probe: using the config's token name as the setFeed key (instead of symbol() on-chain) would get 3 of 14 wrong 0ms
+ ✓ tests/unit/evm-level2.test.ts > Level 2 pass-rule arithmetic (offline) > percentages are exact bigint math, the 2% and 50% edges are inclusive-not-flagged 1ms
+ ✓ tests/unit/evm-level2.test.ts > price-source counter over a callTracer tree (offline) > wrapper → proxy → aggregator counts 1 source; a composite over two proxies counts 2 0ms
+ ✓ tests/unit/evm-level2.test.ts > price-source counter over a callTracer tree (offline) > an unexpected shape is not measured, with the raw shape kept 0ms
+ ✓ tests/unit/evm-level2.test.ts > pass rule evaluation (offline) > flags cbETH, and a market 3% off its pre-apply price fails the false-alarm line (not hidden) 0ms
+ ✓ tests/unit/evm-level2.test.ts > pass rule evaluation (offline) > a failed control turns every rule line into can't check 0ms
+ ✓ tests/unit/evm-level1.test.ts > EVM runner, offline > run() refuses a missing fork block instead of defaulting it 2ms
+ ✓ tests/unit/evm-level1.test.ts > EVM runner, offline > control() refuses to run without a fork block 0ms
+ ✓ tests/unit/evm-level1.test.ts > EVM runner, offline > run() refuses shapes Level 1 does not run, and gate-rejected experiments 0ms
+ ✓ tests/unit/evm-level1.test.ts > EVM runner, offline > control reasons: a good record passes; each failing check names itself 1ms
+ ✓ tests/unit/evm-level1.test.ts > EVM runner, offline > stablecoin band is 0.95–1.05 USD inclusive 0ms
+ ✓ tests/unit/evm-level1.test.ts > EVM runner, offline > reference arithmetic: $1,965.58 × 1.12266 = $2,206.68 in USD 1e18 0ms
+ ✓ tests/unit/evm-level1.test.ts > EVM runner, offline > a run whose control failed makes the 2200 bet can't check, whatever was read 2ms
+ ✓ tests/unit/evm-apply.test.ts > Level 2 pre-flight on a Base fork at 42194662 (needs BASE_RPC_URL) > all 14 wrappers have code and the oracle admin is the TemporalGovernor 1363ms
+ ✓ tests/unit/evm-level1.test.ts > Level 1 on Base forks (MIP-X43) > after the fact, block 42194663: cbETH ≈ $1.12, reference ≈ $2,2xx, control passed, 2200 bet judged 1378ms
+ ✓ tests/unit/evm-apply.test.ts > Level 2 pre-flight on a Base fork at 42194662 (needs BASE_RPC_URL) > the 14 derived (symbol, wrapper) pairs equal the 14 real FeedSet pairs as a set 1306ms
+ ✓ tests/unit/evm-level1.test.ts > Level 1 on Base forks (MIP-X43) > one block before, 42194662: cbETH ≈ $2,2xx on the old feed 0xB0Ba… 1305ms
+ ✓ tests/unit/evm-level2.test.ts > Level 2 on real Base forks (needs BASE_RPC_URL) > at 42194662: control passes, 14 actions applied, cbETH flagged vs reference, 13 others within 2%, 1 price source, 2200 bet not matched 3518ms
+ ✓ tests/unit/evm-level1.test.ts > Level 1 on Base forks (MIP-X43) > assertPreExecution passes at 42194662 and fails at 42194663 with "fork is not pre-execution" 2584ms
+ ✓ tests/unit/evm-level2.test.ts > Level 2 on real Base forks (needs BASE_RPC_URL) > evmRunner().run takes the same path: post-apply cbETH in priceUsd1e18:cbETH, pre-apply kept separately 3394ms
+ ✓ tests/unit/evm-level2.test.ts > Level 2 on real Base forks (needs BASE_RPC_URL) > at 42194663 (after the proposal ran) it stops before applying anything: fork is not pre-execution 1287ms
+
+ Test Files  3 passed (3)
+      Tests  28 passed (28)
+   Start at  06:57:32
+   Duration  8.41s (tests 98%, import 2%)
+

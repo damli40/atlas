@@ -1,0 +1,17 @@
+
+ RUN  v5.0.5 /Users/Admin/Documents/Atlas-wt/level2
+
+ ✓ tests/unit/evm-apply.test.ts > ChainlinkOracleConfigs.sol parser (offline) > finds the 14 uncommented Base pushes in the PR file, with their lines, and skips the 6 commented ones 2ms
+ ✓ tests/unit/evm-apply.test.ts > ChainlinkOracleConfigs.sol parser (offline) > handles a push split over lines, // and /* */ comments, and a // inside a string 0ms
+ ✓ tests/unit/evm-apply.test.ts > ChainlinkOracleConfigs.sol parser (offline) > refuses a Base push it cannot read instead of dropping it 0ms
+ ✓ tests/unit/evm-apply.test.ts > ChainlinkOracleConfigs.sol parser (offline) > maps each config to its wrapper, token and market through the PR's chains/8453.json 1ms
+ ✓ tests/unit/evm-apply.test.ts > ChainlinkOracleConfigs.sol parser (offline) > a name missing from the address book throws, and a repeated name is refused 0ms
+ ✓ tests/unit/evm-apply.test.ts > ChainlinkOracleConfigs.sol parser (offline) > pair comparison is a set comparison that reports both sides and repeats 0ms
+ ✓ tests/unit/evm-apply.test.ts > ChainlinkOracleConfigs.sol parser (offline) > TOUCHED_MARKETS lists 14 markets 0ms
+ ✓ tests/unit/evm-apply.test.ts > Level 2 pre-flight on a Base fork at 42194662 (needs BASE_RPC_URL) > all 14 wrappers have code and the oracle admin is the TemporalGovernor 1336ms
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  06:49:37
+   Duration  1.50s (tests 94%, import 5%)
+

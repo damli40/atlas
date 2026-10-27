@@ -1,0 +1,13 @@
+$ vitest run
+
+ RUN  v5.0.5 /Users/Admin/Documents/Atlas-wt/level2
+
+
+ Test Files  28 passed (28)
+      Tests  335 passed | 16 skipped (351)
+   Start at  06:57:45
+   Duration  4.75s (tests 84%, import 14%, transform 1%)
+
+    Isolate  28 workers spawned · ~123ms startup each (spawn + environment, per file)
+             at least ~260ms faster with isolate: false — reuses workers across files instead of one per file
+

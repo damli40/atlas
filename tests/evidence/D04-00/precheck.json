@@ -1,0 +1,184 @@
+{
+  "checkedAt": "2026-10-27T05:49:02.491Z",
+  "forkBlock": 42194662,
+  "chainId": 8453,
+  "blockNumberOnFork": 42194662,
+  "oracle": "0xEC942bE8A8114bFD0396A5052c36027f2cA6a9d0",
+  "admin": "0x8b621804a7637b781e2BbD58e256a591F2dF7d51",
+  "expectedAdmin": "0x8b621804a7637b781e2BbD58e256a591F2dF7d51",
+  "adminIsTemporalGovernor": true,
+  "wrapperCount": 14,
+  "distinctWrapperCount": 13,
+  "wrappers": [
+    {
+      "config": {
+        "oracleName": "DAI_ORACLE",
+        "tokenKey": "DAI",
+        "mTokenKey": "MOONWELL_DAI",
+        "line": 28
+      },
+      "wrapperName": "DAI_ORACLE_OEV_WRAPPER",
+      "wrapper": "0x4916EC6773e14CA873be3d65022BB122CB8b89a2",
+      "codeBytes": 14686,
+      "hasCode": true
+    },
+    {
+      "config": {
+        "oracleName": "CHAINLINK_USDC_USD",
+        "tokenKey": "USDC",
+        "mTokenKey": "MOONWELL_USDC",
+        "line": 31
+      },
+      "wrapperName": "CHAINLINK_USDC_USD_OEV_WRAPPER",
+      "wrapper": "0x7600b9068bB0aFEA6adf70eD6CD0f8492117236d",
+      "codeBytes": 14686,
+      "hasCode": true
+    },
+    {
+      "config": {
+        "oracleName": "CHAINLINK_USDC_USD",
+        "tokenKey": "USDBC",
+        "mTokenKey": "MOONWELL_USDBC",
+        "line": 34
+      },
+      "wrapperName": "CHAINLINK_USDC_USD_OEV_WRAPPER",
+      "wrapper": "0x7600b9068bB0aFEA6adf70eD6CD0f8492117236d",
+      "codeBytes": 14686,
+      "hasCode": true
+    },
+    {
+      "config": {
+        "oracleName": "cbETHETH_ORACLE",
+        "tokenKey": "cbETH",
+        "mTokenKey": "MOONWELL_cbETH",
+        "line": 41
+      },
+      "wrapperName": "cbETHETH_ORACLE_OEV_WRAPPER",
+      "wrapper": "0x67996D1ff7a3711a91E2839d1059Fcb950C0495D",
+      "codeBytes": 14686,
+      "hasCode": true
+    },
+    {
+      "config": {
+        "oracleName": "CHAINLINK_AERO_ORACLE",
+        "tokenKey": "AERO",
+        "mTokenKey": "MOONWELL_AERO",
+        "line": 54
+      },
+      "wrapperName": "CHAINLINK_AERO_ORACLE_OEV_WRAPPER",
+      "wrapper": "0xdC79C7D5D4dA3b237D2d078a1ee06F2FD1FfEf98",
+      "codeBytes": 14686,
+      "hasCode": true
+    },
+    {
+      "config": {
+        "oracleName": "CHAINLINK_BTC_USD",
+        "tokenKey": "cbBTC",
+        "mTokenKey": "MOONWELL_cbBTC",
+        "line": 57
+      },
+      "wrapperName": "CHAINLINK_BTC_USD_OEV_WRAPPER",
+      "wrapper": "0x6a3c960Bcfb69BAe78f706c9c6B168bB7693E119",
+      "codeBytes": 14686,
+      "hasCode": true
+    },
+    {
+      "config": {
+        "oracleName": "CHAINLINK_EURC_USD",
+        "tokenKey": "EURC",
+        "mTokenKey": "MOONWELL_EURC",
+        "line": 60
+      },
+      "wrapperName": "CHAINLINK_EURC_USD_OEV_WRAPPER",
+      "wrapper": "0xd5669e0175D01cc5F6Be9607129668D0833DcbEC",
+      "codeBytes": 14686,
+      "hasCode": true
+    },
+    {
+      "config": {
+        "oracleName": "CHAINLINK_WELL_USD",
+        "tokenKey": "xWELL_PROXY",
+        "mTokenKey": "MOONWELL_WELL",
+        "line": 66
+      },
+      "wrapperName": "CHAINLINK_WELL_USD_OEV_WRAPPER",
+      "wrapper": "0xBA5220805E43194Ff12A434fBb745f3a2E1a09db",
+      "codeBytes": 14686,
+      "hasCode": true
+    },
+    {
+      "config": {
+        "oracleName": "CHAINLINK_USDS_USD",
+        "tokenKey": "USDS",
+        "mTokenKey": "MOONWELL_USDS",
+        "line": 69
+      },
+      "wrapperName": "CHAINLINK_USDS_USD_OEV_WRAPPER",
+      "wrapper": "0x6621069673C61a143DaDF376389e82DA372BF405",
+      "codeBytes": 14686,
+      "hasCode": true
+    },
+    {
+      "config": {
+        "oracleName": "CHAINLINK_TBTC_USD",
+        "tokenKey": "TBTC",
+        "mTokenKey": "MOONWELL_TBTC",
+        "line": 72
+      },
+      "wrapperName": "CHAINLINK_TBTC_USD_OEV_WRAPPER",
+      "wrapper": "0xBfAaA8B347dA80B909504d403CB4C8F245e921ab",
+      "codeBytes": 14686,
+      "hasCode": true
+    },
+    {
+      "config": {
+        "oracleName": "CHAINLINK_VIRTUAL_USD",
+        "tokenKey": "VIRTUAL",
+        "mTokenKey": "MOONWELL_VIRTUAL",
+        "line": 78
+      },
+      "wrapperName": "CHAINLINK_VIRTUAL_USD_OEV_WRAPPER",
+      "wrapper": "0x12EC8CfEbCF5728774925feC1502733f906CB6e3",
+      "codeBytes": 14686,
+      "hasCode": true
+    },
+    {
+      "config": {
+        "oracleName": "CHAINLINK_MORPHO_USD",
+        "tokenKey": "MORPHO",
+        "mTokenKey": "MOONWELL_MORPHO",
+        "line": 81
+      },
+      "wrapperName": "CHAINLINK_MORPHO_USD_OEV_WRAPPER",
+      "wrapper": "0x09793267120dbF519B2B0e8Ea77A689e2Ba453F0",
+      "codeBytes": 14686,
+      "hasCode": true
+    },
+    {
+      "config": {
+        "oracleName": "CHAINLINK_cbXRP_USD",
+        "tokenKey": "cbXRP",
+        "mTokenKey": "MOONWELL_cbXRP",
+        "line": 84
+      },
+      "wrapperName": "CHAINLINK_cbXRP_USD_OEV_WRAPPER",
+      "wrapper": "0xf2Ac6F14A094A82A6f9489364CdE9e1ba2548d49",
+      "codeBytes": 14686,
+      "hasCode": true
+    },
+    {
+      "config": {
+        "oracleName": "CHAINLINK_MAMO_USD",
+        "tokenKey": "MAMO",
+        "mTokenKey": "MOONWELL_MAMO",
+        "line": 87
+      },
+      "wrapperName": "CHAINLINK_MAMO_USD_OEV_WRAPPER",
+      "wrapper": "0xfbA86a013f7FD93B5454e147242CF2Bf419e120D",
+      "codeBytes": 14686,
+      "hasCode": true
+    }
+  ],
+  "missingCode": [],
+  "passed": true
+}

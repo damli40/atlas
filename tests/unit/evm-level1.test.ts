@@ -53,8 +53,10 @@ describe("EVM runner, offline", () => {
   it("run() refuses shapes Level 1 does not run, and gate-rejected experiments", async () => {
     const exp = level1Experiment();
     await expect(
-      evmRunner().run({ ...exp, params: { shape: "apply-proposal-then-read", markets: ["cbETH"] } }, { forkBlock: 42194662 }),
-    ).rejects.toThrow(/does not run "apply-proposal-then-read" yet/);
+      evmRunner().run({ ...exp, params: { shape: "liquidatable-at-price", market: "cbETH", priceUsd1e18: "1" } }, { forkBlock: 42194662 }),
+    ).rejects.toThrow(/does not run "liquidatable-at-price" yet/);
+    // Level 2 (D04-02) exists now, and it too refuses a missing fork block.
+    await expect(evmRunner().run({ ...exp, params: { shape: "apply-proposal-then-read", markets: ["cbETH"] } }, {})).rejects.toThrow(/forkBlock is required/);
     await expect(evmRunner().run({ ...exp, gate: { allowed: false, reason: "no" } }, { forkBlock: 42194662 })).rejects.toThrow(/rejected by the gate/);
   });
 
