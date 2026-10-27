@@ -93,6 +93,15 @@ export function chainlinkTo1e18(answer: bigint, feedDecimals: number): bigint {
 }
 
 /**
+ * A USD 1e18 price times a ratio with 18 decimals (for example cbETH/ETH), as USD 1e18:
+ * usd1e18 × ratio1e18 / 10^18. Division truncates toward zero. Used for the cbETH reference
+ * (ETH/USD × cbETH/ETH), so the one rescaling step lives here.
+ */
+export function usdTimesRatio1e18(usd1e18: bigint, ratio1e18: bigint): bigint {
+  return (usd1e18 * ratio1e18) / 10n ** BigInt(USD_DECIMALS);
+}
+
+/**
  * A USD amount a person or model typed (2200, 2205.05, "1.12") as USD 1e18.
  * Throws if it has more than 18 decimal places, because that cannot be stored exactly.
  */

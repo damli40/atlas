@@ -1,0 +1,31 @@
+{
+  "caption": "re-run after the fact, on a fork of Base at block 42194663",
+  "bet": {
+    "experimentId": "level1-cbETH",
+    "who": "human",
+    "question": "At the fork block, what will Moonwell's oracle report for 1 cbETH, in USD?",
+    "measures": "priceUsd1e18:cbETH",
+    "answer": {
+      "kind": "number",
+      "value": 2200,
+      "tolerancePct": 10,
+      "unit": "USD"
+    },
+    "id": "-OUbGRZ3fV",
+    "nonce": "156083e2d5501c4f0d1d3f59002dd50e",
+    "sealedAt": "2026-10-27T05:41:21.341Z",
+    "sealedHash": "b6b4e99849f75cb7e16c540f849e9042f814908321dcdd51d0b69926d93b4a18"
+  },
+  "betSealedBeforeRun": true,
+  "verdict": {
+    "betId": "-OUbGRZ3fV",
+    "runId": "U6Gk6cu_i0",
+    "judgedBy": "src/judge.ts",
+    "outcome": "not_matched",
+    "observed": "1122662744874806300",
+    "reference": {
+      "value": "2206683650838065175827",
+      "method": "Chainlink ETH/USD × cbETH/ETH at block 42194663, decimals 8 and 18 read on-chain"
+    }
+  }
+}
