@@ -6,6 +6,7 @@
 // These are inputs, not results: the runner re-reads every value it shows from the fork.
 
 import type { Address } from "viem";
+import { MOONWELL_LEVEL1_BLOCK, MOONWELL_LEVEL2_BLOCK } from "../../src/moonwell-blocks.ts";
 
 export const BASE_CHAIN_ID = 8453;
 
@@ -23,9 +24,9 @@ export const PR578_CODE_SHA256 = "6c431aaec1a5631719cb0c90128b0b2b0f294bafb3634c
 /** Fork blocks. A fork "at N" holds the state AFTER block N. MIP-X43 executed on Base in 42194663. */
 export const FORK_BLOCK = {
   /** One block before the proposal ran: Level 2 ("before ship"). */
-  beforeProposal: 42194662,
+  beforeProposal: MOONWELL_LEVEL2_BLOCK,
   /** The block the proposal ran in: Level 1 ("after the fact"). */
-  proposalExecuted: 42194663,
+  proposalExecuted: MOONWELL_LEVEL1_BLOCK,
   /** A later block used by the read checks (D03-02). */
   readCheck: 42195500,
 } as const;

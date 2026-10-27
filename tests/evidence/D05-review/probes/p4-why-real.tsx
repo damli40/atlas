@@ -6,7 +6,7 @@ const ROOT = new URL("../../../../", import.meta.url).pathname;
 for (const n of ["fixture-eRopGsrp2a", "moonwell-level2-mwTaxvHFzB"]) {
   const f = JSON.parse(readFileSync(`${ROOT}tests/evidence/D04-04/${n}.atlas.json`, "utf8"));
   const finding = f.findings?.[0];
-  const r = linkSentences(whySentences(f.runs[0], finding, modelTextsOf(f.bets, finding)), f.runs[0], f.findings ?? []);
+  const r = linkSentences(whySentences(f.runs[0], finding), f.runs[0], f.findings ?? []);
   console.log("==", n);
   for (const s of r.shown) console.log("SHOWN", s.by.kind === "model" ? s.by.model : "Atlas, plain code", "|", s.text);
   for (const s of r.dropped) console.log("DROP", s.by.kind === "model" ? s.by.model : "plain", "|", s.text.slice(0, 140));

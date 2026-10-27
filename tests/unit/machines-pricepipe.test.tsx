@@ -1,9 +1,12 @@
 // D05-03: the price pipe, a Figure drawn from { run, bets, verdicts } only.
-// - model.ts imports nothing but the input types and src/units.ts's USD formatter.
+// - model.ts imports nothing but the input types, src/units.ts's USD formatter, the pure src/trust.ts
+//   rule and the two fork block numbers in src/moonwell-blocks.ts (both of those import nothing at run time).
 // - The parts manifest lists every drawn part (40–80); no part is named after a judgement of the code.
 // - Level 2 real run (D04-04, mwTaxvHFzB): 1 price source → no gear, the slot is a dashed outline.
 // - The pre-apply phase of the same run (a fixture built from it): 2 price sources → the gear is there.
-// - Control failed → the gauge says "can't check" and no needle is drawn.
+// - Control failed, or the sandbox measured nothing (src/trust.ts) → the card is not drawn: no needle, no
+//   readout numbers, no gear or slot claim, the reason sentence only.
+// - The Level caption comes from the run's fork block only (42194662 → Level 2, 42194663 → Level 1, else none).
 // - Level 1 real run (D03-03): the count was not measured → plain slot, "not measured".
 // - Ghost bet marks come from Bet[] only; a declined bet has no mark; reduced motion paints the end state.
 
@@ -15,9 +18,14 @@ import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it } from "vitest";
 import { LEVEL2_CAPTION, level1Caption } from "../../src/atlasfile";
+import { judge } from "../../src/judge";
+import { MOONWELL_LEVEL1_BLOCK, MOONWELL_LEVEL2_BLOCK } from "../../src/moonwell-blocks";
+import { notShownAsFact } from "../../src/trust";
+import type { Run } from "../../src/types";
+import { FORK_BLOCK } from "../../runners/evm/moonwell-base";
 import { formatUsd1e18 } from "../../src/units";
 import { PARTS, PRICE_NEEDLE_LEN, REF_NEEDLE_LEN, needleAt } from "../../web/machines/pricepipe/geometry";
-import { dialAt, pipeModel, poseAt } from "../../web/machines/pricepipe/model";
+import { dialAt, levelOf, pipeModel, poseAt } from "../../web/machines/pricepipe/model";
 import { PricePipe } from "../../web/machines/pricepipe/PricePipe";
 import { pipeCases, type PipeCase } from "../tools/pipe-cases";
 
@@ -40,11 +48,22 @@ const svgOf = (html: string) => html.slice(html.indexOf("<svg"), html.indexOf("<
 const readoutOf = (html: string) => /data-readout="">([^<]*)</.exec(html)![1]!;
 
 describe("D05-03 price pipe", () => {
-  it("model.ts imports nothing but its input types and the USD formatter from src/units.ts", () => {
+  it("model.ts imports nothing but its input types, the USD formatter, the pure src/trust.ts rule and the fork block numbers", () => {
+    const importsOf = (rel: string) => [...readFileSync(join(ROOT, rel), "utf8").matchAll(/^\s*import\s[^;]*;/gm)].map((m) => m[0].trim());
     const src = readFileSync(join(ROOT, "web/machines/pricepipe/model.ts"), "utf8");
-    const imports = [...src.matchAll(/^\s*import\s[^;]*;/gm)].map((m) => m[0].trim());
-    expect(imports).toEqual(['import type { Bet, Run, Verdict } from "../../../src/types";', 'import { formatUsd1e18 } from "../../../src/units";']);
+    expect(importsOf("web/machines/pricepipe/model.ts")).toEqual([
+      'import type { Bet, Run, Verdict } from "../../../src/types";',
+      'import { MOONWELL_LEVEL1_BLOCK, MOONWELL_LEVEL2_BLOCK } from "../../../src/moonwell-blocks";',
+      'import { notShownAsFact } from "../../../src/trust";',
+      'import { formatUsd1e18 } from "../../../src/units";',
+    ]);
     expect(src).not.toMatch(/\brequire\(|\bimport\(|\bfetch\(|Date\.now|Math\.random/);
+    // src/trust.ts is pure: it imports types only. src/moonwell-blocks.ts imports nothing.
+    expect(importsOf("src/trust.ts")).toEqual(['import type { Run } from "./types";']);
+    expect(importsOf("src/moonwell-blocks.ts")).toEqual([]);
+    for (const rel of ["src/trust.ts", "src/moonwell-blocks.ts"]) expect(readFileSync(join(ROOT, rel), "utf8")).not.toMatch(/\brequire\(|\bimport\(|\bfetch\(|Date\.now|Math\.random/);
+    // The runner's fork blocks are the same two numbers.
+    expect([FORK_BLOCK.beforeProposal, FORK_BLOCK.proposalExecuted]).toEqual([MOONWELL_LEVEL2_BLOCK, MOONWELL_LEVEL1_BLOCK]);
   });
 
   it("parts manifest: 40–80 parts, every drawn part is listed, every listed part is drawn in some case, none named after a judgement", () => {
@@ -126,20 +145,62 @@ describe("D05-03 price pipe", () => {
     expect(render(c)).toContain("fixture built from run mwTaxvHFzB");
   });
 
-  it("control failed: the gauge says can't check and no needle is drawn; every verdict is can't check", () => {
-    const c = get("control-failed");
-    expect(c.verdicts.every((v) => v.outcome === "cant_check")).toBe(true);
+  /** Nothing from a not-shown run may reach the card: no needle, no number, no slot claim, the reason only. */
+  const expectNotShown = (c: { run: Run; bets: PipeCase["bets"]; verdicts: PipeCase["verdicts"] }, reason: RegExp) => {
+    const why = notShownAsFact(c.run);
+    expect(why).toMatch(reason);
     const m = pipeModel(c);
-    expect(m.price).toBeNull();
-    expect(m.reference).toBeNull();
-    expect(m.readout).toBe("cbETH: can't check (the control did not pass) · 1 price source");
-    const html = render(c);
-    const parts = partsIn(html);
-    expect(parts.has("price-needle")).toBe(false);
-    expect(parts.has("reference-needle")).toBe(false);
-    expect(svgOf(html)).toMatch(/class="iso-face-text"[^>]*>can&#x27;t check</);
-    expect(svgOf(html)).not.toMatch(/pp-(price|ref)-needle/);
-    expect(html).toContain("Gauge: can&#x27;t check.");
+    expect(m.notShown).toBe(why);
+    expect([m.price, m.reference, m.count]).toEqual([null, null, null]);
+    expect(m.slot).toEqual({ kind: "not_shown" });
+    expect(m.inlets.every((i) => i.state === "unknown" && i.label === null)).toBe(true);
+    expect([m.ghosts, m.declined, m.steps, m.readout]).toEqual([[], [], [], ""]);
+    const html = renderToStaticMarkup(<PricePipe run={c.run} bets={c.bets} verdicts={c.verdicts} still theme="light" />);
+    expect(html).toContain('data-testid="pipe-cant-check"');
+    expect(html).toContain(why!.replace(/'/g, "&#x27;"));
+    expect(html).not.toContain("<svg");
+    expect(html).not.toMatch(/data-part=|data-readout|pipe-level-caption|pipe-slot-caption|multiply gear|price source|\$\d/);
+    for (const p of ["price-needle", "reference-needle", "multiply-gear", "slot-ghost-outline"]) expect(html).not.toContain(p);
+    expect(c.verdicts.every((v) => v.outcome === "cant_check")).toBe(true);
+  };
+
+  it("control failed: the card is not drawn, it shows src/trust.ts's reason; every verdict is can't check", () => {
+    const c = get("control-failed");
+    expect(c.run.controlPassed).toBe(false);
+    expectNotShown(c, /^Atlas's known-case check did not match, so this run is not shown as fact: fixture: the D04-04 run/);
+    expect(pipeModel(c).controlReason).toBe("fixture: the D04-04 run with its control marked as not passed");
+  });
+
+  it("sandbox failed (control passed, nothing measured): the card is not drawn, it shows the sandbox reason", () => {
+    const base = get("level2-count1");
+    // Shaped like runners/ts/control.ts's sandbox failure: measured empty, the reason in notMeasured.run.
+    // The reference and the trace are left in place: they must still not show.
+    const withReason: Run = { ...base.run, id: `${base.run.id}-sandbox-failed`, controlPassed: true, result: { ...base.run.result, measured: {}, notMeasured: { run: "fixture: the sandbox stopped before the read finished" } } };
+    expect(withReason.result.references!["refUsd1e18:cbETH"]).toBeDefined();
+    expectNotShown({ run: withReason, bets: base.bets, verdicts: base.bets.map((b) => judge(b, withReason)) }, /^The sandbox did not finish this run, so nothing from it is shown as fact: fixture: the sandbox stopped/);
+    // No reason given and no trace recorded: still not shown.
+    const noTrace: Run = { ...base.run, id: `${base.run.id}-no-trace`, controlPassed: true, trace: [], result: { measured: {}, notMeasured: {} } };
+    expectNotShown({ run: noTrace, bets: base.bets, verdicts: base.bets.map((b) => judge(b, noTrace)) }, /the run recorded no trace$/);
+  });
+
+  it("the Level caption comes from the run's fork block only, never from trace events", () => {
+    expect([levelOf(42194662), levelOf(42194663), levelOf(42195500), levelOf(null), levelOf(undefined)]).toEqual(["level2", "level1", null, null, null]);
+    const base = get("level2-count1");
+    const caption = (run: Run) => /data-testid="pipe-level-caption">([^<]*)</.exec(renderToStaticMarkup(<PricePipe run={run} bets={base.bets} verdicts={base.verdicts} still theme="light" />))?.[1] ?? null;
+    // A replay at the Level 2 block with no feed_set events (a "change it, then re-run" replay) is still Level 2.
+    const replay: Run = { ...base.run, forkBlock: MOONWELL_LEVEL2_BLOCK, trace: base.run.trace.filter((e) => e.event !== "feed_set") };
+    expect(replay.trace.some((e) => e.event === "feed_set")).toBe(false);
+    expect(pipeModel({ ...base, run: replay }).level).toBe("level2");
+    expect(caption(replay)).toBe(`${LEVEL2_CAPTION.replace(/'/g, "&#x27;")}. `);
+    // feed_set events at the Level 1 block do not make it Level 2.
+    const l1: Run = { ...base.run, forkBlock: MOONWELL_LEVEL1_BLOCK };
+    expect(l1.trace.some((e) => e.event === "feed_set")).toBe(true);
+    expect(pipeModel({ ...base, run: l1 }).level).toBe("level1");
+    expect(caption(l1)).toBe(`${level1Caption(MOONWELL_LEVEL1_BLOCK)}. `);
+    // An unknown block: no Level caption at all.
+    const other: Run = { ...base.run, forkBlock: 42195500 };
+    expect(pipeModel({ ...base, run: other }).level).toBeNull();
+    expect(caption(other)).toBeNull();
   });
 
   it("Level 1 real run: the source count was not measured, so the slot is plain with 'not measured', no gear and no dashed claim", () => {

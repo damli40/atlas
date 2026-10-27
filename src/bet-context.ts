@@ -16,6 +16,7 @@
 //   here, never guessed and never read at run time.
 
 import { LEVEL2_CAPTION, level1Caption } from "./atlasfile";
+import { MOONWELL_LEVEL1_BLOCK, MOONWELL_LEVEL2_BLOCK } from "./moonwell-blocks";
 import type { Finding } from "./types";
 
 export type MoonwellLevel = "level2" | "level1";
@@ -23,9 +24,9 @@ export type MoonwellLevel = "level2" | "level1";
 /** The two fork blocks a Moonwell round can use, with each block's on-chain timestamp (Unix seconds). */
 export const MOONWELL_FORK_BLOCKS = {
   /** One block before MIP-X43 ran (Level 2). Timestamp read from Base on 2026-10-27. */
-  level2: { block: 42194662, timestamp: 1771178671 },
+  level2: { block: MOONWELL_LEVEL2_BLOCK, timestamp: 1771178671 },
   /** The block MIP-X43 ran in (Level 1). Timestamp read from Base on 2026-10-27. */
-  level1: { block: 42194663, timestamp: 1771178673 },
+  level1: { block: MOONWELL_LEVEL1_BLOCK, timestamp: 1771178673 },
 } as const;
 
 /** What each level does, in the words the screen shows beside its radio button. */

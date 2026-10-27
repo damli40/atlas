@@ -1,6 +1,8 @@
 // The price pipe as a card (Anatomy's Plate): Fig label, title, hint, live readout, legend and a true
 // caption under the card. Input is { run, bets, verdicts } only. The Level caption comes from the
-// run: a run whose trace applied the proposal's feed actions is Level 2; a plain read is Level 1.
+// run's fork block alone (model.ts levelOf): the block before the proposal ran is Level 2, the block it
+// ran in is Level 1, any other block earns no Level caption. When src/trust.ts says nothing from the
+// run may be shown as fact, the card is not drawn: it shows the reason sentence only.
 
 import { useMemo, useSyncExternalStore } from "react";
 import { Plate } from "../iso/react/draw";
@@ -58,7 +60,6 @@ function inletSentence(m: PipeModel): string {
 }
 
 function gaugeSentence(m: PipeModel): string {
-  if (!m.controlPassed) return `Gauge: can't check. The known-case control did not pass (${m.controlReason}), so no needle is drawn.`;
   const price = m.price ? `the price needle reads ${m.price.text}${m.price.offScale ? " (off the scale, drawn at its end)" : ""}` : "no price was read";
   const ref = m.reference ? `; the smaller needle is the reference (raw Chainlink, same block), ${m.reference.text}` : "; no reference was computed";
   return `Gauge: log scale, $0.01 to $10,000; ${price}${ref}.`;
@@ -85,6 +86,18 @@ export function PricePipe({ run, bets, verdicts, still, theme, at, captionOverri
   const dark = useDark();
   const calm = still ?? asksForStillness();
   const shown = theme ?? (dark ? "dark" : "light");
+  if (model.notShown !== null) {
+    // src/trust.ts: nothing from this run is shown as fact. No drawing, no motion, no readout numbers: the reason only.
+    return (
+      <div className="iso pp" data-theme={shown === "light" ? "light" : undefined} data-testid="price-pipe">
+        <div className="card notice" role="note" data-testid="pipe-cant-check">
+          <p className="label">Fig 2 · The price pipe · can't check</p>
+          <p>{model.notShown}</p>
+          <p className="muted small">Run {run.id}. Every verdict on this run is "can't check".</p>
+        </div>
+      </div>
+    );
+  }
   const firstReadout = at !== undefined ? poseAt(model, at).readout : calm ? model.readout : poseAt(model, 0).readout;
   const levelCaption = captionOverride ?? levelCaptionOf(model);
   const keys = [

@@ -1,7 +1,12 @@
 // The price pipe's model. A pure function from { run, bets, verdicts } to the state of every part
 // that depends on the run, and to the words the card prints. It reads ONLY the run (its measured
 // values, its references and its trace), the bets and the verdicts. Its only imports are the input
-// types and the one USD formatter in src/units.ts (tests/unit/machines-pricepipe.test.tsx checks that).
+// types, the one USD formatter in src/units.ts, the pure src/trust.ts rule and the two Moonwell fork
+// block numbers in src/moonwell-blocks.ts (tests/unit/machines-pricepipe.test.tsx checks that).
+//
+// First rule (src/trust.ts): when notShownAsFact(run) is not null (the known-case control did not
+// match, or the sandbox measured nothing), nothing from the run is shown as fact: no needles, no
+// readout numbers, no gear or slot claim, no inlet names. The card shows the reason sentence only.
 //
 // The machine, in one sentence: price feeds stand at the inlets, their pipes meet in a gear slot,
 // and a gauge shows the price that came out; a multiply gear sits in the slot only when the run's
@@ -15,6 +20,8 @@
 // - the count was not measured             -> the slot is drawn plain, with "not measured" under it.
 
 import type { Bet, Run, Verdict } from "../../../src/types";
+import { MOONWELL_LEVEL1_BLOCK, MOONWELL_LEVEL2_BLOCK } from "../../../src/moonwell-blocks";
+import { notShownAsFact } from "../../../src/trust";
 import { formatUsd1e18 } from "../../../src/units";
 
 export interface PipeInput {
@@ -38,7 +45,9 @@ export type SlotState =
   | { kind: "gear" }
   | { kind: "ghost"; who: string[] }
   | { kind: "empty" }
-  | { kind: "not_measured"; reason: string };
+  | { kind: "not_measured"; reason: string }
+  /** Nothing from the run is shown as fact (src/trust.ts): the slot makes no claim at all. */
+  | { kind: "not_shown" };
 
 export interface Needle {
   usd1e18: string;
@@ -66,6 +75,8 @@ export interface PipeModel {
   countReason: string | null;
   controlPassed: boolean;
   controlReason: string | null;
+  /** src/trust.ts's sentence when nothing from this run may be shown as fact; null when it may. */
+  notShown: string | null;
   inlets: [Inlet, Inlet];
   slot: SlotState;
   /** The price the oracle reported (null when not read or when the control failed). */
@@ -78,8 +89,8 @@ export interface PipeModel {
   ghosts: GhostMark[];
   /** Bettors who declined: no mark, the caption says "declined". */
   declined: string[];
-  /** Which level of Moonwell run this is, read from the trace: "level2" when the proposal's feed
-   *  actions were applied (feed_set events), "level1" for a plain price read. */
+  /** Which level of Moonwell run this is, read from the run's fork block only: "level2" at the block
+   *  before the proposal ran, "level1" at the block it ran in, null for any other block (no caption). */
   level: "level2" | "level1" | null;
   forkBlock: number | null;
   steps: Step[];
@@ -166,12 +177,50 @@ function sourcesText(count: number | null): string {
   return `${count} price ${count === 1 ? "source" : "sources"}`;
 }
 
+/** The Level a run earns from its fork block alone. A trace event never decides it, so a later replay at
+ *  the Level 2 block (one that applies a change, then re-runs) is still captioned Level 2. */
+export function levelOf(forkBlock: number | null | undefined): PipeModel["level"] {
+  if (forkBlock === MOONWELL_LEVEL2_BLOCK) return "level2";
+  if (forkBlock === MOONWELL_LEVEL1_BLOCK) return "level1";
+  return null;
+}
+
 export function pipeModel({ run, bets, verdicts }: PipeInput): PipeModel {
   const symbol = symbolOf(run, bets);
+  const forkBlock = typeof run.forkBlock === "number" ? run.forkBlock : null;
+  const level = levelOf(forkBlock);
+  const notShown = notShownAsFact(run);
+  if (notShown !== null) {
+    // Nothing from this run is shown as fact: no part the run decides, no number, no bet mark.
+    const unknown: Inlet = { state: "unknown", label: null, labelFrom: null };
+    return {
+      symbol,
+      count: null,
+      countReason: null,
+      controlPassed: run.controlPassed === true,
+      controlReason: run.controlPassed === true ? null : run.result?.notMeasured?.control ?? null,
+      notShown,
+      inlets: [unknown, unknown],
+      slot: { kind: "not_shown" },
+      price: null,
+      reference: null,
+      priceText: "not shown",
+      referenceText: "not shown",
+      ghosts: [],
+      declined: [],
+      level,
+      forkBlock,
+      steps: [],
+      total: 0,
+      readout: "",
+      engraving: "can't check",
+    };
+  }
   const m = run.result.measured;
   const nm = run.result.notMeasured;
-  const controlPassed = run.controlPassed === true;
-  const controlReason = controlPassed ? null : nm.control ?? "the known-case control did not pass";
+  // notShownAsFact returned null, so the control passed and the sandbox finished the run.
+  const controlPassed = true;
+  const controlReason = null;
 
   // The source count: measured, or not measured (with the runner's reason when it gave one).
   const rawCount = m[`priceSources:${symbol}`];
@@ -210,8 +259,8 @@ export function pipeModel({ run, bets, verdicts }: PipeInput): PipeModel {
   const refRaw = run.result.references?.[`refUsd1e18:${symbol}`]?.value;
   const priceText = isUint(priceRaw) ? formatUsd1e18(BigInt(priceRaw)) : "not read";
   const referenceText = isUint(refRaw) ? formatUsd1e18(BigInt(refRaw)) : "not computed";
-  const price = controlPassed && isUint(priceRaw) ? needleOf(priceRaw) : null;
-  const reference = controlPassed && isUint(refRaw) ? needleOf(refRaw) : null;
+  const price = isUint(priceRaw) ? needleOf(priceRaw) : null;
+  const reference = isUint(refRaw) ? needleOf(refRaw) : null;
 
   // Ghost bet marks: from Bet[] only. A declined bet leaves no mark.
   const verdictOf = (id: string) => verdicts.find((v) => v.betId === id && v.runId === run.id) ?? verdicts.find((v) => v.betId === id);
@@ -229,8 +278,6 @@ export function pipeModel({ run, bets, verdicts }: PipeInput): PipeModel {
   }
   ghosts.sort((a, b) => (a.kind === b.kind ? a.who.localeCompare(b.who) : a.kind === "person" ? -1 : 1));
 
-  const level = run.trace.some((e) => e.event === "feed_set") ? "level2" : run.runner === "evm" ? "level1" : null;
-
   const steps: Step[] = [
     { kind: "inlets", dur: DUR.inlets },
     { kind: "ports", dur: DUR.ports },
@@ -240,10 +287,8 @@ export function pipeModel({ run, bets, verdicts }: PipeInput): PipeModel {
   ];
   const total = steps.reduce((a, s) => a + s.dur, 0);
 
-  const readout = controlPassed
-    ? `${symbol} read ${priceText} · reference ${referenceText} · ${sourcesText(count)}`
-    : `${symbol}: can't check (the control did not pass) · ${sourcesText(count)}`;
-  const engraving = controlPassed ? "USD · log" : "can't check";
+  const readout = `${symbol} read ${priceText} · reference ${referenceText} · ${sourcesText(count)}`;
+  const engraving = "USD · log";
 
   return {
     symbol,
@@ -251,6 +296,7 @@ export function pipeModel({ run, bets, verdicts }: PipeInput): PipeModel {
     countReason,
     controlPassed,
     controlReason,
+    notShown: null,
     inlets,
     slot,
     price,
@@ -260,7 +306,7 @@ export function pipeModel({ run, bets, verdicts }: PipeInput): PipeModel {
     ghosts,
     declined,
     level,
-    forkBlock: run.forkBlock ?? null,
+    forkBlock,
     steps,
     total,
     readout,
