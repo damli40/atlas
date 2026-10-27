@@ -25,6 +25,18 @@ export const MODEL_DISPLAY: Record<string, string> = {
 };
 export const modelDisplay = (model: string): string => MODEL_DISPLAY[model] ?? model;
 
+/**
+ * Model bettors ("model:<id>") in a fixed column order: Muse Spark, then Muse Spark Open, then any other id
+ * as first seen. The order never depends on which model answered first.
+ */
+export function orderModelBettors(whos: readonly string[]): string[] {
+  const rank = (w: string) => {
+    const i = [SPARK_MODEL, SPARK_OPEN_MODEL].indexOf(w.replace(/^model:/, ""));
+    return i === -1 ? 2 : i;
+  };
+  return [...new Set(whos)].map((w, i) => ({ w, i })).sort((a, b) => rank(a.w) - rank(b.w) || a.i - b.i).map((x) => x.w);
+}
+
 /** The models a mode asks, in column order (Muse Spark first). */
 export function modelsFor(mode: ClaimantMode): string[] {
   if (mode === "spark-open") return [SPARK_OPEN_MODEL];

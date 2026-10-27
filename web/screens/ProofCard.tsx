@@ -13,7 +13,7 @@ import { Scoreboard, bettorName } from "../machines/scoreboard/Scoreboard";
 import { SAY, proofCardModel, replayWords } from "./proofcard-model";
 import { DiffView } from "./Change";
 import { BettorCounts } from "./Claimant";
-import { MODEL_DISPLAY } from "../../src/claimants";
+import { MODEL_DISPLAY, orderModelBettors } from "../../src/claimants";
 import { AFTER_LABEL, BEFORE_LABEL, CHANGE_CAPTION, theoryCaptions } from "../../src/change";
 
 /** S6: the pre-existing label, from the file when it carries one. */
@@ -77,7 +77,7 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
   // D10 + D07-01: every model bettor by product name AND id (src/claimants.ts), e.g.
   // "Muse Spark Open (meta-models/muse-spark-open-1026) · via Baseten". An unknown id is shown as itself.
   const names = useMemo(() => modelNames(file), [file]);
-  const modelBettors = [...new Set(file.bets.filter((b) => b.who !== "human").map((b) => b.who))];
+  const modelBettors = orderModelBettors(file.bets.filter((b) => b.who !== "human").map((b) => b.who));
   const [replay, setReplay] = useState<ReplayState>(given ? { kind: "done", answer: given } : { kind: "idle" });
   const download = useMemo(() => {
     if (typeof URL === "undefined" || typeof URL.createObjectURL !== "function" || typeof Blob === "undefined") return null;
