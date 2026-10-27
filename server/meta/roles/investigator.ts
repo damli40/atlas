@@ -27,13 +27,16 @@ export const INVESTIGATOR_FALLBACK_MODEL = "muse-spark-1.3";
 export const MAX_FINDINGS = 3;
 /** lineEnd − lineStart may be at most this (so a finding covers at most 41 lines). */
 export const MAX_SPAN = 40;
-/** A quoted snippet shorter than this (after whitespace is squashed) matches too much to verify anything. */
-export const MIN_QUOTE_CHARS = 10;
+/**
+ * A quoted snippet with fewer letters, digits or underscores than this pins nothing: a run of "}" or
+ * "); }" appears all over a file. Whitespace and punctuation do not count.
+ */
+export const MIN_QUOTE_WORD_CHARS = 12;
 /** Above this many input tokens (estimated as characters / 4) the model thinks at "medium" instead of "low". */
 export const MEDIUM_EFFORT_ABOVE_TOKENS = 50_000;
 
 export const INVESTIGATE_INSTRUCTION =
-  // The plan's instruction, word for word (section 3.4). A prompt to the model, never shown as a verdict.
+  // The Investigator's instruction, word for word. A prompt to the model, never shown as a verdict.
   "Find up to 3 places where a reader's expectation of what this code does is most likely wrong. These are behaviours, not bugs. For each: file, lineStart, lineEnd, kind (retry/price/other), a one-sentence claim written as 'People expect X; the code does Y', and quotedSnippet copied exactly from those lines."; // wording-lint: allow
 
 const KINDS: readonly FindingKind[] = ["retry", "price", "other"];
@@ -189,6 +192,26 @@ export function normaliseQuote(q: string): string {
   return squash(prefixed ? lines.map((l) => l.replace(/^\s*\d+\| ?/, "")).join("\n") : q);
 }
 
+/**
+ * True when the (normalised) quote is exactly a run of consecutive whole lines from `lines`, compared
+ * with whitespace squashed: it starts where a line starts (indentation ignored) and ends where a line
+ * ends. A fragment from the middle of a line is not a match.
+ */
+export function matchesWholeLines(quote: string, lines: readonly string[]): boolean {
+  const sq = lines.map(squash);
+  for (let i = 0; i < sq.length; i++) {
+    if (sq[i] === "" || !quote.startsWith(sq[i]!)) continue;
+    let acc = "";
+    for (let j = i; j < sq.length; j++) {
+      if (sq[j] === "") continue; // a blank line squashes to nothing
+      acc = acc ? `${acc} ${sq[j]}` : sq[j]!;
+      if (acc === quote) return true;
+      if (!quote.startsWith(acc)) break;
+    }
+  }
+  return false;
+}
+
 export type FindingCheck =
   | { ok: true; fields: { file: string; lineStart: number; lineEnd: number; kind: FindingKind; claim: string; quotedSnippet: string } }
   | { ok: false; reason: string };
@@ -211,9 +234,13 @@ export function checkFinding(raw: unknown, files: ReadonlyMap<string, string>): 
     return { ok: false, reason: `${LINES_DID_NOT_MATCH} (lines ${f.lineStart}–${f.lineEnd} span more than ${MAX_SPAN + 1} lines)` };
   }
   const quote = normaliseQuote(f.quotedSnippet);
-  if (quote.length < MIN_QUOTE_CHARS) return { ok: false, reason: `${LINES_DID_NOT_MATCH} (the quoted snippet is shorter than ${MIN_QUOTE_CHARS} characters)` };
-  const slice = squash(text.split("\n").slice(f.lineStart - 1, f.lineEnd).join("\n"));
-  if (!slice.includes(quote)) return { ok: false, reason: `${LINES_DID_NOT_MATCH} (the quoted snippet is not in lines ${f.lineStart}–${f.lineEnd})` };
+  const wordChars = (quote.match(/[\p{L}\p{N}_]/gu) ?? []).length;
+  if (wordChars < MIN_QUOTE_WORD_CHARS) {
+    return { ok: false, reason: `${LINES_DID_NOT_MATCH} (the quoted snippet has ${wordChars} letters or digits; at least ${MIN_QUOTE_WORD_CHARS} are needed to pin a place)` };
+  }
+  if (!matchesWholeLines(quote, text.split("\n").slice(f.lineStart - 1, f.lineEnd))) {
+    return { ok: false, reason: `${LINES_DID_NOT_MATCH} (the quote is not whole lines of ${f.lineStart}–${f.lineEnd})` };
+  }
   return { ok: true, fields: { ...f, kind: f.kind as FindingKind } };
 }
 

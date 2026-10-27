@@ -56,14 +56,14 @@ describe("checkFinding (plain code)", () => {
       const r = checkFinding(raw, files);
       return r.ok ? "kept" : r.reason;
     };
-    expect(why(MISQUOTED)).toBe("removed: lines did not match the file (the quoted snippet is not in lines 60–62)");
+    expect(why(MISQUOTED)).toBe("removed: lines did not match the file (the quote is not whole lines of 60–62)");
     expect(why(OUT_OF_RANGE)).toMatch(/^removed: lines did not match the file \(lines 90–95 are not inside 1–\d+\)$/);
     expect(why({ ...LOOP, lineStart: 0 })).toMatch(/^removed: lines did not match the file/);
     expect(why({ ...LOOP, lineStart: 56, lineEnd: 55 })).toMatch(/^removed: lines did not match the file/);
     expect(why({ ...LOOP, lineStart: 11, lineEnd: 52 })).toBe("removed: lines did not match the file (lines 11–52 span more than 41 lines)");
     expect(why({ ...LOOP, file: "other.ts" })).toBe("removed: the file is not in the target");
     expect(why({ ...LOOP, kind: "timing" })).toBe("removed: kind is not retry, price or other");
-    expect(why({ ...LOOP, quotedSnippet: "{" })).toMatch(/shorter than 10 characters/);
+    expect(why({ ...LOOP, quotedSnippet: "{" })).toMatch(/has 0 letters or digits; at least 12 are needed/);
     expect(why({ ...LOOP, lineStart: "55" })).toMatch(/^removed: the finding does not match the schema/);
     // The line one past the end (a final newline does not start a line) is out of range.
     const n = FILE_TEXT.endsWith("\n") ? FILE_TEXT.split("\n").length - 1 : FILE_TEXT.split("\n").length;
@@ -119,20 +119,20 @@ describe("the Investigator role (mocked chat)", () => {
     if (!r.ok) return;
     expect(r.findings.map((f) => f.lineStart)).toEqual([55]);
     expect(r.dropped).toHaveLength(1);
-    expect(r.dropped[0]).toMatchObject({ model: "muse-wonder-1.0", attempt: 1, index: 0, lineStart: 60, reason: "removed: lines did not match the file (the quoted snippet is not in lines 60–62)" });
+    expect(r.dropped[0]).toMatchObject({ model: "muse-wonder-1.0", attempt: 1, index: 0, lineStart: 60, reason: "removed: lines did not match the file (the quote is not whole lines of 60–62)" });
     const actions = log.history("s1").map((e) => e.event.action);
-    expect(actions).toContain(`removes a place from muse-wonder-1.0 in ${FIXTURE_FILE} lines 60–62: lines did not match the file (the quoted snippet is not in lines 60–62)`);
+    expect(actions).toContain(`removes a place from muse-wonder-1.0 in ${FIXTURE_FILE} lines 60–62: lines did not match the file (the quote is not whole lines of 60–62)`);
   });
 
   it("out-of-range lines are dropped; a 4th place and a repeat of the same lines are dropped too", async () => {
-    const other = { ...LOOP, lineStart: 49, lineEnd: 49, quotedSnippet: "export async function withRpcRetry<T>(" };
-    const third2 = { ...LOOP, lineStart: 65, lineEnd: 65, quotedSnippet: "  throw last;" };
+    const other = { ...LOOP, lineStart: 49, lineEnd: 49, quotedSnippet: "export async function withRpcRetry<T>(label: string, fn: () => Promise<T>, opts: RetryOptions = {}): Promise<T> {" };
+    const third2 = { ...LOOP, lineStart: 61, lineEnd: 61, quotedSnippet: "        await sleep(delayMs);" };
     const fourth = { ...LOOP, lineStart: 50, lineEnd: 50, quotedSnippet: "const attempts = opts.attempts ?? RPC_RETRY_ATTEMPTS;" };
     const m = mockChat([answer(OUT_OF_RANGE, LOOP, LOOP, other, third2, fourth)]);
     const r = await runInvestigator(input, { chat: m.chat });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.findings.map((f) => f.lineStart)).toEqual([55, 49, 65]);
+    expect(r.findings.map((f) => f.lineStart)).toEqual([55, 49, 61]);
     expect(r.dropped.map((d) => d.reason)).toEqual([
       expect.stringMatching(/^removed: lines did not match the file \(lines 90–95 are not inside/),
       "removed: same file and lines as an earlier finding",
@@ -148,7 +148,7 @@ describe("the Investigator role (mocked chat)", () => {
     expect(m.calls.map((c) => c.model)).toEqual(["muse-wonder-1.0", "muse-wonder-1.0", "muse-spark-1.3", "muse-spark-1.3"]);
     const repair = m.calls[1]!.messages.at(-1)!.content;
     expect(repair.startsWith("Your previous answer failed: every finding was removed by plain code: finding 1")).toBe(true);
-    expect(repair).toMatch(/the quoted snippet is not in lines 60–62/);
+    expect(repair).toMatch(/the quote is not whole lines of 60–62/);
     expect(r.ok).toBe(false);
     if (r.ok) return;
     expect(r).not.toHaveProperty("findings");
@@ -266,7 +266,7 @@ describe("POST /investigate (D04-03)", () => {
   });
 
   it("a PR target is read through fetchPr: files, title and description reach the prompt; the PR's own files decide verification", async () => {
-    const sol = "pragma solidity 0.8.19;\ncontract A {\n    uint256 x = 1;\n}\n";
+    const sol = "pragma solidity 0.8.19;\ncontract A {\n    uint256 public constant x = 1;\n}\n";
     const pr: GithubPrTarget = {
       target: { kind: "github-pr", ref: "o/r#1", commit: "c".repeat(40), codeSha256: "b".repeat(64) },
       files: [{ path: "A.sol", status: "added", sha256: "d".repeat(64), sizeBytes: sol.length, binary: false, content: sol, lines: 4 }],
@@ -277,7 +277,7 @@ describe("POST /investigate (D04-03)", () => {
       mergedAt: "2026-01-01T00:00:00Z",
     };
     let fetched = 0;
-    const s = setup([answer({ file: "A.sol", lineStart: 3, lineEnd: 3, kind: "price", claim: "Zebra-claim pr", quotedSnippet: "uint256 x = 1;" })], {
+    const s = setup([answer({ file: "A.sol", lineStart: 3, lineEnd: 3, kind: "price", claim: "Zebra-claim pr", quotedSnippet: "uint256 public constant x = 1;" })], {
       investigator: { chat: (a) => s0.chat(a), fetchPr: async () => (fetched++, pr) },
     });
     const s0 = s.inv;

@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import { falseAlarmFromRun, falseAlarmTable, type Level2Record } from "../../runners/evm/level2.ts";
 import { buildAtlasFile, HUMAN_PICKED_CBETH_CAPTION, level1Caption, verifyAtlasFile } from "../../src/atlasfile";
 import { judge } from "../../src/judge";
+import { checkFinding, matchesWholeLines } from "../../server/meta/roles/investigator";
 import type { AtlasFile, Run } from "../../src/types";
 
 const ROOT = join(import.meta.dirname, "..", "..");
@@ -170,5 +171,37 @@ describe("S3: verify recomputes the file instead of trusting it", () => {
     const f = good();
     (f.bets[0]!.answer as { value: number }).value += 1;
     expect(problems(f).join("\n")).toMatch(/do not hash to its sealedHash/);
+  });
+});
+
+describe("S6: a quote must be whole lines and carry at least 12 letters or digits", () => {
+  const file = "contract A {\n  function f() public {\n    x = 1;\n  }\n}\n}\n}\n}\n}\n}\n";
+  const files = new Map([["a.sol", file]]);
+  const check = (q: string, lineStart = 1, lineEnd = 10) => checkFinding({ file: "a.sol", lineStart, lineEnd, kind: "other", claim: "People expect X; the code does Y.", quotedSnippet: q }, files);
+
+  it("a run of closing braces is dropped with its reason (before: VERIFIED)", () => {
+    for (const q of ["}\n}\n}\n}\n}\n}", "} } } } }", "    }\n    }\n}  }  }"]) {
+      const r = check(q);
+      expect(r.ok).toBe(false);
+      expect(!r.ok && r.reason).toMatch(/has 0 letters or digits; at least 12 are needed/);
+    }
+  });
+
+  it("a fragment from the middle of a line is dropped with its reason (before: VERIFIED)", () => {
+    const r = check("function f() pub", 2, 2); // 13 word characters, but stops mid-line
+    expect(r.ok).toBe(false);
+    expect(!r.ok && r.reason).toBe("removed: lines did not match the file (the quote is not whole lines of 2–2)");
+    expect(check("ction f() public {", 2, 2).ok).toBe(false); // starts mid-word
+  });
+
+  it("whole lines, indentation and line-number prefixes ignored, are kept", () => {
+    expect(check("function f() public {\n x = 1;", 2, 3).ok).toBe(true);
+    expect(check("2|   function f() public {\n3|     x = 1;", 2, 3).ok).toBe(true);
+    expect(check("contract A { function f() public {", 1, 2).ok).toBe(true);
+  });
+
+  it("matchesWholeLines: blank lines are skipped, partial last lines are not", () => {
+    expect(matchesWholeLines("a = 1; b = 2;", ["  a = 1;", "", "  b = 2;"])).toBe(true);
+    expect(matchesWholeLines("a = 1; b =", ["  a = 1;", "  b = 2;"])).toBe(false);
   });
 });
