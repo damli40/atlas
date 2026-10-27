@@ -8,10 +8,14 @@ import { control, controlReason, runControl, tsRunner } from "../../runners/ts/c
 
 const FIXTURE_REF = "tests/fixtures/with-rpc-retry.ts";
 const code = readFileSync(new URL("../fixtures/with-rpc-retry.ts", import.meta.url), "utf8");
-const target: Target = { kind: "ts-fixture", ref: FIXTURE_REF, codeSha256: createHash("sha256").update(code).digest("hex") };
+// Pinned, not computed from the file: a target built from the file's own hash would pass whatever the
+// file says. This is the SHA-256 of the fixture as committed (also printed by `pnpm gate:day1`).
+const FIXTURE_SHA256 = "f3d2c59f05151be85d8a950c009e63de8015e638d3af6f2fd1c2a729393ad101";
+const target: Target = { kind: "ts-fixture", ref: FIXTURE_REF, codeSha256: FIXTURE_SHA256 };
 
-describe("TS control (oracle rows S1 and S3 through the local executor)", () => {
+describe("TS control (oracle rows S1, S3 and S6 through the local executor)", () => {
   it("passes on the unedited fixture", async () => {
+    expect(createHash("sha256").update(code).digest("hex"), "the fixture file changed").toBe(FIXTURE_SHA256);
     const run = await control(target);
     expect(run.controlPassed, controlReason(run)).toBe(true);
     expect(run.executor).toBe("local");

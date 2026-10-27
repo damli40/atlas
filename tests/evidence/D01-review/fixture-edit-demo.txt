@@ -1,0 +1,10 @@
+# Demo: one trailing space added inside the verbatim block (fixture line 11), as on a fresh clone
+# (the private original absent: old test's hard-coded path swapped for a missing one; ATLAS_FIXTURE_SOURCE unset).
+# Old checks (tests/unit/fixture.test.ts at fefad8d):
+      Tests  3 passed | 2 skipped (5)
+# New checks:
+     × the verbatim block has its pinned SHA-256 (runs everywhere, no private file needed) 4ms
+     × passes on the unedited fixture 4ms
+     × the Runner runs an experiment in the sandbox after a passing control (S6 shape) 181ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  3 failed | 6 passed | 3 skipped (12)
