@@ -349,3 +349,16 @@ describe("contributor models are refused unless ATLAS_ALLOW_CONTRIBUTOR=1", () =
     }
   });
 });
+
+describe("Moonwell prompt: the address book's oracle names, as plain data", () => {
+  it("lists every oracle name in chains/8453.json in file order, names only, with no other hint", async () => {
+    const { oracleNamesIn } = await import("../../server/meta/roles/fixer.ts");
+    const ctx = moonwellChangeContext();
+    const names = oracleNamesIn(ctx.files["chains/8453.json"]!);
+    expect(names.length).toBeGreaterThan(50);
+    const exp: Experiment = { ...s6, id: "exp-l2", runner: "evm", target: { kind: "github-pr", ref: "moonwell-fi/moonwell-contracts-v2#578", codeSha256: "x" }, params: { shape: "apply-proposal-then-read", markets: "touched" } };
+    const p = buildFixerPrompt({ context: ctx, finding: { file: MOONWELL_CONFIG_FILE, lineStart: 42, lineEnd: 42 }, toward: "- t", experiment: exp, forkBlock: 42194662 });
+    expect(p).toContain(`Oracle names that exist in chains/8453.json (${names.length}, names only, in file order):\n${names.join("\n")}`);
+    expect(p).not.toMatch(/bad debt|incident|exploit|loss|post-mortem/i);
+  });
+});

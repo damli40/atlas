@@ -48,8 +48,12 @@ export const FIXER_MUSE_MODEL = "muse-spark-1.3";
 export { CHANGE_CAPTION } from "../../../src/change";
 export const MUSE_BIN_DEFAULT = join(homedir(), ".local", "bin", "muse");
 export const MUSE_TIMEOUT_MS = 240_000;
-/** Muse Code's model steps per attempt. The files are in the prompt, so one step can answer; 3 leaves room to read. */
-export const MUSE_MAX_STEPS = 3;
+/**
+ * Muse Code's model steps per attempt. Was 3 on Oct 27; on the Moonwell PR that ended Muse Code's try
+ * while it was still reading (tests/evidence/D06-01), so it is 6 now. Each step re-sends the context
+ * (about 35–45k tokens here), so 6 steps cost at most about $1.10 at the unverified upper-bound price.
+ */
+export const MUSE_MAX_STEPS = 6;
 /** Tool output fed back per call (bytes): keeps a read of the 41 KB address book from filling the context. */
 export const MUSE_MAX_TOOL_OUTPUT_BYTES = 20_000;
 
@@ -112,6 +116,23 @@ function fullFile(path: string, text: string): string {
   return `=== ${path} (lines 1–${text.split("\n").length}) ===\n${numbered(text, 1, text.split("\n").length)}`;
 }
 
+/**
+ * Moonwell: the names in the PR's own address book (chains/8453.json) that name an oracle, exactly as
+ * written there, in file order. Plain data a developer editing the config would look up; no name is
+ * singled out and nothing is said about which to use.
+ */
+export function oracleNamesIn(chainsJson: string): string[] {
+  const rows = JSON.parse(chainsJson) as Array<{ name?: unknown }>;
+  return rows.map((r) => r.name).filter((n): n is string => typeof n === "string" && (/ORACLE/.test(n) || /^CHAINLINK_/.test(n)));
+}
+
+function oracleNamesSection(ctx: ChangeContext): string[] {
+  const book = ctx.files["chains/8453.json"];
+  if (book === undefined) return [];
+  const names = oracleNamesIn(book);
+  return ["", `Oracle names that exist in chains/8453.json (${names.length}, names only, in file order):`, names.join("\n")];
+}
+
 export function buildFixerPrompt(input: FixerInput): string {
   const { context: ctx, finding } = input;
   const findingText = ctx.files[finding.file];
@@ -134,6 +155,7 @@ export function buildFixerPrompt(input: FixerInput): string {
           "Only the proposal's configuration may change. Moonwell's contracts, the proposal script and the address book (chains/8453.json) may not change.",
           `How the experiment runs: Atlas forks Base at block ${input.forkBlock ?? "(the original run's block)"}, derives the proposal's setFeed actions from proposals/ChainlinkOracleConfigs.sol the way proposals/mips/mip-x43/mip-x43.sol's _wireCoreFeeds does (both files are in the workspace), applies them as the oracle's admin, and reads ChainlinkOracle.getUnderlyingPrice for each market.`,
           `The experiment: ${JSON.stringify(input.experiment.params)}.`,
+          ...oracleNamesSection(ctx),
         ]),
     "",
     `The place in the code (${finding.file}, lines ${finding.lineStart}–${finding.lineEnd}):`,
