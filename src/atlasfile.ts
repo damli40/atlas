@@ -25,10 +25,12 @@ import { judge } from "./judge";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { FORK_BLOCK, PR578_CODE_SHA256 } from "../runners/evm/moonwell-base";
-import { falseAlarmFromRun } from "./falsealarm";
+import { evaluateReplayRule, falseAlarmFromRun } from "./falsealarm";
 import { chainlinkTo1e18, usdTimesRatio1e18 } from "./units";
-import { canonicalJson, verifySeal } from "./seal";
-import type { AgentEvent, AtlasFile, Bet, Experiment, Finding, Run, Target, Verdict } from "./types";
+import { canonicalJson, sha256Hex, verifySeal } from "./seal";
+import { applyFileDiff, parseUnifiedDiff, type DiffFile } from "./diff";
+import { towardFromBets } from "./change";
+import type { AgentEvent, AtlasFile, Bet, Change, Experiment, Finding, Run, Target, Verdict } from "./types";
 
 // The two level captions live in src/captions.ts (no Node imports), so the web page can use them
 // without loading this file, which reads the Moonwell copy from disk.
@@ -201,7 +203,25 @@ export const atlasFileSchema = z
     bets: z.array(betSchema).min(1),
     runs: z.array(runSchema).min(1),
     verdicts: z.array(verdictSchema),
-    change: z.unknown().optional(),
+    change: z
+      .object({
+        id: z.string().min(1),
+        runId: z.string().min(1),
+        diff: z.string().min(1),
+        proposedBy: z.object({ role: z.literal("fixer"), model: z.string().min(1) }).strict(),
+        toward: z.string().min(1),
+        replayRunId: z.string().optional(),
+      })
+      .strict()
+      .optional(),
+    replay: z
+      .object({
+        run: runSchema,
+        verdicts: z.array(verdictSchema),
+        passRule: z.array(z.object({ rule: z.string(), outcome: z.enum(["matched", "didn't match", "can't check"]), detail: z.string() }).strict()).optional(),
+      })
+      .strict()
+      .optional(),
     findings: z.array(findingSchema).optional(),
     falseAlarm: z.array(falseAlarmRowSchema).optional(),
     agentLog: z.array(agentEventSchema),
@@ -447,6 +467,7 @@ export function verifyAtlasFile(raw: unknown): Verification {
   }
   for (const v of file.verdicts) if (!file.bets.some((b) => b.id === v.betId)) say(`verdict names bet ${v.betId}, which is not in the file`);
   for (const p of findingProblems(file)) say(p);
+  for (const p of changeProblems(file)) say(`change: ${p}`);
   const required = requiredCaptions(file);
   for (const c of required) if (!file.captions.includes(c)) say(`missing caption: "${c}"`);
   const allowed = new Set([...required, ...allowedExtraCaptions(file)]);
@@ -520,6 +541,89 @@ export function parseAtlasFile(text: string): AtlasFile {
   }
   const v = verifyAtlasFile(raw);
   if (!v.ok) throw new Error(`the .atlas.json does not verify: ${v.problems.join("; ")}`);
+  return v.file;
+}
+
+// ---------- the change and its replay (D06-01) ----------
+
+/** The one file a change may edit, per runner (runners/change.ts says the same). */
+const EDITABLE: Record<"ts" | "evm", (t: Target) => string> = { ts: (t) => t.ref, evm: () => "proposals/ChainlinkOracleConfigs.sol" };
+/** The bytes the EVM replay reads, in this order (runners/change.ts MOONWELL_SCRATCH_FILES). */
+const EVM_REPLAY_FILES = ["proposals/ChainlinkOracleConfigs.sol", "proposals/mips/mip-x43/mip-x43.sol", "chains/8453.json"];
+
+/**
+ * Recompute everything about a change and its replay from the file itself: the links, same seed / same
+ * fork block, the "toward" text from the bets, the diff touching only the allowed file, the changed
+ * code's SHA-256 (the diff re-applied by plain code to the copy on this machine, when it is here), the
+ * verdicts on the replay (src/judge.ts again) and, on Moonwell, the PASS-RULE.md replay lines.
+ */
+export function changeProblems(file: AtlasFile): string[] {
+  const out: string[] = [];
+  const { change, replay } = file;
+  if (!change && !replay) return out;
+  if (!change || !replay) return ["a change and its replay must come together"];
+  const run = file.runs[0]!;
+  const exp = file.experiments[0]!;
+  const r = replay.run;
+  if (change.runId !== run.id) out.push(`it is for run ${change.runId}, not runs[0] (${run.id})`);
+  if (change.replayRunId !== r.id) out.push(`it names replay ${change.replayRunId ?? "none"}, the file holds ${r.id}`);
+  if (!sameJson(r.replayOf, { runId: run.id, changeId: change.id })) out.push(`the replay does not name run ${run.id} and change ${change.id}`);
+  if (r.experimentId !== exp.id || r.runner !== run.runner) out.push("the replay is not the same experiment on the same runner");
+  if (run.runner === "ts" && (r.seed === undefined || r.seed !== run.seed)) out.push(`the replay used seed ${r.seed}, not the original ${run.seed}`);
+  if (run.runner === "evm" && (r.forkBlock === undefined || r.forkBlock !== run.forkBlock)) out.push(`the replay forked at ${r.forkBlock}, not the original ${run.forkBlock}`);
+  if (change.toward !== towardFromBets(file.bets, file.verdicts)) out.push("its \"toward\" text is not what plain code writes from the bets and verdicts");
+  const parsed = parseUnifiedDiff(change.diff);
+  if (!parsed.ok) out.push(`its diff does not read: ${parsed.reason}`);
+  else {
+    const allowed = EDITABLE[run.runner](file.target);
+    const other = parsed.files.find((f) => f.oldPath !== allowed || f.newPath !== allowed);
+    if (other) out.push(`its diff touches ${other.newPath ?? other.oldPath}; only ${allowed} may change`);
+    else {
+      const sha = changedCodeSha256(file, run.runner, parsed.files[0]!, parsed.files);
+      if (sha.ok && sha.value !== r.codeSha256) out.push(`the diff applied to the code gives ${sha.value.slice(0, 12)}…, the replay ran ${r.codeSha256.slice(0, 12)}…`);
+      if (!sha.ok && sha.reason === "does not apply") out.push("its diff does not apply to the code the file names");
+    }
+  }
+  const checks = r.trace.find((e) => e.event === "replay_checks")?.data;
+  if (!checks || checks.originalCodeSha256 !== file.codeSha256) out.push("the replay's replay_checks event does not name the file's code");
+  for (const b of file.bets) {
+    const v = replay.verdicts.find((x) => x.betId === b.id);
+    if (!v) out.push(`bet ${b.id} has no verdict on the replay`);
+    else if (!sameJson(judge(b, r), v)) out.push(`the replay verdict on bet ${b.id} is not what src/judge.ts gives`);
+    if (!(Date.parse(b.sealedAt) < Date.parse(r.startedAt))) out.push(`bet ${b.id} was not sealed before the replay started`);
+  }
+  if (replay.verdicts.length !== file.bets.length) out.push("the replay has verdicts for bets the file does not hold");
+  if (run.runner === "evm") {
+    if (!replay.passRule || !sameJson(replay.passRule, evaluateReplayRule(r, run))) out.push("its PASS-RULE.md replay lines are not what plain code gives for the replay");
+    for (const p of evmRunAgreesWithItsTrace(r)) out.push(`replay ${r.id}: ${p}`);
+  } else if (replay.passRule) out.push("only a Moonwell replay carries PASS-RULE.md lines");
+  return out;
+}
+
+/** The changed code's SHA-256, recomputed from the copy on this machine. Not checked when the copy is absent. */
+function changedCodeSha256(file: AtlasFile, runner: "ts" | "evm", diff: DiffFile, all: DiffFile[]): { ok: true; value: string } | { ok: false; reason: "absent" | "does not apply" } {
+  if (all.length !== 1) return { ok: false, reason: "does not apply" };
+  try {
+    if (runner === "ts") {
+      const text = readFileSync(join(import.meta.dirname, "..", file.target.ref), "utf8");
+      if (sha256Hex(text) !== file.codeSha256) return { ok: false, reason: "absent" };
+      const changed = applyFileDiff(text, diff);
+      return changed === null ? { ok: false, reason: "does not apply" } : { ok: true, value: sha256Hex(changed) };
+    }
+    const texts = EVM_REPLAY_FILES.map((f) => readFileSync(join(MOONWELL_COPY, f), "utf8"));
+    const changed = applyFileDiff(texts[0]!, diff);
+    if (changed === null) return { ok: false, reason: "does not apply" };
+    return { ok: true, value: sha256Hex([changed, ...texts.slice(1)].join("\n")) };
+  } catch {
+    return { ok: false, reason: "absent" };
+  }
+}
+
+/** Add a change and its replay to a round's file, then verify the whole file again. Throws when it does not verify. */
+export function withChange(file: AtlasFile, change: Change, replay: NonNullable<AtlasFile["replay"]>): AtlasFile {
+  const next: AtlasFile = { ...file, change: { ...change, replayRunId: replay.run.id }, replay };
+  const v = verifyAtlasFile(JSON.parse(JSON.stringify(next)));
+  if (!v.ok) throw new Error(`the .atlas.json with its change does not verify: ${v.problems.join("; ")}`);
   return v.file;
 }
 

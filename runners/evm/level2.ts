@@ -15,9 +15,8 @@
 // updates. Only the oracle-feed actions.
 
 import type { Address, PublicClient } from "viem";
-import type { Run } from "../../src/types.ts";
 import { usdTimesRatio1e18 } from "../../src/units.ts";
-import { CONTROL_FAILED_NOTE, withinPct, diffPpm, differsByMoreThan, FALSE_ALARM_PCT, FLAG_PCT, ppmToPct, type FalseAlarmRow } from "../../src/falsealarm.ts";
+import { CONTROL_FAILED_NOTE, type PassRuleLine, withinPct, diffPpm, differsByMoreThan, FALSE_ALARM_PCT, FLAG_PCT, ppmToPct, type FalseAlarmRow } from "../../src/falsealarm.ts";
 import { applyFeedActions, comparePairs, planFromPrFiles, resolveSymbols, traceUnderlyingPriceSources, type AppliedFeedAction, type FeedAction, type PairComparison, type PlannedFeedAction, type SourceCount } from "./apply.ts";
 import { assertPreExecution, cbEthReference, inStablecoinBand, readControl, why, type EvmControlRecord, type ReferenceResult } from "./control.ts";
 import { MOONWELL_cbETH, TEMPORAL_GOVERNOR, TOUCHED_MARKETS, USD_STABLECOINS } from "./moonwell-base.ts";
@@ -158,11 +157,8 @@ export async function runLevel2OnFork(client: PublicClient, fork: { url: string 
 
 export { CONTROL_FAILED_NOTE, rowWords, tableCounts, withinPct, diffPpm, differsByMoreThan, FALSE_ALARM_PCT, falseAlarmFromRun, FLAG_PCT, ppmToPct, type FalseAlarmRow } from "../../src/falsealarm.ts";
 
-export interface PassRuleLine {
-  rule: string;
-  outcome: "matched" | "didn't match" | "can't check";
-  detail: string;
-}
+export type { PassRuleLine } from "../../src/falsealarm.ts";
+export { evaluateReplayRule, REPLAY_RULE_PCT, REPLAY_RULE_SOURCES } from "../../src/falsealarm.ts";
 
 /** Build the false-alarm table: one row per touched market, cbETH judged against the raw reference. */
 export function falseAlarmTable(rec: Level2Record): FalseAlarmRow[] {
@@ -247,50 +243,6 @@ export function evaluatePassRule(rec: Level2Record, table = falseAlarmTable(rec)
     rule: "3. Replay rule (after a proposed change: cbETH within 2% of reference and 2 sources)",
     outcome: "can't check",
     detail: "not run here: rule 3 is checked on the replay after a proposed change (evaluateReplayRule, POST /changes)",
-  });
-  return lines;
-}
-
-/** PASS-RULE.md rule 3: the replay's cbETH must be within this many percent of the reference. */
-export const REPLAY_RULE_PCT = 2n;
-/** PASS-RULE.md rule 3: the number of distinct price sources while pricing cbETH on the replay. */
-export const REPLAY_RULE_SOURCES = 2;
-
-/**
- * PASS-RULE.md rule 3 applied literally to a replay Run, one line per check. Reads only the replay's
- * measured fields and reference (and the original's fork block). If the replay's control did not
- * pass, both rule lines are "can't check".
- */
-export function evaluateReplayRule(replay: Run, original: Pick<Run, "id" | "forkBlock">): PassRuleLine[] {
-  const lines: PassRuleLine[] = [];
-  const same = replay.forkBlock !== undefined && replay.forkBlock === original.forkBlock;
-  lines.push({
-    rule: "Same experiment at the same block (the replay's fork block equals the original run's)",
-    outcome: replay.forkBlock === undefined || original.forkBlock === undefined ? "can't check" : same ? "matched" : "didn't match",
-    detail: `original run ${original.id} forked at ${original.forkBlock ?? "no block"}; the replay forked at ${replay.forkBlock ?? "no block"}`,
-  });
-  const ok = replay.controlPassed === true && same;
-  const gateWhy = replay.controlPassed !== true ? `the replay's control did not pass: ${replay.result.notMeasured.control ?? "no reason given"}` : "the replay was not at the same block";
-  const m = replay.result.measured;
-  const nm = replay.result.notMeasured;
-  const post = m["priceUsd1e18:cbETH"];
-  const ref = replay.result.references?.["refUsd1e18:cbETH"];
-  let within: PassRuleLine;
-  if (!ok) within = { rule: "", outcome: "can't check", detail: gateWhy };
-  else if (typeof post !== "string" || !/^\d+$/.test(post)) within = { rule: "", outcome: "can't check", detail: `cbETH was not measured on the replay: ${nm["priceUsd1e18:cbETH"] ?? "no value"}` };
-  else if (!ref || !/^\d+$/.test(ref.value) || BigInt(ref.value) === 0n) within = { rule: "", outcome: "can't check", detail: `the reference was not measured on the replay: ${nm["refUsd1e18:cbETH"] ?? "no value"}` };
-  else {
-    const p = BigInt(post);
-    const r = BigInt(ref.value);
-    const inside = !differsByMoreThan(p, r, REPLAY_RULE_PCT);
-    within = { rule: "", outcome: inside ? "matched" : "didn't match", detail: `cbETH ${post} vs reference ${ref.value} (USD, 18 decimals): ${ppmToPct(diffPpm(p, r))}; within ${REPLAY_RULE_PCT}% = ${inside}` };
-  }
-  lines.push({ ...within, rule: `3a. Replay rule: cbETH within ${REPLAY_RULE_PCT}% of the reference (raw Chainlink ETH/USD × cbETH/ETH, same block)` });
-  const n = m["priceSources:cbETH"];
-  lines.push({
-    rule: `3b. Replay rule: ${REPLAY_RULE_SOURCES} distinct aggregators' latestRoundData called while pricing cbETH (two feeds multiplied)`,
-    outcome: !ok ? "can't check" : typeof n !== "number" ? "can't check" : n === REPLAY_RULE_SOURCES ? "matched" : "didn't match",
-    detail: !ok ? gateWhy : typeof n === "number" ? `${n} price source(s) counted by the call trace` : `not measured: ${nm["priceSources:cbETH"] ?? "no value"}`,
   });
   return lines;
 }

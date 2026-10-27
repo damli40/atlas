@@ -56,7 +56,7 @@ describe("POST /changes", () => {
   it("proposes, checks, replays with the same seed, and judges the SAME bets before and after", async () => {
     let calls = 0;
     const museExec: MuseExec = async () => (calls++, { ok: true, text: DIFF, model: "muse-spark-1.3", usage: { promptTokens: 10, completionTokens: 5, usd: 0.0001 } });
-    const { post, agentLog, session } = setup({ museExec });
+    const { app, post, agentLog, session } = setup({ museExec });
     const run = await round(post);
     const res = await post("/changes", { runId: run.id });
     expect(res.status).toBe(200);
@@ -81,6 +81,23 @@ describe("POST /changes", () => {
     expect(fixerLine.model).toBe("muse-spark-1.3");
     expect(fixerLine.action).toMatch(/^Muse Code \(muse exec, muse-spark-1.3\) proposes a change to tests\/fixtures\/with-rpc-retry.ts/);
     expect(ev.some((e) => e.role === "runner" && /same seed/.test(e.action))).toBe(true);
+    // D06-01: the change and its replay are in the round's .atlas.json, and verify recomputes them.
+    const { verifyAtlasFile } = await import("../../src/atlasfile");
+    const file = (await (await app.request(`/proofs/${run.id}`)).json()) as import("../../src/types").AtlasFile;
+    expect(file.change?.id).toBe(a.change.id);
+    expect(file.replay?.run.id).toBe(a.replay.id);
+    expect(verifyAtlasFile(file)).toMatchObject({ ok: true });
+    const tamper = (f: (x: typeof file) => void) => {
+      const copy = JSON.parse(JSON.stringify(file)) as typeof file;
+      f(copy);
+      const v = verifyAtlasFile(copy);
+      return v.ok ? [] : v.problems;
+    };
+    expect(tamper((x) => (x.replay!.verdicts[0]!.outcome = "cant_check")).join(" ")).toMatch(/replay verdict on bet .* is not what src\/judge.ts gives/);
+    expect(tamper((x) => (x.replay!.run.seed = "other")).join(" ")).toMatch(/the replay used seed other/);
+    expect(tamper((x) => (x.change!.diff = x.change!.diff.replace("2000", "3000"))).join(" ")).toMatch(/the diff applied to the code gives/);
+    expect(tamper((x) => (x.change!.toward = "- anything")).join(" ")).toMatch(/toward/);
+    expect(tamper((x) => delete x.replay).join(" ")).toMatch(/must come together/);
     // Asking again gives the same answer, with no second model call.
     const again = (await (await post("/changes", { runId: run.id })).json()) as ChangeAnswer;
     expect(again.ok && again.change.id).toBe(a.change.id);

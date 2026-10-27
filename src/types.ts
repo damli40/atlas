@@ -1,7 +1,7 @@
 // All ids are short random strings (nanoid 10). All times are ISO-8601 UTC strings.
 // All on-chain numbers are decimal strings of integers (bigint-safe), never JS numbers.
 
-import type { FalseAlarmRow } from "./falsealarm";
+import type { FalseAlarmRow, PassRuleLine } from "./falsealarm";
 export type TargetKind = "ts-fixture" | "github-pr";
 export interface Target {
   kind: TargetKind;
@@ -156,6 +156,12 @@ export interface AtlasFile {
   runs: Run[];
   verdicts: Verdict[];
   change?: Change;
+  /**
+   * D06-01: the replay after `change`: the SAME experiment on the changed code (same seed / same fork
+   * block), the SAME bets judged against it, and on Moonwell the PASS-RULE.md replay lines.
+   * Verify recomputes all of it (src/atlasfile.ts changeProblems).
+   */
+  replay?: { run: Run; verdicts: Verdict[]; passRule?: PassRuleLine[] };
   /** Added D04-04: the finding the round worked on (findings[0]), with who proposed it. Since M7 the rest are the
    *  Investigator's verified places on the same code, so the "pointed elsewhere / also pointed here" caption can be rechecked. */
   findings?: Finding[];

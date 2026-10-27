@@ -96,7 +96,7 @@ import { falseAlarmFromRun } from "../runners/evm/level2";
 import { redactRpc, scrubDeep } from "../runners/evm/redact";
 import { createHourlyLimit, createReplayGate, createRunGate, type ReplayGate } from "./replay-limits";
 import { clientIpOf, trustProxyFromEnv } from "./client-ip";
-import { buildAtlasFile, resultDiff, sameJson, verifyAtlasFile } from "../src/atlasfile";
+import { buildAtlasFile, resultDiff, sameJson, verifyAtlasFile, withChange } from "../src/atlasfile";
 import { ASKED_FIELD, createProofStore, EVM_GATE_CONTEXT, evmTargetRefusal, extraCaptionsFor, forkBlockFor, humanFinding, recordedFindings, type ProofStore } from "./evm-round";
 import { control as runTsControl, readFixture, runExperiment, tsRunner } from "../runners/ts/control";
 import { changeAndReplay, type ChangeAnswer, type ReplayFn } from "./changes";
@@ -1058,7 +1058,20 @@ export function createApp(opts: AppOptions = {}) {
     changesByRun.set(runId, work);
     try {
       const answer = await work;
-      if (answer.ok) keepRun(answer.replay);
+      if (answer.ok) {
+        keepRun(answer.replay);
+        // D06-01: the change and its replay go into the round's .atlas.json (verified again as a whole).
+        const file = proofStore.get(runId);
+        if (file && !file.change) {
+          try {
+            const next = withChange(file, answer.change, { run: answer.replay, verdicts: answer.after.verdicts, ...(answer.passRule ? { passRule: answer.passRule } : {}) });
+            const put = proofStore.put(next, { run: round.run, replay: answer.replay });
+            return c.json({ ...answer, proof: { ok: true, runId, published: put.published, ...(put.error ? { error: put.error } : {}) } });
+          } catch (e) {
+            return c.json({ ...answer, proof: { ok: false, runId, reason: redactRpc(e instanceof Error ? e.message : String(e)) } });
+          }
+        }
+      }
       return c.json(answer);
     } finally {
       slot?.release();

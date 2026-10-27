@@ -28,8 +28,7 @@ import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "n
 import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { extractDiff } from "../../../src/diff";
-import { formatUsd1e18 } from "../../../src/units";
-import type { Bet, Experiment, Verdict } from "../../../src/types";
+import type { Experiment } from "../../../src/types";
 import { checkChange, MAX_CHANGED_LINES, type ChangeContext, type CheckedChange } from "../../../runners/change";
 import { makeScratch } from "../../../runners/scratch";
 import { chat as realChat, contributorRefusal, costUsd, DEFAULT_USAGE_PATH, loadApiKey, priceFor, type ChatArgs, type ChatResult, type Usage } from "../client";
@@ -105,35 +104,7 @@ export interface FixerDeps {
   now?: () => Date;
 }
 
-// ── toward: written by plain code from the sealed bets ──────────────────────────────────────────
-
-function answerText(b: Bet): string {
-  const a = b.answer;
-  if (a.kind === "number") return `${a.value} ${a.unit} (match if within ${a.tolerancePct}% of what the run measures)`;
-  if (a.kind === "declined") return "declined to guess";
-  return String(a.value);
-}
-
-function observedText(measures: string, v: Verdict["observed"]): string {
-  if (v === undefined) return "not measured";
-  if (typeof v === "string" && measures.startsWith("priceUsd1e18:") && /^\d+$/.test(v)) return `${formatUsd1e18(BigInt(v))} USD`;
-  return String(v);
-}
-
-/**
- * What the bettors expected, from the bets the run did NOT match (a matched bet asks for no change).
- * Returns null when no bet is left to move toward. One line per bet; plain code only.
- */
-export function towardFromBets(bets: readonly Bet[], verdicts: readonly Verdict[], names: Record<string, string> = {}): string | null {
-  const lines: string[] = [];
-  for (const b of bets) {
-    const v = verdicts.find((x) => x.betId === b.id);
-    if (!v || v.outcome !== "not_matched") continue;
-    const who = b.who === "human" ? "The person" : (names[b.who] ?? b.who.replace(/^model:/, ""));
-    lines.push(`- ${who} bet on "${b.question}" (${b.measures}): ${answerText(b)}. The run measured: ${observedText(b.measures, v.observed)}.`);
-  }
-  return lines.length ? lines.join("\n") : null;
-}
+export { towardFromBets } from "../../../src/change";
 
 // ── the prompt ──────────────────────────────────────────────────────────────────────────────────
 

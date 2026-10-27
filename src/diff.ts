@@ -23,6 +23,8 @@ export interface DiffFile {
   /** Text of every removed line, without the leading "-". */
   removed: string[];
   hunks: number;
+  /** Each hunk's lines in order (" " kept, "-" removed, "+" added), and the old start line from its header. */
+  hunkLines: { oldStart: number; lines: { tag: " " | "-" | "+"; text: string }[] }[];
 }
 
 export type DiffParse = { ok: true; files: DiffFile[] } | { ok: false; reason: string };
@@ -62,7 +64,7 @@ export function parseUnifiedDiff(text: string): DiffParse {
     if (line.startsWith("--- ")) {
       const next = lines[i + 1];
       if (next === undefined || !next.startsWith("+++ ")) return { ok: false, reason: `line ${i + 1} starts a file ("--- ") with no "+++ " line after it` };
-      cur = { oldPath: stripPrefix(line.slice(4), "a/"), newPath: stripPrefix(next.slice(4), "b/"), added: [], removed: [], hunks: 0 };
+      cur = { oldPath: stripPrefix(line.slice(4), "a/"), newPath: stripPrefix(next.slice(4), "b/"), added: [], removed: [], hunks: 0, hunkLines: [] };
       files.push(cur);
       i += 2;
       continue;
@@ -72,6 +74,8 @@ export function parseUnifiedDiff(text: string): DiffParse {
       if (!cur) return { ok: false, reason: `line ${i + 1} is a hunk with no file header before it` };
       const file = cur;
       file.hunks++;
+      const hunk = { oldStart: Number(h[1]), lines: [] as { tag: " " | "-" | "+"; text: string }[] };
+      file.hunkLines.push(hunk);
       i++;
       let body = 0;
       // Read until the next hunk, the next file header, or the end (the counts are inferred, see above).
@@ -85,7 +89,9 @@ export function parseUnifiedDiff(text: string): DiffParse {
         const tag = l[0];
         if (tag === "-") file.removed.push(l.slice(1));
         else if (tag === "+") file.added.push(l.slice(1));
-        else if (tag !== " " && l !== "") return { ok: false, reason: `line ${i + 1} inside a hunk of ${file.newPath ?? file.oldPath} does not start with " ", "-" or "+"` };
+        if (tag === "-" || tag === "+") hunk.lines.push({ tag, text: l.slice(1) });
+        else if (tag === " " || l === "") hunk.lines.push({ tag: " ", text: l.slice(1) });
+        if (tag !== "-" && tag !== "+" && tag !== " " && l !== "") return { ok: false, reason: `line ${i + 1} inside a hunk of ${file.newPath ?? file.oldPath} does not start with " ", "-" or "+"` };
         body++;
         i++;
       }
@@ -133,4 +139,30 @@ export function extractDiff(answer: string): { diff: string; hadProse: boolean }
 /** Added + removed lines across the whole diff. */
 export function changedLineCount(files: DiffFile[]): number {
   return files.reduce((n, f) => n + f.added.length + f.removed.length, 0);
+}
+
+/**
+ * Apply one file's hunks to its text, by plain code, with no I/O (used by .atlas.json verify to
+ * recompute the changed code). Each hunk's old lines (kept + removed) must appear exactly, at or after
+ * the end of the previous hunk; the occurrence nearest the header's line wins. Returns null when a
+ * hunk does not fit (then the change cannot be re-checked here).
+ */
+export function applyFileDiff(text: string, file: DiffFile): string | null {
+  const lines = text.split("\n");
+  const out: string[] = [];
+  let at = 0;
+  for (const h of file.hunkLines) {
+    const old = h.lines.filter((l) => l.tag !== "+").map((l) => l.text);
+    const neu = h.lines.filter((l) => l.tag !== "-").map((l) => l.text);
+    const fits = (k: number) => old.every((o, j) => lines[k + j] === o);
+    let best = -1;
+    for (let k = at; k + old.length <= lines.length; k++) {
+      if (fits(k) && (best === -1 || Math.abs(k - (h.oldStart - 1)) < Math.abs(best - (h.oldStart - 1)))) best = k;
+    }
+    if (best === -1) return null;
+    out.push(...lines.slice(at, best), ...neu);
+    at = best + old.length;
+  }
+  out.push(...lines.slice(at));
+  return out.join("\n");
 }

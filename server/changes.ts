@@ -93,7 +93,7 @@ export async function changeAndReplay(round: Round, deps: ChangeDeps): Promise<C
   const exp: Experiment = round.experiment;
   const bets = [...round.bets];
   const before = round.verdicts ?? [];
-  const toward = towardFromBets(bets, before, deps.names);
+  const toward = towardFromBets(bets, before); // no display names: .atlas.json verify recomputes this text exactly
   if (!toward) {
     return { ok: false, runId: run.id, reason: "no change asked: no sealed bet differed from what the run measured, so there is nothing to change toward", fixer: null, toward: null };
   }

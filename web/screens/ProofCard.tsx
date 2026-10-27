@@ -11,6 +11,8 @@ import type { AtlasFile } from "../../src/types";
 import { ApiError, type Api, type ReplayAnswer } from "../api";
 import { Scoreboard, bettorName } from "../machines/scoreboard/Scoreboard";
 import { SAY, proofCardModel, replayWords } from "./proofcard-model";
+import { DiffView } from "./Change";
+import { AFTER_LABEL, BEFORE_LABEL, CHANGE_CAPTION } from "../../src/change";
 
 /** A link to a round's proof card, for the end of a round. */
 export function ProofLink({ runId }: { runId: string }) {
@@ -127,6 +129,8 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
         </table>
       </section>
 
+      {file.change && file.replay && <ProofChange file={file} said={Object.fromEntries(card.bets.map((b) => [b.betId, b.said]))} />}
+
       <section className="pc-facts" aria-label="what ran">
         <dl>
           <dt>target</dt>
@@ -196,5 +200,60 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
         <span className="pc-small muted">recorded {card.createdAt.replace("T", " ").replace(/\.\d{3}Z$/, " UTC")} · run {card.runId}</span>
       </footer>
     </article>
+  );
+}
+
+/** D06-01: the change and its replay, from the file: the diff only, and the SAME bets before | after. */
+function ProofChange({ file, said }: { file: AtlasFile; said: Record<string, string> }) {
+  const change = file.change!;
+  const replay = file.replay!;
+  const before = (id: string) => file.verdicts.find((v) => v.betId === id)?.outcome;
+  const after = (id: string) => replay.verdicts.find((v) => v.betId === id)?.outcome;
+  const same = replay.run.runner === "ts" ? `same seed ${replay.run.seed}` : `same fork block ${replay.run.forkBlock}`;
+  return (
+    <section className="pc-change" aria-label="change and re-run" data-testid="pc-change">
+      <p className="caption label" data-testid="pc-change-caption">
+        {CHANGE_CAPTION}
+      </p>
+      <p className="pc-small">
+        Proposed by {change.proposedBy.model} (Fixer) · replay {replay.run.id}, {same} · judged by src/judge.ts
+      </p>
+      <DiffView diff={change.diff} />
+      <table className="pc-bets" data-testid="pc-change-table">
+        <thead>
+          <tr>
+            <th>who</th>
+            <th>asked</th>
+            <th>bet</th>
+            <th>{BEFORE_LABEL}</th>
+            <th>{AFTER_LABEL}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {file.bets.map((b) => {
+            const o1 = before(b.id);
+            const o2 = after(b.id);
+            return (
+              <tr key={b.id}>
+                <td className="pc-who">{bettorName(b.who, {})}</td>
+                <td>{b.measures}</td>
+                <td>{said[b.id] ?? ""}</td>
+                <td className={`pc-out pc-${o1 ?? "none"}`}>{o1 ? SAY[o1] : "no verdict"}</td>
+                <td className={`pc-out pc-${o2 ?? "none"}`}>{o2 ? SAY[o2] : "no verdict"}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      {replay.passRule && (
+        <ul className="pc-small" data-testid="pc-change-pass-rule">
+          {replay.passRule.map((l) => (
+            <li key={l.rule}>
+              {l.rule}: <b>{l.outcome}</b>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
