@@ -82,6 +82,10 @@ def main(key_text):
     exc_cause = BaseException.__dict__["__cause__"].__get__
     os_errno = OSError.__dict__["errno"].__get__
     gc_callbacks = _gc.callbacks
+    gc_garbage = _gc.garbage
+    gc_get_debug = _gc.get_debug
+    set_recursion_limit = _sys.setrecursionlimit
+    base_recursion_limit = max(_sys.getrecursionlimit(), 1000)
     gc_isenabled = _gc.isenabled
     atexit_count = _atexit._ncallbacks
     stdlib_names = frozenset(_sys.stdlib_module_names)
@@ -331,7 +335,7 @@ def main(key_text):
                 raise NotJson(type_of(v), "it is %s, which JSON cannot hold" % word)
             return js_number(v)
         if t is str:
-            if utf16_len(v) > budget[0]:
+            if len(v) > budget[0] or utf16_len(v) > budget[0]:
                 raise NotJson("string", "too big")
             s = js_string(v, False)
             budget[0] -= utf16_len(s)
@@ -355,6 +359,8 @@ def main(key_text):
             raise NotJson(word, "it is not a plain object (it has its own class)")
         if depth >= MAX_JSON_DEPTH:
             raise NotJson(type_of(v), "it is nested deeper than %d levels" % MAX_JSON_DEPTH)
+        if len(v) > budget[0]:
+            raise NotJson(type_of(v), "too big")  # each item costs at least one character: no need to read them
         ident = id(v)
         if ident in seen:
             raise NotJson(type_of(v), "it contains a cycle (an object inside itself)")
@@ -395,7 +401,7 @@ def main(key_text):
             kind = e.args[0] if len(e.args) > 0 else ""
             reason = e.args[1] if len(e.args) > 1 else "it is not plain JSON"
             if reason == "too big":
-                size = " (%d characters of text)" % utf16_len(v) if type(v) is str else ""
+                size = " (%d characters of text)" % utf16_len(v) if type(v) is str and len(v) < 10_000_000 else ""
                 return {"type": type_of(v), "why": "it is longer than %d characters as JSON%s; Atlas stores at most %d" % (RETURNED_MAX, size, RETURNED_MAX)}
             return {"type": kind or type_of(v), "why": reason}
         except RecursionError:
@@ -706,7 +712,12 @@ def main(key_text):
         m = round(seconds * 1000.0, 6)
         return int(m) if m == int(m) else m
 
+    TRACE_MAX = 5000
+
     def emit(ctx, event, data=None):
+        if len(ctx["trace"]) >= TRACE_MAX:
+            ctx["traceCut"] = ctx.get("traceCut", 0) + 1  # counts stay exact; only the event list is cut
+            return
         ev = {"t": ms(ctx["clock"]), "event": event}
         if data is not None:
             ev["data"] = data
@@ -784,6 +795,7 @@ def main(key_text):
 
     def finish(payload):
         armed[0] = False
+        set_recursion_limit(base_recursion_limit)
         payload["python"] = {"version": py_version, "implementation": py_impl}
         body = dumps(payload).encode("ascii")
         line = b"\nATLAS_RESULT " + sign(body).encode("ascii") + b" " + body + b"\n"
@@ -853,6 +865,8 @@ def main(key_text):
             mark(word("realtime", what="gc.callbacks (garbage-collector timing)"))
         if gc_isenabled():
             mark(word("realtime", what="gc.enable (garbage-collector timing)"))
+        if len(gc_garbage) != 0 or gc_get_debug() != 0:
+            mark(word("internals", what="the garbage collector's saved objects (gc.set_debug / gc.garbage)"))
 
     def settle_from_exception(e, ctx):
         """("threw", facts), or None when the exception is not a fact about the code (whole run marked)."""
@@ -1029,6 +1043,7 @@ def main(key_text):
                 ctx["settledAt"] = ctx["clock"]
                 ctx["settled"] = True
                 settled = ("returned", value)
+        set_recursion_limit(base_recursion_limit)  # the code may have lowered it to break Atlas's own readers
         side_checks()
         if whole[0] is not None or ctx["broken"] is not None:
             if ctx["broken"] is not None:
@@ -1065,6 +1080,8 @@ def main(key_text):
                 tamper("a stand-in's count was not a number")
                 return None
 
+        if ctx.get("traceCut"):
+            ctx["trace"].append({"t": ms(ctx["clock"]), "event": "trace_cut", "data": {"eventsNotKept": ctx["traceCut"], "kept": TRACE_MAX}})
         if settled is None and stop is None and limit:
             emit(ctx, "still_running_at_watch_limit")
         elif settled is None and stop is not None:

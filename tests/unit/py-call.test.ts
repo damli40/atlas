@@ -172,6 +172,13 @@ describe.skipIf(!HAVE_PYTHON)("returned values that are not plain JSON", () => {
     });
   }
 
+  it("a 50-million-character string and a dict with a million keys are refused quickly by size", async () => {
+    const a = await runPy("def f():\n    return 'x' * 50_000_000\n", { exportName: "f" });
+    expect(a.result.notMeasured.returnedJson).toMatch(/longer than 2048 characters/);
+    const b = await runPy("def f():\n    return {str(i): i for i in range(1_000_000)}\n", { exportName: "f" });
+    expect(b.result.notMeasured.returnedJson).toMatch(/longer than 2048 characters/);
+  });
+
   it("None is JSON null; 100 nested lists are kept and 101 are not", async () => {
     expect((await runPy("def f():\n    return None\n", { exportName: "f" })).result.measured.returnedJson).toBe("null");
     const deep = (n: number) => `def f():\n    v = 1\n    for _ in range(${n}):\n        v = [v]\n    return v\n`;
@@ -413,6 +420,24 @@ def f():
       expectWholeRun(await runPy(src, { exportName: "f" }), /stack frame|internals|sys\.settrace|sys\.setprofile|sys\.monitoring|sys\.addaudithook/);
     });
   }
+
+  it("gc.set_debug(DEBUG_SAVEALL) + gc.garbage (a route with no audit event) is refused", async () => {
+    const src = "import gc\n\ndef f():\n    try:\n        gc.set_debug(gc.DEBUG_SAVEALL)\n    except Exception:\n        pass\n    gc.collect()\n    return len(gc.garbage)\n";
+    expectWholeRun(await runPy(src, { exportName: "f" }), /gc\.set_debug/);
+  });
+
+  it("lowering the recursion limit does not break Atlas's own reading of the result", async () => {
+    const src = "import sys\n\ndef f():\n    sys.setrecursionlimit(50)\n    v = 1\n    for _ in range(40):\n        v = [v]\n    return {'deep': v}\n";
+    const r = await runPy(src, { exportName: "f" });
+    expect(r.result.measured.returnedJson).toBe(`{"deep":${"[".repeat(40)}1${"]".repeat(40)}}`);
+  });
+
+  it("a stand-in called 20,000 times: the count is exact, the trace is cut and says so", async () => {
+    const src = "def f(get):\n    for _ in range(20000):\n        get()\n    return 'ok'\n";
+    const r = await runPy(src, { exportName: "f", args: [standIn("get", [{ do: "return", value: 1 }], { async: false })] });
+    expect(r.result.measured["calls:get"]).toBe(20000);
+    expect(r.trace.some((e) => e.event === "trace_cut")).toBe(true);
+  });
 
   it("the stand-in's generator: opening its frame, throwing into it or closing it are all refused", async () => {
     const find = "    gen = [c.cell_contents for c in get.__closure__ if hasattr(c.cell_contents, '__self__')][0].__self__\n";

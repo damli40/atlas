@@ -400,6 +400,10 @@ def install(signal_names, imp_names):
         for mod in (_signal, _signal_mod):
             if hasattr(mod, name):
                 setattr(mod, name, refuser("process", "signal." + name))
+    # gc.set_debug(gc.DEBUG_SAVEALL) makes gc.collect() keep every unreachable object in gc.garbage, a route to
+    # objects that raises no audit event (gc.get_objects does, and is refused).
+    import gc as _gc
+    _gc.set_debug = refuser("internals", "gc.set_debug")
     # Making a fresh copy of a built-in module would hand back the originals replaced above.
     import _imp
     for name in imp_names:
