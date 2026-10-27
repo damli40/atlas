@@ -1,0 +1,13 @@
+$ pnpm exec tsx tests/evidence/D02-02/claimant-live.ts
+run 1: ok, retry-scenario {"shape":"retry-scenario","failTimes":"always","failure":"never_settles","attempts":3,"delayMs":1000}; model calls 1; gate rejections 0; $0.032968
+run 2: ok, retry-scenario {"shape":"retry-scenario","failTimes":"always","failure":"never_settles"}; model calls 1; gate rejections 0; $0.022988
+run 3: ok, retry-scenario {"shape":"retry-scenario","failTimes":"always","failure":"never_settles"}; model calls 1; gate rejections 0; $0.046548
+run 4: ok, retry-scenario {"shape":"retry-scenario","failTimes":"always","failure":"never_settles","attempts":3,"delayMs":1000}; model calls 1; gate rejections 0; $0.028968
+run 5: ok, retry-scenario {"shape":"retry-scenario","failTimes":"always","failure":"never_settles","attempts":3,"delayMs":1000}; model calls 1; gate rejections 0; $0.034008
+judged run 1 (control passed): calls bet 1 vs 1 → matched; totalWaitMs bet 0 vs 0 → matched; outcome bet pending vs pending → matched
+judged run 2 (control passed): calls bet 1 vs 1 → matched; totalWaitMs bet 0 vs 0 → matched; outcome bet pending vs pending → matched
+judged run 3 (control passed): calls bet 1 vs 1 → matched; totalWaitMs bet 0 vs 0 → matched; outcome bet pending vs pending → matched
+judged run 4 (control passed): calls bet 1 vs 1 → matched; totalWaitMs bet 0 vs 0 → matched; outcome bet pending vs pending → matched
+judged run 5 (control passed): calls bet 1 vs 1 → matched; totalWaitMs bet 0 vs 0 → matched; outcome bet pending vs pending → matched
+usable: 5/5; first-try usable: 5/5; cost (upper bound, Spark price unverified): $0.165480
+refusal files written: 0

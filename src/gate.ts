@@ -31,6 +31,8 @@ export interface GateContext {
   shapes?: readonly ShapeName[];
   /** Markets the target touches (EVM targets). A market outside this list is refused. Default: none. */
   touchedMarkets?: readonly string[];
+  /** Shown in the rendered allow-list only: how long Atlas watches a run (virtual ms). The gate does not use it. */
+  watchLimitMs?: number;
 }
 
 export type GateDecision =
@@ -65,6 +67,8 @@ interface ShapeSpec {
   does: string;
   required: Record<string, FieldSpec>;
   optional: Record<string, FieldSpec>;
+  /** Plain words per field, shown in the rendered allow-list. */
+  notes?: Record<string, string>;
 }
 
 const int = (b: { min: number; max: number }, orAlways = false): FieldSpec => ({ kind: "int", min: b.min, max: b.max, orAlways });
@@ -72,7 +76,7 @@ const int = (b: { min: number; max: number }, orAlways = false): FieldSpec => ({
 export const SHAPES: Readonly<Record<ShapeName, ShapeSpec>> = {
   "retry-scenario": {
     runner: "ts",
-    does: "calls the function once with a fake chain read that fails the first failTimes calls, then answers",
+    does: "calls the function once; the chain read it retries is a fake that fails on its first failTimes calls, then answers",
     required: {
       failTimes: int(BOUNDS.failTimes, true),
       failure: { kind: "enum", options: ["error", "never_settles"] },
@@ -83,6 +87,15 @@ export const SHAPES: Readonly<Record<ShapeName, ShapeSpec>> = {
       resolveAfterMs: int(BOUNDS.resolveAfterMs),
       errorKind: { kind: "enum", options: ["seeded", "429"] },
       resolvesWith: { kind: "json", maxChars: BOUNDS.resolvesWithChars },
+    },
+    notes: {
+      failTimes: "how many calls fail before one answers",
+      failure: "error = a failing call throws; never_settles = a failing call never answers",
+      attempts: "passed to the function as opts.attempts",
+      delayMs: "passed to the function as opts.delayMs",
+      resolveAfterMs: "an answering call answers this many ms after it is made",
+      errorKind: "seeded = varied RPC errors; 429 = an HTTP 429 error every time",
+      resolvesWith: "the value an answering call returns",
     },
   },
   "concurrency-sweep": {
@@ -342,8 +355,12 @@ export function renderAllowList(ctx: GateContext = {}): string {
     const spec = SHAPES[name];
     lines.push("");
     lines.push(`shape "${name}": ${spec.does}.`);
-    for (const [f, fs] of Object.entries(spec.required)) lines.push(`  required ${renderField(f, fs, ctx)}`);
-    for (const [f, fs] of Object.entries(spec.optional)) lines.push(`  optional ${renderField(f, fs, ctx)}`);
+    const note = (f: string) => (spec.notes?.[f] ? ` (${spec.notes[f]})` : "");
+    for (const [f, fs] of Object.entries(spec.required)) lines.push(`  required ${renderField(f, fs, ctx)}${note(f)}`);
+    for (const [f, fs] of Object.entries(spec.optional)) lines.push(`  optional ${renderField(f, fs, ctx)}${note(f)}`);
+    if (spec.runner === "ts" && ctx.watchLimitMs !== undefined) {
+      lines.push(`  Atlas's clock is virtual: waits cost no real time. Atlas watches a run for at most ${ctx.watchLimitMs} ms of virtual time; a run still going after that is "can't check".`);
+    }
   }
   return lines.join("\n");
 }

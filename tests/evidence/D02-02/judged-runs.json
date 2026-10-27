@@ -1,0 +1,323 @@
+[
+  {
+    "run": 1,
+    "experiment": {
+      "shape": "retry-scenario",
+      "failTimes": "always",
+      "failure": "never_settles",
+      "attempts": 3,
+      "delayMs": 1000
+    },
+    "runId": "jle6tP23RT",
+    "seed": "-0D2A3hPpt",
+    "controlPassed": true,
+    "measured": {
+      "calls": 1,
+      "waitCount": 0,
+      "waitsMs": "",
+      "logCount": 0,
+      "logAttempts": "",
+      "totalWaitMs": 0,
+      "outcome": "pending"
+    },
+    "notMeasured": {
+      "settleTime": "the function never settled; Atlas stopped watching (harness limit, not the code's)"
+    },
+    "rows": [
+      {
+        "measures": "calls",
+        "bet": {
+          "kind": "integer",
+          "value": 1
+        },
+        "observed": 1,
+        "outcome": "matched",
+        "reason": null,
+        "judgedBy": "src/judge.ts"
+      },
+      {
+        "measures": "totalWaitMs",
+        "bet": {
+          "kind": "integer",
+          "value": 0
+        },
+        "observed": 0,
+        "outcome": "matched",
+        "reason": null,
+        "judgedBy": "src/judge.ts"
+      },
+      {
+        "measures": "outcome",
+        "bet": {
+          "kind": "enum",
+          "value": "pending",
+          "options": [
+            "returns",
+            "throws",
+            "pending"
+          ]
+        },
+        "observed": "pending",
+        "outcome": "matched",
+        "reason": null,
+        "judgedBy": "src/judge.ts"
+      }
+    ]
+  },
+  {
+    "run": 2,
+    "experiment": {
+      "shape": "retry-scenario",
+      "failTimes": "always",
+      "failure": "never_settles"
+    },
+    "runId": "kpHKEhNeFO",
+    "seed": "EJ9zJ2TbRE",
+    "controlPassed": true,
+    "measured": {
+      "calls": 1,
+      "waitCount": 0,
+      "waitsMs": "",
+      "logCount": 0,
+      "logAttempts": "",
+      "totalWaitMs": 0,
+      "outcome": "pending"
+    },
+    "notMeasured": {
+      "settleTime": "the function never settled; Atlas stopped watching (harness limit, not the code's)"
+    },
+    "rows": [
+      {
+        "measures": "calls",
+        "bet": {
+          "kind": "integer",
+          "value": 1
+        },
+        "observed": 1,
+        "outcome": "matched",
+        "reason": null,
+        "judgedBy": "src/judge.ts"
+      },
+      {
+        "measures": "totalWaitMs",
+        "bet": {
+          "kind": "integer",
+          "value": 0
+        },
+        "observed": 0,
+        "outcome": "matched",
+        "reason": null,
+        "judgedBy": "src/judge.ts"
+      },
+      {
+        "measures": "outcome",
+        "bet": {
+          "kind": "enum",
+          "value": "pending",
+          "options": [
+            "returns",
+            "throws",
+            "pending"
+          ]
+        },
+        "observed": "pending",
+        "outcome": "matched",
+        "reason": null,
+        "judgedBy": "src/judge.ts"
+      }
+    ]
+  },
+  {
+    "run": 3,
+    "experiment": {
+      "shape": "retry-scenario",
+      "failTimes": "always",
+      "failure": "never_settles"
+    },
+    "runId": "ksl2TDlEIT",
+    "seed": "t4NpLzCptw",
+    "controlPassed": true,
+    "measured": {
+      "calls": 1,
+      "waitCount": 0,
+      "waitsMs": "",
+      "logCount": 0,
+      "logAttempts": "",
+      "totalWaitMs": 0,
+      "outcome": "pending"
+    },
+    "notMeasured": {
+      "settleTime": "the function never settled; Atlas stopped watching (harness limit, not the code's)"
+    },
+    "rows": [
+      {
+        "measures": "calls",
+        "bet": {
+          "kind": "integer",
+          "value": 1
+        },
+        "observed": 1,
+        "outcome": "matched",
+        "reason": null,
+        "judgedBy": "src/judge.ts"
+      },
+      {
+        "measures": "totalWaitMs",
+        "bet": {
+          "kind": "integer",
+          "value": 0
+        },
+        "observed": 0,
+        "outcome": "matched",
+        "reason": null,
+        "judgedBy": "src/judge.ts"
+      },
+      {
+        "measures": "outcome",
+        "bet": {
+          "kind": "enum",
+          "value": "pending",
+          "options": [
+            "returns",
+            "throws",
+            "pending"
+          ]
+        },
+        "observed": "pending",
+        "outcome": "matched",
+        "reason": null,
+        "judgedBy": "src/judge.ts"
+      }
+    ]
+  },
+  {
+    "run": 4,
+    "experiment": {
+      "shape": "retry-scenario",
+      "failTimes": "always",
+      "failure": "never_settles",
+      "attempts": 3,
+      "delayMs": 1000
+    },
+    "runId": "-N0gNIfyhb",
+    "seed": "BhQgpEMawa",
+    "controlPassed": true,
+    "measured": {
+      "calls": 1,
+      "waitCount": 0,
+      "waitsMs": "",
+      "logCount": 0,
+      "logAttempts": "",
+      "totalWaitMs": 0,
+      "outcome": "pending"
+    },
+    "notMeasured": {
+      "settleTime": "the function never settled; Atlas stopped watching (harness limit, not the code's)"
+    },
+    "rows": [
+      {
+        "measures": "calls",
+        "bet": {
+          "kind": "integer",
+          "value": 1
+        },
+        "observed": 1,
+        "outcome": "matched",
+        "reason": null,
+        "judgedBy": "src/judge.ts"
+      },
+      {
+        "measures": "totalWaitMs",
+        "bet": {
+          "kind": "integer",
+          "value": 0
+        },
+        "observed": 0,
+        "outcome": "matched",
+        "reason": null,
+        "judgedBy": "src/judge.ts"
+      },
+      {
+        "measures": "outcome",
+        "bet": {
+          "kind": "enum",
+          "value": "pending",
+          "options": [
+            "returns",
+            "throws",
+            "pending"
+          ]
+        },
+        "observed": "pending",
+        "outcome": "matched",
+        "reason": null,
+        "judgedBy": "src/judge.ts"
+      }
+    ]
+  },
+  {
+    "run": 5,
+    "experiment": {
+      "shape": "retry-scenario",
+      "failTimes": "always",
+      "failure": "never_settles",
+      "attempts": 3,
+      "delayMs": 1000
+    },
+    "runId": "Vtjm6kQMl8",
+    "seed": "7YS5bBGKpD",
+    "controlPassed": true,
+    "measured": {
+      "calls": 1,
+      "waitCount": 0,
+      "waitsMs": "",
+      "logCount": 0,
+      "logAttempts": "",
+      "totalWaitMs": 0,
+      "outcome": "pending"
+    },
+    "notMeasured": {
+      "settleTime": "the function never settled; Atlas stopped watching (harness limit, not the code's)"
+    },
+    "rows": [
+      {
+        "measures": "calls",
+        "bet": {
+          "kind": "integer",
+          "value": 1
+        },
+        "observed": 1,
+        "outcome": "matched",
+        "reason": null,
+        "judgedBy": "src/judge.ts"
+      },
+      {
+        "measures": "totalWaitMs",
+        "bet": {
+          "kind": "integer",
+          "value": 0
+        },
+        "observed": 0,
+        "outcome": "matched",
+        "reason": null,
+        "judgedBy": "src/judge.ts"
+      },
+      {
+        "measures": "outcome",
+        "bet": {
+          "kind": "enum",
+          "value": "pending",
+          "options": [
+            "returns",
+            "throws",
+            "pending"
+          ]
+        },
+        "observed": "pending",
+        "outcome": "matched",
+        "reason": null,
+        "judgedBy": "src/judge.ts"
+      }
+    ]
+  }
+]

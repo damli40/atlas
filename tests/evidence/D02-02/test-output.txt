@@ -1,0 +1,33 @@
+
+ RUN  v5.0.5 .
+
+ ✓ tests/unit/claimant.test.ts > the fixture finding > is the retry loop (fixture lines 49–66 = original lines 69–86) and verifies against the file 1ms
+ ✓ tests/unit/claimant.test.ts > the fixture finding > is unverified when the quote is not in its lines 0ms
+ ✓ tests/unit/claimant.test.ts > Claimant: valid path > one call, gate allows, one sealed bet per plain-code question, model id on every bet 5ms
+ ✓ tests/unit/claimant.test.ts > Claimant: valid path > the prompt: preamble, label, finding lines ±20 with numbers, allow-list, questions; never a hash or nonce 1ms
+ ✓ tests/unit/claimant.test.ts > Claimant: valid path > a declined bet is kept, sealed, reported as a refusal, and judged can't check 1ms
+ ✓ tests/unit/claimant.test.ts > Claimant: repair loop > garbage → exactly one repair (error appended) → ok:false, and the log says 'no usable answer' 1ms
+ ✓ tests/unit/claimant.test.ts > Claimant: repair loop > out-of-bounds experiment → gate rejection kept and reported → repair with the gate's reason → ok 0ms
+ ✓ tests/unit/claimant.test.ts > Claimant: repair loop > two gate rejections → ok:false, both kept 0ms
+ ✓ tests/unit/claimant.test.ts > Claimant: repair loop > a failed model call (HTTP error) → ok:false at once, no repair 0ms
+ ✓ tests/unit/claimant.test.ts > Claimant: repair loop > an unverified finding → ok:false without calling the model 0ms
+ ✓ tests/unit/claimant.test.ts > validateClaimantOutput: meaning checks > missing a question 0ms
+ ✓ tests/unit/claimant.test.ts > validateClaimantOutput: meaning checks > two bets on one field 0ms
+ ✓ tests/unit/claimant.test.ts > validateClaimantOutput: meaning checks > a bet on a field no question asks 0ms
+ ✓ tests/unit/claimant.test.ts > validateClaimantOutput: meaning checks > integer kind on the outcome question 0ms
+ ✓ tests/unit/claimant.test.ts > validateClaimantOutput: meaning checks > enum kind on calls 0ms
+ ✓ tests/unit/claimant.test.ts > validateClaimantOutput: meaning checks > fraction for calls 0ms
+ ✓ tests/unit/claimant.test.ts > validateClaimantOutput: meaning checks > negative wait 0ms
+ ✓ tests/unit/claimant.test.ts > validateClaimantOutput: meaning checks > outcome not an option 0ms
+ ✓ tests/unit/claimant.test.ts > validateClaimantOutput: meaning checks > outcome options changed 0ms
+ ✓ tests/unit/claimant.test.ts > validateClaimantOutput: meaning checks > number kind with seconds 0ms
+ ✓ tests/unit/claimant.test.ts > validateClaimantOutput: meaning checks > extra top-level key 0ms
+ ✓ tests/unit/claimant.test.ts > validateClaimantOutput: meaning checks > no rationale 0ms
+ ✓ tests/unit/claimant.test.ts > validateClaimantOutput: meaning checks > price bets: unit must be USD and tolerance the question's 10% 0ms
+ ✓ tests/unit/claimant.test.ts > refusal writer > writes <date>-<id>.json with only the listed fields 1ms
+
+ Test Files  1 passed (1)
+      Tests  24 passed (24)
+   Start at  05:49:19
+   Duration  130ms (import 60%, tests 20%, transform 17%, worker 3%)
+

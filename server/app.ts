@@ -26,6 +26,7 @@ import { gate, type GateContext } from "../src/gate";
 import type { Bet, Experiment, Run, Target, Verdict } from "../src/types";
 import type { Executor } from "../runners/runner";
 import { localExecutor } from "../runners/executor/local";
+import { DEFAULT_WATCH_LIMIT_MS } from "../runners/ts/harness";
 import { control as runTsControl, readFixture, runExperiment } from "../runners/ts/control";
 
 const REPO_ROOT = fileURLToPath(new URL("../", import.meta.url));
@@ -94,7 +95,7 @@ function listedAsPreExisting(fixturePath: string): boolean {
 }
 
 /** What the gate allows on a TS fixture today: only "retry-scenario" has a runner (no concurrency-sweep runner yet). */
-export const TS_GATE_CONTEXT: GateContext = { shapes: ["retry-scenario"] };
+export const TS_GATE_CONTEXT: GateContext = { shapes: ["retry-scenario"], watchLimitMs: DEFAULT_WATCH_LIMIT_MS };
 
 // ---------- the app ----------
 
