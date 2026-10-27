@@ -1,8 +1,9 @@
 // "Ask why" (D05-05): which sentences may be shown after a run, decided by plain code.
 //
-// Plain words: after a run, Atlas can show short "why" sentences. Some are written by plain code from
-// the run's own trace (templates below); some are a Meta model's words (its bet rationale, the
-// Investigator's claim). Either way, a sentence is shown ONLY if it points at run evidence that exists:
+// Plain words: after a run, Atlas can show short "why" sentences written by plain code from the run's own
+// trace (templates below). A Meta model's words (its bet rationale, the Investigator's claim) are never
+// linked: the screen shows them whole, apart, as the model's words. A plain-code sentence is shown ONLY if
+// it points at run evidence that exists:
 // - a trace event, written "trace #N" (N = the event's position in run.trace, counting from 0), or
 // - a finding's lines, written "lines A–B" (optionally after the file name), that sit inside the line
 //   range of one of the round's findings.
@@ -37,37 +38,90 @@ export interface LinkResult {
   dropped: WhySentence[];
 }
 
-const TRACE_REF = /\btrace\s+(#\d+(?:\s*(?:,|and)\s*#\d+)*)/gi;
-const LINES_REF = /(?:([\w./-]+\.[A-Za-z]{1,6})\s+)?\blines?\s+(\d+)(?:\s*[–-]\s*(\d+))?/gi;
+// S1 (day-5 review): EVERY evidence reference in a sentence is parsed, wherever it sits, and all of them
+// must resolve. A reference is:
+// - a trace number: any "#N" (also "traces #1 and #2", "#1 or #999", "trace#4", "Event #9"), "trace N" /
+//   "event N" without the "#", and trace ranges "#3–#7" / "#3 to 7";
+// - a line or line range: "line(s) A", "lines A–B" in any dash (- – —) or "to", lists ("lines 4, 9 and 12"),
+//   and any bare "A–B" range left in the sentence;
+// - a file name ("mip-x43.sol", "proposals/ChainlinkOracleConfigs.sol"), anywhere in the sentence.
+// Line references are checked against the findings of the file the sentence names. A sentence that names
+// two different files, names a file no finding is in, or gives lines that fit findings in more than one
+// file, is ambiguous: dropped. A range written backwards (B < A) is dropped too.
+const DASH = String.raw`\s*(?:–|—|-|to)\s*`;
+const FILE_REF = /(?<![\w.\/-])((?:[\w-]+\/)*[\w-]*[A-Za-z_][\w-]*\.[A-Za-z][A-Za-z0-9]{0,5})(?![\w\/-])/g;
+const HASH_REF = new RegExp(String.raw`#\s*(\d+)(?:${DASH}#?\s*(\d+))?`, "g");
+const WORD_TRACE_REF = new RegExp(String.raw`\b(?:traces?|events?)\s+(\d+)(?:${DASH}(\d+))?`, "gi");
+const LINE_ITEM = String.raw`\d+(?:${DASH}\d+)?`;
+const LINES_REF = new RegExp(String.raw`\blines?\s+(${LINE_ITEM}(?:\s*(?:,|;|&|\band\b|\bor\b)\s*${LINE_ITEM})*)`, "gi");
+const BARE_RANGE = new RegExp(String.raw`\b(\d+)${DASH}(\d+)\b`, "g");
+const blank = (text: string, re: RegExp) => text.replace(re, (m) => " ".repeat(m.length));
 
-/** Every reference the text makes. `ok: false` when one of them names no evidence. */
+/** Every reference the text makes. A sentence may be shown only when `bad` is empty and `links` is not. */
 export function referencesOf(text: string, run: Pick<Run, "trace">, findings: readonly Finding[]): { links: WhyLink[]; bad: string[] } {
   const links: WhyLink[] = [];
   const bad: string[] = [];
-  for (const m of text.matchAll(TRACE_REF)) {
-    for (const n of m[1]!.matchAll(/#(\d+)/g)) {
-      const index = Number(n[1]);
-      const ev = Number.isSafeInteger(index) ? run.trace[index] : undefined;
-      if (ev) links.push({ kind: "trace", index, event: ev.event });
-      else bad.push(`trace #${n[1]} is not an event of this run (it has ${run.trace.length})`);
+  const checked = findings.filter((x) => x.verified);
+  const fileMatches = (name: string, f: Finding) => f.file === name || f.file.endsWith(`/${name}`);
+
+  // 1. File names, anywhere. Each must be a file one of the round's checked findings is in.
+  const files = [...new Set([...text.matchAll(FILE_REF)].map((m) => m[1]!))];
+  for (const name of files) if (!checked.some((f) => fileMatches(name, f))) bad.push(`${name} is not a file of a checked finding of this round`);
+  let rest = blank(text, FILE_REF);
+
+  // 2. Trace numbers and ranges.
+  const traceRange = (aRaw: string, bRaw: string | undefined) => {
+    const a = Number(aRaw);
+    const b = bRaw === undefined ? a : Number(bRaw);
+    if (!Number.isSafeInteger(a) || !Number.isSafeInteger(b) || b < a) return void bad.push(`trace #${aRaw}${bRaw ? `–${bRaw}` : ""} is not a readable range`);
+    for (const i of a === b ? [a] : [a, b]) {
+      const ev = run.trace[i];
+      if (ev) links.push({ kind: "trace", index: i, event: ev.event });
+      else bad.push(`trace #${i} is not an event of this run (it has ${run.trace.length})`);
     }
+  };
+  for (const m of rest.matchAll(HASH_REF)) traceRange(m[1]!, m[2]);
+  rest = blank(rest, HASH_REF);
+  for (const m of rest.matchAll(WORD_TRACE_REF)) traceRange(m[1]!, m[2]);
+  rest = blank(rest, WORD_TRACE_REF);
+
+  // 3. Lines: after "line(s)", then any bare range left over.
+  const ranges: [number, number][] = [];
+  for (const m of rest.matchAll(LINES_REF)) {
+    for (const item of m[1]!.matchAll(new RegExp(String.raw`(\d+)(?:${DASH}(\d+))?`, "g"))) ranges.push([Number(item[1]), item[2] === undefined ? Number(item[1]) : Number(item[2])]);
   }
-  for (const m of text.matchAll(LINES_REF)) {
-    const file = m[1];
-    const a = Number(m[2]);
-    const b = m[3] === undefined ? a : Number(m[3]);
-    const f = findings.find((x) => (file === undefined || x.file === file || x.file.endsWith(`/${file}`)) && x.verified && x.lineStart <= a && a <= b && b <= x.lineEnd);
-    if (f) links.push({ kind: "lines", file: f.file, lineStart: a, lineEnd: b, findingId: f.id });
-    else bad.push(`${file ? `${file} ` : ""}lines ${a}–${b} are not inside a checked finding of this round`);
+  rest = blank(rest, LINES_REF);
+  for (const m of rest.matchAll(BARE_RANGE)) ranges.push([Number(m[1]), Number(m[2])]);
+  for (const [a, b] of ranges) {
+    if (b < a) {
+      bad.push(`lines ${a}–${b} run backwards`);
+      continue;
+    }
+    if (files.length > 1) {
+      bad.push(`lines ${a}–${b}: the sentence names ${files.length} files, so which one is unclear`);
+      continue;
+    }
+    const pool = files.length === 1 ? checked.filter((f) => fileMatches(files[0]!, f)) : checked;
+    const fits = pool.filter((x) => x.lineStart <= a && b <= x.lineEnd);
+    const inFiles = new Set(fits.map((f) => f.file));
+    if (inFiles.size === 1) links.push({ kind: "lines", file: fits[0]!.file, lineStart: a, lineEnd: b, findingId: fits[0]!.id });
+    else if (inFiles.size === 0) bad.push(`${files[0] ? `${files[0]} ` : ""}lines ${a}–${b} are not inside a checked finding of this round`);
+    else bad.push(`lines ${a}–${b} fit findings in ${inFiles.size} files, so which one is unclear`);
   }
   return { links, bad };
 }
 
-/** Keep the sentences whose every reference resolves (at least one); drop and count the rest. */
+/** Keep the plain-code sentences whose every reference resolves (at least one); drop and count the rest (and every model sentence). */
 export function linkSentences(sentences: readonly WhySentence[], run: Pick<Run, "trace">, findings: readonly Finding[]): LinkResult {
   const shown: LinkedSentence[] = [];
   const dropped: WhySentence[] = [];
   for (const s of sentences) {
+    // S2: a model's words are never linked evidence (a bet rationale is sealed BEFORE the run, so any
+    // "trace #N" in it is a guess about a trace that did not exist yet). Only plain code may link.
+    if (s.by.kind !== "plain-code") {
+      dropped.push(s);
+      continue;
+    }
     const r = referencesOf(s.text, run, findings);
     if (r.links.length > 0 && r.bad.length === 0) shown.push({ ...s, links: r.links });
     else dropped.push(s);
@@ -142,6 +196,8 @@ function evmSentences(run: Run): WhySentence[] {
 
 /** The round's finding, said by plain code: who chose which lines. Links to the finding itself. */
 function findingSentence(f: Finding): WhySentence {
+  // A model id starting "none:" is not a model: the finding was written by hand (the fixture finding).
+  if (f.proposedBy.role !== "human" && f.proposedBy.model.startsWith("none:")) return { text: `${f.file} lines ${f.lineStart}–${f.lineEnd} were chosen for this round by hand (a fixture finding written by hand, not a model)`, by: PLAIN };
   const who = f.proposedBy.role === "human" ? "a person" : f.proposedBy.model;
   return { text: `${who} chose ${f.file} lines ${f.lineStart}–${f.lineEnd} for this round`, by: PLAIN };
 }

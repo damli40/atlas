@@ -1,6 +1,7 @@
-// D05-05 "Ask why": a sentence is shown only when it points at run evidence (a trace event index or a
-// finding's line range); every other sentence is dropped and counted in the log strip as
-// "dropped: no run evidence". Uses the two rounds recorded live on Oct 27 (tests/evidence/D04-04, the
+// D05-05 "Ask why": a plain-code sentence is shown only when it points at run evidence (a trace event
+// index or a finding's line range); every other sentence is dropped and counted in the log strip as
+// "dropped: no run evidence". Since the day-5 review (S2) a model's words are never linked: they are shown
+// apart, whole, as the model's words. Uses the two rounds recorded live on Oct 27 (tests/evidence/D04-04, the
 // regenerated files): no network, no model.
 
 import "../tools/jsdom-globals"; // first: a jsdom page on globalThis
@@ -34,11 +35,11 @@ describe("the linker (src/why.ts)", () => {
     const run = MOONWELL.runs[0]!;
     const f = MOONWELL.findings!;
     expect(run.trace).toHaveLength(49);
-    expect(linkSentences([spark("cbETH broke (trace #49)")], run, f).dropped).toHaveLength(1); // one past the end
-    expect(linkSentences([spark("see trace #48 and trace #400")], run, f).dropped).toHaveLength(1);
-    expect(linkSentences([spark("the feed is set on lines 40–42")], run, f).dropped).toHaveLength(1); // 40–41 sit outside every finding
-    expect(linkSentences([spark("proposals/mips/mip-x43/mip-x43.sol lines 44–53 changes it")], run, f).dropped).toHaveLength(1); // those lines are a finding in ANOTHER file
-    const ok = linkSentences([spark("proposals/ChainlinkOracleConfigs.sol line 42 sets the cbETH feed")], run, f);
+    expect(linkSentences([plain("cbETH broke (trace #49)")], run, f).dropped).toHaveLength(1); // one past the end
+    expect(linkSentences([plain("see trace #48 and trace #400")], run, f).dropped).toHaveLength(1);
+    expect(linkSentences([plain("the feed is set on lines 40–42")], run, f).dropped).toHaveLength(1); // 40–41 sit outside every finding
+    expect(linkSentences([plain("proposals/mips/mip-x43/mip-x43.sol lines 44–53 changes it")], run, f).dropped).toHaveLength(1); // those lines are a finding in ANOTHER file
+    const ok = linkSentences([plain("proposals/ChainlinkOracleConfigs.sol line 42 sets the cbETH feed")], run, f);
     expect(ok.shown[0]!.links).toEqual([{ kind: "lines", file: "proposals/ChainlinkOracleConfigs.sol", lineStart: 42, lineEnd: 42, findingId: f[0]!.id }]);
   });
 
@@ -110,34 +111,34 @@ function Harness({ modelTexts }: { modelTexts: { text: string; model: string; ro
 }
 
 describe("Ask why on screen", () => {
-  it("3 sentences, 1 unlinked → 2 rendered, 1 counted in the log strip as 'dropped: no run evidence'", () => {
+  it("S2: plain-code sentences are the only linked ones; Spark's words sit apart, whole, unlinked, and are not counted as dropped", () => {
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
-    // The fixture run gives 2 templated sentences (both linked); Spark adds 1 sentence with no evidence.
+    // The fixture run gives 2 templated sentences (both linked); Spark's words go to the model panel.
     act(() => root!.render(<Harness modelTexts={[{ text: "Defaults apply: attempts=5, so the loop gives up.", model: "muse-spark-1.3", role: "claimant" }]} />));
     expect(host.querySelectorAll('[data-testid="why-sentence"]')).toHaveLength(0); // nothing until asked
-    expect(host.textContent).not.toContain("dropped: no run evidence (");
     act(() => (host!.querySelector('[data-testid="why-ask"]') as HTMLButtonElement).click());
     const shown = [...host.querySelectorAll('[data-testid="why-sentence"]')].map((li) => li.textContent);
     expect(shown).toHaveLength(2);
     expect(shown[0]).toContain("it waited 4 times, 3000 ms each (trace #4, #9, #14, #19)");
     expect(shown[1]).toContain("call 5 threw; no more attempts (trace #23)");
-    expect(host.textContent).not.toContain("Defaults apply");
-    const strip = [...host.querySelectorAll('[data-testid="logstrip-line"]')].map((li) => li.textContent);
-    expect(strip).toEqual(["07:30:00Ask why plain codedropped: no run evidence (1 sentence)"]);
+    expect(host.querySelector('[data-testid="why-plain"]')!.textContent).not.toContain("Defaults apply");
+    expect(host.querySelector('[data-testid="why-model"]')!.textContent).toContain("muse-spark-1.3 (its bet's reasoning), the model's words: Defaults apply: attempts=5, so the loop gives up.");
+    expect(host.querySelectorAll('[data-testid="logstrip-line"]')).toHaveLength(0); // no plain-code sentence dropped
   });
 
-  it("a model sentence WITH run evidence is shown in the model panel with the model's id, apart from the plain-code ones", () => {
+  it("S2: a model sentence that names a trace event is NOT linked; it stays in the model panel as the model's words", () => {
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
     act(() => root!.render(<Harness modelTexts={[{ text: "It stops after the fifth call (trace #21).", model: "muse-spark-1.3", role: "claimant" }]} />));
     act(() => (host!.querySelector('[data-testid="why-ask"]') as HTMLButtonElement).click());
     const panel = host.querySelector('[data-testid="why-model"]')!;
-    expect(panel.textContent).toContain("muse-spark-1.3: It stops after the fifth call (trace #21).");
-    expect(panel.textContent).toContain("Not a verdict");
+    expect(panel.textContent).toContain("It stops after the fifth call (trace #21).");
+    expect(panel.textContent).toContain("not a verdict");
+    expect(panel.textContent).not.toContain("evidence: trace #21");
+    expect(panel.querySelectorAll('[data-testid="why-sentence"]')).toHaveLength(0);
     expect(host.querySelector('[data-testid="why-plain"]')!.textContent).not.toContain("fifth call");
-    expect(host.querySelectorAll('[data-testid="logstrip-line"]')).toHaveLength(0); // nothing dropped, no line
   });
 });
