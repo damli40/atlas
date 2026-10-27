@@ -45,11 +45,50 @@ export interface FalseAlarmRow {
   diffVsFlagReferencePct: string | null;
   /** Atlas surfaces the market when post differs from its flag reference by more than 50%. null = can't check. */
   flagged: boolean | null;
+  /**
+   * PASS-RULE.md rule 2 (false alarms): is the post-apply price within 2% of the pre-apply price at the
+   * same fork block? null = can't check (a price missing, or the control did not pass). Every market
+   * has one; for cbETH it is data only (cbETH is judged by rule 1, the flag rule).
+   */
+  withinFalseAlarmPct: boolean | null;
   /** Did the run's control pass? When false, flagged is null on every row (PASS-RULE.md). */
   controlPassed: boolean;
   feedBefore: string | null;
   feedAfter: string | null;
   note?: string;
+}
+
+/** Rule 2's test: post within 2% of pre (inclusive). null when it can't be checked. */
+export const withinPct = (controlPassed: boolean, pre: bigint | null, post: bigint | null): boolean | null =>
+  controlPassed && pre !== null && post !== null && pre > 0n ? !differsByMoreThan(post, pre, FALSE_ALARM_PCT) : null;
+
+/**
+ * What the table says about one row, in PASS-RULE.md's words. "unchanged" only when the two prices are
+ * exactly equal; a market that moved but stayed within 2% says so, never "unchanged".
+ */
+export function rowWords(r: FalseAlarmRow): string {
+  if (!r.controlPassed) return "can't check";
+  if (r.market === "cbETH") return r.flagged === null ? "can't check" : r.flagged ? "flagged: more than 50% from raw Chainlink" : "not flagged: within 50% of raw Chainlink";
+  if (r.withinFalseAlarmPct === null || r.flagged === null) return "can't check";
+  if (r.flagged) return "flagged: moved more than 50%";
+  if (!r.withinFalseAlarmPct) return "moved more than 2% (not flagged)";
+  return r.preUsd1e18 === r.postUsd1e18 ? "unchanged (not flagged)" : "within 2% (not flagged)";
+}
+
+/** The summary line's counts, per rule: rule 1 for cbETH, rule 2 for every other market. */
+export function tableCounts(rows: FalseAlarmRow[]) {
+  const others = rows.filter((r) => r.market !== "cbETH");
+  const cb = rows.find((r) => r.market === "cbETH");
+  return {
+    markets: rows.length,
+    controlPassed: rows.every((r) => r.controlPassed),
+    cbEthFlagged: cb ? cb.flagged : null,
+    within2Pct: others.filter((r) => r.withinFalseAlarmPct === true && r.flagged === false).length,
+    unchanged: others.filter((r) => r.withinFalseAlarmPct === true && r.flagged === false && r.preUsd1e18 === r.postUsd1e18).length,
+    movedMoreThan2Pct: others.filter((r) => r.withinFalseAlarmPct === false || r.flagged === true).length,
+    othersFlagged: others.filter((r) => r.flagged === true).length,
+    cantCheck: others.filter((r) => r.withinFalseAlarmPct === null || r.flagged === null).length,
+  };
 }
 
 export const CONTROL_FAILED_NOTE = (reason: string | undefined) => `can't check: the control did not pass${reason ? ` (${reason})` : ""}`;
@@ -87,6 +126,7 @@ export function falseAlarmFromRun(run: StoredRunForTable): FalseAlarmRow[] {
       flagReferenceUsd1e18: refS,
       diffVsFlagReferencePct: ref !== null && postV !== null && ref > 0n ? ppmToPct(diffPpm(postV, ref)) : null,
       flagged: controlPassed && ref !== null && postV !== null && ref > 0n ? differsByMoreThan(postV, ref, FLAG_PCT) : null,
+      withinFalseAlarmPct: withinPct(controlPassed, preV, postV),
       controlPassed,
       feedBefore: str(`preApplyFeedAddress:${sym}`),
       feedAfter: str(`feedAddress:${sym}`),

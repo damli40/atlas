@@ -60,3 +60,34 @@ describe("B1 through the server and the page", () => {
     expect(el.querySelector("tr.flagged")).toBeNull();
   });
 });
+
+describe("S2: the table's words follow PASS-RULE.md (2% rule), never 'unchanged' for a market that moved", () => {
+  const moved = (sym: string, num: bigint, den: bigint) => {
+    const run = structuredClone(LIVE.runs[0]!);
+    const pre = BigInt(run.result.measured[`preApplyPriceUsd1e18:${sym}`] as string);
+    run.result.measured[`priceUsd1e18:${sym}`] = ((pre * num) / den).toString();
+    return falseAlarmFromRun(run);
+  };
+
+  it("a market 40% up is 'moved more than 2% (not flagged)' and is counted so, not as unchanged", () => {
+    // Before the fix: the summary counted it among "13 unchanged".
+    const el = render(moved("AERO", 140n, 100n));
+    expect(el.querySelector('[data-testid="fa-AERO"]')!.lastElementChild!.textContent).toBe("moved more than 2% (not flagged)");
+    const summary = el.querySelector('[data-testid="fa-summary"]')!.textContent!;
+    expect(summary).toMatch(/1 moved more than 2%/);
+    expect(summary).toMatch(/cbETH flagged \(rule 1\)/);
+    expect(summary).not.toMatch(/13 unchanged/);
+  });
+
+  it("a market 0.5% up is 'within 2% (not flagged)', not 'unchanged'; an exactly equal one is 'unchanged'", () => {
+    const rows = moved("DAI", 1005n, 1000n);
+    const el = render(rows);
+    expect(el.querySelector('[data-testid="fa-DAI"]')!.lastElementChild!.textContent).toBe("within 2% (not flagged)");
+    const equal = rows.filter((r) => r.market !== "cbETH" && r.preUsd1e18 === r.postUsd1e18).map((r) => r.market);
+    for (const m of equal) expect(el.querySelector(`[data-testid="fa-${m}"]`)!.lastElementChild!.textContent).toBe("unchanged (not flagged)");
+    const summary = el.querySelector('[data-testid="fa-summary"]')!.textContent!;
+    expect(summary).toContain(`13 within 2% of their price before`);
+    if (equal.length) expect(summary).toContain(`(${equal.length} of them exactly unchanged)`);
+    expect(summary).toContain("0 moved more than 2%");
+  });
+});

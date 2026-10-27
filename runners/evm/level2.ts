@@ -16,7 +16,7 @@
 
 import type { Address, PublicClient } from "viem";
 import { usdTimesRatio1e18 } from "../../src/units.ts";
-import { CONTROL_FAILED_NOTE, diffPpm, differsByMoreThan, FALSE_ALARM_PCT, FLAG_PCT, ppmToPct, type FalseAlarmRow } from "../../src/falsealarm.ts";
+import { CONTROL_FAILED_NOTE, withinPct, diffPpm, differsByMoreThan, FALSE_ALARM_PCT, FLAG_PCT, ppmToPct, type FalseAlarmRow } from "../../src/falsealarm.ts";
 import { applyFeedActions, comparePairs, planFromPrFiles, resolveSymbols, traceUnderlyingPriceSources, type AppliedFeedAction, type FeedAction, type PairComparison, type SourceCount } from "./apply.ts";
 import { assertPreExecution, cbEthReference, inStablecoinBand, readControl, why, type EvmControlRecord, type ReferenceResult } from "./control.ts";
 import { MOONWELL_cbETH, TEMPORAL_GOVERNOR, USD_STABLECOINS } from "./moonwell-base.ts";
@@ -131,7 +131,7 @@ export async function runLevel2OnFork(client: PublicClient, fork: { url: string 
 
 // ── The pass rule, as plain code ─────────────────────────────────────────────────────────────────
 
-export { CONTROL_FAILED_NOTE, diffPpm, differsByMoreThan, FALSE_ALARM_PCT, falseAlarmFromRun, FLAG_PCT, ppmToPct, type FalseAlarmRow } from "../../src/falsealarm.ts";
+export { CONTROL_FAILED_NOTE, rowWords, tableCounts, withinPct, diffPpm, differsByMoreThan, FALSE_ALARM_PCT, falseAlarmFromRun, FLAG_PCT, ppmToPct, type FalseAlarmRow } from "../../src/falsealarm.ts";
 
 export interface PassRuleLine {
   rule: string;
@@ -160,6 +160,7 @@ export function falseAlarmTable(rec: Level2Record): FalseAlarmRow[] {
       flagReferenceUsd1e18: ref?.toString() ?? null,
       diffVsFlagReferencePct: ref !== null && postV !== null && ref > 0n ? ppmToPct(diffPpm(postV, ref)) : null,
       flagged: controlPassed && ref !== null && postV !== null && ref > 0n ? differsByMoreThan(postV, ref, FLAG_PCT) : null,
+      withinFalseAlarmPct: withinPct(controlPassed, preV, postV),
       controlPassed,
       feedBefore: pre?.ok ? pre.read.feedAddress : null,
       feedAfter: post?.ok ? post.read.feedAddress : null,

@@ -154,6 +154,7 @@ const falseAlarmRowSchema = z
     flagReferenceUsd1e18: nstr,
     diffVsFlagReferencePct: nstr,
     flagged: z.boolean().nullable(),
+    withinFalseAlarmPct: z.boolean().nullable(),
     controlPassed: z.boolean(),
     feedBefore: nstr,
     feedAfter: nstr,

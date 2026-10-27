@@ -9,6 +9,7 @@ import { LEVEL2_CAPTION, level1Caption } from "../../src/atlasfile";
 import type { Question } from "../../src/gate";
 import type { Finding } from "../../src/types";
 import { formatUsd1e18 } from "../../src/units";
+import { rowWords, tableCounts } from "../../src/falsealarm";
 import type { Api, FalseAlarmRow, ModelSlotView, PrTarget, RunAnswer, ShownBet } from "../api";
 import { useRunnerProgress } from "../progress";
 import { ShortHash } from "./Bets";
@@ -280,9 +281,12 @@ export function MoonwellFlow({ api }: { api: Api }) {
 
 export function FalseAlarmTable({ rows }: { rows: FalseAlarmRow[] }) {
   // PASS-RULE.md: when the run's control did not pass, every flag on it is "can't check".
-  const controlFailed = rows.some((r) => r.controlPassed !== true);
-  const flagged = rows.filter((r) => r.flagged === true).length;
-  const quiet = rows.filter((r) => r.flagged === false).length;
+  const n = tableCounts(rows);
+  const controlFailed = !n.controlPassed;
+  const cb = n.cbEthFlagged === null ? "cbETH can't check" : n.cbEthFlagged ? "cbETH flagged" : "cbETH not flagged";
+  const summary = controlFailed
+    ? "can't check (control did not pass)"
+    : `${cb} (rule 1); of the other ${n.markets - (rows.some((r) => r.market === "cbETH") ? 1 : 0)}: ${n.within2Pct} within 2% of their price before${n.unchanged ? ` (${n.unchanged} of them exactly unchanged)` : ""}, ${n.movedMoreThan2Pct} moved more than 2%${n.cantCheck ? `, ${n.cantCheck} can't check` : ""} (rule 2)`;
   return (
     <section className="card" aria-label="false-alarm table" data-testid="false-alarm">
       <h2>Every market the proposal touches</h2>
@@ -291,8 +295,8 @@ export function FalseAlarmTable({ rows }: { rows: FalseAlarmRow[] }) {
           The control did not pass, so every flag on this run is "can't check". {rows.find((r) => r.note)?.note ?? ""}
         </p>
       )}
-      <p className="muted">
-        {rows.length} markets: {controlFailed ? "can't check (control did not pass)" : `${quiet} unchanged, ${flagged} flagged`}. A market is flagged when its price after the proposal differs by more than 50% from what it is compared with: cbETH with the raw Chainlink price (ETH/USD × cbETH/ETH, same block), every other market with its own price before the proposal.
+      <p className="muted" data-testid="fa-summary">
+        {rows.length} markets: {summary}. Rule 1: cbETH is flagged when its price after the proposal differs by more than 50% from the raw Chainlink price (ETH/USD × cbETH/ETH, same block). Rule 2: no other market may be flagged when its price after is within 2% of its price before, at the same block.
       </p>
       <table className="verdicts">
         <thead>
@@ -302,7 +306,7 @@ export function FalseAlarmTable({ rows }: { rows: FalseAlarmRow[] }) {
             <th>after</th>
             <th>compared with</th>
             <th>difference</th>
-            <th>flagged</th>
+            <th>what the rule says</th>
           </tr>
         </thead>
         <tbody>
@@ -313,7 +317,7 @@ export function FalseAlarmTable({ rows }: { rows: FalseAlarmRow[] }) {
               <td>{usdOf(r.postUsd1e18)}</td>
               <td>{r.market === "cbETH" ? `raw Chainlink ${usdOf(r.flagReferenceUsd1e18)}` : "its price before"}</td>
               <td>{r.diffVsFlagReferencePct ?? "-"}</td>
-              <td>{r.controlPassed !== true || r.flagged === null ? "can't check" : r.flagged ? <b>yes</b> : "no"}</td>
+              <td>{r.flagged === true && r.controlPassed ? <b>{rowWords(r)}</b> : rowWords(r)}</td>
             </tr>
           ))}
         </tbody>
