@@ -19,7 +19,7 @@ import type { ArgSpec, Experiment, ExperimentShape, Run } from "../../src/types.
 import { localExecutor } from "../../runners/executor/local.ts";
 import { MAX_OUTPUT_CHARS, MODAL_IMAGE, NODE_BIN, SANDBOX_DIR, createModalExecutor, sdkBackend, type ModalBackend, type SandboxSpec } from "../../runners/executor/modal.ts";
 import type { Executor } from "../../runners/runner.ts";
-import { runCallControl, runCallExperiment } from "../../runners/ts/call-runner.ts";
+import { callControlFor, forgetReusableControls, runCallControl, runCallExperiment } from "../../runners/ts/call-runner.ts";
 
 const LIVE = process.env.ATLAS_LIVE_MODAL === "1";
 type Call = Extract<ExperimentShape, { shape: "call-function" }>;
@@ -96,7 +96,7 @@ describe.skipIf(!LIVE)("E4 live: the Modal executor on real Modal Sandboxes", ()
     expect(control.controlPassed, JSON.stringify(control.result.notMeasured)).toBe(true);
     expect(control.executor).toBe("modal");
     const rt = control.trace.at(-1)?.data?.runtime as Record<string, string>;
-    expect(rt).toMatchObject({ executor: "modal", node: MODAL_IMAGE.nodeVersion, python: MODAL_IMAGE.pythonVersion });
+    expect(rt).toMatchObject({ executor: "modal", backend: "v2", node: MODAL_IMAGE.nodeVersion, python: MODAL_IMAGE.pythonVersion });
     expect(rt.sandboxId).toMatch(/^sb-/);
     expect(localControl.controlPassed).toBe(true);
   });
@@ -190,6 +190,30 @@ describe.skipIf(!LIVE)("E4 live: the Modal executor on real Modal Sandboxes", ()
     expect(MAX_OUTPUT_CHARS).toBeLessThan(chars);
     expectCantCheck(r, /no result|tampering|ran past/);
   }, 300_000);
+
+  it("review round 1 (E, F): a memory bomb past 1 GiB is can't check with a plain reason (no Modal ids or RPC names)", async () => {
+    const r = await onModal("review1: memory bomb", experiment(`export function f(){ const a=[]; for(let i=0;i<16;i++){ const b=new Uint8Array(128*1024*1024); b.fill(1); a.push(b);} return a.length; }`, { exportName: "f" }), { wallClockMs: 30_000 });
+    expectCantCheck(r, /memory|stopped|exit 13[47]/);
+    const why = r.result.notMeasured.wholeRun!;
+    expect(why).not.toMatch(/urpc|containerManager|"ta-|sb-[A-Za-z0-9]{10}|could not start/);
+    lines.push({ label: "review1: memory bomb reason", line: why });
+  }, 300_000);
+
+  it("review round 1 (D31): a passed control is reused (no new sandbox) within 10 minutes", async () => {
+    forgetReusableControls();
+    label = "review1: D31 control (fresh)";
+    const a = await callControlFor({ executor: modal });
+    const before = specs.length;
+    label = "review1: D31 control (reused)";
+    const b = await callControlFor({ executor: modal });
+    expect(a.run.controlPassed).toBe(true);
+    expect(b.run.id).toBe(a.run.id);
+    expect(specs.length).toBe(before);
+  }, 300_000);
+
+  it("review round 1 (B): after all of this, no native add-on is loaded in this process", () => {
+    expect((process.report.getReport() as { sharedObjects: string[] }).sharedObjects.filter((x) => x.endsWith(".node"))).toEqual([]);
+  });
 
   it("every sandbox was made with no network and the caps, and each one got a log line", () => {
     expect(specs.length).toBeGreaterThan(0);

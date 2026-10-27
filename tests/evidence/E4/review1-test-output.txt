@@ -1,0 +1,59 @@
+
+ RUN  v5.0.5 <repo>
+
+ ✓ tests/unit/secret-scan.test.ts > secret scan > finds each generic secret shape 2ms
+ ✓ tests/unit/secret-scan.test.ts > secret scan > finds a real value it was given, and names it without printing it 0ms
+ ✓ tests/unit/secret-scan.test.ts > secret scan > an allow comment skips generic shapes but never a real value 0ms
+ ✓ tests/unit/secret-scan.test.ts > secret scan > ordinary code passes 0ms
+ ✓ tests/unit/secret-scan.test.ts > secret scan > E4: reads the Modal token id and secret of every profile in a Modal config file, and blocks them by name 2ms
+ ✓ tests/unit/modal-executor.test.ts > what Atlas sends to Modal > one sandbox per exec: no network, CPU and memory caps, a lifetime limit, and no env, secrets or volumes 6ms
+ ✓ tests/unit/modal-executor.test.ts > what Atlas sends to Modal > the run command: env -i with only the request's env, as nobody with no new privileges, then node with the local executor's flags 0ms
+ ✓ tests/unit/modal-executor.test.ts > what Atlas sends to Modal > refuses before any sandbox exists: a widening node flag, a network host list, NODE_OPTIONS, a non-node command, odd env, a path that leaves the folder 1ms
+ ✓ tests/unit/modal-executor.test.ts > what Atlas sends to Modal > the per-run key goes on the run command's stdin ONLY: not in the spec, any command, the file upload or the log 0ms
+ ✓ tests/unit/modal-executor.test.ts > what Atlas sends to Modal > logs one line per sandbox with durations, and never the code, the output or the key 0ms
+ ✓ tests/unit/modal-executor.test.ts > what Atlas reports back > exit code, stdout and stderr as they came, and the measured runtime 0ms
+ ✓ tests/unit/modal-executor.test.ts > what Atlas reports back > stdout is capped at 16 MiB, and the rest is read and dropped (a 20 MB flood) 0ms
+ ✓ tests/unit/modal-review1.test.ts > A: the sandbox backend is pinned to V2 and recorded > sdkBackend makes sandboxes with experimentalCreate (V2), never plain create (which follows machine config) 3ms
+ ✓ tests/unit/modal-review1.test.ts > A: the sandbox backend is pinned to V2 and recorded > every run records backend v2 in its runtime, and the executor's fingerprint names it 3ms
+ ✓ tests/unit/modal-review1.test.ts > B: no native add-on from npm is loaded into the server > loadModalSdk switches cbor-x's native add-on off: no .node file in require.cache or loaded at all 156ms
+ ✓ tests/unit/modal-review1.test.ts > B: no native add-on from npm is loaded into the server > control: importing the SDK directly, without the switch, DOES load the native add-on here (so the test above means something) 112ms
+ ✓ tests/unit/modal-executor.test.ts > what Atlas reports back > Atlas's wall-clock limit: the sandbox is terminated and the result says timedOut, with no exit code 301ms
+ ✓ tests/unit/modal-executor.test.ts > what Atlas reports back > an error at any step throws with the step named, and the sandbox is still terminated 1ms
+ ✓ tests/unit/modal-executor.test.ts > what Atlas reports back > Modal unreachable: throws with the reason (no sandbox to terminate) 0ms
+ ✓ tests/unit/modal-review1.test.ts > C: a daily cap on sandbox starts and sandbox-seconds > past the daily start cap: refused before any sandbox exists, with the reason; the next UTC day starts afresh 2ms
+ ✓ tests/unit/modal-executor.test.ts > what Atlas reports back > a sandbox that takes longer than the startup limit: throws, and the late sandbox is terminated when it arrives 153ms
+ ✓ tests/unit/modal-executor.test.ts > what Atlas reports back > review round 1 (J): Python's version is read in EACH sandbox (alongside the files), so a run's runtime is its own 0ms
+ ✓ tests/unit/modal-executor.test.ts > cost and abuse limits > at most maxConcurrent sandboxes at once; the queue is bounded; one more is refused as busy 0ms
+ ✓ tests/unit/modal-executor.test.ts > cost and abuse limits > a failed run gives its slot back 0ms
+ ✓ tests/unit/modal-executor.test.ts > the unpacker (runs for real on this machine's Node) > writes nested files read-only to others, and prints the Node version 53ms
+ ✓ tests/unit/modal-executor.test.ts > the unpacker (runs for real on this machine's Node) > refuses a path that leaves the folder (second line of defence after the executor's own check) 47ms
+ ✓ tests/unit/modal-executor.test.ts > selection: ATLAS_EXECUTOR > unset or local → the local executor; modal → the Modal executor; anything else stops the server 0ms
+ ✓ tests/unit/modal-executor.test.ts > selection: ATLAS_EXECUTOR > Modal unreachable in hosted mode: the run does not happen, with the reason; it never runs locally instead 2ms
+ ✓ tests/unit/modal-executor.test.ts > end to end through the real call-worker (Modal plumbing emulated on this machine) > the control passes, the runs say executor modal with the measured runtime, and a forged result line is refused 552ms
+ ✓ tests/unit/modal-executor.test.ts > through the server (the retry fixture, which every executor also runs) > Modal unreachable: 'the run did not finish' with Modal's reason; nothing judged, nothing run locally 149ms
+ ✓ tests/unit/modal-review1.test.ts > C: a daily cap on sandbox starts and sandbox-seconds > past the daily sandbox-seconds cap: refused 1101ms
+ ✓ tests/unit/modal-review1.test.ts > C: a daily cap on sandbox starts and sandbox-seconds > through the server: 'the run did not finish' with the budget reason, and no verdicts 56ms
+ ✓ tests/unit/modal-review1.test.ts > C: a daily cap on sandbox starts and sandbox-seconds > the env settings: ATLAS_MODAL_MAX_SANDBOXES_PER_DAY and ATLAS_MODAL_MAX_SANDBOX_SECONDS_PER_DAY 0ms
+ ✓ tests/unit/modal-review1.test.ts > E: Modal's internal text never reaches a reason a person sees > cleanModalText drops Modal's own lines and masks its ids 0ms
+ ✓ tests/unit/modal-review1.test.ts > E: Modal's internal text never reaches a reason a person sees > exit 137 with Modal's wait line on stderr: a plain out-of-memory reason, no task id, no RPC name 1ms
+ ✓ tests/unit/modal-review1.test.ts > E: Modal's internal text never reaches a reason a person sees > a thrown Modal error is cleaned too 0ms
+ ✓ tests/unit/modal-review1.test.ts > F: a sandbox that dies under the code is reported as stopped, never as 'could not start' > wait() rejects with Modal's shutting-down error after the command started: a result that says stopped 1ms
+ ✓ tests/unit/modal-review1.test.ts > F: a sandbox that dies under the code is reported as stopped, never as 'could not start' > any other wait() error is still an infrastructure failure 0ms
+ ✓ tests/unit/modal-executor.test.ts > through the server (the retry fixture, which every executor also runs) > Modal up (plumbing emulated): the fixture's control and run go through it, and the run says modal 329ms
+ ✓ tests/unit/modal-review1.test.ts > G: a failed stdin write is its own reason, never blamed on the code > the input never arrived and the run hit the wall clock: an infrastructure error, not timedOut 302ms
+ ✓ tests/unit/modal-review1.test.ts > H: ATLAS_EXECUTOR set but empty is a startup error > '', ' ', and a tab throw; unset is still local 0ms
+ ✓ tests/unit/modal-review1.test.ts > J: every wait has a deadline > starting the run command never answers: refused after the startup limit, sandbox terminated 203ms
+ ✓ tests/unit/modal-review1.test.ts > J: every wait has a deadline > the Python check never answers: refused after the startup limit (each sandbox checks its own) 204ms
+ ✓ tests/unit/modal-review1.test.ts > D31: a passed control is reused for up to 10 minutes, under the measuring-code + executor + image key > reused within 10 minutes (no new sandbox), run again after; the key names the executor and its fingerprint 423ms
+ ✓ tests/unit/modal-review1.test.ts > D31: a passed control is reused for up to 10 minutes, under the measuring-code + executor + image key > two runs asking at once share ONE control run 196ms
+ ✓ tests/unit/modal-review1.test.ts > D31: a passed control is reused for up to 10 minutes, under the measuring-code + executor + image key > a control that did not pass is never reused, nor one that threw 3ms
+ ✓ tests/unit/modal-review1.test.ts > D31: a passed control is reused for up to 10 minutes, under the measuring-code + executor + image key > the run names the control it relied on and its time; the .atlas.json verifies; the proof card says when; a moved time fails verify 279ms
+ ✓ tests/unit/modal-review1.test.ts > D31: a passed control is reused for up to 10 minutes, under the measuring-code + executor + image key > a control made on one executor is refused for a run on another (never claim modal when local ran) 154ms
+ ✓ tests/unit/modal-review1.test.ts > D32: Modal is warmed once at server start, without blocking or stopping it > warm-up runs the control in one sandbox, logs it, and the first run then reuses it 185ms
+ ✓ tests/unit/modal-review1.test.ts > D32: Modal is warmed once at server start, without blocking or stopping it > a failed warm-up is one log line and the promise still resolves; the local executor is never warmed 1ms
+
+ Test Files  3 passed (3)
+      Tests  50 passed (50)
+   Start at  23:30:03
+   Duration  3.61s (tests 97%, import 3%, transform 1%)
+

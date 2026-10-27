@@ -4,6 +4,12 @@ Date: 2026-10-27 (WAT) · no model call · Modal sandbox time for the whole batc
 
 ## Where to look first
 
+- **Read "Review round 1" at the bottom first.** It corrects three things the first version of this page got
+  wrong: which Modal backend ran, whether native code from npm loads into the server, and the cost of a stopped
+  sandbox. It also adds the daily spend cap, and Dami's decisions D31 (reuse a passed control for 10 minutes) and
+  D32 (warm Modal at startup). With those two, a first paste on a warm server needs ONE sandbox: about 3.5–4.5 s,
+  not 7–9 s.
+
 - **What it does.** With `ATLAS_EXECUTOR=modal`, every command Atlas runs in a sandbox gets its own Modal
   Sandbox: a small cloud container made for that one command and deleted right after it, also after an error or a
   timeout. Hosted Atlas runs strangers' pasted code this way (D16, D25). Without the variable, nothing changes:
@@ -46,15 +52,20 @@ Why:
   - the executor touches only a 3-method interface (`ModalBackend` in `runners/executor/modal.ts`), so a
     breaking SDK change is a fix in one function, `sdkBackend`.
 - **Supply chain.** The SDK brings 6 dependencies. Two of them ship install scripts (`cbor-extract`, an optional
-  native speed-up, and `protobufjs`, a version notice). Both scripts are refused in `pnpm-workspace.yaml`. The SDK
-  works without them; the live suite ran that way.
+  native speed-up, and `protobufjs`, a version notice). Both scripts are refused in `pnpm-workspace.yaml`.
+  **Corrected in review round 1 (B):** I wrote here that refusing the script meant the native code was not used.
+  That was wrong: pnpm installs a PREBUILT native binary for `cbor-extract` without any script, and the SDK
+  loaded it into the server process. The fix is a switch, not the script refusal: `loadModalSdk` sets
+  `CBOR_NATIVE_ACCELERATION_DISABLED=true` before the SDK loads, and a test proves no `.node` file is loaded
+  (and that one IS loaded without the switch, on this machine).
 - **Loaded only when needed.** The SDK loads when the first sandbox is made, so a server on the local executor
   never loads it.
 
 ## What the boundary is, layer by layer
 
-Each layer would stop pasted code on its own. Together they are "defence in depth": if one layer has a hole,
-the next one still holds. The file is `runners/executor/modal.ts`.
+Each layer would stop pasted code from ESCAPING (reaching the network, a secret or another run) on its own.
+Together they are "defence in depth": if one layer has a hole, the next one still holds. They do not protect the
+result key from code in the same process if Node's own guard were bypassed (review round 1, D). The file is `runners/executor/modal.ts`.
 
 | Layer | What it does | Proven by |
 |---|---|---|
@@ -148,7 +159,7 @@ cold/warm measurement (`latency-cold-warm.json`):
 - About 10–12 s if the server just started.
 - A second experiment on the same pasted file reuses the control: about 3.5–4.5 s.
 
-## Cost per run (estimate from Modal's published prices, not from a bill)
+## Cost per run (estimate from Modal's published prices; checked against Modal's bill in review round 1)
 
 Modal bills sandboxes at its "non-preemptible" rate (a sandbox is never stopped early to free the machine for
 someone else):
@@ -165,7 +176,8 @@ It charges for whichever is higher: what was reserved, or what was used.
 | Worst ordinary case: an endless loop held to the default 10 s limit (~13.5 s at 1 core, 1 GiB) | 13.5 | 13.5 | ≈ $0.0006 |
 
 This batch's own testing used about 25 sandboxes, about 2.5 minutes of sandbox time in total: well under $0.05.
-Modal's dashboard bill was not checked.
+**Review round 1 (I) checked the real bill:** see "Review round 1". The measured figure is about $0.0001 per
+sandbox, the same as the estimate above, and the ~30 s a sandbox stays listed after Atlas stops it is not billed.
 
 ## Tests and counts
 
@@ -214,16 +226,11 @@ Files: `test-output.txt` (every E4 test by name), `full-suite.txt`, `tsc-output.
   secret.
 - The pre-commit hook ran with the real tokens loaded on every commit of this batch.
 
-## Open choices (not done here; each one changes the demo)
+## Open choices (both decided and built in review round 1: D31 and D32)
 
-1. **Cache the call-function control once per harness, not once per pasted file.**
-   - **Why it is safe:** the control checks Atlas's own measuring code (its run names the reference file, not the
-     pasted code). So the same result is valid for every paste.
-   - **What it saves:** one sandbox per paste. A first pasted run on Modal would take about 3.5–4.5 s instead of
-     7–9 s.
-   - **Why not done here:** it changes the server's control rule, so the decision belongs outside E4.
-2. **Warm the server at startup with one throwaway exec**: it loads the SDK and checks Modal is reachable. That
-   moves the ~3 s first-run cost off the first visitor, and the startup line can say "Modal reachable" or why not.
+1. **Cache the call-function control once per harness, not once per pasted file.** Decided as D31 and built:
+   see "Review round 1".
+2. **Warm the server at startup.** Decided as D32 and built: see "Review round 1".
 
 ## Known limits
 
@@ -239,7 +246,230 @@ Files: `test-output.txt` (every E4 test by name), `full-suite.txt`, `tsc-output.
 - **The container has no limit on the number of processes**, and its disk is writable by root. Neither is
   reachable here: Node's permission model refuses child processes and file writes, and the code runs as `nobody`.
   But this is defence in depth, not a proof.
-- **Modal's v1 sandbox backend is used** (`sandboxes.create`). The SDK's "experimental V2 backend" was not tried.
+- **Corrected in review round 1 (A):** this line used to say Modal's v1 backend runs and V2 "was not tried". That
+  was wrong: the SDK picks V2 by default, so every live run was on V2. V2 is now pinned explicitly and recorded in
+  each run. V1 has never been live-tested.
 - **Modal's own environment variables** (region, task id, image id) exist in the container. `env -i` keeps them
   from the command, and their values were never read.
-- **No separate adversarial reviewer has looked at E4 yet.** The spec plans one per batch.
+- **Reviewed:** one adversarial review round (0 blockers, 3 majors, 10 minors), fixed below.
+
+## Review round 1 (adversarial review of E4: 0 blockers, 3 majors, 10 minors)
+
+The reviewer attacked the live boundary, including attacks that assume Node's own guard is already broken. Every
+escape attempt failed. The findings were about what this page claimed, about spend, and about wording people see.
+Each item below gives the finding, the fix, and the test. The tests are in `tests/unit/modal-review1.test.ts`
+(24 tests) unless named otherwise; their output is in `review1-test-output.txt`.
+
+**After the fixes:**
+- **Unit and server tests:** 966 passed, 30 skipped, 85 files, the same in 3 full runs plus 1 saved
+  (`review1-full-suite.txt`). The type check is clean (`review1-tsc-output.txt` is empty).
+- **The 3 new skips** are the 3 new live tests; they run only with `ATLAS_LIVE_MODAL=1`.
+- **The live suite** ran once again on real Modal: 11 of 11 passed (`review1-live-test-output.txt`,
+  `review1-live-sandboxes.json`).
+- **Modal time this round:** about 1.7 sandbox-minutes as Atlas measured it (14 executor sandboxes, 2 raw probes,
+  1 probe of how long a stopped sandbox stays listed). Nothing is left running: `sandboxes.list` returned 0.
+
+### A (MAJOR): this page named the wrong Modal backend
+- **Finding:** `sandboxes.create` in the SDK picks the V2 backend unless the machine's Modal config says otherwise.
+  So every live run was on V2, while this page said V1 ran and V2 was never tried. A host configured for V1 would
+  have run an untested backend.
+- **Fix:**
+  - Sandboxes are now made with `experimentalCreate` (V2) explicitly, whatever the machine's config says.
+  - Every run records `backend: "v2"` in its runtime (in the trace).
+  - V2 is also part of the executor's fingerprint.
+  - The Known limits line is corrected.
+- **Tests:**
+  - A mocked SDK: `experimentalCreate` is called and `create` never is.
+  - Each run's runtime says `v2`.
+  - Live: the control's runtime says `backend: "v2"`.
+
+### B (MAJOR): native code from npm loaded into the server process
+- **Finding:** pnpm installs `cbor-extract`'s prebuilt native binary with no install script, and the SDK loaded it
+  into the server. That is the process that holds the Meta key, the RPC URL and the Modal token. This page said
+  refusing the script prevented that.
+- **Fix:**
+  - Every load of the SDK goes through `loadModalSdk`, which first sets `CBOR_NATIVE_ACCELERATION_DISABLED=true`.
+    The CBOR library then uses plain JavaScript.
+  - The supply-chain paragraph above is corrected.
+- **Tests:**
+  - A fresh Node process loads the SDK through `loadModalSdk`. No `.node` file is in `require.cache`, and none is
+    in the process's loaded shared libraries.
+  - Control case: importing the SDK directly, without the switch, DOES load one on this machine. So the first
+    test is not passing by accident.
+  - Live: after the whole live suite, the test process has loaded no `.node` file.
+
+### C (MAJOR): nothing capped total Modal spend
+- **Finding:** the caps limited how many sandboxes run at once, not how many run in a day. One client keeping
+  4 sandboxes busy could cost about $16 a day.
+- **Fix:** a daily cap inside the executor, counted per UTC day.
+  - Sandbox starts: default 2,000 (`ATLAS_MODAL_MAX_SANDBOXES_PER_DAY`).
+  - Sandbox-seconds, from create to terminate as Atlas measures it: default 7,200, which is 2 hours
+    (`ATLAS_MODAL_MAX_SANDBOX_SECONDS_PER_DAY`).
+  - Past either cap, the exec is refused before any sandbox exists, with "Atlas's daily sandbox budget is used up
+    (… today); it resets at 00:00 UTC".
+  - The server turns that into "the run did not finish: …", so no verdict is recorded.
+  - **What the default costs at most:** 2 hours at the caps (1 core, 1 GiB) is about $0.33 a day, about $10 a month.
+  - **Still needed:** the real backstop is a budget limit on the Modal workspace. That is Dami's to set in Modal's
+    dashboard.
+- **Tests:**
+  - The start cap: refused, no sandbox made, the slot given back, and a new UTC day starts afresh.
+  - The seconds cap.
+  - Through the server: a 503 with the budget reason and no verdicts.
+  - The two env settings.
+
+### D (log only): the in-process key
+If Node's permission model were bypassed, pasted code could read the result key from its own memory
+(`/proc/self/mem`) and sign a fake result. The reviewer showed this by running Node WITHOUT its guard, as nobody,
+in a sandbox built like Atlas's: the key was found.
+- **What the container does protect:** escape and secrets (no network, no credentials).
+- **What it cannot protect:** memory inside one process, so it cannot protect the result's integrity.
+- **The real fix is outside E4:** run Atlas's measuring code in a different process from the pasted code.
+- Logged in Known limits, and the boundary sentence above now says so.
+
+### E (minor): Modal's internal text reached a person-facing reason
+- **Finding:** an out-of-memory run read "…(waiting on pid 10 … in sandbox "ta-…": urpc method
+  "containerManager.WaitPID" failed: EOF)".
+- **Fix:**
+  - `cleanModalText` drops Modal's own lines and masks its ids, in stderr and in every thrown reason.
+  - A run killed with exit 137 now says "the sandbox killed the code (exit 137), most likely because it used more
+    memory than the sandbox allows".
+- **Tests:** the cleaner on its own; an exit-137 run with Modal's real line on stderr; a thrown error carrying a
+  task id.
+- **Live:** a 2 GiB typed-array bomb was killed after 26 s and gave exactly that reason, with no Modal id or RPC
+  name.
+
+### F (minor): a sandbox that died was called "could not start"
+- **Fix:**
+  - If the command started and the sandbox then went away under it, the result now says `stopped`, in plain
+    words, instead of throwing.
+    - It counts as "went away" when Modal's error reads "shutting down", NOT_FOUND, terminated,
+      FAILED_PRECONDITION, EOF or UNAVAILABLE.
+    - The run becomes a whole-run "can't check": "the sandbox stopped while the code ran (…); this usually means the
+      code used more than the sandbox's 1024 MiB of memory".
+  - The retry runner shows the same reason.
+  - Any other error is still a failure of Modal itself.
+- **Tests:** a fake whose `wait()` rejects with Modal's shutting-down error, checked through the executor and
+  through the call runner (never "could not start"); a different error still throws.
+
+### G (minor): a failed stdin write was blamed on the code
+- **Fix:**
+  - A failed write of the run's input is remembered.
+  - If the run then hits the wall clock, the executor throws "Modal did not deliver the run's input (stdin): …"
+    instead of reporting `timedOut`. A timeout would have read "the code ran past Atlas's limit (it may loop)",
+    which is false: the code never loaded.
+- **Test:** a fake whose stdin write fails.
+
+### H (minor): `ATLAS_EXECUTOR` set but empty meant local
+- **Fix:** set but empty, or only spaces, now stops the server ("set but empty"). Unset still means local.
+- **Test:** `""`, `" "`, a tab and a newline each stop the server.
+
+### I (minor): stopped sandboxes stay listed, and the cost assumption was not checked
+- **Measured lag:** `terminate({ wait: true })` took **30.5 s** to confirm a stopped sandbox (exit 137). It
+  disappeared from `sandboxes.list` at 33 s.
+- **Is the lag billed? No.** Modal's billing report for this app (`workspace_billing_report`, hourly) shows:
+  - **21:00–22:00 UTC:** $0.0061, for about 62 sandboxes and about 410 sandbox-seconds as the clients measured
+    them (mine plus the reviewer's).
+  - **22:00–23:00 UTC:** $0.0022, for 17 sandboxes and about 100 sandbox-seconds (this round's live suite and probe).
+  - At the reserved rate (0.5 core + 0.5 GiB = $0.000023 a second), 100 s is $0.0023: the 22:00 bill matches
+    almost exactly.
+  - If the ~30 s lag were billed, the 17 sandboxes would add about 510 s (about $0.012), and the 22:00 bill would
+    be about $0.014. It is $0.0022.
+- **Corrected cost figure:** about **$0.0001 per sandbox** measured (the estimate was $0.00008 at the
+  reservation). With D31 a pasted run needs one sandbox on a warm server, so **about $0.0001–0.0002 per run**.
+- **Left as it is:**
+  - Atlas does not wait the 30 s for confirmation, because it would add 30 s to every run.
+  - So during a burst, Modal may show more stopped sandboxes than Atlas's 4-at-once count. They are not running
+    code and are not billed.
+
+### J (minor): two waits had no deadline
+- **Fix:**
+  - Starting the run command now has the startup deadline.
+  - Python's version is now read in EACH sandbox, alongside writing the files, under the same deadline. It used
+    to be read once, in the first sandbox, and shared. So one slow sandbox can no longer hold other runs, and a
+    run's recorded Python version is measured in its own sandbox.
+  - This adds no time: the check runs at the same time as the file write.
+- **Tests:** the run command never answers; the Python check never answers (both refused at the deadline, with
+  the sandbox terminated); Python is read once per sandbox.
+
+### K (minor): secret-scan gaps
+- **Fix:**
+  - A generic shape for any Modal token (`ak-…` / `as-…` with 20 or more letters and digits), so a token that is
+    not on this machine is caught too.
+  - Quoted TOML keys (`"token_secret" = "…"`) are read.
+- **Tests:** in `tests/unit/secret-scan.test.ts`: a quoted key with CRLF line endings; a foreign token's shape;
+  ordinary words such as "as-is" pass.
+- **Check:** all tracked files still pass the scan.
+
+### L (log only): `libatomic1` is not pinned
+Already in Known limits. The reviewer assessed the risk as low: apt checks Debian's signatures, Modal caches the
+image, and every exec refuses a Node other than v25.8.1.
+
+### M (log only): the 16 MiB cap counts differently on Modal and locally
+- **On Modal:** exactly 16 Mi UTF-16 characters are kept.
+- **Locally:** whole chunks are kept until the string passes that length.
+- **Effect:** output near the cap (for example 10 million "é") can be "can't check" on one executor and measured
+  on the other. It is never a wrong fact, only a difference in can't-check.
+- **Also:** once over the cap, both still read and drop the rest until the process ends.
+
+### D31 (Dami's decision): reuse a passed control for up to 10 minutes
+- **What it does:**
+  - `callControlFor` (`runners/ts/call-runner.ts`) reuses a call-function control that PASSED for up to 10
+    minutes, measured from when it finished.
+  - **The reuse key** is a hash of these, together:
+    - Atlas's measuring code: the harness and worker files the sandbox runs, the reference file and its known
+      answers;
+    - the executor kind;
+    - the executor's fingerprint: locally the Node version; on Modal the backend, the image digest and the Node
+      checksum.
+  - A control that did not pass, or that threw, is never kept. Two runs asking at once share one control run.
+  - A control made on one executor is refused for a run on another, so a run never claims `modal` when its
+    control ran locally.
+  - The TS runner uses it. When E3 adds pasted targets to the server, the server must use `callControlFor` too.
+- **What a proof file and the proof card show:**
+  - Each call-function run names the control it relied on in its `call_checks` trace event: `controlRunId` and
+    `controlFinishedAt`.
+  - `verify` checks that the control:
+    - is the run's own `controlRunId`;
+    - finished before the run started;
+    - finished at most 11 minutes before the run started (10 minutes of reuse plus 1 minute of slack).
+
+    Older files without these fields still verify.
+  - The proof card reads "known-case check of Atlas's measuring code matched at <time> (control run <id>), N s
+    before this run".
+- **Tests:**
+  - Reused within 10 minutes with no new sandbox, and run again after.
+  - The key changes with the executor and with the image.
+  - Concurrent asks share one run.
+  - A failed control and a thrown one are never reused.
+  - A `.atlas.json` that relied on a reused control verifies, and the proof-card line says when the control
+    matched.
+  - Moving the control's time after the run starts, or 12 minutes before it, or naming another control, each
+    fails verify.
+  - Live: the second ask reused the first control with no new sandbox.
+- **What it changes for the demo:** after the warm-up, a pasted run needs ONE sandbox: about 3.5–4.5 s warm,
+  instead of 7–9 s.
+
+### D32 (Dami's decision): warm Modal at server start
+- **What it does:**
+  - With `ATLAS_EXECUTOR=modal`, `server/index.ts` calls `warmUp` (`runners/executor/warm.ts`) once, after it
+    starts listening. It does not wait for it.
+  - `warmUp` runs the call-function control in one sandbox. That loads the SDK, checks Modal is reachable, and
+    fills D31's reuse slot.
+  - It logs one line, either "Modal warm-up: Modal is reachable; the known-case check passed in a sandbox in N ms
+    and is reused for 10 minutes", or the failure with its reason.
+  - Its promise never rejects, so a failure cannot stop the server. The first real run simply tries Modal again.
+  - With the local executor it does nothing.
+- **Tests:**
+  - The warm-up makes one sandbox, and the next control reuses it.
+  - A failed warm-up is one log line and resolves.
+  - The local executor is never warmed.
+- **Not tested end to end:** a real server start on Modal. The unit tests call `warmUp` directly, and the live
+  suite covers the control it runs.
+
+### Not done in this round
+- The Modal workspace budget limit (Dami's dashboard).
+- Running the measuring code in a separate process from the pasted code (D's real fix).
+- Pinning `libatomic1` (L).
+- Making the output cap count the same way on both executors (M).
+- A V1 live test: V1 is no longer used.
+- No second reviewer has looked at these fixes yet.
