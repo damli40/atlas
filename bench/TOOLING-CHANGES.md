@@ -58,3 +58,10 @@ in the same commit. `tests/unit/bench-order.test.ts` checks this. Earlier entrie
 
 - `bench/models/run.ts`: if Atlas cannot start a test's run, the bets stay in the result and are "not checkable" with
   the reason, instead of the whole live run ending with nothing written.
+
+## 2026-10-28: bench M records "dirty" at the start of the live run
+
+- `bench/models/run.ts`: the working-tree check is recorded at the start (when the run refuses a dirty tree), not at
+  the end, when the run's own usage log in `results/` makes git report changes. The first live result
+  (`results/2026-10-28.json`) recorded `dirty: true` for that reason only; the order test names it, and its tooling
+  hashes are checked as for any result.

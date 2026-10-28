@@ -408,7 +408,9 @@ async function main(): Promise<void> {
     return;
   }
 
-  if (execFileSync("git", ["status", "--porcelain"], { cwd: ROOT, encoding: "utf8" }).trim() !== "") throw new Error("the working tree has uncommitted changes; a live run must be produced by committed files; no model was called");
+  // Checked at the start: the run then writes its own usage log into results/, which is not a change to the tooling.
+  const dirtyAtStart = execFileSync("git", ["status", "--porcelain"], { cwd: ROOT, encoding: "utf8" }).trim() !== "";
+  if (dirtyAtStart) throw new Error("the working tree has uncommitted changes; a live run must be produced by committed files; no model was called");
   // --live: the prompt freeze, then the real clients (loaded only here, so a dry run never touches them).
   const frozen = latestCommittedDryRun();
   if (!frozen) throw new Error("no committed dry run to compare prompts with; run --dry-run and commit it first");
@@ -439,7 +441,7 @@ async function main(): Promise<void> {
   const summary = tally(res.rows);
   const { REGISTRATIONS, contentHash, toolingHashes, workingFiles } = await import("../lib/registration.ts");
   const reg = REGISTRATIONS.find((r) => r.name === "models")!;
-  const out = { meta: { bench: "models", date, corpusSha256, corpusPath: reg.corpus, registrationSha256: contentHash(workingFiles(ROOT, reg.prereg)), tooling: { ...toolingHashes(ROOT), ...Object.fromEntries(workingFiles(ROOT, ["bench/models/run.ts", "bench/models/validate.ts"]).map((f) => [f.path, f.sha256])) }, dirty: execFileSync("git", ["status", "--porcelain"], { cwd: ROOT, encoding: "utf8" }).trim() !== "", builder: builder.name, validator: productTakesJson ? "product (E3)" : "bench/models/validate.ts", models, dryRun: frozen.file, testsPlanned: plan.length, testsDone: res.tests.length, partial: res.tests.length < plan.length, spentUsd: res.spentUsd, ...(res.stoppedBecause ? { stoppedBecause: res.stoppedBecause } : {}) }, summary, rates: Object.fromEntries(Object.entries(summary).map(([m, byType]) => [m, Object.fromEntries(Object.entries(byType).map(([k, t]) => [k, rates(t)]))])), tests: res.tests };
+  const out = { meta: { bench: "models", date, corpusSha256, corpusPath: reg.corpus, registrationSha256: contentHash(workingFiles(ROOT, reg.prereg)), tooling: { ...toolingHashes(ROOT), ...Object.fromEntries(workingFiles(ROOT, ["bench/models/run.ts", "bench/models/validate.ts"]).map((f) => [f.path, f.sha256])) }, dirty: dirtyAtStart, builder: builder.name, validator: productTakesJson ? "product (E3)" : "bench/models/validate.ts", models, dryRun: frozen.file, testsPlanned: plan.length, testsDone: res.tests.length, partial: res.tests.length < plan.length, spentUsd: res.spentUsd, ...(res.stoppedBecause ? { stoppedBecause: res.stoppedBecause } : {}) }, summary, rates: Object.fromEntries(Object.entries(summary).map(([m, byType]) => [m, Object.fromEntries(Object.entries(byType).map(([k, t]) => [k, rates(t)]))])), tests: res.tests };
   writeFileSync(join(resultsDir, `${date}.json`), JSON.stringify(out, null, 2) + "\n");
   writeFileSync(join(resultsDir, `${date}.md`), renderMarkdown(out.meta, summary, res.rows));
   process.stdout.write(`wrote bench/models/results/${date}.json and .md; spent $${res.spentUsd}\n`);
