@@ -12,6 +12,8 @@ import { CLAIMANT_HEADER, DEFAULT_CLAIMANT_MODE, type ClaimantMode, type Claiman
 
 export type { ClaimantMode, ClaimantsInfo };
 import type { AdversaryAnswer } from "../server/app";
+import type { OutlineAtlasFile } from "../src/outline/types";
+import type { OutlineView } from "./machines/explorer/outline-data";
 
 export type { ModelSlotView, SealedOnly, FalseAlarmRow, ChangeAnswer, AdversaryAnswer };
 
@@ -102,6 +104,21 @@ export interface ProposalsAnswer {
   claimHeld?: boolean;
   usage?: { promptTokens: number; completionTokens: number; usd: number } | null;
 }
+
+/** X1/X2: an outline job's status (GET /outline/jobs/:id). */
+export interface OutlineJob {
+  jobId: string;
+  status: "reading" | "mapping" | "asking-wonder" | "checking" | "done" | "failed";
+  what: string;
+  createdAt: string;
+  error?: string;
+  codeSha256?: string;
+  files?: number;
+  skipped?: number;
+  counts?: { confirmedParts: number; unconfirmedParts: number; confirmedJoins: number; modelOnlyJoins: number; codeOnlyJoins: number } | null;
+  wonderFailure?: string;
+}
+export type OutlineRequest = { repo: string; ref?: string; subfolder?: string } | { files: { path: string; text: string }[] };
 
 const SESSION_HEADER = "x-atlas-session";
 
@@ -267,6 +284,13 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
       post<ExperimentAnswer>("/experiments", { target: { ref: target.ref, codeSha256: target.codeSha256 }, proposalId }),
     /** E3: Muse Wonder's sentence, once the person's bets on this experiment are sealed. */
     claim: (experimentId: string) => post<{ model: string; display: string; claim: string }>("/paste/claim", { experimentId }),
+    /** X1/X2: start an outline job on a GitHub folder or uploaded files (202, then poll outlineJob). */
+    startOutline: (req: OutlineRequest) => post<OutlineJob>("/outline/jobs", req),
+    outlineJob: (jobId: string) => get<OutlineJob>(`/outline/jobs/${encodeURIComponent(jobId)}`),
+    /** X2: the verified outline, the code map and the file list (no code text). */
+    outline: (jobId: string) => get<OutlineView>(`/outline/jobs/${encodeURIComponent(jobId)}/outline`),
+    /** X2: the outline-only .atlas.json, which holds the files' text (the "Bet on this part" hand-off reads one file from it). */
+    outlineAtlas: (jobId: string) => get<OutlineAtlasFile>(`/outline/jobs/${encodeURIComponent(jobId)}/atlas`),
     /** D06-01: Muse Code proposes a change toward the bets; the same experiment re-runs; the same bets are judged. */
     change: (runId: string) => post<ChangeAnswer>("/changes", { runId }),
     /** D07-02: "what else?": the Adversary proposes one more experiment; Atlas runs it with no click. */

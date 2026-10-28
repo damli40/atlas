@@ -9,7 +9,7 @@
 // - Nothing from a run is drawn or shown as a number when src/trust.ts says it may not be shown as fact.
 // Every sentence comes from src/paste-words.ts.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Question } from "../../src/gate";
 import { CALL_OUTCOME_OPTIONS, measuredUnit } from "../../src/units";
 import { notShownAsFact } from "../../src/trust";
@@ -25,10 +25,11 @@ import { ProofLink } from "./ProofCard";
 import { CallTimeline } from "../machines/calltimeline/CallTimeline";
 import { TestForm, emptyForm, formFromParams, type TestFormState } from "./TestForm";
 import { PASTE_EXAMPLE } from "../paste-example";
+import type { BetHandoff } from "./Explorer";
 
 type LangChoice = "auto" | "js" | "ts" | "py";
 
-export function PasteFlow({ api, onRoundOpen }: { api: Api; onRoundOpen?: (open: boolean) => void }) {
+export function PasteFlow({ api, onRoundOpen, handoff = null }: { api: Api; onRoundOpen?: (open: boolean) => void; handoff?: BetHandoff | null }) {
   const [code, setCode] = useState("");
   const [langChoice, setLangChoice] = useState<LangChoice>("auto");
   const [languages, setLanguages] = useState<PasteLanguage[] | null>(null);
@@ -76,6 +77,44 @@ export function PasteFlow({ api, onRoundOpen }: { api: Api; onRoundOpen?: (open:
       setBusy(false);
     }
   };
+  // X2: "Bet on this part" from the explorer. The file and the function arrive here and go through exactly the
+  // same steps as a paste: POST /paste reads the file (its own export scan decides), the person still picks a test,
+  // the gate checks it, the bets are sealed as always. Only the paste box and the function choice are filled in.
+  const [from, setFrom] = useState<{ where: string; exportName: string; found: boolean } | null>(null);
+  // One POST /paste per hand-off, even when React runs the effect twice (development mode): the nonce is remembered,
+  // and an answer is used only while its hand-off is still the latest.
+  const handled = useRef<number | null>(null);
+  useEffect(() => {
+    if (!handoff || handled.current === handoff.nonce) return;
+    const nonce = handoff.nonce;
+    handled.current = nonce;
+    setCode(handoff.code);
+    setLangChoice(handoff.language);
+    setPasted(null);
+    setExportName(null);
+    setProposals(null);
+    setForm(null);
+    setRefused(null);
+    setFrom({ where: handoff.from, exportName: handoff.exportName, found: false });
+    setBusy(true);
+    setError(null);
+    api.paste(handoff.code, handoff.language).then(
+      (r) => {
+        if (handled.current !== nonce) return;
+        setPasted(r);
+        const found = r.exports.some((e) => e.name === handoff.exportName);
+        if (found) setExportName(handoff.exportName);
+        setFrom({ where: handoff.from, exportName: handoff.exportName, found });
+        setBusy(false);
+      },
+      (e: Error) => {
+        if (handled.current !== nonce) return;
+        setError(e.message);
+        setBusy(false);
+      },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handoff?.nonce]);
   const locked = exp !== null;
   const target = pasted?.runnable ? pasted.target : null;
 
@@ -223,6 +262,12 @@ export function PasteFlow({ api, onRoundOpen }: { api: Api; onRoundOpen?: (open:
             </button>
           )}
         </div>
+        {from && (
+          <p className="small" data-testid="paste-from-explorer">
+            {`From the explorer: ${from.where}, function ${from.exportName}.`}
+            {pasted && !from.found ? ` The paste reader found no export named ${from.exportName} in this file, so pick one below.` : ""}
+          </p>
+        )}
         {privacy && (
           <p className="muted small" data-testid="paste-privacy">
             {privacy}
