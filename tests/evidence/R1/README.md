@@ -496,3 +496,30 @@ Fixes are in `1630151` (code), `7dfda8c` and `dd6aef6` (tests).
 - **The double run doubles the worst-case wait.** A pasted test that hits Atlas's 10 s real-time limit now takes up to
   about 20 s before its "can't check".
 - **Bench M** still needs a new dry run: the bettor text changed in round 1, and the pins line is now also on the page.
+
+
+---
+
+## After the rebase onto main `878deeb` (X1 + G1), 2026-10-28
+
+- **Rebased non-interactively** (`git rebase 878deeb`). Two kinds of conflict, both resolved by keeping both sides:
+  - `src/types.ts`: X1's `OutlineSection` import and R1's `RunCondition` import;
+  - this index (`tests/evidence/README.md`): main's X1 and G1 rows, plus the newest R1 row.
+
+  G1's changes to `server/index.ts`, `server/meta/budget.ts` and the bet `maxTokens` merged without a conflict.
+  Main's new dependency (`typescript-api`) was installed (`pnpm install --frozen-lockfile`).
+- **G1 meters both runs of the double run.** G1's `meteredExecutor` holds and settles once per sandbox `exec`, so the
+  second sandbox of a pasted test counts against the per-code Modal starts and sandbox-seconds like any other.
+  Test: one pasted JavaScript test is **2** Modal starts (the D31 control, when it runs, is one more).
+  The double run's two sandboxes run one after the other, so one paste never holds G1's "2 at once" per code.
+  **What it means for a dev code:** its daily Modal share (150 starts) now covers about 75 pasted tests, not 150.
+- **A gap closed (G1's, made bigger by the double run).** On a local server, Python runs went straight to macOS
+  sandbox-exec (`pythonExecutorFor`) and around G1's ledger. The metered executor now carries a metered Python
+  executor (`Executor.python`), and `pythonExecutorFor` uses it. Test: a local Python run with no invite code is
+  refused. On Modal, Python already used the metered executor. The Modal executor itself was not changed, so the live
+  Modal suites were not re-run.
+- **Counts:** full suite 3×: **1,520 passed, 35 skipped, 0 failed** (`full-suite-rebase.txt`). tsc is clean (checked
+  after a type-only fix to the new test, which vitest does not type-check).
+- **Commits after the rebase:** `54d08ab` (the renumbering), `6e3b8f5`, `c5efa60`, `dc42aca`, `a3f8c7b` (round 2),
+  `8aec461` (G1 metering). The earlier R1 commits were rebased too, so their hashes changed; the tag
+  `r1-before-rebase` marks the old head.

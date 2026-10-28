@@ -51,7 +51,7 @@ describe("G1 meters both runs of a pasted test", () => {
 
   it("locally: the metered executor carries a metered Python executor, and pythonExecutorFor uses it", () => {
     const { ledger } = setup();
-    const ex = meteredExecutor({ kind: "local", exec: localExecutor.exec }, ledger, pythonSandboxExecutor);
+    const ex = meteredExecutor<Executor>({ kind: "local", exec: localExecutor.exec }, ledger, pythonSandboxExecutor);
     expect(ex.python).toBeDefined();
     expect(pythonExecutorFor(ex)).toBe(ex.python);
     expect(pythonExecutorFor({ kind: "local", exec: localExecutor.exec })).toBe(pythonSandboxExecutor); // unmetered callers unchanged
@@ -59,7 +59,7 @@ describe("G1 meters both runs of a pasted test", () => {
 
   it.skipIf(!HAVE_PYTHON)("locally: a Python run with no invite code is refused by the ledger (before G1+R1 it went around it)", async () => {
     const { ledger, me } = setup();
-    const ex = meteredExecutor({ kind: "local", exec: localExecutor.exec }, ledger, pythonSandboxExecutor);
+    const ex = meteredExecutor<Executor>({ kind: "local", exec: localExecutor.exec }, ledger, pythonSandboxExecutor);
     const py = pythonExecutorFor(ex);
     const ctl = await runAs(me, () => runPyCallControl({ executor: py }));
     expect(ctl.run.controlPassed).toBe(true);
