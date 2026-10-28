@@ -1,0 +1,51 @@
+
+ RUN  v5.0.5 <repo>
+
+ ✓ tests/unit/x3-track-record.test.ts > X3 track record: plain code over sealed bets and verdicts > groups every measured field into the five question types (and nothing else) 1ms
+ ✓ tests/unit/x3-track-record.test.ts > X3 track record: plain code over sealed bets and verdicts > keeps only the person's bets whose seal verifies, with the verdict's outcome; repeats are kept but marked; numbers say lower or higher 5ms
+ ✓ tests/unit/x3-track-record.test.ts > X3 track record: plain code over sealed bets and verdicts > counts matched / didn't match / can't check with n, leaves repeats out and says how many 0ms
+ ✓ tests/unit/x3-track-record.test.ts > X3 track record: plain code over sealed bets and verdicts > never a percentage with n < 5; at n ≥ 5 the percentage always comes with n 0ms
+ ✓ tests/unit/x3-track-record.test.ts > X3 track record: plain code over sealed bets and verdicts > the record before a round is the entries before that round's first entry (null when the round is not in it) 0ms
+ ✓ tests/unit/x3-track-record.test.ts > X3 track record: plain code over sealed bets and verdicts > the weak-spot summary is question types and counts only; null when nothing didn't match 0ms
+ ✓ tests/unit/x3-track-record.test.ts > X3 track record: plain code over sealed bets and verdicts > wording (D27): never learn, teach, score, skill, right or wrong, in any sentence the record or panel can show 1ms
+ ✓ tests/unit/x3-track-record.test.ts > X3 track store: one file per person, on disk, survives a restart, never code > a new store on the same folder reads the same record (a restart); files 600, folder 700; the file name and body hold no raw id 3ms
+ ✓ tests/unit/x3-track-record.test.ts > X3 track store: one file per person, on disk, survives a restart, never code > a hand-edited file cannot slip code in: only entries of exactly the server's shape are read 1ms
+ ✓ tests/unit/x3-track-record.test.ts > X3 track store: one file per person, on disk, survives a restart, never code > caps: people beyond the limit drop the one written longest ago; entries per person keep the newest 3ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 failure labels: the curated list and its markers > the curated list: every kind has failures; every marker has its rule in words 2ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 failure labels: the curated list and its markers > comments and strings are blanked before any check (lengths and line breaks kept) 1ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 failure labels: the curated list and its markers > the paste screen's retry example: no deadline → 'no overall timeout' found in its loop lines; it waits, so 'retry storm' is only a common pattern 4ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 failure labels: the curated list and its markers > a deadline in the code turns the marker off; a deadline only in a comment or a string does not 1ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 failure labels: the curated list and its markers > Python: a loop that catches and tries again with no wait → retry storm and no overall timeout found 1ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 failure labels: the curated list and its markers > concurrency: race and lost update markers 0ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 failure labels: the curated list and its markers > queue: an ack after the work and no duplicate check → duplicate delivery found; with a messageId check, common 0ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 failure labels: the curated list and its markers > db writes: two writes and no transaction → partial commit found; inside a transaction, common 0ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 failure labels: the curated list and its markers > time: wall-clock durations and local-time methods; a time-zone-aware Python call is not a marker 0ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 failure labels: the curated list and its markers > plain code with none of the kinds: no labels at all 0ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 failure labels: the curated list and its markers > Wonder's tag can list a kind, never decide a label: a tagged kind with no marker is only a common pattern 0ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 failure labels: the curated list and its markers > never 'found in this code' without its marker's lines, on every snippet above and more 1ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 failure labels from sealed runs > a run where a stand-in never answers and the function never settles → reproduced, linked to that run 0ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 failure labels from sealed runs > the run came back can't check → inconclusive (control failed, whole run can't check, or the fact not measured) 0ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 failure labels from sealed runs > a run that set it up and measured that it did not happen keeps the code's label, with a note 0ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 failure labels from sealed runs > any run that showed it wins; otherwise the newest run that tried it decides 0ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 failure labels from sealed runs > retry storm: a stand-in that fails every time called 20+ times → reproduced; fewer → not shown 0ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 failure labels from sealed runs > a test that does not set the failure up is never evidence 0ms
+ ✓ tests/unit/x3-server.test.ts > X3 (D27) track record on the server > a judged round goes into this browser's record: matched / didn't match by type, with n; the run answer has before and after 704ms
+ ✓ tests/unit/x3-server.test.ts > X3 (D27) track record on the server > a repeat of a test already run is left out and counted as left out 897ms
+ ✓ tests/unit/x3-server.test.ts > X3 (D27) track record on the server > who the person is: the same browser across sessions; another browser starts empty; no browser id → the session; an invite code → the code 879ms
+ ✓ tests/unit/x3-server.test.ts > X3 (D27) track record on the server > on disk: survives a restart (a new app on the same folder), and the folder holds no code, no session id and no browser id 427ms
+ ✓ tests/unit/x3-ui.test.tsx > X3 UI: the track record panel > shows matched / didn't match / can't check with n by type, the repeats left out, and none of the banned words 16ms
+ ✓ tests/unit/x3-ui.test.tsx > X3 UI: the track record panel > the proof card's 'your record before this round' appears only when the server knows the round as this person's 10ms
+ ✓ tests/unit/x3-ui.test.tsx > X3 UI: the track record panel > an empty record says so in plain words 4ms
+ ✓ tests/unit/x3-ui.test.tsx > X3 UI: failure labels > 'found in this code' links to its lines shown right there; 'reproduced' links to the proof card; 'common pattern' names no lines 21ms
+ ✓ tests/unit/x3-ui.test.tsx > X3 UI: failure labels > an explorer part's card shows its labels (Wonder's tag named as Wonder's) 3027ms
+ ✓ tests/unit/x3-server.test.ts > X3 (D27) Wonder aims at weak spots; the bettors' text does not change (D19) > Muse Wonder's prompt gets the types and counts where this person's bets didn't match, never the earlier code; a person with no record gets the prompt as before 449ms
+ ✓ tests/unit/x3-server.test.ts > X3 (D27) Wonder aims at weak spots; the bettors' text does not change (D19) > the bet screen's text and every betting model's prompt are byte-identical with and without a track record 3ms
+ ✓ tests/unit/x3-server.test.ts > X3 (D28) labels on the server > a pasted retry with no deadline: 'found in this code' with its lines → a sealed never-answers run → 'reproduced', linked to its proof card 402ms
+ ✓ tests/unit/x3-server.test.ts > X3 (D28) labels on the server > a run that comes back can't check makes the label 'inconclusive' 8ms
+ ✓ tests/unit/x3-server.test.ts > X3 (D28) labels on the server > an explorer part: Wonder's tag lists the kind, plain code decides; after a round on the part's function the label is 'reproduced' 1196ms
+
+ Test Files  4 passed (4)
+      Tests  42 passed (42)
+   Start at  14:23:56
+   Duration  5.57s (tests 82%, import 15%, transform 3%)
+

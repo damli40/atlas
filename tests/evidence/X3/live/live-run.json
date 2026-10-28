@@ -1,0 +1,429 @@
+{
+  "code": "// Retry a call until it works or the tries run out.\nexport async function withRetry(call: () => Promise<unknown>, tries: number = 3) {\n  let lastError: unknown;\n  for (let i = 0; i < tries; i++) {\n    try {\n      return await call();\n    } catch (e) {\n      lastError = e;\n      await new Promise((r) => setTimeout(r, 200));\n    }\n  }\n  throw lastError;\n}\n",
+  "labelsBefore": {
+    "labels": [
+      {
+        "kind": "retry",
+        "kindName": "retry",
+        "kindBy": {
+          "plainCode": {
+            "sign": "a loop whose body catches an error (catch / except), so it goes round again after a failure",
+            "at": {
+              "path": "pasted",
+              "lineStart": 4,
+              "lineEnd": 11
+            }
+          }
+        },
+        "failure": "retry-storm",
+        "name": "retry storm",
+        "says": "Tries again at once, or without a cap, so a provider that is struggling gets hit harder.",
+        "markerRule": "a loop that catches an error and goes round again with no wait in the loop: no sleep, setTimeout, delay, wait or backoff call between the catch and the next try",
+        "label": "common pattern",
+        "why": "Only Atlas's list says this kind of code often fails this way. Plain code did not see it in these lines."
+      },
+      {
+        "kind": "retry",
+        "kindName": "retry",
+        "kindBy": {
+          "plainCode": {
+            "sign": "a loop whose body catches an error (catch / except), so it goes round again after a failure",
+            "at": {
+              "path": "pasted",
+              "lineStart": 4,
+              "lineEnd": 11
+            }
+          }
+        },
+        "failure": "duplicate-side-effect",
+        "name": "duplicate side effect",
+        "says": "A call that already did its work (charged, sent, wrote) but then failed is done again on the retry.",
+        "markerRule": null,
+        "label": "common pattern",
+        "why": "Only Atlas's list says this kind of code often fails this way. Plain code did not see it in these lines."
+      },
+      {
+        "kind": "retry",
+        "kindName": "retry",
+        "kindBy": {
+          "plainCode": {
+            "sign": "a loop whose body catches an error (catch / except), so it goes round again after a failure",
+            "at": {
+              "path": "pasted",
+              "lineStart": 4,
+              "lineEnd": 11
+            }
+          }
+        },
+        "failure": "no-overall-timeout",
+        "name": "no overall timeout",
+        "says": "The retries have no deadline as a whole, so a call that never answers holds the caller forever.",
+        "markerRule": "a loop that catches an error and goes round again, and nowhere in these lines a deadline: no timeout or deadline name, AbortSignal or AbortController, Promise.race, asyncio.wait_for, or clock read (Date.now, performance.now, time.time, time.monotonic)",
+        "label": "found in this code",
+        "why": "Plain code saw it in these lines: a loop that catches an error and goes round again, and nowhere in these lines a deadline: no timeout or deadline name, AbortSignal or AbortController, Promise.race, asyncio.wait_for, or clock read (Date.now, performance.now, time.time, time.monotonic).",
+        "lines": [
+          {
+            "path": "pasted",
+            "lineStart": 4,
+            "lineEnd": 11
+          }
+        ],
+        "excerpt": [
+          {
+            "path": "pasted",
+            "line": 4,
+            "text": "  for (let i = 0; i < tries; i++) {"
+          },
+          {
+            "path": "pasted",
+            "line": 5,
+            "text": "    try {"
+          },
+          {
+            "path": "pasted",
+            "line": 6,
+            "text": "      return await call();"
+          },
+          {
+            "path": "pasted",
+            "line": 7,
+            "text": "    } catch (e) {"
+          },
+          {
+            "path": "pasted",
+            "line": 8,
+            "text": "      lastError = e;"
+          },
+          {
+            "path": "pasted",
+            "line": 9,
+            "text": "      await new Promise((r) => setTimeout(r, 200));"
+          },
+          {
+            "path": "pasted",
+            "line": 10,
+            "text": "    }"
+          },
+          {
+            "path": "pasted",
+            "line": 11,
+            "text": "  }"
+          }
+        ]
+      }
+    ],
+    "checked": [
+      "retry",
+      "rpc-call",
+      "concurrency",
+      "queue",
+      "db-write",
+      "time"
+    ],
+    "read": "pasted lines 2–13",
+    "exportName": "withRetry"
+  },
+  "round1": {
+    "measured": {
+      "outcome": "returned",
+      "virtualMs": 200,
+      "returnedType": "string",
+      "returnedJson": "\"ok\"",
+      "calls:call": 2
+    },
+    "track": {
+      "person": "browser",
+      "before": {
+        "lines": [],
+        "counted": 0,
+        "excludedRepeats": 0,
+        "rounds": 0
+      },
+      "after": {
+        "lines": [
+          {
+            "type": "outcome",
+            "n": 1,
+            "matched": 0,
+            "notMatched": 1,
+            "cantCheck": 0,
+            "under": 0,
+            "over": 0
+          },
+          {
+            "type": "timing",
+            "n": 1,
+            "matched": 0,
+            "notMatched": 1,
+            "cantCheck": 0,
+            "under": 0,
+            "over": 1
+          },
+          {
+            "type": "call counts",
+            "n": 1,
+            "matched": 0,
+            "notMatched": 1,
+            "cantCheck": 0,
+            "under": 1,
+            "over": 0
+          }
+        ],
+        "counted": 3,
+        "excludedRepeats": 0,
+        "rounds": 1
+      }
+    }
+  },
+  "proposals": {
+    "ok": true,
+    "model": "muse-wonder-1.0",
+    "display": "Muse Wonder 1.0 (muse-wonder-1.0)",
+    "setId": "ps_LH3WLlCKio",
+    "proposals": [
+      {
+        "id": "nvQqh97zjv",
+        "attempt": 1,
+        "params": {
+          "shape": "call-function",
+          "exportName": "withRetry",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "call",
+              "async": true,
+              "calls": [
+                {
+                  "do": "throw",
+                  "errorName": "Error",
+                  "message": "boom"
+                }
+              ],
+              "then": "repeat_last"
+            },
+            {
+              "kind": "json",
+              "value": 3
+            }
+          ]
+        },
+        "gate": {
+          "allowed": true
+        },
+        "says": "Atlas calls withRetry(call, 3). call (async) throws Error (\"boom\") on call 1; every later call throws Error (\"boom\") too."
+      },
+      {
+        "id": "0eJyEDLF9p",
+        "attempt": 1,
+        "params": {
+          "shape": "call-function",
+          "exportName": "withRetry",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "call",
+              "async": true,
+              "calls": [
+                {
+                  "do": "return",
+                  "value": "ok"
+                }
+              ],
+              "then": "repeat_last"
+            },
+            {
+              "kind": "json",
+              "value": 0
+            }
+          ]
+        },
+        "gate": {
+          "allowed": true
+        },
+        "says": "Atlas calls withRetry(call, 0). call (async) returns \"ok\" on call 1; every later call returns \"ok\" too."
+      },
+      {
+        "id": "KVnNxsyK0n",
+        "attempt": 1,
+        "params": {
+          "shape": "call-function",
+          "exportName": "withRetry",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "call",
+              "async": true,
+              "calls": [
+                {
+                  "do": "throw",
+                  "errorName": "Error",
+                  "message": "boom"
+                }
+              ],
+              "then": "repeat_last"
+            },
+            {
+              "kind": "json",
+              "value": 2.5
+            }
+          ]
+        },
+        "gate": {
+          "allowed": true
+        },
+        "says": "Atlas calls withRetry(call, 2.5). call (async) throws Error (\"boom\") on call 1; every later call throws Error (\"boom\") too."
+      }
+    ],
+    "claimHeld": true,
+    "usage": {
+      "promptTokens": 852,
+      "completionTokens": 1135,
+      "reasoningTokens": 841,
+      "usd": 0.026108
+    },
+    "aimedAt": "In this person's earlier rounds, their sealed bets most often did not match what the code did on these kinds of question: outcome (1 of 1 didn't match); timing (1 of 1 didn't match; guessed lower than the run 0, higher 1); call counts (1 of 1 didn't match; guessed lower than the run 1, higher 0). Counted by plain code from their own bets; it says nothing about this code. Where it fits this function, prefer tests whose answers turn on those questions."
+  },
+  "wonderPromptHasSummary": true,
+  "round2": {
+    "usedWonder": false,
+    "measured": {
+      "outcome": "never_settled",
+      "calls:call": 1
+    },
+    "runId": "h6YOQJsMos",
+    "proof": {
+      "ok": true,
+      "runId": "h6YOQJsMos",
+      "captions": [
+        "pasted code, run once in Atlas's sandbox on a virtual clock that starts at 2026-01-01T00:00:00Z"
+      ],
+      "published": false
+    }
+  },
+  "labelsAfter": {
+    "labels": [
+      {
+        "kind": "retry",
+        "kindName": "retry",
+        "kindBy": {
+          "plainCode": {
+            "sign": "a loop whose body catches an error (catch / except), so it goes round again after a failure",
+            "at": {
+              "path": "pasted",
+              "lineStart": 4,
+              "lineEnd": 11
+            }
+          }
+        },
+        "failure": "retry-storm",
+        "name": "retry storm",
+        "says": "Tries again at once, or without a cap, so a provider that is struggling gets hit harder.",
+        "markerRule": "a loop that catches an error and goes round again with no wait in the loop: no sleep, setTimeout, delay, wait or backoff call between the catch and the next try",
+        "label": "common pattern",
+        "why": "Only Atlas's list says this kind of code often fails this way. Plain code did not see it in these lines."
+      },
+      {
+        "kind": "retry",
+        "kindName": "retry",
+        "kindBy": {
+          "plainCode": {
+            "sign": "a loop whose body catches an error (catch / except), so it goes round again after a failure",
+            "at": {
+              "path": "pasted",
+              "lineStart": 4,
+              "lineEnd": 11
+            }
+          }
+        },
+        "failure": "duplicate-side-effect",
+        "name": "duplicate side effect",
+        "says": "A call that already did its work (charged, sent, wrote) but then failed is done again on the retry.",
+        "markerRule": null,
+        "label": "common pattern",
+        "why": "Only Atlas's list says this kind of code often fails this way. Plain code did not see it in these lines."
+      },
+      {
+        "kind": "retry",
+        "kindName": "retry",
+        "kindBy": {
+          "plainCode": {
+            "sign": "a loop whose body catches an error (catch / except), so it goes round again after a failure",
+            "at": {
+              "path": "pasted",
+              "lineStart": 4,
+              "lineEnd": 11
+            }
+          }
+        },
+        "failure": "no-overall-timeout",
+        "name": "no overall timeout",
+        "says": "The retries have no deadline as a whole, so a call that never answers holds the caller forever.",
+        "markerRule": "a loop that catches an error and goes round again, and nowhere in these lines a deadline: no timeout or deadline name, AbortSignal or AbortController, Promise.race, asyncio.wait_for, or clock read (Date.now, performance.now, time.time, time.monotonic)",
+        "label": "reproduced",
+        "why": "A sealed Atlas run (h6YOQJsMos) showed it: a stand-in never answered and the function never settled (outcome never_settled).",
+        "runId": "h6YOQJsMos",
+        "lines": [
+          {
+            "path": "pasted",
+            "lineStart": 4,
+            "lineEnd": 11
+          }
+        ],
+        "excerpt": [
+          {
+            "path": "pasted",
+            "line": 4,
+            "text": "  for (let i = 0; i < tries; i++) {"
+          },
+          {
+            "path": "pasted",
+            "line": 5,
+            "text": "    try {"
+          },
+          {
+            "path": "pasted",
+            "line": 6,
+            "text": "      return await call();"
+          },
+          {
+            "path": "pasted",
+            "line": 7,
+            "text": "    } catch (e) {"
+          },
+          {
+            "path": "pasted",
+            "line": 8,
+            "text": "      lastError = e;"
+          },
+          {
+            "path": "pasted",
+            "line": 9,
+            "text": "      await new Promise((r) => setTimeout(r, 200));"
+          },
+          {
+            "path": "pasted",
+            "line": 10,
+            "text": "    }"
+          },
+          {
+            "path": "pasted",
+            "line": 11,
+            "text": "  }"
+          }
+        ]
+      }
+    ],
+    "checked": [
+      "retry",
+      "rpc-call",
+      "concurrency",
+      "queue",
+      "db-write",
+      "time"
+    ],
+    "read": "pasted lines 2–13",
+    "exportName": "withRetry"
+  },
+  "proofStatus": 200,
+  "spentUsd": 0.08915999999999999
+}

@@ -1,0 +1,26 @@
+(console of X3_LIVE=1 pnpm exec tsx tests/evidence/X3/live-run.ts, 2026-10-28 13:13 UTC; copied from the terminal because the tee folder did not exist yet)
+labels before any run: found in this code [{"path":"pasted","lineStart":4,"lineEnd":11}]
+round 47XeY6glZJ: run _z4U4-rz_o {"outcome":"returned","virtualMs":200,"returnedType":"string","returnedJson":"\"ok\"","calls:call":2}
+  human outcome: threw → not_matched
+  human virtualMs: 500 ms → not_matched
+  human calls:call: 1 → not_matched
+  model:muse-spark-1.3 outcome: returned → matched
+  model:muse-spark-1.3 returnedJson: "ok" → matched
+  model:muse-spark-1.3 virtualMs: 200 ms → matched
+  model:muse-spark-1.3 calls:call: 2 → matched
+record after round 1: outcome 0/1 (1 didn't match); timing 0/1 (guess higher 1); call counts 0/1 (guess lower 1)
+Wonder told: In this person's earlier rounds, their sealed bets most often did not match what the code did on these kinds of question: outcome (1 of 1 didn't match); timing (1 of 1 didn't match; guessed lower than the run 0, higher 1); call counts (1 of 1 didn't match; guessed lower than the run 1, higher 0). Counted by plain code from their own bets; it says nothing about this code. Where it fits this function, prefer tests whose answers turn on those questions.
+Wonder prompt carries the summary: true | holds round 1's test values: false
+  proposal nvQqh97zjv: allowed: Atlas calls withRetry(call, 3). call (async) throws Error ("boom") on call 1; every later call throws Error ("boom") too.
+  proposal 0eJyEDLF9p: allowed: Atlas calls withRetry(call, 0). call (async) returns "ok" on call 1; every later call returns "ok" too.
+  proposal KVnNxsyK0n: allowed: Atlas calls withRetry(call, 2.5). call (async) throws Error ("boom") on call 1; every later call throws Error ("boom") too.
+Wonder proposed no allowed never-answers test: round 2 uses the script's own
+round vw4lP1ULeP: run h6YOQJsMos {"outcome":"never_settled","calls:call":1}
+  human outcome: threw → not_matched
+  model:muse-spark-1.3 outcome: still_running_at_watch_limit → not_matched
+  model:muse-spark-1.3 returnedJson: declined → cant_check
+  model:muse-spark-1.3 virtualMs: declined → cant_check
+  model:muse-spark-1.3 calls:call: 1 → matched
+labels after round 2: reproduced h6YOQJsMos A sealed Atlas run (h6YOQJsMos) showed it: a stand-in never answered and the function never settled (outcome never_settled).
+proof card for that run: 200
+spent: $0.0892

@@ -1,0 +1,4 @@
+{"ts":"2026-10-28T13:13:40.578Z","role":"claimant","provider":"meta","model":"muse-spark-1.3","promptTokens":1097,"completionTokens":473,"reasoningTokens":262,"usd":0.013848,"finishReason":"stop","priceVerified":false}
+{"ts":"2026-10-28T13:13:52.100Z","role":"investigator","provider":"meta","model":"muse-wonder-1.0","promptTokens":852,"completionTokens":1135,"reasoningTokens":841,"usd":0.026108,"finishReason":"stop","priceVerified":true}
+{"ts":"2026-10-28T13:13:59.570Z","role":"claimant","provider":"meta","model":"muse-spark-1.3","promptTokens":1001,"completionTokens":1336,"reasoningTokens":1126,"usd":0.030724,"finishReason":"stop","priceVerified":false}
+{"ts":"2026-10-28T13:14:02.871Z","role":"claimant","provider":"meta","model":"muse-spark-1.3","promptTokens":1245,"completionTokens":675,"reasoningTokens":465,"usd":0.01848,"finishReason":"stop","priceVerified":false}
