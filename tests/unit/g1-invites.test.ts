@@ -46,6 +46,7 @@ const SPENDING: { method: string; route: string; path: string; body?: unknown; s
   { method: "POST", route: "/changes", path: "/changes", body: {}, spends: "Muse Code / fixer chat (Meta) + a replay (sandbox or EVM fork)" },
   { method: "POST", route: "/adversary", path: "/adversary", body: {}, spends: "Adversary (Meta) + model bets + a run" },
   { method: "GET", route: "/replay/:runId", path: "/replay/x", spends: "a re-run from a proof card (sandbox or EVM fork)" },
+  { method: "GET", route: "/events/:sessionId", path: "/events/x", spends: "nothing in dollars; an open live-log stream holds a connection (closed since review round 2)" },
   { method: "POST", route: "/paste", path: "/paste", body: { code: RETRY_SRC }, spends: "nothing itself (holds the code for later spends)" },
   { method: "POST", route: "/paste/proposals", path: "/paste/proposals", body: {}, spends: "Muse Wonder test proposals (Meta)" },
   { method: "POST", route: "/paste/claim", path: "/paste/claim", body: {}, spends: "nothing (shows a held claim)" },
@@ -65,7 +66,7 @@ describe("G1 gate: every spending route refuses without a code, and nothing is s
     expect(unaccounted).toEqual([]);
     // And every open route really is one of the read-only ones listed in the gate.
     const open = routes.filter((r) => !spending.has(r));
-    expect(open.sort()).toEqual(["GET /claimants", "GET /events/:sessionId", "GET /health", "GET /outline/jobs/:id", "GET /outline/jobs/:id/atlas", "GET /outline/jobs/:id/outline", "GET /outline/jobs/:id/parts/:partId", "GET /paste/languages", "GET /proofs/:runId"]);
+    expect(open.sort()).toEqual(["GET /claimants", "GET /health", "GET /outline/jobs/:id", "GET /outline/jobs/:id/atlas", "GET /outline/jobs/:id/outline", "GET /outline/jobs/:id/parts/:partId", "GET /paste/languages", "GET /proofs/:runId"]);
     expect(OPEN_ROUTES.every((r) => r.method === "GET" || /invite/.test(r.path.source))).toBe(true);
   });
 
@@ -189,7 +190,7 @@ describe("G1 per-code budgets (D34)", () => {
     const model = lines.filter((l) => l.kind === "model");
     expect(model.map((l) => l.route).sort()).toEqual(["POST /experiments", "POST /experiments", "POST /paste/proposals"]);
     // Each call held its worst case (Spark about $1, Spark Open about $0.20: Baseten's price) and settled at the reported $0.0164.
-    expect(model.map((l) => [l.invite, l.inviteId, l.usd, l.reservedUsd > 0.15])).toEqual(model.map(() => ["dev-ada", s.ids.dev, 0.0164, true]));
+    expect(model.map((l) => [l.invite, l.inviteId, l.usd, l.reservedUsd > 0.02])).toEqual(model.map(() => ["dev-ada", s.ids.dev, 0.0164, true]));
     expect(lines.some((l) => l.kind === "sandbox" && l.route === "POST /runs")).toBe(true);
     for (const f of ["spend-log.jsonl", "spend.json", "invites.json"]) {
       const text = readFileSync(join(s.dir, f), "utf8");
@@ -199,7 +200,7 @@ describe("G1 per-code budgets (D34)", () => {
   }, 60_000);
 
   it("a code past its daily budget is refused BEFORE the call: 'not asked: your invite's daily budget is used up'; the person's own bet and run still work at $0", async () => {
-    const s = build({ devDaily: 0.5 }); // less than one call's worst case
+    const s = build({ devDaily: 0.05 }); // less than one call's worst case
     const c = client(s.app, s.codes.dev);
     const p = await c.post("/paste", { code: RETRY_SRC });
     const target = { ref: p.json.target.ref, codeSha256: p.json.target.codeSha256 };
@@ -248,13 +249,13 @@ describe("G1 per-code budgets (D34)", () => {
     expect(MODAL_USD_PER_SECOND_AT_CAPS).toBeCloseTo(0.00004609, 10);
   }, 60_000);
 
-  it("the owner reserve: with $79.50 of the $100 ceiling spent, dev codes are refused and the owner's code is not", async () => {
-    const s = build({ spentAtStart: 79.5 });
+  it("the owner reserve: with $79.90 of the $100 ceiling spent, dev codes are refused and the owner's code is not", async () => {
+    const s = build({ spentAtStart: 79.9 });
     const dev = client(s.app, s.codes.dev);
     const p = await dev.post("/paste", { code: RETRY_SRC });
     const target = { ref: p.json.target.ref, codeSha256: p.json.target.codeSha256 };
     const refused = await dev.post("/paste/proposals", { target, exportName: "retryWithBackoff" });
-    expect(refused.json.reason).toMatch(/the money shared by invited developers is used up \(\$79\.50 of \$80\.00; the last \$20\.00 of the \$100\.00 ceiling is kept for the owner\)/);
+    expect(refused.json.reason).toMatch(/the money shared by invited developers is used up \(\$79\.90 of \$80\.00; the last \$20\.00 of the \$100\.00 ceiling is kept for the owner\)/);
     expect(s.spent.calls).toHaveLength(0);
     const owner = client(s.app, s.codes.owner);
     const p2 = await owner.post("/paste", { code: RETRY_SRC });
@@ -264,15 +265,16 @@ describe("G1 per-code budgets (D34)", () => {
   });
 
   it("the owner reserve holds against many dev codes at once: devs together never pass ceiling minus reserve", async () => {
-    // $5 ceiling, $2 reserve: devs share $3. Each dev call holds about $0.96 and really costs $0.90.
-    const s = build({ ceiling: 5, ownerReserve: 2, usd: 0.9, slowMs: 20 });
+    // $5 ceiling, $2 reserve: devs share $3. Each dev call holds about $0.32 (its first try, G1 review B8) and really
+    // costs $0.30 (a mock must never report more than the hold: the hold is an upper bound).
+    const s = build({ ceiling: 5, ownerReserve: 2, usd: 0.3, slowMs: 20 });
     const store2 = openInviteStore(s.dir, { env: ENV });
     const devs = Array.from({ length: 6 }, (_, i) => store2.create({ label: `dev-${i}`, dailyUsd: 3 }));
-    const wrapped = s.budget.wrap(async (a) => (s.spent.calls.push(a), new Promise<ChatResult>((r) => setTimeout(() => r({ ok: true, content: "{}", finishReason: "stop", usage: { promptTokens: 1, completionTokens: 1, usd: 0.9 } }), 20))));
+    const wrapped = s.budget.wrap(async (a) => (s.spent.calls.push(a), new Promise<ChatResult>((r) => setTimeout(() => r({ ok: true, content: "{}", finishReason: "stop", usage: { promptTokens: 1, completionTokens: 1, usd: 0.3 } }), 20))));
     const ask = (id: string, label: string) => runAs({ kind: "invite", id, label, role: "dev", route: "test" }, () => wrapped({ role: "claimant", model: "muse-spark-1.3", messages: [{ role: "user", content: "x" }] }));
     const results = await Promise.all(devs.flatMap((d) => [ask(d.invite.id, d.invite.label), ask(d.invite.id, d.invite.label)]));
     const okCount = results.filter((r) => r.ok).length;
-    expect(okCount).toBe(3); // 3 × $0.96 held fits in $3; a 4th would not
+    expect(okCount).toBe(9); // 9 × $0.32 held fits in $3; a 10th would not
     expect(s.budget.spentUsd()).toBeCloseTo(2.7, 6);
     expect(s.budget.spentUsd()).toBeLessThanOrEqual(3);
     // The owner can still spend the reserve.
@@ -280,10 +282,11 @@ describe("G1 per-code budgets (D34)", () => {
     expect(owner.ok).toBe(true);
   });
 
-  it("race: 20 requests at once on one $3 code can't overshoot; the 'at once' limit holds too", async () => {
-    const s = build({ usd: 0.9, slowMs: 30 });
+  it("race: 10 requests at once on one $3 code can't overshoot; the 'at once' limit holds too", async () => {
+    // 10 sessions: a dev code holds at most 10 paste sessions (G1 review M6).
+    const s = build({ usd: 0.3, slowMs: 30 });
     const results = await Promise.all(
-      Array.from({ length: 20 }, async (_, i) => {
+      Array.from({ length: 10 }, async (_, i) => {
         const c = client(s.app, s.codes.dev, `race-${i}`);
         const p = await c.post("/paste", { code: RETRY_SRC });
         return c.post("/paste/proposals", { target: { ref: p.json.target.ref, codeSha256: p.json.target.codeSha256 }, exportName: "retryWithBackoff" });
@@ -291,7 +294,7 @@ describe("G1 per-code budgets (D34)", () => {
     );
     const asked = results.filter((r) => r.json.ok === true).length;
     expect(s.spent.calls.length).toBe(asked);
-    expect(asked).toBeLessThanOrEqual(3); // each holds ~$1.00 of the $3
+    expect(asked).toBeLessThanOrEqual(8); // each holds ~$0.34 (Wonder's first try) of the $3
     expect(asked).toBeGreaterThanOrEqual(1);
     expect(s.ledger.today(s.ids.dev).spentUsd).toBeLessThanOrEqual(3);
     for (const r of results.filter((x) => x.json.ok !== true)) expect(r.json.reason).toMatch(/your invite's daily budget is used up|call limit reached: this invite already has/);

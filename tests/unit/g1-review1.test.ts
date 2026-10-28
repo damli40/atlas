@@ -11,7 +11,7 @@ import { meteredChainFacts, meteredGate } from "../../server/access/metered";
 import { acquireStoreLock, openInviteStore } from "../../server/access/store";
 import { createModelBudget, type ModelBudget } from "../../server/meta/budget";
 import { createMetaClient, type ChatResult } from "../../server/meta/client";
-import { estimatedCallUsd, promptTokensUpperBound } from "../../server/meta/pasted-guard";
+import { estimatedCallUsd, firstTryUsd, fullWorstCaseUsd, promptTokensUpperBound, retryTryUsd } from "../../server/meta/pasted-guard";
 import { museWorstCaseUsd } from "../../server/meta/roles/fixer";
 import { createRunGate, createSandboxGate } from "../../server/replay-limits";
 import { main as invitesCli } from "../../tools/invites";
@@ -51,13 +51,16 @@ describe("B1: a call that was sent and reported no usage is counted at its worst
       const r = await s.asDev(() => chat({ role: "claimant", model: "muse-spark-1.3", messages: [{ role: "user", content: prompt }] }));
       if (!r.ok && /daily budget is used up/.test(r.reason)) refused++;
     }
-    const worst = estimatedCallUsd({ model: "muse-spark-1.3", messages: [{ role: "user", content: prompt }] });
-    expect(worst).toBeCloseTo(1.2, 6); // 60,000 bytes × $4/M + 48,000 tokens × $20/M
-    expect(sent).toBe(2); // 2 × $1.20 fits in $3; a 3rd would not
-    expect(refused).toBe(198);
+    // Review round 2 (B8): a timed-out FIRST try is held and counted at the first try's worst case:
+    // 60,000 bytes × $4/M + 16,000 tokens × $20/M = $0.56. (The retry, never reached here, holds its own.)
+    const worst = firstTryUsd({ model: "muse-spark-1.3", messages: [{ role: "user", content: prompt }] });
+    expect(worst).toBeCloseTo(0.56, 6);
+    expect(sent).toBe(5); // 5 × $0.56 = $2.80 fits in $3; a 6th would not
+    expect(refused).toBe(195);
     const today = s.ledger.today(s.ids.dev);
-    expect(today.spentUsd).toBeCloseTo(2.4, 6);
-    expect(s.budget.spentUsd()).toBeCloseTo(2.4, 6); // the global ceiling and the owner reserve see it too
+    expect(today.spentUsd).toBeCloseTo(2.8, 6);
+    expect(today.spentUsd).toBeLessThanOrEqual(3);
+    expect(s.budget.spentUsd()).toBeCloseTo(2.8, 6); // the global ceiling and the owner reserve see it too
     expect(logLines(s.dir).filter((l) => l.kind === "model" && !l.refused).every((l) => /counted at its worst case/.test(l.note))).toBe(true);
   });
 
@@ -74,7 +77,7 @@ describe("B1: a call that was sent and reported no usage is counted at its worst
       const chat = s.budget.wrap(createMetaClient({ apiKey: "fake-key-0000", fetchImpl: (async () => respond()) as unknown as typeof fetch, usagePath: join(s.dir, "usage.jsonl") }).chat);
       const args = { role: "claimant" as const, model: "muse-spark-1.3", messages: [{ role: "user" as const, content: "hello" }] };
       await s.asDev(() => chat(args));
-      const expected = want === "worst" ? estimatedCallUsd(args) : want;
+      const expected = want === "worst" ? firstTryUsd(args) : want;
       expect(s.ledger.today(s.ids.dev).spentUsd, name).toBeCloseTo(expected, 9);
       expect(s.budget.spentUsd(), name).toBeCloseTo(expected, 9);
     }
@@ -92,7 +95,7 @@ describe("B1: a call that was sent and reported no usage is counted at its worst
     });
     const args = { role: "claimant" as const, model: "muse-spark-1.3", messages: [{ role: "user" as const, content: "x" }] };
     await expect(s.asDev(() => chat(args))).rejects.toThrow(/socket hang up/);
-    expect(s.ledger.today(s.ids.dev).spentUsd).toBeCloseTo(estimatedCallUsd(args), 9);
+    expect(s.ledger.today(s.ids.dev).spentUsd).toBeCloseTo(firstTryUsd(args), 9);
   });
 
   it("M1: a killed muse exec (costUnknown) is counted at its computed hold, which grows with the workspace and the steps", async () => {
@@ -307,13 +310,13 @@ describe("M5: one server process per store", () => {
   it("a second lock on the same store is refused while the first holder lives; a lock left by a dead process is taken over", () => {
     const dir = tmp();
     const release = acquireStoreLock(dir);
-    expect(() => acquireStoreLock(dir)).toThrow(/another Atlas server \(pid \d+\) is already using the invite store/);
+    expect(() => acquireStoreLock(dir)).toThrow(/another Atlas server \(pid \d+(, this process)?\) is already using the invite store/);
     release();
     const again = acquireStoreLock(dir);
     again();
     writeFileSync(join(dir, "server.lock"), "999999\n"); // no such process
     const taken = acquireStoreLock(dir);
-    expect(readFileSync(join(dir, "server.lock"), "utf8").trim()).toBe(String(process.pid));
+    expect(JSON.parse(readFileSync(join(dir, "server.lock"), "utf8")).pid).toBe(process.pid);
     taken();
   });
 });

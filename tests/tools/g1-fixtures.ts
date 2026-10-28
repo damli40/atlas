@@ -5,6 +5,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createApp } from "../../server/app";
+import { createBetStore } from "../../server/bets";
+import { createShareLimit, DEFAULT_GITHUB_SHARES } from "../../server/access/shares";
 import { createAgentLog } from "../../server/log/agentlog";
 import { createProofStore } from "../../server/evm-round";
 import { createModelBudget, type ModelBudget } from "../../server/meta/budget";
@@ -43,6 +45,11 @@ export interface BuildOpts {
   ledger?: Partial<Parameters<typeof openLedger>[0]>;
   runLimits?: Parameters<typeof createRunGate>[0];
   publicOrigin?: string;
+  ownerApp?: boolean;
+  devBetStore?: ReturnType<typeof createBetStore>;
+  fetchPr?: Parameters<typeof createApp>[0] extends infer A ? (A extends { fetchPr?: infer F } ? F : never) : never;
+  githubShares?: typeof DEFAULT_GITHUB_SHARES;
+  streams?: { perDev: number; devsTotal: number };
   devDaily?: number;
   devMaxConcurrent?: number;
   usd?: number;
@@ -91,7 +98,8 @@ export function build(o: BuildOpts = {}) {
       spent.evm++;
       throw new Error("no fork in this test");
     });
-  const inner = createApp({
+  const githubReads = createShareLimit(o.githubShares ?? DEFAULT_GITHUB_SHARES, "GitHub reads");
+  const opts = (): Parameters<typeof createApp>[0] => ({
     agentLog: createAgentLog(),
     proofs: createProofStore({ publish: false }),
     modelBets: { chat, budget, sparkOpen: { available: true } },
@@ -104,13 +112,17 @@ export function build(o: BuildOpts = {}) {
     runGate: meteredGate(createRunGate(o.runLimits), ledger, "EVM run", { ownerGate: createRunGate(o.runLimits) }),
     replayGate: meteredGate(createReplayGate(), ledger, "EVM replay", { ownerGate: createReplayGate() }),
     sandboxGate: meteredGate(createSandboxGate(), ledger, "sandbox start", { ownerGate: createSandboxGate(), count: false }),
-    fetchPr: async () => PR,
+    fetchPr: o.fetchPr ?? (async () => PR),
+    githubReads,
     evmRun,
     trustProxy: o.trustProxy ?? false,
     ...(o.perClientModelLimits ? { perClientModelLimits: o.perClientModelLimits } : {}),
   });
-  const app = withInviteGate(inner, { store, require: o.require ?? true, ledger, secureCookie: false, trustProxy: o.trustProxy ?? false, ...(o.publicOrigin ? { publicOrigin: o.publicOrigin } : {}) });
-  return { dir, store, ledger, budget, app, inner, spent, codes: { dev: dev.code, dev2: dev2.code, owner: owner.code }, ids: { dev: dev.invite.id, owner: owner.invite.id } };
+  // As server/index.ts builds it: the dev app, and (unless turned off) the owner's own copy of the app.
+  const inner = createApp({ ...opts(), ...(o.devBetStore ? { betStore: o.devBetStore } : {}) });
+  const ownerInner = o.ownerApp === false ? undefined : createApp(opts());
+  const app = withInviteGate(inner, { store, require: o.require ?? true, ledger, secureCookie: false, trustProxy: o.trustProxy ?? false, ...(o.publicOrigin ? { publicOrigin: o.publicOrigin } : {}), ...(ownerInner ? { ownerInner } : {}), ...(o.streams ? { streams: o.streams } : {}) });
+  return { dir, store, ledger, budget, app, inner, ownerInner, spent, codes: { dev: dev.code, dev2: dev2.code, owner: owner.code }, ids: { dev: dev.invite.id, owner: owner.invite.id } };
 }
 
 export type App = ReturnType<typeof build>["app"];
