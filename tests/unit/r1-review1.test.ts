@@ -94,7 +94,7 @@ describe("the double run catches values that change between identical runs (B1, 
   it.skipIf(!HAVE_PYTHON)("Python: a set of text stays measured (the hash seed is pinned), and its wording names text, not objects", async () => {
     const r = await run("def f():\n    return list({'apple', 'banana', 'cherry'})\n", "py", "f");
     expect(r.result.measured.returnedJson).toBeDefined();
-    expect(r.conditions?.find((c) => c.kind === "hash-seed")?.says).toMatch(/text or bytes.*A set of objects is ordered by memory addresses/);
+    expect(r.conditions?.find((c) => c.kind === "hash-seed")?.says).toMatch(/text or bytes.*without a hash of their own is ordered by memory addresses instead, which Atlas does not pin\.$/);
   });
 });
 
@@ -136,7 +136,7 @@ describe("words", () => {
   });
   it("B1 / M6: 'None' says only what Atlas looked for; a run that did not finish is 'not known'", async () => {
     expect(CONDITION_WORDS.none).not.toMatch(/the code read no/);
-    expect(CONDITION_WORDS.none).toMatch(/second time/);
+    expect(CONDITION_WORDS.none).toMatch(/^None of the conditions Atlas checks for .*the second run matched\.$/);
     const r = await run("export function f(){ return fetch('http://x'); }", "js", "f");
     expect(r.result.notMeasured.wholeRun).toBeDefined();
     expect(r.conditions).toEqual([]);

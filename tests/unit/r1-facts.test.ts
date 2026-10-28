@@ -20,7 +20,7 @@ import { judge } from "../../src/judge.ts";
 import { sealBet } from "../../src/seal.ts";
 import { buildAtlasFile, verifyAtlasFile } from "../../src/atlasfile.ts";
 import { exportedFunctionsFor, makePastedTarget } from "../../src/pasted-code.ts";
-import { CALL_PINNED_SEED, conditionKindsInTrace } from "../../src/conditions.ts";
+import { CALL_PINNED_SEED, callRunPinProblems, conditionKindsInTrace } from "../../src/conditions.ts";
 import { PASTE_WORDS, CONDITION_WORDS } from "../../src/paste-words.ts";
 import { CALL_ENV, CALL_SEED, callControlKey, callHarnessSha256, runCallControl, runCallExperiment } from "../../runners/ts/call-runner.ts";
 import { pyControlKey, pyHarnessSha256, runPyCallControl, runPyCallExperiment } from "../../runners/py/py-runner.ts";
@@ -379,16 +379,13 @@ describe("proof files record the seed, time zone, locale and conditions, and ver
     f.runs[0].trace = f.runs[0].trace.filter((t: { event: string }) => t.event !== "twin_differs");
     f.seed = "none";
     f.runs[0].seed = "none";
-    expect(verifyAtlasFile(f).ok).toBe(true);
-    const later = JSON.parse(JSON.stringify(f));
-    f.runs[0].locale = "en-US";
-    expect(verifyAtlasFile(f).ok).toBe(false);
-    // R1 review m1: a run from after R1 relabelled as "seed none" (to hide its conditions) is refused.
-    const shift = (iso: string) => new Date(Date.parse(iso) + 2 * 86_400_000).toISOString();
-    later.runs[0].startedAt = shift(later.runs[0].startedAt);
-    later.runs[0].finishedAt = shift(later.runs[0].finishedAt);
-    later.createdAt = shift(later.createdAt);
-    const v = verifyAtlasFile(later);
+    // R1 review m1 / round 2 (m3): a run made since R1 began (2026-10-28) and relabelled as "seed none" is refused.
+    const v = verifyAtlasFile(f);
+    // A run that started before R1 (2026-10-28) with no pins is a pre-R1 run; one that mixes in a pin is not. (The run is
+    // checked on its own: moving a whole file's times back would break its bets' seals, which hash their times.)
+    const old = { ...f.runs[0], startedAt: "2026-10-20T10:00:00.000Z", finishedAt: "2026-10-20T10:00:01.000Z" };
+    expect(callRunPinProblems(old, "js")).toEqual([]);
+    expect(callRunPinProblems({ ...old, locale: "en-US" }, "js").join("; ")).toMatch(/carries pins or conditions/);
     expect(v.ok).toBe(false);
     if (!v.ok) expect(v.problems.join("; ")).toMatch(/started after Atlas began pinning/);
   });
