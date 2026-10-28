@@ -19,6 +19,7 @@
 //   measuring it, with a reason of that category, is correct.
 
 import { canonicalJson } from "../../src/seal.ts";
+import { CHANGED_BETWEEN_RUNS_REASON, isCallSeed } from "../../src/conditions.ts";
 import type { RunResult } from "../../src/types.ts";
 
 export type JsonValue = null | boolean | number | string | JsonValue[] | { [k: string]: JsonValue };
@@ -52,10 +53,10 @@ export type TruthExpect =
       calls?: Record<string, number | null>;
     };
 
-export const CLASSES = ["correct fact", "FALSE FACT", "correct can't-check", "can't-check, wrong reason", "wrong can't-check (over-refusal)", "missed can't-check", "control failed"] as const;
+export const CLASSES = ["correct fact", "correct (labelled)", "FALSE FACT", "correct can't-check", "can't-check, wrong reason", "wrong can't-check (over-refusal)", "missed can't-check", "control failed"] as const;
 export type TruthClass = (typeof CLASSES)[number];
 
-export type FieldVerdict = "correct" | "FALSE" | "not measured (over-refusal)" | "not measured, wrong reason";
+export type FieldVerdict = "correct" | "correct (labelled)" | "correct (double run)" | "FALSE" | "not measured (over-refusal)" | "not measured, wrong reason";
 
 export interface FieldCheck {
   field: string;
@@ -64,6 +65,8 @@ export interface FieldCheck {
   verdict: FieldVerdict;
   /** Why it was not measured, when Atlas said so. */
   notMeasured?: string;
+  /** For "correct (labelled)": the condition kind that labels it (T2 amendment 1). */
+  label?: string;
 }
 
 export interface Classified {
@@ -87,11 +90,18 @@ export function reasonInCategory(reason: string | undefined, wanted: string | st
 }
 
 /** One field compared. `want` null means "must not be measured"; { dependsOn } means "must not be a plain fact". */
-function field(name: string, want: unknown, r: RunResult, cats: ReasonCategories): FieldCheck {
+function field(name: string, want: unknown, r: RunResult, cats: ReasonCategories, opts: ClassifyOptions = {}): FieldCheck {
   const measured = has(r.measured, name) ? r.measured[name] : undefined;
   const why = r.notMeasured[name];
   if (isDependsOn(want)) {
-    if (measured !== undefined) return { field: name, expected: want, measured, verdict: "FALSE" };
+    if (measured !== undefined) {
+      // T2 amendment 1: measured AND labelled AND the twin agrees = "correct (labelled)"; otherwise a FALSE FACT.
+      const label = opts.labels && opts.run ? labelFor(want.dependsOn, opts.run) : null;
+      const twinSame = opts.run?.twinMeasured !== undefined && has(opts.run.twinMeasured, name) && opts.run.twinMeasured[name] === measured;
+      if (label && twinSame) return { field: name, expected: want, measured, verdict: "correct (labelled)", label };
+      return { field: name, expected: want, measured, verdict: "FALSE", ...(label && !twinSame ? { label: `${label} (twin differs or missing)` } : {}) };
+    }
+    if (opts.labels && why === CHANGED_BETWEEN_RUNS_REASON) return { field: name, expected: want, measured: null, verdict: "correct (double run)", notMeasured: why };
     return { field: name, expected: want, measured: null, verdict: reasonInCategory(why, want.dependsOn, cats) ? "correct" : "not measured, wrong reason", ...(why ? { notMeasured: why } : {}) };
   }
   if (want === null) {
@@ -103,7 +113,46 @@ function field(name: string, want: unknown, r: RunResult, cats: ReasonCategories
   return { field: name, expected: want, measured, verdict: measured === want ? "correct" : "FALSE" };
 }
 
+/** What the run says about its conditions and pins (batch R1), as stored with a result. */
+export interface RunInfo {
+  language?: string;
+  conditions?: { kind: string; says: string }[];
+  seed?: string;
+  timeZone?: string;
+  locale?: string;
+  /** The second run's measured fields (R1's double run). */
+  twinMeasured?: Record<string, string | number | boolean | null>;
+}
+
+/**
+ * Bench T2 amendment 1 (bench/truth-2/AMENDMENT-1.md): does the run carry a label for this dependsOn category, with
+ * the pin it needs? Pure.
+ */
+export function labelFor(category: string, run: RunInfo): string | null {
+  const conds = run.conditions ?? [];
+  const has = (k: string) => conds.find((c) => c.kind === k);
+  if (category === "randomness") {
+    if ((has("randomness") || has("hash-seed")) && isCallSeed(run.seed)) return has("randomness") ? "randomness" : "hash-seed";
+    if (has("memory-address")) return "memory-address"; // E1: no pin exists; the twin rule still applies
+    return null;
+  }
+  if (category === "host") {
+    const locale = run.language === "py" ? "C" : "en-US";
+    if (has("time-zone-or-locale") && run.timeZone === "UTC" && run.locale === locale) return "time-zone-or-locale";
+    const h = has("host");
+    if (h && /\(([^)]*\S[^)]*)\)/.test(h.says)) return "host"; // E2: the sentence names at least one read
+    return null;
+  }
+  if (category === "clock") return has("timed-work") ? "timed-work" : null;
+  if (category === "scheduling") return has("tick-order") ? "tick-order" : null;
+  return null; // process-lifetime and anything else: not covered
+}
+
 export interface ClassifyOptions {
+  /** Bench T2 amendment 1 is in force: a measured { dependsOn } field may be "correct (labelled)". */
+  labels?: boolean;
+  /** The run's conditions, pins and twin (from batch R1). */
+  run?: RunInfo;
   /** The registered reason categories (bench T: its amendment; bench T2: its expected.json). */
   categories?: ReasonCategories;
   /** For a trap whose expectation has no reasonCategory (bench T), the category registered for it elsewhere. */
@@ -128,6 +177,10 @@ export function classify(expect: TruthExpect, result: RunResult, controlPassed: 
   }
 
   if (!outcomeMeasured) {
+    const anyDepends = Object.values(expect).some((v) => isDependsOn(v));
+    if (opts.labels && anyDepends && cantReason === CHANGED_BETWEEN_RUNS_REASON) {
+      return { classification: "correct can't-check", fields: [], notes: ["refused by the double run (T2 amendment 1)"], cantCheckReason: cantReason };
+    }
     if (expect.wholeRunCantCheckOk !== undefined && reasonInCategory(cantReason, expect.wholeRunCantCheckOk, cats)) {
       return { classification: "correct can't-check", fields: [], notes, ...(cantReason ? { cantCheckReason: cantReason } : {}) };
     }
@@ -139,20 +192,20 @@ export function classify(expect: TruthExpect, result: RunResult, controlPassed: 
     };
   }
 
-  const fields: FieldCheck[] = [field("outcome", expect.outcome, result, cats)];
-  if (expect.returnedJson !== undefined) fields.push(field("returnedJson", isDependsOn(expect.returnedJson) ? expect.returnedJson : canonicalJson(expect.returnedJson), result, cats));
-  if (expect.returnedType !== undefined) fields.push(field("returnedType", expect.returnedType, result, cats));
+  const fields: FieldCheck[] = [field("outcome", expect.outcome, result, cats, opts)];
+  if (expect.returnedJson !== undefined) fields.push(field("returnedJson", isDependsOn(expect.returnedJson) ? expect.returnedJson : canonicalJson(expect.returnedJson), result, cats, opts));
+  if (expect.returnedType !== undefined) fields.push(field("returnedType", expect.returnedType, result, cats, opts));
   if (expect.returnedNotJson) {
-    fields.push(field("returnedJson", null, result, cats));
-    fields.push(field("returnedType", expect.returnedNotJson.type, result, cats));
+    fields.push(field("returnedJson", null, result, cats, opts));
+    fields.push(field("returnedType", expect.returnedNotJson.type, result, cats, opts));
     const why = result.notMeasured.returnedJson ?? "";
     if (!why.includes(expect.returnedNotJson.reasonMentions)) notes.push(`returnedJson's not-measured reason does not mention "${expect.returnedNotJson.reasonMentions}": ${JSON.stringify(why)}`);
   }
-  if (expect.thrownName !== undefined) fields.push(field("thrownName", expect.thrownName, result, cats));
-  if (expect.thrownType !== undefined) fields.push(field("thrownType", expect.thrownType, result, cats));
-  if (expect.thrownMessage !== undefined) fields.push(field("thrownMessage", expect.thrownMessage, result, cats));
-  if (expect.virtualMs !== undefined) fields.push(field("virtualMs", expect.virtualMs, result, cats));
-  for (const [name, n] of Object.entries(expect.calls ?? {})) fields.push(field(`calls:${name}`, n, result, cats));
+  if (expect.thrownName !== undefined) fields.push(field("thrownName", expect.thrownName, result, cats, opts));
+  if (expect.thrownType !== undefined) fields.push(field("thrownType", expect.thrownType, result, cats, opts));
+  if (expect.thrownMessage !== undefined) fields.push(field("thrownMessage", expect.thrownMessage, result, cats, opts));
+  if (expect.virtualMs !== undefined) fields.push(field("virtualMs", expect.virtualMs, result, cats, opts));
+  for (const [name, n] of Object.entries(expect.calls ?? {})) fields.push(field(`calls:${name}`, n, result, cats, opts));
 
   const classification: TruthClass = fields.some((f) => f.verdict === "FALSE")
     ? "FALSE FACT"
@@ -160,6 +213,8 @@ export function classify(expect: TruthExpect, result: RunResult, controlPassed: 
       ? "wrong can't-check (over-refusal)"
       : fields.some((f) => f.verdict === "not measured, wrong reason")
         ? "can't-check, wrong reason"
-        : "correct fact";
+        : fields.some((f) => f.verdict === "correct (labelled)")
+          ? "correct (labelled)"
+          : "correct fact";
   return { classification, fields, notes };
 }

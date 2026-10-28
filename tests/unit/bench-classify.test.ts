@@ -107,3 +107,43 @@ describe("after the B1 review: reason categories and values that depend on somet
     expect(classify(e, { measured: {}, notMeasured: { wholeRun: "the code needs lodash" } }, true, { categories: cats }).classification).toBe("wrong can't-check (over-refusal)");
   });
 });
+
+describe("bench T2 amendment 1: labelled values and the double run", () => {
+  const cats = { randomness: ["random", "seed"], host: ["host"] };
+  const e: TruthExpect = { outcome: "returned", returnedJson: { dependsOn: "randomness" }, virtualMs: 0, wholeRunCantCheckOk: "randomness" };
+  const r = { measured: { outcome: "returned", returnedJson: '"tails"', virtualMs: 0 }, notMeasured: {} };
+  const run = { language: "js", conditions: [{ kind: "randomness", says: "This code used randomness ..." }], seed: "20260101", twinMeasured: { outcome: "returned", returnedJson: '"tails"', virtualMs: 0 } };
+
+  it("measured + labelled + seed recorded + twin agrees: correct (labelled), only with the amendment in force", () => {
+    expect(classify(e, r, true, { categories: cats, labels: true, run }).classification).toBe("correct (labelled)");
+    expect(classify(e, r, true, { categories: cats, run }).classification).toBe("FALSE FACT");
+  });
+
+  it("no label, a bad seed, or a twin that differs: still a FALSE FACT", () => {
+    expect(classify(e, r, true, { categories: cats, labels: true, run: { ...run, conditions: [] } }).classification).toBe("FALSE FACT");
+    expect(classify(e, r, true, { categories: cats, labels: true, run: { ...run, seed: "none" } }).classification).toBe("FALSE FACT");
+    expect(classify(e, r, true, { categories: cats, labels: true, run: { ...run, twinMeasured: { returnedJson: '"heads"' } } }).classification).toBe("FALSE FACT");
+  });
+
+  it("host: the pinned zone and locale for the language, or a host note that names a read", () => {
+    const h: TruthExpect = { outcome: "returned", returnedJson: { dependsOn: "host" }, virtualMs: 0 };
+    const tz = { language: "py", conditions: [{ kind: "time-zone-or-locale", says: "x" }], timeZone: "UTC", locale: "C", twinMeasured: r.measured };
+    expect(classify(h, r, true, { categories: cats, labels: true, run: tz }).classification).toBe("correct (labelled)");
+    expect(classify(h, r, true, { categories: cats, labels: true, run: { ...tz, locale: "en-US" } }).classification).toBe("FALSE FACT");
+    const host = { language: "js", conditions: [{ kind: "host", says: "This code read details of the machine it runs on (process.env.PORT). ..." }], twinMeasured: r.measured };
+    expect(classify(h, r, true, { categories: cats, labels: true, run: host }).classification).toBe("correct (labelled)");
+    expect(classify(h, r, true, { categories: cats, labels: true, run: { ...host, conditions: [{ kind: "host", says: "This code read details of the machine it runs on (). ..." }] } }).classification).toBe("FALSE FACT");
+  });
+
+  it("process-lifetime is not covered: a measured value stays a FALSE FACT whatever the conditions", () => {
+    const p: TruthExpect = { outcome: { dependsOn: "process-lifetime" }, wholeRunCantCheckOk: "process-lifetime" };
+    expect(classify(p, { measured: { outcome: "returned" }, notMeasured: {} }, true, { categories: cats, labels: true, run: { ...run, conditions: [{ kind: "unref-timer", says: "x" }] } }).classification).toBe("FALSE FACT");
+  });
+
+  it("a double-run refusal: correct on a dependsOn field, over-refusal on a plain fact", () => {
+    const twinReason = "this value changed between two identical runs (same code, same test, same seed and pins), so it depends on something Atlas does not control, such as memory addresses, process ids or paths";
+    const nm = { measured: { outcome: "returned", virtualMs: 0 }, notMeasured: { returnedJson: twinReason } };
+    expect(classify(e, nm, true, { categories: cats, labels: true }).classification).toBe("correct fact");
+    expect(classify({ outcome: "returned", returnedJson: 1, virtualMs: 0 }, nm, true, { categories: cats, labels: true }).classification).toBe("wrong can't-check (over-refusal)");
+  });
+});

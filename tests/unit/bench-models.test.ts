@@ -105,8 +105,8 @@ describe("bench M answer check", () => {
       { measures: "virtualMs", answer: { kind: "number", value: 0, tolerancePct: 10, unit: "ms" }, rationale: "r" },
     ] });
 
-  it("FINDING for E3: the product's bet-only check refuses every json bet, so no model can bet on returnedJson through it", () => {
-    expect(validateBetOnlyOutput(bets({ A: 2 }), pp.questions).ok).toBe(false);
+  it("E3 fixed the B1 finding: the product's bet-only check now accepts a json bet on returnedJson", () => {
+    expect(validateBetOnlyOutput(bets({ A: 2 }), pp.questions).ok).toBe(true);
   });
 
   it("the bench's check accepts a json bet and keeps every other rule", () => {

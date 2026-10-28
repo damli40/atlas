@@ -23,7 +23,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { experimentFor, loadCorpus, type LoadedFunction, type CorpusTest } from "../lib/corpus.ts";
 import { CLASSES, classify, type Classified, type TruthClass, type TruthExpect } from "./classify.ts";
-import type { ClassifyOptions, ReasonCategories } from "./classify.ts";
+import type { ClassifyOptions, ReasonCategories, RunInfo } from "./classify.ts";
 import { tsRunner } from "../../runners/ts/control.ts";
 import { executorFromEnv } from "../../runners/executor/select.ts";
 import { findPython } from "../../runners/executor/sandbox-exec-python.ts";
@@ -51,9 +51,18 @@ export function categoriesFor(bench: string, root = ROOT): { categories: ReasonC
   return { categories: j.reasonCategories ?? {}, perTest: {} };
 }
 
-export function classifyOptions(bench: string, testId: string, root = ROOT): ClassifyOptions {
+/** Bench T2's amendment 1 (labelled values, the double run) is in force when the file is present. */
+export const T2_AMENDMENT = "bench/truth-2/AMENDMENT-1.md";
+
+export function classifyOptions(bench: string, testId: string, root = ROOT, run?: RunInfo): ClassifyOptions {
   const c = categoriesFor(bench, root);
-  return { categories: c.categories, ...(c.perTest[testId] !== undefined ? { reasonCategory: c.perTest[testId] } : {}) };
+  const labels = bench === "truth-2" && existsSync(join(root, T2_AMENDMENT));
+  return { categories: c.categories, ...(c.perTest[testId] !== undefined ? { reasonCategory: c.perTest[testId] } : {}), ...(labels ? { labels } : {}), ...(run ? { run } : {}) };
+}
+
+/** The run facts a record keeps for re-scoring (conditions, pins, the twin's measured fields). */
+export function runInfoOf(r: { language: string; conditions?: RunInfo["conditions"]; seed?: string; timeZone?: string; locale?: string; twinMeasured?: RunInfo["twinMeasured"] }): RunInfo {
+  return { language: r.language, ...(r.conditions ? { conditions: r.conditions } : {}), ...(r.seed ? { seed: r.seed } : {}), ...(r.timeZone ? { timeZone: r.timeZone } : {}), ...(r.locale ? { locale: r.locale } : {}), ...(r.twinMeasured ? { twinMeasured: r.twinMeasured } : {}) };
 }
 
 export interface TestRecord {
@@ -78,6 +87,12 @@ export interface TestRecord {
   pythonVersion?: string;
   realMs?: number;
   notRunBecause?: string;
+  /** Batch R1: the run's conditions line, pins and second run. */
+  conditions?: RunInfo["conditions"];
+  seed?: string;
+  timeZone?: string;
+  locale?: string;
+  twinMeasured?: RunInfo["twinMeasured"];
 }
 
 /** Removes any absolute local path from text the runner returned (the repo is public). Counts what it removed. */
@@ -180,8 +195,15 @@ export function renderMarkdown(meta: Record<string, unknown>, records: TestRecor
     lines.push("");
   }
   lines.push("## Every test", "");
-  lines.push("| Test | Lang | Category | Expected (written before the run) | Measured by Atlas | Classification |", "|---|---|---|---|---|---|");
-  for (const r of records) lines.push(`| ${r.id} | ${r.language} | ${short(r.category, 40)} | ${expectedCell(r.expected)} | ${measuredCell(r)} | ${r.classification} |`);
+  if (meta.factTestsWithConditions !== undefined) {
+    lines.push("## Conditions (batch R1)", "");
+    lines.push(`- Fact tests whose run carries a conditions line: ${meta.factTestsWithConditions}; with no condition ("None of the conditions Atlas checks for ..."): ${meta.factTestsWithNoCondition}.`);
+    lines.push(`- Condition kinds seen: ${Object.entries((meta.conditionKinds ?? {}) as Record<string, number>).map(([k, v]) => `${k} ×${v}`).join(", ") || "none"}.`);
+    lines.push(`- Tests with a field refused by the double run: ${meta.doubleRunRefusals}.`);
+    lines.push(`- Labelled values counted (bench T2 amendment 1 in force): ${meta.labelsInForce ? "yes" : "no"}.`, "");
+  }
+  lines.push("| Test | Lang | Category | Expected (written before the run) | Measured by Atlas | Conditions | Classification |", "|---|---|---|---|---|---|---|");
+  for (const r of records) lines.push(`| ${r.id} | ${r.language} | ${short(r.category, 40)} | ${expectedCell(r.expected)} | ${measuredCell(r)} | ${(r.conditions ?? []).map((c) => c.kind).join(", ") || "none"} | ${r.classification} |`);
   lines.push("");
   return lines.join("\n");
 }
@@ -207,7 +229,7 @@ async function main(): Promise<void> {
   const todo = all.filter(({ t }) => !only || only.has(t.id));
 
   for (const { f, t } of todo) {
-    records.push(await runOne(runner, f as LoadedFunction<TruthExpect>, t, name === "modal" || python !== null, classifyOptions(bench, t.id)));
+    records.push(await runOne(runner, f as LoadedFunction<TruthExpect>, t, name === "modal" || python !== null, bench));
     const r = records[records.length - 1]!;
     process.stdout.write(`${r.id.padEnd(6)} ${r.classification}\n`);
   }
@@ -245,6 +267,12 @@ async function main(): Promise<void> {
     tooling: toolingHashes(ROOT),
     reasonCategories: categoriesFor(bench),
     fieldsCompared: records.reduce((n, r) => n + r.fields.length, 0),
+    amendments: Object.fromEntries(workingFiles(ROOT, [`bench/${bench}`]).filter((f) => /\/AMENDMENT[^/]*\.md$/.test(f.path)).map((f) => [f.path, f.sha256])),
+    labelsInForce: bench === "truth-2" && existsSync(join(ROOT, T2_AMENDMENT)),
+    factTestsWithConditions: records.filter((r) => !r.expected.cantCheck && (r.conditions?.length ?? 0) > 0).length,
+    factTestsWithNoCondition: records.filter((r) => !r.expected.cantCheck && r.classification !== "not run" && (r.conditions?.length ?? 0) === 0).length,
+    doubleRunRefusals: records.filter((r) => Object.values(r.notMeasured ?? {}).some((w) => w.startsWith("this value changed between two identical runs"))).length,
+    conditionKinds: records.flatMap((r) => (r.conditions ?? []).map((c) => c.kind)).reduce<Record<string, number>>((acc, k) => ((acc[k] = (acc[k] ?? 0) + 1), acc), {}),
     fieldVerdicts: records.flatMap((r) => r.fields).reduce<Record<string, number>>((acc, f) => ((acc[f.verdict] = (acc[f.verdict] ?? 0) + 1), acc), {}),
   };
 
@@ -259,7 +287,7 @@ async function main(): Promise<void> {
   process.stdout.write(`\n${JSON.stringify(counts)}\nwrote ${reg.results}/${stem}.json and .md (local paths removed: ${json.removed + md.removed})\n`);
 }
 
-async function runOne(runner: ReturnType<typeof tsRunner>, f: LoadedFunction<TruthExpect>, t: CorpusTest<TruthExpect>, pythonAvailable: boolean, opts: ClassifyOptions): Promise<TestRecord> {
+async function runOne(runner: ReturnType<typeof tsRunner>, f: LoadedFunction<TruthExpect>, t: CorpusTest<TruthExpect>, pythonAvailable: boolean, bench: string): Promise<TestRecord> {
   const base = { id: t.id, functionId: f.id, file: f.file, language: f.language, category: f.category, exportName: t.exportName, expected: t.expect!, why: t.why ?? "", fields: [], notes: [] };
   if (f.language === "py" && !pythonAvailable) return { ...base, classification: "not run", notRunBecause: "no Python 3.12+ on this machine" };
   const e = experimentFor(f, t);
@@ -267,7 +295,15 @@ async function runOne(runner: ReturnType<typeof tsRunner>, f: LoadedFunction<Tru
   const t0 = Date.now();
   const run = await runner.run(e.experiment, {});
   const realMs = Date.now() - t0;
-  const c = classify(t.expect!, run.result, run.controlPassed === true, opts);
+  const runFacts = {
+    language: f.language,
+    ...(run.conditions ? { conditions: run.conditions.map((c) => ({ kind: c.kind, says: c.says })) } : {}),
+    ...(run.seed ? { seed: run.seed } : {}),
+    ...(run.timeZone ? { timeZone: run.timeZone } : {}),
+    ...(run.locale ? { locale: run.locale } : {}),
+    ...(run.twin ? { twinMeasured: run.twin.result.measured } : {}),
+  };
+  const c = classify(t.expect!, run.result, run.controlPassed === true, classifyOptions(bench, t.id, ROOT, runInfoOf(runFacts)));
   const py = run.trace.find((ev) => ev.event === "call_checks")?.data as { python?: string } | undefined;
   return {
     ...base,
@@ -277,6 +313,11 @@ async function runOne(runner: ReturnType<typeof tsRunner>, f: LoadedFunction<Tru
     ...(c.cantCheckReason ? { cantCheckReason: c.cantCheckReason } : {}),
     measured: run.result.measured,
     notMeasured: run.result.notMeasured,
+    ...(runFacts.conditions ? { conditions: runFacts.conditions } : {}),
+    ...(runFacts.seed ? { seed: runFacts.seed } : {}),
+    ...(runFacts.timeZone ? { timeZone: runFacts.timeZone } : {}),
+    ...(runFacts.locale ? { locale: runFacts.locale } : {}),
+    ...(runFacts.twinMeasured ? { twinMeasured: runFacts.twinMeasured } : {}),
     runId: run.id,
     ...(run.controlRunId ? { controlRunId: run.controlRunId } : {}),
     controlPassed: run.controlPassed === true,

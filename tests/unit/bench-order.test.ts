@@ -29,7 +29,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { REGISTRATIONS, TOOLING_LOG, committedFiles, contentHash, inPaths, sha256Of, workingFiles } from "../../bench/lib/registration.ts";
-import { BENCH_CORPORA, classifyOptions } from "../../bench/truth/run.ts";
+import { BENCH_CORPORA, classifyOptions, runInfoOf } from "../../bench/truth/run.ts";
 import { classify, type TruthExpect } from "../../bench/truth/classify.ts";
 import { loadCorpus } from "../../bench/lib/corpus.ts";
 
@@ -163,14 +163,27 @@ for (const b of REGISTRATIONS) {
       }
     });
 
+    it("(l) amendment files are never edited, and a result's recorded amendments are the files at its commit", () => {
+      const amend = git("log", "--diff-filter=MDRT", "--format=C %H", "--name-only", "--", `bench/${b.name}`).split("\n").filter((l) => /\/AMENDMENT[^/]*\.md$/.test(l));
+      expect(amend, "an amendment file was changed after it was added").toEqual([]);
+      for (const a of resultJsons) {
+        const j = JSON.parse(git("show", `${a.commit}:${a.path}`)) as { meta?: { amendments?: Record<string, string> } };
+        for (const [path, sha] of Object.entries(j.meta?.amendments ?? {})) expect(sha256Of(gitBuf("show", `${a.commit}:${path}`)), path).toBe(sha);
+      }
+    });
+
     if (b.name === "truth" || b.name === "truth-2") {
       it("(g) re-scoring every committed result with today's classifier reproduces every stored classification", () => {
         const { functions } = loadCorpus<TruthExpect>(join(ROOT, b.corpus));
         const expects = new Map(functions.flatMap((f) => f.tests.map((t) => [t.id, t.expect!] as const)));
         for (const a of resultJsons) {
-          const j = JSON.parse(git("show", `${a.commit}:${a.path}`)) as { tests: { id: string; classification: string; measured?: Record<string, string | number | boolean | null>; notMeasured?: Record<string, string>; controlPassed?: boolean }[] };
+          type Rec = Parameters<typeof runInfoOf>[0] & { id: string; classification: string; measured?: Record<string, string | number | boolean | null>; notMeasured?: Record<string, string>; controlPassed?: boolean };
+          const j = JSON.parse(git("show", `${a.commit}:${a.path}`)) as { meta?: { labelsInForce?: boolean }; tests: Rec[] };
           for (const t of j.tests.filter((x) => x.classification !== "not run")) {
-            const again = classify(expects.get(t.id)!, { measured: t.measured ?? {}, notMeasured: t.notMeasured ?? {} }, t.controlPassed === true, classifyOptions(b.name, t.id, ROOT));
+            // The labels rule applies exactly where the result says it was in force (results before amendment 1: not).
+            const opts = { ...classifyOptions(b.name, t.id, ROOT, runInfoOf(t)) };
+            if (!j.meta?.labelsInForce) delete opts.labels;
+            const again = classify(expects.get(t.id)!, { measured: t.measured ?? {}, notMeasured: t.notMeasured ?? {} }, t.controlPassed === true, opts);
             expect(again.classification, `${a.path} ${t.id}: stored "${t.classification}", today's classifier says "${again.classification}"`).toBe(t.classification);
           }
         }

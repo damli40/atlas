@@ -29,3 +29,16 @@ in the same commit. `tests/unit/bench-order.test.ts` checks this. Earlier entrie
   the only one allowed live; `--live` refuses a dirty working tree; a live result records its builder, validator,
   registration content hash and tooling hashes; dry runs are never overwritten.
 - `bench/lib/normalize.ts` (new): function bodies normalised for the overlap check.
+
+## 2026-10-28: bench T2 amendment 1 in force (committed alone just before this change)
+
+- `bench/truth/classify.ts`: a measured `{ dependsOn }` field is "correct (labelled)" when T2 amendment 1 is in force
+  and the run's conditions label it (randomness / hash-seed with a valid seed, or memory-address; time-zone-or-locale
+  with UTC and the language's locale, or a host note naming a read; timed-work; tick-order) and the run's twin
+  measured the same value; a `{ dependsOn }` field refused by the double run is correct; process-lifetime is not
+  covered. New names "correct (labelled)" (test) and "correct (labelled)" / "correct (double run)" (field). Results
+  from before the amendment are re-scored without labels (their `meta.labelsInForce` is absent).
+- `bench/truth/run.ts`: stores each run's conditions, seed, time zone, locale and the twin's measured fields; records
+  the amendment files' SHA-256, whether labels were in force, conditions counts and double-run refusals; the table
+  shows each test's condition kinds.
+- `tests/unit/bench-order.test.ts`: (l) amendment files are never edited; a result's recorded amendments match.
