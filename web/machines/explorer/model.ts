@@ -1,5 +1,5 @@
 // X2: the code explorer machine's model. A pure function from one outline answer (GET /outline/jobs/:id/outline)
-// to what the machine may draw and what the card may say. It imports types only (tests/unit/x2-explorer.test.ts).
+// to what the machine may draw and what the card may say. It imports types only, plus the pure wording helpers of src/words.ts (tests/unit/x2-explorer.test.ts).
 //
 // The machine, in one sentence: a skid of instrument boxes on a base plate, one box per part plain code confirmed,
 // each box standing on the tray of the file(s) its lines come from, trays grouped on one deck per folder; a steel
@@ -17,6 +17,7 @@
 
 import type { CodeMapFile, CodeSymbol, JoinKind, ModelText, OutlineLanguage, VerifiedJoin } from "../../../src/outline/types";
 import type { OutlineView } from "./outline-data";
+import { lineSpan } from "../../../src/words";
 
 export interface Span {
   path: string;
@@ -271,7 +272,7 @@ export function authorOf(by: `model:${string}`): string {
 
 /** "client.ts · whole file (lines 1–364)" or "client.ts · lines 223–363". */
 export function spanText(s: Span): string {
-  return s.wholeFile ? `${s.path} · whole file (lines ${s.lineStart}–${s.lineEnd})` : `${s.path} · lines ${s.lineStart}–${s.lineEnd}`;
+  return s.wholeFile ? `${s.path} · whole file (${lineSpan(s.lineStart, s.lineEnd)})` : `${s.path} · ${lineSpan(s.lineStart, s.lineEnd)}`;
 }
 
 /** The status of a join in words, as the card and the list show it. */

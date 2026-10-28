@@ -25,11 +25,12 @@ const attrValues = (html: string, attr: string) => new Set([...html.matchAll(new
 const drawable = (v: OutlineView) => v.verified!.joins.filter((j) => j.status !== "model-only").map((j) => j.id).sort();
 
 describe("X2 explorer model", () => {
-  it("model.ts imports nothing but types", () => {
+  it("model.ts imports nothing but types and the pure wording helper (src/words.ts, which imports nothing)", () => {
     const src = readFileSync(join(ROOT, "web/machines/explorer/model.ts"), "utf8");
     const imports = [...src.matchAll(/^\s*import\s[^;]*;/gm)].map((m) => m[0].trim());
-    expect(imports.every((i) => i.startsWith("import type "))).toBe(true);
-    expect(imports).toHaveLength(2);
+    expect(imports.filter((i) => !i.startsWith("import type "))).toEqual(['import { lineSpan } from "../../../src/words";']);
+    expect(imports).toHaveLength(3);
+    expect([...readFileSync(join(ROOT, "src/words.ts"), "utf8").matchAll(/^\s*import\s/gm)]).toHaveLength(0);
     const types = readFileSync(join(ROOT, "web/machines/explorer/outline-data.ts"), "utf8");
     expect([...types.matchAll(/^\s*import\s[^;]*;/gm)].every((m) => m[0].trim().startsWith("import type "))).toBe(true);
   });

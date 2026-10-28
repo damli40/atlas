@@ -9,6 +9,7 @@ import { stillNow, useVisible } from "../env";
 import { buildFigure, type Figure } from "./figure.mjs";
 import { authorOf, chalkText, joinWords, spanText, type BetChoice, type Box, type ExplorerModel } from "./model";
 import { applyPick } from "./pick";
+import { plural } from "../../../src/words";
 
 const DARK = "(prefers-color-scheme: dark)";
 function useDark(): boolean {
@@ -102,7 +103,7 @@ export function ExplorerMachine({ model, onBet, betUnavailable, betBusy = null, 
   const codeOnly = model.lines.filter((l) => l.status === "code-only").length;
   const typeOnly = model.lines.filter((l) => l.typeOnly).length;
   const drawnOf = (b: Box) => b.joins.filter((j) => j.drawn).length;
-  const readout = box ? `${box.name.text} · ${drawnOf(box)} ${drawnOf(box) === 1 ? "line" : "lines"}` : `${model.boxes.length} parts · ${model.lines.length} lines`;
+  const readout = box ? `${box.name.text} · ${plural(drawnOf(box), "line")}` : `${plural(model.boxes.length, "part")} · ${plural(model.lines.length, "line")}`;
   return (
     <div className="ex-wrap">
     <div className="iso ex ex-page" data-theme={shown === "light" ? "light" : undefined} ref={rootRef} data-testid="explorer-machine">
@@ -119,7 +120,7 @@ export function ExplorerMachine({ model, onBet, betUnavailable, betBusy = null, 
               { mark: "dotted", label: `Two tag collars: found by plain code only, Wonder did not name it (${codeOnly})` },
               { mark: "lit", label: "The part you picked and its lines; the rest steps back" },
             ]}
-            caption={`Drawn only from Atlas's checked outline of ${model.source}${model.commit ? ` at commit ${model.commit.slice(0, 7)}` : ""} (${model.files.length} files). Muse Wonder (${model.model}) proposed the parts and joins and wrote every name and purpose; plain code checked them against the files. A box is a part whose lines plain code confirmed; it is as tall as the lines it covers, and its plate shows Wonder's name for it. A steel line is a join plain code found: thick for calls, thin for imports and uses, braided for type-only imports (${typeOnly}, no link at run time). "Lines confirmed" means the lines exist where Wonder said; it does not mean Wonder's sentence about a part is true.`}
+            caption={`Drawn only from Atlas's checked outline of ${model.source}${model.commit ? ` at commit ${model.commit.slice(0, 7)}` : ""} (${plural(model.files.length, "file")}). Muse Wonder (${model.model}) proposed the parts and joins and wrote every name and purpose; plain code checked them against the files. A box is a part whose lines plain code confirmed; it is as tall as the lines it covers, and its plate shows Wonder's name for it. A steel line is a join plain code found: thick for calls, thin for imports and uses, braided for type-only imports (${typeOnly}, no link at run time). "Lines confirmed" means the lines exist where Wonder said; it does not mean Wonder's sentence about a part is true.`}
           >
             <div
               className="iso-stage ex-stage"

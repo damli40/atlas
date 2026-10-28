@@ -12,6 +12,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as k from "../iso/iso-kit.mjs";
 import { buildFigure, auditFigure } from "./figure.mjs";
+import { plural } from "../../../src/words.ts";
 import { explorerModel, authorOf, chalkText, joinWords, spanText, CHALK_WORDS, NO_LINK_WORDS } from "./model.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -55,7 +56,7 @@ function cardData(M) {
 function captionOf(M) {
   const codeOnly = M.lines.filter((l) => l.status === "code-only").length;
   const typeOnly = M.lines.filter((l) => l.typeOnly).length;
-  return `Drawn only from Atlas's checked outline of ${M.source}${M.commit ? ` at commit ${M.commit.slice(0, 7)}` : ""} (${M.files.length} files). Muse Wonder (${M.model}) proposed the parts and joins and wrote every name and purpose; plain code checked them against the files. A box stands for a part whose lines plain code confirmed; it is as tall as the lines it covers (7 units plus 1 per 45 lines), and its plate shows Wonder's name for it. A steel line is a join plain code found: thick for calls, thin for imports and uses, braided for type-only imports (${typeOnly}, no link at run time); two tag collars mark the ${codeOnly} that Wonder did not name. "Lines confirmed" means the lines exist where Wonder said; it does not mean Wonder's sentence about a part is true.`;
+  return `Drawn only from Atlas's checked outline of ${M.source}${M.commit ? ` at commit ${M.commit.slice(0, 7)}` : ""} (${plural(M.files.length, "file")}). Muse Wonder (${M.model}) proposed the parts and joins and wrote every name and purpose; plain code checked them against the files. A box stands for a part whose lines plain code confirmed; it is as tall as the lines it covers (7 units plus 1 per 45 lines), and its plate shows Wonder's name for it. A steel line is a join plain code found: thick for calls, thin for imports and uses, braided for type-only imports (${typeOnly}, no link at run time); two tag collars mark the ${codeOnly} that Wonder did not name. "Lines confirmed" means the lines exist where Wonder said; it does not mean Wonder's sentence about a part is true.`;
 }
 
 function listsHtml(M) {
@@ -82,7 +83,7 @@ function page(M, fig, theme) {
     fig: "Fig X2",
     title: `${M.source}${M.commit ? ` @ ${M.commit.slice(0, 7)}` : ""}`,
     hint: "hover a box · Tab, then ← → · Esc",
-    readout: `${M.boxes.length} parts · ${M.lines.length} lines`,
+    readout: `${plural(M.boxes.length, "part")} · ${plural(M.lines.length, "line")}`,
     keys: [
       { mark: "raised", label: "A box: a part whose lines plain code confirmed. Taller box = more lines" },
       { mark: "edge", label: `A steel line: plain code found an import, call or use (${M.lines.length - codeOnly} that Wonder named too)` },

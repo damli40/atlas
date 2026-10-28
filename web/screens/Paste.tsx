@@ -29,7 +29,7 @@ import type { BetHandoff } from "./Explorer";
 
 type LangChoice = "auto" | "js" | "ts" | "py";
 
-export function PasteFlow({ api, onRoundOpen, handoff = null }: { api: Api; onRoundOpen?: (open: boolean) => void; handoff?: BetHandoff | null }) {
+export function PasteFlow({ api, onRoundOpen, handoff = null, onHandoffUsed }: { api: Api; onRoundOpen?: (open: boolean) => void; handoff?: BetHandoff | null; onHandoffUsed?: () => void }) {
   const [code, setCode] = useState("");
   const [langChoice, setLangChoice] = useState<LangChoice>("auto");
   const [languages, setLanguages] = useState<PasteLanguage[] | null>(null);
@@ -88,6 +88,8 @@ export function PasteFlow({ api, onRoundOpen, handoff = null }: { api: Api; onRo
     if (!handoff || handled.current === handoff.nonce) return;
     const nonce = handoff.nonce;
     handled.current = nonce;
+    // Used once: coming back to this screen later must not paste the file again.
+    onHandoffUsed?.();
     setCode(handoff.code);
     setLangChoice(handoff.language);
     setPasted(null);

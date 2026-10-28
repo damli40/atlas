@@ -176,9 +176,11 @@ describe("X2: Bet on this part lands in the paste flow with the right export", (
   it("the paste flow sends the file once, through POST /paste, and picks the export the person chose", async () => {
     const calls: { code: string; language?: string }[] = [];
     const handoff: BetHandoff = { code: "export function redactSecret() {}\n", language: "ts", exportName: "redactSecret", from: "server/meta/redact-secret.ts in damli40/atlas at 058ab2a", nonce: 1 };
-    mount(<PasteFlow api={fakeApi(calls)} handoff={handoff} />);
+    let used = 0;
+    mount(<PasteFlow api={fakeApi(calls)} handoff={handoff} onHandoffUsed={() => used++} />);
     await flush();
     expect(calls).toEqual([{ code: handoff.code, language: "ts" }]);
+    expect(used).toBe(1); // the app clears it, so coming back to the paste screen does not paste the file again
     expect(host!.querySelector('[data-testid="paste-from-explorer"]')!.textContent).toBe("From the explorer: server/meta/redact-secret.ts in damli40/atlas at 058ab2a, function redactSecret.");
     const checked = host!.querySelector<HTMLInputElement>('input[type="radio"]:checked');
     expect(checked?.value ?? checked?.closest("label")?.textContent).toMatch(/redactSecret/);

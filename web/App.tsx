@@ -120,7 +120,7 @@ function Rounds({ api: given }: { api?: Api }) {
           ) : mode === "pr" ? (
             <MoonwellFlow api={prApi} onRoundOpen={reportPrOpen} />
           ) : mode === "paste" ? (
-            <PasteFlow api={pasteApi} onRoundOpen={reportPasteOpen} handoff={handoff} />
+            <PasteFlow api={pasteApi} onRoundOpen={reportPasteOpen} handoff={handoff} onHandoffUsed={() => setHandoff(null)} />
           ) : mode === "explore" ? (
             <ExplorerFlow api={pasteApi} onBet={betFromExplorer} saved={savedOutline} />
           ) : (
