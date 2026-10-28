@@ -63,6 +63,8 @@ export interface OutlineDeps {
   budget?: ModelBudget;
   /** Per-address limit on outline jobs. */
   takeOutline: (c: Context) => { ok: true } | { ok: false; reason: string };
+  /** G1 review B7: one GitHub read from the spender's share, for an outline of a GitHub repo. Absent = not limited. */
+  takeGithubRead?: () => { ok: true } | { ok: false; reason: string };
   /** Per-address model-round limit, shared with the other model features. */
   takeModelRound: (c: Context) => { ok: true } | { ok: false; reason: string };
 }
@@ -257,6 +259,10 @@ export function createOutlineRoutes(opts: OutlineOptions, deps: OutlineDeps) {
       if (count >= MAX_OUTLINE_JOBS_PER_SESSION) return c.json({ error: `a session may start at most ${MAX_OUTLINE_JOBS_PER_SESSION} outline jobs; start a new session` }, 429);
       const byIp = deps.takeOutline(c);
       if (!byIp.ok) return c.json({ error: `outline not started: ${byIp.reason}` }, 429);
+      if ("repo" in parsed.data && deps.takeGithubRead) {
+        const gh = deps.takeGithubRead();
+        if (!gh.ok) return c.json({ error: `outline not started: ${gh.reason}` }, 429);
+      }
       started.set(sessionId, count + 1);
       while (started.size > 1000) started.delete(started.keys().next().value!);
       // Wonder is asked only when this server has it and the client's model-round allowance is not used up.
