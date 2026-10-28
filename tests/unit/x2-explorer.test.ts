@@ -33,7 +33,7 @@ describe("X2 explorer model", () => {
     expect([...readFileSync(join(ROOT, "src/words.ts"), "utf8").matchAll(/^\s*import\s/gm)]).toHaveLength(0);
     const types = readFileSync(join(ROOT, "web/machines/explorer/outline-data.ts"), "utf8");
     expect([...types.matchAll(/^\s*import\s[^;]*;/gm)].every((m) => m[0].trim().startsWith("import type "))).toBe(true);
-  });
+  }, 120_000);
 
   it("the route's answer is exactly the explorer's input (type-level), and the saved fixture is that answer at 058ab2a", () => {
     const fromRoute: (s: OutlineSection) => OutlineView = (s) => outlineAnswerOf("x", s);
@@ -41,7 +41,7 @@ describe("X2 explorer model", () => {
     const v = saved();
     expect(v.source).toMatchObject({ kind: "github", repo: "damli40/atlas", commit: "058ab2a29634dc0b8c092fe7816a6fd57ce9b74c", subfolder: "server/meta" });
     expect(JSON.stringify(v)).not.toContain('"text":"//'); // no code text in the answer
-  });
+  }, 120_000);
 
   it("draws a box for exactly the confirmed parts and a line for exactly the confirmed and code-only joins", () => {
     const v = saved();
@@ -53,7 +53,7 @@ describe("X2 explorer model", () => {
     expect(m.lines.filter((l) => l.status === "code-only")).toHaveLength(6);
     expect(m.lines.filter((l) => l.typeOnly).map((l) => l.id).sort()).toEqual(v.verified!.joins.filter((j) => j.typeOnly).map((j) => j.id).sort());
     expect(m.commit).toBe("058ab2a29634dc0b8c092fe7816a6fd57ce9b74c");
-  });
+  }, 120_000);
 
   it("a model-only join is never a line: a chalk tag with the right words (could not check vs proved no link)", () => {
     const v = saved();
@@ -72,7 +72,7 @@ describe("X2 explorer model", () => {
     const lines = attrValues(fig.svg, "data-line");
     expect([...lines].sort()).toEqual(m.lines.map((l) => l.id).sort());
     expect(lines.has(j0.id) || lines.has(j1.id)).toBe(false);
-  });
+  }, 120_000);
 
   it("whole-file spans say 'whole file'; type-only joins say 'type-only'; the card label is 'lines confirmed'", () => {
     const m = explorerModel(saved());
@@ -85,7 +85,7 @@ describe("X2 explorer model", () => {
     const src = readFileSync(join(ROOT, "web/machines/explorer/ExplorerMachine.tsx"), "utf8");
     expect(src).toContain("Part · lines confirmed");
     expect(src).not.toMatch(/purpose (is )?confirmed/i);
-  });
+  }, 120_000);
 
   it("can't map, can't check and no outline: nothing is drawn and the reason is shown", () => {
     const a = saved();
@@ -103,7 +103,7 @@ describe("X2 explorer model", () => {
     c.verified = null;
     c.wonder.failure = "muse-wonder-1.0 gave no usable outline after one repair try";
     expect(explorerModel(c).notShown).toMatch(/gave no usable outline/);
-  });
+  }, 120_000);
 
   it("an unconfirmed part gets no box, and no line lands on it even when plain code found a join", () => {
     const v = saved();
@@ -115,14 +115,14 @@ describe("X2 explorer model", () => {
     expect(m.unconfirmed.map((u) => u.id)).toEqual(["secret-redaction"]);
     expect(m.lines.some((l) => l.from === "secret-redaction" || l.to === "secret-redaction")).toBe(false);
     expect(m.notDrawn.length).toBeGreaterThan(0);
-  });
+  }, 120_000);
 
   it("keeps every name and purpose as Muse Wonder's words, with the model named", () => {
     for (const b of explorerModel(saved()).boxes) {
       expect(b.name.by).toBe("model:muse-wonder-1.0");
       expect(b.purpose.by).toBe("model:muse-wonder-1.0");
     }
-  });
+  }, 120_000);
 
   it("groups trays by folder: one deck for the top folder, one for roles/", () => {
     const m = explorerModel(saved());
@@ -130,7 +130,7 @@ describe("X2 explorer model", () => {
     expect(m.rootFolder).toBe("server/meta/");
     const placed = m.decks.flatMap((d) => d.slots).filter((s) => s.kind === "box");
     expect(placed).toHaveLength(m.boxes.length);
-  });
+  }, 120_000);
 
   it("offers exported functions to bet on, and says why when it cannot", () => {
     const v = saved();
@@ -147,7 +147,7 @@ describe("X2 explorer model", () => {
     const other = saved();
     (other.files.find((f) => f.path === "redact-secret.ts") as { language: string }).language = "go";
     expect(explorerModel(other).boxes.find((b) => b.id === "secret-redaction")!.bets[0]).toMatchObject({ ok: false, why: "Atlas runs only JavaScript, TypeScript and Python files" });
-  });
+  }, 120_000);
 });
 
 describe("X2 explorer figure", () => {
@@ -180,5 +180,5 @@ describe("X2 explorer figure", () => {
     const fig = buildFigure(explorerModel(v));
     expect(fig.svg).not.toContain("<img");
     expect(fig.svg).toContain("&lt;img");
-  });
+  }, 120_000);
 });

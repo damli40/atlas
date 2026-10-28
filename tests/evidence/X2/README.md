@@ -1,8 +1,107 @@
 # X2: the code explorer (full build)
 
-Date: 2026-10-28 (WAT) · live spend **$0.996** (three Muse Wonder outline calls, no other paid call) · Node 25.8.1.
+Date: 2026-10-28 (WAT) · live spend: **$0.996** in the first version, **$0.506** in review round 1 · Node 25.8.1 · main merged at 878deeb (G1 invite codes).
 
-## Where to look first
+
+## Review round 1 (read this first)
+
+The review found 4 blockers, 4 majors and 6 minors (report: `scratchpad/review-X2.md`, not in the repo). The core trust
+rules held. Everything below is fixed. "Where to look first" further down describes the first version; where it
+disagrees with this section, this section is right.
+
+### What changed, in one paragraph each
+
+- **B1 (the idle tour could swap the bet button under a still pointer).** The live screen has **no idle tour at all**
+  now: the picked part changes only when the reader picks. The saved demo page keeps its tour, but it stops for good on
+  any pointer, click, focus, key, wheel or touch anywhere in the figure, card or lists. Tested with motion ALLOWED: a
+  unit test (30 s of fake time, card unchanged), and the browser harness (13 s with the pointer resting on "Bet on
+  redactSecret", card unchanged).
+- **B2 (a "data" join showed a direction plain code never checked).** A data join now shows **↔** and says "plain code
+  found a use between these parts (it did not check the direction)". Joins are drawn **one line per code link**: a join
+  whose code links are all shown by a line between the same two parts shares that line ("same line as the imports
+  join"), and a second copy of the same join is not drawn again (also minor 2).
+- **B3 (a part spanning folders swallowed other folders' decks).** Every file's tray sits on its own folder's deck. A part
+  whose files lie in several folders is drawn as **one box per folder** ("1/6 Spans many folders" …). The boxes are one
+  part: one hit target, picked and lit together. Lines land on the box with the most lines. The screen-reader label
+  counts folders, files, parts and boxes truthfully. The reviewer's 6-folder fixture now gives 6 decks, 12 trays, and
+  13 parts drawn as 18 boxes.
+- **B4 (a 40-part, 156-join outline froze the tab for 65 s).**
+  1. The router was rebuilt: which fittings each candidate route passes over is computed once, and heights use one
+     crossing table. 156 joins: 41 s → 4.5 s in Node.
+  2. A size budget: past 90 joins or 40 parts, or 24 stacked heights, the page says "Too many joins to draw: … Showing
+     the list instead" and lists everything. That takes under 1 ms (tested). A counted router budget backs it up.
+  3. The live screen builds the figure in a **Web Worker** (`figure.worker.ts`), shows "Drawing the machine for N parts
+     and M joins… s" meanwhile, and gives up with the list after 30 s. The page stays responsive.
+- **M1 (names 6.6 px at 1920).**
+  - In explore mode the agent log moves under the figure, and the figure takes three quarters of the width.
+  - Plate text is 4.4 units (was 2.8). Rows are wider (150 units, was 92), so decks no longer stack into a long
+    diagonal.
+  - **Measured in the browser at 1920×1080: name plates 12.3 px tall, folder plates 8.5 px**, in both themes
+    (`screens/browser-output.txt`, `screens/checks.json`). Measured as font size × the screen scale of the text's own
+    vertical axis, the reviewer's method.
+  - Long names are still cut with "…" (for example "Claimant and fixtur…"); the card has the full name.
+- **M2 (stale "From the explorer" note).** It clears on any edit of the code box, on "Read it" when the code changed,
+  and on restart.
+- **M3 (local paths in evidence; stress test timing).** The suite outputs are regenerated with the repo path replaced
+  by `<repo>`. The stress test draws 25 random outlines (was 50) plus the audit on seed 7.
+- **M4 (expired job read as a bug).** A 404 on the job now says "This outline expired (outlines are kept 30 minutes).
+  Run it again." with a **Run it again** button that repeats the same request, and the bet buttons are disabled with
+  that reason.
+- **G1 (merged main 878deeb).** When the invite gate answers 401 ("Atlas needs an invite code …"), the explorer and the
+  paste flow show the server's sentence with a link, **Enter your invite code** (`/api/invite`, the gate's own page
+  through the dev proxy). The explorer and the hand-off use the same routes, so they need a code exactly where G1 says.
+- **Minors.**
+  1. The ruler strip is gone. Its long ticks floated on large figures, and box width no longer measures lines.
+  2. Duplicate joins: see B2.
+  3. The readout says "N joins drawn", not "lines".
+  4. The caption says Wonder proposed the parts and wrote the names; plain code found the joins (N of them Wonder did
+     not name); a box "grows taller" (7 + 1 per 45 lines), not "as tall as".
+  5. Unconfirmed parts are named by Wonder's name ("Secret redaction (not confirmed)"), never a raw id. The saved page
+     now also lists "Joins found but not drawn".
+  6. Seed 7's crowding: a line whose bend or end lands on another line on screen is lifted to a higher height and the
+     figure drawn again (at most 3 times). Seed 7 now passes the audit (a test).
+
+### Checks after the fixes
+
+| Check | Result |
+|---|---|
+| Reviewer's `check.mjs` with `AUDIT=1` (`review1/check-mjs-output.txt`) | 0 problems and **audit passed** on saved, hostileNames, circular, spanFolders, dataReversed and unconfirmed, and on **random seeds 1–30 (30 of 30, seed 7 included)**. big40x10pct (152 joins after de-duplication), big20all (190) and big40all (780): "too many joins to draw clearly", instantly. |
+| Anatomy audit, saved outline (`audit.txt`) | `audit passed` |
+| Line ends (`lines.txt`) | 0 on the saved page at rest and picked, both themes; 0 on the reviewer's hostileNames, circular, spanFolders and dataReversed pages (were 4, 3, 0 and 10) |
+| Browser harness, every model mocked (`screens/browser-output.txt`) | 41 checks passed, 0 failed: axe 0 violations on every screen, overlap 0, no sideways scroll at 390 px in both themes, reduced motion still, names 12.3 px, no tour with motion allowed, outline → pick → hand-off → verdict |
+| Tests | `x2-review1.test.tsx` 14 new (one per finding), plus the earlier X2 tests updated; full suite: see "Full suite" |
+
+### The live run (real models, $0.506)
+
+One run on the merged code after the fixes. It went from outlining Atlas's `server/meta` at 058ab2a, to picking a part,
+to betting on `redactSecret` with Muse Spark and Muse Spark Open, to the verdict. Screenshots are in
+`live-review1/` (`film-rest`, `film-selected`, `card`, `film-handoff`, `film-verdict`). The billed usage is in
+`live-review1/usage.jsonl`.
+
+- **Outline:** a real Muse Wonder answer, 12 of 12 parts with lines confirmed. 23 lines drawn and 1 chalk tag, so this
+  run had one join only Wonder named. Drawn in the browser; outline job to drawn machine about 30 s.
+- **Pick and hand-off:** Wonder named the part holding `redactSecret` "Meta API client and secret redaction" (a part
+  spanning `client.ts` and `redact-secret.ts`). "Bet on redactSecret" opened the paste flow with `redact-secret.ts` and
+  `redactSecret` picked.
+- **Proposals:** Muse Wonder proposed 3 tests, and the gate allowed all 3. Test 1 was
+  `redactSecret("leak: abcdefghijklYYYYYYYYYYY end", "abcdefghijklXXXXXXXXXXXXabcdefghijklYYYYYYYYYYY")`.
+- **Bets:** the person (my script) and both models. Muse Spark 1.3's first answer was not usable, and its one repair
+  try was.
+- **Verdict:** the judge judged 8 bets: **6 matched, 2 didn't match**.
+  - The code returned `"leak: [redacted]YYYYYYYYYYY end"`.
+  - Muse Spark matched all 3 questions.
+  - Muse Spark Open matched 2: outcome and returned value. Its time bet did not match.
+  - My script's fixed guess for the returned value did not match.
+- **Cost: $0.5064, over the $0.50 limit by $0.0064.** Outline $0.3233, Wonder's proposals $0.1064, Muse Spark Open
+  $0.0066, Muse Spark $0.0409 + $0.0292 (its repair try). I expected about $0.40. The proposals call and Spark's repair
+  cost more than I allowed for.
+- **What this run changed on this machine:**
+  - My first two attempts to start the live server used the default invite store, `~/.config/atlas/`, before I pointed
+    `ATLAS_INVITES_DIR` at a scratch folder. They created an empty ledger there (`spend.json`, all zeros, 13:23 WAT).
+    I left it in place.
+  - Starting the server also removed sandbox folders older than 10 minutes in the temp folder (E3's startup rule).
+
+## First version: where to look first
 
 - **What works now.** In the app, "Explore a codebase" takes a public GitHub folder or uploaded files, starts an X1
   outline job, shows each step, then draws the machine from the job's checked outline. Picking a part shows its card.
@@ -185,11 +284,12 @@ $0.05 for real proposals and bets. That is Dami's call.
 - The X2 prototype's evidence (`tests/evidence/X2-proto/`) is kept as it was. Its fixture (r2, 5f28a6c) is no longer
   what the page draws.
 
-## Full suite
+## Full suite (after review round 1)
 
-Three runs after the last change, all identical: **1356 passed, 35 skipped (107 files), 0 failed**
-(`full-suite-1.txt`, `full-suite-2.txt`, `full-suite-3.txt`; the 35 skips are main's own RPC, Modal and network
-checks). Before X2 the merged main had 1333 passed. tsc is clean (`tsc-output.txt` is empty).
+Three runs on the final code: **1435 passed, 35 skipped (111 files), 0 failed, all three identical**
+(`full-suite-1.txt`, `full-suite-2.txt`, `full-suite-3.txt`; the repo's path is written `<repo>`). Main at 878deeb had
+1397 passed. tsc is clean (`tsc-output.txt` is empty).
 
-An earlier batch of three runs failed 2 house wording checks (`d07-04-wording.test.ts`): my code had written
-"lines 1–36" and "13 files" by hand instead of with `lineSpan` and `plural`. Both now use the house helpers.
+The first batch of three runs after the fixes failed once in runs 2 and 3. The M4 React test timed out at vitest's
+20 s default while the whole suite loaded the machine (it builds the figure twice). Every X2 test that builds a figure
+now has a 120 s limit.

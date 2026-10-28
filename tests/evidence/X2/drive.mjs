@@ -30,8 +30,8 @@ const check = (ok, what) => {
 const flat = (s) => s.replace(/\s+/g, " ").trim();
 const results = { axe: {}, overflow: {}, motion: {}, overlap: {}, errors: [], timings: {} };
 
-async function newPage(width = 1920, height = 1080, theme = "light") {
-  const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1, reducedMotion: "reduce", colorScheme: theme });
+async function newPage(width = 1920, height = 1080, theme = "light", reducedMotion = "reduce") {
+  const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1, reducedMotion, colorScheme: theme });
   page.on("pageerror", (e) => results.errors.push(e.message));
   // A 422 is the gate refusing a test on purpose (the refused-test step); the browser logs it as a failed resource.
   page.on("console", (m) => m.type() === "error" && !/status of 422/.test(m.text()) && results.errors.push(`console: ${m.text()}`));
@@ -138,7 +138,7 @@ async function outlineLive(page) {
   await page.getByTestId("outline-ref").fill(REF);
   const t0 = Date.now();
   await page.getByTestId("outline-start").click();
-  await page.getByTestId("explorer-machine").waitFor({ timeout: LIVE ? 300000 : 90000 });
+  await page.locator('[data-testid="explorer-stage"] svg').waitFor({ timeout: LIVE ? 300000 : 90000 });
   results.timings.outline = Date.now() - t0;
   say(`outline job to drawn machine: ${(results.timings.outline / 1000).toFixed(1)} s`);
   say("progress:", flat(await page.getByTestId("outline-progress").innerText()));
@@ -168,6 +168,16 @@ for (const theme of LIVE ? ["light"] : ["light", "dark"]) {
   await outlineLive(page);
   await overlap(page, `form-${theme}`, S.form);
   await shotMachine(page, `${outDir}/film-rest-1920-${theme}.png`);
+  // Review M1: the rendered height of the name plates' text (font size × the screen scale of the text's own y axis).
+  const px = await page.evaluate(() => {
+    const em = (sel) => [...document.querySelectorAll(sel)].map((t) => { const m = t.getScreenCTM(); return parseFloat(t.getAttribute("font-size")) * Math.hypot(m.c, m.d); });
+    const n = em('[data-testid="explorer-stage"] .ex-name text');
+    const f = em('[data-testid="explorer-stage"] [data-folder] text');
+    return { nameMin: Math.min(...n), nameMax: Math.max(...n), folderMin: Math.min(...f), plates: n.length };
+  });
+  results.namePx = results.namePx ?? {};
+  results.namePx[theme] = px;
+  check(px.plates > 0 && px.nameMin >= 12, `name plate text at 1920×1080 (${theme}): ${px.nameMin.toFixed(1)} px tall (target ≥ 12), ${px.plates} plates; folder plates ${px.folderMin.toFixed(1)} px`);
   const drawn = await page.locator('[data-testid="explorer-stage"] .it[data-line]').evaluateAll((els) => [...new Set(els.map((e) => e.getAttribute("data-line")))].sort());
   const chalk = await page.locator("[data-chalk]").evaluateAll((els) => els.map((e) => e.getAttribute("data-chalk")));
   say(`drawn lines: ${drawn.length}; chalk tags: ${chalk.length}`);
@@ -203,10 +213,16 @@ for (const theme of LIVE ? ["light"] : ["light", "dark"]) {
   await page.evaluate(() => document.querySelector('section[aria-label="paste"]').scrollIntoView({ block: "start" }));
   await page.screenshot({ path: `${outDir}/film-handoff-1920-light.png` });
   await axe(page, "handoff");
+  // Live run: who bets with the person (X2_CLAIMANT=both asks Muse Spark and Muse Spark Open).
+  if (process.env.X2_CLAIMANT) {
+    await page.getByTestId(`claimant-${process.env.X2_CLAIMANT}`).check();
+    say(`bettors: ${process.env.X2_CLAIMANT}`);
+  }
   await page.getByTestId("ask-wonder").click();
   await page.getByTestId("proposals").waitFor({ timeout: LIVE ? 180000 : 30000 });
   say("proposal 1:", flat(await page.getByTestId("proposal-0").innerText()).slice(0, 300));
-  await page.getByTestId("use-0").click();
+  // The first test Atlas's gate allowed (a refused one has no "use" button).
+  await page.locator('[data-testid^="use-"]').first().click();
   await page.getByTestId("bet-outcome").waitFor();
   await page.getByTestId("bet-outcome").selectOption("returned");
   if (await page.getByTestId("bet-returnedJson").count()) await page.getByTestId("bet-returnedJson").fill(process.env.X2_BET_JSON ?? '"Invalid API key [redacted]... refused"');
@@ -218,8 +234,26 @@ for (const theme of LIVE ? ["light"] : ["light", "dark"]) {
   await page.evaluate(() => document.querySelector('section[aria-label="verdicts"]').scrollIntoView({ block: "start" }));
   await page.screenshot({ path: `${outDir}/film-verdict-1920-light.png` });
   say("run facts:", flat(await page.getByTestId("paste-run-facts").innerText()).slice(0, 300));
-  say("verdicts:", flat(await page.locator('section[aria-label="verdicts"] table').innerText()).slice(0, 600));
+  say("verdicts:", flat(await page.locator('section[aria-label="verdicts"] table.verdicts').innerText()).slice(0, 600));
   await axe(page, "verdict");
+  await page.close();
+}
+
+// ---------- 2b. Review B1: with motion ALLOWED, nothing changes the picked part while the reader rests on the card ----------
+{
+  say("=== no idle tour on the live screen (motion allowed)");
+  const page = await newPage(1920, 1080, "light", "no-preference");
+  await page.goto(URL0);
+  await page.getByTestId("mode-explore").click();
+  await page.getByTestId("outline-saved").click();
+  await page.locator('[data-testid="explorer-stage"] svg').waitFor({ timeout: 60000 });
+  const before = await pick(page);
+  const btn = page.getByTestId("bet-redactSecret");
+  const b = await btn.boundingBox();
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height - 2);
+  await page.waitForTimeout(13000);
+  const after = await page.locator(`${S.card} h3`).innerText();
+  check(after === before, `after 13 s with motion allowed and the pointer resting on the bet button, the card still shows ${before} (shows ${after})`);
   await page.close();
 }
 
@@ -230,7 +264,7 @@ for (const theme of LIVE ? [] : ["light", "dark"]) {
   await page.goto(URL0);
   await page.getByTestId("mode-explore").click();
   await page.getByTestId("outline-saved").click();
-  await page.getByTestId("explorer-machine").waitFor();
+  await page.locator('[data-testid="explorer-stage"] svg').waitFor({ timeout: 60000 });
   await overflow(page, `explorer-saved-${theme}`);
   await pick(page);
   await overflow(page, `explorer-picked-${theme}`);

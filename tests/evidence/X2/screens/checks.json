@@ -80,23 +80,23 @@
    "overlapCount": 0,
    "outside": [],
    "outsideCount": 0,
-   "width": 1389
+   "width": 1848
   },
   "card-light": {
-   "textBoxes": 38,
+   "textBoxes": 36,
    "overlaps": [],
    "overlapCount": 0,
    "outside": [],
    "outsideCount": 0,
-   "width": 380
+   "width": 457
   },
   "lists-light": {
-   "textBoxes": 8,
+   "textBoxes": 7,
    "overlaps": [],
    "overlapCount": 0,
    "outside": [],
    "outsideCount": 0,
-   "width": 380
+   "width": 457
   },
   "form-dark": {
    "textBoxes": 15,
@@ -104,23 +104,23 @@
    "overlapCount": 0,
    "outside": [],
    "outsideCount": 0,
-   "width": 1389
+   "width": 1848
   },
   "card-dark": {
-   "textBoxes": 38,
+   "textBoxes": 36,
    "overlaps": [],
    "overlapCount": 0,
    "outside": [],
    "outsideCount": 0,
-   "width": 380
+   "width": 457
   },
   "lists-dark": {
-   "textBoxes": 8,
+   "textBoxes": 7,
    "overlaps": [],
    "overlapCount": 0,
    "outside": [],
    "outsideCount": 0,
-   "width": 380
+   "width": 457
   },
   "card-390-light": {
    "textBoxes": 40,
@@ -141,6 +141,20 @@
  },
  "errors": [],
  "timings": {
-  "outline": 4056
+  "outline": 7866
+ },
+ "namePx": {
+  "light": {
+   "nameMin": 12.294806329719723,
+   "nameMax": 12.294806329719723,
+   "folderMin": 8.522143721373883,
+   "plates": 12
+  },
+  "dark": {
+   "nameMin": 12.294806329719723,
+   "nameMax": 12.294806329719723,
+   "folderMin": 8.522143721373883,
+   "plates": 12
+  }
  }
 }

@@ -1,0 +1,45 @@
+saved {"boxes":12,"lines":24,"chalk":0,"notDrawn":0,"buildMs":2327,"err":null,"problems":0,"sample":[]}
+saved audit passed
+hostileNames {"boxes":4,"lines":3,"chalk":0,"notDrawn":0,"buildMs":1205,"err":null,"problems":0,"sample":[]}
+hostileNames audit passed
+circular {"boxes":3,"lines":3,"chalk":0,"notDrawn":0,"buildMs":776,"err":null,"problems":0,"sample":[]}
+circular audit passed
+spanFolders {"boxes":13,"lines":12,"chalk":0,"notDrawn":0,"buildMs":1522,"err":null,"problems":0,"sample":[]}
+spanFolders audit passed
+dataReversed {"boxes":2,"lines":1,"chalk":0,"notDrawn":0,"buildMs":694,"err":null,"problems":0,"sample":[]}
+dataReversed audit passed
+unconfirmed {"boxes":2,"lines":0,"chalk":2,"notDrawn":0,"buildMs":715,"err":null,"problems":0,"sample":[]}
+unconfirmed audit passed
+big40x10pct {"boxes":40,"lines":152,"chalk":0,"notDrawn":0,"buildMs":0,"err":"152 joins between 40 parts are too many to draw clearly (the machine draws at most 90 joins and 40 parts)","problems":0,"sample":[]}
+big20all {"boxes":20,"lines":190,"chalk":0,"notDrawn":0,"buildMs":0,"err":"190 joins between 20 parts are too many to draw clearly (the machine draws at most 90 joins and 40 parts)","problems":0,"sample":[]}
+big40all {"boxes":40,"lines":780,"chalk":0,"notDrawn":0,"buildMs":0,"err":"780 joins between 40 parts are too many to draw clearly (the machine draws at most 90 joins and 40 parts)","problems":0,"sample":[]}
+seed 1 16 boxes 12 lines problems 0  audit passed
+seed 2 7 boxes 8 lines problems 0  audit passed
+seed 3 16 boxes 10 lines problems 0  audit passed
+seed 4 8 boxes 14 lines problems 0  audit passed
+seed 5 17 boxes 22 lines problems 0  audit passed
+seed 6 6 boxes 7 lines problems 0  audit passed
+seed 7 15 boxes 18 lines problems 0  audit passed
+seed 8 10 boxes 22 lines problems 0  audit passed
+seed 9 19 boxes 22 lines problems 0  audit passed
+seed 10 10 boxes 7 lines problems 0  audit passed
+seed 11 18 boxes 16 lines problems 0  audit passed
+seed 12 9 boxes 21 lines problems 0  audit passed
+seed 13 18 boxes 23 lines problems 0  audit passed
+seed 14 9 boxes 25 lines problems 0  audit passed
+seed 15 18 boxes 27 lines problems 0  audit passed
+seed 16 10 boxes 11 lines problems 0  audit passed
+seed 17 21 boxes 21 lines problems 0  audit passed
+seed 18 11 boxes 6 lines problems 0  audit passed
+seed 19 20 boxes 15 lines problems 0  audit passed
+seed 20 12 boxes 11 lines problems 0  audit passed
+seed 21 22 boxes 11 lines problems 0  audit passed
+seed 22 13 boxes 26 lines problems 0  audit passed
+seed 23 18 boxes 23 lines problems 0  audit passed
+seed 24 11 boxes 8 lines problems 0  audit passed
+seed 25 23 boxes 13 lines problems 0  audit passed
+seed 26 12 boxes 14 lines problems 0  audit passed
+seed 27 19 boxes 19 lines problems 0  audit passed
+seed 28 12 boxes 10 lines problems 0  audit passed
+seed 29 19 boxes 18 lines problems 0  audit passed
+seed 30 14 boxes 11 lines problems 0  audit passed

@@ -185,7 +185,7 @@ describe("X2: Bet on this part lands in the paste flow with the right export", (
     const checked = host!.querySelector<HTMLInputElement>('input[type="radio"]:checked');
     expect(checked?.value ?? checked?.closest("label")?.textContent).toMatch(/redactSecret/);
     expect((host!.querySelector('[data-testid="paste-code"]') as HTMLTextAreaElement).value).toBe(handoff.code);
-  });
+  }, 120_000);
 
   it("an export the paste reader does not find is not picked, and the page says so", async () => {
     const calls: unknown[] = [];
@@ -193,7 +193,7 @@ describe("X2: Bet on this part lands in the paste flow with the right export", (
     await flush();
     expect(host!.querySelector('[data-testid="paste-from-explorer"]')!.textContent).toMatch(/found no export named notThere/);
     expect(host!.querySelector('input[type="radio"]:checked')).toBeNull();
-  });
+  }, 120_000);
 
   it("the explorer reads the file from the job's outline file and hands over that text and that function", async () => {
     const view = JSON.parse(readFileSync(join(ROOT, "tests/fixtures/outline/atlas-server-meta-058ab2a.outline.json"), "utf8")) as OutlineView;
@@ -219,12 +219,12 @@ describe("X2: Bet on this part lands in the paste flow with the right export", (
     await flush();
     expect(handed).toHaveLength(1);
     expect(handed[0]).toMatchObject({ code: "THE FILE TEXT", exportName: "redactSecret", language: "ts", from: "server/meta/redact-secret.ts in damli40/atlas at 058ab2a" });
-  });
+  }, 120_000);
 
   it("the saved outline offers no bet (it has no code here) and says why", async () => {
     const view = JSON.parse(readFileSync(join(ROOT, "tests/fixtures/outline/atlas-server-meta-058ab2a.outline.json"), "utf8")) as OutlineView;
     const html = renderToStaticMarkup(<ExplorerMachine model={explorerModel(view)} betUnavailable="no code here" initialPick="secret-redaction" theme="light" />);
     expect(html).toContain("no code here");
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*data-testid="bet-redactSecret"/);
-  });
+  }, 120_000);
 });

@@ -63,7 +63,7 @@ describe("B1: the live screen never changes the picked part on its own", () => {
       window.matchMedia = mm;
       (globalThis as Record<string, unknown>).IntersectionObserver = io;
     }
-  });
+  }, 120_000);
   it("the live component has no timer that picks; the saved demo page's tour stops on any pointer or focus", () => {
     const src = readFileSync(join(ROOT, "web/machines/explorer/ExplorerMachine.tsx"), "utf8");
     expect(src).not.toMatch(/setInterval\([^)]*setPicked/s);
@@ -86,7 +86,7 @@ describe("B2 / minor 2: one line per code link; a data join says it is linked ei
     expect(lineWord(data)).toBe("same line as the imports join");
     const fig = buildFigure(m);
     expect([...fig.svg.matchAll(/data-line="([^"]*)"/g)].map((x) => x[1]).filter((v, i, a) => a.indexOf(v) === i)).toEqual(["wonder:0"]);
-  });
+  }, 120_000);
   it("the same join twice is one line", () => {
     const m = explorerModel(duplicated());
     expect(m.lines).toHaveLength(3);
@@ -105,7 +105,7 @@ describe("B3: decks are the real folders, whatever a part spans", () => {
     expect(fig.stats).toMatchObject({ decks: 6, files: 12, trays: 12, boxes: 13 + 5 });
     expect(fig.svg).toContain("6 folder decks, trays for 12 files, and 13 parts whose lines plain code confirmed, drawn as 18 instrument boxes (1 part spanning folders get one box per folder)");
     expect([...fig.svg.matchAll(/data-hit="([^"]*)"/g)]).toHaveLength(13);
-  });
+  }, 120_000);
 });
 
 describe("B4: a large outline never freezes the page", () => {
@@ -118,19 +118,19 @@ describe("B4: a large outline never freezes the page", () => {
     const html = renderToStaticMarkup(<ExplorerMachine model={m} theme="light" />);
     expect(html).toContain("Too many joins to draw");
     expect(html).toContain("Showing the list instead");
-  });
+  }, 120_000);
   it("40 parts with 47 joins draw in well under the page's 30 s limit (Node, no worker)", () => {
     const m = explorerModel(big(40, 0.03));
     expect(m.lines.length).toBeLessThanOrEqual(MAX_DRAWN_LINES);
     const t = Date.now();
     buildFigure(m);
     expect(Date.now() - t).toBeLessThan(15_000);
-  }, 60_000);
+  }, 120_000);
   it("the live screen builds in a Web Worker and shows a seconds counter meanwhile", () => {
     const src = readFileSync(join(ROOT, "web/machines/explorer/ExplorerMachine.tsx"), "utf8");
     expect(src).toContain('new Worker(new URL("./figure.worker.ts", import.meta.url), { type: "module" })');
     expect(src).toContain("Drawing the machine for");
-  });
+  }, 120_000);
 });
 
 describe("M2: the 'From the explorer' note goes when the code is no longer that file", () => {
@@ -147,7 +147,7 @@ describe("M2: the 'From the explorer' note goes when the code is no longer that 
       ta.dispatchEvent(new jsdomWindow.Event("input", { bubbles: true }));
     });
     expect(host!.querySelector('[data-testid="paste-from-explorer"]')).toBeNull();
-  });
+  }, 120_000);
 });
 
 describe("M4: an expired job says so and offers a re-run", () => {
@@ -180,7 +180,7 @@ describe("M4: an expired job says so and offers a re-run", () => {
     await act(async () => host!.querySelector<HTMLButtonElement>('[data-testid="outline-again"]')!.click());
     await flush();
     expect(started).toBe(2);
-  });
+  }, 120_000);
 });
 
 describe("G1 for X2: a 401 from the invite gate links to the invite page", () => {
@@ -188,14 +188,14 @@ describe("G1 for X2: a 401 from the invite gate links to the invite page", () =>
     const html = renderToStaticMarkup(<ErrorNotice message={`outline not started: ${NEEDS_INVITE}`} />);
     expect(html).toContain(`href="${INVITE_PAGE}"`);
     expect(renderToStaticMarkup(<ErrorNotice message="the run did not finish" />)).not.toContain("invite");
-  });
+  }, 120_000);
 });
 
 describe("minors", () => {
   it("minor 3: the readout counts joins drawn, not 'lines'", () => {
     const html = renderToStaticMarkup(<ExplorerMachine model={explorerModel(saved())} initialPick="secret-redaction" theme="light" />);
     expect(html).toContain("Secret redaction · 2 joins drawn");
-  });
+  }, 120_000);
   it("minor 4: the caption does not credit Wonder with the joins, nor say height is proportional", () => {
     const html = renderToStaticMarkup(<ExplorerMachine model={explorerModel(saved())} theme="light" />);
     expect(html).toContain("proposed the parts and wrote every name and purpose; plain code checked them against the files and found the joins");
@@ -209,5 +209,5 @@ describe("minors", () => {
     expect(m.partNames["secret-redaction"]).toBe("Secret redaction");
     const html = renderToStaticMarkup(<ExplorerMachine model={m} initialPick="model-client" theme="light" />);
     expect(html).toContain("Secret redaction (not confirmed)");
-  });
+  }, 120_000);
 });

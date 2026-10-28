@@ -1,0 +1,10 @@
+
+ RUN  v5.0.5 <repo>
+
+
+ Test Files  109 passed | 2 skipped (111)
+      Tests  1435 passed | 35 skipped (1470)
+   Start at  13:38:05
+   Duration  107.93s (tests 90%, import 10%)
+
+exit 0
