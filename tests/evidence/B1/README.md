@@ -23,9 +23,9 @@ kept as written; where the review changed what they mean, the new section says s
   - Some conditions are noise the R1 evidence already logs. "timed-work" appears on the token bucket, the polling
     tests and the throttle, which read the clock twice at one moment. "hash-seed" appears on every function of a
     Python file that builds a set anywhere.
-- **Bench M was NOT run live.** The new dry run, built with E3's paste-screen text and G1's 4,000-token cap,
-  estimates **$4.63 central, $9.00 high** for Muse Spark + Muse Spark Open. **$9.00 is above the $8 hard stop
-  (D44)**, so per the instruction I stopped. No model was called; there are no match rates.
+- **Bench M ran live once, all 90 of 90 tests, for $2.55** (`bench/models/results/2026-10-28.md`). That is under the
+  $8 stop. My earlier "not run, the high estimate is $9.00" was overruled by the coordinator, since D44 says to run it
+  and stop at $8 if the cost gets there. It did not get there. Results are in the section "Bench M live result" below.
 - The order test still passes after merging main twice: 35 tests, now also (l), amendments never edited.
 
 ## Approved wording (after R1; the only approved sentences for the README, the result page and the film)
@@ -108,10 +108,51 @@ its fields are no longer compared.
   | meta-models/muse-spark-open-1026 | $0.84 | $1.61 |
   | **Total** | **$4.63** | **$9.00** |
 
-- Not run: the high estimate is above the $8 hard stop (D44), as instructed. The $8 stop is enforced in code: the
+- (Superseded: it was then run live once, see "Bench M live result".) First decision: not run, because the high estimate is above the $8 hard stop (D44). The $8 stop is enforced in code: the
   run stops before the next model call. A real run would very likely cost near the central figure. The high figure
   assumes 3,000 completion tokens per call and 5% retries. Spark's real price may be lower than the assumed one.
   Running anyway is Dami's call.
+
+## Bench M live result (2026-10-28, the only live run)
+
+Before the run, a note was committed on its own (`bench/models/NOTE-2026-10-28-live-run.md`). It says the run may
+stop at $8, the tests go in the registered order, and a partial result is reported with its n. The run completed all
+90 tests, so it is not partial.
+
+- **Setup:** Muse Spark 1.3 and Muse Spark Open each bet once per test, with temperature 0.2, reasoning effort low and
+  G1's caps (4,000 tokens, retry 8,000). The prompts are E3's paste-screen text, checked against dry run 3 by
+  SHA-256. Answers were checked by the product's own E3 check. Atlas ran each test once (twice internally, R1's double
+  run) and judged every bet.
+- **Cost, from the usage log** (`results/2026-10-28-usage.jsonl`):
+  - Muse Spark: 99 calls, $2.16. This is an upper bound, because Spark's price is not published and Wonder's is assumed.
+  - Muse Spark Open: 118 calls, $0.39, at Baseten's published price.
+  - Total $2.55. No call ran out of tokens.
+- **Repair tries:** 37 answers needed the one repair try (9 for Spark, 28 for Spark Open). None was invalid after it.
+
+**Match rates**, n = checkable questions:
+- "among answers" = matched ÷ (matched + didn't match).
+- "strict" also counts declines as misses.
+
+| Model | Question | n | matched | didn't match | declined | match among answers | strict | decline rate |
+|---|---|---|---|---|---|---|---|---|
+| Muse Spark 1.3 | outcome | 90 | 90 | 0 | 0 | 100% | 100% | 0% |
+| Muse Spark 1.3 | returnedJson | 74 | 73 | 1 | 0 | 98.6% | 98.6% | 0% |
+| Muse Spark 1.3 | virtualMs | 89 | 74 | 5 | 10 | 93.7% | 83.1% | 11.2% |
+| Muse Spark 1.3 | calls | 39 | 39 | 0 | 0 | 100% | 100% | 0% |
+| Muse Spark 1.3 | **all** | 292 | 276 | 6 | 10 | 97.9% | 94.5% | 3.4% |
+| Muse Spark Open | outcome | 90 | 84 | 1 | 5 | 98.8% | 93.3% | 5.6% |
+| Muse Spark Open | returnedJson | 74 | 71 | 1 | 2 | 98.6% | 95.9% | 2.7% |
+| Muse Spark Open | virtualMs | 89 | 54 | 25 | 10 | 68.4% | 60.7% | 11.2% |
+| Muse Spark Open | calls | 39 | 36 | 1 | 2 | 97.3% | 92.3% | 5.1% |
+| Muse Spark Open | **all** | 292 | 245 | 28 | 19 | 89.7% | 83.9% | 6.5% |
+
+- **Not checkable: 17 questions per model.** 16 are returnedJson on calls that threw, and 1 is virtualMs on a call
+  that never settled. They are outside n.
+- **What it says, and what it does not:**
+  - On these 90 small functions, written for this bench by an AI session, the two models usually predicted how the
+    call ends, what it returns and how often a stand-in is called.
+  - Virtual time was the weak question, much more so for Spark Open.
+  - One answer per model per test. This is no general accuracy claim and no ranking beyond these counts.
 
 ## After R1: commands and counts
 
