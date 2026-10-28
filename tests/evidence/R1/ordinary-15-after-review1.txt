@@ -1,0 +1,19 @@
+controls true true
+1 JS logger around work | {"m":{"outcome":"returned","virtualMs":0,"returnedType":"object","returnedJson":"{\"lines\":2,\"top\":[[\"c79\",2056],[\"c176\",2056],[\"c273\",2056]]}"},"k":["clock","timed-work"]} SAME
+2 JS retry with jitter | {"m":{"outcome":"returned","virtualMs":354,"returnedType":"string","returnedJson":"\"ok\"","calls:fetchIt":3},"k":["randomness"]} SAME
+3 JS id generator | {"m":{"outcome":"returned","virtualMs":0,"returnedType":"string","returnedJson":"\"user_monrp7ut\""},"k":["randomness"]} SAME
+4 JS date formatter (explicit UTC) | {"m":{"outcome":"returned","virtualMs":0,"returnedType":"string","returnedJson":"\"05 Mar 2026\""},"k":[]} SAME
+5 JS TTL cache | {"m":{"outcome":"returned","virtualMs":150,"returnedType":"array","returnedJson":"[1,null]"},"k":["clock","timed-work"]} SAME
+6 JS sort by name | {"m":{"outcome":"returned","virtualMs":0,"returnedType":"array","returnedJson":"[\"Alice\",\"bob\",\"carol\"]"},"k":["time-zone-or-locale"]} SAME
+7 JS set intersection | {"m":{"outcome":"returned","virtualMs":0,"returnedType":"array","returnedJson":"[2,4]"},"k":[]} SAME
+8 JS event emitter w/ nextTick | {"m":{"outcome":"returned","virtualMs":0,"returnedType":"array","returnedJson":"[\"fired\"]"},"k":["tick-order"]} SAME
+9 TS groupBy | {"m":{"outcome":"returned","virtualMs":0,"returnedType":"object","returnedJson":"{\"a\":4,\"b\":2}"},"k":[]} SAME
+10 TS currency format | {"m":{"outcome":"returned","virtualMs":0,"returnedType":"string","returnedJson":"\"$1,234.56\""},"k":[]} SAME
+11 PY logging around work | {"m":{"outcome":"returned","returnedJson":"599994","returnedType":"number","virtualMs":0},"k":["clock","timed-work","host"]} SAME
+12 PY retry with jitter | {"m":{"calls:fetch":2,"outcome":"returned","returnedJson":"\"ok\"","returnedType":"string","virtualMs":102.23586},"k":["randomness"]} SAME
+13 PY short id | {"m":{"outcome":"returned","returnedJson":"\"ord-11b1dcf5\"","returnedType":"string","virtualMs":0},"k":["randomness"]} SAME
+14 PY dedupe keep order | {"m":{"outcome":"returned","returnedJson":"[\"b\",\"a\",\"c\"]","returnedType":"array","virtualMs":0},"k":["hash-seed"]} SAME
+15 PY common sorted | {"m":{"outcome":"returned","returnedJson":"[\"x\",\"z\"]","returnedType":"array","virtualMs":0},"k":["hash-seed"]} SAME
+16 PY date format | {"m":{"outcome":"returned","returnedJson":"\"05 Mar 2026 10:00\"","returnedType":"string","virtualMs":0},"k":[]} SAME
+17 PY ttl cache | {"m":{"outcome":"returned","returnedJson":"[1,null]","returnedType":"array","virtualMs":150},"k":["clock","timed-work"]} SAME
+18 JS stopwatch around sort (honest refusal?) | {"m":{"outcome":"returned","virtualMs":0,"returnedType":"object","returnedJson":"{\"first\":0,\"ms\":0}"},"k":["clock","timed-work"]} SAME
