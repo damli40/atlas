@@ -93,7 +93,8 @@ describe.skipIf(!LIVE)("E4 live: hosted Python on real Modal Sandboxes", () => {
       const keys = JSON.parse(String(env.result.measured.returnedJson)) as string[];
       lines.push({ label: "py env keys seen by pasted code", line: JSON.stringify(keys) });
       for (const k of keys) expect(k).not.toMatch(/TOKEN|SECRET|KEY|MODAL/);
-      expect(keys.length).toBeLessThanOrEqual(1);
+      // R1 review M4: exactly Atlas's pins, plus LC_CTYPE, which Python sets itself on Linux (locale coercion).
+      expect(keys).toEqual(["LC_CTYPE", "PYTHONHASHSEED", "TZ"]);
     }
   }, 300_000);
 

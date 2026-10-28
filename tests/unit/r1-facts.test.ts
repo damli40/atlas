@@ -83,10 +83,11 @@ function expectOutcomeNotMeasured(r: Run, cat: string) {
 
 describe("bench T2, the 13 JavaScript tests and 9 Python tests: what Atlas reports now", () => {
   const h01 = read("h01-cpu-elapsed.js");
-  it("h01a timeWork (CPU work timed with Date.now / performance.now): not reported, clock reason (was: dateMs 0, a FALSE FACT)", async () => {
+  it("h01a timeWork (CPU work timed with Date.now / performance.now): measured, labelled timed-work (review round 1: disclose, decided from the code's own reads)", async () => {
     const r = await run(h01, "js", "timeWork");
-    expectOutcomeNotMeasured(r, "clock");
-    expect(kinds(r)).toEqual(["clock", "clock-during-work"]);
+    expect(r.result.measured).toMatchObject({ outcome: "returned", returnedJson: '{"dateMs":0,"perfMsOver1":false,"x":4095}' });
+    expect(kinds(r)).toEqual(["clock", "timed-work"]);
+    expect(r.conditions?.find((c) => c.kind === "timed-work")?.says).toMatch(/timed its own work.*Elapsed times read 0 ms here/);
   });
   it("h01b spinWait (busy-wait on Date.now): whole-run can't check, real-time reason (unchanged)", async () => {
     const r = await run(h01, "js", "spinWait");
@@ -103,19 +104,23 @@ describe("bench T2, the 13 JavaScript tests and 9 Python tests: what Atlas repor
   }
 
   const h03 = read("h03-order.js");
-  for (const name of ["immediateVsTimeout", "tickVsPromise"]) {
-    it(`h03 ${name} (an order Node leaves open): not reported, scheduling reason (was: one order as a fact)`, async () => {
-      const r = await run(h03, "js", name);
-      expectOutcomeNotMeasured(r, "scheduling");
-      expect(kinds(r)).toContain("timer-order");
-    });
-  }
+  it("h03a immediateVsTimeout (an order Node leaves open): not reported, scheduling reason (was: one order as a fact)", async () => {
+    const r = await run(h03, "js", "immediateVsTimeout");
+    expectOutcomeNotMeasured(r, "scheduling");
+    expect(kinds(r)).toContain("timer-order");
+  });
+  it("h03b tickVsPromise: measured with Atlas's calling order, labelled tick-order (review round 1: disclose)", async () => {
+    const r = await run(h03, "js", "tickVsPromise");
+    expect(r.result.measured.returnedJson).toBe('["promise","nextTick"]');
+    expect(kinds(r)).toContain("tick-order");
+    expect(r.conditions?.find((c) => c.kind === "tick-order")?.says).toMatch(/Atlas calls it from a plain async function/);
+  });
 
   const h04 = read("h04-env.js");
   it("h04a localHour: the pinned UTC answer, labelled time-zone-or-locale (was: the Mac's Africa/Lagos, unlabelled)", async () => {
     const r = await run(h04, "js", "localHour");
     expect(r.result.measured.returnedJson).toBe('{"hour":0,"offset":0,"tz":"UTC"}');
-    expect(kinds(r)).toEqual(["clock", "time-zone-or-locale"]);
+    expect(kinds(r)).toEqual(["clock", "timed-work", "time-zone-or-locale"]); // two new Date() reads at one moment
     expect(r.timeZone).toBe("UTC");
     expect(r.locale).toBe("en-US");
   });
@@ -192,10 +197,10 @@ describe("bench T2, the 13 JavaScript tests and 9 Python tests: what Atlas repor
       const r = await run(p02(), "py", "deadline", [standIn("fetch", [{ do: "return", value: "v", afterMs: 500 }], true)]);
       expect(r.result.measured).toMatchObject({ outcome: "returned", returnedJson: '"timed out"', returnedType: "string", virtualMs: 100, "calls:fetch": 1 });
     });
-    it("q02c cpu_elapsed (perf_counter around CPU work): not reported, clock reason (was: false, a FALSE FACT)", async () => {
+    it("q02c cpu_elapsed (perf_counter around CPU work): measured, labelled timed-work (review round 1: disclose)", async () => {
       const r = await run(p02(), "py", "cpu_elapsed");
-      expectOutcomeNotMeasured(r, "clock");
-      expect(kinds(r)).toContain("clock-during-work");
+      expect(r.result.measured).toMatchObject({ outcome: "returned", returnedJson: "false" });
+      expect(kinds(r)).toEqual(["clock", "timed-work"]);
     });
   });
 });
@@ -246,16 +251,19 @@ describe("conditions are detected for each kind, and only the undecided kinds hi
   const js: [string, string, string, string[], boolean][] = [
     ["no clock, no randomness: no conditions (the line says None)", "export const f = (a) => a + 1;", "f", [], true],
     ["clock (Date.now)", "export function f(){ return Date.now(); }", "f", ["clock"], true],
-    ["clock (new Date() with no argument, performance.now, process.hrtime)", "export function f(){ new Date(); performance.now(); process.hrtime(); return 1; }", "f", ["clock"], true],
-    ["a deadline loop reading the clock between waits is NOT timed work", "export async function f(){ const end = Date.now() + 500; let n = 0; while (Date.now() < end) { n++; await new Promise(r => setTimeout(r, 100)); } return n; }", "f", ["clock"], true],
-    ["clock-during-work", "export function f(){ const t = Date.now(); let x = 0; for (let i = 0; i < 2e7; i++) x = (x + i) % 7; return [Date.now() - t, x]; }", "f", ["clock", "clock-during-work"], false],
+    ["clock (one read each of new Date(), performance.now, process.hrtime, at different moments)", "export async function f(){ new Date(); await new Promise(r => setTimeout(r, 1)); performance.now(); await new Promise(r => setTimeout(r, 1)); process.hrtime(); return 1; }", "f", ["clock"], true],
+    ["timed-work: two reads at one moment, whatever the work (deterministic, no CPU line)", "export function f(){ const t = Date.now(); let x = 0; for (let i = 0; i < 2e7; i++) x = (x + i) % 7; return [Date.now() - t, x]; }", "f", ["clock", "timed-work"], true],
+    ["timed-work also for no work at all (the rule reads the code's reads, not the machine)", "export function f(){ return performance.now() - performance.now(); }", "f", ["clock", "timed-work"], true],
     ["randomness (Math.random)", "export const f = () => Math.random() > 2;", "f", ["randomness"], true],
     ["unseeded randomness (crypto.subtle.generateKey)", "export async function f(){ await crypto.subtle.generateKey({ name: 'HMAC', hash: 'SHA-256' }, true, ['sign']); return 1; }", "f", ["unseeded-randomness"], false],
     ["time zone (getHours)", "export const f = () => new Date(0).getHours();", "f", ["time-zone-or-locale"], true],
     ["locale (toLocaleString, Intl.NumberFormat, localeCompare)", "export const f = () => [(1e3).toLocaleString(), new Intl.NumberFormat().format(2), 'a'.localeCompare('b')];", "f", ["time-zone-or-locale"], true],
     ["UTC getters and toISOString read no zone", "export const f = () => new Date(0).getUTCHours() + new Date(0).toISOString().length;", "f", [], true],
     ["timer order (setImmediate next to setTimeout 0)", "export async function f(){ const l = []; setImmediate(() => l.push(1)); setTimeout(() => l.push(2), 0); await new Promise(r => setTimeout(r, 5)); return l; }", "f", ["timer-order"], false],
-    ["timer order (process.nextTick in the call's synchronous part)", "export async function f(){ const l = []; process.nextTick(() => l.push(1)); await null; l.push(2); return l; }", "f", ["timer-order"], false],
+    ["tick-order (process.nextTick in the call's synchronous part): disclosed, measured", "export async function f(){ const l = []; process.nextTick(() => l.push(1)); await null; l.push(2); return l; }", "f", ["tick-order"], true],
+    ["an explicit locale and time zone read no pin", "export const f = () => [new Date(0).toLocaleDateString('en-GB', { timeZone: 'UTC' }), new Intl.NumberFormat('de-DE').format(1e3), 'a'.localeCompare('b', 'en'), new Date(Date.parse('2026-03-05T10:00:00Z')).getUTCDate(), new Date('2026-03-05').getTime()];", "f", [], true],
+    ["Intl.DateTimeFormat with a locale but no time zone still reads the pinned zone", "export const f = () => new Intl.DateTimeFormat('en-GB').format(0);", "f", ["time-zone-or-locale"], true],
+    ["host: process.platform, arch, navigator.hardwareConcurrency are measured and named", "export const f = () => [process.platform.length > 0, process.arch.length > 0, navigator.hardwareConcurrency > 0];", "f", ["host"], true],
     ["console.log in the synchronous part is not a timer race", "export function f(){ console.log('hi'); return 1; }", "f", [], true],
     ["setImmediate alone is not a race", "export async function f(){ return await new Promise(r => setImmediate(() => r(1))); }", "f", [], true],
     ["unref-timer (a call waiting only on an unref'd timer)", "export async function f(){ await new Promise(r => setTimeout(r, 10).unref()); return 1; }", "f", ["unref-timer"], false],
@@ -279,7 +287,9 @@ describe("conditions are detected for each kind, and only the undecided kinds hi
     ["randomness (random.choice)", "import random\n\ndef f():\n    return random.choice([1, 2, 3])\n", "f", ["randomness"], true],
     ["a seeded Random(5) is the code's own choice: no condition", "import random\n\ndef f():\n    return random.Random(5).random()\n", "f", [], true],
     ["hash-seed (a set comprehension)", "def f():\n    return len({x for x in 'abc'})\n", "f", ["hash-seed"], true],
-    ["clock-during-work (perf_counter around a loop)", "import time\n\ndef f():\n    t = time.perf_counter()\n    x = 0\n    for i in range(2_000_000):\n        x = (x + i) % 7\n    return time.perf_counter() - t\n", "f", ["clock", "clock-during-work"], false],
+    ["timed-work (perf_counter around a loop): disclosed, measured", "import time\n\ndef f():\n    t = time.perf_counter()\n    x = 0\n    for i in range(200_000):\n        x = (x + i) % 7\n    return time.perf_counter() - t\n", "f", ["clock", "timed-work"], true],
+    ["random.seed(n) by the code itself: its own draws, no randomness condition", "import random\n\ndef f():\n    random.seed(42)\n    return random.randint(1, 100)\n", "f", [], true],
+    ["host: sys.platform and os.cpu_count() are measured and named", "import os, sys\n\ndef f():\n    return [len(sys.platform) > 0, os.cpu_count() is None or os.cpu_count() > 0]\n", "f", ["host"], true],
   ];
   for (const [what, src, name, want, decided] of py) {
     it.skipIf(!HAVE_PYTHON)(`Python: ${what}`, async () => {
@@ -352,9 +362,9 @@ describe("proof files record the seed, time zone, locale and conditions, and ver
     }
   });
   it("an undecided run that claims an outcome is caught", async () => {
-    const f = await file("export function f(){ const t = performance.now(); let x = 0; for (let i = 0; i < 2e7; i++) x = (x + i) % 7; return performance.now() - t + x; }");
+    const f = await file("export async function f(){ const l = []; setImmediate(() => l.push(1)); setTimeout(() => l.push(2), 0); await new Promise(r => setTimeout(r, 5)); return l.length; }");
     expect(verifyAtlasFile(f).ok).toBe(true);
-    expect(conditionKindsInTrace(f.runs[0].trace)).toContain("clock-during-work");
+    expect(conditionKindsInTrace(f.runs[0].trace)).toContain("timer-order");
     f.runs[0].trace = f.runs[0].trace.filter((t: { event: string }) => t.event !== "stopped_watching");
     f.runs[0].result.measured.outcome = "returned";
     const v = verifyAtlasFile(f);
@@ -365,11 +375,22 @@ describe("proof files record the seed, time zone, locale and conditions, and ver
     delete f.runs[0].timeZone;
     delete f.runs[0].locale;
     delete f.runs[0].conditions;
+    delete f.runs[0].twin;
+    f.runs[0].trace = f.runs[0].trace.filter((t: { event: string }) => t.event !== "twin_differs");
     f.seed = "none";
     f.runs[0].seed = "none";
     expect(verifyAtlasFile(f).ok).toBe(true);
+    const later = JSON.parse(JSON.stringify(f));
     f.runs[0].locale = "en-US";
     expect(verifyAtlasFile(f).ok).toBe(false);
+    // R1 review m1: a run from after R1 relabelled as "seed none" (to hide its conditions) is refused.
+    const shift = (iso: string) => new Date(Date.parse(iso) + 2 * 86_400_000).toISOString();
+    later.runs[0].startedAt = shift(later.runs[0].startedAt);
+    later.runs[0].finishedAt = shift(later.runs[0].finishedAt);
+    later.createdAt = shift(later.createdAt);
+    const v = verifyAtlasFile(later);
+    expect(v.ok).toBe(false);
+    if (!v.ok) expect(v.problems.join("; ")).toMatch(/started after Atlas began pinning/);
   });
   it.skipIf(!HAVE_PYTHON)("a Python run verifies with locale C and its hash-seed condition", async () => {
     const f = await file("def f():\n    return sorted({1, 2})\n", "py");

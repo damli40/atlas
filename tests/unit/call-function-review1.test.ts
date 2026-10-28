@@ -86,7 +86,10 @@ describe("B1: the result channel cannot be forged by the code under test", () =>
     const r = await runPasted(looks, { exportName: "f" }, spy);
     expect(key).toMatch(/^[0-9a-f]{64}$/);
     expect(r.result.measured.outcome).toBe("returned");
-    expect(String(r.result.measured.returnedJson)).not.toContain(key);
+    // R1 review round 1: argv names the run's temp folder, so the two identical runs differ and the value is not
+    // reported; the key is in neither run.
+    expect(r.result.notMeasured.returnedJson).toMatch(/changed between two identical runs/);
+    expect(JSON.stringify(r)).not.toContain(key);
     expectNotTrusted(await runPasted(`export function f(){ return process.stdin.read(); }`), /process\.stdin/);
   });
 

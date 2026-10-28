@@ -56,6 +56,12 @@ describe("the conditions line", () => {
     expect(html).toContain("This code read the clock."); // the rest has apostrophes, which the markup escapes
     expect(html).toContain("Atlas runs every call in time zone UTC with locale en-US");
   });
+  it("R1 review M6: a run that did not finish says 'not known', never 'None'", async () => {
+    const { file } = await round("export function f(){ return fetch('http://x'); }");
+    const html = renderToStaticMarkup(<ProofCard file={file} />);
+    expect(html).toContain('data-testid="conditions-not-known"');
+    expect(html).not.toContain('data-testid="conditions-none"');
+  });
   it("an old file (seed none, no conditions) shows no conditions line and the old seed wording", async () => {
     const { file } = await round("export const f = () => 'heads';");
     const old = JSON.parse(JSON.stringify(file)) as AtlasFile;
@@ -64,6 +70,7 @@ describe("the conditions line", () => {
     delete old.runs[0]!.conditions;
     delete old.runs[0]!.timeZone;
     delete old.runs[0]!.locale;
+    delete old.runs[0]!.twin;
     expect(proofCardModel(old).where).toMatch(/^no seed: this run is from before Atlas seeded randomness/);
     expect(renderToStaticMarkup(<ProofCard file={old} />)).not.toContain('data-testid="pc-conditions"');
   });
