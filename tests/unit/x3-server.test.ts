@@ -250,3 +250,73 @@ describe("X3 (D28) labels on the server", () => {
     expect((await client(app, BROWSER).get(`/outline/jobs/${job.json.jobId}/labels`)).status).toBe(404);
   });
 });
+
+describe("X3 review round 1 on the server", () => {
+  it("M2: while a round on this code has the person's bets still to seal, both label routes answer 409; after the seal, 200", async () => {
+    const n = RETRY_SRC.split("\n").length - 1;
+    const outline = JSON.stringify({ parts: [{ id: "retry", name: "Retry helper", purpose: "Retries.", files: [{ path: "retry.ts", lineStart: 1, lineEnd: n, quotedSnippet: RETRY_SRC.split("\n")[0] }], patterns: ["retry"] }], joins: [] });
+    const usage = { promptTokens: 0, completionTokens: 0, usd: 0 };
+    const { app } = makeApp({ outline: { outliner: { chat: async () => ({ ok: true, finishReason: "stop", usage, content: outline }) } } });
+    const c = client(app, BROWSER);
+    const job = await c.post("/outline/jobs", { files: [{ path: "retry.ts", text: RETRY_SRC }] });
+    for (let i = 0; i < 200; i++) {
+      const j = await c.get(`/outline/jobs/${job.json.jobId}`);
+      if (j.json.status === "done" || j.json.status === "failed") break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    const t = await paste(c);
+    expect((await c.post("/paste/labels", { target: t, exportName: "retryWithBackoff" })).status).toBe(200);
+    const e = await c.post("/experiments", { target: t, params: NEVER });
+    const held = await c.post("/paste/labels", { target: t, exportName: "retryWithBackoff" });
+    expect(held.status).toBe(409);
+    expect(held.json.error).toMatch(/once your bets on the open round are sealed/);
+    expect((await c.get(`/outline/jobs/${job.json.jobId}/labels`)).status).toBe(409);
+    await c.post("/bets", { experimentId: e.json.experiment.id, who: "human", bets: [{ measures: "outcome", answer: { kind: "enum", value: "threw" } }] });
+    expect((await c.post("/paste/labels", { target: t, exportName: "retryWithBackoff" })).status).toBe(200);
+    expect((await c.get(`/outline/jobs/${job.json.jobId}/labels`)).status).toBe(200);
+  });
+
+  it("M3: label requests are limited per client an hour; the scan is cached (the same answer, fast)", async () => {
+    const env0 = process.env.ATLAS_LABELS_PER_IP_PER_HOUR;
+    process.env.ATLAS_LABELS_PER_IP_PER_HOUR = "3";
+    try {
+      const { app } = makeApp();
+      const c = client(app, BROWSER);
+      const t = await paste(c);
+      const first = await c.post("/paste/labels", { target: t, exportName: "retryWithBackoff" });
+      const second = await c.post("/paste/labels", { target: t, exportName: "retryWithBackoff" });
+      expect(second.json).toEqual(first.json);
+      await c.post("/paste/labels", { target: t, exportName: "retryWithBackoff" });
+      const over = await c.post("/paste/labels", { target: t, exportName: "retryWithBackoff" });
+      expect(over.status).toBe(429);
+      expect(over.json.error).toMatch(/labels not read/);
+    } finally {
+      if (env0 === undefined) delete process.env.ATLAS_LABELS_PER_IP_PER_HOUR;
+      else process.env.ATLAS_LABELS_PER_IP_PER_HOUR = env0;
+    }
+  });
+
+  it("M3: the reviewer's 61 KB paste: POST /paste/labels answers in under 50 ms", async () => {
+    const { app } = makeApp();
+    const c = client(app, BROWSER);
+    const N = 998;
+    const code = "export function g() {\n" + ("for(;;){" + " ".repeat(22) + "\n").repeat(N) + ("}" + " ".repeat(28) + "\n").repeat(N) + "}\n";
+    const t = await paste(c, code);
+    const t0 = performance.now();
+    const r = await c.post("/paste/labels", { target: t, exportName: "g" });
+    expect(r.status).toBe(200);
+    expect(performance.now() - t0).toBeLessThan(50);
+  });
+
+  it("B4 through the real sandbox: a batch loop where send fails 25 times is never 'retry storm: reproduced'", async () => {
+    const { app } = makeApp();
+    const c = client(app, BROWSER);
+    const code = "export async function notifyAll(send: (id: number) => Promise<void>, ids: number[]) {\n  const failed: number[] = [];\n  for (const id of ids) {\n    try {\n      await send(id);\n    } catch (e) {\n      failed.push(id);\n    }\n  }\n  return failed.length;\n}\n";
+    const t = await paste(c, code);
+    const ids = Array.from({ length: 25 }, (_, i) => i);
+    const { run } = await round(c, t, { shape: "call-function", exportName: "notifyAll", args: [{ kind: "stand-in", name: "send", async: true, calls: [{ do: "throw", errorName: "Error", message: "down" }], then: "repeat_last" }, { kind: "json", value: ids }] }, [{ measures: "outcome", answer: { kind: "enum", value: "returned" } }]);
+    expect(run.run.result.measured["calls:send"]).toBe(25);
+    const l = await c.post("/paste/labels", { target: t, exportName: "notifyAll" });
+    expect(l.json.labels.filter((x: any) => x.label !== "common pattern")).toEqual([]);
+  });
+});

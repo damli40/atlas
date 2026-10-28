@@ -130,7 +130,7 @@ import { MAX_PASTED_PROMPT_CHARS } from "./meta/pasted-guard";
 import { createOutlineRoutes, DEFAULT_OUTLINES_PER_IP_PER_HOUR, OUTLINE_BODY_BYTES, type OutlineOptions } from "./outline/routes";
 import { memoryTrackStore, type Person, type TrackStore } from "./track-store";
 import { entriesFromRound, recordBefore, trackRecordOf, weakSpotSummary, type TrackRecord } from "../src/track-record";
-import { registerLabelRoutes } from "./labels";
+import { DEFAULT_LABELS_PER_CLIENT_PER_HOUR, registerLabelRoutes } from "./labels";
 import { currentPrincipal } from "./access/context";
 
 const REPO_ROOT = fileURLToPath(new URL("../", import.meta.url));
@@ -935,11 +935,14 @@ export function createApp(opts: AppOptions = {}) {
   });
   registerEventRoutes(app, agentLog); // D02-05: GET /events/:sessionId (SSE)
   paste.register(app); // E3: GET /paste/languages, POST /paste, /paste/proposals, /paste/claim
+  // X3 review M3: label requests per client an hour (per invite code when there is one).
+  const labelsByIp = createHourlyLimit(envCount(process.env.ATLAS_LABELS_PER_IP_PER_HOUR, DEFAULT_LABELS_PER_CLIENT_PER_HOUR), "label requests");
   // X3 (D28): common-failure labels for a pasted function and for every confirmed part of an outline (plain code).
   registerLabelRoutes(app, {
     paste,
     betStore,
     proofOf,
+    takeLabels: (c) => labelsByIp.take(clientOf(c)),
     outlineJobOf: (id) => {
       const j = outline.jobOf(id);
       return j ? { sessionId: j.sessionId, ...(j.section ? { section: j.section } : {}) } : undefined;

@@ -9,10 +9,15 @@
 //   sealed runs of a function inside those lines (the explorer hands a part's file to the paste flow unchanged, so a
 //   round's code fingerprint equals the file's).
 // Both belong to the session that pasted the code / started the job; any other session gets 404.
+// X3 review round 1:
+// - M2: while this session has an open round on the code whose person's bets are not sealed yet, both routes answer
+//   409: the person and the betting models bet on the same information (labels come after the seal).
+// - M3: the code-only scan is cached per source fingerprint and span (labels then only add the runs), and each client
+//   may ask at most DEFAULT_LABELS_PER_CLIENT_PER_HOUR times an hour (per invite code when there is one).
 
-import type { Hono } from "hono";
+import type { Context, Hono } from "hono";
 import { z } from "zod";
-import { labelFailures, type FailureLabelKind, type LabelledFailure, type LabelsAnswer, type Lang, type RunEvidence } from "../src/failure-labels";
+import { labelFromScan, scanFailures, type FailureLabelKind, type FunctionInfo, type LabelledFailure, type LabelsAnswer, type Lang, type RunEvidence, type Scan } from "../src/failure-labels";
 import type { AtlasFile } from "../src/types";
 import type { BetStore, Round } from "./bets";
 import type { Paste } from "./paste";
@@ -21,6 +26,12 @@ import { parseJsFile } from "../src/outline/parse-js";
 import { parsePyFile } from "../src/outline/parse-py";
 import type { OutlineSection } from "../src/outline/types";
 
+/** Label requests one client may make an hour (env ATLAS_LABELS_PER_IP_PER_HOUR). */
+export const DEFAULT_LABELS_PER_CLIENT_PER_HOUR = 600;
+/** Code-only scans kept (least recently used dropped first). */
+export const MAX_CACHED_SCANS = 300;
+export const LABELS_AFTER_SEAL = "Atlas's failure labels for this code are shown once your bets on the open round are sealed, so you and the betting models bet on the same information";
+
 export interface LabelDeps {
   paste: Paste;
   betStore: BetStore;
@@ -28,30 +39,45 @@ export interface LabelDeps {
   proofOf: (runId: string) => AtlasFile | undefined;
   /** An outline job: its session and, when done, its section. */
   outlineJobOf: (id: string) => { sessionId: string; section?: OutlineSection } | undefined;
+  /** Per-client hourly allowance for label requests. */
+  takeLabels: (c: Context) => { ok: true } | { ok: false; reason: string };
 }
 
 const body = z.object({ target: z.object({ ref: z.string().min(1).max(200), codeSha256: z.string().regex(/^[0-9a-f]{64}$/) }), exportName: z.string().min(1).max(100) }).strict();
 
 /** The session's sealed runs of `exportName` on code with this fingerprint, oldest first, each with a proof card. */
-export function runsOf(betStore: BetStore, proofOf: LabelDeps["proofOf"], sessionId: string, codeSha256: string, exportName: string): RunEvidence[] {
-  const out: (RunEvidence & { at: string })[] = [];
+export function runsOf(betStore: BetStore, proofOf: LabelDeps["proofOf"], sessionId: string, codeSha256: string, exportName: string, path?: string): (RunEvidence & { at: string })[] {
+  const out: (RunEvidence & { at: string; path?: string })[] = [];
   for (const r of betStore.peek(sessionId)?.values() ?? []) {
     const round = r as Round;
     const p = round.experiment.params;
     if (round.status !== "done" || !round.run || p.shape !== "call-function") continue;
     if (round.experiment.target.codeSha256 !== codeSha256 || p.exportName !== exportName) continue;
     if (!proofOf(round.run.id)) continue; // "reproduced" must link to a proof card
-    out.push({ runId: round.run.id, params: p, run: round.run, at: round.run.finishedAt });
+    out.push({ runId: round.run.id, params: p, run: round.run, at: round.run.finishedAt, ...(path ? { path } : {}) });
   }
-  return out.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0)).map(({ at: _a, ...e }) => e);
+  return out.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
 }
 
-/** The lines of a top-level function (or of the definition an `export { a as b }` names), or null. */
-export function functionLines(text: string, language: Lang, exportName: string): { lineStart: number; lineEnd: number } | null {
+/** M2: a round of this session on code with one of these fingerprints that is open and holds none of the person's bets. */
+export function openUnsealed(betStore: BetStore, sessionId: string, shas: ReadonlySet<string>): boolean {
+  for (const r of betStore.peek(sessionId)?.values() ?? []) {
+    const round = r as Round;
+    if (round.autonomous || round.status !== "open" || !shas.has(round.experiment.target.codeSha256)) continue;
+    if (!round.bets.some((b) => b.who === "human")) return true;
+  }
+  return false;
+}
+
+/** A parameter's plain name ("fetchIt: () => …" → fetchIt, "n=3" → n, "*args" → args), or null (destructured). */
+export const paramName = (p: string): string | null => /^\s*(?:\.\.\.|\*{1,2})?([A-Za-z_$][\w$]*)/.exec(p)?.[1] ?? null;
+
+/** The lines and parameter names of a top-level function (or of the definition an `export { a as b }` names), or null. */
+export function functionInfo(text: string, language: Lang, exportName: string, path = "pasted"): FunctionInfo | null {
   const parsed = language === "py" ? parsePyFile(text) : parseJsFile(language === "ts" ? "pasted.ts" : "pasted.js", text, language);
   const local = parsed.exportedLocals.find((e) => e.exported === exportName)?.local ?? exportName;
   const s = parsed.symbols.find((x) => x.name === local && !x.parent);
-  return s ? { lineStart: s.lineStart, lineEnd: s.lineEnd } : null;
+  return s ? { path, name: exportName, lineStart: s.lineStart, lineEnd: s.lineEnd, params: (s.params ?? []).map(paramName) } : null;
 }
 
 const RANK: Record<FailureLabelKind, number> = { reproduced: 3, inconclusive: 2, "found in this code": 1, "common pattern": 0 };
@@ -62,13 +88,22 @@ function mergeLabels(answers: LabelsAnswer[]): LabelledFailure[] {
     for (const l of a.labels) {
       const k = `${l.kind}/${l.failure}`;
       const had = best.get(k);
-      if (!had || RANK[l.label] > RANK[had.label]) best.set(k, had && !l.lines && had.lines ? { ...l, lines: had.lines } : l);
-      else if (had && RANK[l.label] === RANK[had.label] && l.lines) best.set(k, { ...had, lines: [...(had.lines ?? []), ...l.lines] });
+      if (!had || RANK[l.label] > RANK[had.label]) best.set(k, l);
     }
   return [...best.values()];
 }
 
 export function registerLabelRoutes(app: Hono, deps: LabelDeps) {
+  const scans = new Map<string, Scan>();
+  const scanOf = (key: string, make: () => Scan): Scan => {
+    let v = scans.get(key);
+    if (v) scans.delete(key);
+    else v = make();
+    scans.set(key, v);
+    while (scans.size > MAX_CACHED_SCANS) scans.delete(scans.keys().next().value!);
+    return v;
+  };
+
   app.post("/paste/labels", async (c) => {
     const sessionId = sessionIdOf(c);
     if (sessionId === null) return c.json({ error: BAD_SESSION }, 400);
@@ -84,20 +119,26 @@ export function registerLabelRoutes(app: Hono, deps: LabelDeps) {
     if (!entry || typeof entry.target.source !== "string") return c.json({ error: "this session has no pasted file with that ref and fingerprint: paste it first (POST /paste)" }, 404);
     const name = parsed.data.exportName;
     if (!entry.exports.some((e) => e.name === name)) return c.json({ error: `the pasted file has no export named "${name}"` }, 400);
+    if (openUnsealed(deps.betStore, sessionId, new Set([entry.target.codeSha256]))) return c.json({ error: LABELS_AFTER_SEAL, afterSeal: true }, 409);
+    const allowed = deps.takeLabels(c);
+    if (!allowed.ok) return c.json({ error: `labels not read: ${allowed.reason}` }, 429);
     const lang = (entry.target.language ?? "js") as Lang;
     const text = entry.target.source;
-    let lines: { lineStart: number; lineEnd: number } | null = null;
-    try {
-      lines = functionLines(text, lang, name);
-    } catch {
-      lines = null;
-    }
-    const total = text.split("\n").length;
-    const note = lines ? undefined : `plain code could not find where ${name} ends, so it read the whole file`;
-    const span = { path: "pasted", text, lineStart: lines?.lineStart ?? 1, lineEnd: lines?.lineEnd ?? total };
+    const key = `${entry.target.codeSha256}:${lang}:${name}`;
+    let fn: FunctionInfo | null = null;
+    const scan = scanOf(key, () => {
+      try {
+        fn = functionInfo(text, lang, name);
+      } catch {
+        fn = null;
+      }
+      const total = text.split("\n").length;
+      const sc = scanFailures({ language: lang, spans: [{ path: "pasted", text, lineStart: fn?.lineStart ?? 1, lineEnd: fn?.lineEnd ?? total }], ...(fn ? { functions: [fn] } : {}) });
+      return { ...sc, fn, ...(fn ? {} : { note: `plain code could not find where ${name} ends, so it read the whole file` }) } as Scan & { fn: FunctionInfo | null };
+    }) as Scan & { fn: FunctionInfo | null };
     const runs = runsOf(deps.betStore, deps.proofOf, sessionId, entry.target.codeSha256, name);
-    const answer = labelFailures({ language: lang, spans: [span], runs });
-    return c.json({ ...answer, exportName: name, ...(note ? { note } : {}) });
+    const answer = labelFromScan(scan, runs, scan.fn ? [scan.fn] : []);
+    return c.json({ ...answer, exportName: name });
   });
 
   app.get("/outline/jobs/:id/labels", (c) => {
@@ -107,6 +148,9 @@ export function registerLabelRoutes(app: Hono, deps: LabelDeps) {
     if (!job || job.sessionId !== sessionId) return c.json({ error: "no such outline job in this session" }, 404);
     const s = job.section;
     if (!s) return c.json({ error: "the job is not done yet" }, 409);
+    if (openUnsealed(deps.betStore, sessionId, new Set(s.files.map((f) => f.sha256)))) return c.json({ error: LABELS_AFTER_SEAL, afterSeal: true }, 409);
+    const allowed = deps.takeLabels(c);
+    if (!allowed.ok) return c.json({ error: `labels not read: ${allowed.reason}` }, 429);
     if (!s.verified) return c.json({ parts: {}, note: "there is no outline to label: Muse Wonder gave none" });
     const fileOf = new Map(s.files.map((f) => [f.path, f] as const));
     const mapOf = new Map(s.codeMap.files.map((f) => [f.path, f] as const));
@@ -114,20 +158,27 @@ export function registerLabelRoutes(app: Hono, deps: LabelDeps) {
     for (const part of s.verified.parts) {
       if (part.status !== "confirmed") continue;
       const spans = part.spans.filter((sp) => sp.ok && fileOf.has(sp.path));
-      const byLang = new Map<Lang, { path: string; text: string; lineStart: number; lineEnd: number }[]>();
-      const runs: RunEvidence[] = [];
+      const byLang = new Map<Lang, { path: string; text: string; lineStart: number; lineEnd: number; sha: string }[]>();
+      const runs: (RunEvidence & { at: string })[] = [];
+      const functions: FunctionInfo[] = [];
       for (const sp of spans) {
         const f = fileOf.get(sp.path)!;
         const lang = f.language as Lang;
-        (byLang.get(lang) ?? byLang.set(lang, []).get(lang)!).push({ path: f.path, text: f.text, lineStart: sp.lineStart, lineEnd: sp.lineEnd });
-        // Functions inside these lines that a round may have run (exported, top level).
+        (byLang.get(lang) ?? byLang.set(lang, []).get(lang)!).push({ path: f.path, text: f.text, lineStart: sp.lineStart, lineEnd: sp.lineEnd, sha: f.sha256 });
+        // Exported top-level functions inside these lines: a round may have run one of them.
         for (const sym of mapOf.get(sp.path)?.symbols ?? []) {
-          if (!sym.exported || sym.parent || sym.lineStart < sp.lineStart || sym.lineStart > sp.lineEnd) continue;
-          runs.push(...runsOf(deps.betStore, deps.proofOf, sessionId, f.sha256, sym.name));
+          if (!sym.exported || sym.parent || sym.kind !== "function" || sym.lineStart < sp.lineStart || sym.lineEnd > sp.lineEnd) continue;
+          functions.push({ path: f.path, name: sym.name, lineStart: sym.lineStart, lineEnd: sym.lineEnd, params: (sym.params ?? []).map(paramName) });
+          runs.push(...runsOf(deps.betStore, deps.proofOf, sessionId, f.sha256, sym.name, f.path));
         }
       }
+      runs.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
       const model = s.verified.model;
-      const answers = [...byLang].map(([language, sps]) => labelFailures({ language, spans: sps, wonderTags: part.patterns, wonderModel: model, runs }));
+      const answers = [...byLang].map(([language, sps]) => {
+        const key = `outline:${sps.map((x) => `${x.sha}:${x.lineStart}-${x.lineEnd}`).join(",")}:${language}:${part.patterns.map((p) => p.label).join(",")}:${functions.map((f) => `${f.path}#${f.name}`).join(",")}`;
+        const scan = scanOf(key, () => scanFailures({ language, spans: sps, functions, wonderTags: part.patterns, wonderModel: model }));
+        return labelFromScan(scan, runs, functions, model);
+      });
       parts[part.id] = answers.length === 1 ? answers[0]! : { labels: mergeLabels(answers), checked: answers[0]?.checked ?? [], read: answers.map((a) => a.read).join("; ") };
     }
     return c.json({ parts });
