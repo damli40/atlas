@@ -1,0 +1,15 @@
+load at start: { 5.64 3.26 2.53 }
+$ vitest run
+
+ RUN  v5.0.5 <repo>
+
+
+ Test Files  101 passed | 2 skipped (103)
+      Tests  1304 passed | 35 skipped (1339)
+   Start at  02:05:50
+   Duration  35.53s (tests 82%, import 18%)
+
+    Isolate  103 workers spawned · ~113ms startup each (spawn + environment, per file)
+             at least ~2.22s faster with isolate: false — reuses workers across files instead of one per file
+
+load at end: { 8.05 4.15 2.89 }

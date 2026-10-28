@@ -1,0 +1,65 @@
+
+ RUN  v5.0.5 <repo>
+
+ ✓ tests/unit/outline-codemap.test.ts > JS/TS code map (TypeScript compiler parser) > lists exports, top-level functions and classes with line spans and signatures 1ms
+ ✓ tests/unit/outline-codemap.test.ts > JS/TS code map (TypeScript compiler parser) > default exports: `export default name` and CommonJS `module.exports = D` 0ms
+ ✓ tests/unit/outline-codemap.test.ts > JS/TS code map (TypeScript compiler parser) > resolves imports: relative, .js written for .ts, index files, packages by name 0ms
+ ✓ tests/unit/outline-codemap.test.ts > JS/TS code map (TypeScript compiler parser) > dynamic imports and computed names are listed as unresolved, never followed 0ms
+ ✓ tests/unit/outline-codemap.test.ts > JS/TS code map (TypeScript compiler parser) > aliasing: `save as persist` → a call of persist is a call of db.ts#save 0ms
+ ✓ tests/unit/outline-codemap.test.ts > JS/TS code map (TypeScript compiler parser) > re-exports: q.push() through queue/index.ts reaches the file that defines push 0ms
+ ✓ tests/unit/outline-codemap.test.ts > JS/TS code map (TypeScript compiler parser) > new Class() and <Component /> count as calls 0ms
+ ✓ tests/unit/outline-codemap.test.ts > JS/TS code map (TypeScript compiler parser) > CommonJS require (destructured, whole module, nested) is read 0ms
+ ✓ tests/unit/outline-codemap.test.ts > JS/TS code map (TypeScript compiler parser) > circular imports (a.ts ↔ queue/impl.ts) terminate and give one edge each way 0ms
+ ✓ tests/unit/outline-codemap.test.ts > JS/TS code map (TypeScript compiler parser) > a self-referencing re-export cycle does not loop 0ms
+ ✓ tests/unit/outline-codemap.test.ts > JS/TS code map (TypeScript compiler parser) > is deterministic: the same files in any order give the same map, byte for byte 1ms
+ ✓ tests/unit/outline-codemap.test.ts > JS/TS code map (TypeScript compiler parser) > a path climbing out of the codebase or an alias is unresolved 0ms
+ ✓ tests/unit/outline-codemap.test.ts > JS/TS code map (TypeScript compiler parser) > a file with syntax errors still maps, with a parse note 0ms
+ ✓ tests/unit/outline-codemap.test.ts > JS/TS code map (TypeScript compiler parser) > a bracket bomb is not parsed (deterministic note), and nothing throws 0ms
+ ✓ tests/unit/outline-codemap.test.ts > Python code map (pure-TS scanner) > top-level defs (decorated, async), classes and their methods, with line spans and signatures 0ms
+ ✓ tests/unit/outline-codemap.test.ts > Python code map (pure-TS scanner) > __all__ decides what a module exports 0ms
+ ✓ tests/unit/outline-codemap.test.ts > Python code map (pure-TS scanner) > relative imports: `.`, `.util`, `..` from a subpackage, `...` climbing out 0ms
+ ✓ tests/unit/outline-codemap.test.ts > Python code map (pure-TS scanner) > absolute imports resolve inside the codebase; others are outside packages by top-level name 0ms
+ ✓ tests/unit/outline-codemap.test.ts > Python code map (pure-TS scanner) > calls through `from pkg import handle`, `pkg.handle` and an aliased module reach the defining file 0ms
+ ✓ tests/unit/outline-codemap.test.ts > Python code map (pure-TS scanner) > importlib.import_module is a dynamic import, listed unresolved 0ms
+ ✓ tests/unit/outline-codemap.test.ts > Python code map (pure-TS scanner) > circular Python imports terminate 0ms
+ ✓ tests/unit/outline-codemap.test.ts > Python code map (pure-TS scanner) > an unclosed string is noted and what came before it is kept 0ms
+ ✓ tests/unit/outline-verify.test.ts > verifyOutline: parts > a correct outline: every part confirmed; the join Wonder gave is confirmed; the one it missed is code-only 2ms
+ ✓ tests/unit/outline-verify.test.ts > verifyOutline: parts > purpose, name and patterns are labelled as the model's; known patterns are marked, free text kept 0ms
+ ✓ tests/unit/outline-verify.test.ts > verifyOutline: parts > wrong line numbers: the part is unconfirmed, with the reason 0ms
+ ✓ tests/unit/outline-verify.test.ts > verifyOutline: parts > a fabricated snippet: unconfirmed 0ms
+ ✓ tests/unit/outline-verify.test.ts > verifyOutline: parts > a part pointing outside the codebase, or by path traversal, is unconfirmed: nothing outside the held files is read 0ms
+ ✓ tests/unit/outline-verify.test.ts > verifyOutline: parts > one bad span out of two makes the whole part unconfirmed 0ms
+ ✓ tests/unit/outline-verify.test.ts > verifyOutline: parts > hostile names (bidi controls, newlines) are shown with the hidden characters made visible 0ms
+ ✓ tests/unit/outline-verify.test.ts > verifyOutline: joins > a join with no code evidence is model-only, with the reason 0ms
+ ✓ tests/unit/outline-verify.test.ts > verifyOutline: joins > kind matters: 'calls' needs a call edge, 'imports' an import edge, 'data' either 0ms
+ ✓ tests/unit/outline-verify.test.ts > verifyOutline: joins > a join to an unconfirmed part, to a part not in the outline, or to itself is model-only 0ms
+ ✓ tests/unit/outline-verify.test.ts > verifyOutline: joins > two parts sharing a file: an edge inside one part never confirms a join between them 0ms
+ ✓ tests/unit/outline-verify.test.ts > verifyOutline: joins > a confirmed join whose quoted evidence is wrong stays confirmed by the code map's own edges, and says so 0ms
+ ✓ tests/unit/outline-verify.test.ts > parseWonderOutline: strict schema, size and depth guards > accepts the good outline and refuses extra keys, duplicate ids and bad kinds 3ms
+ ✓ tests/unit/outline-verify.test.ts > parseWonderOutline: strict schema, size and depth guards > a depth bomb, a huge answer and a flood of parts are refused without throwing 11ms
+ ✓ tests/unit/outline-verify.test.ts > quote rule is the Investigator's rule > normaliseQuote and matchesWholeLines agree with server/meta/roles/investigator.ts 0ms
+ ✓ tests/unit/outline-verify.test.ts > outline section: re-judged without any model > round trip: a fresh section verifies, as an outline-only file too; a failed Wonder call verifies as 'no outline' 10ms
+ ✓ tests/unit/outline-verify.test.ts > outline section: re-judged without any model > editing an unconfirmed part to confirmed fails verify 2ms
+ ✓ tests/unit/outline-verify.test.ts > outline section: re-judged without any model > every other edit is caught: a model-only join promoted, a code edge added, a file's text, hash or codeSha256, the outline, the usage, a contributor model 11ms
+ ✓ tests/unit/outline-verify.test.ts > outline section: re-judged without any model > verify never throws: depth bomb, huge text, wrong types, cycles 3ms
+ ✓ tests/unit/outline-server.test.ts > intake: uploads > reads source files, skips the rest with reasons, refuses bad paths and duplicates 2ms
+ ✓ tests/unit/outline-server.test.ts > intake: uploads > limits: more than 50 source files or 300 KB is refused as a whole; one file over 100 KB is skipped 1ms
+ ✓ tests/unit/outline-server.test.ts > intake: GitHub (mocked) > pins one commit, reads only the subfolder's source files, checks each blob, lists the skipped 18ms
+ ✓ tests/unit/outline-server.test.ts > intake: GitHub (mocked) > a download that does not match its listed blob is refused; a missing folder is not_found 1ms
+ ✓ tests/unit/outline-server.test.ts > intake: GitHub (mocked) > reads owner/repo, URLs with /tree/<ref>/<folder>, and refuses odd input 0ms
+ ✓ tests/unit/outline-server.test.ts > Outliner role (Muse Wonder mocked) > a valid answer: one call, usage returned; the prompt carries the numbered files and the code map 2ms
+ ✓ tests/unit/outline-server.test.ts > Outliner role (Muse Wonder mocked) > an invalid answer gets exactly one repair call; a second invalid answer is reported, never a third call 1ms
+ ✓ tests/unit/outline-server.test.ts > Outliner role (Muse Wonder mocked) > a depth-bomb or huge answer is refused without throwing 8ms
+ ✓ tests/unit/outline-server.test.ts > Outliner role (Muse Wonder mocked) > code never reaches a contributor model, even with ATLAS_ALLOW_CONTRIBUTOR=1: nothing is sent 0ms
+ ✓ tests/unit/outline-server.test.ts > outline routes > upload → job → verified outline, part details from the code, an outline file that verifies 12ms
+ ✓ tests/unit/outline-server.test.ts > outline routes > another session cannot see, open or download a job (404); a missing session header is refused 3ms
+ ✓ tests/unit/outline-server.test.ts > outline routes > limits: per address an hour (429), one running job per session (409), bad uploads answered at once 8ms
+ ✓ tests/unit/outline-server.test.ts > outline routes > Wonder giving nothing usable: the job is done with the code map and the failure, no verified outline 2ms
+ ✓ tests/unit/outline-server.test.ts > outline routes > a GitHub job (reader stubbed): source recorded; an intake error fails the job with its reason 2ms
+ ✓ tests/unit/outline-atlasfile.test.ts > the .atlas.json outline section > an older file (no outline) still verifies; with an outline it verifies; editing a part to confirmed fails 278ms
+
+ Test Files  4 passed (4)
+      Tests  56 passed (56)
+   Start at  22:33:04
+   Duration  699ms (import 58%, tests 27%, transform 14%)
+

@@ -180,39 +180,10 @@ const findingSchema = z.strictObject({
   quotedSnippet: z.string().min(1).max(8000),
 });
 
-const squash = (s: string) => s.replace(/\s+/g, " ").trim();
-
-/**
- * The quote as compared: whitespace runs squashed to one space. If EVERY non-empty line of the quote
- * starts with a line-number prefix ("12| "), the prefixes are removed first: they are Atlas's own
- * numbering from the prompt, not file text, so removing them never lets text that is not in the file through.
- */
-export function normaliseQuote(q: string): string {
-  const lines = q.split("\n");
-  const nonEmpty = lines.filter((l) => l.trim() !== "");
-  const prefixed = nonEmpty.length > 0 && nonEmpty.every((l) => /^\s*\d+\| ?/.test(l));
-  return squash(prefixed ? lines.map((l) => l.replace(/^\s*\d+\| ?/, "")).join("\n") : q);
-}
-
-/**
- * True when the (normalised) quote is exactly a run of consecutive whole lines from `lines`, compared
- * with whitespace squashed: it starts where a line starts (indentation ignored) and ends where a line
- * ends. A fragment from the middle of a line is not a match.
- */
-export function matchesWholeLines(quote: string, lines: readonly string[]): boolean {
-  const sq = lines.map(squash);
-  for (let i = 0; i < sq.length; i++) {
-    if (sq[i] === "" || !quote.startsWith(sq[i]!)) continue;
-    let acc = "";
-    for (let j = i; j < sq.length; j++) {
-      if (sq[j] === "") continue; // a blank line squashes to nothing
-      acc = acc ? `${acc} ${sq[j]}` : sq[j]!;
-      if (acc === quote) return true;
-      if (!quote.startsWith(acc)) break;
-    }
-  }
-  return false;
-}
+// X1 review B3: the quote rule lives in src/outline/quote.ts, in linear time (the first version here took
+// (lines × quote length²) and a hostile 8,000-character quote could hold the server for minutes). Same answers.
+export { matchesWholeLines, normaliseQuote } from "../../../src/outline/quote";
+import { matchesWholeLines, normaliseQuote } from "../../../src/outline/quote";
 
 export type FindingCheck =
   | { ok: true; fields: { file: string; lineStart: number; lineEnd: number; kind: FindingKind; claim: string; quotedSnippet: string } }
