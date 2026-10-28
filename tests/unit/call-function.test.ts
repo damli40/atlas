@@ -270,7 +270,7 @@ describe("time", () => {
     const r = await runPasted(src, { exportName: "f", watchLimitMs: 600_000 }, { wallClockMs: 20_000 });
     expect(r.result.measured.outcome).toBeUndefined();
     expect(r.result.notMeasured.outcome).toMatch(/step limit/);
-  }, 30_000);
+  }, 60_000); // R1 (D43): the double run runs it twice (each up to its 20 s real-time limit under a loaded machine)
 });
 
 describe("the code reaches outside the sandbox: whole run can't check, never outcome: threw", () => {

@@ -74,7 +74,6 @@ describe("the double run catches values that change between identical runs (B1, 
   const pyCases = [
     ["a set of plain objects (ordered by memory address; the second run starts with another heap layout)", "class A:\n    def __init__(s, n):\n        s.n = n\n\ndef f():\n    return [a.n for a in set(A(i) for i in range(40))]\n"],
     ["a default repr in an f-string", "class User:\n    pass\n\ndef f():\n    return f'created {User()}'\n"],
-    ["id()", "def f():\n    return id(object()) % 1000\n"],
     ["os.getpid()", "import os\n\ndef f():\n    return os.getpid()\n"],
   ] as const;
   for (const [what, src] of pyCases) {
@@ -87,6 +86,13 @@ describe("the double run catches values that change between identical runs (B1, 
       }
     });
   }
+  it.skipIf(!HAVE_PYTHON)("Python: id() is never an unlabelled fact: not reported, or (when both runs agree by chance) labelled memory-address", async () => {
+    // R1 review round 2 (B2): two runs can agree by chance on a small address-based value; the label is always there.
+    for (let i = 0; i < 3; i++) {
+      const r = await run("def f():\n    return id(object()) % 1000\n", "py", "f");
+      expect(kinds(r)).toContain("memory-address");
+    }
+  });
   it.skipIf(!HAVE_PYTHON)("Python: uuid.uuid1 (the real clock and a network address) is refused", async () => {
     const r = await run("import uuid\n\ndef f():\n    return str(uuid.uuid1())\n", "py", "f");
     expect(r.result.notMeasured.wholeRun).toMatch(/uuid\.uuid1/);
