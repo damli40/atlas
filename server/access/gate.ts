@@ -115,7 +115,7 @@ export function withInviteGate(inner: InnerApp, o: GateOptions): Hono {
   outer.post("/invite", async (c) => {
     const ip = clientIpOf(c, trustProxy, hops);
     const room = failedByIp.check(ip);
-    if (!room.ok) return c.json({ error: "too many wrong invite codes from this address in the last hour; try again later" }, 429);
+    if (!room.ok) return c.json({ error: "too many invite codes that did not work came from this address in the last hour; try again later" }, 429);
     const json = (c.req.header("content-type") ?? "").includes("application/json");
     let code = "";
     try {
