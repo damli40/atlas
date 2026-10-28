@@ -1,7 +1,7 @@
 # X1: the outline engine behind the code explorer
 
-Date: 2026-10-28 (WAT) · live spend **$1.51** in all: $0.39 before review, $0.80 in review round 1, $0.32 in
-round 2 (7 Muse Wonder calls in total) · Node 25.8.1.
+Date: 2026-10-28 (WAT) · live spend **$1.85** in all: $0.39 before review, $0.80 in review round 1, $0.32 in
+round 2, $0.33 in round 3 (8 Muse Wonder calls in total) · Node 25.8.1.
 
 ## Where to look first
 
@@ -22,9 +22,9 @@ round 2 (7 Muse Wonder calls in total) · Node 25.8.1.
   - A **join** is confirmed when the first part's own lines call, extend or refer to a definition inside the second
     part's lines. An import statement counts only for a part that holds the whole importing file.
 - **Wonder-only joins say what is true:** "Wonder says this; plain code could not check it", with the reason.
-  "Atlas found no import or call for this" appears only when plain code positively looked: different files, no file
-  of the first part imports a file of the second, and nothing it could not follow. It never says "the code doesn't
-  show it".
+  "Atlas found no import or call for this" appears only with proof (review round 3): plain code walked every import
+  from the first part's files, through every file they reach, met nothing it cannot follow, and never reached the
+  second part (both ways for a data join). It never says "the code doesn't show it".
 - **The server never maps code on its own event loop.** Code maps and checks run in a separate Node process with a
   60-second kill. Each has a counted work budget that ends as "can't check" rather than running long.
 - **The proof file** (`.atlas.json`) carries an `outline` section with the files. Checking it rebuilds the code map
@@ -40,11 +40,11 @@ OUTLINE_CLONE=<git clone dir> OUTLINE_SAVE_SECTION=<scratch file> npx tsx tests/
 OUTLINE_FROM_SECTION=<saved section> npx tsx tests/tools/outline-live.ts ...   # re-judge a saved run, no model call
 ```
 
-| | Before X1 (5f28a6c) | X1 first version | After review round 1 | After review round 2 |
-|---|---|---|---|---|
-| Outline tests | 0 | 56 | 83 | 104 (21 new in `outline-review2.test.ts`) |
-| Full suite passed | 920 | 975 | 1002 | **1023** (88 files), 20 skipped |
-| tsc | clean | clean | clean | clean (`review2-tsc-output.txt` is empty) |
+| | Before X1 (5f28a6c) | X1 first version | After review round 1 | After review round 2 | After the rebase + round 3 |
+|---|---|---|---|---|---|
+| Outline tests | 0 | 56 | 83 | 104 | **137** (29 new in `outline-review3.test.ts`, 5 in `outline-merge.test.ts`) |
+| Full suite passed | 920 | 975 | 1002 | 1023 (88 files) | **1333 passed, 35 skipped (104 files), 3 identical runs** (`review3-full-suite-1/2/3.txt`; on main's larger suite) |
+| tsc | clean | clean | clean | clean | clean (`review3-tsc-output.txt` is empty) |
 
 Files:
 - `test-output.txt` / `full-suite.txt` / `tsc-output.txt`: the first version.
@@ -54,11 +54,32 @@ Files:
 - `live-r1-*.json`: round 1. **Superseded: they include the 5 false code-only joins.**
 - `live-r2-*.json`: current.
 
-## Live runs (current rules, round 2)
+## Live runs (current rules, review round 3)
 
-All read from local `git clone`s at pinned commits: no GitHub API, no token. Summaries hold no code. The full saved
-sections (which do hold code) stay in the session's scratch folder, outside the repo. All three verify with
-`verifyOutlineFile` in under 0.1 s each.
+All read from local `git` repositories at pinned commits: no GitHub API, no token. Summaries hold no code. The full
+saved sections (which do hold code) stay in the session's scratch folder, outside the repo. All verify with
+`verifyOutlineFile`.
+
+**Round 3, the current tables** (`live-r3-*.json` and `live-head-atlas-server-meta.json`):
+
+| Codebase @ commit | How judged | Parts confirmed | Joins: confirmed / Wonder-only / found by plain code |
+|---|---|---|---|
+| `damli40/atlas` `server/meta` @**058ab2a** (the merged X1 head: 13 files, with E3's `pasted-guard.ts` and `proposer.ts` and X1's `outliner.ts`) | **new live run**, $0.333 | 12 of 12 (whole files this time) | 18 / 0 / 6 |
+| `damli40/atlas` `server/meta` @5f28a6c | round-2 answer re-judged offline | 12 of 12 | 19 / 2 / 2 (unchanged) |
+| `pallets/itsdangerous` `src/itsdangerous` @672971d | re-judged offline | 11 of 11 | 25 / 0 / 4 (unchanged) |
+| `damli40/atlas` `runners/evm` @5f28a6c | re-judged offline | 15 of 15 | 18 / 2 / 20 (was 19 / 1 / 19) |
+
+- **runners/evm moved by one join, from round-3 minor 2.** Wonder said `apply-onchain → moonwell-constants` "calls".
+  The code only calls `.map` on the imported constant `USD_STABLECOINS`, so the call is now a **use**: the
+  Wonder join is "could not check it", and plain code lists the real link as a found-by-plain-code "imports" join.
+- **The merged-head commit `058ab2a` is on this branch, not yet on GitHub.** The section records the files' git blob
+  ids, so it can be checked against GitHub once the branch is merged and pushed. Until then, "github" here means "this
+  repository's history". `server/meta` is identical at the final evidence commit (only `tests/evidence/` changes after
+  058ab2a). The older 5f28a6c section is kept (`live-r2-atlas-server-meta.json`, unchanged for the Anatomy prototype).
+- In the merged-head run I checked the one join that is new in the code: `budget → code-guard`. It is the round-3
+  reservation (`estimatedCallUsd` from `pasted-guard.ts`). The other joins were not re-read one by one this round.
+
+**Round 2 tables** (kept for the record; `live-r2-*.json`):
 
 | Codebase @ commit | How judged | Files split into parts | Parts confirmed | Joins: confirmed / Wonder-only / found by plain code |
 |---|---|---|---|---|
@@ -138,6 +159,25 @@ in `tests/unit/outline-review2.test.ts` (21), plus updates to the earlier files.
 **Not changed:** the 100K-token prompt gate estimates characters ÷ 2.8, so code full of CJK text or emoji can push
 past the "$2 worst case" (about $3 by arithmetic, not measured), and the repair call is not re-gated. Logged, not
 fixed.
+
+## Review round 3 (finding → fix → test)
+
+The final review found 2 blockers, 1 major (promoted to a blocker) and 6 minors (report:
+`scratchpad/review-X1-r3.md`, not in the repo). Every round-2 fix held. Tests are in
+`tests/unit/outline-review3.test.ts` (29): all 13 of the reviewer's label inputs, the 3 export footers, and all 8
+Python rebinding forms, plus the minors.
+
+| Finding | What was wrong | Fix | Test |
+|---|---|---|---|
+| **R3-B1** | "Atlas found no import or call" was shown while plain code had skipped the very link: star imports, `import_module`, `import pkg.sub` + `pkg.f()`, destructuring, `require('./x').y`, one-line and `;` imports, a skipped file, a parse error in a barrel, `createRequire`, the reverse of a data join, an unread alias, and a script's sibling `queue.py`. | The positive label now needs proof. Plain code walks the imports from A's files through every codebase file they reach. It says "found nothing" only when none of those files is B's and none holds a parse note, an unresolved or dynamic import, a star, whole-module or bare import, or an "outside package" that is not the language's own library. For a data join both directions must be clean. Otherwise the label is "could not check it". Plain code also reads more: Python statements split at `;` and after one-line headers; `import a.b` also binds `a`; `import_module`/`runpy`/`exec` count as dynamic imports; a stray import form is a parse note; a skipped local file is "did not read". A script's sibling module beats the standard library, but built-in and frozen modules still win (CPython 3.14.7's lists). JS `createRequire` and `require` used as a value count as dynamic imports. | L1–L12 and S1; the positive label still appears where proof exists |
+| **R3-B2** | Export footers (`export default x`, `module.exports = …`, `exports.x = …`) linked the last part of a file. | Names in export statements and footers are marked `onExport`. Like import lines, they link only a part that holds the whole file, and never count for "data" or "calls". Python's `if __name__ == "__main__": main()` still links: it runs code. | TS, CommonJS ×2, whole-file control, Python footer |
+| **R3-M1** (promoted) | Python rebinding forms did not shadow. | Every target form is now read: tuple, starred and chained assignments, augmented, `async for`, `:=`, `with … as (a, b)`, and `case` captures. Class-body names hide module names on the class's direct statements (not inside its methods). A module-level rebinding makes the name unsure. `global` still links. | all 8 forms + the `global` control |
+| minor 1 | With `@overload` stubs, the first definition won. | Python runs the LAST definition. | overload case |
+| minor 2 | `X.map()` on a constant was a "calls" join into X. | A member call on a `variable` definition is a **use**. | `USD.map` vs `f()` |
+| minor 3 | A refused outline still spent the other allowance; the model round was spent even when Wonder was never asked. | Both per-address allowances are checked before either is counted (`createHourlyLimit().check`). The model round is taken only right before the first real Wonder call, after every gate. | check-without-count; prompt-gate refusal spends no round |
+| minor 4 | The spend ceiling was soft (checked, not reserved). | Outline calls **reserve** their worst case (`estimatedCallUsd`) on the shared budget before sending and settle after. Calls running at once can no longer pass the ceiling. Other roles keep the existing check (a reservation would refuse their older low-ceiling tests). Logged. | concurrent calls refused at the ceiling |
+| minor 5 | `/replay` verifies a stored round file on the event loop, and verify now rebuilds any outline in it. | Logged: latent until X2 attaches outlines to rounds. It is bounded by the counted budgets (worst measured 180 ms). | — |
+| minor 6 | The demo's `server/meta` section was at 5f28a6c. | Re-run live at the merged head 058ab2a ($0.333). The old section is kept. | live table above |
 
 ## Rebase onto main (E3 paste flow + E4 Modal executor, 298a781)
 
@@ -230,5 +270,11 @@ X2 must also keep round files that carry an outline in memory only: they hold th
   - A download is read whole before its size is checked.
 - **Sessions are made by the client,** so the per-session caps bind only cooperating clients. The real limit is per
   address.
+- **"Could not check it" is now the common label.** The positive "found no import or call" needs proof, so any
+  whole-module import (`import db`, `import * as api`) or outside package other than the standard library on the
+  way makes plain code say "could not check it". That is deliberate.
+- **Only outline calls reserve their worst case** on the shared budget. Other roles keep the older check-before-call,
+  so concurrent calls of those roles can still pass the ceiling by one call each.
+- **`/replay` verifies a round file on the event loop** (latent; see round 3, minor 5).
 - **The agent-log line for an outline uses role `investigator`:** `web/logstrip/LogStrip.tsx` (X2's file) has no
   `outliner` role. `usage.jsonl` says `outliner`.

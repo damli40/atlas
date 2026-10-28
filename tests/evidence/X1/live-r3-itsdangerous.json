@@ -1,0 +1,681 @@
+{
+  "ranAt": "2026-10-28T07:14:47.591Z",
+  "rejudgedFrom": "a saved section of the live run: same files and Wonder answer, today's plain code, no model call",
+  "seconds": 0,
+  "source": {
+    "kind": "github",
+    "repo": "pallets/itsdangerous",
+    "requestedRef": "672971d66a2ef9f85151e53283113f33d642dabd",
+    "commit": "672971d66a2ef9f85151e53283113f33d642dabd",
+    "subfolder": "src/itsdangerous"
+  },
+  "codeSha256": "fdfb6a2e17888ea60d3957137ee51c1e5c6e3be47dd5875f7e0aa6bdee870f82",
+  "files": [
+    {
+      "path": "__init__.py",
+      "language": "py",
+      "bytes": 853,
+      "sha256": "cd4e17bf6c055e1d4e6fb30c5d51406365ccb0d5e2bb0f65b446a9208996a9a0"
+    },
+    {
+      "path": "_json.py",
+      "language": "py",
+      "bytes": 473,
+      "sha256": "c0f4069a07b6c99f77dbc107285ea069d19ec866022502b1b54fa22ca13a5270"
+    },
+    {
+      "path": "encoding.py",
+      "language": "py",
+      "bytes": 1409,
+      "sha256": "c304f3e6aff7ccb71a01dba793afef4a84adc06a9859edf4ed997f53ceda4453"
+    },
+    {
+      "path": "exc.py",
+      "language": "py",
+      "bytes": 3201,
+      "sha256": "46bddec68d0c44511c3d996dc1e7322b5e955756c4d8af7f175f9dfa58dc527e"
+    },
+    {
+      "path": "serializer.py",
+      "language": "py",
+      "bytes": 15563,
+      "sha256": "6d6f1687897c7e3ac6eeff5bfd6794df90e299feedcc6aae3faa0e53ffe925e8"
+    },
+    {
+      "path": "signer.py",
+      "language": "py",
+      "bytes": 9647,
+      "sha256": "60ed0257b341bc703a8f9e3d4441c91548d4a23c36a47ab0714a509d4ef23584"
+    },
+    {
+      "path": "timed.py",
+      "language": "py",
+      "bytes": 8087,
+      "sha256": "3afbf6050e8b73605931d1e516f374835456979e4319c098bfe5f284f120c6c5"
+    },
+    {
+      "path": "url_safe.py",
+      "language": "py",
+      "bytes": 2505,
+      "sha256": "6b3e1ee5f5e2fefb3e61b5a3f186709f8c2254a7de0fef8610a453e547aee0fe"
+    }
+  ],
+  "skipped": [
+    {
+      "path": "py.typed",
+      "reason": "not a source file Atlas reads (.typed)"
+    }
+  ],
+  "codeMap": {
+    "files": 8,
+    "edges": 88,
+    "callEdges": 22,
+    "externals": [
+      "__future__",
+      "base64",
+      "collections",
+      "datetime",
+      "hashlib",
+      "hmac",
+      "json",
+      "string",
+      "struct",
+      "time",
+      "typing",
+      "typing_extensions",
+      "zlib"
+    ],
+    "unresolved": [],
+    "parseNotes": []
+  },
+  "wonder": {
+    "model": "muse-wonder-1.0",
+    "attempts": [
+      {
+        "attempt": 1,
+        "finishReason": "stop",
+        "usage": {
+          "promptTokens": 16805,
+          "completionTokens": 3386,
+          "reasoningTokens": 1031,
+          "usd": 0.13494
+        }
+      }
+    ]
+  },
+  "counts": {
+    "confirmedParts": 11,
+    "unconfirmedParts": 0,
+    "confirmedJoins": 25,
+    "modelOnlyJoins": 0,
+    "codeOnlyJoins": 4
+  },
+  "parts": [
+    {
+      "id": "public-api",
+      "status": "confirmed",
+      "name": "Public API exports",
+      "purposeByModel": "Re-exports the library's public encoders, exceptions, signers, and serializers from the package root.",
+      "files": [
+        "__init__.py"
+      ],
+      "ranges": [
+        "__init__.py:1-17 (whole file)"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "config",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "encoding-utils",
+      "status": "confirmed",
+      "name": "Encoding utilities",
+      "purposeByModel": "Provides byte conversion, URL-safe base64 encoding and decoding, and 64-bit integer byte conversion.",
+      "files": [
+        "encoding.py"
+      ],
+      "ranges": [
+        "encoding.py:1-54 (whole file)"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "parsing",
+          "known": true
+        },
+        {
+          "label": "validation",
+          "known": true
+        },
+        {
+          "label": "error-handling",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "exceptions",
+      "status": "confirmed",
+      "name": "Exception hierarchy",
+      "purposeByModel": "Defines BadData and its signature, timestamp, header, and payload error subclasses with diagnostic context.",
+      "files": [
+        "exc.py"
+      ],
+      "ranges": [
+        "exc.py:1-106 (whole file)"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "error-handling",
+          "known": true
+        },
+        {
+          "label": "state",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "signing-algorithms",
+      "status": "confirmed",
+      "name": "Signing algorithms",
+      "purposeByModel": "Defines the signing algorithm interface plus empty-signature and HMAC implementations.",
+      "files": [
+        "signer.py"
+      ],
+      "ranges": [
+        "signer.py:15-64"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "auth",
+          "known": true
+        },
+        {
+          "label": "validation",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "signer-core",
+      "status": "confirmed",
+      "name": "Byte signer",
+      "purposeByModel": "Derives signing keys and signs, verifies, unsigns, and validates byte values with key-rotation support.",
+      "files": [
+        "signer.py"
+      ],
+      "ranges": [
+        "signer.py:67-266"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "auth",
+          "known": true
+        },
+        {
+          "label": "validation",
+          "known": true
+        },
+        {
+          "label": "error-handling",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "serializer-protocol",
+      "status": "confirmed",
+      "name": "Serializer protocol helpers",
+      "purposeByModel": "Defines the data-serializer protocol and detects whether a serializer produces text or bytes.",
+      "files": [
+        "serializer.py"
+      ],
+      "ranges": [
+        "serializer.py:1-37"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "parsing",
+          "known": true
+        },
+        {
+          "label": "validation",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "serializer-core",
+      "status": "confirmed",
+      "name": "Signed serializer",
+      "purposeByModel": "Serializes objects, signs the payload, verifies and loads signed data, and supports fallback signers and unsafe loading.",
+      "files": [
+        "serializer.py"
+      ],
+      "ranges": [
+        "serializer.py:40-404"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "auth",
+          "known": true
+        },
+        {
+          "label": "parsing",
+          "known": true
+        },
+        {
+          "label": "validation",
+          "known": true
+        },
+        {
+          "label": "error-handling",
+          "known": true
+        },
+        {
+          "label": "file-io",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "timestamp-signer",
+      "status": "confirmed",
+      "name": "Timestamp signer",
+      "purposeByModel": "Signs bytes with a timestamp and verifies age limits, expiration, and signing time.",
+      "files": [
+        "timed.py"
+      ],
+      "ranges": [
+        "timed.py:22-167"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "auth",
+          "known": true
+        },
+        {
+          "label": "timer",
+          "known": true
+        },
+        {
+          "label": "validation",
+          "known": true
+        },
+        {
+          "label": "error-handling",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "timed-serializer",
+      "status": "confirmed",
+      "name": "Timed serializer",
+      "purposeByModel": "Extends the signed serializer with timestamp-aware loading, expiration handling, and optional timestamp return.",
+      "files": [
+        "timed.py"
+      ],
+      "ranges": [
+        "timed.py:170-228"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "auth",
+          "known": true
+        },
+        {
+          "label": "timer",
+          "known": true
+        },
+        {
+          "label": "parsing",
+          "known": true
+        },
+        {
+          "label": "error-handling",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "url-safe-serializers",
+      "status": "confirmed",
+      "name": "URL-safe serializers",
+      "purposeByModel": "Base64-encodes serialized payloads for URLs, optionally zlib-compressing them, and provides plain and timed variants.",
+      "files": [
+        "url_safe.py"
+      ],
+      "ranges": [
+        "url_safe.py:1-83 (whole file)"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "parsing",
+          "known": true
+        },
+        {
+          "label": "validation",
+          "known": true
+        },
+        {
+          "label": "error-handling",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "compact-json",
+      "status": "confirmed",
+      "name": "Compact JSON serializer",
+      "purposeByModel": "Wraps the standard JSON module with compact separators and non-ASCII-preserving output for URL-safe serialization.",
+      "files": [
+        "_json.py"
+      ],
+      "ranges": [
+        "_json.py:1-18 (whole file)"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "parsing",
+          "known": true
+        }
+      ]
+    }
+  ],
+  "splitFiles": [
+    "serializer.py",
+    "signer.py",
+    "timed.py"
+  ],
+  "joins": [
+    {
+      "id": "wonder:0",
+      "from": "public-api",
+      "to": "encoding-utils",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 3,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:1",
+      "from": "public-api",
+      "to": "exceptions",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 6,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:2",
+      "from": "public-api",
+      "to": "serializer-core",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:3",
+      "from": "public-api",
+      "to": "signing-algorithms",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 2,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:4",
+      "from": "public-api",
+      "to": "signer-core",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:5",
+      "from": "public-api",
+      "to": "timed-serializer",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:6",
+      "from": "public-api",
+      "to": "timestamp-signer",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:7",
+      "from": "public-api",
+      "to": "url-safe-serializers",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 2,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:8",
+      "from": "encoding-utils",
+      "to": "exceptions",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 2,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:9",
+      "from": "signer-core",
+      "to": "encoding-utils",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 4,
+      "reason": "Wonder's quoted evidence is not the line of an import, call or use it names (signer.py line 10); the code map's own edges are listed instead",
+      "wonderEvidenceMatches": false
+    },
+    {
+      "id": "wonder:10",
+      "from": "signer-core",
+      "to": "exceptions",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 2,
+      "reason": "Wonder's quoted evidence is not the line of an import, call or use it names (signer.py line 12); the code map's own edges are listed instead",
+      "wonderEvidenceMatches": false
+    },
+    {
+      "id": "wonder:11",
+      "from": "signer-core",
+      "to": "signing-algorithms",
+      "kind": "calls",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:12",
+      "from": "serializer-core",
+      "to": "encoding-utils",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "reason": "Wonder's quoted evidence is not the line of an import, call or use it names (serializer.py line 7); the code map's own edges are listed instead",
+      "wonderEvidenceMatches": false
+    },
+    {
+      "id": "wonder:13",
+      "from": "serializer-core",
+      "to": "exceptions",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 3,
+      "reason": "Wonder's quoted evidence is not the line of an import, call or use it names (serializer.py line 8); the code map's own edges are listed instead",
+      "wonderEvidenceMatches": false
+    },
+    {
+      "id": "wonder:14",
+      "from": "serializer-core",
+      "to": "signer-core",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 2,
+      "reason": "Wonder's quoted evidence is not the line of an import, call or use it names (serializer.py line 11); the code map's own edges are listed instead",
+      "wonderEvidenceMatches": false
+    },
+    {
+      "id": "wonder:15",
+      "from": "timestamp-signer",
+      "to": "encoding-utils",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 5,
+      "reason": "Wonder's quoted evidence is not the line of an import, call or use it names (timed.py line 11); the code map's own edges are listed instead",
+      "wonderEvidenceMatches": false
+    },
+    {
+      "id": "wonder:16",
+      "from": "timestamp-signer",
+      "to": "exceptions",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 3,
+      "reason": "Wonder's quoted evidence is not the line of an import, call or use it names (timed.py line 16); the code map's own edges are listed instead",
+      "wonderEvidenceMatches": false
+    },
+    {
+      "id": "wonder:17",
+      "from": "timestamp-signer",
+      "to": "signer-core",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "reason": "Wonder's quoted evidence is not the line of an import, call or use it names (timed.py line 19); the code map's own edges are listed instead",
+      "wonderEvidenceMatches": false
+    },
+    {
+      "id": "wonder:18",
+      "from": "timed-serializer",
+      "to": "serializer-core",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "reason": "Wonder's quoted evidence is not the line of an import, call or use it names (timed.py line 18); the code map's own edges are listed instead",
+      "wonderEvidenceMatches": false
+    },
+    {
+      "id": "wonder:19",
+      "from": "timed-serializer",
+      "to": "timestamp-signer",
+      "kind": "data",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:20",
+      "from": "url-safe-serializers",
+      "to": "compact-json",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 2,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:21",
+      "from": "url-safe-serializers",
+      "to": "encoding-utils",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 4,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:22",
+      "from": "url-safe-serializers",
+      "to": "exceptions",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 2,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:23",
+      "from": "url-safe-serializers",
+      "to": "serializer-core",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 2,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:24",
+      "from": "url-safe-serializers",
+      "to": "timed-serializer",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 2,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "code:serializer-core->serializer-protocol",
+      "from": "serializer-core",
+      "to": "serializer-protocol",
+      "kind": "calls",
+      "status": "code-only",
+      "codeEdges": 1
+    },
+    {
+      "id": "code:timed-serializer->encoding-utils",
+      "from": "timed-serializer",
+      "to": "encoding-utils",
+      "kind": "calls",
+      "status": "code-only",
+      "codeEdges": 1
+    },
+    {
+      "id": "code:timed-serializer->exceptions",
+      "from": "timed-serializer",
+      "to": "exceptions",
+      "kind": "imports",
+      "status": "code-only",
+      "codeEdges": 2
+    },
+    {
+      "id": "code:url-safe-serializers->serializer-protocol",
+      "from": "url-safe-serializers",
+      "to": "serializer-protocol",
+      "kind": "imports",
+      "status": "code-only",
+      "codeEdges": 1
+    }
+  ],
+  "notInAnyPart": [],
+  "usage": {
+    "promptTokens": 16805,
+    "completionTokens": 3386,
+    "reasoningTokens": 1031,
+    "usd": 0.13494
+  },
+  "verifyOutlineFile": "ok"
+}
