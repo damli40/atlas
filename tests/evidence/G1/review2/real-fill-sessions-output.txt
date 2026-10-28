@@ -1,0 +1,1 @@
+REAL server: dev1 made 520 sessions with a sealed human bet in 0.3 s (dev1 spent today $0.29); owner's POST /experiments in a new session -> 400 unknown target: register it with POST /targets first (same ref and codeSha256), or paste it in this session (POST /paste)

@@ -166,7 +166,7 @@ account-level limits too:
 6. **(Fixed in review round 1; it was wrong.)** I wrote that a call that throws is "settled at $0, the same rule as
    before G1". The review showed a dev can cause that on purpose (timeouts) and spend without limit. Such calls are
    now counted at their worst case.
-7. **The web page does not yet link to `/invite` or explain a 401** (the X2 batch owns `web/`). Today the page shows
+7. **The web page does not yet link to `/invite` or explain a 401, or a 429 from the live-log stream** (the X2 batch owns `web/`). Today the page shows
    the server's error text, which says where to enter the code.
 8. **(Fixed in review round 1.)** The chain-facts read now counts as one EVM run of the invite, and a failed read is
    cached for 60 s.
@@ -227,3 +227,97 @@ Full suite 3 times after review round 1: [review1-full-suite-1.txt](review1-full
 is in `server/index.ts`, which no test starts (the same pieces are tested one by one). I did not re-check the reviewer's
 one extra skipped test (1,356 / 36 on their machine). The review's dollar figures for the old attack are its own
 estimates; I did not measure what Meta bills for an abandoned request.
+
+## Review round 2: 4 blockers, 2 majors, 8 minors (every round-1 fix held)
+
+The second review re-ran round 1's attacks (all stopped) and found that a dev could still **block Dami** through
+shared capacities that are not money: the 500 bet sessions, GitHub's hourly allowance, the 200 paste sessions. It
+also found one remaining overspend (the "ran out of room" retry sends the prompt twice) and a lock file that could stop
+the hosted server from restarting.
+
+**The general fix: the owner's code gets its own copy of the app.** `server/index.ts` now builds the app twice from
+the same options. Dev codes use one copy; the owner's code uses the other. So every in-memory capacity of an app (bet
+sessions, paste sessions, proposal sets, the live log, kept runs, finished outline jobs, the PR cache, controls,
+per-address counters) is the owner's alone, by construction: no dev request ever touches it. The things that must be
+shared (money, Modal, sandbox and EVM gates, GitHub, the RPC) are single objects passed to both copies, each with a
+per-code share and an owner share. A public read with no code (a proof card, an outline result) looks in the dev copy,
+then in the owner's.
+
+| Finding | Fix | Test (`tests/unit/g1-review2.test.ts` unless named) |
+|---|---|---|
+| **B6** a dev fills the 500 bet sessions; the owner gets 503 for 2 h | Owner's sessions are in the owner's app. A dev code holds at most 20 sessions (its 21st drops its OWN oldest, even a protected one). Protection now lasts 30 min from the oldest unrun sealed bet and is not extended by using the session (was 2 h after the last use) | "a dev code holds at most 20 sessions", "protection is bounded", "through the server: devs fill every dev session slot ... the owner's new round still opens"; `limits.test.ts` S4 updated |
+| **B7** GitHub reads unlimited per code; failures not remembered; the finale's PR could be pushed out of the cache | GitHub reads come out of shares: 10 per dev code an hour, 25 for all devs, 25 for the owner, 50 for the server itself (`server/access/shares.ts`), counted only for reads not already cached; a refused read is 429 and fetches nothing. Outline jobs on a GitHub repo take one too. A failed read is remembered for 60 s. The Moonwell PR is never dropped from the cache, and the owner's app reads it once at startup (as the server). **Shipping the PR as a committed fixture does not work:** the PR changed 6 files and only 4 are committed (`contracts/lib/moonwell/NOTICE.md`); I checked that the committed files do not reproduce the PR's fingerprint (3 files: no; 4 files: no), so the startup read plus the pin is the fix | "a dev's 11th uncached PR read ... the owner's read still goes through", "a missing PR asked for 20 times reads GitHub once", "the Moonwell PR is never pushed out", "outline jobs ... take a GitHub read" |
+| **B8** the "length" retry sends the prompt twice; the hold counted it once | The retry is a separately held call: just before it is sent, the budget holds the retry's own worst case (the whole prompt again plus the retry's output room); if that hold is refused, the retry is not sent and the call ends with the reason. A call's unknown cost is then its first hold plus any retry hold. The fixer's chat fallback holds both tries with the prompt counted twice | "two Spark bets at once ... the ledger stays at or under $3.00" (one token per byte, the reviewer's attack), "when the retry's hold is refused, the retry is not sent". Reviewer's script re-run: [review2/poc-b1-after.txt](review2/poc-b1-after.txt): over by $0.00 in all three cases (was +$0.55) |
+| **B9** the lock stayed after SIGTERM; a restart with the same pid refused to start | The lock holds pid, a random token and the process start time (Linux `/proc/<pid>/stat`, else `ps -o lstart=`). Stale when: the pid is this process's own, the pid is not running, or the process now under that pid started at another time. Removed on exit, SIGTERM and SIGINT (the server sets the signal handlers). A stale lock is renamed aside (only one process can) before the new one is created with "fail if it exists" | "a lock left with this process's own pid", "a pid now used by an unrelated process", "SIGTERM and SIGINT remove the lock" (a child process started and stopped by the test). Real server: after `kill -TERM` of my own server pid, `server.lock` was gone. Reviewer's race script: 1 of 24 wins, 5 of 5 trials ([review2/lock-after.txt](review2/lock-after.txt)) |
+| **M6** 200 paste sessions shared; devs push out Dami's paste | Owner's pastes are in the owner's app. A dev code holds at most 10 paste sessions (its own oldest dropped first) | "a dev code holds at most 10 paste sessions ... the owner's paste ... survives any dev flood" |
+| **M7** holds locked up half the money on big pastes; a timeout cost about $1 | Bet calls ask for 4,000 output tokens with one retry at 8,000. All 49 live claimant calls in `tests/evidence/usage/usage.jsonl` used at most 2,297 (a test reads the file). A 60 KB bet's first try now holds $0.32 (was $1.21); a timed-out first try costs that | "the live usage log's claimant calls all fit", "a 60 KB pasted bet holds about $0.32" |
+| m8 | Devs' shared call pool is now its own setting, `ATLAS_MODEL_CALLS_PER_HOUR_DEVS` (default the same 60): size it to the codes handed out | (setting) |
+| m9 | One dev code holds at most 2 sandboxes at once | "m9" |
+| m10 | Logged: Modal seconds are counted when a run ends, so up to 3 running sandboxes can pass a dev's 900 s by their run time (seconds, cents) | |
+| m11 | The owner's runs and outline results are in the owner's app now; devs can only rotate each other's | sweep test |
+| m12 | A replay opened by typing the URL or a bookmark (`Sec-Fetch-Site: none`, which no other page can send) passes with the cookie; a link from another site still does not | "m12" |
+| m13 | Logged: the `muse exec` hold is still an assumption (limit 1) | |
+| m14 | Logged, not changed: a 4xx is booked at $0; no Meta or Baseten 4xx-after-work case is known | |
+| m15 | The real server was run twice this round (below), local executor; the Modal path still by reading only | |
+
+### Every shared capacity, and who can use it up
+
+"Dev exhausts, owner still works" for each one:
+
+| Capacity | Shared how | Owner protected by | Test |
+|---|---|---|---|
+| Bet sessions (500), paste sessions (200), proposal sets, live log, kept runs (1,000), finished outline jobs (60), running outline jobs (4), PR cache (20), control cache, per-address counters | in-memory, per app | the owner's own app copy (+ per-code caps: 20 sessions, 10 paste sessions, 1 running outline job) | "a dev's session, paste and run are invisible to the owner", B6, M6 tests; round 1 M2 |
+| Money: $3/day per code, $80 for devs together, $100 ceiling | the ledger (on disk) | the $20 owner reserve | round 0 + round 1 tests |
+| Model calls an hour (60) and experiments per session | the model budget | owner has its own 60; dev 15 each; experiments per spender and session | round 1 B2 tests |
+| Modal: daily starts and seconds; sandboxes at once (4) | the ledger | owner's 20% slice; 150 starts / 900 s per dev; devs hold at most 3 at once, 2 per code | round 1 B3 tests, m9 |
+| Sandbox gate, EVM run gate, EVM replay gate | shared gate objects | owner's own copy of each gate | round 1 M3 tests |
+| EVM fork runs and chain-facts reads (RPC) | the ledger | 10 per dev code a day; owner unlimited; failed chain-facts read cached 60 s | round 0 EVM test, round 1 m2 |
+| GitHub allowance | one share limit | owner's own 25 an hour; devs 10 each, 25 together; failures cached; finale pinned | B7 tests |
+| Live-log streams (`GET /events/:id`) | process connections | **now needs a code** (was open: the untested no-code flood); 4 open per dev code, 40 for all devs; the owner's not counted | "live-log streams: no code gets 401; a dev holds at most 4" |
+| Sign-in tries | per address and server | correct code never refused | round 1 M4 |
+
+**Not covered (process-wide, logged):** CPU, memory and file handles of the one process. A dev within every limit
+above can still make the server busy (many requests per second with 300 KB bodies, for example). The caps bound it;
+nothing measures it.
+
+### Honest use per dev, now (real server, local executor, models faked from the real price table)
+
+| Paste size | Rounds a day (money) | Was (round 2 review) | Per round |
+|---|---|---|---|
+| about 1 KB | **60** | about 60 | $0.048 |
+| about 20 KB | **33** | about 18 | $0.086 |
+| about 60 KB | **16** | 9 | $0.17 |
+
+Both Spark and Spark Open bet in every round, plus one Wonder proposal call. With the default call limit (15 model calls
+an hour per code) a dev gets **7 rounds an hour** whatever the size ([review2/real-honest-1.txt](review2/real-honest-1.txt));
+the money columns used a raised call limit to find where money stops ([review2/real-honest-money-60.txt](review2/real-honest-money-60.txt)).
+
+### Proof scripts from both reviews, re-run
+
+- Round 1 PoC ([review2/poc-round1-after.txt](review2/poc-round1-after.txt)) and round 2's re-run of it
+  ([review2/poc-r1-after.txt](review2/poc-r1-after.txt)): PoC1 timeouts now stop at **$2.80 recorded, 5 sent** (each
+  timed-out first try holds $0.56 since the first try alone is held; was $2.40 / 2 in round 1 with the old larger hold);
+  PoC2–5 stopped; PoC6 midnight unchanged (by design).
+- B8 ([review2/poc-b1-after.txt](review2/poc-b1-after.txt)): over by $0.00 (was $0.55).
+- Lock ([review2/lock-after.txt](review2/lock-after.txt)): own-pid lock taken over; 1 of 24 wins, 5 trials.
+- Slots ([review2/slots-after.txt](review2/slots-after.txt)): the reviewer's S1 and S2 assertions (which expected the
+  attacks to work) now fail. S1: the owner's request reaches the owner's own app, which has no session problem; its
+  400 there is "unknown target" because the script registered the target only in the dev copy. S2: 11 GitHub reads for
+  80 dev requests; the owner's read afterwards 200. S3: owner's paste survives.
+- Real server ([review2/real-d401-output.txt](review2/real-d401-output.txt),
+  [review2/real-fill-sessions-output.txt](review2/real-fill-sessions-output.txt)): every spending route 401 with no
+  code; a dev "made" 520 sessions in 0.3 s but holds only its last 20; the owner's request reached the owner's app.
+- Cross-site in headless Chromium ([review2/real-csrf-output.txt](review2/real-csrf-output.txt)): same-site other
+  origin 403, cross-site 401, Atlas's own page passes the gate.
+
+I started two servers of my own (ports checked free first, pids recorded) and stopped exactly those two pids, after
+checking each was the listener on its port. No other process was touched.
+
+Full suite 3 times after round 2: [review2/full-suite-1.txt](review2/full-suite-1.txt),
+[-2](review2/full-suite-2.txt), [-3](review2/full-suite-3.txt): **1,397 passed, 36 skipped** each time (one more
+skipped than round 1; the reviewer saw 36 too; I did not find which). `tsc`: [review2/tsc-output.txt](review2/tsc-output.txt).
+Once, between runs, `day-gate.test.ts`'s "under 5 s" timing check failed while the machine was busy; it passed alone
+twice and in all three full runs. $0.
+
+**Host rules added:** none new; `ATLAS_MODEL_CALLS_PER_HOUR_DEVS` is optional. The live log now needs the invite cookie
+(the page's EventSource sends it automatically on the same origin).

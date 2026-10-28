@@ -1,0 +1,7 @@
+PoC1 timeout: 5 requests reached the provider for one $3 dev code; refused for budget: 195; ledger today spent=$2.80 held=$0.00; budget.spentUsd()=$2.80; provider bill (input only, lower bound) ~$1.20
+PoC2 calls/hour: dev made 15 calls costing $0.05; owner call -> ok=true reason=; owner startExperiment -> {"ok":true}
+PoC3 Modal: dev refused after 90 runs: your invite's daily sandbox share is used up (90 of 150 sandboxes, 900 of 900 sandbox-seconds today); it resets at 00:00 UTC
+PoC3 Modal: dev spent $0.04 of $3 on 90 sandboxes; owner's sandbox -> ran
+PoC4 corrupt spend.json: truncated JSON -> throws: Expected double-quoted property name in JSON at position 13 (line 1 column 14); {"version":1} -> throws: <scratch> global day {} -> opened; dev reserve $2.90 on a day whose code record is missing fields -> ok=true; second $2.90 -> ok=false
+PoC5 gate: HEAD /health -> 401 | GET /health/ -> 401 | GET /HEALTH -> 401 | OPTIONS /experiments -> 401 | GET /proofs/x/../../replay/x -> 401 | GET /events/%2E%2E%2Freplay%2Fx -> 401 | GET /outline/jobs/a/parts/b -> 200 | POST /invite/../experiments -> 401 | GET //replay/x -> 401 | GET /proofs/x?y=/replay -> 200 | POST /experiments cookie-only text/plain -> 403 (reaches app: false) | bad header + good cookie -> 401 | after 30 bad codes from a stranger, owner's correct POST /invite -> 403; reached inner: ["GET /outline/jobs/a/parts/b","GET /proofs/x"]
+PoC6 midnight: 4 x $1.45 within 15 s across 00:00 UTC -> true,true,true,true; $5.80 in 15 s on one $3/day code (by design per UTC day, but no rolling window)
