@@ -1,4 +1,4 @@
-# R1: the false facts bench T2 found, fixed (D36)
+# R1: the false facts bench T2 found, fixed (D42)
 
 Date: 2026-10-28 · no model call ($0) · no Modal call · Node 25.8.1, Python 3.14.7, macOS, local executors only.
 Branch `r1-facts`, from main `298a781`.

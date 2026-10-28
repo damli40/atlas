@@ -13,7 +13,7 @@
 //   /private/tmp), even reading file names or sizes elsewhere (no metadata reads), sysctl, and IPC lookups.
 //   Each denial is proven by a test in tests/unit/py-sandbox.test.ts.
 // - Python runs as `python -s -P -S -B`: no user site folder, the script's folder is not put on the import path, no
-//   `site` (no third-party packages at all), no .pyc writes. R1 (D36): this was `-I` (isolated mode), which also
+//   `site` (no third-party packages at all), no .pyc writes. R1 (D42): this was `-I` (isolated mode), which also
 //   ignores every PYTHON* environment variable, including PYTHONHASHSEED, the only way to fix the seed Python orders
 //   sets of text by. So the flags are -I's parts minus -E, and the environment Atlas passes is the guard instead.
 // - The environment holds only what Atlas pins (PYTHON_PINNED_ENV: PYTHONHASHSEED and TZ, values checked). The
@@ -38,11 +38,11 @@ export const PYTHON_CANDIDATES = ["/opt/homebrew/bin/python3", "/usr/local/bin/p
 export const PYTHON_MIN: readonly [number, number] = [3, 12];
 const MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
 
-/** R1 (D36): the interpreter flags, shared with the Modal executor: -I's parts minus -E (see the top of this file). */
+/** R1 (D42): the interpreter flags, shared with the Modal executor: -I's parts minus -E (see the top of this file). */
 export const PYTHON_FLAGS = ["-s", "-P", "-S", "-B"] as const;
 
 /**
- * R1 (D36): the only environment variables a Python sandbox may get, each with the values Atlas accepts: the string-
+ * R1 (D42): the only environment variables a Python sandbox may get, each with the values Atlas accepts: the string-
  * hash seed (a whole number 1..4294967295; 0 would switch hashing back to random) and the time zone (UTC only).
  */
 export const PYTHON_PINNED_ENV: Readonly<Record<string, RegExp>> = { PYTHONHASHSEED: /^[1-9]\d{0,9}$/, TZ: /^UTC$/ };

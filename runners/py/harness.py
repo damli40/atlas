@@ -96,7 +96,7 @@ def main(key_text):
     stdlib_names = frozenset(_sys.stdlib_module_names)
     stdlib_dir = _pp.dirname(_pp.dirname(_json.__file__))
     INF = float("inf")
-    # R1 (D36): the real localtime (to check
+    # R1 (D42): the real localtime (to check
     # the pinned time zone), and the module-wide random generator's state, read through C so the code cannot fake it.
     real_localtime = _tm.localtime
     real_tzname = tuple(_tm.tzname)
@@ -580,7 +580,7 @@ def main(key_text):
         ("create_builtin", "exec_builtin", "create_dynamic", "exec_dynamic", "get_frozen_object", "init_frozen",
          "_override_frozen_modules_for_tests", "_override_multi_interp_extensions_check"),
     )
-    # R1 (D36): every random source the code can reach draws from Atlas's seed (exposed.py pin_randomness).
+    # R1 (D42): every random source the code can reach draws from Atlas's seed (exposed.py pin_randomness).
     if type(seed_text) is not str or not seed_text.isdigit() or len(seed_text) > 10 or seed_text[0] == "0":
         die("started without a valid seed")
     E["pin_randomness"](int(seed_text))
@@ -668,7 +668,7 @@ def main(key_text):
                                 "signal.pthread_kill", "resource.setrlimit", "resource.prlimit", "os.startfile",
                                 "_posixsubprocess.fork_exec", "os.register_at_fork"))
 
-    # R1 (D36): conditions. `current` is the run in progress (None while the file loads); kinds noticed while the file
+    # R1 (D42): conditions. `current` is the run in progress (None while the file loads); kinds noticed while the file
     # loads count for every run. R1 review M1-M3: two or more clock reads at one moment of the virtual clock mean the
     # code timed its own work, which takes no time here: disclosed ("timed-work"), never decided from CPU time.
     current = [None]
@@ -921,7 +921,7 @@ def main(key_text):
     def whole_payload():
         return {"wholeRun": whole[0]}
 
-    # R1 (D36): the sandbox must have the pins Atlas asked for (the string-hash seed, UTC, the C locale), checked here
+    # R1 (D42): the sandbox must have the pins Atlas asked for (the string-hash seed, UTC, the C locale), checked here
     # with Python's own answers before the code exists. If not, nothing from this run counts.
     def pin_problem():
         env_seed = posix.environ.get(b"PYTHONHASHSEED")
@@ -959,7 +959,7 @@ def main(key_text):
         mark(word("syntax", what=clean(describe_exc(e), 300)))
         finish(whole_payload())
 
-    # R1 (D36): what plain reading of the code shows it leans on. A set (or hash()) means an order that comes from
+    # R1 (D42): what plain reading of the code shows it leans on. A set (or hash()) means an order that comes from
     # Python's string-hash seed, which Atlas pins; time.timezone / tzname / altzone / daylight, astimezone and the
     # locale module mean the machine's zone or locale, which Atlas pins to UTC / C.
     static_conds = set()
@@ -1266,7 +1266,7 @@ def main(key_text):
         elif stop is not None or limit:
             emit(ctx, "stopped_watching_after_settle", {"reason": stop or "Atlas's watch limit (%d ms of virtual time) ran out while the code's timers were still running after it settled" % watch_ms})
 
-        # R1 (D36): the conditions this run noticed, in one event (src/conditions.ts reads it; verify rechecks it).
+        # R1 (D42): the conditions this run noticed, in one event (src/conditions.ts reads it; verify rechecks it).
         kinds = set(static_conds) | load_conds | ctx["conds"]
         host = static_host | load_host | ctx["host"]
         if kinds:

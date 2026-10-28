@@ -84,20 +84,20 @@ export function pyWords(): Record<string, string> {
     loadFailed: pyLoadFailedReason(W),
     missingFunction: pyMissingFunctionReason("{name}"),
     notAFunction: pyNotAFunctionReason("{name}", "{type}"),
-    // R1 (D36)
+    // R1 (D42)
     pinFailed: PIN_FAILED_REASON(W),
   };
 }
 
 export interface PyWorkerRequest {
   runs: CallRunRequest[];
-  /** R1 (D36): the seed (Python's random, uuid, secrets, os.urandom and PYTHONHASHSEED). Default CALL_SEED. */
+  /** R1 (D42): the seed (Python's random, uuid, secrets, os.urandom and PYTHONHASHSEED). Default CALL_SEED. */
   seed?: string;
   /** R1 review round 1: 1 for the second of the two identical runs (it starts with a different heap layout). */
   variant?: 0 | 1;
 }
 
-/** R1 (D36): the environment of a Python run: the string-hash seed and the time zone, nothing else. */
+/** R1 (D42): the environment of a Python run: the string-hash seed and the time zone, nothing else. */
 export function pyRunEnv(seed: string): Record<string, string> {
   return { PYTHONHASHSEED: seed, TZ: CALL_PINNED_TIME_ZONE };
 }
@@ -276,7 +276,7 @@ export const PY_CALL_CONTROL_CASES: readonly CallControlCase[] = [
     notMeasured: [],
   },
   {
-    // R1 (D36): the seed reaches random, uuid and secrets; the sandbox is in UTC with the C locale.
+    // R1 (D42): the seed reaches random, uuid and secrets; the sandbox is in UTC with the C locale.
     id: "P14-pins",
     params: { shape: "call-function", exportName: "pinned", args: [] },
     measured: { outcome: "returned", virtualMs: 0, returnedJson: '[0.044717192733188416,"11b1dcf5","761a3fc9",0,"UTC"]' },
@@ -389,7 +389,7 @@ export async function runPyCallExperiment(exp: Experiment, ctl: Run, opts: { exe
   if (ctl.experimentId !== PY_CALL_CONTROL_ID) throw new Error(`the control run ${ctl.id} is not a Python call-function control`);
   const source = pastedPySource(exp.target);
   const executor = opts.executor ?? pythonSandboxExecutor;
-  // R1 (D36): a replay passes the original run's seed, so it reproduces exactly. Older files say "none": the default.
+  // R1 (D42): a replay passes the original run's seed, so it reproduces exactly. Older files say "none": the default.
   const seed = opts.seed !== undefined && isCallSeed(opts.seed) ? opts.seed : CALL_SEED;
   if (ctl.executor !== executor.kind) throw new Error(`the control run ${ctl.id} ran on ${ctl.executor}, not on ${executor.kind}`);
   const startedAt = new Date().toISOString();
@@ -453,7 +453,7 @@ export async function runPyCallExperiment(exp: Experiment, ctl: Run, opts: { exe
     seed,
     timeZone: CALL_PINNED_TIME_ZONE,
     locale: CALL_PINNED_LOCALE.py,
-    // R1 (D36): the conditions the sandbox noticed, in Atlas's words (verify rechecks them against the trace).
+    // R1 (D42): the conditions the sandbox noticed, in Atlas's words (verify rechecks them against the trace).
     conditions: conditionsFromTrace(trace, pinnedFor("py", seed)),
     ...(twin ? { twin } : {}),
     startedAt,

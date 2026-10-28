@@ -1,4 +1,4 @@
-// R1 (D36): the "conditions" line on the proof card and the verdict screen, rendered from a real run's file.
+// R1 (D42): the "conditions" line on the proof card and the verdict screen, rendered from a real run's file.
 import "../tools/jsdom-globals";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, describe, expect, it } from "vitest";

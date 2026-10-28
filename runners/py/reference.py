@@ -138,6 +138,6 @@ def js_numbers():
 
 
 def pinned():
-    """R1 (D36): the pins. random, uuid and secrets draw from Atlas's seeded generator (seed 20260101 in the
+    """R1 (D42): the pins. random, uuid and secrets draw from Atlas's seeded generator (seed 20260101 in the
     control), the time zone is UTC and the locale is C."""
     return [random.random(), str(uuid.uuid4())[:8], secrets.token_hex(4), time.localtime(0).tm_hour, time.strftime("%Z", time.localtime(0))]

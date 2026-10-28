@@ -55,7 +55,7 @@ export const UNCAUGHT_REASON = (what: string) =>
 export const missingExportReason = (name: string) => `the code has no export named "${name}"`;
 export const notAFunctionReason = (name: string, type: string) => `"${name}" is exported but is not a function (it is ${type})`;
 
-// ---- R1 (D36): results that depend on something outside the code ----
+// ---- R1 (D42): results that depend on something outside the code ----
 // Shared by the JavaScript harness and (through request.json) the Python harness, so the same cause gets the
 // same words in both languages.
 

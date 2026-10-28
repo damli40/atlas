@@ -36,7 +36,7 @@ export const PASTE_WORDS = {
       "A shared proof link shows the function's name, the test, the results (including error messages, which can quote names from your code) and the models' bets and explanations, but not your code itself.",
     ].join(" "),
   repeatNote: (id: string) => `This test is a repeat of a test you've already seen run (${id}). Its bets are marked as a repeat.`,
-  // R1 (D36): Atlas now pins randomness to a recorded seed, and pins the time zone and locale, so a re-run of the
+  // R1 (D42): Atlas now pins randomness to a recorded seed, and pins the time zone and locale, so a re-run of the
   // same test should match. A difference means the result depends on something Atlas does not control.
   replayDiffers: "Atlas pins the seed, the time zone and the locale, so a re-run of the same test should give the same result; this one did not, so the result depends on something Atlas does not control",
   exportsHeading: "2. Pick the function to call",
@@ -123,7 +123,7 @@ export const PASTE_WORDS = {
 } as const;
 
 /**
- * R1 (D36): the "conditions" line. When a result depends on something that is Atlas's rather than the code's (its
+ * R1 (D42): the "conditions" line. When a result depends on something that is Atlas's rather than the code's (its
  * simulated clock, its pinned seed, its pinned time zone and locale, an order Node leaves open, a timer that does not
  * keep the process alive), the verdict screen and the proof card say so in these words. Plain code picks them from
  * the run's recorded condition kinds (src/conditions.ts); a model never writes them.

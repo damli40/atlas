@@ -133,7 +133,7 @@ const runSchema = z
     forkBlock: z.number().int().positive().optional(),
     chainId: z.number().int().positive().optional(),
     seed: z.string().optional(),
-    // R1 (D36): the pins and the conditions line of a call-function run (src/conditions.ts). Older files have none.
+    // R1 (D42): the pins and the conditions line of a call-function run (src/conditions.ts). Older files have none.
     timeZone: z.string().optional(),
     locale: z.string().optional(),
     conditions: z.array(z.object({ kind: z.string(), says: z.string() }).strict()).optional(),
@@ -635,7 +635,7 @@ function verifyAtlasFileChecked(raw: unknown): Verification {
       if (isRetryRun(file, r)) for (const p of tsRunAgreesWithItsTrace(r)) say(`run ${r.id}: ${p}`);
       if (isCallRun(file, r)) for (const p of callRunAgreesWithItsTrace(r)) say(`run ${r.id}: ${p}`);
       if (isCallRun(file, r)) for (const p of callRunControlProblems(r)) say(`run ${r.id}: ${p}`);
-      // R1 (D36): the seed, time zone and locale are Atlas's pinned ones, and the conditions are what the trace says.
+      // R1 (D42): the seed, time zone and locale are Atlas's pinned ones, and the conditions are what the trace says.
       if (isCallRun(file, r)) for (const p of callRunPinProblems(r, file.target.language ?? "js")) say(`run ${r.id}: ${p}`);
     }
     if (Date.parse(r.finishedAt) < Date.parse(r.startedAt)) say(`run ${r.id} finished before it started`);

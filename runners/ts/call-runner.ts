@@ -34,12 +34,12 @@ const DEFAULT_WALL_CLOCK_MS = 10_000;
 /** The experiment id of every call-function control run. */
 export const CALL_CONTROL_ID = "control:call-function";
 /**
- * R1 (D36): the seed a call-function run uses unless it replays a run with another one. Every random source the code
+ * R1 (D42): the seed a call-function run uses unless it replays a run with another one. Every random source the code
  * can reach draws from it (Math.random, crypto.getRandomValues / randomUUID; Python's random, uuid, secrets,
  * os.urandom and its string-hash seed), so the same test gives the same run. Before R1 this was "none".
  */
 export const CALL_SEED = CALL_PINNED_SEED;
-/** R1 (D36): the environment every JavaScript sandbox gets: time zone UTC and a pinned locale (checked inside). */
+/** R1 (D42): the environment every JavaScript sandbox gets: time zone UTC and a pinned locale (checked inside). */
 export const CALL_ENV: Readonly<Record<string, string>> = { TZ: CALL_PINNED_TIME_ZONE, LC_ALL: "en_US.UTF-8" };
 /** The files the sandbox gets (besides the target and request.json), in this order for the harness fingerprint. */
 const SANDBOX_FILES = ["call-worker.ts", "call-harness.ts", "call-words.ts", "primordials.ts", "harness.ts", "shapes.ts"] as const;
@@ -276,7 +276,7 @@ export const CALL_CONTROL_CASES: readonly CallControlCase[] = [
     notMeasured: [],
   },
   {
-    // R1 (D36): the seed reaches Math.random and crypto.randomUUID, and the sandbox is in UTC with locale en-US.
+    // R1 (D42): the seed reaches Math.random and crypto.randomUUID, and the sandbox is in UTC with locale en-US.
     id: "C10-pins",
     params: { shape: "call-function", exportName: "pinned", args: [] },
     measured: { outcome: "returned", virtualMs: 0, returnedJson: '{"h":0,"n":"1,234.5","r":0.6301390916173888,"tz":"UTC","u":"1a2e5e7a-b23e-4d78-bd00-f3572d54db87"}' },
@@ -460,7 +460,7 @@ export async function runCallExperiment(exp: Experiment, ctl: Run, opts: { execu
   if (ctl.executor !== executorKind) throw new Error(`the control run ${ctl.id} ran on ${ctl.executor}, not on ${executorKind}`);
   const { source, language } = pastedSource(exp.target);
   const executor = opts.executor ?? localExecutor;
-  // R1 (D36): a replay passes the original run's seed, so it reproduces exactly. Older files say "none": the default.
+  // R1 (D42): a replay passes the original run's seed, so it reproduces exactly. Older files say "none": the default.
   const seed = opts.seed !== undefined && isCallSeed(opts.seed) ? opts.seed : CALL_SEED;
   const startedAt = new Date().toISOString();
   let result: Run["result"];
@@ -515,7 +515,7 @@ export async function runCallExperiment(exp: Experiment, ctl: Run, opts: { execu
     seed,
     timeZone: CALL_PINNED_TIME_ZONE,
     locale: CALL_PINNED_LOCALE[language],
-    // R1 (D36): the conditions the sandbox noticed, in Atlas's words (verify rechecks them against the trace).
+    // R1 (D42): the conditions the sandbox noticed, in Atlas's words (verify rechecks them against the trace).
     conditions: conditionsFromTrace(trace, pinnedFor(language, seed)),
     ...(twin ? { twin } : {}),
     startedAt,

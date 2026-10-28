@@ -53,7 +53,7 @@ describe("the Python sandbox profile", () => {
 
 describe.skipIf(!py)("the Python executor (real sandbox-exec)", () => {
   it("runs Python 3.12+ with no user site, no site, no script folder on the path, and an empty environment", async () => {
-    // R1 (D36): -s -P -S -B instead of -I, so a pinned PYTHONHASHSEED is honoured; the env is only what Atlas passes.
+    // R1 (D42): -s -P -S -B instead of -I, so a pinned PYTHONHASHSEED is honoured; the env is only what Atlas passes.
     const r = await run("import sys, os\nprint(sys.version_info[:2] >= (3, 12), sys.flags.no_user_site, sys.flags.no_site, sys.flags.safe_path, {k: v for k, v in os.environ.items() if k not in ('__CF_USER_TEXT_ENCODING', 'LC_CTYPE')})");
     expect(r.exitCode).toBe(0);
     expect(r.stdout.trim()).toBe("True 1 1 True {}");

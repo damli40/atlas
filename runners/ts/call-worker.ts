@@ -156,7 +156,7 @@ async function main(): Promise<void> {
   // Node makes them lazily, and a stream made later by console.log would look like outside work forever.
   void process.stdout;
   void process.stderr;
-  // R1 (D36): the sandbox was started with TZ=UTC and a fixed locale; check they took, with Node's own answer, before
+  // R1 (D42): the sandbox was started with TZ=UTC and a fixed locale; check they took, with Node's own answer, before
   // the code exists. If not, nothing from this run counts (a time-zone result would be this machine's).
   const pins = req.pins;
   const ro = Intl.DateTimeFormat().resolvedOptions();

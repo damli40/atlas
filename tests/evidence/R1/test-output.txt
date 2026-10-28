@@ -63,7 +63,7 @@
  ✓ tests/unit/r1-facts.test.ts > conditions are detected for each kind, and only the undecided kinds hide how the call ended > Python: a seeded Random(5) is the code's own choice: no condition 88ms
  ✓ tests/unit/r1-facts.test.ts > conditions are detected for each kind, and only the undecided kinds hide how the call ended > Python: hash-seed (a set comprehension) 82ms
  ✓ tests/unit/r1-facts.test.ts > conditions are detected for each kind, and only the undecided kinds hide how the call ended > Python: clock-during-work (perf_counter around a loop) 127ms
- ✓ tests/unit/r1-facts.test.ts > conditions are detected for each kind, and only the undecided kinds hide how the call ended > every condition sentence is plain code's, from src/paste-words.ts; the clock one is D36's 141ms
+ ✓ tests/unit/r1-facts.test.ts > conditions are detected for each kind, and only the undecided kinds hide how the call ended > every condition sentence is plain code's, from src/paste-words.ts; the clock one is D42's 141ms
  ✓ tests/unit/r1-facts.test.ts > the pins are checked inside the sandbox before the code exists > a sandbox started in another time zone is whole-run can't check, never this machine's hours 134ms
  ✓ tests/unit/r1-facts.test.ts > the pins are checked inside the sandbox before the code exists > the JavaScript sandbox gets TZ=UTC and a pinned locale, nothing else 0ms
  ✓ tests/unit/r1-facts.test.ts > the pins are checked inside the sandbox before the code exists > a Python sandbox without the pinned hash seed is whole-run can't check 81ms

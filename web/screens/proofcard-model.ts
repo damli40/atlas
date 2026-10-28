@@ -47,7 +47,7 @@ export interface ProofCardModel {
   controlPassed: boolean;
   /** Plain lines about the known-case check, read from the run. */
   controls: string[];
-  /** R1 (D36): the run with its recorded pins and conditions, for the "conditions" line (absent before R1). */
+  /** R1 (D42): the run with its recorded pins and conditions, for the "conditions" line (absent before R1). */
   conditionsRun?: Pick<Run, "conditions" | "seed" | "timeZone" | "locale"> & { result: Pick<Run["result"], "notMeasured"> };
   /** src/trust.ts: when not null, nothing from the run is shown as fact; the card shows this instead. */
   notShownAsFact: string | null;
@@ -117,7 +117,7 @@ export function proofCardModel(file: AtlasFile): ProofCardModel {
     run.runner === "evm"
       ? `Base (chain ${run.chainId ?? file.chainId ?? "?"}), fork block ${run.forkBlock ?? file.forkBlock ?? "?"}`
       : exp.params.shape === "call-function" && run.seed !== undefined && run.seed !== "none"
-        ? // R1 (D36): the seed every random source drew from, and the pinned time zone and locale.
+        ? // R1 (D42): the seed every random source drew from, and the pinned time zone and locale.
           `seed ${run.seed} · time zone ${run.timeZone ?? "?"} · locale ${run.locale ?? "?"} (same seed = same run); the virtual clock starts at 2026-01-01T00:00:00Z`
         : exp.params.shape === "call-function"
         ? // E3 (files from before R1): the run's seed field says "none"; nothing was seeded then.

@@ -65,7 +65,7 @@ def refuser(code, what):
     return refused
 
 
-# ---- R1 (D36): conditions ----
+# ---- R1 (D42): conditions ----
 # Each read of the clock, each use of randomness and each read of the local time zone or locale is announced to
 # harness.py's audit hook, which keeps the run's list of conditions where the code cannot reach it. Faking an event
 # only adds a condition (or pushes the run to "can't check"); it can never make a measured fact.
@@ -435,7 +435,7 @@ def make_import_guard(stdlib_names):
     return guarded_import
 
 
-# ---- R1 (D36): seeded randomness ----
+# ---- R1 (D42): seeded randomness ----
 # The module's shared generator (random.random, random.choice, ...) is seeded with Atlas's seed; os.urandom (and
 # with it uuid.uuid4, secrets and random.SystemRandom) and a Random() made without a seed draw from a second
 # generator seeded from the same seed. Each use is announced (the "randomness" condition). Python's string-hash seed

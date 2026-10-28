@@ -156,11 +156,11 @@ export interface Run {
   forkBlock?: number;        // evm
   chainId?: number;          // evm, 8453
   seed?: string;             // ts: seeds the fake RPC's error choice; call-function (R1): seeds all the code's randomness; same seed = same run
-  /** R1 (D36): the time zone a call-function run was pinned to ("UTC"). Absent on older files and other runs. */
+  /** R1 (D42): the time zone a call-function run was pinned to ("UTC"). Absent on older files and other runs. */
   timeZone?: string;
-  /** R1 (D36): the locale a call-function run was pinned to ("en-US" for JavaScript, "C" for Python). */
+  /** R1 (D42): the locale a call-function run was pinned to ("en-US" for JavaScript, "C" for Python). */
   locale?: string;
-  /** R1 (D36): what the result depends on that is Atlas's, not the code's (src/conditions.ts). The "conditions" line. */
+  /** R1 (D42): what the result depends on that is Atlas's, not the code's (src/conditions.ts). The "conditions" line. */
   conditions?: RunCondition[];
   /**
    * R1 review round 1: the second, identical run of a pasted test (fresh sandbox, same seed and pins). A field it

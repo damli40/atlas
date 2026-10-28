@@ -1,4 +1,4 @@
-// R1 (D36): what a call-function result depends on that is Atlas's, not the code's.
+// R1 (D42): what a call-function result depends on that is Atlas's, not the code's.
 //
 // Plain words:
 // - Atlas pins three things for every pasted-code run, so the same test gives the same run every time:

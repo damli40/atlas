@@ -132,9 +132,9 @@ export interface CallWorkerRequest {
   /** "target.ts" or "target.mjs": the file the worker imports. */
   targetFile: string;
   runs: CallRunRequest[];
-  /** R1 (D36): the seed every random source is pinned to (the runner records it in the Run). */
+  /** R1 (D42): the seed every random source is pinned to (the runner records it in the Run). */
   seed: string;
-  /** R1 (D36): the time zone and locale the sandbox must have; the worker checks them before the code exists. */
+  /** R1 (D42): the time zone and locale the sandbox must have; the worker checks them before the code exists. */
   pins: { timeZone: string; locale: string };
 }
 export interface CallHarnessOutput {
@@ -185,7 +185,7 @@ function redact(s: string): string {
 }
 
 // ---------------------------------------------------------------------------------------------
-// R1 (D36): conditions. What a result depends on that is Atlas's (its clock, its seed, its time zone and locale) or
+// R1 (D42): conditions. What a result depends on that is Atlas's (its clock, its seed, its time zone and locale) or
 // nobody's (an order Node leaves open, a timer that does not keep the process alive). Each kind is a word from
 // src/conditions.ts CONDITION_KINDS; the run's trace ends with one "conditions" event listing them. Kinds noticed
 // while the file loads (no run active) count for every run. Module-private, like the whole-run reason.
@@ -232,7 +232,7 @@ function noteHostRead(what: string): void {
   put(active ? hostReads : loadHostReads, what, true);
 }
 
-// ---- R1 (D36): seeded randomness. sfc32, seeded from the seed text (cyrb128); the same seed gives the same values
+// ---- R1 (D42): seeded randomness. sfc32, seeded from the seed text (cyrb128); the same seed gives the same values
 // on every machine, because it is plain 32-bit arithmetic. Math.random, crypto.getRandomValues and
 // crypto.randomUUID all draw from it.
 const rng = new Uint32Array(4);
@@ -519,7 +519,7 @@ export function installVirtualClock(): void {
   };
 
   // ---- Date, performance.now, process.hrtime, process.uptime ----
-  // R1 (D36): every read of the clock is noted (the "conditions" line), and two reads at one virtual moment with real
+  // R1 (D42): every read of the clock is noted (the "conditions" line), and two reads at one virtual moment with real
   // work between them make how the call ends "can't check" (noteClockRead).
   const virtualNow = () => {
     noteClockRead();
@@ -639,7 +639,7 @@ const defHidden = (obj: object, key: PropertyKey, value: unknown) =>
   ObjectDefineProperty(obj, key, { __proto__: null, value, writable: true, enumerable: false, configurable: true } as PropertyDescriptor);
 
 /**
- * R1 (D36): every random source the code can reach without an import draws from Atlas's seeded generator, and each
+ * R1 (D42): every random source the code can reach without an import draws from Atlas's seeded generator, and each
  * use is noted. Randomness Atlas cannot seed (crypto.subtle making keys, randomized signatures and encryption) makes
  * how the call ends "can't check" instead.
  */
@@ -690,7 +690,7 @@ function installSeededRandomness(): void {
 }
 
 /**
- * R1 (D36): process.nextTick from the call's own synchronous part (its order against promise callbacks depends on how
+ * R1 (D42): process.nextTick from the call's own synchronous part (its order against promise callbacks depends on how
  * the caller starts the call), and every read of the time zone or the locale (Atlas runs in UTC with en-US).
  */
 function installOrderAndHostNotes(): void {
@@ -1522,7 +1522,7 @@ export async function runCall(fn: unknown, req: CallRunRequest, opts: CallHarnes
     active = previous;
   }
   if (raced && stop === null) stop = "the code ran background work while a timer was also waiting, so which finished first depends on real speed, not on the code; Atlas did not guess";
-  // R1 (D36): how the call ended depends on something outside the code (timed work on a clock that does not move
+  // R1 (D42): how the call ended depends on something outside the code (timed work on a clock that does not move
   // during work, an order Node leaves open, randomness Atlas cannot seed). Like a race: nothing about how it ended
   // is reported, and the trace says why.
   const undecidedWhy = raced ? null : undecided;
@@ -1548,7 +1548,7 @@ export async function runCall(fn: unknown, req: CallRunRequest, opts: CallHarnes
   const limitWords = `Atlas's watch limit (${watchLimitMs} ms of virtual time, Atlas's limit, not the code's)`;
   const callNames = () => standInNames.map((n) => `calls:${n}`);
 
-  // R1 (D36): the conditions this run noticed, in one event (src/conditions.ts reads it; verify rechecks it).
+  // R1 (D42): the conditions this run noticed, in one event (src/conditions.ts reads it; verify rechecks it).
   const kinds = ReflectOwnKeys(runConds) as string[];
   if (kinds.length > 0) {
     const ev = record<TraceEvent>();

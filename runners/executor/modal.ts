@@ -260,7 +260,7 @@ function checkRequest(req: ExecRequest): void {
     // interpreter flags itself), an empty environment, no network.
     const scripts = req.cmd.slice(1);
     if (scripts.length === 0 || scripts.some((a) => a.startsWith("-"))) throw new Error(`the Python command takes a script name only, no interpreter flags (Atlas sets ${PYTHON_FLAGS.join(" ")} itself)`);
-    pythonEnv(req.env); // R1 (D36): only Atlas's pins (PYTHONHASHSEED, TZ); throws otherwise
+    pythonEnv(req.env); // R1 (D42): only Atlas's pins (PYTHONHASHSEED, TZ); throws otherwise
     if (req.allowNetwork !== false) throw new Error("Python never gets network");
   }
   for (const [k, v] of Object.entries(req.env ?? {})) {

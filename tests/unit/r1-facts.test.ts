@@ -1,4 +1,4 @@
-// R1 (D36): the false facts bench T2 found, fixed, and what Atlas now reports instead.
+// R1 (D42): the false facts bench T2 found, fixed, and what Atlas now reports instead.
 //
 // Plain words: tests/fixtures/r1-t2/ holds bench T2's 8 case files, copied unchanged from branch b1-bench
 // (bench/truth-2/cases/). Each of its 22 tests runs here through Atlas's real local runners (Node --permission for
@@ -300,7 +300,7 @@ describe("conditions are detected for each kind, and only the undecided kinds hi
       expect("outcome" in r.result.measured, JSON.stringify(r.result.notMeasured)).toBe(decided);
     });
   }
-  it("every condition sentence is plain code's, from src/paste-words.ts; the clock one is D36's", async () => {
+  it("every condition sentence is plain code's, from src/paste-words.ts; the clock one is D42's", async () => {
     const r = await run("export const f = () => Date.now();", "js", "f");
     expect(r.conditions).toEqual([{ kind: "clock", says: CONDITION_WORDS.clock }]);
     expect(CONDITION_WORDS.clock).toContain("Atlas's clock is simulated");

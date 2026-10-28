@@ -99,7 +99,7 @@ export function laterCall(ping: () => unknown): string {
 }
 
 /**
- * R1 (D36): the pins. Math.random and crypto.randomUUID draw from Atlas's seeded generator (seed 20260101 in the
+ * R1 (D42): the pins. Math.random and crypto.randomUUID draw from Atlas's seeded generator (seed 20260101 in the
  * control), the time zone is UTC and the locale is en-US. Known answer in CALL_CONTROL_CASES (C10-pins).
  */
 export function pinned(): unknown {
