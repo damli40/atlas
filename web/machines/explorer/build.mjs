@@ -46,7 +46,7 @@ const TOP = TRAY_H + BOX_H;
 const FIT = { base: 1.0, body: 2.2 }; // fitting: hex base height, body height
 const R_OF = { calls: 1.0, imports: 0.72, data: 0.86 };
 const NUT = 1.4;
-const TIER0 = TOP + FIT.base + FIT.body + 9;
+const TIER0 = TOP + FIT.base + FIT.body + 11;
 const TIER_STEP = 3.6;
 
 const f2 = (v) => Math.round(v * 100) / 100;
@@ -255,12 +255,45 @@ export function buildExplorer(record, { theme = "dark" } = {}) {
   };
   const segSeg = (a, b, c, d) => (cross2(a, b, c, d) ? 0 : Math.min(segDist(a, c, d), segDist(b, c, d), segDist(c, a, b), segDist(d, a, b)));
   const L = M.lines.map((l) => ({ ...l, r: R_OF[l.kind] ?? 0.86, a: jacks.get(`${l.id}:${l.from}`), b: jacks.get(`${l.id}:${l.to}`) }));
+  // An arch whose plane is seen nearly edge-on would pinch to a V on screen: it takes a side jog instead
+  // (rise, step sideways, cross, step back, drop), so every bend faces the viewer.
+  const TV = [Math.cos((AZIMUTH * Math.PI) / 180), Math.sin((AZIMUTH * Math.PI) / 180)];
+  const allEnds = L.flatMap((l) => [l.a, l.b]);
+  const JOG = 14;
+  for (const l of L) {
+    const len = Math.hypot(l.b[0] - l.a[0], l.b[1] - l.a[1]) || 1;
+    const d = [(l.b[0] - l.a[0]) / len, (l.b[1] - l.a[1]) / len];
+    const n = [-d[1], d[0]];
+    const facing = Math.cos((ELEVATION * Math.PI) / 180) * Math.abs(n[0] * TV[0] + n[1] * TV[1]);
+    l.facing = facing;
+    if (facing >= 0.34) {
+      l.plan = [l.a, l.b];
+      continue;
+    }
+    const options = [1, -1].map((sg) => {
+      const plan = [l.a, [l.a[0] + n[0] * JOG * sg, l.a[1] + n[1] * JOG * sg], [l.b[0] + n[0] * JOG * sg, l.b[1] + n[1] * JOG * sg], l.b];
+      const near = allEnds.filter((e) => e !== l.a && e !== l.b && polyDist(e, plan) < 5).length;
+      return { plan, near };
+    });
+    options.sort((x, y) => x.near - y.near);
+    l.plan = options[0].plan;
+  }
+  function polyDist(e, plan) {
+    let m = Infinity;
+    for (let q = 1; q < plan.length; q++) m = Math.min(m, segDist(e, plan[q - 1], plan[q]));
+    return m;
+  }
+  const polyPoly = (p1, p2) => {
+    let m = Infinity;
+    for (let x = 1; x < p1.length; x++) for (let y = 1; y < p2.length; y++) m = Math.min(m, segSeg(p1[x - 1], p1[x], p2[y - 1], p2[y]));
+    return m;
+  };
   const NEAR = 4.4;
   const above = L.map(() => new Set()); // above[i] has j: line i must run higher than line j
   L.forEach((li, i) =>
     L.forEach((lj, j) => {
       if (i === j) return;
-      for (const e of [lj.a, lj.b]) if (segDist(e, li.a, li.b) < li.r + lj.r + 1.4 && Math.hypot(e[0] - li.a[0], e[1] - li.a[1]) > 0.1 && Math.hypot(e[0] - li.b[0], e[1] - li.b[1]) > 0.1) above[i].add(j);
+      for (const e of [lj.a, lj.b]) if (polyDist(e, li.plan) < li.r + lj.r + 1.4 && Math.hypot(e[0] - li.a[0], e[1] - li.a[1]) > 0.1 && Math.hypot(e[0] - li.b[0], e[1] - li.b[1]) > 0.1) above[i].add(j);
     }),
   );
   const level = L.map(() => null);
@@ -282,7 +315,7 @@ export function buildExplorer(record, { theme = "dark" } = {}) {
   }
   for (const i of order) {
     let lv = Math.max(0, ...[...above[i]].map((j) => level[j] + 1));
-    const clash = (v) => order.some((j) => level[j] === v && j !== i && segSeg(L[i].a, L[i].b, L[j].a, L[j].b) < NEAR);
+    const clash = (v) => order.some((j) => level[j] === v && j !== i && polyPoly(L[i].plan, L[j].plan) < NEAR);
     while (clash(lv)) lv++;
     level[i] = lv;
   }
@@ -316,12 +349,12 @@ export function buildExplorer(record, { theme = "dark" } = {}) {
   back.push(Ln(baseScrews.map(([x, y]) => k.ring(x, y, 2.2, 0, P, 16)).join(""), { tone: "lo" }));
   back.push(Dots(baseScrews.map(([x, y]) => at([x, y, 0])), { size: 0.5 }));
   R.solid(A.slab(BASE, -BASE_H, BASE_H, { name: "stand.plate", ground: true }, 8));
-  // ruler strip along the front edge: one major tick per 50 lines of the widest box scale
+  // ruler strip along the front edge, at the boxes' scale: a minor tick every 50 lines, a major every 250
   const STRIP = { x: BASE.x + 16, y: BASE.y + BASE.d - 12, w: BASE.w - 60, d: 6, r: 1 };
   back.push(S(k.slabOf(STRIP, 0, 0.6, P, 3), { tone: "lo", crease: "none" }));
   {
-    const tickStep = 0.065 * 10; // one minor tick = 10 lines of code at the boxes' scale
-    const t = k.topTicks(STRIP.x + 3, STRIP.x + STRIP.w - 3, tickStep * 5, 5, STRIP.y, 0.6, [1.8, 3.4], P);
+    const perTick = 0.065 * 50; // 50 lines of code at the boxes' scale (widthOf)
+    const t = k.topTicks(STRIP.x + 3, STRIP.x + STRIP.w - 3, perTick, 5, STRIP.y, 0.6, [1.8, 3.4], P);
     back.push(Ln(t.minor, { tone: "lo" }), Ln(t.major, { tone: "mid" }));
   }
   const LABEL = { x: BASE.x + BASE.w - 38, y: BASE.y + BASE.d - 17, w: 28, d: 12, r: 1.2 };
@@ -338,8 +371,15 @@ export function buildExplorer(record, { theme = "dark" } = {}) {
     if (!tray.joinedLeft) screws.push([p.x + 1.6, p.y + 1.6], [p.x + 1.6, p.y + p.d - 1.6]);
     if (!tray.joinedRight) screws.push([p.x + p.w - 1.6, p.y + 1.6], [p.x + p.w - 1.6, p.y + p.d - 1.6]);
     const extra = Dots(screws.map(([x, y]) => at([x, y, TRAY_H])), { size: 0.45, tone: "mid" });
+    // a file tag on the tray's front edge: two rule lines stand for the file's path
+    const fy = p.y + p.d;
+    const tw = Math.min(10, p.w - 6);
+    const tx = p.x + 3;
+    const tag = path3([[tx, fy, 0.5], [tx + tw, fy, 0.5], [tx + tw, fy, 1.9], [tx, fy, 1.9]], true);
+    const tagRule = path3([[tx + 1, fy, 1.2], [tx + tw * 0.75, fy, 1.2]]);
+    const tagSvg = `<path class="iso-fill ex-plate" d="${tag}"/>` + Ln(tag, { tone: "lo" }) + Ln(tagRule, { tone: "lo", free: true });
     const groove = tray.empty ? Ln(k.planOutline(k.insetPlan(p, 2.6), TRAY_H, P, 3), { tone: "faint" }) : "";
-    put(`tray.${tray.path}`, [p.x + p.w / 2, p.y + p.d / 2, TRAY_H / 2], S(k.slabOf(p, 0, TRAY_H, P, 3, 0.4), { tone: tray.empty ? "lo" : "mid", inner: Ln(k.sideSeam(p, TRAY_H / 2, P, 3), { tone: "faint" }) }) + groove + extra, [shape], { attrs: ` data-file="${esc(tray.path)}"` });
+    put(`tray.${tray.path}`, [p.x + p.w / 2, p.y + p.d / 2, TRAY_H / 2], S(k.slabOf(p, 0, TRAY_H, P, 3, 0.4), { tone: tray.empty ? "lo" : "mid", inner: Ln(k.sideSeam(p, TRAY_H / 2, P, 3), { tone: "faint" }) }) + groove + extra + tagSvg, [shape], { attrs: ` data-file="${esc(tray.path)}"` });
   }
 
   // ---- boxes ----
@@ -376,7 +416,27 @@ export function buildExplorer(record, { theme = "dark" } = {}) {
       Dots(screws.map(([x, y]) => at([x, y, z0 + BOX_H])), { size: 0.45, tone: "mid" }) +
       plates +
       `<g class="ex-lamp">${Dots([lamp], { size: 0.8, tone: "hi" })}</g>`;
-    put(`box.${box.id}`, [plan.x + plan.w / 2, plan.y + plan.d / 2, z0 + BOX_H / 2], svg, [shape], { attrs: ` data-of="${esc(box.id)}"` });
+    // vents: closed slots on the right face, near the back
+    const xr = plan.x + plan.w;
+    const vents = [0, 1, 2]
+      .map((v) => {
+        const y0 = plan.y + 3 + v * 2.4;
+        return path3([[xr, y0, z0 + 3], [xr, y0 + 1.1, z0 + 3], [xr, y0 + 1.1, z0 + 9], [xr, y0, z0 + 9]], true);
+      })
+      .join("");
+    put(`box.${box.id}`, [plan.x + plan.w / 2, plan.y + plan.d / 2, z0 + BOX_H / 2], svg + Ln(vents, { tone: "lo" }), [shape], { attrs: ` data-of="${esc(box.id)}"` });
+    // carrying handle on the right face: two feet and a bar
+    {
+      const yc = plan.y + plan.d / 2 + 3;
+      const parts = [
+        { name: "handle.foot", plan: { x: xr, y: yc - 5.5, w: 1.6, d: 1.6, r: 0.4 }, z: z0 + 5, h: 2.4 },
+        { name: "handle.foot", plan: { x: xr, y: yc + 3.9, w: 1.6, d: 1.6, r: 0.4 }, z: z0 + 5, h: 2.4 },
+        { name: "handle.bar", plan: { x: xr + 1.6, y: yc - 5.5, w: 1.2, d: 11, r: 0.5 }, z: z0 + 5, h: 2.4 },
+      ];
+      const shapes = parts.map((q) => R.solid(A.slab(q.plan, q.z, q.h, { name: `box.${box.id}.${q.name}` }, 2)));
+      const hsvg = parts.map((q) => S(k.slabOf(q.plan, q.z, q.h, P, 2), { tone: "mid" })).join("");
+      put(`box.${box.id}.handle`, [xr + 1.4, yc, z0 + 6.2], hsvg, shapes, { attrs: ` data-of="${esc(box.id)}"` });
+    }
   }
 
   // ---- fittings and steel lines ----
@@ -394,13 +454,8 @@ export function buildExplorer(record, { theme = "dark" } = {}) {
       const svg = S(G.disc(0, FIT.base, baseR, F, P, { steps: 6 }), { tone: "mid" }) + S(G.disc(FIT.base, FIT.base + FIT.body, bodyR, F, P, { steps: 24 }), { tone: "mid" });
       put(`fit.${l.id}.${boxId}`, [end[0], end[1], TOP + 1.5], svg, shapes, { attrs: ` data-of="${esc(boxId)}" data-line="${esc(l.id)}"` });
     }
-    const pts = [
-      [l.a[0], l.a[1], zFit],
-      [l.a[0], l.a[1], h],
-      [l.b[0], l.b[1], h],
-      [l.b[0], l.b[1], zFit],
-    ];
-    const route = G.fillet(pts, Math.max(4.5, r * 4), 12, { P, tube: r });
+    const pts = [[l.a[0], l.a[1], zFit], ...l.plan.map(([x, y]) => [x, y, h]), [l.b[0], l.b[1], zFit]];
+    const route = G.fillet(pts, l.plan.length > 2 ? 6.5 : Math.max(4.5, r * 4), 12, { P, tube: r });
     const total = G.pathLength(route);
     const collars = [];
     collars.push({ s0: 0, s1: NUT, r: nutR, kind: "nut" }, { s0: total - NUT, s1: total, r: nutR, kind: "nut" });
@@ -430,7 +485,13 @@ export function buildExplorer(record, { theme = "dark" } = {}) {
   const groups = R.items.map((item) => `<g class="it" data-name="${esc(item.name)}"${item.attrs ?? ""}>${item.svg}</g>`);
 
   // hit targets over everything: each box's silhouette (and its lid fittings)
-  const hits = M.boxes
+  // painted back to front, so where two silhouettes overlap on screen the nearer box takes the pointer
+  const hits = [...M.boxes]
+    .sort((a, b) => {
+      const ca = place.get(a.id).plan;
+      const cb = place.get(b.id).plan;
+      return k.depthOf([ca.x + ca.w / 2, ca.y + ca.d / 2, 0], P) - k.depthOf([cb.x + cb.w / 2, cb.y + cb.d / 2, 0], P);
+    })
     .map((box) => {
       const { plan } = place.get(box.id);
       const paths = k.slabOf(plan, TRAY_H, BOX_H + FIT.base + FIT.body, P, 4);
@@ -471,31 +532,33 @@ function cardData(M) {
 function page(M, svg, theme) {
   const css = readFileSync(join(HERE, "explorer.css"), "utf8");
   const live = readFileSync(join(HERE, "live.js"), "utf8").replace("__DATA__", JSON.stringify(cardData(M)).replace(/</g, "\\u003c"));
+  const names = new Map(M.boxes.map((b) => [b.id, b.name.text]));
+  const nameOf = (id) => names.get(id) ?? id;
   const codeOnly = M.lines.filter((l) => l.status === "code-only").length;
   const confirmed = M.lines.length - codeOnly;
   const chalk = M.chalk
-    .map((c) => `<li class="ex-chalk" data-chalk="${esc(c.id)}"><span class="ex-chalk-tag">${esc(c.from)} → ${esc(c.to)} · ${esc(c.kind)}</span> <span class="ex-chalk-words">${esc(c.words)}.</span></li>`)
+    .map((c) => `<li class="ex-chalk" data-chalk="${esc(c.id)}"><span class="ex-chalk-tag">${esc(nameOf(c.from))} → ${esc(nameOf(c.to))} · ${esc(c.kind)}</span> <span class="ex-chalk-words">${esc(c.words)}.</span></li>`)
     .join("");
   const unconf = M.unconfirmed.map((u) => `<li>${esc(u.name.text)} <span class="ex-by">(name by ${esc(authorOf(u.name.by))})</span>: ${esc(u.reasons.join("; "))}</li>`).join("");
   const plate = k.plateHtml({
     fig: "Fig X2",
     title: "server/meta, opened up",
-    hint: "hover or Tab to a box · ← → · Esc",
+    hint: "hover a box · Tab, then ← → · Esc",
     readout: `${M.boxes.length} parts · ${M.lines.length} lines`,
     keys: [
-      { mark: "raised", label: "A box: a part plain code confirmed (its lines exist). Width = lines covered" },
+      { mark: "raised", label: "A box: a part plain code confirmed (its lines exist). Wider box = more lines" },
       { mark: "edge", label: `A steel line: plain code found an import or call between two parts (${confirmed} confirmed, Wonder named them too)` },
       { mark: "dotted", label: `Two tag collars on a line: found by plain code only, Wonder did not name it (${codeOnly})` },
       { mark: "lit", label: "The box you picked and its lines" },
     ],
-    caption: `Drawn only from Atlas's checked outline of ${M.source} (${M.files.length} files). Muse Wonder (${M.model}) proposed the parts and joins; plain code checked them against the files. A box stands on the tray of each file its lines come from, so a part that spans two files stands across two trays, and two parts from one file share a tray. Thick lines are calls, thin lines are imports. "Confirmed" means the lines exist where Wonder said; it does not mean Wonder's sentence about a part is true.`,
+    caption: `Drawn only from Atlas's checked outline of ${M.source} (${M.files.length} files). Muse Wonder (${M.model}) proposed the parts and joins; plain code checked them against the files. A box stands on the tray of each file its lines come from, so a part that spans two files stands across two trays, and two parts from one file share a tray. Thick lines are calls, thin lines are imports. A box is 10 units wide plus 0.65 per 10 lines it covers; the ruler on the base reads at that scale, a tick per 50 lines. "Confirmed" means the lines exist where Wonder said; it does not mean Wonder's sentence about a part is true.`,
     body: `<div class="iso-stage ex-stage" tabindex="0" role="group" aria-label="Code explorer skid. Use left and right arrows to pick a part; Escape clears.">${svg}</div>`,
   });
   const body =
     `<style>${css}</style><div class="ex">` +
     plate +
     `<section class="ex-card" aria-live="polite" data-card><p class="ex-card-label">Pick a box</p><p class="ex-muted">Hover, click or Tab to a box to see its part: the name and purpose sentence Muse Wonder (${esc(M.model)}) wrote, the real file lines plain code confirmed, and every join with its status.</p></section>` +
-    `<section class="ex-side"><h2>Not drawn as lines</h2><p class="ex-muted">Joins only Wonder states. Plain code could not check them, so the machine has no line for them.</p><ul class="ex-chalks">${chalk || "<li>None.</li>"}</ul>` +
+    `<section class="ex-side"><h2>Not drawn as lines</h2><p class="ex-muted">Joins only Muse Wonder (${esc(M.model)}) states, with the parts named in its words. Plain code could not check them, so the machine has no line for them.</p><ul class="ex-chalks">${chalk || "<li>None.</li>"}</ul>` +
     (unconf ? `<h2>Parts not confirmed (not drawn)</h2><ul>${unconf}</ul>` : "") +
     (M.notInAnyPart.length ? `<h2>Files in no part</h2><p class="ex-muted">${M.notInAnyPart.map(esc).join(", ")}: an empty tray each.</p>` : "") +
     `</section></div>`;

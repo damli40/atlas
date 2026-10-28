@@ -1,11 +1,13 @@
 .ex .ex-stage{position:relative;outline:none}
-.ex .ex-stage:focus-visible{box-shadow:0 0 0 2px var(--anatomy-strong);border-radius:8px}
+.ex .ex-stage:focus-visible{box-shadow:inset 0 0 0 1px var(--anatomy-mid);border-radius:8px}
 .ex .ex-hit{fill:transparent;stroke:none;cursor:pointer;pointer-events:all}
 .ex .ex-hit:focus{outline:none}
 .ex .ex-plate{fill:var(--anatomy-face)}
 /* the picked box and its lines: exactly one lit accent */
 .ex .it.on>.iso-solid,.ex .it.on>g>.iso-solid{--x-on:1}
-.ex .it.on .iso-edge,.ex .it.on .tb-edge{stroke:var(--anatomy-lit)}
+.ex .it.on .iso-edge,.ex .it.on .tb-edge{stroke:var(--anatomy-lit);stroke-width:1.15px}
+/* with a part picked, everything else steps back to quiet strokes (colour only: fills stay opaque) */
+.ex[data-picked] .it:not(.on) .iso-edge,.ex[data-picked] .it:not(.on) .tb-edge{stroke:var(--anatomy-lo)}
 .ex .it.on .iso-top{fill:var(--anatomy-lit-top)}
 .ex .it.on .iso-shade{fill:var(--anatomy-lit-shade)}
 .ex .it.on .ex-lamp circle,.ex .it.on .ex-lamp path{fill:var(--anatomy-lit)}

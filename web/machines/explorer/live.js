@@ -44,6 +44,8 @@ function show(id) {
     it.classList.toggle("on", on);
   }
   for (const h of hits) h.setAttribute("aria-pressed", String(h.getAttribute("data-hit") === id));
+  if (box) root.setAttribute("data-picked", id);
+  else root.removeAttribute("data-picked");
   card.replaceChildren();
   if (!box) {
     readout.textContent = total;
@@ -69,6 +71,7 @@ function show(id) {
     const btn = el("button", other, { class: "ex-join-btn", type: "button" });
     if (byId.has(j.other)) btn.addEventListener("click", () => { touched = true; show(j.other); });
     li.append(el("span", j.dir === "out" ? `${j.kind} → ` : `${j.kind} ← `), btn, el("span", " "), el("span", j.drawn ? (j.status === "code-only" ? "line with tag collars" : "steel line") : "no line", { class: "ex-status", "data-s": j.status }), el("span", ` ${STATUS[j.status]}${j.codeEdges ? ` (${j.codeEdges} code ${j.codeEdges === 1 ? "link" : "links"})` : ""}.`, { class: "ex-muted" }));
+    if (j.note) li.append(el("span", ` Plain code's note: ${j.note}.`, { class: "ex-muted" }));
     jl.append(li);
   }
   card.append(jl);

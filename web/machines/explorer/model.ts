@@ -46,6 +46,8 @@ export interface BoxJoin {
   /** Drawn as a steel line (confirmed or code-only, both ends boxes). */
   drawn: boolean;
   codeEdges: number;
+  /** Plain code's note when Wonder's quoted evidence line did not match (the code map's own links are used). */
+  note?: string;
 }
 
 export interface Box {
@@ -170,9 +172,10 @@ export function explorerModel(record: OutlineRecord): ExplorerModel {
         notDrawn.push({ id: j.id, from: j.from, to: j.to, why: j.from === j.to ? "it joins a part to itself" : "one of its parts is not confirmed, so it has no box to land on" });
       }
     }
+    const note = j.status === "confirmed" && j.wonderEvidenceMatches === false && j.reason ? { note: j.reason } : {};
     for (const b of boxes) {
-      if (b.id === j.from) b.joins.push({ id: j.id, other: j.to, dir: "out", kind: j.kind, status: j.status, drawn, codeEdges: j.codeEdges });
-      if (b.id === j.to && j.from !== j.to) b.joins.push({ id: j.id, other: j.from, dir: "in", kind: j.kind, status: j.status, drawn, codeEdges: j.codeEdges });
+      if (b.id === j.from) b.joins.push({ id: j.id, other: j.to, dir: "out", kind: j.kind, status: j.status, drawn, codeEdges: j.codeEdges, ...note });
+      if (b.id === j.to && j.from !== j.to) b.joins.push({ id: j.id, other: j.from, dir: "in", kind: j.kind, status: j.status, drawn, codeEdges: j.codeEdges, ...note });
     }
   }
 

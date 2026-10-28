@@ -63,6 +63,15 @@ describe("X2 explorer model", () => {
     }
   });
 
+  it("keeps plain code's note when Wonder's quoted evidence did not match a confirmed join", () => {
+    const m = explorerModel(record());
+    const j = m.boxes.find((b) => b.id === "client-pricing-policy")!.joins.find((x) => x.id === "wonder:1")!;
+    expect(j.drawn).toBe(true);
+    expect(j.note).toMatch(/quoted evidence is not the line/);
+    const ok = m.boxes.find((b) => b.id === "client-transport")!.joins.find((x) => x.id === "wonder:2")!;
+    expect(ok.note).toBeUndefined();
+  });
+
   it("reads real line ranges, including whole files and a part split over two files", () => {
     expect(spanOf("budget.ts:1-138 (whole file)")).toEqual({ path: "budget.ts", lineStart: 1, lineEnd: 138, wholeFile: true, lines: 138 });
     expect(spanOf("client.ts:223-363")).toEqual({ path: "client.ts", lineStart: 223, lineEnd: 363, wholeFile: false, lines: 141 });
