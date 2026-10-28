@@ -15,7 +15,10 @@
 
 import asyncio
 import datetime
+import random
+import secrets
 import time
+import uuid
 
 
 def combine(a, b):
@@ -132,3 +135,9 @@ def big_int():
 def js_numbers():
     """Numbers written the way JavaScript writes them."""
     return [0.1 + 0.2, 1e21, 5e-7, -0.0, 100.0, 2 ** 53]
+
+
+def pinned():
+    """R1 (D36): the pins. random, uuid and secrets draw from Atlas's seeded generator (seed 20260101 in the
+    control), the time zone is UTC and the locale is C."""
+    return [random.random(), str(uuid.uuid4())[:8], secrets.token_hex(4), time.localtime(0).tm_hour, time.strftime("%Z", time.localtime(0))]

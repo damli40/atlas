@@ -635,12 +635,13 @@ export function createApp(opts: AppOptions = {}) {
     return run;
   };
   /** E3: one pasted experiment through its language's runner, after that runner's known-case check. */
-  const runPasted = async (exp: Experiment): Promise<Run> => {
+  const runPasted = async (exp: Experiment, seed?: string): Promise<Run> => {
     const lang = exp.target.language ?? "js";
     const runner = paste.runners[lang];
     if (!runner) throw new Error(`this server has no runner for ${lang}`);
     const ctl = await pastedControl(lang);
-    return runner.run(exp, ctl, executor);
+    // R1 (D36): a replay runs with the original run's seed, so it reproduces exactly.
+    return runner.run(exp, ctl, executor, seed !== undefined ? { seed } : undefined);
   };
   // X1: outline jobs, per session, limited per client address (env ATLAS_OUTLINES_PER_IP_PER_HOUR) and by the model budget.
   const outlinesByIp = createHourlyLimit(envCount(process.env.ATLAS_OUTLINES_PER_IP_PER_HOUR, DEFAULT_OUTLINES_PER_IP_PER_HOUR), "outlines");
@@ -1861,9 +1862,10 @@ export function createApp(opts: AppOptions = {}) {
         slot.release();
       }
     } else if (exp.target.kind === "pasted") {
-      // E3: the pasted source travels in the file; its language's runner runs it again (nothing random on Atlas's side).
+      // E3: the pasted source travels in the file; its language's runner runs it again. R1 (D36): with the original
+      // run's seed, time zone and locale, so the replay reproduces it (a file from before R1 says "none": the default).
       if (!paste.runnable(exp.target.language ?? "js")) return c.json({ error: `this server has no runner for ${exp.target.language}` }, 422);
-      replay = await runPasted(exp);
+      replay = await runPasted(exp, before.seed);
     } else {
       const ctl = await getControl(exp.target);
       replay = await runExperiment(exp, ctl, { executor, ...(before.seed !== undefined ? { seed: before.seed } : {}) });

@@ -16,7 +16,8 @@ export const WONDER_DISPLAY = "Muse Wonder 1.0 (muse-wonder-1.0)";
 export const PASTE_WORDS = {
   modeButton: "Paste your own code",
   heading: "1. Paste one file",
-  intro: "Paste one JavaScript or TypeScript file that exports a function. Atlas runs it in a sandbox with no network, no files and no packages.",
+  // R1: Python runs too (E2/E4). A language this server cannot run is labelled "(coming)" in the picker.
+  intro: "Paste one file: JavaScript or TypeScript that exports a function, or Python with a top-level function. Atlas runs it in a sandbox with no network, no files and no packages.",
   codeLabel: "Your code (one file, at most 64 KB)",
   languageLabel: "Language",
   languageAuto: (detected: string) => `Atlas reads it as ${detected}`,
@@ -35,7 +36,9 @@ export const PASTE_WORDS = {
       "A shared proof link shows the function's name, the test, the results (including error messages, which can quote names from your code) and the models' bets and explanations, but not your code itself.",
     ].join(" "),
   repeatNote: (id: string) => `This test is a repeat of a test you've already seen run (${id}). Its bets are marked as a repeat.`,
-  randomNote: "Code that uses Math.random or crypto randomness can give a different result on each run: Atlas does not seed them.",
+  // R1 (D36): Atlas now pins randomness to a recorded seed, and pins the time zone and locale, so a re-run of the
+  // same test should match. A difference means the result depends on something Atlas does not control.
+  replayDiffers: "Atlas pins the seed, the time zone and the locale, so a re-run of the same test should give the same result; this one did not, so the result depends on something Atlas does not control",
   exportsHeading: "2. Pick the function to call",
   noExports: "Atlas found no exported function in this file. Write `export function name(...)`.",
   exportLine: (name: string, line: number, declaredAs: string) => `${name} (line ${line}, ${declaredAs})`,
@@ -117,6 +120,34 @@ export const PASTE_WORDS = {
   formWatchNotWhole: "The watch limit must be a whole number of ms.",
   pythonComing: "Python (coming)",
   pythonNotYet: "Python runs are coming: this server has no Python runner yet. JavaScript and TypeScript run now.",
+} as const;
+
+/**
+ * R1 (D36): the "conditions" line. When a result depends on something that is Atlas's rather than the code's (its
+ * simulated clock, its pinned seed, its pinned time zone and locale, an order Node leaves open, a timer that does not
+ * keep the process alive), the verdict screen and the proof card say so in these words. Plain code picks them from
+ * the run's recorded condition kinds (src/conditions.ts); a model never writes them.
+ */
+export const CONDITION_WORDS = {
+  heading: "Conditions",
+  intro: "What this result depends on that is Atlas's, not the code's:",
+  none: "None: the code read no clock, used no randomness and read no time zone or locale.",
+  pins: (seed: string, timeZone: string, locale: string) => `seed ${seed} · time zone ${timeZone} · locale ${locale}`,
+  clock: "This code read the clock. Atlas's clock is simulated (it starts at 2026-01-01T00:00:00Z and moves only while the code waits), so time-based values are Atlas's, not your machine's.",
+  clockDuringWork:
+    "This code read the clock before and after work that ran without waiting. Atlas's clock does not move during work, so the time it measured would be 0 here and not on your machine; Atlas did not report how the call ended.",
+  randomness: (seed: string) =>
+    `This code used randomness (Math.random, crypto random values, Python's random, uuid or secrets). Atlas pins it to seed ${seed}, so the random values are the ones that seed gives, the same on every Atlas run, not the ones your machine would give.`,
+  hashSeed: (seed: string) =>
+    `This code builds a set or calls hash(). Python orders a set of text by a hash seed that changes every time Python starts; Atlas pins that seed to ${seed}, so an order that comes from a set is Atlas's pinned one, not your machine's.`,
+  timeZoneOrLocale: (timeZone: string, locale: string) =>
+    `This code read the time zone or the locale (local hours, toLocaleString, Intl, Python's localtime, ...). Atlas runs every call in time zone ${timeZone} with locale ${locale}, so local times and formats are ${timeZone} / ${locale} ones, not your machine's.`,
+  timerOrder:
+    "This code queued callbacks whose order Node leaves open (a 0 ms timer next to setImmediate, or process.nextTick next to promise callbacks). The order Atlas ran them in is Atlas's choice, so Atlas did not report how the call ended.",
+  unrefTimer:
+    "This code waited on an unref'd timer, which does not keep a Node process alive. Whether it fires depends on what else keeps the process running, so Atlas did not report what depends on it.",
+  unseededRandom:
+    "This code used randomness Atlas cannot pin to its seed (crypto.subtle keys or randomized signatures), so Atlas did not report how the call ended.",
 } as const;
 
 /** How the language picker names each language, by whether a runner is registered for it. */

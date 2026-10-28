@@ -60,11 +60,16 @@ import {
 import {
   ACCESS_REASON,
   BLOCKING_REASON,
+  CLOCK_DURING_WORK_REASON,
   REAL_TIME_REASON,
   CODEGEN_REASON,
   INTERNALS_REASON,
   PROCESS_REASON,
+  TIMER_ORDER_REASON,
   UNCAUGHT_REASON,
+  UNREF_AFTER_SETTLE_REASON,
+  UNREF_REASON,
+  UNSEEDED_RANDOM_REASON,
   needsPackageReason,
 } from "./call-words.ts";
 
@@ -82,6 +87,21 @@ const RealFunction = Function;
 const ReflectConstruct = Reflect.construct;
 const ERROR_CTORS: Record<string, ErrorConstructor> = { __proto__: null, Error, TypeError, RangeError, SyntaxError, ReferenceError, EvalError, URIError } as unknown as Record<string, ErrorConstructor>;
 const nativeSetTimeout = g.setTimeout as (...a: unknown[]) => unknown;
+const MathImul = Math.imul;
+const Uint8ArrayCtor = Uint8Array;
+const TypedArrayProto = ReflectGetPrototypeOf(Uint8Array.prototype) as object;
+const taBuffer = ObjectGetOwnPropertyDescriptor(TypedArrayProto, "buffer")!.get!;
+const taByteOffset = ObjectGetOwnPropertyDescriptor(TypedArrayProto, "byteOffset")!.get!;
+const taByteLength = ObjectGetOwnPropertyDescriptor(TypedArrayProto, "byteLength")!.get!;
+// R1 (D36): real CPU time, read only by Atlas (the guards refuse process.cpuUsage to the code). It tells Atlas when the
+// code did real work between two clock reads at the same virtual moment (its elapsed time would be 0 here).
+const nativeCpuUsage = process.cpuUsage;
+const cpuMicros = (): number => {
+  const u = ReflectApply(nativeCpuUsage, process, []) as { user: number; system: number };
+  return u.user + u.system;
+};
+/** At least this much real CPU time (µs) between two clock reads at one virtual moment counts as "timed work". */
+const CPU_WORK_US = 2_000;
 
 /** Atlas's virtual clock starts here: 2026-01-01T00:00:00.000Z. Date.now() in a run is this plus the virtual ms. */
 export const VIRTUAL_EPOCH_MS = 1_767_225_600_000;
@@ -122,6 +142,10 @@ export interface CallWorkerRequest {
   /** "target.ts" or "target.mjs": the file the worker imports. */
   targetFile: string;
   runs: CallRunRequest[];
+  /** R1 (D36): the seed every random source is pinned to (the runner records it in the Run). */
+  seed: string;
+  /** R1 (D36): the time zone and locale the sandbox must have; the worker checks them before the code exists. */
+  pins: { timeZone: string; locale: string };
 }
 export interface CallHarnessOutput {
   trace: TraceEvent[];
@@ -171,6 +195,110 @@ function redact(s: string): string {
 }
 
 // ---------------------------------------------------------------------------------------------
+// R1 (D36): conditions. What a result depends on that is Atlas's (its clock, its seed, its time zone and locale) or
+// nobody's (an order Node leaves open, a timer that does not keep the process alive). Each kind is a word from
+// src/conditions.ts CONDITION_KINDS; the run's trace ends with one "conditions" event listing them. Kinds noticed
+// while the file loads (no run active) count for every run. Module-private, like the whole-run reason.
+
+const loadConds = record<Record<string, true>>();
+let runConds = record<Record<string, true>>();
+/** Set when how the call ends depends on something outside the code; the first reason wins. */
+let undecided: string | null = null;
+/** The last clock read in this run: its virtual time and the real CPU time then. */
+let lastReadAt = -1;
+let lastReadCpu = 0;
+/** True only while the called function's own synchronous part runs (before it returns its promise). */
+let inSyncCall = false;
+
+function noteCondition(kind: string): void {
+  put(active ? runConds : loadConds, kind, true);
+}
+function noteUndecided(kind: string, reason: string): void {
+  noteCondition(kind);
+  if (active && undecided === null) undecided = reason;
+}
+/** The code read the clock. Two reads at the same virtual moment with real work between them: "timed work". */
+function noteClockRead(): void {
+  noteCondition("clock");
+  if (!active) return;
+  const cpu = cpuMicros();
+  if (lastReadAt === active.now && cpu - lastReadCpu >= CPU_WORK_US) noteUndecided("clock-during-work", CLOCK_DURING_WORK_REASON);
+  lastReadAt = active.now;
+  lastReadCpu = cpu;
+}
+const noteHost = () => noteCondition("time-zone-or-locale");
+
+// ---- R1 (D36): seeded randomness. sfc32, seeded from the seed text (cyrb128); the same seed gives the same values
+// on every machine, because it is plain 32-bit arithmetic. Math.random, crypto.getRandomValues and
+// crypto.randomUUID all draw from it.
+const rng = new Uint32Array(4);
+function nextU32(): number {
+  const a = rng[0]!;
+  const b = rng[1]!;
+  const c = rng[2]!;
+  const d = rng[3]!;
+  const t = (((a + b) >>> 0) + d) >>> 0;
+  rng[3] = (d + 1) >>> 0;
+  rng[0] = (b ^ (b >>> 9)) >>> 0;
+  rng[1] = (c + (c << 3)) >>> 0;
+  const r = ((c << 21) | (c >>> 11)) >>> 0;
+  rng[2] = (r + t) >>> 0;
+  return t;
+}
+/** Seeds every random source the code can reach. The worker calls it with the run's seed before the code loads. */
+export function seedRandomness(seed: string): void {
+  let h1 = 1779033703;
+  let h2 = 3144134277;
+  let h3 = 1013904242;
+  let h4 = 2773480762;
+  for (let i = 0; i < seed.length; i++) {
+    const k = seed.charCodeAt(i);
+    h1 = h2 ^ MathImul(h1 ^ k, 597399067);
+    h2 = h3 ^ MathImul(h2 ^ k, 2869860233);
+    h3 = h4 ^ MathImul(h3 ^ k, 951274213);
+    h4 = h1 ^ MathImul(h4 ^ k, 2716044179);
+  }
+  h1 = MathImul(h3 ^ (h1 >>> 18), 597399067);
+  h2 = MathImul(h4 ^ (h2 >>> 22), 2869860233);
+  h3 = MathImul(h1 ^ (h3 >>> 17), 951274213);
+  h4 = MathImul(h2 ^ (h4 >>> 19), 2716044179);
+  h1 ^= h2 ^ h3 ^ h4;
+  h2 ^= h1;
+  h3 ^= h1;
+  h4 ^= h1;
+  rng[0] = h1 >>> 0;
+  rng[1] = h2 >>> 0;
+  rng[2] = h3 >>> 0;
+  rng[3] = h4 >>> 0;
+  for (let i = 0; i < 15; i++) nextU32();
+}
+seedRandomness("1");
+/** A number in [0, 1) with 53 random bits, like Math.random. */
+function seededFloat(): number {
+  return ((nextU32() >>> 5) * 67108864 + (nextU32() >>> 6)) / 9007199254740992;
+}
+function seededFill(bytes: Uint8Array): void {
+  let w = 0;
+  for (let i = 0; i < bytes.length; i++) {
+    if (i % 4 === 0) w = nextU32();
+    bytes[i] = (w >>> ((i % 4) * 8)) & 255;
+  }
+}
+const HEX = "0123456789abcdef";
+function seededUuid(): string {
+  const b = new Uint8ArrayCtor(16);
+  seededFill(b);
+  b[6] = (b[6]! & 0x0f) | 0x40; // version 4
+  b[8] = (b[8]! & 0x3f) | 0x80; // RFC 4122 variant
+  let s = "";
+  for (let i = 0; i < 16; i++) {
+    if (i === 4 || i === 6 || i === 8 || i === 10) s += "-";
+    s += HEX[b[i]! >>> 4]! + HEX[b[i]! & 15]!;
+  }
+  return s;
+}
+
+// ---------------------------------------------------------------------------------------------
 // The virtual clock. One per run; `active` is the run in progress (null while the file loads).
 
 interface VTimer {
@@ -183,6 +311,10 @@ interface VTimer {
   live: boolean;
   /** Fired by Atlas (a stand-in's delayed answer), not started by the code. */
   atlas: boolean;
+  /** R1: a setImmediate callback (due at once, after the current callbacks). */
+  immediate: boolean;
+  /** R1: false after unref(): this timer alone does not keep a real Node process alive. */
+  ref: boolean;
 }
 
 class VirtualClock {
@@ -195,9 +327,9 @@ class VirtualClock {
   constructor(runId: string) {
     this.runId = runId;
   }
-  schedule(at: number, fire: () => void, opts: { every?: number; atlas?: boolean } = {}): VTimer {
+  schedule(at: number, fire: () => void, opts: { every?: number; atlas?: boolean; immediate?: boolean; ref?: boolean } = {}): VTimer {
     if (outsideWork.size > 0) markRaced(outsideWork.values().next().value as string); // a timer set while background work is in flight
-    const t: VTimer = { id: this.nextId++, at, seq: this.seq++, fire, live: true, atlas: opts.atlas === true };
+    const t: VTimer = { id: this.nextId++, at, seq: this.seq++, fire, live: true, atlas: opts.atlas === true, immediate: opts.immediate === true, ref: opts.ref !== false };
     if (opts.every !== undefined) t.every = opts.every;
     append(this.timers, t);
     this.byId.set(t.id, t);
@@ -221,6 +353,19 @@ class VirtualClock {
     }
     if (bestIdx === -1) this.timers = [];
     return best;
+  }
+  /** R1: true when some live timer would keep a real Node process alive (Atlas's own stand-in answers stand for real I/O, which does). */
+  hasRef(): boolean {
+    for (let i = 0; i < this.timers.length; i++) if (this.timers[i]!.live && this.timers[i]!.ref) return true;
+    return false;
+  }
+  /** R1: true when a live timer of the code matches `test`. */
+  anyCodeTimer(test: (t: VTimer) => boolean): boolean {
+    for (let i = 0; i < this.timers.length; i++) {
+      const t = this.timers[i]!;
+      if (t.live && !t.atlas && test(t)) return true;
+    }
+    return false;
   }
   take(t: VTimer): void {
     const kept: VTimer[] = [];
@@ -254,14 +399,18 @@ class VTimeout {
     this.#clock = clock;
     this.#ms = ms;
   }
+  // R1 (review MINOR 3): ref/unref are recorded, and hasRef tells the truth. A call left waiting only on unref'd
+  // timers is "can't check" (a plain script would exit first; a program that stays up would not).
   ref() {
+    if (this.#timer) this.#timer.ref = true;
     return this;
   }
   unref() {
+    if (this.#timer) this.#timer.ref = false;
     return this;
   }
   hasRef() {
-    return true;
+    return this.#timer ? this.#timer.ref : true;
   }
   refresh() {
     const t = this.#timer;
@@ -307,11 +456,17 @@ function nodeDelay(delay: unknown): number {
   return MathTrunc(after);
 }
 
-function startTimer(cb: (...a: unknown[]) => unknown, args: unknown[], ms: number, every: boolean): VTimeout {
+function startTimer(cb: (...a: unknown[]) => unknown, args: unknown[], ms: number, every: boolean, kind: { immediate?: boolean; ref?: boolean } = {}): VTimeout {
   const c = active;
   if (!c) {
     loadTimers += 1;
     return new VTimeout(null, null, ms);
+  }
+  // R1 (review M-2): a setImmediate next to a timer due within 1 ms. Real Node runs them in either order (the
+  // review saw 26 of 30 one way); Atlas's order would be its own choice, so how the call ends is not reported.
+  const now = c.now;
+  if (kind.immediate === true ? c.anyCodeTimer((x) => !x.immediate && x.at > now && x.at <= now + 1) : ms <= 1 && c.anyCodeTimer((x) => x.immediate)) {
+    noteUndecided("timer-order", TIMER_ORDER_REASON);
   }
   const t = c.schedule(
     c.now + ms,
@@ -322,7 +477,7 @@ function startTimer(cb: (...a: unknown[]) => unknown, args: unknown[], ms: numbe
         onUncaught?.(`a timer callback threw ${describeThrown(e)}`);
       }
     },
-    every ? { every: ms } : {},
+    { ...(every ? { every: ms } : {}), ...(kind.immediate === true ? { immediate: true } : {}), ...(kind.ref === false ? { ref: false } : {}) },
   );
   return new VTimeout(t, c, ms);
 }
@@ -347,7 +502,7 @@ export function installVirtualClock(): void {
   };
   g.setImmediate = function setImmediate(cb: unknown, ...args: unknown[]) {
     if (typeof cb !== "function") return ReflectApply(nativeSetTimeout, globalThis, [cb, 0, ...args]);
-    return startTimer(cb as (...a: unknown[]) => unknown, args, 0, false);
+    return startTimer(cb as (...a: unknown[]) => unknown, args, 0, false, { immediate: true });
   };
   g.clearTimeout = function clearTimeout(h: unknown) {
     clearHandle(h);
@@ -360,20 +515,41 @@ export function installVirtualClock(): void {
   };
 
   // ---- Date, performance.now, process.hrtime, process.uptime ----
-  const virtualNow = () => VIRTUAL_EPOCH_MS + (active ? active.now : 0);
+  // R1 (D36): every read of the clock is noted (the "conditions" line), and two reads at one virtual moment with real
+  // work between them make how the call ends "can't check" (noteClockRead).
+  const virtualNow = () => {
+    noteClockRead();
+    return VIRTUAL_EPOCH_MS + (active ? active.now : 0);
+  };
+  const realToString = RealDate.prototype.toString;
   const FakeDate = function Date(this: unknown, ...a: unknown[]) {
-    if (!new.target) return ReflectApply(RealDate.prototype.toString, new RealDate(virtualNow()), []);
+    if (!new.target) {
+      noteHost(); // Date() as a function gives the local time as text
+      return ReflectApply(realToString, new RealDate(virtualNow()), []);
+    }
+    // Local date parts (new Date(2026, 0, 1)) or a date text (which may be read as local time) depend on the time zone.
+    if (a.length >= 2 || (a.length === 1 && typeof a[0] === "string")) noteHost();
     return ReflectConstruct(RealDate, a.length === 0 ? [virtualNow()] : a, new.target);
   } as unknown as DateConstructor;
   ObjectDefineProperty(FakeDate, "prototype", { __proto__: null, value: RealDate.prototype, writable: false, enumerable: false, configurable: false } as PropertyDescriptor);
   ObjectDefineProperty(FakeDate, "now", { __proto__: null, value: function now() { return virtualNow(); }, writable: true, enumerable: false, configurable: true } as PropertyDescriptor);
-  ObjectDefineProperty(FakeDate, "parse", { __proto__: null, value: RealDate.parse, writable: true, enumerable: false, configurable: true } as PropertyDescriptor);
+  const realParse = RealDate.parse;
+  ObjectDefineProperty(FakeDate, "parse", {
+    __proto__: null,
+    value: function parse(s: unknown) {
+      noteHost();
+      return ReflectApply(realParse, RealDate, [s]);
+    },
+    writable: true,
+    enumerable: false,
+    configurable: true,
+  } as PropertyDescriptor);
   ObjectDefineProperty(FakeDate, "UTC", { __proto__: null, value: RealDate.UTC, writable: true, enumerable: false, configurable: true } as PropertyDescriptor);
   ObjectDefineProperty(RealDate.prototype, "constructor", { __proto__: null, value: FakeDate, writable: true, enumerable: false, configurable: true } as PropertyDescriptor);
   g.Date = FakeDate;
   const perf = g.performance as Record<string, unknown> | undefined;
   if (perf) {
-    ObjectDefineProperty(perf, "now", { __proto__: null, value: function now() { return active ? active.now : 0; }, writable: true, enumerable: true, configurable: true } as PropertyDescriptor);
+    ObjectDefineProperty(perf, "now", { __proto__: null, value: function now() { noteClockRead(); return active ? active.now : 0; }, writable: true, enumerable: true, configurable: true } as PropertyDescriptor);
     // Review round 1 (minor): timeOrigin + now() must give the virtual time, as in real Node it gives the real one.
     ObjectDefineProperty(perf, "timeOrigin", { __proto__: null, value: VIRTUAL_EPOCH_MS, writable: false, enumerable: true, configurable: true } as PropertyDescriptor);
   }
@@ -395,7 +571,8 @@ export function installVirtualClock(): void {
           throw e;
         }
         const c = new RealAbortController();
-        startTimer(() => c.abort(new RealDOMException("The operation was aborted due to timeout", "TimeoutError")), [], delay, false);
+        // R1 (review MINOR 3): Node's own timer here is unref'd, so Atlas's is too.
+        startTimer(() => c.abort(new RealDOMException("The operation was aborted due to timeout", "TimeoutError")), [], delay, false, { ref: false });
         return c.signal;
       },
       writable: true,
@@ -432,6 +609,7 @@ export function installVirtualClock(): void {
     }
   }
   const hrtime = function hrtime(prev?: [number, number]) {
+    noteClockRead();
     const ms = active ? active.now : 0;
     let s = MathTrunc(ms / 1000);
     let ns = MathTrunc((ms - s * 1000) * 1e6);
@@ -445,9 +623,110 @@ export function installVirtualClock(): void {
     }
     return [s, ns];
   };
-  ObjectDefineProperty(hrtime, "bigint", { __proto__: null, value: function bigint() { return BigIntCtor(MathTrunc((active ? active.now : 0) * 1e6)); }, writable: true, enumerable: true, configurable: true } as PropertyDescriptor);
+  ObjectDefineProperty(hrtime, "bigint", { __proto__: null, value: function bigint() { noteClockRead(); return BigIntCtor(MathTrunc((active ? active.now : 0) * 1e6)); }, writable: true, enumerable: true, configurable: true } as PropertyDescriptor);
   ObjectDefineProperty(process, "hrtime", { __proto__: null, value: hrtime, writable: true, enumerable: true, configurable: true } as PropertyDescriptor);
-  ObjectDefineProperty(process, "uptime", { __proto__: null, value: function uptime() { return (active ? active.now : 0) / 1000; }, writable: true, enumerable: true, configurable: true } as PropertyDescriptor);
+  ObjectDefineProperty(process, "uptime", { __proto__: null, value: function uptime() { noteClockRead(); return (active ? active.now : 0) / 1000; }, writable: true, enumerable: true, configurable: true } as PropertyDescriptor);
+
+  installSeededRandomness();
+  installOrderAndHostNotes();
+}
+
+const defHidden = (obj: object, key: PropertyKey, value: unknown) =>
+  ObjectDefineProperty(obj, key, { __proto__: null, value, writable: true, enumerable: false, configurable: true } as PropertyDescriptor);
+
+/**
+ * R1 (D36): every random source the code can reach without an import draws from Atlas's seeded generator, and each
+ * use is noted. Randomness Atlas cannot seed (crypto.subtle making keys, randomized signatures and encryption) makes
+ * how the call ends "can't check" instead.
+ */
+function installSeededRandomness(): void {
+  defHidden(Math, "random", function random() {
+    noteCondition("randomness");
+    return seededFloat();
+  });
+  const cryptoObj = g.crypto as object | undefined;
+  if (!cryptoObj) return;
+  const proto = ReflectGetPrototypeOf(cryptoObj) as Record<string, unknown> | null;
+  if (!proto) return;
+  const realGRV = proto.getRandomValues as ((a: unknown) => unknown) | undefined;
+  const realUUID = proto.randomUUID as (() => unknown) | undefined;
+  if (typeof realGRV === "function") {
+    defHidden(proto, "getRandomValues", function getRandomValues(this: unknown, arr: unknown) {
+      // The real call first: it checks the argument and throws Node's own errors (wrong type, more than 65,536 bytes).
+      const out = ReflectApply(realGRV, this, [arr]);
+      noteCondition("randomness");
+      seededFill(new Uint8ArrayCtor(ReflectApply(taBuffer, arr, []) as ArrayBuffer, ReflectApply(taByteOffset, arr, []) as number, ReflectApply(taByteLength, arr, []) as number));
+      return out;
+    });
+  }
+  if (typeof realUUID === "function") {
+    defHidden(proto, "randomUUID", function randomUUID(this: unknown) {
+      if (this !== cryptoObj) return ReflectApply(realUUID, this, []); // Node's own "illegal invocation" error
+      noteCondition("randomness");
+      return seededUuid();
+    });
+  }
+  const subtle = ObjectGetOwnPropertyDescriptor(proto, "subtle")?.get;
+  const subtleObj = subtle ? (ReflectApply(subtle, cryptoObj, []) as object) : undefined;
+  const sp = subtleObj ? (ReflectGetPrototypeOf(subtleObj) as Record<string, unknown> | null) : null;
+  if (!sp) return;
+  const RANDOMIZED = /^(ECDSA|RSA-PSS|RSA-OAEP|ML-DSA)/i;
+  const algName = (alg: unknown) => (typeof alg === "string" ? alg : alg !== null && typeof alg === "object" ? ownData(alg, "name") : undefined);
+  for (const name of ["generateKey", "encapsulateKey", "encapsulateBits", "sign", "encrypt", "wrapKey"]) {
+    const real = sp[name];
+    if (typeof real !== "function") continue;
+    defHidden(sp, name, function (this: unknown, ...a: unknown[]) {
+      const alg = algName(name === "wrapKey" ? a[3] : a[0]);
+      if (name === "generateKey" || name.startsWith("encapsulate") || (typeof alg === "string" && RANDOMIZED.test(alg))) {
+        noteUndecided("unseeded-randomness", UNSEEDED_RANDOM_REASON(`crypto.subtle.${name}${typeof alg === "string" ? ` (${alg.slice(0, 20)})` : ""}`));
+      }
+      return ReflectApply(real as (...x: unknown[]) => unknown, this, a);
+    });
+  }
+}
+
+/**
+ * R1 (D36): process.nextTick from the call's own synchronous part (its order against promise callbacks depends on how
+ * the caller starts the call), and every read of the time zone or the locale (Atlas runs in UTC with en-US).
+ */
+function installOrderAndHostNotes(): void {
+  const wrapHost = (obj: object | undefined, names: string[]) => {
+    if (!obj) return;
+    for (const name of names) {
+      const d = ObjectGetOwnPropertyDescriptor(obj, name);
+      if (!d || typeof d.value !== "function") continue;
+      const real = d.value as (...x: unknown[]) => unknown;
+      const w = function (this: unknown, ...a: unknown[]) {
+        noteHost();
+        return ReflectApply(real, this, a);
+      };
+      ObjectDefineProperty(w, "name", { __proto__: null, value: name, writable: false, enumerable: false, configurable: true } as PropertyDescriptor);
+      ObjectDefineProperty(obj, name, { __proto__: null, value: w, writable: d.writable, enumerable: d.enumerable, configurable: true } as PropertyDescriptor);
+    }
+  };
+  // Date methods that read or write LOCAL time (the UTC ones and toISOString / toJSON do not).
+  wrapHost(RealDate.prototype, ["getFullYear", "getYear", "getMonth", "getDate", "getDay", "getHours", "getMinutes", "getTimezoneOffset", "setFullYear", "setYear", "setMonth", "setDate", "setHours", "setMinutes", "toString", "toDateString", "toTimeString", "toLocaleString", "toLocaleDateString", "toLocaleTimeString"]);
+  wrapHost(Number.prototype, ["toLocaleString"]);
+  wrapHost(BigInt.prototype, ["toLocaleString"]);
+  wrapHost(Array.prototype, ["toLocaleString"]);
+  wrapHost(String.prototype, ["localeCompare", "toLocaleUpperCase", "toLocaleLowerCase"]);
+  const intl = g.Intl as Record<string, unknown> | undefined;
+  if (intl) {
+    for (const name of ["DateTimeFormat", "NumberFormat", "Collator", "PluralRules", "RelativeTimeFormat", "ListFormat", "DisplayNames", "Segmenter", "DurationFormat"]) {
+      const real = intl[name];
+      if (typeof real !== "function") continue;
+      defHidden(intl, name, new Proxy(real as (...x: unknown[]) => unknown, {
+        apply(t, thisArg, a) {
+          noteHost();
+          return ReflectApply(t, thisArg, a);
+        },
+        construct(t, a, nt) {
+          noteHost();
+          return ReflectConstruct(t, a, nt);
+        },
+      }));
+    }
+  }
 }
 
 let guardsInstalled = false;
@@ -580,6 +859,39 @@ export function installSandboxGuards(): void {
   }
   onUncaught = (what) => markWholeRun(UNCAUGHT_REASON(what));
   installOutsideWorkTracker();
+  // R1 (review MINOR 4): process.nextTick called by the code itself during the call's synchronous part. Its order
+  // against promise callbacks depends on how the caller starts the call (Atlas starts it inside a promise callback, so
+  // promises run first; a CommonJS script calling it directly runs the tick first). Installed last, so it wraps the
+  // access watcher above; Node's own internals (console.log's stream, for one) also call process.nextTick, and those
+  // calls are told apart by their caller (a node: frame) and do not count.
+  const realNextTick = process.nextTick;
+  const nextTick = function nextTick(...a: unknown[]) {
+    if (inSyncCall && !calledFromNode(nextTick)) noteUndecided("timer-order", TIMER_ORDER_REASON);
+    return ReflectApply(realNextTick, process, a);
+  };
+  defHidden(process, "nextTick", nextTick);
+}
+
+const ErrorCaptureStackTrace = (ErrorCtor as unknown as { captureStackTrace: (o: object, f: unknown) => void }).captureStackTrace;
+const StringSplit = String.prototype.split;
+const StringIncludes = String.prototype.includes;
+/** True when the function that called `below` is Node's own code (a "node:" frame), not the code under test. */
+function calledFromNode(below: unknown): boolean {
+  const holder: { stack?: unknown } = {};
+  try {
+    ReflectApply(ErrorCaptureStackTrace, ErrorCtor, [holder, below]);
+  } catch {
+    return false;
+  }
+  const st = holder.stack;
+  if (typeof st !== "string") return false;
+  const lines = ReflectApply(StringSplit, st, ["\n"]) as string[];
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i]!;
+    if (ReflectApply(StringIncludes, line, ["call-harness.ts"]) as boolean) continue; // Atlas's own wrappers
+    return (ReflectApply(StringIncludes, line, ["(node:"]) as boolean) || (ReflectApply(StringIncludes, line, ["at node:"]) as boolean);
+  }
+  return false;
 }
 
 // ---- outside work Atlas does not control ----
@@ -708,11 +1020,21 @@ function describeThrown(e: unknown): string {
 class NotJson {
   readonly type: string;
   readonly reason: string;
+  /** R1 (review B-1): where inside the returned value the problem is ("" = the value itself), e.g. "[0]" or ".when". */
+  path = "";
   constructor(type: string, reason: string) {
     this.type = type;
     this.reason = reason;
   }
 }
+
+const IDENT = /^[A-Za-z_$][\w$]{0,30}$/;
+/** Adds one step of the path to a problem found inside a list or object (never for "too big", which has no place). */
+function inside(e: unknown, step: string): unknown {
+  if (e instanceof NotJson && e.reason !== "too big" && e.path.length < 80) e.path = step + e.path;
+  return e;
+}
+const keyStep = (k: string) => (IDENT.test(k) ? `.${k}` : `[${JSONStringify(k.length > 30 ? `${k.slice(0, 29)}…` : k)}]`);
 
 /** The type Atlas reports for a value: "string", "array", "object", "object (Map)", "number (NaN)", ... */
 function typeOf(v: unknown): string {
@@ -777,7 +1099,11 @@ function canonical(v: unknown, depth: number, seen: Set<object>, budget: { left:
       const d = ObjectGetOwnPropertyDescriptor(o, StringCtor(i));
       if (!d) throw new NotJson("array", "it is a list with holes, which JSON cannot hold exactly");
       if (!ObjectHasOwn(d, "value")) throw new NotJson("array", "a list item is a getter, which Atlas does not run");
-      s += (i ? "," : "") + canonical(d.value, depth + 1, seen, budget);
+      try {
+        s += (i ? "," : "") + canonical(d.value, depth + 1, seen, budget);
+      } catch (e) {
+        throw inside(e, `[${i}]`);
+      }
       budget.left -= 1;
     }
     out = `${s}]`;
@@ -800,7 +1126,11 @@ function canonical(v: unknown, depth: number, seen: Set<object>, budget: { left:
       const k = names[i]!;
       const ks = JSONStringify(k);
       budget.left -= ks.length + 2;
-      s += `${i ? "," : ""}${ks}:${canonical(ObjectGetOwnPropertyDescriptor(o, k)!.value, depth + 1, seen, budget)}`;
+      try {
+        s += `${i ? "," : ""}${ks}:${canonical(ObjectGetOwnPropertyDescriptor(o, k)!.value, depth + 1, seen, budget)}`;
+      } catch (e) {
+        throw inside(e, keyStep(k));
+      }
     }
     out = `${s}}`;
   }
@@ -828,6 +1158,9 @@ export function classifyReturned(v: unknown): Classified {
         }
         return { type: typeOf(v), why: `it is longer than ${RETURNED_JSON_MAX_CHARS} characters as JSON${size}; Atlas stores at most ${RETURNED_JSON_MAX_CHARS}` };
       }
+      // R1 (review B-1): the type is always the RETURNED value's own (a list holding a BigInt is an array); the item
+      // inside that JSON cannot hold is named in the reason, with where it is.
+      if (e.path !== "") return { type: typeOf(v), why: `an item inside it (at ${e.path}${e.type ? `, ${e.type}` : ""}) is not plain JSON: ${e.reason}` };
       return { type: e.type || typeOf(v), why: e.reason };
     }
     return { type: typeOf(v), why: "reading it failed, so Atlas could not write it as JSON" };
@@ -994,10 +1327,24 @@ export async function runCall(fn: unknown, req: CallRunRequest, opts: CallHarnes
   let settled: Settled | null = null;
   const previous = active;
   active = clock;
+  // R1: this run's conditions start from those noticed while the file loaded.
+  runConds = record<Record<string, true>>();
+  for (const k of ReflectOwnKeys(loadConds)) put(runConds, k as string, true);
+  undecided = null;
+  lastReadAt = -1;
+  lastReadCpu = 0;
+  let unrefStop = false;
   const before = activeResources();
   emit("start", { exportName: req.exportName, args: req.args.length, watchLimitMs });
   promiseThen(
-    promiseThen(promiseResolve(undefined), () => ReflectApply(fn as (...a: unknown[]) => unknown, undefined, args)),
+    promiseThen(promiseResolve(undefined), () => {
+      inSyncCall = true; // R1: the function's own synchronous part (process.nextTick here races promise callbacks)
+      try {
+        return ReflectApply(fn as (...a: unknown[]) => unknown, undefined, args);
+      } finally {
+        inSyncCall = false;
+      }
+    }),
     (v: unknown) => {
       watch();
       settledAt = clock.now;
@@ -1049,6 +1396,14 @@ export async function runCall(fn: unknown, req: CallRunRequest, opts: CallHarnes
         break;
       }
       if (!next) break; // nothing scheduled and the queue is drained: quiet (settled) or never settles
+      if (!clock.hasRef()) {
+        // R1 (review MINOR 3): only unref'd timers are left. A plain Node script would exit here; a program that
+        // stays up would fire them. Which one is true depends on the caller, so Atlas stops and does not guess.
+        noteCondition("unref-timer");
+        unrefStop = true;
+        stop = settled === null ? UNREF_REASON : UNREF_AFTER_SETTLE_REASON;
+        break;
+      }
       if (next.at > watchLimitMs) {
         limitHit = true;
         break;
@@ -1065,10 +1420,16 @@ export async function runCall(fn: unknown, req: CallRunRequest, opts: CallHarnes
     active = previous;
   }
   if (raced && stop === null) stop = "the code ran background work while a timer was also waiting, so which finished first depends on real speed, not on the code; Atlas did not guess";
-  const s = settled as Settled | null;
-  if (raced) emit("stopped_watching", { reason: stop ?? "background work raced a timer" });
+  // R1 (D36): how the call ended depends on something outside the code (timed work on a clock that does not move
+  // during work, an order Node leaves open, randomness Atlas cannot seed). Like a race: nothing about how it ended
+  // is reported, and the trace says why.
+  const undecidedWhy = raced ? null : undecided;
+  if (undecidedWhy !== null) stop = undecidedWhy;
+  const notDecided = raced || undecidedWhy !== null;
+  const s = (undecidedWhy !== null ? null : settled) as Settled | null;
+  if (notDecided) emit("stopped_watching", { reason: stop ?? "background work raced a timer" });
   else if (s === null && settledAt === null) emit(limitHit ? "still_running_at_watch_limit" : stop ? "stopped_watching" : "never_settled", stop ? { reason: stop } : undefined);
-  else if (stop || limitHit) emit("stopped_watching_after_settle", { reason: stop ?? `Atlas's watch limit (${watchLimitMs} ms of virtual time) ran out while the code's timers were still running after it settled` });
+  else if (stop || limitHit) emit(unrefStop && s === null ? "stopped_watching" : "stopped_watching_after_settle", { reason: stop ?? `Atlas's watch limit (${watchLimitMs} ms of virtual time) ran out while the code's timers were still running after it settled` });
 
   if (dropped > 0) {
     const ev = record<TraceEvent>();
@@ -1085,7 +1446,17 @@ export async function runCall(fn: unknown, req: CallRunRequest, opts: CallHarnes
   const limitWords = `Atlas's watch limit (${watchLimitMs} ms of virtual time, Atlas's limit, not the code's)`;
   const callNames = () => standInNames.map((n) => `calls:${n}`);
 
-  if (s === null || raced) {
+  // R1 (D36): the conditions this run noticed, in one event (src/conditions.ts reads it; verify rechecks it).
+  const kinds = ReflectOwnKeys(runConds) as string[];
+  if (kinds.length > 0) {
+    const ev = record<TraceEvent>();
+    put(ev, "t", clock.now);
+    put(ev, "event", "conditions");
+    put(ev, "data", { kinds: ReflectApply(ArraySort, kinds, []) });
+    append(trace, ev);
+  }
+
+  if (s === null || notDecided) {
     if (stop) {
       for (const k of ["outcome", "returnedJson", "returnedType", "thrownName", "thrownMessage", "virtualMs"]) put(notMeasured, k, `${stop}, so how the call ends was not seen`);
       for (const n of standInNames) put(notMeasured, `calls:${n}`, `${stop}; the count so far was ${counts.get(n) ?? 0}`);

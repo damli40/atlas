@@ -19,6 +19,7 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { nanoid } from "nanoid";
+import { CALL_PINNED_LOCALE, CALL_PINNED_SEED, CALL_PINNED_TIME_ZONE, conditionKindsInTrace, conditionsFromKinds, isCallSeed, pinnedFor } from "../../src/conditions.ts";
 import { gate } from "../../src/gate.ts";
 import { staticRefusal } from "../../src/pasted-code.ts";
 import type { ArgSpec, Experiment, ExperimentShape, JsonValue, Run, Target, TraceEvent } from "../../src/types.ts";
@@ -32,8 +33,14 @@ type CallShape = Extract<ExperimentShape, { shape: "call-function" }>;
 const DEFAULT_WALL_CLOCK_MS = 10_000;
 /** The experiment id of every call-function control run. */
 export const CALL_CONTROL_ID = "control:call-function";
-/** A call-function run has no random choices; the seed field holds this so the proof file's seed checks still apply. */
-export const CALL_SEED = "none";
+/**
+ * R1 (D36): the seed a call-function run uses unless it replays a run with another one. Every random source the code
+ * can reach draws from it (Math.random, crypto.getRandomValues / randomUUID; Python's random, uuid, secrets,
+ * os.urandom and its string-hash seed), so the same test gives the same run. Before R1 this was "none".
+ */
+export const CALL_SEED = CALL_PINNED_SEED;
+/** R1 (D36): the environment every JavaScript sandbox gets: time zone UTC and a pinned locale (checked inside). */
+export const CALL_ENV: Readonly<Record<string, string>> = { TZ: CALL_PINNED_TIME_ZONE, LC_ALL: "en_US.UTF-8" };
 /** The files the sandbox gets (besides the target and request.json), in this order for the harness fingerprint. */
 const SANDBOX_FILES = ["call-worker.ts", "call-harness.ts", "call-words.ts", "primordials.ts", "harness.ts", "shapes.ts"] as const;
 
@@ -138,24 +145,26 @@ export function parseCallWorkerOutput(stdout: string, key: string, expectedIds?:
 }
 
 /** Runs the worker on `code` in the sandbox. */
-export async function runInSandbox(executor: Executor, code: string, language: "js" | "ts", request: Omit<CallWorkerRequest, "targetFile">, wallClockMs: number): Promise<CallAnswer> {
+export async function runInSandbox(executor: Executor, code: string, language: "js" | "ts", request: Omit<CallWorkerRequest, "targetFile" | "seed" | "pins"> & { seed?: string }, wallClockMs: number): Promise<CallAnswer> {
   const answer = await sandboxAnswer(executor, code, language, request, wallClockMs);
   return answer.res?.runtime ? { ...answer.parsed, runtime: answer.res.runtime } : answer.parsed;
 }
 
-async function sandboxAnswer(executor: Executor, code: string, language: "js" | "ts", request: Omit<CallWorkerRequest, "targetFile">, wallClockMs: number): Promise<{ parsed: CallAnswer; res?: Awaited<ReturnType<Executor["exec"]>> }> {
+async function sandboxAnswer(executor: Executor, code: string, language: "js" | "ts", request: Omit<CallWorkerRequest, "targetFile" | "seed" | "pins"> & { seed?: string }, wallClockMs: number): Promise<{ parsed: CallAnswer; res?: Awaited<ReturnType<Executor["exec"]>> }> {
   const key = randomBytes(32).toString("hex"); // fresh per run; sent on stdin only
   const targetFile = language === "ts" ? "target.ts" : "target.mjs";
   const files: Record<string, string> = {};
   for (const f of SANDBOX_FILES) files[f] = own(f);
   files[targetFile] = code;
-  files["request.json"] = JSON.stringify({ targetFile, runs: request.runs } satisfies CallWorkerRequest);
+  const seed = request.seed ?? CALL_SEED;
+  files["request.json"] = JSON.stringify({ targetFile, runs: request.runs, seed, pins: { timeZone: CALL_PINNED_TIME_ZONE, locale: CALL_PINNED_LOCALE.js } } satisfies CallWorkerRequest);
   let res: Awaited<ReturnType<Executor["exec"]>>;
   try {
     res = await executor.exec({
       files,
       cmd: ["node", "--permission", "--allow-fs-read=.", "--disallow-code-generation-from-strings", "call-worker.ts"],
       stdin: `${key}\n`,
+      env: { ...CALL_ENV },
       wallClockMs,
       allowNetwork: false,
     });
@@ -266,6 +275,13 @@ export const CALL_CONTROL_CASES: readonly CallControlCase[] = [
     measured: { outcome: "returned", virtualMs: 0, returnedJson: '"now"', "calls:ping": 1 },
     notMeasured: [],
   },
+  {
+    // R1 (D36): the seed reaches Math.random and crypto.randomUUID, and the sandbox is in UTC with locale en-US.
+    id: "C10-pins",
+    params: { shape: "call-function", exportName: "pinned", args: [] },
+    measured: { outcome: "returned", virtualMs: 0, returnedJson: '{"h":0,"n":"1,234.5","r":0.6301390916173888,"tz":"UTC","u":"1a2e5e7a-b23e-4d78-bd00-f3572d54db87"}' },
+    notMeasured: [],
+  },
 ];
 
 /** The differences between one case's run and its known answer, in plain words (empty when it matched). */
@@ -331,6 +347,8 @@ export async function runCallControl(opts: { executor?: Executor; wallClockMs?: 
     executor: executor.kind,
     codeSha256: sha256(source),
     seed: CALL_SEED,
+    timeZone: CALL_PINNED_TIME_ZONE,
+    locale: CALL_PINNED_LOCALE.js,
     startedAt,
     finishedAt: new Date().toISOString(),
     trace,
@@ -353,7 +371,8 @@ export const CALL_CONTROL_REUSE_MS = 10 * 60_000;
  */
 export function callControlKey(executor: Executor): string {
   return sha256(
-    JSON.stringify([callHarnessSha256(), sha256(callReferenceSource()), CALL_CONTROL_CASES, executor.kind, executor.fingerprint ?? "(no fingerprint)"]),
+    // R1: the seed, the pinned time zone / locale and the sandbox's environment are part of what the control checks.
+    JSON.stringify([callHarnessSha256(), sha256(callReferenceSource()), CALL_CONTROL_CASES, executor.kind, executor.fingerprint ?? "(no fingerprint)", CALL_SEED, CALL_PINNED_TIME_ZONE, CALL_PINNED_LOCALE.js, CALL_ENV]),
   );
 }
 
@@ -409,7 +428,7 @@ export function pastedSource(target: Target): { source: string; language: "js" |
  * Runs one call-function experiment, given a control Run made by runCallControl. The run counts only when that
  * control passed. Whole-run reasons go to notMeasured.wholeRun.
  */
-export async function runCallExperiment(exp: Experiment, ctl: Run, opts: { executor?: Executor; wallClockMs?: number; replayOf?: Run["replayOf"] } = {}): Promise<Run> {
+export async function runCallExperiment(exp: Experiment, ctl: Run, opts: { executor?: Executor; wallClockMs?: number; replayOf?: Run["replayOf"]; seed?: string } = {}): Promise<Run> {
   if (!exp.gate.allowed) throw new Error(`experiment ${exp.id} was rejected by the gate: ${exp.gate.reason}`);
   if (exp.params.shape !== "call-function") throw new Error(`runCallExperiment runs "call-function" only; got "${exp.params.shape}"`);
   if (ctl.experimentId !== CALL_CONTROL_ID) throw new Error(`the control run ${ctl.id} is not a call-function control`);
@@ -417,6 +436,8 @@ export async function runCallExperiment(exp: Experiment, ctl: Run, opts: { execu
   if (ctl.executor !== executorKind) throw new Error(`the control run ${ctl.id} ran on ${ctl.executor}, not on ${executorKind}`);
   const { source, language } = pastedSource(exp.target);
   const executor = opts.executor ?? localExecutor;
+  // R1 (D36): a replay passes the original run's seed, so it reproduces exactly. Older files say "none": the default.
+  const seed = opts.seed !== undefined && isCallSeed(opts.seed) ? opts.seed : CALL_SEED;
   const startedAt = new Date().toISOString();
   let result: Run["result"];
   let trace: TraceEvent[] = [];
@@ -426,7 +447,7 @@ export async function runCallExperiment(exp: Experiment, ctl: Run, opts: { execu
     result = { measured: {}, notMeasured: { wholeRun: refused } };
     trace.push({ t: 0, event: "refused_before_running", data: { reason: refused } });
   } else {
-    const res = await runInSandbox(executor, source, language, { runs: [runRequest(exp.id, exp.params)] }, opts.wallClockMs ?? DEFAULT_WALL_CLOCK_MS);
+    const res = await runInSandbox(executor, source, language, { runs: [runRequest(exp.id, exp.params)], seed }, opts.wallClockMs ?? DEFAULT_WALL_CLOCK_MS);
     if (!res.ok && res.kind === "notStarted") throw new Error(res.reason);
     runtime = res.runtime;
     const out = res.ok ? res.runs.find((r) => r.id === exp.id) : undefined;
@@ -458,7 +479,11 @@ export async function runCallExperiment(exp: Experiment, ctl: Run, opts: { execu
     runner: "ts",
     executor: executor.kind,
     codeSha256: exp.target.codeSha256,
-    seed: CALL_SEED,
+    seed,
+    timeZone: CALL_PINNED_TIME_ZONE,
+    locale: CALL_PINNED_LOCALE[language],
+    // R1 (D36): the conditions the sandbox noticed, in Atlas's words (verify rechecks them against the trace).
+    conditions: conditionsFromKinds(conditionKindsInTrace(trace) ?? [], pinnedFor(language, seed)),
     startedAt,
     finishedAt: new Date().toISOString(),
     trace,

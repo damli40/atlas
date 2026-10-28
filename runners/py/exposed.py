@@ -22,6 +22,10 @@ import asyncio.base_events
 import asyncio.events
 import datetime as _dtmod
 import math as _math
+import operator as _operator
+import os as _os
+import posix as _posix
+import random as _random_mod
 
 _audit = sys.audit
 
@@ -61,6 +65,22 @@ def refuser(code, what):
     return refused
 
 
+# ---- R1 (D36): conditions ----
+# Each read of the clock, each use of randomness and each read of the local time zone or locale is announced to
+# harness.py's audit hook, which keeps the run's list of conditions where the code cannot reach it. Faking an event
+# only adds a condition (or pushes the run to "can't check"); it can never make a measured fact.
+
+CONDITION_KINDS = ("randomness", "time-zone-or-locale")
+
+
+def _read():
+    _audit("atlas.clockread", CLOCK[0])
+
+
+def _note(kind):
+    _audit("atlas.condition", kind)
+
+
 # ---- the virtual clock behind the time module ----
 
 def _now():
@@ -68,18 +88,22 @@ def _now():
 
 
 def v_time():
+    _read()
     return EPOCH + CLOCK[0]
 
 
 def v_time_ns():
+    _read()
     return int(EPOCH) * 1_000_000_000 + int(round(CLOCK[0] * 1e9))
 
 
 def v_monotonic():
+    _read()
     return CLOCK[0]
 
 
 def v_monotonic_ns():
+    _read()
     return int(round(CLOCK[0] * 1e9))
 
 
@@ -107,7 +131,11 @@ _real_asctime = _time.asctime
 _real_strftime = _time.strftime
 
 
+_real_mktime = _time.mktime
+
+
 def v_localtime(secs=None):
+    _note("time-zone-or-locale")  # local time: Atlas's pinned UTC, not the machine's zone
     return _real_localtime(v_time() if secs is None else secs)
 
 
@@ -116,15 +144,25 @@ def v_gmtime(secs=None):
 
 
 def v_ctime(secs=None):
+    _note("time-zone-or-locale")
     return _real_ctime(v_time() if secs is None else secs)
 
 
 def v_asctime(t=None):
+    if t is None:
+        _note("time-zone-or-locale")
     return _real_asctime(_real_localtime(v_time()) if t is None else t)
 
 
 def v_strftime(fmt, t=None):
+    if t is None:
+        _note("time-zone-or-locale")
     return _real_strftime(fmt, _real_localtime(v_time()) if t is None else t)
+
+
+def v_mktime(t):
+    _note("time-zone-or-locale")
+    return _real_mktime(t)
 
 
 def _install_time():
@@ -141,6 +179,7 @@ def _install_time():
     t.ctime = v_ctime
     t.asctime = v_asctime
     t.strftime = v_strftime
+    t.mktime = v_mktime
     # Clocks of real CPU time have no honest virtual stand-in: refused, as in the JavaScript harness.
     for name in ("process_time", "process_time_ns", "thread_time", "thread_time_ns", "clock_gettime",
                  "clock_gettime_ns", "pthread_getcpuclockid", "clock_settime", "clock_settime_ns"):
@@ -167,11 +206,27 @@ class datetime(_RealDatetime):
     def today(cls):
         return cls.fromtimestamp(v_time())
 
+    @classmethod
+    def fromtimestamp(cls, t, tz=None):
+        if tz is None:
+            _note("time-zone-or-locale")  # a naive local time
+        return super(datetime, cls).fromtimestamp(t, tz)
+
+    def astimezone(self, tz=None):
+        if tz is None:
+            _note("time-zone-or-locale")
+        return _RealDatetime.astimezone(self, tz)
+
 
 class date(_RealDate):
     @classmethod
     def today(cls):
         return cls.fromtimestamp(v_time())
+
+    @classmethod
+    def fromtimestamp(cls, t):
+        _note("time-zone-or-locale")
+        return super(date, cls).fromtimestamp(t)
 
 
 datetime.__module__ = "datetime"
@@ -378,6 +433,50 @@ def make_import_guard(stdlib_names):
         return _real_import(name, globals, locals, fromlist, level)
 
     return guarded_import
+
+
+# ---- R1 (D36): seeded randomness ----
+# The module's shared generator (random.random, random.choice, ...) is seeded with Atlas's seed; os.urandom (and
+# with it uuid.uuid4, secrets and random.SystemRandom) and a Random() made without a seed draw from a second
+# generator seeded from the same seed. Each use is announced (the "randomness" condition). Python's string-hash seed
+# (set order) is pinned by PYTHONHASHSEED in the environment, which harness.py checks.
+
+_RNG = [None]
+
+
+def v_urandom(size):
+    _note("randomness")
+    n = _operator.index(size)
+    if n < 0:
+        raise ValueError("negative argument not allowed")
+    return _RNG[0].randbytes(n)
+
+
+def v_getrandom(size, flags=0):
+    return v_urandom(size)
+
+
+_real_random_seed = _random_mod.Random.seed
+
+
+def v_seed(self, a=None, version=2):
+    if a is None:
+        _note("randomness")  # a generator seeded "from the machine": Atlas gives it a seed from its own
+        a = _RNG[0].getrandbits(64)
+    return _real_random_seed(self, a, version)
+
+
+def pin_randomness(seed):
+    """Called once by harness.py, before any pasted code exists."""
+    _RNG[0] = _random_mod.Random(seed * 2 + 1)
+    _random_mod.seed(seed)
+    _os.urandom = v_urandom
+    _posix.urandom = v_urandom
+    _random_mod._urandom = v_urandom
+    for mod in (_os, _posix):
+        if hasattr(mod, "getrandom"):
+            mod.getrandom = v_getrandom
+    _random_mod.Random.seed = v_seed
 
 
 def install(signal_names, imp_names):

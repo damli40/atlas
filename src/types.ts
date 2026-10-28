@@ -3,6 +3,7 @@
 
 import type { FalseAlarmRow, PassRuleLine } from "./falsealarm";
 import type { OutlineSection } from "./outline/types";
+import type { RunCondition } from "./conditions";
 export type TargetKind = "ts-fixture" | "github-pr" | "pasted";
 export interface Target {
   kind: TargetKind;
@@ -154,7 +155,13 @@ export interface Run {
   codeSha256: string;
   forkBlock?: number;        // evm
   chainId?: number;          // evm, 8453
-  seed?: string;             // ts: seeds the fake RPC's error choice; same seed = same run
+  seed?: string;             // ts: seeds the fake RPC's error choice; call-function (R1): seeds all the code's randomness; same seed = same run
+  /** R1 (D36): the time zone a call-function run was pinned to ("UTC"). Absent on older files and other runs. */
+  timeZone?: string;
+  /** R1 (D36): the locale a call-function run was pinned to ("en-US" for JavaScript, "C" for Python). */
+  locale?: string;
+  /** R1 (D36): what the result depends on that is Atlas's, not the code's (src/conditions.ts). The "conditions" line. */
+  conditions?: RunCondition[];
   startedAt: string; finishedAt: string;
   trace: TraceEvent[];
   result: RunResult;

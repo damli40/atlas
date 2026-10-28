@@ -37,6 +37,7 @@ import type { AgentEvent, AtlasFile, Bet, BettorSlot, Change, Experiment, Findin
 // The two level captions live in src/captions.ts (no Node imports), so the web page can use them
 // without loading this file, which reads the Moonwell copy from disk.
 import { LEVEL2_CAPTION, PASTED_CAPTION, level1Caption } from "./captions";
+import { callRunPinProblems } from "./conditions";
 import { lineSpan } from "./words";
 import { pastedTargetProblems } from "./pasted-code";
 import { outlineSectionProblems } from "./outline/section";
@@ -132,6 +133,10 @@ const runSchema = z
     forkBlock: z.number().int().positive().optional(),
     chainId: z.number().int().positive().optional(),
     seed: z.string().optional(),
+    // R1 (D36): the pins and the conditions line of a call-function run (src/conditions.ts). Older files have none.
+    timeZone: z.string().optional(),
+    locale: z.string().optional(),
+    conditions: z.array(z.object({ kind: z.string(), says: z.string() }).strict()).optional(),
     startedAt: iso,
     finishedAt: iso,
     trace: z.array(z.object({ t: z.number(), event: z.string(), data: z.record(z.string(), z.unknown()).optional() }).strict()),
@@ -623,6 +628,8 @@ function verifyAtlasFileChecked(raw: unknown): Verification {
       if (isRetryRun(file, r)) for (const p of tsRunAgreesWithItsTrace(r)) say(`run ${r.id}: ${p}`);
       if (isCallRun(file, r)) for (const p of callRunAgreesWithItsTrace(r)) say(`run ${r.id}: ${p}`);
       if (isCallRun(file, r)) for (const p of callRunControlProblems(r)) say(`run ${r.id}: ${p}`);
+      // R1 (D36): the seed, time zone and locale are Atlas's pinned ones, and the conditions are what the trace says.
+      if (isCallRun(file, r)) for (const p of callRunPinProblems(r, file.target.language ?? "js")) say(`run ${r.id}: ${p}`);
     }
     if (Date.parse(r.finishedAt) < Date.parse(r.startedAt)) say(`run ${r.id} finished before it started`);
   }

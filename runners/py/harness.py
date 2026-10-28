@@ -69,6 +69,11 @@ def main(key_text):
     import builtins as _bi
     import types as _types
     import posixpath as _pp
+    import time as _tm
+    import _random
+    import random as _rnd
+    import locale as _locale
+    import ast as _ast
 
     write = posix.write
     hard_exit = posix._exit
@@ -91,6 +96,15 @@ def main(key_text):
     stdlib_names = frozenset(_sys.stdlib_module_names)
     stdlib_dir = _pp.dirname(_pp.dirname(_json.__file__))
     INF = float("inf")
+    # R1 (D36): real CPU time (exposed.py later refuses time.process_time to the code), the real localtime (to check
+    # the pinned time zone), and the module-wide random generator's state, read through C so the code cannot fake it.
+    cpu_clock = _tm.process_time
+    real_localtime = _tm.localtime
+    real_tzname = tuple(_tm.tzname)
+    rand_getstate = _random.Random.getstate
+    rand_inst = _rnd._inst
+    locale_query = _locale.setlocale
+    LOCALE_CATEGORIES = (_locale.LC_NUMERIC, _locale.LC_TIME, _locale.LC_COLLATE, _locale.LC_MONETARY)
 
     def die(why):
         write(2, ("atlas harness: " + why + "\n").encode("utf-8", "replace"))
@@ -120,6 +134,8 @@ def main(key_text):
         exposed_source = f.read()
     words = req["words"]
     sandbox_dir = req.get("sandboxDir") or ""
+    seed_text = req.get("seed")
+    pins = req.get("pins") or {}
     py_version = "%d.%d.%d" % (_sys.version_info[0], _sys.version_info[1], _sys.version_info[2])
     py_impl = _sys.implementation.name
 
@@ -367,9 +383,14 @@ def main(key_text):
         seen.add(ident)
         if t is list:
             parts = []
+            i = 0
             for item in list.__iter__(v):
-                parts.append(canonical(item, depth + 1, seen, budget))
+                try:
+                    parts.append(canonical(item, depth + 1, seen, budget))
+                except NotJson as e:
+                    raise inside(e, "[%d]" % i) from None
                 budget[0] -= 1
+                i += 1
             out = "[" + ",".join(parts) + "]"
         else:
             names = []
@@ -382,12 +403,30 @@ def main(key_text):
             for k in names:
                 ks = js_string(k, False)
                 budget[0] -= utf16_len(ks) + 2
-                parts.append(ks + ":" + canonical(dict.__getitem__(v, k), depth + 1, seen, budget))
+                try:
+                    parts.append(ks + ":" + canonical(dict.__getitem__(v, k), depth + 1, seen, budget))
+                except NotJson as e:
+                    raise inside(e, key_step(k)) from None
             out = "{" + ",".join(parts) + "}"
         seen.discard(ident)
         if budget[0] < 0:
             raise NotJson(type_of(v), "too big")
         return out
+
+    def inside(e, step):
+        """R1 (review B-1): one more step of where inside the returned value the problem is (never for "too big")."""
+        a = e.args
+        kind = a[0] if len(a) > 0 else ""
+        reason = a[1] if len(a) > 1 else ""
+        path = a[2] if len(a) > 2 else ""
+        if reason == "too big" or len(path) >= 80:
+            return e
+        return NotJson(kind, reason, step + path)
+
+    def key_step(k):
+        if len(k) <= 30 and str.isidentifier(k):
+            return "." + k
+        return "[" + js_string(k if len(k) <= 30 else k[:29] + "…", True) + "]"
 
     def classify_returned(v):
         """{"json", "type"} or {"type", "why"}, as runners/ts/call-harness.ts classifyReturned."""
@@ -403,6 +442,11 @@ def main(key_text):
             if reason == "too big":
                 size = " (%d characters of text)" % utf16_len(v) if type(v) is str and len(v) < 10_000_000 else ""
                 return {"type": type_of(v), "why": "it is longer than %d characters as JSON%s; Atlas stores at most %d" % (RETURNED_MAX, size, RETURNED_MAX)}
+            path = e.args[2] if len(e.args) > 2 else ""
+            if path:
+                # R1 (review B-1): the type is always the RETURNED value's own (a list holding a tuple is an array);
+                # the item inside that JSON cannot hold is named in the reason, with where it is.
+                return {"type": type_of(v), "why": "an item inside it (at %s%s) is not plain JSON: %s" % (path, (", " + kind) if kind else "", reason)}
             return {"type": kind or type_of(v), "why": reason}
         except RecursionError:
             return {"type": type_of(v), "why": "it is nested deeper than %d levels" % MAX_JSON_DEPTH}
@@ -537,6 +581,10 @@ def main(key_text):
         ("create_builtin", "exec_builtin", "create_dynamic", "exec_dynamic", "get_frozen_object", "init_frozen",
          "_override_frozen_modules_for_tests", "_override_multi_interp_extensions_check"),
     )
+    # R1 (D36): every random source the code can reach draws from Atlas's seed (exposed.py pin_randomness).
+    if type(seed_text) is not str or not seed_text.isdigit() or len(seed_text) > 10 or seed_text[0] == "0":
+        die("started without a valid seed")
+    E["pin_randomness"](int(seed_text))
     CLOCK = E["CLOCK"]
     WATCH = E["WATCH"]
     WatchLimit = E["AtlasWatchLimit"]
@@ -614,6 +662,30 @@ def main(key_text):
                                 "signal.pthread_kill", "resource.setrlimit", "resource.prlimit", "os.startfile",
                                 "_posixsubprocess.fork_exec", "os.register_at_fork"))
 
+    # R1 (D36): conditions. `current` is the run in progress (None while the file loads); kinds noticed while the file
+    # loads count for every run. Two clock reads at one virtual moment with real CPU work between them mean the code
+    # timed work, which takes no time on Atlas's clock: how the call ends is then not reported.
+    current = [None]
+    load_conds = set()
+
+    def note(kind):
+        c = current[0]
+        if c is None:
+            load_conds.add(kind)
+        else:
+            c["conds"].add(kind)
+
+    def note_clock(v):
+        note("clock")
+        c = current[0]
+        if c is None or (type(v) is not float and type(v) is not int):
+            return
+        cpu = cpu_clock()
+        last = c["lastRead"]
+        if last is not None and last[0] == v and cpu - last[1] >= 0.002:
+            c["cpuWork"] = True
+        c["lastRead"] = (v, cpu)
+
     def refuse(code, what, exc=None):
         mark_code(code, what)
         raise (exc if exc is not None else AtlasRefused("Atlas refused this: " + clean(what)))
@@ -632,6 +704,14 @@ def main(key_text):
             code = args[0] if len(args) > 0 else ""
             what = args[1] if len(args) > 1 else ""
             mark_code(code if type(code) is str else "", what if type(what) is str else "")
+            return
+        if event == "atlas.clockread":
+            note_clock(args[0] if len(args) > 0 else None)
+            return
+        if event == "atlas.condition":
+            k = args[0] if len(args) > 0 else None
+            if type(k) is str and k in ("randomness", "time-zone-or-locale"):
+                note(k)
             return
         if event == "object.__getattr__":
             name = args[1] if len(args) > 1 else None
@@ -775,7 +855,7 @@ def main(key_text):
 
     runs = []
     for r in req["runs"]:
-        ctx = {"trace": [], "settled": False, "clock": 0.0, "interfered": None}
+        ctx = {"trace": [], "settled": False, "clock": 0.0, "interfered": None, "conds": set(), "lastRead": None, "cpuWork": False}
         args = []
         gens = []
         for a in r["args"]:
@@ -817,6 +897,28 @@ def main(key_text):
     def whole_payload():
         return {"wholeRun": whole[0]}
 
+    # R1 (D36): the sandbox must have the pins Atlas asked for (the string-hash seed, UTC, the C locale), checked here
+    # with Python's own answers before the code exists. If not, nothing from this run counts.
+    def pin_problem():
+        env_seed = posix.environ.get(b"PYTHONHASHSEED")
+        if env_seed != seed_text.encode("ascii") or _sys.flags.hash_randomization != 1:
+            return "the string-hash seed to %s (PYTHONHASHSEED is %s)" % (seed_text, clean(env_seed.decode("ascii", "replace") if type(env_seed) is bytes else "not set", 20))
+        want_tz = pins.get("timeZone")
+        lt = real_localtime(0)
+        if want_tz != "UTC" or lt.tm_gmtoff != 0 or lt.tm_hour != 0 or real_tzname[0] != "UTC":
+            return "the time zone to %s (it is %s)" % (clean(str(want_tz), 20), clean(str(real_tzname[0]), 40))
+        want_locale = pins.get("locale")
+        for cat in LOCALE_CATEGORIES:
+            got = locale_query(cat, None)
+            if got != want_locale:
+                return "the locale to %s (it is %s)" % (clean(str(want_locale), 20), clean(str(got), 40))
+        return None
+
+    pin_failed = pin_problem()
+    if pin_failed is not None:
+        mark(word("pinFailed", what=pin_failed))
+        finish(whole_payload())
+
     try:
         source = target_bytes.decode("utf-8")
     except UnicodeDecodeError:
@@ -833,6 +935,31 @@ def main(key_text):
         mark(word("syntax", what=clean(describe_exc(e), 300)))
         finish(whole_payload())
 
+    # R1 (D36): what plain reading of the code shows it leans on. A set (or hash()) means an order that comes from
+    # Python's string-hash seed, which Atlas pins; time.timezone / tzname / altzone / daylight, astimezone and the
+    # locale module mean the machine's zone or locale, which Atlas pins to UTC / C.
+    static_conds = set()
+    try:
+        for node in _ast.walk(_ast.parse(source)):
+            t = type(node)
+            if t is _ast.Set or t is _ast.SetComp:
+                static_conds.add("hash-seed")
+            elif t is _ast.Call and type(node.func) is _ast.Name and node.func.id in ("set", "frozenset", "hash"):
+                static_conds.add("hash-seed")
+            elif t is _ast.BinOp and type(node.op) in (_ast.BitAnd, _ast.BitOr, _ast.BitXor, _ast.Sub) and any(
+                    type(x) is _ast.Call and type(x.func) is _ast.Attribute and x.func.attr in ("keys", "items")
+                    for x in (node.left, node.right)):
+                static_conds.add("hash-seed")
+            elif t is _ast.Attribute and (node.attr in ("tzname", "altzone", "daylight", "astimezone", "setlocale", "getlocale", "localeconv", "getencoding")
+                                          or (node.attr == "timezone" and type(node.value) is _ast.Name and node.value.id == "time")):
+                static_conds.add("time-zone-or-locale")
+            elif (t is _ast.Import and any(a.name.partition(".")[0] == "locale" for a in node.names)) or (t is _ast.ImportFrom and node.module == "locale"):
+                static_conds.add("time-zone-or-locale")
+            elif t is _ast.ImportFrom and node.module == "time" and any(a.name in ("timezone", "tzname", "altzone", "daylight") for a in node.names):
+                static_conds.add("time-zone-or-locale")
+    except (SyntaxError, ValueError, RecursionError, MemoryError):
+        pass  # the file compiled above; a reader that cannot finish only means fewer disclosures, never a fact
+
     module = _types.ModuleType("target")
     target_builtins = dict(_bi.__dict__)
     target_builtins["__import__"] = import_guard
@@ -842,6 +969,7 @@ def main(key_text):
     keep = []  # loops and tasks stay referenced until the process ends (no __del__ between runs)
 
     modules_at_arm[0] = frozenset(_sys.modules)
+    rand_at_load = rand_getstate(rand_inst)
     armed[0] = True
     try:
         exec(code, moddict)
@@ -855,6 +983,8 @@ def main(key_text):
                 mark(word("loadFailed", what=describe_exc(e)))
     if whole[0] is not None:
         finish(whole_payload())
+    if rand_getstate(rand_inst) != rand_at_load:
+        load_conds.add("randomness")
 
     # ---------------------------------------------------------------------------------------------------------
     # 9. Run each call.
@@ -1016,6 +1146,8 @@ def main(key_text):
         settled = None
         stop = None
         limit = False
+        rand_before = rand_getstate(rand_inst)
+        current[0] = ctx
         try:
             value = fn(*run["args"])
         except BaseException as e:
@@ -1050,6 +1182,9 @@ def main(key_text):
                 ctx["settledAt"] = ctx["clock"]
                 ctx["settled"] = True
                 settled = ("returned", value)
+        current[0] = None
+        if rand_getstate(rand_inst) != rand_before:
+            ctx["conds"].add("randomness")
         set_recursion_limit(base_recursion_limit)  # the code may have lowered it to break Atlas's own readers
         side_checks()
         if whole[0] is not None or ctx["interfered"] is not None:
@@ -1061,6 +1196,13 @@ def main(key_text):
         if settled is not None and ctx["settledAt"] > ctx["watch"]:
             settled = None
             limit = True
+
+        # R1 (D36): the code timed work that ran without waiting. On Atlas's clock no time passed, so anything it
+        # decided from that elapsed time is Atlas's, not the code's: how the call ended is not reported.
+        if ctx["cpuWork"] and stop is None:
+            stop = word("cpuWork")
+            settled = None
+            limit = False
 
         facts = None
         if settled is not None and settled[0] == "returned":
@@ -1097,6 +1239,13 @@ def main(key_text):
             emit(ctx, "never_settled")
         elif stop is not None or limit:
             emit(ctx, "stopped_watching_after_settle", {"reason": stop or "Atlas's watch limit (%d ms of virtual time) ran out while the code's timers were still running after it settled" % watch_ms})
+
+        # R1 (D36): the conditions this run noticed, in one event (src/conditions.ts reads it; verify rechecks it).
+        kinds = set(static_conds) | load_conds | ctx["conds"]
+        if ctx["cpuWork"]:
+            kinds.add("clock-during-work")
+        if kinds:
+            ctx["trace"].append({"t": ms(ctx["clock"]), "event": "conditions", "data": {"kinds": sorted(kinds)}})
 
         measured = {}
         not_measured = {}

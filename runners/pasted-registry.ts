@@ -17,8 +17,8 @@ export interface PastedRunner {
   read(source: string): { exports: FoundExport[]; refusal: string | null };
   /** The known-case check of this runner's harness (no pasted code involved). */
   control(executor: Executor): Promise<Run>;
-  /** One experiment, given a control Run made by `control`. */
-  run(exp: Experiment, ctl: Run, executor: Executor): Promise<Run>;
+  /** One experiment, given a control Run made by `control`. R1: `seed` replays a run with its own seed. */
+  run(exp: Experiment, ctl: Run, executor: Executor, opts?: { seed?: string }): Promise<Run>;
 }
 
 /** JavaScript and TypeScript share the E1 call-function runner (Node, type stripping built in). */
@@ -26,7 +26,7 @@ const jsTsRunner: PastedRunner = {
   read: (source) => ({ exports: exportedFunctionsFor(source, "js"), refusal: staticRefusalFor(source, "js") }),
   // D31 (E4): the control is reused for up to 10 minutes when it passed on this same executor and harness.
   control: async (executor) => (await callControlFor({ executor })).run,
-  run: (exp, ctl, executor) => runCallExperiment(exp, ctl, { executor }),
+  run: (exp, ctl, executor, opts) => runCallExperiment(exp, ctl, { executor, ...(opts?.seed !== undefined ? { seed: opts.seed } : {}) }),
 };
 
 /**
@@ -38,7 +38,7 @@ const jsTsRunner: PastedRunner = {
 const pyRunner: PastedRunner = {
   read: (source) => ({ exports: exportedFunctionsFor(source, "py"), refusal: staticRefusalFor(source, "py") }),
   control: async (executor) => (await pyControlFor({ executor: pythonExecutorFor(executor) })).run, // D31
-  run: (exp, ctl, executor) => runPyCallExperiment(exp, ctl, { executor: pythonExecutorFor(executor) }),
+  run: (exp, ctl, executor, opts) => runPyCallExperiment(exp, ctl, { executor: pythonExecutorFor(executor), ...(opts?.seed !== undefined ? { seed: opts.seed } : {}) }),
 };
 
 export type PastedRunners = Partial<Record<PastedLanguage, PastedRunner>>;

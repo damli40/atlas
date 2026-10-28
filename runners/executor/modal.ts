@@ -12,7 +12,7 @@
 // 4. Not root: the command runs as the `nobody` user (setpriv, with no-new-privs). The files Atlas writes are
 //    owned by root and read-only to it.
 // 5. Node's permission model, with the SAME flags as the local executor (`guardedNodeArgs`): read only the run
-//    folder, no writes, no network, no child processes. Python (D24, hosted) runs as `python3 -I -S -B` with the
+//    folder, no writes, no network, no child processes. Python (D24, hosted) runs as `python3 -s -P -S -B` with the
 //    harness's own audit hook and refusals (runners/py/harness.py); layers 1-4 replace macOS sandbox-exec.
 // 6. Hard limits: CPU and memory caps on the container, Atlas's own wall-clock kill (the container is terminated
 //    and the result says `timedOut: true`), stdout/stderr capped at 16 MiB each, and a cap on how many sandboxes
@@ -37,6 +37,7 @@
 import { posix } from "node:path";
 import type { ExecRequest, ExecResult, ExecRuntime, Executor } from "../runner.ts";
 import { guardedNodeArgs } from "./local.ts";
+import { PYTHON_FLAGS, pythonEnv } from "./sandbox-exec-python.ts";
 
 /** The pinned image. Node and Python are the same versions as this machine's (E1 ran on Node 25.8.1). */
 export const MODAL_IMAGE = {
@@ -258,8 +259,8 @@ function checkRequest(req: ExecRequest): void {
     // Hosted Python (D24): the same rules as the macOS sandbox-exec executor. Script names only (Atlas sets the
     // interpreter flags itself), an empty environment, no network.
     const scripts = req.cmd.slice(1);
-    if (scripts.length === 0 || scripts.some((a) => a.startsWith("-"))) throw new Error("the Python command takes a script name only, no interpreter flags (Atlas sets -I -S -B itself)");
-    if (req.env && Object.keys(req.env).length > 0) throw new Error("Python runs with an empty environment");
+    if (scripts.length === 0 || scripts.some((a) => a.startsWith("-"))) throw new Error(`the Python command takes a script name only, no interpreter flags (Atlas sets ${PYTHON_FLAGS.join(" ")} itself)`);
+    pythonEnv(req.env); // R1 (D36): only Atlas's pins (PYTHONHASHSEED, TZ); throws otherwise
     if (req.allowNetwork !== false) throw new Error("Python never gets network");
   }
   for (const [k, v] of Object.entries(req.env ?? {})) {
@@ -274,14 +275,15 @@ function checkRequest(req: ExecRequest): void {
 
 /**
  * The command as it runs in the container: no inherited env, as nobody, then either Node with the local executor's
- * flags, or Python as `python3 -I -S -B <script>` (the same flags as the macOS sandbox-exec executor: isolated
- * mode, no site packages, no .pyc writes). For Python the container, no network and the non-root user take the
+ * flags, or Python as `python3 -s -P -S -B <script>` (the same flags as the macOS sandbox-exec executor, PYTHON_FLAGS:
+ * no user site, no script folder on the path, no site packages, no .pyc writes; R1 dropped -I's -E so the pinned
+ * PYTHONHASHSEED is honoured, and the env holds only Atlas's pins). For Python the container, no network and the non-root user take the
  * place of sandbox-exec; the harness's audit hook and its in-process refusals are unchanged (runners/py/harness.py).
  */
 export function containerCommand(req: ExecRequest): string[] {
   const env = Object.entries(req.env ?? {}).map(([k, v]) => `${k}=${v}`);
   const asNobody = ["/usr/bin/env", "-i", ...env, "/usr/bin/setpriv", `--reuid=${NOBODY}`, `--regid=${NOBODY}`, "--clear-groups", "--no-new-privs"];
-  if (req.cmd[0] === "python3") return [...asNobody, PYTHON_BIN, "-I", "-S", "-B", ...req.cmd.slice(1)];
+  if (req.cmd[0] === "python3") return [...asNobody, PYTHON_BIN, ...PYTHON_FLAGS, ...req.cmd.slice(1)];
   return [...asNobody, NODE_BIN, ...guardedNodeArgs(req.cmd.slice(1), SANDBOX_DIR, req.allowNetwork)];
 }
 
