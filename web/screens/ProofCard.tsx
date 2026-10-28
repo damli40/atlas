@@ -19,6 +19,7 @@ import { targetName } from "../../src/target-name";
 import { shortQuestionFor, LANGUAGE_NAME } from "../../src/paste-context";
 import { CallTimeline } from "../machines/calltimeline/CallTimeline";
 import { PASTE_WORDS } from "../../src/paste-words";
+import { ConditionsLine } from "./Conditions";
 
 /** S6: the pre-existing label, from the file when it carries one. */
 const preExistingLabel = (file: AtlasFile) =>
@@ -204,6 +205,14 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
           </dd>
           <dt>{card.where.startsWith("seed") ? "seed" : card.where.startsWith("no seed") ? "clock" : "fork"}</dt>
           <dd data-testid="pc-where">{card.where}</dd>
+          {card.conditionsRun && (
+            <>
+              <dt>conditions</dt>
+              <dd data-testid="pc-conditions">
+                <ConditionsLine run={card.conditionsRun} />
+              </dd>
+            </>
+          )}
           <dt>control</dt>
           <dd data-testid="pc-controls">
             {card.controlPassed ? "passed: " : ""}
@@ -267,7 +276,7 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
         {words && (
           <span className={`pc-replay${words.same ? " pc-same" : ""}`} data-testid="pc-replay">
             {words.text}
-            {!words.same && call ? ` (${PASTE_WORDS.randomNote})` : ""}
+            {!words.same && call ? ` (${PASTE_WORDS.replayDiffers})` : ""}
             {replay.kind === "done" && replay.answer.replayForkBlock !== undefined ? ` · same fork block ${replay.answer.replayForkBlock}` : ""}
             {replay.kind === "done" && replay.answer.replaySeed !== undefined && replay.answer.replaySeed !== "none" ? ` · same seed ${replay.answer.replaySeed}` : ""}
           </span>

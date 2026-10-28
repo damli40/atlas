@@ -10,6 +10,7 @@ import type { RunAnswer, SealedOnly } from "../api";
 import { ShortHash } from "./Bets";
 import { Scoreboard } from "../machines/scoreboard/Scoreboard";
 import { BettorCounts } from "./Claimant";
+import { ConditionsLine } from "./Conditions";
 
 const SAY: Record<Outcome, string> = { matched: "matched", not_matched: "didn't match", cant_check: "can't check" };
 
@@ -166,6 +167,7 @@ export function VerdictScreen({ shown, typed, modelShown, modelName, modelEmpty,
   return (
     <section className="card" aria-label="verdicts">
       <h2>{heading}</h2>
+      <ConditionsLine run={result.run} />
       <Scoreboard verdicts={result.verdicts} bets={result.bets} names={names} caption={questionText} />
       {cols.length > 1 && <BettorCounts verdicts={result.verdicts} bets={result.bets} names={names} columns={cols.map((c) => c.who)} unseated={unseated} />}
       <table className="verdicts">
