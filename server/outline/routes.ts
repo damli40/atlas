@@ -106,6 +106,31 @@ async function readJson(req: Request): Promise<{ ok: true; body: unknown } | { o
   }
 }
 
+
+/**
+ * X2: the answer of GET /outline/jobs/:id/outline, built from a finished section: everything but the code text.
+ * Exported so the explorer's saved demo outline is built by exactly the same function as the live route.
+ */
+export function outlineAnswerOf(jobId: string, s: OutlineSection) {
+  return {
+        jobId: jobId,
+        source: s.source,
+        codeSha256: s.codeSha256,
+        files: s.files.map((f) => ({ path: f.path, language: f.language, bytes: f.bytes, sha256: f.sha256 })),
+        skipped: s.skipped,
+        codeMap: s.codeMap,
+        verified: s.verified,
+        wonder: { model: s.wonder.model, attempts: s.wonder.attempts, ...(s.wonder.failure ? { failure: s.wonder.failure } : {}) },
+        usage: s.usage,
+        labels: {
+          parts: `Parts, names, purposes and patterns: ${s.wonder.model}'s words. "confirmed" means plain code found these lines in the code, on whole definitions; it does not mean the purpose is true.`,
+          joins:
+            'confirmed: Wonder said it and plain code found an import, call or use inside the first part\'s lines reaching the second part\'s lines. model-only: "Wonder says this; plain code could not check it" (the reason says why), or, when marked noLinkFound, "Atlas found no import or call for this". code-only: found by plain code; Wonder did not say it. A "data" join is linked either direction.',
+        },
+      };
+}
+export type OutlineAnswer = ReturnType<typeof outlineAnswerOf>;
+
 export function createOutlineRoutes(opts: OutlineOptions, deps: OutlineDeps) {
   const now = opts.now ?? (() => new Date());
   const model = opts.outliner?.model ?? OUTLINER_MODEL;
@@ -274,22 +299,7 @@ export function createOutlineRoutes(opts: OutlineOptions, deps: OutlineDeps) {
       const d = done(c);
       if ("res" in d) return d.res;
       const s = d.section;
-      if (d.job.outlineJson === undefined) d.job.outlineJson = JSON.stringify({
-        jobId: d.job.id,
-        source: s.source,
-        codeSha256: s.codeSha256,
-        files: s.files.map((f) => ({ path: f.path, language: f.language, bytes: f.bytes, sha256: f.sha256 })),
-        skipped: s.skipped,
-        codeMap: s.codeMap,
-        verified: s.verified,
-        wonder: { model: s.wonder.model, attempts: s.wonder.attempts, ...(s.wonder.failure ? { failure: s.wonder.failure } : {}) },
-        usage: s.usage,
-        labels: {
-          parts: `Parts, names, purposes and patterns: ${s.wonder.model}'s words. "confirmed" means plain code found these lines in the code, on whole definitions; it does not mean the purpose is true.`,
-          joins:
-            'confirmed: Wonder said it and plain code found an import, call or use inside the first part\'s lines reaching the second part\'s lines. model-only: "Wonder says this; plain code could not check it" (the reason says why), or, when marked noLinkFound, "Atlas found no import or call for this". code-only: found by plain code; Wonder did not say it. A "data" join is linked either direction.',
-        },
-      });
+      if (d.job.outlineJson === undefined) d.job.outlineJson = JSON.stringify(outlineAnswerOf(d.job.id, s));
       return c.body(d.job.outlineJson, 200, { "content-type": "application/json; charset=UTF-8" });
     });
 
