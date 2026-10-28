@@ -6,13 +6,15 @@ kept as written; where the review changed what they mean, the new section says s
 
 ## Where to look first (updated after R1, main `233e297`)
 
-- **Approved wording is the next section, and replaces the earlier one** (kept further down, marked superseded).
+- **Approved wording is the next section: the final review's sentences, word for word.** The earlier ones are kept
+  under it, marked superseded.
 - **Bench T2, the 22 cases the review used to break Atlas: 15 FALSE FACTS before, 0 after** (R1 runners,
   registered result `bench/truth-2/results/2026-10-28-2.md`): 11 correct facts, **7 correct (labelled)**, 4 correct
   can't-checks, 0 over-refusals, 0 wrong reasons. 75 fields compared.
   - **The 7 "labelled" answers count as correct only under T2 amendment 1** (`bench/truth-2/AMENDMENT-1.md`,
-    committed alone before the run). They are values Atlas measured under its own pins or calling order (seed
-    20260101, UTC / en-US or C, its simulated clock, its nextTick order) and labelled with a conditions line. Under
+    committed alone before the run, but drafted after scratch runs showed which answers it would cover). They are
+    5 values under Atlas's pins or calling order (seed 20260101, UTC / en-US or C, its nextTick order) and 2 CPU
+    timings Atlas cannot measure, shown as 0 ms with a warning (h01a, q02c). All 7 carry a conditions line. Under
     the rule as first registered, the same run counts **7 FALSE FACTS**. Both numbers belong in any claim.
   - The amendment text was written by the R1 batch, the batch that built the fixes, and extended by me (E1-E5).
 - **Bench T, the original 88, re-run on the R1 runners: still 0 FALSE FACTS** (`bench/truth/results/2026-10-28-2.md`):
@@ -25,10 +27,65 @@ kept as written; where the review changed what they mean, the new section says s
     Python file that builds a set anywhere.
 - **Bench M ran live once, all 90 of 90 tests, for $2.55** (`bench/models/results/2026-10-28.md`). That is under the
   $8 stop. My earlier "not run, the high estimate is $9.00" was overruled by the coordinator, since D44 says to run it
-  and stop at $8 if the cost gets there. It did not get there. Results are in the section "Bench M live result" below.
+  and stop at $8 if the cost gets there. It did not get there. Results are in the section "Bench M live result" below. The gap between the models is mostly the 0 ms scoring edge case, so the film must not compare them.
 - The order test still passes after merging main twice: 35 tests, now also (l), amendments never edited.
 
-## Approved wording (after R1; the only approved sentences for the README, the result page and the film)
+## Approved wording (after the final B1 review; the only approved sentences for the README, the result page and the film)
+
+These are the final review's replacement sentences (`review-B1-r2.md`), word for word. The earlier "after R1"
+sentences overclaimed. They opened "Before running Atlas, we wrote down 110 test calls", but the 22 were found by
+running Atlas. They did not say the fix was built and unit-tested on those same 22 cases, or that the label rule was
+written after seeing the 7 answers it covers. They also called 2 CPU timings "pinned clock" values. Those sentences are
+kept below, marked superseded.
+
+T / T2, long form (README, result page):
+
+> "We wrote 88 test calls and their expected answers before running Atlas on them. On one run, Atlas got none of the
+> 70 checkable answers wrong (it withheld one it could have given) and said 'can't check' on all 18 traps. A review
+> session then ran Atlas looking for failures and found 22 cases where it reported 15 false facts. We froze those 22
+> with their honest answers, fixed the runner using those same cases as its tests, and ran them again: no false facts,
+> under a rule we added after seeing the fixed output that accepts a value Atlas labels. 7 of the 22 rely on that
+> rule: 5 are values under Atlas's fixed random seed, time zone or calling order, and 2 are CPU timings Atlas cannot
+> measure, shown as 0 ms with a warning. Under the rule as first written, those 7 count as false. All 110 tests were
+> written by AI sessions working on Atlas; one run each, one laptop, 28 October 2026. This shows Atlas keeps its stated
+> rules on these cases. It does not show that Atlas can never report a false fact."
+
+T / T2, film (with the qualifier on screen):
+
+> "88 checks written before the first run: 0 wrong. 22 cases a reviewer used to break it: fixed against those cases,
+> now 0 unlabelled errors, with 7 answers flagged (seeded, UTC, call order, or a timing it can't measure). Our tests,
+> one run."
+
+Bench M, film (the only approved bench M sentence; the film makes no model-vs-model comparison):
+
+> "On 90 calls to 30 small functions written for this bench by an AI session, with one answer per model per question,
+> Muse Spark 1.3 matched what Atlas measured on 276 of 282 answered questions and Muse Spark Open on 245 of 273, most of
+> its misses being guesses of 1 ms where Atlas measured 0; one run, $2.55, not a general accuracy claim."
+
+Rules that still hold:
+- Never say "Atlas's false-fact count: 0" without "on these tests".
+- Never drop "labelled" or "flagged" from the 7.
+- **Amendment 1 was drafted after scratch runs of these 22 cases on the fixed runner showed which answers it would
+  cover.** It was committed alone (`f08d37e`), before the classifier change (`a5dcb45`) and before the registered
+  "after" run, which records its SHA-256. But it was not written blind. The R1 README, which drafted it, says so
+  itself:
+  - line 209 (round 1): "Applied by hand to the scratch run, this amendment makes h04a, h04b, h04c and q01a
+    'correct (pinned, labelled)'";
+  - line 355 (revised text): "Applied by hand to the scratch run, this makes h01a, h03b, h04a, h04b, h04c, q01a and
+    q02c 'correct (labelled)'".
+
+  (The review cites line 356 of main's copy; on this branch the line is 355.) The rows that cover nothing
+  (process-lifetime, the setImmediate order) cost nothing, because R1 already refuses those cases.
+- **2 of the 7 are a stretch** (review M1): h01a and q02c. These are CPU timings shown as 0 ms (and
+  `perfMsOver1: false` / `False`), the opposite of what the code does on a real machine. The label is accurate, but
+  there is no pin behind the value. T2's original pass rule did not list the clock as a pin. They rest on D43 ("timed
+  work is disclosed, not refused"), a design call Dami may revisit. Always split the 7 as "5 pinned (seed, time zone,
+  call order) + 2 timings Atlas cannot measure".
+- "11 plain facts": 5 of the 11 (h05b, q01b, q01c, q01d, q02a) carry a conditions line (clock or hash-seed noise).
+  Their values don't depend on it.
+
+### Superseded: approved wording after R1 (kept as written; do not use)
+
 
 Long form, for the README or the result page:
 
@@ -148,11 +205,38 @@ stop at $8, the tests go in the registered order, and a partial result is report
 
 - **Not checkable: 17 questions per model.** 16 are returnedJson on calls that threw, and 1 is virtualMs on a call
   that never settled. They are outside n.
+- **The Spark vs Spark Open gap is mostly one scoring edge case** (final review M3). Most of Spark Open's misses were
+  bets of 1 ms (or 0.5 ms) where Atlas measured 0 on code that never waits. The rule is "within 10%", and 10% of 0
+  is 0, so only an exact 0 matches. This rule was registered, and both models were told it in the prompt.
+
+  | virtualMs | Spark 1.3 | Spark Open |
+  |---|---|---|
+  | answered | 79 | 79 |
+  | matched, as scored | 74 | 54 |
+  | misses that were 0.5-1 ms bets against a measured 0 | 2 (m07b, m25a) | 23 |
+  | other misses | 3: m11a, m11c (0 vs 3 ms), m18c (0 vs 4) | 2: m18c (0 vs 4), m23c (200 vs 100) |
+  | matched, if a ≤ 1 ms bet against a measured 0 counted as a match | 76 | 77 |
+
+  All questions together, the same two ways:
+  - as scored: Spark 276 of 282 answered (97.9%), Spark Open 245 of 273 (89.7%);
+  - with that edge case counted as a match: Spark 278 of 282 (98.6%), Spark Open 268 of 273 (98.2%).
+
+  So **the film must not compare the two models.** The setup was the same for both: client settings, repair rule,
+  validator and independent calls.
 - **What it says, and what it does not:**
-  - On these 90 small functions, written for this bench by an AI session, the two models usually predicted how the
-    call ends, what it returns and how often a stand-in is called.
-  - Virtual time was the weak question, much more so for Spark Open.
-  - One answer per model per test. This is no general accuracy claim and no ranking beyond these counts.
+  - On 90 calls to 30 small functions, written for this bench by an AI session, the two models' bets usually matched
+    **what Atlas measured** for how the call ends, what it returns and how often a stand-in is called.
+  - This is agreement with Atlas's measurement, not with an independent truth. Bench T and T2 are what support
+    trusting that measurement.
+  - The 3 calls to one function are related, so the effective sample is closer to 30 functions than to 90
+    independent tests.
+  - One answer per model per question. This is no general accuracy claim and no ranking.
+- **Logged, not fixed** (final review m1, m2, m6):
+  - The result records no `commit` or `startedAt`. Its provenance rests on its 45 tooling hashes, which equal the
+    files at `3a30958`, and on the usage log's timestamps (12:30:02Z to 12:43:24Z, after `3a30958`).
+  - The first invalid answer and the validator's error are not stored for repaired answers. Spark Open's repaired
+    answers missed more often (14 of 95 checkable) than its first-try answers (14 of 192), and that cannot be audited.
+  - E3's prompt text was developed with Spark as the main model. That could favour Spark; nothing in the code shows it.
 
 ## After R1: commands and counts
 
