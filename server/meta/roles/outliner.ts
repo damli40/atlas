@@ -14,7 +14,7 @@
 //   passes in counts and caps the calls. Log lines carry counts, never the model's sentences or the code.
 
 import type { ChatArgs, ChatMessage, ChatResult, Usage } from "../client";
-import { modelRefusal, shownModelId } from "../client";
+import { codeModelRefusal as sharedCodeModelRefusal, guardCodeChat as sharedGuardCodeChat } from "../pasted-guard";
 import type { SessionEmitter } from "../../log/agentlog";
 import { oneLine } from "../../log/agentlog";
 import { COST_UNKNOWN, NO_USAGE, addUsage, numbered, repairMessage } from "./claimant";
@@ -28,20 +28,17 @@ export const OUTLINER_MODEL = "muse-wonder-1.0";
 /** Room for hidden reasoning plus an outline of up to 40 parts with their quotes. */
 export const OUTLINER_MAX_TOKENS = 24_000;
 
-/** Why this model id may not read a codebase (null when it may). Independent of ATLAS_ALLOW_CONTRIBUTOR. */
-export function codeModelRefusal(model: string): string | null {
-  if (/contributor/i.test(model)) return `${shownModelId(model)} is a contributor model (Meta may train on its inputs); code is never sent to one, whatever ATLAS_ALLOW_CONTRIBUTOR says`;
-  return modelRefusal(model, {});
-}
-
-/** Wraps a chat function so a call carrying code can only reach a non-contributor Meta model; refused calls send nothing. */
-export function guardCodeChat(chat: (args: ChatArgs) => Promise<ChatResult>): (args: ChatArgs) => Promise<ChatResult> {
-  return async (args) => {
-    const refused = codeModelRefusal(args.model);
-    if (refused) return { ok: false, reason: refused, notSent: true };
-    return chat(args);
-  };
-}
+/**
+ * The guard every outline call goes through: the one shared with E3's pasted code (server/meta/pasted-guard.ts):
+ * never a contributor model, whatever ATLAS_ALLOW_CONTRIBUTOR says; a prompt of at most MAX_OUTLINE_PROMPT_CHARS;
+ * and an upper-bound cost per call of at most MAX_OUTLINE_CALL_USD. Refused calls are never sent.
+ */
+export const codeModelRefusal = (model: string) => sharedCodeModelRefusal(model, "a codebase");
+/** About 100,000 tokens (characters ÷ 2.8): the same line as MAX_OUTLINE_PROMPT_TOKENS. */
+export const MAX_OUTLINE_PROMPT_CHARS = 280_000;
+/** Every prompt character counted as a token, plus the largest output: 280k × $4 + 56k × $20 per million ≈ $2.24. */
+export const MAX_OUTLINE_CALL_USD = 2.5;
+export const guardCodeChat = (chat: (args: ChatArgs) => Promise<ChatResult>) => sharedGuardCodeChat(chat, { what: "a codebase", maxPromptChars: MAX_OUTLINE_PROMPT_CHARS, maxCallUsd: MAX_OUTLINE_CALL_USD });
 
 export const OUTLINE_INSTRUCTION = [
   "Outline this codebase as a few PARTS (usually 3 to 12): each part is a group of files or line ranges that do one job. When one file holds several jobs, split it: give each part only the definitions that do its job.",

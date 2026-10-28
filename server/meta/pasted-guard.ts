@@ -28,24 +28,46 @@ export function estimatedCallUsd(args: Pick<ChatArgs, "model" | "messages" | "ma
   return (inTokens * price.inPerM + outTokens * price.outPerM) / 1_000_000;
 }
 
-/** Why this model id may not read pasted code (null when it may). Independent of ATLAS_ALLOW_CONTRIBUTOR. */
-export function pastedCodeModelRefusal(model: string): string | null {
+/**
+ * X1 (shared with E3): why this model id may not read code (null when it may). Independent of
+ * ATLAS_ALLOW_CONTRIBUTOR. `what` names the code in the reason ("pasted code", "a codebase").
+ */
+export function codeModelRefusal(model: string, what = "code"): string | null {
   if (/contributor/i.test(model)) {
-    return `${shownModelId(model)} is a contributor model (Meta may train on its inputs); pasted code is never sent to one, whatever ATLAS_ALLOW_CONTRIBUTOR says`;
+    return `${shownModelId(model)} is a contributor model (Meta may train on its inputs); ${what} is never sent to one, whatever ATLAS_ALLOW_CONTRIBUTOR says`;
   }
   // The client's own rule, with the contributor switch forced off.
   return modelRefusal(model, {});
 }
 
-/** Wraps a chat function so a call carrying pasted code can only reach a non-contributor Meta model. */
-export function guardPastedChat(chat: (args: ChatArgs) => Promise<ChatResult>): (args: ChatArgs) => Promise<ChatResult> {
+/** Why this model id may not read pasted code (null when it may). */
+export const pastedCodeModelRefusal = (model: string): string | null => codeModelRefusal(model, "pasted code");
+
+export interface CodeGuardLimits {
+  /** Names the code in every reason ("pasted code", "a codebase"). */
+  what: string;
+  maxPromptChars: number;
+  maxCallUsd: number;
+}
+
+/**
+ * X1 (shared with E3): wraps a chat function so a call carrying code can only reach a non-contributor Meta model,
+ * with a prompt no longer than `maxPromptChars` and an upper-bound cost no higher than `maxCallUsd`. A refused call
+ * is never sent: the wrapped chat is not called, so nothing is spent and no limit is counted.
+ */
+export function guardCodeChat(chat: (args: ChatArgs) => Promise<ChatResult>, limits: CodeGuardLimits): (args: ChatArgs) => Promise<ChatResult> {
   return async (args) => {
-    const refused = pastedCodeModelRefusal(args.model);
+    const refused = codeModelRefusal(args.model, limits.what);
     if (refused) return { ok: false, reason: refused, notSent: true };
     const chars = args.messages.reduce((n, m) => n + m.content.length, 0);
-    if (chars > MAX_PASTED_PROMPT_CHARS) return { ok: false, reason: `the prompt would be ${chars} characters; a call carrying pasted code may send at most ${MAX_PASTED_PROMPT_CHARS}`, notSent: true };
+    if (chars > limits.maxPromptChars) return { ok: false, reason: `the prompt would be ${chars} characters; a call carrying ${limits.what} may send at most ${limits.maxPromptChars}`, notSent: true };
     const usd = estimatedCallUsd(args);
-    if (usd > MAX_PASTED_CALL_USD) return { ok: false, reason: `the call could cost up to $${usd.toFixed(2)}; a call carrying pasted code may cost at most $${MAX_PASTED_CALL_USD}`, notSent: true };
+    if (usd > limits.maxCallUsd) return { ok: false, reason: `the call could cost up to $${usd.toFixed(2)}; a call carrying ${limits.what} may cost at most $${limits.maxCallUsd}`, notSent: true };
     return chat(args);
   };
+}
+
+/** Wraps a chat function so a call carrying pasted code can only reach a non-contributor Meta model. */
+export function guardPastedChat(chat: (args: ChatArgs) => Promise<ChatResult>): (args: ChatArgs) => Promise<ChatResult> {
+  return guardCodeChat(chat, { what: "pasted code", maxPromptChars: MAX_PASTED_PROMPT_CHARS, maxCallUsd: MAX_PASTED_CALL_USD });
 }

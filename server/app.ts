@@ -606,7 +606,11 @@ export function createApp(opts: AppOptions = {}) {
   };
   // X1: outline jobs, per session, limited per client address (env ATLAS_OUTLINES_PER_IP_PER_HOUR) and by the model budget.
   const outlinesByIp = createHourlyLimit(envCount(process.env.ATLAS_OUTLINES_PER_IP_PER_HOUR, DEFAULT_OUTLINES_PER_IP_PER_HOUR), "outlines");
-  const outline = createOutlineRoutes(opts.outline ?? {}, { agentLog, ...(budget ? { budget } : {}), takeOutline: (c) => outlinesByIp.take(clientOf(c)), takeModelRound: (c) => modelRoundsByIp.take(clientOf(c)) });
+  const outline = createOutlineRoutes(opts.outline ?? {}, { agentLog, ...(budget ? { budget } : {}), takeOutline: (c) => {
+      // An outline job reads code, so it also counts against E3's per-address paste allowance.
+      const own = outlinesByIp.take(clientOf(c));
+      return own.ok ? pastesByIp.take(clientOf(c)) : own;
+    }, takeModelRound: (c) => modelRoundsByIp.take(clientOf(c)) });
   /** The text of one file of a target, as Atlas read it. */
   const fileTextOf = (target: Target, file: string): string | undefined => {
     if (target.kind === "ts-fixture") return file === target.ref ? readFixture(target) : undefined;
