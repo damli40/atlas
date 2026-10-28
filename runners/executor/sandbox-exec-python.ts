@@ -45,7 +45,14 @@ export const PYTHON_FLAGS = ["-s", "-P", "-S", "-B"] as const;
  * R1 (D42): the only environment variables a Python sandbox may get, each with the values Atlas accepts: the string-
  * hash seed (a whole number 1..4294967295; 0 would switch hashing back to random) and the time zone (UTC only).
  */
-export const PYTHON_PINNED_ENV: Readonly<Record<string, RegExp>> = { PYTHONHASHSEED: /^[1-9]\d{0,9}$/, TZ: /^UTC$/ };
+export const PYTHON_PINNED_ENV: Readonly<Record<string, RegExp>> = {
+  PYTHONHASHSEED: /^[1-9]\d{0,9}$/,
+  TZ: /^UTC$/,
+  // R1 review round 2 (m2): the C locale on every executor. Without these, Linux "coerces" C to C.UTF-8 and macOS's
+  // sandbox cannot, so the two disagreed. Python then runs in its UTF-8 mode in both (PEP 540).
+  LC_ALL: /^C$/,
+  PYTHONCOERCECLOCALE: /^0$/,
+};
 
 /** The env a Python run may have: only PYTHON_PINNED_ENV keys with accepted values. Throws otherwise. */
 export function pythonEnv(env: Record<string, string> | undefined): Record<string, string> {

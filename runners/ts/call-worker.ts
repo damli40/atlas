@@ -42,6 +42,7 @@ import {
   installSandboxGuards,
   installVirtualClock,
   isAccessDenied,
+  noteLoadHost,
   markWholeRun,
   noteUncaught,
   pendingLoadTimers,
@@ -156,6 +157,15 @@ async function main(): Promise<void> {
   // Node makes them lazily, and a stream made later by console.log would look like outside work forever.
   void process.stdout;
   void process.stderr;
+  // R1 review round 2 (B1): the same environment on every executor. macOS adds __CF_USER_TEXT_ENCODING to every
+  // process; it is removed, and the rest is put in name order, so the code sees exactly Atlas's pins, in one order.
+  {
+    const env = process.env as Record<string, string | undefined>;
+    delete env.__CF_USER_TEXT_ENCODING;
+    const pairs = Object.keys(env).sort().map((k) => [k, env[k]!] as const);
+    for (const [k] of pairs) delete env[k];
+    for (const [k, v] of pairs) env[k] = v;
+  }
   // R1 (D42): the sandbox was started with TZ=UTC and a fixed locale; check they took, with Node's own answer, before
   // the code exists. If not, nothing from this run counts (a time-zone result would be this machine's).
   const pins = req.pins;
@@ -177,6 +187,9 @@ async function main(): Promise<void> {
     },
   });
   armBuiltinCheck(); // B1: the snapshot of the built-ins, taken before the code under test exists
+  // R1 review round 2 (B1): import.meta (the file's own URL and folder) is syntax, so no read of it can be watched;
+  // the file's text is checked instead (a mention in a comment also counts: a disclosure, never a fact).
+  if (/\bimport\s*\.\s*meta\b/.test(readFileSync(new URL(`./${targetFile}`, workerUrl), "utf8"))) noteLoadHost("import.meta (the file's own path)");
 
   const payload = record<CallWorkerResponse>();
   const runs: NonNullable<CallWorkerResponse["runs"]> = [];

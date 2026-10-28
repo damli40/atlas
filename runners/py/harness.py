@@ -103,7 +103,7 @@ def main(key_text):
     rand_getstate = _random.Random.getstate
     rand_inst = _rnd._inst
     locale_query = _locale.setlocale
-    LOCALE_CATEGORIES = (_locale.LC_NUMERIC, _locale.LC_TIME, _locale.LC_COLLATE, _locale.LC_MONETARY)
+    LOCALE_CATEGORIES = (_locale.LC_CTYPE, _locale.LC_NUMERIC, _locale.LC_TIME, _locale.LC_COLLATE, _locale.LC_MONETARY)
 
     def die(why):
         write(2, ("atlas harness: " + why + "\n").encode("utf-8", "replace"))
@@ -589,8 +589,10 @@ def main(key_text):
     # two runs and is caught, instead of matching by chance. Harness-private; the code cannot reach it.
     # Python allocates each object size from its own pool, so the spacer covers every small size and the common shapes.
     SpacerCls = type("AtlasSpacer", (), {})
+    # R1 review round 2 (B2): large blocks too, so objects bigger than the small-object pools move as well.
     spacer = ([bytes(i % 512) for i in range(4000)] + [SpacerCls() for _ in range(301)] + [{} for _ in range(77)]
-              + [[] for _ in range(53)]) if req.get("variant") == 1 else []
+              + [[] for _ in range(53)] + [bytearray(4096 * k + 8 * k) for k in (1, 3, 7, 15, 31, 63)]
+              + [bytearray(1 << 17) for _ in range(3)]) if req.get("variant") == 1 else []
     CLOCK = E["CLOCK"]
     WATCH = E["WATCH"]
     WatchLimit = E["AtlasWatchLimit"]
@@ -721,7 +723,7 @@ def main(key_text):
             return
         if event == "atlas.condition":
             k = args[0] if len(args) > 0 else None
-            if type(k) is str and k in ("randomness", "time-zone-or-locale"):
+            if type(k) is str and k in ("randomness", "time-zone-or-locale", "memory-address"):
                 note(k)
             elif k == "self-seeded":
                 # R1 review M3: the code seeded the shared generator itself (random.seed(n)); its draws are the code's
@@ -938,6 +940,14 @@ def main(key_text):
                 return "the locale to %s (it is %s)" % (clean(str(want_locale), 20), clean(str(got), 40))
         return None
 
+    # R1 review round 2 (B1): the same environment on every executor. macOS adds __CF_USER_TEXT_ENCODING to every
+    # process; it is removed, and os.environ is put in name order, so the code sees exactly Atlas's pins, in one order.
+    import os as _os_env
+    _os_env.environ.pop("__CF_USER_TEXT_ENCODING", None)
+    _env_data = _os_env.environ._data
+    _env_items = sorted(_env_data.items())
+    _env_data.clear()
+    _env_data.update(_env_items)
     pin_failed = pin_problem()
     if pin_failed is not None:
         mark(word("pinFailed", what=pin_failed))
@@ -964,9 +974,7 @@ def main(key_text):
     # locale module mean the machine's zone or locale, which Atlas pins to UTC / C.
     static_conds = set()
     static_host = set()
-    HOST_ATTRS = frozenset((("sys", "platform"), ("sys", "version"), ("sys", "version_info"), ("sys", "executable"),
-                            ("sys", "argv"), ("sys", "prefix"), ("sys", "path"), ("sys", "implementation"), ("os", "name"),
-                            ("os", "environ"), ("sys", "byteorder"), ("sys", "maxsize")))
+    STAND_IN_FILE = "/atlas/target.py"
     try:
         for node in _ast.walk(_ast.parse(source)):
             t = type(node)
@@ -985,10 +993,11 @@ def main(key_text):
                 static_conds.add("time-zone-or-locale")
             elif t is _ast.ImportFrom and node.module == "time" and any(a.name in ("timezone", "tzname", "altzone", "daylight") for a in node.names):
                 static_conds.add("time-zone-or-locale")
-            # R1 review B1: attributes that describe the machine (functions are noted when called, in exposed.py).
-            if t is _ast.Attribute and type(node.value) is _ast.Name and (node.value.id, node.attr) in HOST_ATTRS:
+            # R1 review round 2 (M2): __file__ is Atlas's stand-in path; a global read cannot be watched, so it is
+            # found here. (Machine details in sys / os / platform / threading are noted at run time, exposed.py.)
+            if t is _ast.Name and node.id == "__file__":
                 static_conds.add("host")
-                static_host.add(node.value.id + "." + node.attr)
+                static_host.add("__file__ (Atlas's stand-in path " + STAND_IN_FILE + ")")
     except (SyntaxError, ValueError, RecursionError, MemoryError):
         pass  # the file compiled above; a reader that cannot finish only means fewer disclosures, never a fact
 
@@ -996,7 +1005,13 @@ def main(key_text):
     target_builtins = dict(_bi.__dict__)
     target_builtins["__import__"] = import_guard
     target_builtins["id"] = E["v_id"]  # R1 review B1: id() is a memory address
+    # R1 review round 2 (B2): hash() / set() / frozenset() of objects that hash by memory address are noted.
+    target_builtins["hash"] = E["v_hash"]
+    target_builtins["set"] = E["v_set"]
+    target_builtins["frozenset"] = E["v_frozenset"]
     module.__dict__["__builtins__"] = target_builtins
+    # R1 review round 2 (M2): every real run of a file has __file__; Atlas's is a fixed stand-in, the same everywhere.
+    module.__dict__["__file__"] = STAND_IN_FILE
     _sys.modules["target"] = module
     moddict = module.__dict__
     keep = []  # loops and tasks stay referenced until the process ends (no __del__ between runs)

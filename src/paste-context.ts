@@ -93,6 +93,21 @@ export function pastedFileBlock(source: string, mark: number): string {
     .join("\n");
 }
 
+/**
+ * R1 review M5 / round 2 (M1): the pins, in one sentence every bettor sees before sealing: inside the shared bettor text
+ * (the models' prompt and the page's "What every bettor sees" panel) and, the same bytes, above the bet questions.
+ */
+export function pinsSentence(language: "js" | "ts" | "py"): string {
+  const loc = CALL_PINNED_LOCALE[language];
+  return `Atlas runs it on a simulated clock starting 2026-01-01 UTC, in time zone ${CALL_PINNED_TIME_ZONE} with ${loc === "C" ? "a C" : `an ${loc}`} locale, with randomness seeded (seed ${CALL_PINNED_SEED}).`;
+}
+
+/** The pins line the page shows above the bet questions: taken from the shared bettor text itself (same bytes). */
+export function pinsLineOf(seenContext: string | undefined, language: "js" | "ts" | "py"): string {
+  const want = pinsSentence(language);
+  return seenContext?.split("\n").find((l) => l === want) ?? want;
+}
+
 /** Everything in the bettor text above the numbered file (it depends on the test; the file block does not). */
 export function pastedBetHead(input: PastedContextInput & { repeatOf?: string }): string {
   const t = input.experiment.target;
@@ -109,7 +124,7 @@ export function pastedBetHead(input: PastedContextInput & { repeatOf?: string })
     `Code: one pasted ${lang} file, ${plural(lineCount, "line")}, fingerprint ${t.codeSha256.slice(0, 12)}…`,
     "Where it runs: Atlas's sandbox, with no network, no files and no packages, on a virtual clock that starts at 2026-01-01T00:00:00Z (waits cost no real time).",
     // R1 review M5: the pins are said to every bettor before sealing (a bet is about Atlas's run, so its settings count).
-    `Atlas runs it on a simulated clock starting 2026-01-01 UTC, in time zone ${CALL_PINNED_TIME_ZONE} with ${CALL_PINNED_LOCALE[t.language ?? "js"] === "C" ? "a C" : `an ${CALL_PINNED_LOCALE[t.language ?? "js"]}`} locale, with randomness seeded (seed ${CALL_PINNED_SEED}).`,
+    pinsSentence(t.language ?? "js"),
     `What will run: ${said}`,
     `Test written by: ${testWrittenBy(input.experiment.proposedBy)}.`,
     // E3 review r2 M2 (coordinator's decision): a repeat is accepted and said, to the person and to every model alike.

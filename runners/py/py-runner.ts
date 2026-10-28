@@ -99,7 +99,7 @@ export interface PyWorkerRequest {
 
 /** R1 (D42): the environment of a Python run: the string-hash seed and the time zone, nothing else. */
 export function pyRunEnv(seed: string): Record<string, string> {
-  return { PYTHONHASHSEED: seed, TZ: CALL_PINNED_TIME_ZONE };
+  return { LC_ALL: "C", PYTHONCOERCECLOCALE: "0", PYTHONHASHSEED: seed, TZ: CALL_PINNED_TIME_ZONE };
 }
 
 export type PyAnswer = (

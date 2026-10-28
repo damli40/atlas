@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 import type { Question } from "../../src/gate";
 import { CALL_OUTCOME_OPTIONS, measuredUnit } from "../../src/units";
 import { notShownAsFact } from "../../src/trust";
-import { answerHow, shortQuestionFor, testJson } from "../../src/paste-context";
+import { answerHow, pinsLineOf, shortQuestionFor, testJson } from "../../src/paste-context";
 import { CALL_OUTCOME_SAY, PASTE_WORDS as W, WONDER_DISPLAY, languageLabel } from "../../src/paste-words";
 import { didNotFinish, type Api, type ExperimentAnswer, type HumanAnswer, type PasteAnswer, type PasteLanguage, type ProposalsAnswer, type RunAnswer, type ShownBet } from "../api";
 import { useModelSlots, verdictColumns } from "./Claimant";
@@ -310,6 +310,10 @@ export function PasteFlow({ api, onRoundOpen }: { api: Api; onRoundOpen?: (open:
         <section className="card" aria-label="bet">
           <h2>{W.betsHeading}</h2>
           <p className="muted small">{W.betsIntro}</p>
+          {/* R1 review round 2 (M1): the pins, always visible, the same bytes as in the bettor text below. */}
+          <p className="small" data-testid="pins-sentence">
+            {pinsLineOf(exp.seenContext, exp.experiment.target.language ?? "js")}
+          </p>
           {exp.seenContext !== undefined && (
             <details className="seen" data-testid="seen-context">
               <summary>{W.seenHeading}</summary>

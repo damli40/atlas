@@ -226,6 +226,10 @@ const noteHost = () => noteCondition("time-zone-or-locale");
  * ISO date and time with "Z" or an offset. Any other text may be read as local time.
  */
 const ZONED_DATE_TEXT = /^[+-]?\d{4,6}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:\d{2}))?$/;
+/** R1 review round 2: the worker notes, while the file loads, a detail it sees in the file itself (import.meta). */
+export function noteLoadHost(what: string): void {
+  noteHostRead(what);
+}
 /** R1 review B1: the code read a detail of the machine (process id, platform, CPU count, a stack trace's paths, ...). */
 function noteHostRead(what: string): void {
   noteCondition("host");
@@ -696,7 +700,10 @@ function installSeededRandomness(): void {
 function installOrderAndHostNotes(): void {
   // R1 review M3: only IMPLICIT dependence counts. A call that names its locale (and, for dates, its time zone) does
   // not depend on Atlas's pins, so it gets no condition. `explicit` reads the arguments without running any getter.
-  const named = (v: unknown) => v !== undefined;
+  // R1 review round 2 (B3): [] and undefined both mean "the default locale". A locale is named only when it is a
+  // non-empty string, or a non-empty list whose items are all non-empty strings.
+  const named = (v: unknown) =>
+    (typeof v === "string" && v.length > 0) || (ArrayIsArray(v) && (v as unknown[]).length > 0 && (v as unknown[]).every((x) => typeof x === "string" && x.length > 0));
   const zoneNamed = (opts: unknown) => opts !== null && typeof opts === "object" && typeof ownData(opts, "timeZone") === "string";
   const wrapHost = (obj: object | undefined, names: string[], explicit: (a: unknown[]) => boolean = () => false) => {
     if (!obj) return;
@@ -918,7 +925,7 @@ function installHostReadNotes(): void {
       configurable: true,
     } as PropertyDescriptor);
   }
-  for (const name of ["cwd", "memoryUsage", "availableMemory", "constrainedMemory", "getuid", "geteuid", "getgid", "getegid", "getgroups", "umask", "uptime"]) {
+  for (const name of ["cwd", "memoryUsage", "availableMemory", "constrainedMemory", "getuid", "geteuid", "getgid", "getegid", "getgroups", "umask", "uptime", "getActiveResourcesInfo"]) {
     const real = proc[name];
     if (typeof real !== "function" || name === "uptime") continue; // uptime is Atlas's clock (installVirtualClock)
     const w = function (this: unknown, ...a: unknown[]) {
@@ -931,6 +938,38 @@ function installHostReadNotes(): void {
       if (kd) ObjectDefineProperty(w, k, kd); // process.memoryUsage.rss() and friends
     }
     defHidden(proc, name, w);
+  }
+  // R1 review round 2 (B1): process.env holds only Atlas's pins, so any read of it is Atlas's sandbox, not the code:
+  // the time zone / locale variables count as time-zone-or-locale, every other read (a key, the list of keys) as host.
+  // Reads made by Node's own code (a "node:" caller) do not count.
+  const envD = ObjectGetOwnPropertyDescriptor(proc, "env");
+  if (envD && envD.configurable && envD.value && typeof envD.value === "object") {
+    const realEnv = envD.value as Record<string, unknown>;
+    const zoneKey = (k: unknown) => typeof k === "string" && (k === "TZ" || k === "LANG" || k === "LANGUAGE" || k.startsWith("LC_"));
+    const noteEnv = (k: unknown, trap: unknown) => {
+      if (calledFromNode(trap)) return;
+      if (zoneKey(k)) noteHost();
+      else noteHostRead("process.env");
+    };
+    const traps: ProxyHandler<Record<string, unknown>> = {
+      get(t, k) {
+        if (typeof k === "string") noteEnv(k, traps.get);
+        return t[k as string];
+      },
+      has(t, k) {
+        noteEnv(k, traps.has);
+        return k in t;
+      },
+      ownKeys(t) {
+        noteEnv(undefined, traps.ownKeys);
+        return ReflectOwnKeys(t);
+      },
+      getOwnPropertyDescriptor(t, k) {
+        noteEnv(k, traps.getOwnPropertyDescriptor);
+        return ObjectGetOwnPropertyDescriptor(t, k);
+      },
+    };
+    ObjectDefineProperty(proc, "env", { __proto__: null, value: new Proxy(realEnv, traps), writable: true, enumerable: envD.enumerable, configurable: true } as PropertyDescriptor);
   }
   const nav = g.navigator as object | undefined;
   const navProto = nav ? (ReflectGetPrototypeOf(nav) as object | null) : null;

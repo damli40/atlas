@@ -430,9 +430,148 @@ def make_import_guard(stdlib_names):
             err = ModuleNotFoundError("No module named '%s'" % top)
             err.name = top
             raise err
-        return _real_import(name, globals, locals, fromlist, level)
+        mod = _real_import(name, globals, locals, fromlist, level)
+        # R1 review round 2 (B1): the modules that describe the machine come back behind a noting proxy, however the
+        # code names them (import sys as s, from sys import platform, getattr(sys, "platform")).
+        return _HOST_PROXIES.get(id(mod), mod)
 
     return guarded_import
+
+
+# ---- R1 review round 2 (B1): module proxies for machine details ----
+# A module attribute (sys.platform, os.environ) cannot be watched on the module itself, so the pasted code gets a
+# stand-in module that notes the read and hands back the real attribute. Everything else passes straight through.
+
+import types as _types
+import threading as _threading
+import _thread
+
+_SYS_HOST = {k: "sys." + k for k in ("platform", "version", "version_info", "hexversion", "implementation", "executable",
+                                       "_base_executable", "prefix", "base_prefix", "exec_prefix", "base_exec_prefix",
+                                       "argv", "orig_argv", "path", "byteorder", "maxsize", "thread_info",
+                                       "getwindowsversion", "api_version", "abiflags", "platlibdir", "float_info",
+                                       "int_info", "hash_info", "flags", "getfilesystemencoding")}
+_OS_HOST = {k: "os." + k for k in ("environ", "environb", "getenv", "getenvb", "name", "uname", "cpu_count",
+                                     "process_cpu_count", "getpid", "getppid", "getcwd", "getcwdb", "getuid", "getgid",
+                                     "geteuid", "getegid", "getlogin", "getloadavg", "getgroups", "linesep", "pathsep",
+                                     "times", "get_terminal_size", "supports_follow_symlinks")}
+_THREAD_HOST = {k: "threading." + k for k in ("get_ident", "get_native_id", "main_thread", "current_thread",
+                                                "TIMEOUT_MAX", "enumerate")}
+_RAW_THREAD_HOST = {k: "_thread." + k for k in ("get_ident", "get_native_id", "TIMEOUT_MAX")}
+
+
+class _HostModule(_types.ModuleType):
+    def __getattribute__(self, name):
+        d = object.__getattribute__(self, "__dict__")
+        notes = d["_atlas_notes"]
+        if name in notes:
+            _host(notes[name])
+        return getattr(d["_atlas_real"], name)
+
+    def __setattr__(self, name, value):
+        setattr(object.__getattribute__(self, "__dict__")["_atlas_real"], name, value)
+
+    def __delattr__(self, name):
+        delattr(object.__getattribute__(self, "__dict__")["_atlas_real"], name)
+
+    def __dir__(self):
+        return dir(object.__getattribute__(self, "__dict__")["_atlas_real"])
+
+    def __repr__(self):
+        return repr(object.__getattribute__(self, "__dict__")["_atlas_real"])
+
+
+def _host_proxy(real, notes):
+    p = _types.ModuleType.__new__(_HostModule)
+    _types.ModuleType.__init__(p, real.__name__)
+    d = object.__getattribute__(p, "__dict__")
+    d["_atlas_real"] = real
+    d["_atlas_notes"] = notes
+    return p
+
+
+_HOST_PROXIES = {}
+
+
+def install_host_proxies():
+    import platform as _platform
+    for real, notes in ((sys, _SYS_HOST), (_os, _OS_HOST), (_threading, _THREAD_HOST), (_thread, _RAW_THREAD_HOST),
+                        (_platform, {k: "platform." + k for k in dir(_platform) if not k.startswith("_")})):
+        _HOST_PROXIES[id(real)] = _host_proxy(real, notes)
+
+
+# ---- R1 review round 2 (B2): values hashed or ordered by memory address ----
+_obj_hash = object.__hash__
+_real_hash = hash
+_real_set = set
+_real_frozenset = frozenset
+
+
+def _by_address(x):
+    try:
+        return type(x).__hash__ is _obj_hash
+    except BaseException:
+        return False
+
+
+def _note_address():
+    _audit("atlas.condition", "memory-address")
+
+
+def v_hash(x):
+    if _by_address(x):
+        _note_address()
+    return _real_hash(x)
+
+
+class _SetType:
+    """set / frozenset for the pasted code: the real type, plus a note when it is made from objects that hash by
+    memory address (their order then depends on addresses). isinstance, subclassing and the methods work as usual."""
+
+    __slots__ = ("_t",)
+
+    def __init__(self, t):
+        object.__setattr__(self, "_t", t)
+
+    def __call__(self, *args, **kwargs):
+        r = self._t(*args, **kwargs)
+        n = 0
+        for x in r:
+            if _by_address(x):
+                _note_address()
+                break
+            n += 1
+            if n > 10000:
+                break
+        return r
+
+    def __instancecheck__(self, x):
+        return isinstance(x, self._t)
+
+    def __subclasscheck__(self, c):
+        return issubclass(c, self._t)
+
+    def __mro_entries__(self, bases):
+        return (self._t,)
+
+    def __getattr__(self, name):
+        return getattr(self._t, name)
+
+    def __getitem__(self, item):
+        return self._t[item]
+
+    def __eq__(self, other):
+        return other is self or other is self._t
+
+    def __hash__(self):
+        return _real_hash(self._t)
+
+    def __repr__(self):
+        return repr(self._t)
+
+
+v_set = _SetType(_real_set)
+v_frozenset = _SetType(_real_frozenset)
 
 
 # ---- R1 (D42): seeded randomness ----
@@ -491,7 +630,7 @@ _real_id = id
 
 
 def v_id(obj):
-    _host("id() (a memory address)")
+    _note_address()  # R1 review round 2: id() is a memory address
     return _real_id(obj)
 
 
@@ -525,6 +664,7 @@ def pin_randomness(seed):
     # by the code is seen as the code's own seed (R1 review M3).
     _random_mod.seed = lambda a=None, version=2: v_seed(_random_mod._inst, a, version)
     install_host_notes()
+    install_host_proxies()
 
 
 def install(signal_names, imp_names):

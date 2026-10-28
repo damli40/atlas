@@ -32,7 +32,7 @@ export const LEGACY_CALL_SEED = "none";
  * R1 review m1: a run that started on or after this moment was made by an R1 harness, so it must carry its pins and
  * conditions. Relabelling a newer run as "seed none" (to hide its conditions) is refused by verify.
  */
-export const R1_SINCE = "2026-10-29T00:00:00.000Z";
+export const R1_SINCE = "2026-10-28T00:00:00.000Z"; // R1 review round 2 (m3): the day of the first R1 commit
 
 /** A seed Atlas accepts: a whole number from 1 to 2^32 - 1 (Python's PYTHONHASHSEED range; 0 would switch it off). */
 export function isCallSeed(seed: unknown): seed is string {
@@ -49,6 +49,7 @@ export const CONDITION_KINDS = [
   "hash-seed",
   "time-zone-or-locale",
   "host",
+  "memory-address",
   "tick-order",
   "timer-order",
   "unref-timer",
@@ -99,6 +100,8 @@ export function conditionSays(kind: ConditionKind, pins: Pins, detail: Condition
       return W.timeZoneOrLocale(pins.timeZone, pins.locale);
     case "host":
       return W.host((detail.host ?? []).join(", "));
+    case "memory-address":
+      return W.memoryAddress;
     case "tick-order":
       return W.tickOrder;
     case "timer-order":
