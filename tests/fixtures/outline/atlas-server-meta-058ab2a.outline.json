@@ -1,0 +1,7391 @@
+{
+ "jobId": "saved-demo",
+ "source": {
+  "kind": "github",
+  "repo": "damli40/atlas",
+  "requestedRef": "058ab2a29634dc0b8c092fe7816a6fd57ce9b74c",
+  "commit": "058ab2a29634dc0b8c092fe7816a6fd57ce9b74c",
+  "subfolder": "server/meta"
+ },
+ "codeSha256": "ee866a205bfc450f0e175a821942728d2968116952cc5a98d53c7e8a04d55d06",
+ "files": [
+  {
+   "path": "budget.ts",
+   "language": "ts",
+   "bytes": 6746,
+   "sha256": "a400e80f374546101fb87eda8da6d0bfb7a6c16c907e133f3a4c0faf149183fb"
+  },
+  {
+   "path": "client.ts",
+   "language": "ts",
+   "bytes": 18266,
+   "sha256": "d705d1ee88b56be9d1cc569b128356ed3c2de8dd3cc1da5ba503a31b690e41f3"
+  },
+  {
+   "path": "pasted-guard.ts",
+   "language": "ts",
+   "bytes": 4301,
+   "sha256": "5aaf6abf4e0e15eecc6ef52b0a8e2c9cfabbdf25419f83efbefb92ed152af26a"
+  },
+  {
+   "path": "redact-secret.ts",
+   "language": "ts",
+   "bytes": 1495,
+   "sha256": "f8554f06b4aa8b811f35eebccd94107c4374d5eb84b8a054ea3325e1b355b349"
+  },
+  {
+   "path": "roles/adversary.ts",
+   "language": "ts",
+   "bytes": 17588,
+   "sha256": "ed8ff604bc0e433574cc680f0a83403f5ff03078f9600ae96a6a7eaf2ca9f7ea"
+  },
+  {
+   "path": "roles/claimant-bets.ts",
+   "language": "ts",
+   "bytes": 13215,
+   "sha256": "9a75ffa7650ee9b4ebc74afbffd6b25da633c5d0b40f1aff457a86edeb977f67"
+  },
+  {
+   "path": "roles/claimant.ts",
+   "language": "ts",
+   "bytes": 20026,
+   "sha256": "7bf32d67d383c73537fb726bca69206c528caadcd2f7b7bdfe0a5b7d77bf9034"
+  },
+  {
+   "path": "roles/fixer.ts",
+   "language": "ts",
+   "bytes": 33330,
+   "sha256": "67d5744c26affbbded06e05b425d8c093f152b71321069eea68d9838a000ba0f"
+  },
+  {
+   "path": "roles/fixture-finding.ts",
+   "language": "ts",
+   "bytes": 3900,
+   "sha256": "b94ba3247aa2d458268193b4ab74037d2d1d1044ae5ef3acba65567d0156f2d3"
+  },
+  {
+   "path": "roles/investigator.ts",
+   "language": "ts",
+   "bytes": 18759,
+   "sha256": "19af58c6f42576a7ee53ed5f852a74e5ac2c3ec83e4096905819e4f31585e4c9"
+  },
+  {
+   "path": "roles/outliner.ts",
+   "language": "ts",
+   "bytes": 12445,
+   "sha256": "e786fc4aebbd2b3da228540024ff691a11b032f573ef5996e2647b032beefa57"
+  },
+  {
+   "path": "roles/proposer.ts",
+   "language": "ts",
+   "bytes": 9845,
+   "sha256": "8982bf12195368311523e02f8b923ff3393d6e203c4d2d92cfac916ec79f8239"
+  },
+  {
+   "path": "schemas.ts",
+   "language": "ts",
+   "bytes": 3298,
+   "sha256": "4d2e8337d0015ea9cab61491ea453458c1462c64386984abceafd86cad486fbc"
+  }
+ ],
+ "skipped": [],
+ "codeMap": {
+  "version": 1,
+  "files": [
+   {
+    "path": "budget.ts",
+    "language": "ts",
+    "lines": 148,
+    "symbols": [
+     {
+      "id": "budget.ts#DEFAULT_CALLS_PER_HOUR",
+      "name": "DEFAULT_CALLS_PER_HOUR",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 17,
+      "lineEnd": 17
+     },
+     {
+      "id": "budget.ts#DEFAULT_EXPERIMENTS_PER_SESSION",
+      "name": "DEFAULT_EXPERIMENTS_PER_SESSION",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 18,
+      "lineEnd": 18
+     },
+     {
+      "id": "budget.ts#DEFAULT_SPEND_CEILING_USD",
+      "name": "DEFAULT_SPEND_CEILING_USD",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 19,
+      "lineEnd": 19
+     },
+     {
+      "id": "budget.ts#HOUR_MS",
+      "name": "HOUR_MS",
+      "kind": "variable",
+      "exported": false,
+      "lineStart": 20,
+      "lineEnd": 20
+     },
+     {
+      "id": "budget.ts#createModelBudget",
+      "name": "createModelBudget",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 49,
+      "lineEnd": 117,
+      "signature": "export function createModelBudget(opts: BudgetOptions = {}): ModelBudget",
+      "params": [
+       "opts: BudgetOptions = {}"
+      ],
+      "returns": "ModelBudget"
+     },
+     {
+      "id": "budget.ts#readUsageTotal",
+      "name": "readUsageTotal",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 123,
+      "lineEnd": 141,
+      "signature": "export function readUsageTotal(path: string): { usd: number; lines: number; skipped: number }",
+      "params": [
+       "path: string"
+      ],
+      "returns": "{ usd: number; lines: number; skipped: number }"
+     },
+     {
+      "id": "budget.ts#envNumber",
+      "name": "envNumber",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 144,
+      "lineEnd": 148,
+      "signature": "export function envNumber(value: string | undefined, fallback: number): number",
+      "params": [
+       "value: string | undefined",
+       "fallback: number"
+      ],
+      "returns": "number"
+     }
+    ],
+    "imports": [
+     {
+      "line": 13,
+      "specifier": "node:fs",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "existsSync",
+        "local": "existsSync"
+       },
+       {
+        "imported": "readFileSync",
+        "local": "readFileSync"
+       }
+      ],
+      "target": {
+       "kind": "external",
+       "name": "node:fs"
+      }
+     },
+     {
+      "line": 14,
+      "specifier": "./client",
+      "kind": "type-only",
+      "names": [
+       {
+        "imported": "ChatArgs",
+        "local": "ChatArgs"
+       },
+       {
+        "imported": "ChatResult",
+        "local": "ChatResult"
+       }
+      ],
+      "target": {
+       "kind": "file",
+       "path": "client.ts"
+      }
+     },
+     {
+      "line": 15,
+      "specifier": "./pasted-guard",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "estimatedCallUsd",
+        "local": "estimatedCallUsd"
+       }
+      ],
+      "target": {
+       "kind": "file",
+       "path": "pasted-guard.ts"
+      }
+     }
+    ],
+    "parseNotes": []
+   },
+   {
+    "path": "client.ts",
+    "language": "ts",
+    "lines": 364,
+    "symbols": [
+     {
+      "id": "client.ts#META_BASE_URL",
+      "name": "META_BASE_URL",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 29,
+      "lineEnd": 29
+     },
+     {
+      "id": "client.ts#BASETEN_BASE_URL",
+      "name": "BASETEN_BASE_URL",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 31,
+      "lineEnd": 31
+     },
+     {
+      "id": "client.ts#DEFAULT_MAX_TOKENS",
+      "name": "DEFAULT_MAX_TOKENS",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 32,
+      "lineEnd": 32
+     },
+     {
+      "id": "client.ts#RETRY_MAX_TOKENS",
+      "name": "RETRY_MAX_TOKENS",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 33,
+      "lineEnd": 33
+     },
+     {
+      "id": "client.ts#DEFAULT_TIMEOUT_MS",
+      "name": "DEFAULT_TIMEOUT_MS",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 34,
+      "lineEnd": 34
+     },
+     {
+      "id": "client.ts#WONDER_PRICE",
+      "name": "WONDER_PRICE",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 43,
+      "lineEnd": 43
+     },
+     {
+      "id": "client.ts#SPARK_PRICE_UNVERIFIED",
+      "name": "SPARK_PRICE_UNVERIFIED",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 50,
+      "lineEnd": 50
+     },
+     {
+      "id": "client.ts#SPARK_OPEN_PRICE",
+      "name": "SPARK_OPEN_PRICE",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 56,
+      "lineEnd": 56
+     },
+     {
+      "id": "client.ts#PRICES",
+      "name": "PRICES",
+      "kind": "variable",
+      "exported": false,
+      "lineStart": 59,
+      "lineEnd": 63
+     },
+     {
+      "id": "client.ts#providerFor",
+      "name": "providerFor",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 67,
+      "lineEnd": 67,
+      "signature": "export const providerFor = (model: string): Provider",
+      "params": [
+       "model: string"
+      ],
+      "returns": "Provider"
+     },
+     {
+      "id": "client.ts#priceFor",
+      "name": "priceFor",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 69,
+      "lineEnd": 72,
+      "signature": "export function priceFor(model: string): { price: Price; verified: boolean }",
+      "params": [
+       "model: string"
+      ],
+      "returns": "{ price: Price; verified: boolean }"
+     },
+     {
+      "id": "client.ts#REPO_ROOT",
+      "name": "REPO_ROOT",
+      "kind": "variable",
+      "exported": false,
+      "lineStart": 112,
+      "lineEnd": 112
+     },
+     {
+      "id": "client.ts#DEFAULT_USAGE_PATH",
+      "name": "DEFAULT_USAGE_PATH",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 113,
+      "lineEnd": 113
+     },
+     {
+      "id": "client.ts#loadApiKey",
+      "name": "loadApiKey",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 116,
+      "lineEnd": 122,
+      "signature": "export function loadApiKey(): string | undefined",
+      "params": [],
+      "returns": "string | undefined"
+     },
+     {
+      "id": "client.ts#loadBasetenKey",
+      "name": "loadBasetenKey",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 125,
+      "lineEnd": 131,
+      "signature": "export function loadBasetenKey(): string | undefined",
+      "params": [],
+      "returns": "string | undefined"
+     },
+     {
+      "id": "client.ts#KNOWN_META_MODELS",
+      "name": "KNOWN_META_MODELS",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 137,
+      "lineEnd": 137
+     },
+     {
+      "id": "client.ts#shownModelId",
+      "name": "shownModelId",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 140,
+      "lineEnd": 140,
+      "signature": "export const shownModelId = (model: string)",
+      "params": [
+       "model: string"
+      ]
+     },
+     {
+      "id": "client.ts#modelRefusal",
+      "name": "modelRefusal",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 151,
+      "lineEnd": 159,
+      "signature": "export function modelRefusal(model: string, env: NodeJS.ProcessEnv = process.env): string | null",
+      "params": [
+       "model: string",
+       "env: NodeJS.ProcessEnv = process.env"
+      ],
+      "returns": "string | null"
+     },
+     {
+      "id": "client.ts#contributorRefusal",
+      "name": "contributorRefusal",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 162,
+      "lineEnd": 162
+     },
+     {
+      "id": "client.ts#costUsd",
+      "name": "costUsd",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 168,
+      "lineEnd": 172,
+      "signature": "export function costUsd(model: string, promptTokens: number, completionTokens: number, cachedTokens = 0): number",
+      "params": [
+       "model: string",
+       "promptTokens: number",
+       "completionTokens: number",
+       "cachedTokens = 0"
+      ],
+      "returns": "number"
+     },
+     {
+      "id": "client.ts#toUsage",
+      "name": "toUsage",
+      "kind": "function",
+      "exported": false,
+      "lineStart": 181,
+      "lineEnd": 197,
+      "signature": "function toUsage(model: string, raw: RawUsage | undefined): { usage: Usage; cachedTokens: number | null } | undefined",
+      "params": [
+       "model: string",
+       "raw: RawUsage | undefined"
+      ],
+      "returns": "{ usage: Usage; cachedTokens: number | null } | undefined"
+     },
+     {
+      "id": "client.ts#addUsage",
+      "name": "addUsage",
+      "kind": "function",
+      "exported": false,
+      "lineStart": 199,
+      "lineEnd": 209,
+      "signature": "function addUsage(a: Usage | undefined, b: Usage | undefined): Usage | undefined",
+      "params": [
+       "a: Usage | undefined",
+       "b: Usage | undefined"
+      ],
+      "returns": "Usage | undefined"
+     },
+     {
+      "id": "client.ts#scrub",
+      "name": "scrub",
+      "kind": "function",
+      "exported": false,
+      "lineStart": 212,
+      "lineEnd": 214,
+      "signature": "function scrub(text: string, key: string): string",
+      "params": [
+       "text: string",
+       "key: string"
+      ],
+      "returns": "string"
+     },
+     {
+      "id": "client.ts#responseFormatRejected",
+      "name": "responseFormatRejected",
+      "kind": "variable",
+      "exported": false,
+      "lineStart": 221,
+      "lineEnd": 221
+     },
+     {
+      "id": "client.ts#_resetResponseFormatFlag",
+      "name": "_resetResponseFormatFlag",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 222,
+      "lineEnd": 222,
+      "signature": "export function _resetResponseFormatFlag(): void",
+      "params": [],
+      "returns": "void"
+     },
+     {
+      "id": "client.ts#createMetaClient",
+      "name": "createMetaClient",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 224,
+      "lineEnd": 359,
+      "signature": "export function createMetaClient(opts: ClientOptions = {})",
+      "params": [
+       "opts: ClientOptions = {}"
+      ]
+     },
+     {
+      "id": "client.ts#chat",
+      "name": "chat",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 362,
+      "lineEnd": 364,
+      "signature": "export function chat(args: ChatArgs): Promise<ChatResult>",
+      "params": [
+       "args: ChatArgs"
+      ],
+      "returns": "Promise<ChatResult>"
+     }
+    ],
+    "imports": [
+     {
+      "line": 20,
+      "specifier": "./redact-secret",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "redactSecret",
+        "local": "redactSecret"
+       }
+      ],
+      "target": {
+       "kind": "file",
+       "path": "redact-secret.ts"
+      }
+     },
+     {
+      "line": 21,
+      "specifier": "node:fs",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "appendFileSync",
+        "local": "appendFileSync"
+       },
+       {
+        "imported": "existsSync",
+        "local": "existsSync"
+       },
+       {
+        "imported": "mkdirSync",
+        "local": "mkdirSync"
+       },
+       {
+        "imported": "readFileSync",
+        "local": "readFileSync"
+       }
+      ],
+      "target": {
+       "kind": "external",
+       "name": "node:fs"
+      }
+     },
+     {
+      "line": 22,
+      "specifier": "node:os",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "homedir",
+        "local": "homedir"
+       }
+      ],
+      "target": {
+       "kind": "external",
+       "name": "node:os"
+      }
+     },
+     {
+      "line": 23,
+      "specifier": "node:path",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "dirname",
+        "local": "dirname"
+       },
+       {
+        "imported": "join",
+        "local": "join"
+       }
+      ],
+      "target": {
+       "kind": "external",
+       "name": "node:path"
+      }
+     },
+     {
+      "line": 24,
+      "specifier": "node:url",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "fileURLToPath",
+        "local": "fileURLToPath"
+       }
+      ],
+      "target": {
+       "kind": "external",
+       "name": "node:url"
+      }
+     },
+     {
+      "line": 25,
+      "specifier": "../../src/types",
+      "kind": "type-only",
+      "names": [
+       {
+        "imported": "AgentEvent",
+        "local": "AgentEvent"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../src/types\" points outside the codebase"
+      }
+     },
+     {
+      "line": 26,
+      "specifier": "../../src/claimants",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "SPARK_OPEN_MODEL",
+        "local": "SPARK_OPEN_MODEL"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../src/claimants\" points outside the codebase"
+      }
+     },
+     {
+      "line": 27,
+      "specifier": "../../src/cost",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "priceConfirmed",
+        "local": "priceConfirmed"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../src/cost\" points outside the codebase"
+      }
+     }
+    ],
+    "parseNotes": []
+   },
+   {
+    "path": "pasted-guard.ts",
+    "language": "ts",
+    "lines": 73,
+    "symbols": [
+     {
+      "id": "pasted-guard.ts#MAX_PASTED_PROMPT_CHARS",
+      "name": "MAX_PASTED_PROMPT_CHARS",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 16,
+      "lineEnd": 16
+     },
+     {
+      "id": "pasted-guard.ts#MAX_PASTED_CALL_USD",
+      "name": "MAX_PASTED_CALL_USD",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 21,
+      "lineEnd": 21
+     },
+     {
+      "id": "pasted-guard.ts#estimatedCallUsd",
+      "name": "estimatedCallUsd",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 24,
+      "lineEnd": 29,
+      "signature": "export function estimatedCallUsd(args: Pick<ChatArgs, \"model\" | \"messages\" | \"maxTokens\">): number",
+      "params": [
+       "args: Pick<ChatArgs, \"model\" | \"messages\" | \"maxTokens\">"
+      ],
+      "returns": "number"
+     },
+     {
+      "id": "pasted-guard.ts#codeModelRefusal",
+      "name": "codeModelRefusal",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 35,
+      "lineEnd": 41,
+      "signature": "export function codeModelRefusal(model: string, what = \"code\"): string | null",
+      "params": [
+       "model: string",
+       "what = \"code\""
+      ],
+      "returns": "string | null"
+     },
+     {
+      "id": "pasted-guard.ts#pastedCodeModelRefusal",
+      "name": "pastedCodeModelRefusal",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 44,
+      "lineEnd": 44,
+      "signature": "export const pastedCodeModelRefusal = (model: string): string | null",
+      "params": [
+       "model: string"
+      ],
+      "returns": "string | null"
+     },
+     {
+      "id": "pasted-guard.ts#guardCodeChat",
+      "name": "guardCodeChat",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 58,
+      "lineEnd": 68,
+      "signature": "export function guardCodeChat(chat: (args: ChatArgs) => Promise<ChatResult>, limits: CodeGuardLimits): (args: ChatArgs) => Promise<ChatResult>",
+      "params": [
+       "chat: (args: ChatArgs) => Promise<ChatResult>",
+       "limits: CodeGuardLimits"
+      ],
+      "returns": "(args: ChatArgs) => Promise<ChatResult>"
+     },
+     {
+      "id": "pasted-guard.ts#guardPastedChat",
+      "name": "guardPastedChat",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 71,
+      "lineEnd": 73,
+      "signature": "export function guardPastedChat(chat: (args: ChatArgs) => Promise<ChatResult>): (args: ChatArgs) => Promise<ChatResult>",
+      "params": [
+       "chat: (args: ChatArgs) => Promise<ChatResult>"
+      ],
+      "returns": "(args: ChatArgs) => Promise<ChatResult>"
+     }
+    ],
+    "imports": [
+     {
+      "line": 10,
+      "specifier": "./client",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "DEFAULT_MAX_TOKENS",
+        "local": "DEFAULT_MAX_TOKENS"
+       },
+       {
+        "imported": "RETRY_MAX_TOKENS",
+        "local": "RETRY_MAX_TOKENS"
+       },
+       {
+        "imported": "modelRefusal",
+        "local": "modelRefusal"
+       },
+       {
+        "imported": "priceFor",
+        "local": "priceFor"
+       },
+       {
+        "imported": "shownModelId",
+        "local": "shownModelId"
+       },
+       {
+        "imported": "ChatArgs",
+        "local": "ChatArgs"
+       },
+       {
+        "imported": "ChatResult",
+        "local": "ChatResult"
+       }
+      ],
+      "target": {
+       "kind": "file",
+       "path": "client.ts"
+      }
+     }
+    ],
+    "parseNotes": []
+   },
+   {
+    "path": "redact-secret.ts",
+    "language": "ts",
+    "lines": 36,
+    "symbols": [
+     {
+      "id": "redact-secret.ts#MIN_SECRET_PIECE",
+      "name": "MIN_SECRET_PIECE",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 8,
+      "lineEnd": 8
+     },
+     {
+      "id": "redact-secret.ts#redactSecret",
+      "name": "redactSecret",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 10,
+      "lineEnd": 36,
+      "signature": "export function redactSecret(text: string, secret: string | undefined, mark = \"[redacted]\"): string",
+      "params": [
+       "text: string",
+       "secret: string | undefined",
+       "mark = \"[redacted]\""
+      ],
+      "returns": "string"
+     }
+    ],
+    "imports": [],
+    "parseNotes": []
+   },
+   {
+    "path": "roles/adversary.ts",
+    "language": "ts",
+    "lines": 339,
+    "symbols": [
+     {
+      "id": "roles/adversary.ts#ADVERSARY_MODEL",
+      "name": "ADVERSARY_MODEL",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 33,
+      "lineEnd": 33
+     },
+     {
+      "id": "roles/adversary.ts#MAX_TRACE_EVENTS",
+      "name": "MAX_TRACE_EVENTS",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 36,
+      "lineEnd": 36
+     },
+     {
+      "id": "roles/adversary.ts#MAX_TRACE_EVENT_CHARS",
+      "name": "MAX_TRACE_EVENT_CHARS",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 38,
+      "lineEnd": 38
+     },
+     {
+      "id": "roles/adversary.ts#ADVERSARY_TASK",
+      "name": "ADVERSARY_TASK",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 40,
+      "lineEnd": 41
+     },
+     {
+      "id": "roles/adversary.ts#judgeableShapes",
+      "name": "judgeableShapes",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 100,
+      "lineEnd": 116,
+      "signature": "export function judgeableShapes(ctx: GateContext): string[]",
+      "params": [
+       "ctx: GateContext"
+      ],
+      "returns": "string[]"
+     },
+     {
+      "id": "roles/adversary.ts#cut",
+      "name": "cut",
+      "kind": "function",
+      "exported": false,
+      "lineStart": 118,
+      "lineEnd": 118,
+      "signature": "const cut = (s: string, max: number)",
+      "params": [
+       "s: string",
+       "max: number"
+      ]
+     },
+     {
+      "id": "roles/adversary.ts#buildAdversaryMessages",
+      "name": "buildAdversaryMessages",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 120,
+      "lineEnd": 173,
+      "signature": "export function buildAdversaryMessages(input: AdversaryInput): ChatMessage[]",
+      "params": [
+       "input: AdversaryInput"
+      ],
+      "returns": "ChatMessage[]"
+     },
+     {
+      "id": "roles/adversary.ts#gateWords",
+      "name": "gateWords",
+      "kind": "function",
+      "exported": false,
+      "lineStart": 178,
+      "lineEnd": 187,
+      "signature": "function gateWords(ctx: GateContext): Set<string>",
+      "params": [
+       "ctx: GateContext"
+      ],
+      "returns": "Set<string>"
+     },
+     {
+      "id": "roles/adversary.ts#MODEL_VALUE_PLACEHOLDER",
+      "name": "MODEL_VALUE_PLACEHOLDER",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 190,
+      "lineEnd": 190
+     },
+     {
+      "id": "roles/adversary.ts#safeGateReason",
+      "name": "safeGateReason",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 198,
+      "lineEnd": 230,
+      "signature": "export function safeGateReason(reason: string, ctx: GateContext): string",
+      "params": [
+       "reason: string",
+       "ctx: GateContext"
+      ],
+      "returns": "string"
+     },
+     {
+      "id": "roles/adversary.ts#validateAdversaryOutput",
+      "name": "validateAdversaryOutput",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 237,
+      "lineEnd": 259,
+      "signature": "export function validateAdversaryOutput(content: string, ctx: GateContext, alreadyRun: readonly ExperimentShape[], fn: FunctionDefaults = {}): AdversaryValidation",
+      "params": [
+       "content: string",
+       "ctx: GateContext",
+       "alreadyRun: readonly ExperimentShape[]",
+       "fn: FunctionDefaults = {}"
+      ],
+      "returns": "AdversaryValidation"
+     },
+     {
+      "id": "roles/adversary.ts#runAdversary",
+      "name": "runAdversary",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 263,
+      "lineEnd": 338,
+      "signature": "export async function runAdversary(input: AdversaryInput, deps: AdversaryDeps = {}): Promise<AdversaryResult>",
+      "params": [
+       "input: AdversaryInput",
+       "deps: AdversaryDeps = {}"
+      ],
+      "returns": "Promise<AdversaryResult>"
+     }
+    ],
+    "imports": [
+     {
+      "line": 23,
+      "specifier": "nanoid",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "nanoid",
+        "local": "nanoid"
+       }
+      ],
+      "target": {
+       "kind": "external",
+       "name": "nanoid"
+      }
+     },
+     {
+      "line": 24,
+      "specifier": "../../../src/gate",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "ALL_SHAPES",
+        "local": "ALL_SHAPES"
+       },
+       {
+        "imported": "SHAPES",
+        "local": "SHAPES"
+       },
+       {
+        "imported": "gate",
+        "local": "gate"
+       },
+       {
+        "imported": "questionsFor",
+        "local": "questionsFor"
+       },
+       {
+        "imported": "renderAllowList",
+        "local": "renderAllowList"
+       },
+       {
+        "imported": "GateContext",
+        "local": "GateContext"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../src/gate\" points outside the codebase"
+      }
+     },
+     {
+      "line": 25,
+      "specifier": "../../../src/experiment-name",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "alreadyRan",
+        "local": "alreadyRan"
+       },
+       {
+        "imported": "experimentName",
+        "local": "experimentName"
+       },
+       {
+        "imported": "FunctionDefaults",
+        "local": "FunctionDefaults"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../src/experiment-name\" points outside the codebase"
+      }
+     },
+     {
+      "line": 26,
+      "specifier": "../../../src/types",
+      "kind": "type-only",
+      "names": [
+       {
+        "imported": "ExperimentShape",
+        "local": "ExperimentShape"
+       },
+       {
+        "imported": "Finding",
+        "local": "Finding"
+       },
+       {
+        "imported": "Run",
+        "local": "Run"
+       },
+       {
+        "imported": "Target",
+        "local": "Target"
+       },
+       {
+        "imported": "Verdict",
+        "local": "Verdict"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../src/types\" points outside the codebase"
+      }
+     },
+     {
+      "line": 27,
+      "specifier": "../client",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "chat",
+        "local": "realChat"
+       },
+       {
+        "imported": "ChatArgs",
+        "local": "ChatArgs"
+       },
+       {
+        "imported": "ChatMessage",
+        "local": "ChatMessage"
+       },
+       {
+        "imported": "ChatResult",
+        "local": "ChatResult"
+       },
+       {
+        "imported": "Usage",
+        "local": "Usage"
+       }
+      ],
+      "target": {
+       "kind": "file",
+       "path": "client.ts"
+      }
+     },
+     {
+      "line": 28,
+      "specifier": "../schemas",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "adversaryOutputSchema",
+        "local": "adversaryOutputSchema"
+       },
+       {
+        "imported": "zodReason",
+        "local": "zodReason"
+       }
+      ],
+      "target": {
+       "kind": "file",
+       "path": "schemas.ts"
+      }
+     },
+     {
+      "line": 29,
+      "specifier": "../../proofs/refusals",
+      "kind": "type-only",
+      "names": [
+       {
+        "imported": "RefusalRecord",
+        "local": "RefusalRecord"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../proofs/refusals\" points outside the codebase"
+      }
+     },
+     {
+      "line": 30,
+      "specifier": "../../log/agentlog",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "oneLine",
+        "local": "oneLine"
+       },
+       {
+        "imported": "SessionEmitter",
+        "local": "SessionEmitter"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../log/agentlog\" points outside the codebase"
+      }
+     },
+     {
+      "line": 31,
+      "specifier": "./claimant",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "COST_UNKNOWN",
+        "local": "COST_UNKNOWN"
+       },
+       {
+        "imported": "NO_USAGE",
+        "local": "NO_USAGE"
+       },
+       {
+        "imported": "SYSTEM_PREAMBLE",
+        "local": "SYSTEM_PREAMBLE"
+       },
+       {
+        "imported": "addUsage",
+        "local": "addUsage"
+       },
+       {
+        "imported": "contextRangeFor",
+        "local": "contextRangeFor"
+       },
+       {
+        "imported": "numbered",
+        "local": "numbered"
+       },
+       {
+        "imported": "repairMessage",
+        "local": "repairMessage"
+       },
+       {
+        "imported": "zodSafeReason",
+        "local": "zodSafeReason"
+       },
+       {
+        "imported": "ClaimantAttempt",
+        "local": "ClaimantAttempt"
+       }
+      ],
+      "target": {
+       "kind": "file",
+       "path": "roles/claimant.ts"
+      }
+     }
+    ],
+    "parseNotes": []
+   },
+   {
+    "path": "roles/claimant-bets.ts",
+    "language": "ts",
+    "lines": 246,
+    "symbols": [
+     {
+      "id": "roles/claimant-bets.ts#SEEN_CONTEXT_HEADING",
+      "name": "SEEN_CONTEXT_HEADING",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 92,
+      "lineEnd": 92
+     },
+     {
+      "id": "roles/claimant-bets.ts#buildBetOnlyMessages",
+      "name": "buildBetOnlyMessages",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 94,
+      "lineEnd": 135,
+      "signature": "export function buildBetOnlyMessages(input: BetOnlyInput): ChatMessage[]",
+      "params": [
+       "input: BetOnlyInput"
+      ],
+      "returns": "ChatMessage[]"
+     },
+     {
+      "id": "roles/claimant-bets.ts#buildSeenContextMessages",
+      "name": "buildSeenContextMessages",
+      "kind": "function",
+      "exported": false,
+      "lineStart": 142,
+      "lineEnd": 163,
+      "signature": "function buildSeenContextMessages(seen: string, questions: readonly Question[], instruction: string | null): ChatMessage[]",
+      "params": [
+       "seen: string",
+       "questions: readonly Question[]",
+       "instruction: string | null"
+      ],
+      "returns": "ChatMessage[]"
+     },
+     {
+      "id": "roles/claimant-bets.ts#validateBetOnlyOutput",
+      "name": "validateBetOnlyOutput",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 166,
+      "lineEnd": 178,
+      "signature": "export function validateBetOnlyOutput(content: string, questions: readonly Question[])",
+      "params": [
+       "content: string",
+       "questions: readonly Question[]"
+      ]
+     },
+     {
+      "id": "roles/claimant-bets.ts#runClaimantBets",
+      "name": "runClaimantBets",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 180,
+      "lineEnd": 236,
+      "signature": "export async function runClaimantBets(input: BetOnlyInput, deps: BetOnlyDeps = {}): Promise<BetOnlyResult>",
+      "params": [
+       "input: BetOnlyInput",
+       "deps: BetOnlyDeps = {}"
+      ],
+      "returns": "Promise<BetOnlyResult>"
+     },
+     {
+      "id": "roles/claimant-bets.ts#pastedSeenCap",
+      "name": "pastedSeenCap",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 243,
+      "lineEnd": 246,
+      "signature": "export function pastedSeenCap(questions: readonly Question[], promptCap: number): number",
+      "params": [
+       "questions: readonly Question[]",
+       "promptCap: number"
+      ],
+      "returns": "number"
+     }
+    ],
+    "imports": [
+     {
+      "line": 25,
+      "specifier": "../../../src/gate",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "renderAllowList",
+        "local": "renderAllowList"
+       },
+       {
+        "imported": "renderQuestions",
+        "local": "renderQuestions"
+       },
+       {
+        "imported": "GateContext",
+        "local": "GateContext"
+       },
+       {
+        "imported": "Question",
+        "local": "Question"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../src/gate\" points outside the codebase"
+      }
+     },
+     {
+      "line": 26,
+      "specifier": "../../../src/seal",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "sealBet",
+        "local": "sealBet"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../src/seal\" points outside the codebase"
+      }
+     },
+     {
+      "line": 27,
+      "specifier": "../../../src/types",
+      "kind": "type-only",
+      "names": [
+       {
+        "imported": "Bet",
+        "local": "Bet"
+       },
+       {
+        "imported": "BetAnswer",
+        "local": "BetAnswer"
+       },
+       {
+        "imported": "Experiment",
+        "local": "Experiment"
+       },
+       {
+        "imported": "Finding",
+        "local": "Finding"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../src/types\" points outside the codebase"
+      }
+     },
+     {
+      "line": 28,
+      "specifier": "../client",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "chat",
+        "local": "realChat"
+       },
+       {
+        "imported": "ChatArgs",
+        "local": "ChatArgs"
+       },
+       {
+        "imported": "ChatMessage",
+        "local": "ChatMessage"
+       },
+       {
+        "imported": "ChatResult",
+        "local": "ChatResult"
+       },
+       {
+        "imported": "Usage",
+        "local": "Usage"
+       }
+      ],
+      "target": {
+       "kind": "file",
+       "path": "client.ts"
+      }
+     },
+     {
+      "line": 29,
+      "specifier": "../schemas",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "claimantBetsOnlySchema",
+        "local": "claimantBetsOnlySchema"
+       },
+       {
+        "imported": "zodReason",
+        "local": "zodReason"
+       }
+      ],
+      "target": {
+       "kind": "file",
+       "path": "schemas.ts"
+      }
+     },
+     {
+      "line": 30,
+      "specifier": "../../log/agentlog",
+      "kind": "type-only",
+      "names": [
+       {
+        "imported": "SessionEmitter",
+        "local": "SessionEmitter"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../log/agentlog\" points outside the codebase"
+      }
+     },
+     {
+      "line": 31,
+      "specifier": "../../log/agentlog",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "oneLine",
+        "local": "oneLine"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../log/agentlog\" points outside the codebase"
+      }
+     },
+     {
+      "line": 32,
+      "specifier": "./claimant",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "CLAIMANT_MODEL",
+        "local": "CLAIMANT_MODEL"
+       },
+       {
+        "imported": "COST_UNKNOWN",
+        "local": "COST_UNKNOWN"
+       },
+       {
+        "imported": "NO_USAGE",
+        "local": "NO_USAGE"
+       },
+       {
+        "imported": "SYSTEM_PREAMBLE",
+        "local": "SYSTEM_PREAMBLE"
+       },
+       {
+        "imported": "addUsage",
+        "local": "addUsage"
+       },
+       {
+        "imported": "zodSafeReason",
+        "local": "zodSafeReason"
+       },
+       {
+        "imported": "contextRangeFor",
+        "local": "contextRangeFor"
+       },
+       {
+        "imported": "numbered",
+        "local": "numbered"
+       },
+       {
+        "imported": "repairMessage",
+        "local": "repairMessage"
+       },
+       {
+        "imported": "validateBetsFor",
+        "local": "validateBetsFor"
+       },
+       {
+        "imported": "ClaimantAttempt",
+        "local": "ClaimantAttempt"
+       }
+      ],
+      "target": {
+       "kind": "file",
+       "path": "roles/claimant.ts"
+      }
+     },
+     {
+      "line": 33,
+      "specifier": "../../../src/words",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "plural",
+        "local": "plural"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../src/words\" points outside the codebase"
+      }
+     },
+     {
+      "line": 34,
+      "specifier": "../../../src/chain-facts",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "BET_INSTRUCTION",
+        "local": "BET_INSTRUCTION"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../src/chain-facts\" points outside the codebase"
+      }
+     },
+     {
+      "line": 40,
+      "specifier": "../../../src/claimants",
+      "kind": "re-export",
+      "names": [
+       {
+        "imported": "MODEL_DISPLAY",
+        "local": "MODEL_DISPLAY"
+       },
+       {
+        "imported": "modelDisplay",
+        "local": "modelDisplay"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../src/claimants\" points outside the codebase"
+      }
+     }
+    ],
+    "parseNotes": []
+   },
+   {
+    "path": "roles/claimant.ts",
+    "language": "ts",
+    "lines": 401,
+    "symbols": [
+     {
+      "id": "roles/claimant.ts#CLAIMANT_MODEL",
+      "name": "CLAIMANT_MODEL",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 28,
+      "lineEnd": 28
+     },
+     {
+      "id": "roles/claimant.ts#SYSTEM_PREAMBLE",
+      "name": "SYSTEM_PREAMBLE",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 31,
+      "lineEnd": 32
+     },
+     {
+      "id": "roles/claimant.ts#CONTEXT_LINES",
+      "name": "CONTEXT_LINES",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 35,
+      "lineEnd": 35
+     },
+     {
+      "id": "roles/claimant.ts#PICK_INSTRUCTION",
+      "name": "PICK_INSTRUCTION",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 42,
+      "lineEnd": 43
+     },
+     {
+      "id": "roles/claimant.ts#numbered",
+      "name": "numbered",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 94,
+      "lineEnd": 101,
+      "signature": "export function numbered(fileText: string, from: number, to: number): string",
+      "params": [
+       "fileText: string",
+       "from: number",
+       "to: number"
+      ],
+      "returns": "string"
+     },
+     {
+      "id": "roles/claimant.ts#questionsByShape",
+      "name": "questionsByShape",
+      "kind": "function",
+      "exported": false,
+      "lineStart": 104,
+      "lineEnd": 116,
+      "signature": "function questionsByShape(ctx: GateContext): { shape: string; questions: Question[] }[]",
+      "params": [
+       "ctx: GateContext"
+      ],
+      "returns": "{ shape: string; questions: Question[] }[]"
+     },
+     {
+      "id": "roles/claimant.ts#contextRangeFor",
+      "name": "contextRangeFor",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 122,
+      "lineEnd": 127,
+      "signature": "export function contextRangeFor(input: Pick<ClaimantInput, \"finding\" | \"fileText\" | \"contextRange\">): { from: number; to: number }",
+      "params": [
+       "input: Pick<ClaimantInput, \"finding\" | \"fileText\" | \"contextRange\">"
+      ],
+      "returns": "{ from: number; to: number }"
+     },
+     {
+      "id": "roles/claimant.ts#buildClaimantMessages",
+      "name": "buildClaimantMessages",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 129,
+      "lineEnd": 165,
+      "signature": "export function buildClaimantMessages(input: ClaimantInput): ChatMessage[]",
+      "params": [
+       "input: ClaimantInput"
+      ],
+      "returns": "ChatMessage[]"
+     },
+     {
+      "id": "roles/claimant.ts#repairMessage",
+      "name": "repairMessage",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 167,
+      "lineEnd": 167,
+      "signature": "export const repairMessage = (error: string): string",
+      "params": [
+       "error: string"
+      ],
+      "returns": "string"
+     },
+     {
+      "id": "roles/claimant.ts#zodSafeReason",
+      "name": "zodSafeReason",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 176,
+      "lineEnd": 181,
+      "signature": "export function zodSafeReason(err: { issues: readonly { path: readonly PropertyKey[]; code: string }[] }): string",
+      "params": [
+       "err: { issues: readonly { path: readonly PropertyKey[]; code: string }[] }"
+      ],
+      "returns": "string"
+     },
+     {
+      "id": "roles/claimant.ts#checkAnswer",
+      "name": "checkAnswer",
+      "kind": "function",
+      "exported": false,
+      "lineStart": 193,
+      "lineEnd": 221,
+      "signature": "function checkAnswer(q: Question, a: BetAnswer): AnswerProblem | undefined",
+      "params": [
+       "q: Question",
+       "a: BetAnswer"
+      ],
+      "returns": "AnswerProblem | undefined"
+     },
+     {
+      "id": "roles/claimant.ts#validateClaimantOutput",
+      "name": "validateClaimantOutput",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 224,
+      "lineEnd": 248,
+      "signature": "export function validateClaimantOutput(content: string, ctx: GateContext): Validation",
+      "params": [
+       "content: string",
+       "ctx: GateContext"
+      ],
+      "returns": "Validation"
+     },
+     {
+      "id": "roles/claimant.ts#validateBetsFor",
+      "name": "validateBetsFor",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 254,
+      "lineEnd": 290,
+      "signature": "export function validateBetsFor( questions: readonly Question[], modelBets: readonly ClaimantBetOut[], ): { ok: true; bets: { question: Question; out: ClaimantBetOut }[] } | { ok: false; error: strin…",
+      "params": [
+       "questions: readonly Question[]",
+       "modelBets: readonly ClaimantBetOut[]"
+      ],
+      "returns": "{ ok: true; bets: { question: Question; out: ClaimantBetOut }[] } | { ok: false; error: string; safe: string }"
+     },
+     {
+      "id": "roles/claimant.ts#addUsage",
+      "name": "addUsage",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 294,
+      "lineEnd": 304,
+      "signature": "export function addUsage(a: Usage | undefined, b: Usage | undefined): Usage | undefined",
+      "params": [
+       "a: Usage | undefined",
+       "b: Usage | undefined"
+      ],
+      "returns": "Usage | undefined"
+     },
+     {
+      "id": "roles/claimant.ts#NO_USAGE",
+      "name": "NO_USAGE",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 307,
+      "lineEnd": 307
+     },
+     {
+      "id": "roles/claimant.ts#COST_UNKNOWN",
+      "name": "COST_UNKNOWN",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 308,
+      "lineEnd": 308
+     },
+     {
+      "id": "roles/claimant.ts#runClaimant",
+      "name": "runClaimant",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 310,
+      "lineEnd": 401,
+      "signature": "export async function runClaimant(input: ClaimantInput, deps: ClaimantDeps = {}): Promise<ClaimantResult>",
+      "params": [
+       "input: ClaimantInput",
+       "deps: ClaimantDeps = {}"
+      ],
+      "returns": "Promise<ClaimantResult>"
+     }
+    ],
+    "imports": [
+     {
+      "line": 17,
+      "specifier": "nanoid",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "nanoid",
+        "local": "nanoid"
+       }
+      ],
+      "target": {
+       "kind": "external",
+       "name": "nanoid"
+      }
+     },
+     {
+      "line": 18,
+      "specifier": "../../../src/gate",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "gate",
+        "local": "gate"
+       },
+       {
+        "imported": "questionsFor",
+        "local": "questionsFor"
+       },
+       {
+        "imported": "renderAllowList",
+        "local": "renderAllowList"
+       },
+       {
+        "imported": "renderQuestions",
+        "local": "renderQuestions"
+       },
+       {
+        "imported": "GateContext",
+        "local": "GateContext"
+       },
+       {
+        "imported": "Question",
+        "local": "Question"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../src/gate\" points outside the codebase"
+      }
+     },
+     {
+      "line": 19,
+      "specifier": "../../../src/seal",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "jsonBetValueProblem",
+        "local": "jsonBetValueProblem"
+       },
+       {
+        "imported": "sealBet",
+        "local": "sealBet"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../src/seal\" points outside the codebase"
+      }
+     },
+     {
+      "line": 20,
+      "specifier": "../../../src/types",
+      "kind": "type-only",
+      "names": [
+       {
+        "imported": "AgentEvent",
+        "local": "AgentEvent"
+       },
+       {
+        "imported": "Bet",
+        "local": "Bet"
+       },
+       {
+        "imported": "BetAnswer",
+        "local": "BetAnswer"
+       },
+       {
+        "imported": "Experiment",
+        "local": "Experiment"
+       },
+       {
+        "imported": "ExperimentShape",
+        "local": "ExperimentShape"
+       },
+       {
+        "imported": "Finding",
+        "local": "Finding"
+       },
+       {
+        "imported": "Target",
+        "local": "Target"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../src/types\" points outside the codebase"
+      }
+     },
+     {
+      "line": 21,
+      "specifier": "../client",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "chat",
+        "local": "realChat"
+       },
+       {
+        "imported": "ChatArgs",
+        "local": "ChatArgs"
+       },
+       {
+        "imported": "ChatMessage",
+        "local": "ChatMessage"
+       },
+       {
+        "imported": "ChatResult",
+        "local": "ChatResult"
+       },
+       {
+        "imported": "Usage",
+        "local": "Usage"
+       }
+      ],
+      "target": {
+       "kind": "file",
+       "path": "client.ts"
+      }
+     },
+     {
+      "line": 22,
+      "specifier": "../schemas",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "claimantOutputSchema",
+        "local": "claimantOutputSchema"
+       },
+       {
+        "imported": "zodReason",
+        "local": "zodReason"
+       },
+       {
+        "imported": "ClaimantBetOut",
+        "local": "ClaimantBetOut"
+       }
+      ],
+      "target": {
+       "kind": "file",
+       "path": "schemas.ts"
+      }
+     },
+     {
+      "line": 23,
+      "specifier": "../../proofs/refusals",
+      "kind": "type-only",
+      "names": [
+       {
+        "imported": "RefusalRecord",
+        "local": "RefusalRecord"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../proofs/refusals\" points outside the codebase"
+      }
+     },
+     {
+      "line": 24,
+      "specifier": "../../log/agentlog",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "oneLine",
+        "local": "oneLine"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../log/agentlog\" points outside the codebase"
+      }
+     },
+     {
+      "line": 25,
+      "specifier": "./fixture-finding",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "FIXTURE_FINDING_ID",
+        "local": "FIXTURE_FINDING_ID"
+       },
+       {
+        "imported": "FIXTURE_FINDING_LABEL",
+        "local": "FIXTURE_FINDING_LABEL"
+       },
+       {
+        "imported": "fixtureContextRange",
+        "local": "fixtureContextRange"
+       }
+      ],
+      "target": {
+       "kind": "file",
+       "path": "roles/fixture-finding.ts"
+      }
+     },
+     {
+      "line": 26,
+      "specifier": "../../../src/words",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "plural",
+        "local": "plural"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../src/words\" points outside the codebase"
+      }
+     }
+    ],
+    "parseNotes": []
+   },
+   {
+    "path": "roles/fixer.ts",
+    "language": "ts",
+    "lines": 571,
+    "symbols": [
+     {
+      "id": "roles/fixer.ts#FIXER_INSTRUCTION",
+      "name": "FIXER_INSTRUCTION",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 52,
+      "lineEnd": 52
+     },
+     {
+      "id": "roles/fixer.ts#MUSE_CODE",
+      "name": "MUSE_CODE",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 54,
+      "lineEnd": 54
+     },
+     {
+      "id": "roles/fixer.ts#FIXER_FALLBACK_MODEL",
+      "name": "FIXER_FALLBACK_MODEL",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 55,
+      "lineEnd": 55
+     },
+     {
+      "id": "roles/fixer.ts#FIXER_MUSE_MODEL",
+      "name": "FIXER_MUSE_MODEL",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 60,
+      "lineEnd": 60
+     },
+     {
+      "id": "roles/fixer.ts#MUSE_BIN_DEFAULT",
+      "name": "MUSE_BIN_DEFAULT",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 62,
+      "lineEnd": 62
+     },
+     {
+      "id": "roles/fixer.ts#MUSE_TIMEOUT_MS",
+      "name": "MUSE_TIMEOUT_MS",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 63,
+      "lineEnd": 63
+     },
+     {
+      "id": "roles/fixer.ts#MUSE_MAX_STEPS",
+      "name": "MUSE_MAX_STEPS",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 69,
+      "lineEnd": 69
+     },
+     {
+      "id": "roles/fixer.ts#MUSE_MAX_TOOL_OUTPUT_BYTES",
+      "name": "MUSE_MAX_TOOL_OUTPUT_BYTES",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 71,
+      "lineEnd": 71
+     },
+     {
+      "id": "roles/fixer.ts#PREFLIGHT_PROMPT",
+      "name": "PREFLIGHT_PROMPT",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 99,
+      "lineEnd": 99
+     },
+     {
+      "id": "roles/fixer.ts#PREFLIGHT_TIMEOUT_MS",
+      "name": "PREFLIGHT_TIMEOUT_MS",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 100,
+      "lineEnd": 100
+     },
+     {
+      "id": "roles/fixer.ts#fullFile",
+      "name": "fullFile",
+      "kind": "function",
+      "exported": false,
+      "lineStart": 146,
+      "lineEnd": 148,
+      "signature": "function fullFile(path: string, text: string): string",
+      "params": [
+       "path: string",
+       "text: string"
+      ],
+      "returns": "string"
+     },
+     {
+      "id": "roles/fixer.ts#oracleNamesIn",
+      "name": "oracleNamesIn",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 155,
+      "lineEnd": 158,
+      "signature": "export function oracleNamesIn(chainsJson: string): string[]",
+      "params": [
+       "chainsJson: string"
+      ],
+      "returns": "string[]"
+     },
+     {
+      "id": "roles/fixer.ts#oracleNamesSection",
+      "name": "oracleNamesSection",
+      "kind": "function",
+      "exported": false,
+      "lineStart": 160,
+      "lineEnd": 165,
+      "signature": "function oracleNamesSection(ctx: ChangeContext): string[]",
+      "params": [
+       "ctx: ChangeContext"
+      ],
+      "returns": "string[]"
+     },
+     {
+      "id": "roles/fixer.ts#buildFixerPrompt",
+      "name": "buildFixerPrompt",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 167,
+      "lineEnd": 203,
+      "signature": "export function buildFixerPrompt(input: FixerInput): string",
+      "params": [
+       "input: FixerInput"
+      ],
+      "returns": "string"
+     },
+     {
+      "id": "roles/fixer.ts#repairPrompt",
+      "name": "repairPrompt",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 205,
+      "lineEnd": 213,
+      "signature": "export function repairPrompt(base: string, reason: string, previous: string | null): string",
+      "params": [
+       "base: string",
+       "reason: string",
+       "previous: string | null"
+      ],
+      "returns": "string"
+     },
+     {
+      "id": "roles/fixer.ts#museArgs",
+      "name": "museArgs",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 218,
+      "lineEnd": 240,
+      "signature": "export function museArgs(workspace: string, promptFile: string, maxSteps: number = MUSE_MAX_STEPS): string[]",
+      "params": [
+       "workspace: string",
+       "promptFile: string",
+       "maxSteps: number = MUSE_MAX_STEPS"
+      ],
+      "returns": "string[]"
+     },
+     {
+      "id": "roles/fixer.ts#parseMuseJsonl",
+      "name": "parseMuseJsonl",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 253,
+      "lineEnd": 292,
+      "signature": "export function parseMuseJsonl(stdout: string): MuseExecResult",
+      "params": [
+       "stdout: string"
+      ],
+      "returns": "MuseExecResult"
+     },
+     {
+      "id": "roles/fixer.ts#SANDBOX_EXEC",
+      "name": "SANDBOX_EXEC",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 306,
+      "lineEnd": 306
+     },
+     {
+      "id": "roles/fixer.ts#sbString",
+      "name": "sbString",
+      "kind": "function",
+      "exported": false,
+      "lineStart": 309,
+      "lineEnd": 309,
+      "signature": "const sbString = (p: string)",
+      "params": [
+       "p: string"
+      ]
+     },
+     {
+      "id": "roles/fixer.ts#museSandboxProfile",
+      "name": "museSandboxProfile",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 312,
+      "lineEnd": 322,
+      "signature": "export function museSandboxProfile(o: { workspace: string; home: string; museDir: string; userHome: string }): string",
+      "params": [
+       "o: { workspace: string; home: string; museDir: string; userHome: string }"
+      ],
+      "returns": "string"
+     },
+     {
+      "id": "roles/fixer.ts#osSandbox",
+      "name": "osSandbox",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 325,
+      "lineEnd": 327,
+      "signature": "export function osSandbox(): string | null",
+      "params": [],
+      "returns": "string | null"
+     },
+     {
+      "id": "roles/fixer.ts#realMuseExec",
+      "name": "realMuseExec",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 330,
+      "lineEnd": 395,
+      "signature": "export function realMuseExec(opts: { bin?: string; apiKey?: string } = {}): MuseExec",
+      "params": [
+       "opts: { bin?: string; apiKey?: string } = {}"
+      ],
+      "returns": "MuseExec"
+     },
+     {
+      "id": "roles/fixer.ts#SECRET_SHAPES",
+      "name": "SECRET_SHAPES",
+      "kind": "variable",
+      "exported": false,
+      "lineStart": 400,
+      "lineEnd": 406
+     },
+     {
+      "id": "roles/fixer.ts#ABSOLUTE_PATH",
+      "name": "ABSOLUTE_PATH",
+      "kind": "variable",
+      "exported": false,
+      "lineStart": 408,
+      "lineEnd": 408
+     },
+     {
+      "id": "roles/fixer.ts#holdsSecret",
+      "name": "holdsSecret",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 411,
+      "lineEnd": 414,
+      "signature": "export function holdsSecret(text: string, key: string | undefined = loadApiKey()): boolean",
+      "params": [
+       "text: string",
+       "key: string | undefined = loadApiKey()"
+      ],
+      "returns": "boolean"
+     },
+     {
+      "id": "roles/fixer.ts#scrubModelText",
+      "name": "scrubModelText",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 417,
+      "lineEnd": 422,
+      "signature": "export function scrubModelText(text: string, key: string | undefined = loadApiKey()): string",
+      "params": [
+       "text: string",
+       "key: string | undefined = loadApiKey()"
+      ],
+      "returns": "string"
+     },
+     {
+      "id": "roles/fixer.ts#logMuseUsage",
+      "name": "logMuseUsage",
+      "kind": "function",
+      "exported": false,
+      "lineStart": 424,
+      "lineEnd": 435,
+      "signature": "function logMuseUsage(path: string, model: string, usage: Usage, finishReason: string, now: Date): string | undefined",
+      "params": [
+       "path: string",
+       "model: string",
+       "usage: Usage",
+       "finishReason: string",
+       "now: Date"
+      ],
+      "returns": "string | undefined"
+     },
+     {
+      "id": "roles/fixer.ts#pathLabel",
+      "name": "pathLabel",
+      "kind": "function",
+      "exported": false,
+      "lineStart": 439,
+      "lineEnd": 439,
+      "signature": "const pathLabel = (p: FixerPath, model: string)",
+      "params": [
+       "p: FixerPath",
+       "model: string"
+      ]
+     },
+     {
+      "id": "roles/fixer.ts#runFixer",
+      "name": "runFixer",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 442,
+      "lineEnd": 571,
+      "signature": "export async function runFixer(input: FixerInput, deps: FixerDeps = {}): Promise<FixerResult>",
+      "params": [
+       "input: FixerInput",
+       "deps: FixerDeps = {}"
+      ],
+      "returns": "Promise<FixerResult>"
+     }
+    ],
+    "imports": [
+     {
+      "line": 35,
+      "specifier": "node:child_process",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "spawn",
+        "local": "spawn"
+       }
+      ],
+      "target": {
+       "kind": "external",
+       "name": "node:child_process"
+      }
+     },
+     {
+      "line": 36,
+      "specifier": "node:fs",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "appendFileSync",
+        "local": "appendFileSync"
+       },
+       {
+        "imported": "existsSync",
+        "local": "existsSync"
+       },
+       {
+        "imported": "mkdirSync",
+        "local": "mkdirSync"
+       },
+       {
+        "imported": "mkdtempSync",
+        "local": "mkdtempSync"
+       },
+       {
+        "imported": "realpathSync",
+        "local": "realpathSync"
+       },
+       {
+        "imported": "rmSync",
+        "local": "rmSync"
+       },
+       {
+        "imported": "writeFileSync",
+        "local": "writeFileSync"
+       }
+      ],
+      "target": {
+       "kind": "external",
+       "name": "node:fs"
+      }
+     },
+     {
+      "line": 37,
+      "specifier": "node:os",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "homedir",
+        "local": "homedir"
+       },
+       {
+        "imported": "tmpdir",
+        "local": "tmpdir"
+       }
+      ],
+      "target": {
+       "kind": "external",
+       "name": "node:os"
+      }
+     },
+     {
+      "line": 38,
+      "specifier": "node:path",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "dirname",
+        "local": "dirname"
+       },
+       {
+        "imported": "join",
+        "local": "join"
+       }
+      ],
+      "target": {
+       "kind": "external",
+       "name": "node:path"
+      }
+     },
+     {
+      "line": 39,
+      "specifier": "../../../src/diff",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "extractDiff",
+        "local": "extractDiff"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../src/diff\" points outside the codebase"
+      }
+     },
+     {
+      "line": 40,
+      "specifier": "../../../src/types",
+      "kind": "type-only",
+      "names": [
+       {
+        "imported": "Experiment",
+        "local": "Experiment"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../src/types\" points outside the codebase"
+      }
+     },
+     {
+      "line": 41,
+      "specifier": "../../../src/claimants",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "changeProposer",
+        "local": "changeProposer"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../src/claimants\" points outside the codebase"
+      }
+     },
+     {
+      "line": 42,
+      "specifier": "../redact-secret",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "redactSecret",
+        "local": "redactSecret"
+       }
+      ],
+      "target": {
+       "kind": "file",
+       "path": "redact-secret.ts"
+      }
+     },
+     {
+      "line": 43,
+      "specifier": "../../../runners/change",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "checkChange",
+        "local": "checkChange"
+       },
+       {
+        "imported": "MAX_CHANGED_LINES",
+        "local": "MAX_CHANGED_LINES"
+       },
+       {
+        "imported": "ChangeContext",
+        "local": "ChangeContext"
+       },
+       {
+        "imported": "CheckedChange",
+        "local": "CheckedChange"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../runners/change\" points outside the codebase"
+      }
+     },
+     {
+      "line": 44,
+      "specifier": "../../../runners/scratch",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "makeScratch",
+        "local": "makeScratch"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../runners/scratch\" points outside the codebase"
+      }
+     },
+     {
+      "line": 45,
+      "specifier": "../client",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "chat",
+        "local": "realChat"
+       },
+       {
+        "imported": "costUsd",
+        "local": "costUsd"
+       },
+       {
+        "imported": "DEFAULT_USAGE_PATH",
+        "local": "DEFAULT_USAGE_PATH"
+       },
+       {
+        "imported": "loadApiKey",
+        "local": "loadApiKey"
+       },
+       {
+        "imported": "modelRefusal",
+        "local": "modelRefusal"
+       },
+       {
+        "imported": "priceFor",
+        "local": "priceFor"
+       },
+       {
+        "imported": "shownModelId",
+        "local": "shownModelId"
+       },
+       {
+        "imported": "ChatArgs",
+        "local": "ChatArgs"
+       },
+       {
+        "imported": "ChatResult",
+        "local": "ChatResult"
+       },
+       {
+        "imported": "Usage",
+        "local": "Usage"
+       }
+      ],
+      "target": {
+       "kind": "file",
+       "path": "client.ts"
+      }
+     },
+     {
+      "line": 46,
+      "specifier": "../../../runners/evm/redact",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "redactRpc",
+        "local": "redactRpc"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../runners/evm/redact\" points outside the codebase"
+      }
+     },
+     {
+      "line": 47,
+      "specifier": "../../log/agentlog",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "oneLine",
+        "local": "oneLine"
+       },
+       {
+        "imported": "SessionEmitter",
+        "local": "SessionEmitter"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../log/agentlog\" points outside the codebase"
+      }
+     },
+     {
+      "line": 48,
+      "specifier": "./claimant",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "addUsage",
+        "local": "addUsage"
+       },
+       {
+        "imported": "COST_UNKNOWN",
+        "local": "COST_UNKNOWN"
+       },
+       {
+        "imported": "NO_USAGE",
+        "local": "NO_USAGE"
+       },
+       {
+        "imported": "numbered",
+        "local": "numbered"
+       }
+      ],
+      "target": {
+       "kind": "file",
+       "path": "roles/claimant.ts"
+      }
+     },
+     {
+      "line": 49,
+      "specifier": "../../../runners/ts/harness",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "DEFAULT_WATCH_LIMIT_MS",
+        "local": "DEFAULT_WATCH_LIMIT_MS"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../runners/ts/harness\" points outside the codebase"
+      }
+     },
+     {
+      "line": 50,
+      "specifier": "../../../src/words",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "lineSpan",
+        "local": "lineSpan"
+       },
+       {
+        "imported": "plural",
+        "local": "plural"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../src/words\" points outside the codebase"
+      }
+     },
+     {
+      "line": 61,
+      "specifier": "../../../src/change",
+      "kind": "re-export",
+      "names": [
+       {
+        "imported": "CHANGE_CAPTION",
+        "local": "CHANGE_CAPTION"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../src/change\" points outside the codebase"
+      }
+     },
+     {
+      "line": 142,
+      "specifier": "../../../src/change",
+      "kind": "re-export",
+      "names": [
+       {
+        "imported": "towardFromBets",
+        "local": "towardFromBets"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../src/change\" points outside the codebase"
+      }
+     }
+    ],
+    "parseNotes": []
+   },
+   {
+    "path": "roles/fixture-finding.ts",
+    "language": "ts",
+    "lines": 70,
+    "symbols": [
+     {
+      "id": "roles/fixture-finding.ts#FIXTURE_FINDING_LABEL",
+      "name": "FIXTURE_FINDING_LABEL",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 19,
+      "lineEnd": 19
+     },
+     {
+      "id": "roles/fixture-finding.ts#FIXTURE_FILE",
+      "name": "FIXTURE_FILE",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 21,
+      "lineEnd": 21
+     },
+     {
+      "id": "roles/fixture-finding.ts#FIXTURE_FINDING_ID",
+      "name": "FIXTURE_FINDING_ID",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 23,
+      "lineEnd": 23
+     },
+     {
+      "id": "roles/fixture-finding.ts#FINDING_FIELDS",
+      "name": "FINDING_FIELDS",
+      "kind": "variable",
+      "exported": false,
+      "lineStart": 25,
+      "lineEnd": 35
+     },
+     {
+      "id": "roles/fixture-finding.ts#BEGIN_MARK",
+      "name": "BEGIN_MARK",
+      "kind": "variable",
+      "exported": false,
+      "lineStart": 37,
+      "lineEnd": 37
+     },
+     {
+      "id": "roles/fixture-finding.ts#END_MARK",
+      "name": "END_MARK",
+      "kind": "variable",
+      "exported": false,
+      "lineStart": 38,
+      "lineEnd": 38
+     },
+     {
+      "id": "roles/fixture-finding.ts#fixtureContextRange",
+      "name": "fixtureContextRange",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 46,
+      "lineEnd": 53,
+      "signature": "export function fixtureContextRange(fileText: string): { from: number; to: number } | undefined",
+      "params": [
+       "fileText: string"
+      ],
+      "returns": "{ from: number; to: number } | undefined"
+     },
+     {
+      "id": "roles/fixture-finding.ts#squash",
+      "name": "squash",
+      "kind": "function",
+      "exported": false,
+      "lineStart": 55,
+      "lineEnd": 55,
+      "signature": "const squash = (s: string)",
+      "params": [
+       "s: string"
+      ]
+     },
+     {
+      "id": "roles/fixture-finding.ts#snippetMatches",
+      "name": "snippetMatches",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 58,
+      "lineEnd": 65,
+      "signature": "export function snippetMatches(fileText: string, f: Pick<Finding, \"lineStart\" | \"lineEnd\" | \"quotedSnippet\">): boolean",
+      "params": [
+       "fileText: string",
+       "f: Pick<Finding, \"lineStart\" | \"lineEnd\" | \"quotedSnippet\">"
+      ],
+      "returns": "boolean"
+     },
+     {
+      "id": "roles/fixture-finding.ts#fixtureFinding",
+      "name": "fixtureFinding",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 68,
+      "lineEnd": 70,
+      "signature": "export function fixtureFinding(fileText: string): Finding",
+      "params": [
+       "fileText: string"
+      ],
+      "returns": "Finding"
+     }
+    ],
+    "imports": [
+     {
+      "line": 17,
+      "specifier": "../../../src/types",
+      "kind": "type-only",
+      "names": [
+       {
+        "imported": "Finding",
+        "local": "Finding"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../src/types\" points outside the codebase"
+      }
+     }
+    ],
+    "parseNotes": []
+   },
+   {
+    "path": "roles/investigator.ts",
+    "language": "ts",
+    "lines": 378,
+    "symbols": [
+     {
+      "id": "roles/investigator.ts#INVESTIGATOR_MODEL",
+      "name": "INVESTIGATOR_MODEL",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 26,
+      "lineEnd": 26
+     },
+     {
+      "id": "roles/investigator.ts#INVESTIGATOR_FALLBACK_MODEL",
+      "name": "INVESTIGATOR_FALLBACK_MODEL",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 27,
+      "lineEnd": 27
+     },
+     {
+      "id": "roles/investigator.ts#MAX_FINDINGS",
+      "name": "MAX_FINDINGS",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 28,
+      "lineEnd": 28
+     },
+     {
+      "id": "roles/investigator.ts#MAX_SPAN",
+      "name": "MAX_SPAN",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 30,
+      "lineEnd": 30
+     },
+     {
+      "id": "roles/investigator.ts#MIN_QUOTE_WORD_CHARS",
+      "name": "MIN_QUOTE_WORD_CHARS",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 35,
+      "lineEnd": 35
+     },
+     {
+      "id": "roles/investigator.ts#MEDIUM_EFFORT_ABOVE_TOKENS",
+      "name": "MEDIUM_EFFORT_ABOVE_TOKENS",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 37,
+      "lineEnd": 37
+     },
+     {
+      "id": "roles/investigator.ts#INVESTIGATE_INSTRUCTION",
+      "name": "INVESTIGATE_INSTRUCTION",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 39,
+      "lineEnd": 42
+     },
+     {
+      "id": "roles/investigator.ts#KINDS",
+      "name": "KINDS",
+      "kind": "variable",
+      "exported": false,
+      "lineStart": 44,
+      "lineEnd": 44
+     },
+     {
+      "id": "roles/investigator.ts#renderFiles",
+      "name": "renderFiles",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 115,
+      "lineEnd": 122,
+      "signature": "export function renderFiles(files: readonly InvestigatorFile[]): string",
+      "params": [
+       "files: readonly InvestigatorFile[]"
+      ],
+      "returns": "string"
+     },
+     {
+      "id": "roles/investigator.ts#buildInvestigatorMessages",
+      "name": "buildInvestigatorMessages",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 124,
+      "lineEnd": 156,
+      "signature": "export function buildInvestigatorMessages(input: InvestigatorInput): ChatMessage[]",
+      "params": [
+       "input: InvestigatorInput"
+      ],
+      "returns": "ChatMessage[]"
+     },
+     {
+      "id": "roles/investigator.ts#CHARS_PER_TOKEN",
+      "name": "CHARS_PER_TOKEN",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 164,
+      "lineEnd": 164
+     },
+     {
+      "id": "roles/investigator.ts#estimateTokens",
+      "name": "estimateTokens",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 165,
+      "lineEnd": 166,
+      "signature": "export const estimateTokens = (messages: readonly ChatMessage[]): number",
+      "params": [
+       "messages: readonly ChatMessage[]"
+      ],
+      "returns": "number"
+     },
+     {
+      "id": "roles/investigator.ts#effortFor",
+      "name": "effortFor",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 168,
+      "lineEnd": 169,
+      "signature": "export const effortFor = (messages: readonly ChatMessage[]): \"low\" | \"medium\"",
+      "params": [
+       "messages: readonly ChatMessage[]"
+      ],
+      "returns": "\"low\" | \"medium\""
+     },
+     {
+      "id": "roles/investigator.ts#answerSchema",
+      "name": "answerSchema",
+      "kind": "variable",
+      "exported": false,
+      "lineStart": 173,
+      "lineEnd": 173
+     },
+     {
+      "id": "roles/investigator.ts#findingSchema",
+      "name": "findingSchema",
+      "kind": "variable",
+      "exported": false,
+      "lineStart": 174,
+      "lineEnd": 181
+     },
+     {
+      "id": "roles/investigator.ts#LINES_DID_NOT_MATCH",
+      "name": "LINES_DID_NOT_MATCH",
+      "kind": "variable",
+      "exported": false,
+      "lineStart": 192,
+      "lineEnd": 192
+     },
+     {
+      "id": "roles/investigator.ts#checkFinding",
+      "name": "checkFinding",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 195,
+      "lineEnd": 218,
+      "signature": "export function checkFinding(raw: unknown, files: ReadonlyMap<string, string>): FindingCheck",
+      "params": [
+       "raw: unknown",
+       "files: ReadonlyMap<string, string>"
+      ],
+      "returns": "FindingCheck"
+     },
+     {
+      "id": "roles/investigator.ts#checkAnswer",
+      "name": "checkAnswer",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 228,
+      "lineEnd": 272,
+      "signature": "export function checkAnswer(content: string, files: ReadonlyMap<string, string>): AnswerCheck",
+      "params": [
+       "content: string",
+       "files: ReadonlyMap<string, string>"
+      ],
+      "returns": "AnswerCheck"
+     },
+     {
+      "id": "roles/investigator.ts#allDroppedError",
+      "name": "allDroppedError",
+      "kind": "function",
+      "exported": false,
+      "lineStart": 275,
+      "lineEnd": 278,
+      "signature": "function allDroppedError(dropped: AnswerCheck[\"dropped\"]): string",
+      "params": [
+       "dropped: AnswerCheck[\"dropped\"]"
+      ],
+      "returns": "string"
+     },
+     {
+      "id": "roles/investigator.ts#isLimit",
+      "name": "isLimit",
+      "kind": "function",
+      "exported": false,
+      "lineStart": 283,
+      "lineEnd": 283,
+      "signature": "const isLimit = (reason: string)",
+      "params": [
+       "reason: string"
+      ]
+     },
+     {
+      "id": "roles/investigator.ts#runInvestigator",
+      "name": "runInvestigator",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 285,
+      "lineEnd": 378,
+      "signature": "export async function runInvestigator(input: InvestigatorInput, deps: InvestigatorDeps = {}): Promise<InvestigatorResult>",
+      "params": [
+       "input: InvestigatorInput",
+       "deps: InvestigatorDeps = {}"
+      ],
+      "returns": "Promise<InvestigatorResult>"
+     }
+    ],
+    "imports": [
+     {
+      "line": 16,
+      "specifier": "nanoid",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "nanoid",
+        "local": "nanoid"
+       }
+      ],
+      "target": {
+       "kind": "external",
+       "name": "nanoid"
+      }
+     },
+     {
+      "line": 17,
+      "specifier": "zod",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "z",
+        "local": "z"
+       }
+      ],
+      "target": {
+       "kind": "external",
+       "name": "zod"
+      }
+     },
+     {
+      "line": 18,
+      "specifier": "../../../src/types",
+      "kind": "type-only",
+      "names": [
+       {
+        "imported": "Finding",
+        "local": "Finding"
+       },
+       {
+        "imported": "FindingKind",
+        "local": "FindingKind"
+       },
+       {
+        "imported": "Target",
+        "local": "Target"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../src/types\" points outside the codebase"
+      }
+     },
+     {
+      "line": 19,
+      "specifier": "../client",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "chat",
+        "local": "realChat"
+       },
+       {
+        "imported": "ChatArgs",
+        "local": "ChatArgs"
+       },
+       {
+        "imported": "ChatMessage",
+        "local": "ChatMessage"
+       },
+       {
+        "imported": "ChatResult",
+        "local": "ChatResult"
+       },
+       {
+        "imported": "Usage",
+        "local": "Usage"
+       }
+      ],
+      "target": {
+       "kind": "file",
+       "path": "client.ts"
+      }
+     },
+     {
+      "line": 20,
+      "specifier": "../../log/agentlog",
+      "kind": "type-only",
+      "names": [
+       {
+        "imported": "SessionEmitter",
+        "local": "SessionEmitter"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../log/agentlog\" points outside the codebase"
+      }
+     },
+     {
+      "line": 21,
+      "specifier": "../../log/agentlog",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "oneLine",
+        "local": "oneLine"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../log/agentlog\" points outside the codebase"
+      }
+     },
+     {
+      "line": 22,
+      "specifier": "../../targets/github",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "countLines",
+        "local": "countLines"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../targets/github\" points outside the codebase"
+      }
+     },
+     {
+      "line": 23,
+      "specifier": "./claimant",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "COST_UNKNOWN",
+        "local": "COST_UNKNOWN"
+       },
+       {
+        "imported": "NO_USAGE",
+        "local": "NO_USAGE"
+       },
+       {
+        "imported": "SYSTEM_PREAMBLE",
+        "local": "SYSTEM_PREAMBLE"
+       },
+       {
+        "imported": "addUsage",
+        "local": "addUsage"
+       },
+       {
+        "imported": "numbered",
+        "local": "numbered"
+       },
+       {
+        "imported": "repairMessage",
+        "local": "repairMessage"
+       },
+       {
+        "imported": "zodSafeReason",
+        "local": "zodSafeReason"
+       }
+      ],
+      "target": {
+       "kind": "file",
+       "path": "roles/claimant.ts"
+      }
+     },
+     {
+      "line": 24,
+      "specifier": "../../../src/words",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "fileLines",
+        "local": "fileLines"
+       },
+       {
+        "imported": "lineSpan",
+        "local": "lineSpan"
+       },
+       {
+        "imported": "plural",
+        "local": "plural"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../src/words\" points outside the codebase"
+      }
+     },
+     {
+      "line": 185,
+      "specifier": "../../../src/outline/quote",
+      "kind": "re-export",
+      "names": [
+       {
+        "imported": "matchesWholeLines",
+        "local": "matchesWholeLines"
+       },
+       {
+        "imported": "normaliseQuote",
+        "local": "normaliseQuote"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../src/outline/quote\" points outside the codebase"
+      }
+     },
+     {
+      "line": 186,
+      "specifier": "../../../src/outline/quote",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "matchesWholeLines",
+        "local": "matchesWholeLines"
+       },
+       {
+        "imported": "normaliseQuote",
+        "local": "normaliseQuote"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../src/outline/quote\" points outside the codebase"
+      }
+     }
+    ],
+    "parseNotes": []
+   },
+   {
+    "path": "roles/outliner.ts",
+    "language": "ts",
+    "lines": 185,
+    "symbols": [
+     {
+      "id": "roles/outliner.ts#OUTLINER_MODEL",
+      "name": "OUTLINER_MODEL",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 27,
+      "lineEnd": 27
+     },
+     {
+      "id": "roles/outliner.ts#OUTLINER_MAX_TOKENS",
+      "name": "OUTLINER_MAX_TOKENS",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 29,
+      "lineEnd": 29
+     },
+     {
+      "id": "roles/outliner.ts#codeModelRefusal",
+      "name": "codeModelRefusal",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 36,
+      "lineEnd": 36,
+      "signature": "export const codeModelRefusal = (model: string)",
+      "params": [
+       "model: string"
+      ]
+     },
+     {
+      "id": "roles/outliner.ts#MAX_OUTLINE_PROMPT_CHARS",
+      "name": "MAX_OUTLINE_PROMPT_CHARS",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 38,
+      "lineEnd": 38
+     },
+     {
+      "id": "roles/outliner.ts#MAX_OUTLINE_CALL_USD",
+      "name": "MAX_OUTLINE_CALL_USD",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 40,
+      "lineEnd": 40
+     },
+     {
+      "id": "roles/outliner.ts#guardCodeChat",
+      "name": "guardCodeChat",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 41,
+      "lineEnd": 41,
+      "signature": "export const guardCodeChat = (chat: (args: ChatArgs) => Promise<ChatResult>)",
+      "params": [
+       "chat: (args: ChatArgs) => Promise<ChatResult>"
+      ]
+     },
+     {
+      "id": "roles/outliner.ts#OUTLINE_INSTRUCTION",
+      "name": "OUTLINE_INSTRUCTION",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 43,
+      "lineEnd": 50
+     },
+     {
+      "id": "roles/outliner.ts#SYSTEM",
+      "name": "SYSTEM",
+      "kind": "variable",
+      "exported": false,
+      "lineStart": 52,
+      "lineEnd": 52
+     },
+     {
+      "id": "roles/outliner.ts#MAX_RENDERED_MAP_CHARS",
+      "name": "MAX_RENDERED_MAP_CHARS",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 55,
+      "lineEnd": 55
+     },
+     {
+      "id": "roles/outliner.ts#MAX_OUTLINE_PROMPT_TOKENS",
+      "name": "MAX_OUTLINE_PROMPT_TOKENS",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 57,
+      "lineEnd": 57
+     },
+     {
+      "id": "roles/outliner.ts#worstCaseUsd",
+      "name": "worstCaseUsd",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 60,
+      "lineEnd": 62,
+      "signature": "export function worstCaseUsd(promptTokens: number): number",
+      "params": [
+       "promptTokens: number"
+      ],
+      "returns": "number"
+     },
+     {
+      "id": "roles/outliner.ts#renderCodeMap",
+      "name": "renderCodeMap",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 65,
+      "lineEnd": 78,
+      "signature": "export function renderCodeMap(map: CodeMap): string",
+      "params": [
+       "map: CodeMap"
+      ],
+      "returns": "string"
+     },
+     {
+      "id": "roles/outliner.ts#renderCodeMapLines",
+      "name": "renderCodeMapLines",
+      "kind": "function",
+      "exported": false,
+      "lineStart": 80,
+      "lineEnd": 93,
+      "signature": "function renderCodeMapLines(map: CodeMap): string[]",
+      "params": [
+       "map: CodeMap"
+      ],
+      "returns": "string[]"
+     },
+     {
+      "id": "roles/outliner.ts#buildOutlinerMessages",
+      "name": "buildOutlinerMessages",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 95,
+      "lineEnd": 117,
+      "signature": "export function buildOutlinerMessages(files: readonly Pick<OutlineFile, \"path\" | \"text\">[], map: CodeMap, label: string): ChatMessage[]",
+      "params": [
+       "files: readonly Pick<OutlineFile, \"path\" | \"text\">[]",
+       "map: CodeMap",
+       "label: string"
+      ],
+      "returns": "ChatMessage[]"
+     },
+     {
+      "id": "roles/outliner.ts#estimate",
+      "name": "estimate",
+      "kind": "function",
+      "exported": false,
+      "lineStart": 140,
+      "lineEnd": 140,
+      "signature": "const estimate = (messages: readonly ChatMessage[])",
+      "params": [
+       "messages: readonly ChatMessage[]"
+      ]
+     },
+     {
+      "id": "roles/outliner.ts#runOutliner",
+      "name": "runOutliner",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 142,
+      "lineEnd": 185,
+      "signature": "export async function runOutliner(input: OutlinerInput, deps: OutlinerDeps): Promise<OutlinerResult>",
+      "params": [
+       "input: OutlinerInput",
+       "deps: OutlinerDeps"
+      ],
+      "returns": "Promise<OutlinerResult>"
+     }
+    ],
+    "imports": [
+     {
+      "line": 16,
+      "specifier": "../client",
+      "kind": "type-only",
+      "names": [
+       {
+        "imported": "ChatArgs",
+        "local": "ChatArgs"
+       },
+       {
+        "imported": "ChatMessage",
+        "local": "ChatMessage"
+       },
+       {
+        "imported": "ChatResult",
+        "local": "ChatResult"
+       },
+       {
+        "imported": "Usage",
+        "local": "Usage"
+       }
+      ],
+      "target": {
+       "kind": "file",
+       "path": "client.ts"
+      }
+     },
+     {
+      "line": 17,
+      "specifier": "../pasted-guard",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "codeModelRefusal",
+        "local": "sharedCodeModelRefusal"
+       },
+       {
+        "imported": "guardCodeChat",
+        "local": "sharedGuardCodeChat"
+       }
+      ],
+      "target": {
+       "kind": "file",
+       "path": "pasted-guard.ts"
+      }
+     },
+     {
+      "line": 18,
+      "specifier": "../../log/agentlog",
+      "kind": "type-only",
+      "names": [
+       {
+        "imported": "SessionEmitter",
+        "local": "SessionEmitter"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../log/agentlog\" points outside the codebase"
+      }
+     },
+     {
+      "line": 19,
+      "specifier": "../../log/agentlog",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "oneLine",
+        "local": "oneLine"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../log/agentlog\" points outside the codebase"
+      }
+     },
+     {
+      "line": 20,
+      "specifier": "./claimant",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "COST_UNKNOWN",
+        "local": "COST_UNKNOWN"
+       },
+       {
+        "imported": "NO_USAGE",
+        "local": "NO_USAGE"
+       },
+       {
+        "imported": "addUsage",
+        "local": "addUsage"
+       },
+       {
+        "imported": "numbered",
+        "local": "numbered"
+       },
+       {
+        "imported": "repairMessage",
+        "local": "repairMessage"
+       }
+      ],
+      "target": {
+       "kind": "file",
+       "path": "roles/claimant.ts"
+      }
+     },
+     {
+      "line": 21,
+      "specifier": "./investigator",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "CHARS_PER_TOKEN",
+        "local": "CHARS_PER_TOKEN"
+       },
+       {
+        "imported": "MEDIUM_EFFORT_ABOVE_TOKENS",
+        "local": "MEDIUM_EFFORT_ABOVE_TOKENS"
+       }
+      ],
+      "target": {
+       "kind": "file",
+       "path": "roles/investigator.ts"
+      }
+     },
+     {
+      "line": 22,
+      "specifier": "../../../src/outline/codemap",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "countLines",
+        "local": "countLines"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../src/outline/codemap\" points outside the codebase"
+      }
+     },
+     {
+      "line": 23,
+      "specifier": "../../../src/outline/verify",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "KNOWN_PATTERNS",
+        "local": "KNOWN_PATTERNS"
+       },
+       {
+        "imported": "MAX_PARTS",
+        "local": "MAX_PARTS"
+       },
+       {
+        "imported": "parseWonderOutline",
+        "local": "parseWonderOutline"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../src/outline/verify\" points outside the codebase"
+      }
+     },
+     {
+      "line": 24,
+      "specifier": "../../../src/outline/types",
+      "kind": "type-only",
+      "names": [
+       {
+        "imported": "CodeMap",
+        "local": "CodeMap"
+       },
+       {
+        "imported": "OutlineAttempt",
+        "local": "OutlineAttempt"
+       },
+       {
+        "imported": "OutlineFile",
+        "local": "OutlineFile"
+       },
+       {
+        "imported": "WonderOutline",
+        "local": "WonderOutline"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../src/outline/types\" points outside the codebase"
+      }
+     },
+     {
+      "line": 25,
+      "specifier": "../../../src/words",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "plural",
+        "local": "plural"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../src/words\" points outside the codebase"
+      }
+     }
+    ],
+    "parseNotes": []
+   },
+   {
+    "path": "roles/proposer.ts",
+    "language": "ts",
+    "lines": 178,
+    "symbols": [
+     {
+      "id": "roles/proposer.ts#PROPOSER_MODEL",
+      "name": "PROPOSER_MODEL",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 31,
+      "lineEnd": 31
+     },
+     {
+      "id": "roles/proposer.ts#MAX_PROPOSALS",
+      "name": "MAX_PROPOSALS",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 32,
+      "lineEnd": 32
+     },
+     {
+      "id": "roles/proposer.ts#PROPOSE_INSTRUCTION",
+      "name": "PROPOSE_INSTRUCTION",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 35,
+      "lineEnd": 36
+     },
+     {
+      "id": "roles/proposer.ts#proposerGateContext",
+      "name": "proposerGateContext",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 68,
+      "lineEnd": 70,
+      "signature": "export function proposerGateContext(exportNames: readonly string[]): GateContext",
+      "params": [
+       "exportNames: readonly string[]"
+      ],
+      "returns": "GateContext"
+     },
+     {
+      "id": "roles/proposer.ts#buildProposerMessages",
+      "name": "buildProposerMessages",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 72,
+      "lineEnd": 95,
+      "signature": "export function buildProposerMessages(input: ProposerInput): ChatMessage[]",
+      "params": [
+       "input: ProposerInput"
+      ],
+      "returns": "ChatMessage[]"
+     },
+     {
+      "id": "roles/proposer.ts#checkProposerAnswer",
+      "name": "checkProposerAnswer",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 98,
+      "lineEnd": 128,
+      "signature": "export function checkProposerAnswer( content: string, input: Pick<ProposerInput, \"exportName\" | \"exportNames\">, attempt: number, newId: () => string = () => nanoid(10), ): { ok: true; claim: string; …",
+      "params": [
+       "content: string",
+       "input: Pick<ProposerInput, \"exportName\" | \"exportNames\">",
+       "attempt: number",
+       "newId: () => string = () => nanoid(10)"
+      ],
+      "returns": "{ ok: true; claim: string; proposals: Proposal[] } | { ok: false; error: string; safe: string }"
+     },
+     {
+      "id": "roles/proposer.ts#runProposer",
+      "name": "runProposer",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 130,
+      "lineEnd": 178,
+      "signature": "export async function runProposer(input: ProposerInput, deps: ProposerDeps = {}): Promise<ProposerResult>",
+      "params": [
+       "input: ProposerInput",
+       "deps: ProposerDeps = {}"
+      ],
+      "returns": "Promise<ProposerResult>"
+     }
+    ],
+    "imports": [
+     {
+      "line": 18,
+      "specifier": "nanoid",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "nanoid",
+        "local": "nanoid"
+       }
+      ],
+      "target": {
+       "kind": "external",
+       "name": "nanoid"
+      }
+     },
+     {
+      "line": 19,
+      "specifier": "../../../src/gate",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "gate",
+        "local": "gate"
+       },
+       {
+        "imported": "renderAllowList",
+        "local": "renderAllowList"
+       },
+       {
+        "imported": "GateContext",
+        "local": "GateContext"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../src/gate\" points outside the codebase"
+      }
+     },
+     {
+      "line": 20,
+      "specifier": "../../../src/types",
+      "kind": "type-only",
+      "names": [
+       {
+        "imported": "ExperimentShape",
+        "local": "ExperimentShape"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../src/types\" points outside the codebase"
+      }
+     },
+     {
+      "line": 21,
+      "specifier": "../client",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "chat",
+        "local": "realChat"
+       },
+       {
+        "imported": "ChatArgs",
+        "local": "ChatArgs"
+       },
+       {
+        "imported": "ChatMessage",
+        "local": "ChatMessage"
+       },
+       {
+        "imported": "ChatResult",
+        "local": "ChatResult"
+       },
+       {
+        "imported": "Usage",
+        "local": "Usage"
+       }
+      ],
+      "target": {
+       "kind": "file",
+       "path": "client.ts"
+      }
+     },
+     {
+      "line": 22,
+      "specifier": "../schemas",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "proposerOutputSchema",
+        "local": "proposerOutputSchema"
+       },
+       {
+        "imported": "zodReason",
+        "local": "zodReason"
+       }
+      ],
+      "target": {
+       "kind": "file",
+       "path": "schemas.ts"
+      }
+     },
+     {
+      "line": 23,
+      "specifier": "../../log/agentlog",
+      "kind": "type-only",
+      "names": [
+       {
+        "imported": "SessionEmitter",
+        "local": "SessionEmitter"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../log/agentlog\" points outside the codebase"
+      }
+     },
+     {
+      "line": 24,
+      "specifier": "../../log/agentlog",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "oneLine",
+        "local": "oneLine"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../log/agentlog\" points outside the codebase"
+      }
+     },
+     {
+      "line": 25,
+      "specifier": "./claimant",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "COST_UNKNOWN",
+        "local": "COST_UNKNOWN"
+       },
+       {
+        "imported": "NO_USAGE",
+        "local": "NO_USAGE"
+       },
+       {
+        "imported": "SYSTEM_PREAMBLE",
+        "local": "SYSTEM_PREAMBLE"
+       },
+       {
+        "imported": "addUsage",
+        "local": "addUsage"
+       },
+       {
+        "imported": "numbered",
+        "local": "numbered"
+       },
+       {
+        "imported": "repairMessage",
+        "local": "repairMessage"
+       },
+       {
+        "imported": "zodSafeReason",
+        "local": "zodSafeReason"
+       }
+      ],
+      "target": {
+       "kind": "file",
+       "path": "roles/claimant.ts"
+      }
+     },
+     {
+      "line": 26,
+      "specifier": "../../../src/words",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "plural",
+        "local": "plural"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../src/words\" points outside the codebase"
+      }
+     },
+     {
+      "line": 27,
+      "specifier": "../../paste-keys",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "prototypeKeyIn",
+        "local": "prototypeKeyIn"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../paste-keys\" points outside the codebase"
+      }
+     },
+     {
+      "line": 28,
+      "specifier": "../../../src/paste-words",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "WONDER_MODEL",
+        "local": "WONDER_MODEL"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../src/paste-words\" points outside the codebase"
+      }
+     },
+     {
+      "line": 29,
+      "specifier": "../../../src/paste-context",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "LANGUAGE_NAME",
+        "local": "LANGUAGE_NAME"
+       }
+      ],
+      "target": {
+       "kind": "unresolved",
+       "reason": "\"../../../src/paste-context\" points outside the codebase"
+      }
+     }
+    ],
+    "parseNotes": []
+   },
+   {
+    "path": "schemas.ts",
+    "language": "ts",
+    "lines": 70,
+    "symbols": [
+     {
+      "id": "schemas.ts#betAnswerSchema",
+      "name": "betAnswerSchema",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 8,
+      "lineEnd": 16
+     },
+     {
+      "id": "schemas.ts#claimantBetSchema",
+      "name": "claimantBetSchema",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 19,
+      "lineEnd": 23
+     },
+     {
+      "id": "schemas.ts#claimantOutputSchema",
+      "name": "claimantOutputSchema",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 29,
+      "lineEnd": 32
+     },
+     {
+      "id": "schemas.ts#claimantBetsOnlySchema",
+      "name": "claimantBetsOnlySchema",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 38,
+      "lineEnd": 40
+     },
+     {
+      "id": "schemas.ts#adversaryOutputSchema",
+      "name": "adversaryOutputSchema",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 46,
+      "lineEnd": 49
+     },
+     {
+      "id": "schemas.ts#proposerOutputSchema",
+      "name": "proposerOutputSchema",
+      "kind": "variable",
+      "exported": true,
+      "lineStart": 56,
+      "lineEnd": 59
+     },
+     {
+      "id": "schemas.ts#zodReason",
+      "name": "zodReason",
+      "kind": "function",
+      "exported": true,
+      "lineStart": 65,
+      "lineEnd": 70,
+      "signature": "export function zodReason(err: z.ZodError): string",
+      "params": [
+       "err: z.ZodError"
+      ],
+      "returns": "string"
+     }
+    ],
+    "imports": [
+     {
+      "line": 5,
+      "specifier": "zod",
+      "kind": "static",
+      "names": [
+       {
+        "imported": "z",
+        "local": "z"
+       }
+      ],
+      "target": {
+       "kind": "external",
+       "name": "zod"
+      }
+     }
+    ],
+    "parseNotes": []
+   }
+  ],
+  "edges": [
+   {
+    "id": "calls:budget.ts->pasted-guard.ts:estimatedCallUsd",
+    "kind": "calls",
+    "from": "budget.ts",
+    "to": "pasted-guard.ts",
+    "what": "estimatedCallUsd",
+    "toSymbol": "pasted-guard.ts#estimatedCallUsd",
+    "line": 108,
+    "lines": [
+     108
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:client.ts->client.ts:addUsage",
+    "kind": "calls",
+    "from": "client.ts",
+    "to": "client.ts",
+    "what": "addUsage",
+    "toSymbol": "client.ts#addUsage",
+    "line": 336,
+    "lines": [
+     336
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:client.ts->client.ts:costUsd",
+    "kind": "calls",
+    "from": "client.ts",
+    "to": "client.ts",
+    "what": "costUsd",
+    "toSymbol": "client.ts#costUsd",
+    "line": 193,
+    "lines": [
+     193
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:client.ts->client.ts:createMetaClient",
+    "kind": "calls",
+    "from": "client.ts",
+    "to": "client.ts",
+    "what": "createMetaClient",
+    "toSymbol": "client.ts#createMetaClient",
+    "line": 363,
+    "lines": [
+     363
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:client.ts->client.ts:loadApiKey",
+    "kind": "calls",
+    "from": "client.ts",
+    "to": "client.ts",
+    "what": "loadApiKey",
+    "toSymbol": "client.ts#loadApiKey",
+    "line": 312,
+    "lines": [
+     312
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:client.ts->client.ts:loadBasetenKey",
+    "kind": "calls",
+    "from": "client.ts",
+    "to": "client.ts",
+    "what": "loadBasetenKey",
+    "toSymbol": "client.ts#loadBasetenKey",
+    "line": 312,
+    "lines": [
+     312
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:client.ts->client.ts:modelRefusal",
+    "kind": "calls",
+    "from": "client.ts",
+    "to": "client.ts",
+    "what": "modelRefusal",
+    "toSymbol": "client.ts#modelRefusal",
+    "line": 309,
+    "lines": [
+     309
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:client.ts->client.ts:priceFor",
+    "kind": "calls",
+    "from": "client.ts",
+    "to": "client.ts",
+    "what": "priceFor",
+    "toSymbol": "client.ts#priceFor",
+    "line": 169,
+    "lines": [
+     169,
+     245
+    ],
+    "count": 2
+   },
+   {
+    "id": "calls:client.ts->client.ts:providerFor",
+    "kind": "calls",
+    "from": "client.ts",
+    "to": "client.ts",
+    "what": "providerFor",
+    "toSymbol": "client.ts#providerFor",
+    "line": 233,
+    "lines": [
+     233,
+     262,
+     311
+    ],
+    "count": 3
+   },
+   {
+    "id": "calls:client.ts->client.ts:scrub",
+    "kind": "calls",
+    "from": "client.ts",
+    "to": "client.ts",
+    "what": "scrub",
+    "toSymbol": "client.ts#scrub",
+    "line": 285,
+    "lines": [
+     285,
+     292
+    ],
+    "count": 3
+   },
+   {
+    "id": "calls:client.ts->client.ts:shownModelId",
+    "kind": "calls",
+    "from": "client.ts",
+    "to": "client.ts",
+    "what": "shownModelId",
+    "toSymbol": "client.ts#shownModelId",
+    "line": 156,
+    "lines": [
+     156,
+     158
+    ],
+    "count": 2
+   },
+   {
+    "id": "calls:client.ts->client.ts:toUsage",
+    "kind": "calls",
+    "from": "client.ts",
+    "to": "client.ts",
+    "what": "toUsage",
+    "toSymbol": "client.ts#toUsage",
+    "line": 300,
+    "lines": [
+     300
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:client.ts->redact-secret.ts:redactSecret",
+    "kind": "calls",
+    "from": "client.ts",
+    "to": "redact-secret.ts",
+    "what": "redactSecret",
+    "toSymbol": "redact-secret.ts#redactSecret",
+    "line": 213,
+    "lines": [
+     213
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:pasted-guard.ts->client.ts:modelRefusal",
+    "kind": "calls",
+    "from": "pasted-guard.ts",
+    "to": "client.ts",
+    "what": "modelRefusal",
+    "toSymbol": "client.ts#modelRefusal",
+    "line": 40,
+    "lines": [
+     40
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:pasted-guard.ts->client.ts:priceFor",
+    "kind": "calls",
+    "from": "pasted-guard.ts",
+    "to": "client.ts",
+    "what": "priceFor",
+    "toSymbol": "client.ts#priceFor",
+    "line": 25,
+    "lines": [
+     25
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:pasted-guard.ts->client.ts:shownModelId",
+    "kind": "calls",
+    "from": "pasted-guard.ts",
+    "to": "client.ts",
+    "what": "shownModelId",
+    "toSymbol": "client.ts#shownModelId",
+    "line": 37,
+    "lines": [
+     37
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:pasted-guard.ts->pasted-guard.ts:codeModelRefusal",
+    "kind": "calls",
+    "from": "pasted-guard.ts",
+    "to": "pasted-guard.ts",
+    "what": "codeModelRefusal",
+    "toSymbol": "pasted-guard.ts#codeModelRefusal",
+    "line": 44,
+    "lines": [
+     44,
+     60
+    ],
+    "count": 2
+   },
+   {
+    "id": "calls:pasted-guard.ts->pasted-guard.ts:estimatedCallUsd",
+    "kind": "calls",
+    "from": "pasted-guard.ts",
+    "to": "pasted-guard.ts",
+    "what": "estimatedCallUsd",
+    "toSymbol": "pasted-guard.ts#estimatedCallUsd",
+    "line": 64,
+    "lines": [
+     64
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:pasted-guard.ts->pasted-guard.ts:guardCodeChat",
+    "kind": "calls",
+    "from": "pasted-guard.ts",
+    "to": "pasted-guard.ts",
+    "what": "guardCodeChat",
+    "toSymbol": "pasted-guard.ts#guardCodeChat",
+    "line": 72,
+    "lines": [
+     72
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/adversary.ts->roles/adversary.ts:buildAdversaryMessages",
+    "kind": "calls",
+    "from": "roles/adversary.ts",
+    "to": "roles/adversary.ts",
+    "what": "buildAdversaryMessages",
+    "toSymbol": "roles/adversary.ts#buildAdversaryMessages",
+    "line": 292,
+    "lines": [
+     292
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/adversary.ts->roles/adversary.ts:cut",
+    "kind": "calls",
+    "from": "roles/adversary.ts",
+    "to": "roles/adversary.ts",
+    "what": "cut",
+    "toSymbol": "roles/adversary.ts#cut",
+    "line": 127,
+    "lines": [
+     127
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/adversary.ts->roles/adversary.ts:gateWords",
+    "kind": "calls",
+    "from": "roles/adversary.ts",
+    "to": "roles/adversary.ts",
+    "what": "gateWords",
+    "toSymbol": "roles/adversary.ts#gateWords",
+    "line": 199,
+    "lines": [
+     199
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/adversary.ts->roles/adversary.ts:judgeableShapes",
+    "kind": "calls",
+    "from": "roles/adversary.ts",
+    "to": "roles/adversary.ts",
+    "what": "judgeableShapes",
+    "toSymbol": "roles/adversary.ts#judgeableShapes",
+    "line": 134,
+    "lines": [
+     134,
+     251
+    ],
+    "count": 2
+   },
+   {
+    "id": "calls:roles/adversary.ts->roles/adversary.ts:safeGateReason",
+    "kind": "calls",
+    "from": "roles/adversary.ts",
+    "to": "roles/adversary.ts",
+    "what": "safeGateReason",
+    "toSymbol": "roles/adversary.ts#safeGateReason",
+    "line": 312,
+    "lines": [
+     312
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/adversary.ts->roles/adversary.ts:validateAdversaryOutput",
+    "kind": "calls",
+    "from": "roles/adversary.ts",
+    "to": "roles/adversary.ts",
+    "what": "validateAdversaryOutput",
+    "toSymbol": "roles/adversary.ts#validateAdversaryOutput",
+    "line": 302,
+    "lines": [
+     302
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/adversary.ts->roles/claimant.ts:addUsage",
+    "kind": "calls",
+    "from": "roles/adversary.ts",
+    "to": "roles/claimant.ts",
+    "what": "addUsage",
+    "toSymbol": "roles/claimant.ts#addUsage",
+    "line": 297,
+    "lines": [
+     297
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/adversary.ts->roles/claimant.ts:contextRangeFor",
+    "kind": "calls",
+    "from": "roles/adversary.ts",
+    "to": "roles/claimant.ts",
+    "what": "contextRangeFor",
+    "toSymbol": "roles/claimant.ts#contextRangeFor",
+    "line": 123,
+    "lines": [
+     123
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/adversary.ts->roles/claimant.ts:numbered",
+    "kind": "calls",
+    "from": "roles/adversary.ts",
+    "to": "roles/claimant.ts",
+    "what": "numbered",
+    "toSymbol": "roles/claimant.ts#numbered",
+    "line": 140,
+    "lines": [
+     140
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/adversary.ts->roles/claimant.ts:repairMessage",
+    "kind": "calls",
+    "from": "roles/adversary.ts",
+    "to": "roles/claimant.ts",
+    "what": "repairMessage",
+    "toSymbol": "roles/claimant.ts#repairMessage",
+    "line": 335,
+    "lines": [
+     335
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/adversary.ts->roles/claimant.ts:zodSafeReason",
+    "kind": "calls",
+    "from": "roles/adversary.ts",
+    "to": "roles/claimant.ts",
+    "what": "zodSafeReason",
+    "toSymbol": "roles/claimant.ts#zodSafeReason",
+    "line": 245,
+    "lines": [
+     245
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/adversary.ts->schemas.ts:zodReason",
+    "kind": "calls",
+    "from": "roles/adversary.ts",
+    "to": "schemas.ts",
+    "what": "zodReason",
+    "toSymbol": "schemas.ts#zodReason",
+    "line": 245,
+    "lines": [
+     245
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/claimant-bets.ts->roles/claimant-bets.ts:buildBetOnlyMessages",
+    "kind": "calls",
+    "from": "roles/claimant-bets.ts",
+    "to": "roles/claimant-bets.ts",
+    "what": "buildBetOnlyMessages",
+    "toSymbol": "roles/claimant-bets.ts#buildBetOnlyMessages",
+    "line": 204,
+    "lines": [
+     204
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/claimant-bets.ts->roles/claimant-bets.ts:buildSeenContextMessages",
+    "kind": "calls",
+    "from": "roles/claimant-bets.ts",
+    "to": "roles/claimant-bets.ts",
+    "what": "buildSeenContextMessages",
+    "toSymbol": "roles/claimant-bets.ts#buildSeenContextMessages",
+    "line": 95,
+    "lines": [
+     95,
+     244
+    ],
+    "count": 2
+   },
+   {
+    "id": "calls:roles/claimant-bets.ts->roles/claimant-bets.ts:validateBetOnlyOutput",
+    "kind": "calls",
+    "from": "roles/claimant-bets.ts",
+    "to": "roles/claimant-bets.ts",
+    "what": "validateBetOnlyOutput",
+    "toSymbol": "roles/claimant-bets.ts#validateBetOnlyOutput",
+    "line": 214,
+    "lines": [
+     214
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/claimant-bets.ts->roles/claimant.ts:addUsage",
+    "kind": "calls",
+    "from": "roles/claimant-bets.ts",
+    "to": "roles/claimant.ts",
+    "what": "addUsage",
+    "toSymbol": "roles/claimant.ts#addUsage",
+    "line": 209,
+    "lines": [
+     209
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/claimant-bets.ts->roles/claimant.ts:contextRangeFor",
+    "kind": "calls",
+    "from": "roles/claimant-bets.ts",
+    "to": "roles/claimant.ts",
+    "what": "contextRangeFor",
+    "toSymbol": "roles/claimant.ts#contextRangeFor",
+    "line": 98,
+    "lines": [
+     98
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/claimant-bets.ts->roles/claimant.ts:numbered",
+    "kind": "calls",
+    "from": "roles/claimant-bets.ts",
+    "to": "roles/claimant.ts",
+    "what": "numbered",
+    "toSymbol": "roles/claimant.ts#numbered",
+    "line": 110,
+    "lines": [
+     110
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/claimant-bets.ts->roles/claimant.ts:repairMessage",
+    "kind": "calls",
+    "from": "roles/claimant-bets.ts",
+    "to": "roles/claimant.ts",
+    "what": "repairMessage",
+    "toSymbol": "roles/claimant.ts#repairMessage",
+    "line": 233,
+    "lines": [
+     233
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/claimant-bets.ts->roles/claimant.ts:validateBetsFor",
+    "kind": "calls",
+    "from": "roles/claimant-bets.ts",
+    "to": "roles/claimant.ts",
+    "what": "validateBetsFor",
+    "toSymbol": "roles/claimant.ts#validateBetsFor",
+    "line": 177,
+    "lines": [
+     177
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/claimant-bets.ts->roles/claimant.ts:zodSafeReason",
+    "kind": "calls",
+    "from": "roles/claimant-bets.ts",
+    "to": "roles/claimant.ts",
+    "what": "zodSafeReason",
+    "toSymbol": "roles/claimant.ts#zodSafeReason",
+    "line": 175,
+    "lines": [
+     175
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/claimant-bets.ts->schemas.ts:zodReason",
+    "kind": "calls",
+    "from": "roles/claimant-bets.ts",
+    "to": "schemas.ts",
+    "what": "zodReason",
+    "toSymbol": "schemas.ts#zodReason",
+    "line": 175,
+    "lines": [
+     175
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/claimant.ts->roles/claimant.ts:addUsage",
+    "kind": "calls",
+    "from": "roles/claimant.ts",
+    "to": "roles/claimant.ts",
+    "what": "addUsage",
+    "toSymbol": "roles/claimant.ts#addUsage",
+    "line": 349,
+    "lines": [
+     349
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/claimant.ts->roles/claimant.ts:buildClaimantMessages",
+    "kind": "calls",
+    "from": "roles/claimant.ts",
+    "to": "roles/claimant.ts",
+    "what": "buildClaimantMessages",
+    "toSymbol": "roles/claimant.ts#buildClaimantMessages",
+    "line": 343,
+    "lines": [
+     343
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/claimant.ts->roles/claimant.ts:checkAnswer",
+    "kind": "calls",
+    "from": "roles/claimant.ts",
+    "to": "roles/claimant.ts",
+    "what": "checkAnswer",
+    "toSymbol": "roles/claimant.ts#checkAnswer",
+    "line": 285,
+    "lines": [
+     285
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/claimant.ts->roles/claimant.ts:contextRangeFor",
+    "kind": "calls",
+    "from": "roles/claimant.ts",
+    "to": "roles/claimant.ts",
+    "what": "contextRangeFor",
+    "toSymbol": "roles/claimant.ts#contextRangeFor",
+    "line": 132,
+    "lines": [
+     132
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/claimant.ts->roles/claimant.ts:numbered",
+    "kind": "calls",
+    "from": "roles/claimant.ts",
+    "to": "roles/claimant.ts",
+    "what": "numbered",
+    "toSymbol": "roles/claimant.ts#numbered",
+    "line": 143,
+    "lines": [
+     143
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/claimant.ts->roles/claimant.ts:questionsByShape",
+    "kind": "calls",
+    "from": "roles/claimant.ts",
+    "to": "roles/claimant.ts",
+    "what": "questionsByShape",
+    "toSymbol": "roles/claimant.ts#questionsByShape",
+    "line": 135,
+    "lines": [
+     135
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/claimant.ts->roles/claimant.ts:repairMessage",
+    "kind": "calls",
+    "from": "roles/claimant.ts",
+    "to": "roles/claimant.ts",
+    "what": "repairMessage",
+    "toSymbol": "roles/claimant.ts#repairMessage",
+    "line": 398,
+    "lines": [
+     398
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/claimant.ts->roles/claimant.ts:validateBetsFor",
+    "kind": "calls",
+    "from": "roles/claimant.ts",
+    "to": "roles/claimant.ts",
+    "what": "validateBetsFor",
+    "toSymbol": "roles/claimant.ts#validateBetsFor",
+    "line": 245,
+    "lines": [
+     245
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/claimant.ts->roles/claimant.ts:validateClaimantOutput",
+    "kind": "calls",
+    "from": "roles/claimant.ts",
+    "to": "roles/claimant.ts",
+    "what": "validateClaimantOutput",
+    "toSymbol": "roles/claimant.ts#validateClaimantOutput",
+    "line": 354,
+    "lines": [
+     354
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/claimant.ts->roles/claimant.ts:zodSafeReason",
+    "kind": "calls",
+    "from": "roles/claimant.ts",
+    "to": "roles/claimant.ts",
+    "what": "zodSafeReason",
+    "toSymbol": "roles/claimant.ts#zodSafeReason",
+    "line": 232,
+    "lines": [
+     232
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/claimant.ts->roles/fixture-finding.ts:fixtureContextRange",
+    "kind": "calls",
+    "from": "roles/claimant.ts",
+    "to": "roles/fixture-finding.ts",
+    "what": "fixtureContextRange",
+    "toSymbol": "roles/fixture-finding.ts#fixtureContextRange",
+    "line": 124,
+    "lines": [
+     124
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/claimant.ts->schemas.ts:zodReason",
+    "kind": "calls",
+    "from": "roles/claimant.ts",
+    "to": "schemas.ts",
+    "what": "zodReason",
+    "toSymbol": "schemas.ts#zodReason",
+    "line": 232,
+    "lines": [
+     232
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/fixer.ts->client.ts:costUsd",
+    "kind": "calls",
+    "from": "roles/fixer.ts",
+    "to": "client.ts",
+    "what": "costUsd",
+    "toSymbol": "client.ts#costUsd",
+    "line": 276,
+    "lines": [
+     276
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/fixer.ts->client.ts:loadApiKey",
+    "kind": "calls",
+    "from": "roles/fixer.ts",
+    "to": "client.ts",
+    "what": "loadApiKey",
+    "toSymbol": "client.ts#loadApiKey",
+    "line": 332,
+    "lines": [
+     332,
+     411,
+     417
+    ],
+    "count": 3
+   },
+   {
+    "id": "calls:roles/fixer.ts->client.ts:modelRefusal",
+    "kind": "calls",
+    "from": "roles/fixer.ts",
+    "to": "client.ts",
+    "what": "modelRefusal",
+    "toSymbol": "client.ts#modelRefusal",
+    "line": 468,
+    "lines": [
+     468,
+     475
+    ],
+    "count": 2
+   },
+   {
+    "id": "calls:roles/fixer.ts->client.ts:priceFor",
+    "kind": "calls",
+    "from": "roles/fixer.ts",
+    "to": "client.ts",
+    "what": "priceFor",
+    "toSymbol": "client.ts#priceFor",
+    "line": 429,
+    "lines": [
+     429
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/fixer.ts->client.ts:shownModelId",
+    "kind": "calls",
+    "from": "roles/fixer.ts",
+    "to": "client.ts",
+    "what": "shownModelId",
+    "toSymbol": "client.ts#shownModelId",
+    "line": 482,
+    "lines": [
+     482
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/fixer.ts->redact-secret.ts:redactSecret",
+    "kind": "calls",
+    "from": "roles/fixer.ts",
+    "to": "redact-secret.ts",
+    "what": "redactSecret",
+    "toSymbol": "redact-secret.ts#redactSecret",
+    "line": 344,
+    "lines": [
+     344,
+     412,
+     418
+    ],
+    "count": 3
+   },
+   {
+    "id": "calls:roles/fixer.ts->roles/claimant.ts:addUsage",
+    "kind": "calls",
+    "from": "roles/fixer.ts",
+    "to": "roles/claimant.ts",
+    "what": "addUsage",
+    "toSymbol": "roles/claimant.ts#addUsage",
+    "line": 277,
+    "lines": [
+     277,
+     480,
+     525,
+     534
+    ],
+    "count": 4
+   },
+   {
+    "id": "calls:roles/fixer.ts->roles/claimant.ts:numbered",
+    "kind": "calls",
+    "from": "roles/fixer.ts",
+    "to": "roles/claimant.ts",
+    "what": "numbered",
+    "toSymbol": "roles/claimant.ts#numbered",
+    "line": 147,
+    "lines": [
+     147,
+     193
+    ],
+    "count": 2
+   },
+   {
+    "id": "calls:roles/fixer.ts->roles/fixer.ts:buildFixerPrompt",
+    "kind": "calls",
+    "from": "roles/fixer.ts",
+    "to": "roles/fixer.ts",
+    "what": "buildFixerPrompt",
+    "toSymbol": "roles/fixer.ts#buildFixerPrompt",
+    "line": 449,
+    "lines": [
+     449
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/fixer.ts->roles/fixer.ts:fullFile",
+    "kind": "calls",
+    "from": "roles/fixer.ts",
+    "to": "roles/fixer.ts",
+    "what": "fullFile",
+    "toSymbol": "roles/fixer.ts#fullFile",
+    "line": 198,
+    "lines": [
+     198
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/fixer.ts->roles/fixer.ts:holdsSecret",
+    "kind": "calls",
+    "from": "roles/fixer.ts",
+    "to": "roles/fixer.ts",
+    "what": "holdsSecret",
+    "toSymbol": "roles/fixer.ts#holdsSecret",
+    "line": 546,
+    "lines": [
+     546
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/fixer.ts->roles/fixer.ts:logMuseUsage",
+    "kind": "calls",
+    "from": "roles/fixer.ts",
+    "to": "roles/fixer.ts",
+    "what": "logMuseUsage",
+    "toSymbol": "roles/fixer.ts#logMuseUsage",
+    "line": 479,
+    "lines": [
+     479,
+     488
+    ],
+    "count": 2
+   },
+   {
+    "id": "calls:roles/fixer.ts->roles/fixer.ts:museArgs",
+    "kind": "calls",
+    "from": "roles/fixer.ts",
+    "to": "roles/fixer.ts",
+    "what": "museArgs",
+    "toSymbol": "roles/fixer.ts#museArgs",
+    "line": 356,
+    "lines": [
+     356
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/fixer.ts->roles/fixer.ts:museSandboxProfile",
+    "kind": "calls",
+    "from": "roles/fixer.ts",
+    "to": "roles/fixer.ts",
+    "what": "museSandboxProfile",
+    "toSymbol": "roles/fixer.ts#museSandboxProfile",
+    "line": 343,
+    "lines": [
+     343
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/fixer.ts->roles/fixer.ts:oracleNamesIn",
+    "kind": "calls",
+    "from": "roles/fixer.ts",
+    "to": "roles/fixer.ts",
+    "what": "oracleNamesIn",
+    "toSymbol": "roles/fixer.ts#oracleNamesIn",
+    "line": 163,
+    "lines": [
+     163
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/fixer.ts->roles/fixer.ts:oracleNamesSection",
+    "kind": "calls",
+    "from": "roles/fixer.ts",
+    "to": "roles/fixer.ts",
+    "what": "oracleNamesSection",
+    "toSymbol": "roles/fixer.ts#oracleNamesSection",
+    "line": 189,
+    "lines": [
+     189
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/fixer.ts->roles/fixer.ts:osSandbox",
+    "kind": "calls",
+    "from": "roles/fixer.ts",
+    "to": "roles/fixer.ts",
+    "what": "osSandbox",
+    "toSymbol": "roles/fixer.ts#osSandbox",
+    "line": 335,
+    "lines": [
+     335
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/fixer.ts->roles/fixer.ts:parseMuseJsonl",
+    "kind": "calls",
+    "from": "roles/fixer.ts",
+    "to": "roles/fixer.ts",
+    "what": "parseMuseJsonl",
+    "toSymbol": "roles/fixer.ts#parseMuseJsonl",
+    "line": 367,
+    "lines": [
+     367,
+     378
+    ],
+    "count": 2
+   },
+   {
+    "id": "calls:roles/fixer.ts->roles/fixer.ts:pathLabel",
+    "kind": "calls",
+    "from": "roles/fixer.ts",
+    "to": "roles/fixer.ts",
+    "what": "pathLabel",
+    "toSymbol": "roles/fixer.ts#pathLabel",
+    "line": 538,
+    "lines": [
+     538,
+     554,
+     559
+    ],
+    "count": 3
+   },
+   {
+    "id": "calls:roles/fixer.ts->roles/fixer.ts:realMuseExec",
+    "kind": "calls",
+    "from": "roles/fixer.ts",
+    "to": "roles/fixer.ts",
+    "what": "realMuseExec",
+    "toSymbol": "roles/fixer.ts#realMuseExec",
+    "line": 443,
+    "lines": [
+     443,
+     461
+    ],
+    "count": 2
+   },
+   {
+    "id": "calls:roles/fixer.ts->roles/fixer.ts:repairPrompt",
+    "kind": "calls",
+    "from": "roles/fixer.ts",
+    "to": "roles/fixer.ts",
+    "what": "repairPrompt",
+    "toSymbol": "roles/fixer.ts#repairPrompt",
+    "line": 540,
+    "lines": [
+     540,
+     560
+    ],
+    "count": 2
+   },
+   {
+    "id": "calls:roles/fixer.ts->roles/fixer.ts:sbString",
+    "kind": "calls",
+    "from": "roles/fixer.ts",
+    "to": "roles/fixer.ts",
+    "what": "sbString",
+    "toSymbol": "roles/fixer.ts#sbString",
+    "line": 317,
+    "lines": [
+     317,
+     318,
+     319
+    ],
+    "count": 4
+   },
+   {
+    "id": "calls:roles/fixer.ts->roles/fixer.ts:scrubModelText",
+    "kind": "calls",
+    "from": "roles/fixer.ts",
+    "to": "roles/fixer.ts",
+    "what": "scrubModelText",
+    "toSymbol": "roles/fixer.ts#scrubModelText",
+    "line": 550,
+    "lines": [
+     550
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/fixture-finding.ts->roles/fixture-finding.ts:snippetMatches",
+    "kind": "calls",
+    "from": "roles/fixture-finding.ts",
+    "to": "roles/fixture-finding.ts",
+    "what": "snippetMatches",
+    "toSymbol": "roles/fixture-finding.ts#snippetMatches",
+    "line": 69,
+    "lines": [
+     69
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/fixture-finding.ts->roles/fixture-finding.ts:squash",
+    "kind": "calls",
+    "from": "roles/fixture-finding.ts",
+    "to": "roles/fixture-finding.ts",
+    "what": "squash",
+    "toSymbol": "roles/fixture-finding.ts#squash",
+    "line": 62,
+    "lines": [
+     62,
+     63
+    ],
+    "count": 2
+   },
+   {
+    "id": "calls:roles/investigator.ts->roles/claimant.ts:addUsage",
+    "kind": "calls",
+    "from": "roles/investigator.ts",
+    "to": "roles/claimant.ts",
+    "what": "addUsage",
+    "toSymbol": "roles/claimant.ts#addUsage",
+    "line": 321,
+    "lines": [
+     321
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/investigator.ts->roles/claimant.ts:numbered",
+    "kind": "calls",
+    "from": "roles/investigator.ts",
+    "to": "roles/claimant.ts",
+    "what": "numbered",
+    "toSymbol": "roles/claimant.ts#numbered",
+    "line": 119,
+    "lines": [
+     119
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/investigator.ts->roles/claimant.ts:repairMessage",
+    "kind": "calls",
+    "from": "roles/investigator.ts",
+    "to": "roles/claimant.ts",
+    "what": "repairMessage",
+    "toSymbol": "roles/claimant.ts#repairMessage",
+    "line": 358,
+    "lines": [
+     358
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/investigator.ts->roles/claimant.ts:zodSafeReason",
+    "kind": "calls",
+    "from": "roles/investigator.ts",
+    "to": "roles/claimant.ts",
+    "what": "zodSafeReason",
+    "toSymbol": "roles/claimant.ts#zodSafeReason",
+    "line": 197,
+    "lines": [
+     197,
+     236
+    ],
+    "count": 2
+   },
+   {
+    "id": "calls:roles/investigator.ts->roles/investigator.ts:allDroppedError",
+    "kind": "calls",
+    "from": "roles/investigator.ts",
+    "to": "roles/investigator.ts",
+    "what": "allDroppedError",
+    "toSymbol": "roles/investigator.ts#allDroppedError",
+    "line": 339,
+    "lines": [
+     339,
+     356
+    ],
+    "count": 2
+   },
+   {
+    "id": "calls:roles/investigator.ts->roles/investigator.ts:buildInvestigatorMessages",
+    "kind": "calls",
+    "from": "roles/investigator.ts",
+    "to": "roles/investigator.ts",
+    "what": "buildInvestigatorMessages",
+    "toSymbol": "roles/investigator.ts#buildInvestigatorMessages",
+    "line": 316,
+    "lines": [
+     316
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/investigator.ts->roles/investigator.ts:checkAnswer",
+    "kind": "calls",
+    "from": "roles/investigator.ts",
+    "to": "roles/investigator.ts",
+    "what": "checkAnswer",
+    "toSymbol": "roles/investigator.ts#checkAnswer",
+    "line": 327,
+    "lines": [
+     327
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/investigator.ts->roles/investigator.ts:checkFinding",
+    "kind": "calls",
+    "from": "roles/investigator.ts",
+    "to": "roles/investigator.ts",
+    "what": "checkFinding",
+    "toSymbol": "roles/investigator.ts#checkFinding",
+    "line": 258,
+    "lines": [
+     258
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/investigator.ts->roles/investigator.ts:effortFor",
+    "kind": "calls",
+    "from": "roles/investigator.ts",
+    "to": "roles/investigator.ts",
+    "what": "effortFor",
+    "toSymbol": "roles/investigator.ts#effortFor",
+    "line": 317,
+    "lines": [
+     317
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/investigator.ts->roles/investigator.ts:estimateTokens",
+    "kind": "calls",
+    "from": "roles/investigator.ts",
+    "to": "roles/investigator.ts",
+    "what": "estimateTokens",
+    "toSymbol": "roles/investigator.ts#estimateTokens",
+    "line": 169,
+    "lines": [
+     169,
+     318
+    ],
+    "count": 2
+   },
+   {
+    "id": "calls:roles/investigator.ts->roles/investigator.ts:isLimit",
+    "kind": "calls",
+    "from": "roles/investigator.ts",
+    "to": "roles/investigator.ts",
+    "what": "isLimit",
+    "toSymbol": "roles/investigator.ts#isLimit",
+    "line": 371,
+    "lines": [
+     371
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/investigator.ts->roles/investigator.ts:renderFiles",
+    "kind": "calls",
+    "from": "roles/investigator.ts",
+    "to": "roles/investigator.ts",
+    "what": "renderFiles",
+    "toSymbol": "roles/investigator.ts#renderFiles",
+    "line": 140,
+    "lines": [
+     140
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/outliner.ts->pasted-guard.ts:sharedCodeModelRefusal",
+    "kind": "calls",
+    "from": "roles/outliner.ts",
+    "to": "pasted-guard.ts",
+    "what": "sharedCodeModelRefusal",
+    "toSymbol": "pasted-guard.ts#codeModelRefusal",
+    "line": 36,
+    "lines": [
+     36
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/outliner.ts->pasted-guard.ts:sharedGuardCodeChat",
+    "kind": "calls",
+    "from": "roles/outliner.ts",
+    "to": "pasted-guard.ts",
+    "what": "sharedGuardCodeChat",
+    "toSymbol": "pasted-guard.ts#guardCodeChat",
+    "line": 41,
+    "lines": [
+     41
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/outliner.ts->roles/claimant.ts:addUsage",
+    "kind": "calls",
+    "from": "roles/outliner.ts",
+    "to": "roles/claimant.ts",
+    "what": "addUsage",
+    "toSymbol": "roles/claimant.ts#addUsage",
+    "line": 168,
+    "lines": [
+     168
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/outliner.ts->roles/claimant.ts:numbered",
+    "kind": "calls",
+    "from": "roles/outliner.ts",
+    "to": "roles/claimant.ts",
+    "what": "numbered",
+    "toSymbol": "roles/claimant.ts#numbered",
+    "line": 96,
+    "lines": [
+     96
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/outliner.ts->roles/claimant.ts:repairMessage",
+    "kind": "calls",
+    "from": "roles/outliner.ts",
+    "to": "roles/claimant.ts",
+    "what": "repairMessage",
+    "toSymbol": "roles/claimant.ts#repairMessage",
+    "line": 182,
+    "lines": [
+     182
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/outliner.ts->roles/outliner.ts:buildOutlinerMessages",
+    "kind": "calls",
+    "from": "roles/outliner.ts",
+    "to": "roles/outliner.ts",
+    "what": "buildOutlinerMessages",
+    "toSymbol": "roles/outliner.ts#buildOutlinerMessages",
+    "line": 154,
+    "lines": [
+     154
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/outliner.ts->roles/outliner.ts:estimate",
+    "kind": "calls",
+    "from": "roles/outliner.ts",
+    "to": "roles/outliner.ts",
+    "what": "estimate",
+    "toSymbol": "roles/outliner.ts#estimate",
+    "line": 155,
+    "lines": [
+     155
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/outliner.ts->roles/outliner.ts:guardCodeChat",
+    "kind": "calls",
+    "from": "roles/outliner.ts",
+    "to": "roles/outliner.ts",
+    "what": "guardCodeChat",
+    "toSymbol": "roles/outliner.ts#guardCodeChat",
+    "line": 144,
+    "lines": [
+     144
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/outliner.ts->roles/outliner.ts:renderCodeMap",
+    "kind": "calls",
+    "from": "roles/outliner.ts",
+    "to": "roles/outliner.ts",
+    "what": "renderCodeMap",
+    "toSymbol": "roles/outliner.ts#renderCodeMap",
+    "line": 104,
+    "lines": [
+     104
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/outliner.ts->roles/outliner.ts:renderCodeMapLines",
+    "kind": "calls",
+    "from": "roles/outliner.ts",
+    "to": "roles/outliner.ts",
+    "what": "renderCodeMapLines",
+    "toSymbol": "roles/outliner.ts#renderCodeMapLines",
+    "line": 66,
+    "lines": [
+     66
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/outliner.ts->roles/outliner.ts:worstCaseUsd",
+    "kind": "calls",
+    "from": "roles/outliner.ts",
+    "to": "roles/outliner.ts",
+    "what": "worstCaseUsd",
+    "toSymbol": "roles/outliner.ts#worstCaseUsd",
+    "line": 161,
+    "lines": [
+     161
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/proposer.ts->roles/claimant.ts:addUsage",
+    "kind": "calls",
+    "from": "roles/proposer.ts",
+    "to": "roles/claimant.ts",
+    "what": "addUsage",
+    "toSymbol": "roles/claimant.ts#addUsage",
+    "line": 154,
+    "lines": [
+     154
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/proposer.ts->roles/claimant.ts:numbered",
+    "kind": "calls",
+    "from": "roles/proposer.ts",
+    "to": "roles/claimant.ts",
+    "what": "numbered",
+    "toSymbol": "roles/claimant.ts#numbered",
+    "line": 76,
+    "lines": [
+     76
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/proposer.ts->roles/claimant.ts:repairMessage",
+    "kind": "calls",
+    "from": "roles/proposer.ts",
+    "to": "roles/claimant.ts",
+    "what": "repairMessage",
+    "toSymbol": "roles/claimant.ts#repairMessage",
+    "line": 163,
+    "lines": [
+     163,
+     174
+    ],
+    "count": 2
+   },
+   {
+    "id": "calls:roles/proposer.ts->roles/claimant.ts:zodSafeReason",
+    "kind": "calls",
+    "from": "roles/proposer.ts",
+    "to": "roles/claimant.ts",
+    "what": "zodSafeReason",
+    "toSymbol": "roles/claimant.ts#zodSafeReason",
+    "line": 115,
+    "lines": [
+     115
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/proposer.ts->roles/proposer.ts:buildProposerMessages",
+    "kind": "calls",
+    "from": "roles/proposer.ts",
+    "to": "roles/proposer.ts",
+    "what": "buildProposerMessages",
+    "toSymbol": "roles/proposer.ts#buildProposerMessages",
+    "line": 150,
+    "lines": [
+     150
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/proposer.ts->roles/proposer.ts:checkProposerAnswer",
+    "kind": "calls",
+    "from": "roles/proposer.ts",
+    "to": "roles/proposer.ts",
+    "what": "checkProposerAnswer",
+    "toSymbol": "roles/proposer.ts#checkProposerAnswer",
+    "line": 159,
+    "lines": [
+     159
+    ],
+    "count": 1
+   },
+   {
+    "id": "calls:roles/proposer.ts->roles/proposer.ts:proposerGateContext",
+    "kind": "calls",
+    "from": "roles/proposer.ts",
+    "to": "roles/proposer.ts",
+    "what": "proposerGateContext",
+    "toSymbol": "roles/proposer.ts#proposerGateContext",
+    "line": 81,
+    "lines": [
+     81,
+     116
+    ],
+    "count": 2
+   },
+   {
+    "id": "calls:roles/proposer.ts->schemas.ts:zodReason",
+    "kind": "calls",
+    "from": "roles/proposer.ts",
+    "to": "schemas.ts",
+    "what": "zodReason",
+    "toSymbol": "schemas.ts#zodReason",
+    "line": 115,
+    "lines": [
+     115
+    ],
+    "count": 1
+   },
+   {
+    "id": "imports:budget.ts->client.ts:./client#type@14",
+    "kind": "imports",
+    "from": "budget.ts",
+    "to": "client.ts",
+    "what": "./client",
+    "typeOnly": true,
+    "line": 14,
+    "lines": [
+     14
+    ],
+    "count": 1
+   },
+   {
+    "id": "imports:budget.ts->pasted-guard.ts:./pasted-guard@15",
+    "kind": "imports",
+    "from": "budget.ts",
+    "to": "pasted-guard.ts",
+    "what": "./pasted-guard",
+    "toSymbols": [
+     "pasted-guard.ts#estimatedCallUsd"
+    ],
+    "line": 15,
+    "lines": [
+     15
+    ],
+    "count": 1
+   },
+   {
+    "id": "imports:client.ts->redact-secret.ts:./redact-secret@20",
+    "kind": "imports",
+    "from": "client.ts",
+    "to": "redact-secret.ts",
+    "what": "./redact-secret",
+    "toSymbols": [
+     "redact-secret.ts#redactSecret"
+    ],
+    "line": 20,
+    "lines": [
+     20
+    ],
+    "count": 1
+   },
+   {
+    "id": "imports:pasted-guard.ts->client.ts:./client@10",
+    "kind": "imports",
+    "from": "pasted-guard.ts",
+    "to": "client.ts",
+    "what": "./client",
+    "toSymbols": [
+     "client.ts#DEFAULT_MAX_TOKENS",
+     "client.ts#RETRY_MAX_TOKENS",
+     "client.ts#modelRefusal",
+     "client.ts#priceFor",
+     "client.ts#shownModelId"
+    ],
+    "line": 10,
+    "lines": [
+     10
+    ],
+    "count": 1
+   },
+   {
+    "id": "imports:roles/adversary.ts->client.ts:../client@27",
+    "kind": "imports",
+    "from": "roles/adversary.ts",
+    "to": "client.ts",
+    "what": "../client",
+    "toSymbols": [
+     "client.ts#chat"
+    ],
+    "line": 27,
+    "lines": [
+     27
+    ],
+    "count": 1
+   },
+   {
+    "id": "imports:roles/adversary.ts->roles/claimant.ts:./claimant@31",
+    "kind": "imports",
+    "from": "roles/adversary.ts",
+    "to": "roles/claimant.ts",
+    "what": "./claimant",
+    "toSymbols": [
+     "roles/claimant.ts#COST_UNKNOWN",
+     "roles/claimant.ts#NO_USAGE",
+     "roles/claimant.ts#SYSTEM_PREAMBLE",
+     "roles/claimant.ts#addUsage",
+     "roles/claimant.ts#contextRangeFor",
+     "roles/claimant.ts#numbered",
+     "roles/claimant.ts#repairMessage",
+     "roles/claimant.ts#zodSafeReason"
+    ],
+    "line": 31,
+    "lines": [
+     31
+    ],
+    "count": 1
+   },
+   {
+    "id": "imports:roles/adversary.ts->schemas.ts:../schemas@28",
+    "kind": "imports",
+    "from": "roles/adversary.ts",
+    "to": "schemas.ts",
+    "what": "../schemas",
+    "toSymbols": [
+     "schemas.ts#adversaryOutputSchema",
+     "schemas.ts#zodReason"
+    ],
+    "line": 28,
+    "lines": [
+     28
+    ],
+    "count": 1
+   },
+   {
+    "id": "imports:roles/claimant-bets.ts->client.ts:../client@28",
+    "kind": "imports",
+    "from": "roles/claimant-bets.ts",
+    "to": "client.ts",
+    "what": "../client",
+    "toSymbols": [
+     "client.ts#chat"
+    ],
+    "line": 28,
+    "lines": [
+     28
+    ],
+    "count": 1
+   },
+   {
+    "id": "imports:roles/claimant-bets.ts->roles/claimant.ts:./claimant@32",
+    "kind": "imports",
+    "from": "roles/claimant-bets.ts",
+    "to": "roles/claimant.ts",
+    "what": "./claimant",
+    "toSymbols": [
+     "roles/claimant.ts#CLAIMANT_MODEL",
+     "roles/claimant.ts#COST_UNKNOWN",
+     "roles/claimant.ts#NO_USAGE",
+     "roles/claimant.ts#SYSTEM_PREAMBLE",
+     "roles/claimant.ts#addUsage",
+     "roles/claimant.ts#contextRangeFor",
+     "roles/claimant.ts#numbered",
+     "roles/claimant.ts#repairMessage",
+     "roles/claimant.ts#validateBetsFor",
+     "roles/claimant.ts#zodSafeReason"
+    ],
+    "line": 32,
+    "lines": [
+     32
+    ],
+    "count": 1
+   },
+   {
+    "id": "imports:roles/claimant-bets.ts->schemas.ts:../schemas@29",
+    "kind": "imports",
+    "from": "roles/claimant-bets.ts",
+    "to": "schemas.ts",
+    "what": "../schemas",
+    "toSymbols": [
+     "schemas.ts#claimantBetsOnlySchema",
+     "schemas.ts#zodReason"
+    ],
+    "line": 29,
+    "lines": [
+     29
+    ],
+    "count": 1
+   },
+   {
+    "id": "imports:roles/claimant.ts->client.ts:../client@21",
+    "kind": "imports",
+    "from": "roles/claimant.ts",
+    "to": "client.ts",
+    "what": "../client",
+    "toSymbols": [
+     "client.ts#chat"
+    ],
+    "line": 21,
+    "lines": [
+     21
+    ],
+    "count": 1
+   },
+   {
+    "id": "imports:roles/claimant.ts->roles/fixture-finding.ts:./fixture-finding@25",
+    "kind": "imports",
+    "from": "roles/claimant.ts",
+    "to": "roles/fixture-finding.ts",
+    "what": "./fixture-finding",
+    "toSymbols": [
+     "roles/fixture-finding.ts#FIXTURE_FINDING_ID",
+     "roles/fixture-finding.ts#FIXTURE_FINDING_LABEL",
+     "roles/fixture-finding.ts#fixtureContextRange"
+    ],
+    "line": 25,
+    "lines": [
+     25
+    ],
+    "count": 1
+   },
+   {
+    "id": "imports:roles/claimant.ts->schemas.ts:../schemas@22",
+    "kind": "imports",
+    "from": "roles/claimant.ts",
+    "to": "schemas.ts",
+    "what": "../schemas",
+    "toSymbols": [
+     "schemas.ts#claimantOutputSchema",
+     "schemas.ts#zodReason"
+    ],
+    "line": 22,
+    "lines": [
+     22
+    ],
+    "count": 1
+   },
+   {
+    "id": "imports:roles/fixer.ts->client.ts:../client@45",
+    "kind": "imports",
+    "from": "roles/fixer.ts",
+    "to": "client.ts",
+    "what": "../client",
+    "toSymbols": [
+     "client.ts#DEFAULT_USAGE_PATH",
+     "client.ts#chat",
+     "client.ts#costUsd",
+     "client.ts#loadApiKey",
+     "client.ts#modelRefusal",
+     "client.ts#priceFor",
+     "client.ts#shownModelId"
+    ],
+    "line": 45,
+    "lines": [
+     45
+    ],
+    "count": 1
+   },
+   {
+    "id": "imports:roles/fixer.ts->redact-secret.ts:../redact-secret@42",
+    "kind": "imports",
+    "from": "roles/fixer.ts",
+    "to": "redact-secret.ts",
+    "what": "../redact-secret",
+    "toSymbols": [
+     "redact-secret.ts#redactSecret"
+    ],
+    "line": 42,
+    "lines": [
+     42
+    ],
+    "count": 1
+   },
+   {
+    "id": "imports:roles/fixer.ts->roles/claimant.ts:./claimant@48",
+    "kind": "imports",
+    "from": "roles/fixer.ts",
+    "to": "roles/claimant.ts",
+    "what": "./claimant",
+    "toSymbols": [
+     "roles/claimant.ts#COST_UNKNOWN",
+     "roles/claimant.ts#NO_USAGE",
+     "roles/claimant.ts#addUsage",
+     "roles/claimant.ts#numbered"
+    ],
+    "line": 48,
+    "lines": [
+     48
+    ],
+    "count": 1
+   },
+   {
+    "id": "imports:roles/investigator.ts->client.ts:../client@19",
+    "kind": "imports",
+    "from": "roles/investigator.ts",
+    "to": "client.ts",
+    "what": "../client",
+    "toSymbols": [
+     "client.ts#chat"
+    ],
+    "line": 19,
+    "lines": [
+     19
+    ],
+    "count": 1
+   },
+   {
+    "id": "imports:roles/investigator.ts->roles/claimant.ts:./claimant@23",
+    "kind": "imports",
+    "from": "roles/investigator.ts",
+    "to": "roles/claimant.ts",
+    "what": "./claimant",
+    "toSymbols": [
+     "roles/claimant.ts#COST_UNKNOWN",
+     "roles/claimant.ts#NO_USAGE",
+     "roles/claimant.ts#SYSTEM_PREAMBLE",
+     "roles/claimant.ts#addUsage",
+     "roles/claimant.ts#numbered",
+     "roles/claimant.ts#repairMessage",
+     "roles/claimant.ts#zodSafeReason"
+    ],
+    "line": 23,
+    "lines": [
+     23
+    ],
+    "count": 1
+   },
+   {
+    "id": "imports:roles/outliner.ts->client.ts:../client#type@16",
+    "kind": "imports",
+    "from": "roles/outliner.ts",
+    "to": "client.ts",
+    "what": "../client",
+    "typeOnly": true,
+    "line": 16,
+    "lines": [
+     16
+    ],
+    "count": 1
+   },
+   {
+    "id": "imports:roles/outliner.ts->pasted-guard.ts:../pasted-guard@17",
+    "kind": "imports",
+    "from": "roles/outliner.ts",
+    "to": "pasted-guard.ts",
+    "what": "../pasted-guard",
+    "toSymbols": [
+     "pasted-guard.ts#codeModelRefusal",
+     "pasted-guard.ts#guardCodeChat"
+    ],
+    "line": 17,
+    "lines": [
+     17
+    ],
+    "count": 1
+   },
+   {
+    "id": "imports:roles/outliner.ts->roles/claimant.ts:./claimant@20",
+    "kind": "imports",
+    "from": "roles/outliner.ts",
+    "to": "roles/claimant.ts",
+    "what": "./claimant",
+    "toSymbols": [
+     "roles/claimant.ts#COST_UNKNOWN",
+     "roles/claimant.ts#NO_USAGE",
+     "roles/claimant.ts#addUsage",
+     "roles/claimant.ts#numbered",
+     "roles/claimant.ts#repairMessage"
+    ],
+    "line": 20,
+    "lines": [
+     20
+    ],
+    "count": 1
+   },
+   {
+    "id": "imports:roles/outliner.ts->roles/investigator.ts:./investigator@21",
+    "kind": "imports",
+    "from": "roles/outliner.ts",
+    "to": "roles/investigator.ts",
+    "what": "./investigator",
+    "toSymbols": [
+     "roles/investigator.ts#CHARS_PER_TOKEN",
+     "roles/investigator.ts#MEDIUM_EFFORT_ABOVE_TOKENS"
+    ],
+    "line": 21,
+    "lines": [
+     21
+    ],
+    "count": 1
+   },
+   {
+    "id": "imports:roles/proposer.ts->client.ts:../client@21",
+    "kind": "imports",
+    "from": "roles/proposer.ts",
+    "to": "client.ts",
+    "what": "../client",
+    "toSymbols": [
+     "client.ts#chat"
+    ],
+    "line": 21,
+    "lines": [
+     21
+    ],
+    "count": 1
+   },
+   {
+    "id": "imports:roles/proposer.ts->roles/claimant.ts:./claimant@25",
+    "kind": "imports",
+    "from": "roles/proposer.ts",
+    "to": "roles/claimant.ts",
+    "what": "./claimant",
+    "toSymbols": [
+     "roles/claimant.ts#COST_UNKNOWN",
+     "roles/claimant.ts#NO_USAGE",
+     "roles/claimant.ts#SYSTEM_PREAMBLE",
+     "roles/claimant.ts#addUsage",
+     "roles/claimant.ts#numbered",
+     "roles/claimant.ts#repairMessage",
+     "roles/claimant.ts#zodSafeReason"
+    ],
+    "line": 25,
+    "lines": [
+     25
+    ],
+    "count": 1
+   },
+   {
+    "id": "imports:roles/proposer.ts->schemas.ts:../schemas@22",
+    "kind": "imports",
+    "from": "roles/proposer.ts",
+    "to": "schemas.ts",
+    "what": "../schemas",
+    "toSymbols": [
+     "schemas.ts#proposerOutputSchema",
+     "schemas.ts#zodReason"
+    ],
+    "line": 22,
+    "lines": [
+     22
+    ],
+    "count": 1
+   },
+   {
+    "id": "uses:client.ts->client.ts:modelRefusal",
+    "kind": "uses",
+    "from": "client.ts",
+    "to": "client.ts",
+    "what": "modelRefusal",
+    "toSymbol": "client.ts#modelRefusal",
+    "line": 162,
+    "lines": [
+     162
+    ],
+    "count": 1
+   },
+   {
+    "id": "uses:pasted-guard.ts->client.ts:DEFAULT_MAX_TOKENS",
+    "kind": "uses",
+    "from": "pasted-guard.ts",
+    "to": "client.ts",
+    "what": "DEFAULT_MAX_TOKENS",
+    "toSymbol": "client.ts#DEFAULT_MAX_TOKENS",
+    "line": 27,
+    "lines": [
+     27
+    ],
+    "count": 1
+   },
+   {
+    "id": "uses:pasted-guard.ts->client.ts:RETRY_MAX_TOKENS",
+    "kind": "uses",
+    "from": "pasted-guard.ts",
+    "to": "client.ts",
+    "what": "RETRY_MAX_TOKENS",
+    "toSymbol": "client.ts#RETRY_MAX_TOKENS",
+    "line": 27,
+    "lines": [
+     27
+    ],
+    "count": 1
+   },
+   {
+    "id": "uses:roles/adversary.ts->client.ts:realChat",
+    "kind": "uses",
+    "from": "roles/adversary.ts",
+    "to": "client.ts",
+    "what": "realChat",
+    "toSymbol": "client.ts#chat",
+    "line": 264,
+    "lines": [
+     264
+    ],
+    "count": 1
+   },
+   {
+    "id": "uses:roles/adversary.ts->roles/claimant.ts:COST_UNKNOWN",
+    "kind": "uses",
+    "from": "roles/adversary.ts",
+    "to": "roles/claimant.ts",
+    "what": "COST_UNKNOWN",
+    "toSymbol": "roles/claimant.ts#COST_UNKNOWN",
+    "line": 281,
+    "lines": [
+     281
+    ],
+    "count": 1
+   },
+   {
+    "id": "uses:roles/adversary.ts->roles/claimant.ts:NO_USAGE",
+    "kind": "uses",
+    "from": "roles/adversary.ts",
+    "to": "roles/claimant.ts",
+    "what": "NO_USAGE",
+    "toSymbol": "roles/claimant.ts#NO_USAGE",
+    "line": 281,
+    "lines": [
+     281,
+     285
+    ],
+    "count": 2
+   },
+   {
+    "id": "uses:roles/adversary.ts->roles/claimant.ts:SYSTEM_PREAMBLE",
+    "kind": "uses",
+    "from": "roles/adversary.ts",
+    "to": "roles/claimant.ts",
+    "what": "SYSTEM_PREAMBLE",
+    "toSymbol": "roles/claimant.ts#SYSTEM_PREAMBLE",
+    "line": 170,
+    "lines": [
+     170
+    ],
+    "count": 1
+   },
+   {
+    "id": "uses:roles/adversary.ts->schemas.ts:adversaryOutputSchema.safeParse",
+    "kind": "uses",
+    "from": "roles/adversary.ts",
+    "to": "schemas.ts",
+    "what": "adversaryOutputSchema.safeParse",
+    "toSymbol": "schemas.ts#adversaryOutputSchema",
+    "line": 244,
+    "lines": [
+     244
+    ],
+    "count": 1
+   },
+   {
+    "id": "uses:roles/claimant-bets.ts->client.ts:realChat",
+    "kind": "uses",
+    "from": "roles/claimant-bets.ts",
+    "to": "client.ts",
+    "what": "realChat",
+    "toSymbol": "client.ts#chat",
+    "line": 181,
+    "lines": [
+     181
+    ],
+    "count": 1
+   },
+   {
+    "id": "uses:roles/claimant-bets.ts->roles/claimant.ts:CLAIMANT_MODEL",
+    "kind": "uses",
+    "from": "roles/claimant-bets.ts",
+    "to": "roles/claimant.ts",
+    "what": "CLAIMANT_MODEL",
+    "toSymbol": "roles/claimant.ts#CLAIMANT_MODEL",
+    "line": 183,
+    "lines": [
+     183
+    ],
+    "count": 1
+   },
+   {
+    "id": "uses:roles/claimant-bets.ts->roles/claimant.ts:COST_UNKNOWN",
+    "kind": "uses",
+    "from": "roles/claimant-bets.ts",
+    "to": "roles/claimant.ts",
+    "what": "COST_UNKNOWN",
+    "toSymbol": "roles/claimant.ts#COST_UNKNOWN",
+    "line": 192,
+    "lines": [
+     192
+    ],
+    "count": 1
+   },
+   {
+    "id": "uses:roles/claimant-bets.ts->roles/claimant.ts:NO_USAGE",
+    "kind": "uses",
+    "from": "roles/claimant-bets.ts",
+    "to": "roles/claimant.ts",
+    "what": "NO_USAGE",
+    "toSymbol": "roles/claimant.ts#NO_USAGE",
+    "line": 192,
+    "lines": [
+     192
+    ],
+    "count": 1
+   },
+   {
+    "id": "uses:roles/claimant-bets.ts->roles/claimant.ts:SYSTEM_PREAMBLE",
+    "kind": "uses",
+    "from": "roles/claimant-bets.ts",
+    "to": "roles/claimant.ts",
+    "what": "SYSTEM_PREAMBLE",
+    "toSymbol": "roles/claimant.ts#SYSTEM_PREAMBLE",
+    "line": 132,
+    "lines": [
+     132,
+     160
+    ],
+    "count": 2
+   },
+   {
+    "id": "uses:roles/claimant-bets.ts->schemas.ts:claimantBetsOnlySchema.safeParse",
+    "kind": "uses",
+    "from": "roles/claimant-bets.ts",
+    "to": "schemas.ts",
+    "what": "claimantBetsOnlySchema.safeParse",
+    "toSymbol": "schemas.ts#claimantBetsOnlySchema",
+    "line": 173,
+    "lines": [
+     173
+    ],
+    "count": 1
+   },
+   {
+    "id": "uses:roles/claimant.ts->client.ts:realChat",
+    "kind": "uses",
+    "from": "roles/claimant.ts",
+    "to": "client.ts",
+    "what": "realChat",
+    "toSymbol": "client.ts#chat",
+    "line": 311,
+    "lines": [
+     311
+    ],
+    "count": 1
+   },
+   {
+    "id": "uses:roles/claimant.ts->roles/fixture-finding.ts:FIXTURE_FINDING_ID",
+    "kind": "uses",
+    "from": "roles/claimant.ts",
+    "to": "roles/fixture-finding.ts",
+    "what": "FIXTURE_FINDING_ID",
+    "toSymbol": "roles/fixture-finding.ts#FIXTURE_FINDING_ID",
+    "line": 124,
+    "lines": [
+     124
+    ],
+    "count": 1
+   },
+   {
+    "id": "uses:roles/claimant.ts->roles/fixture-finding.ts:FIXTURE_FINDING_LABEL",
+    "kind": "uses",
+    "from": "roles/claimant.ts",
+    "to": "roles/fixture-finding.ts",
+    "what": "FIXTURE_FINDING_LABEL",
+    "toSymbol": "roles/fixture-finding.ts#FIXTURE_FINDING_LABEL",
+    "line": 343,
+    "lines": [
+     343
+    ],
+    "count": 1
+   },
+   {
+    "id": "uses:roles/claimant.ts->schemas.ts:claimantOutputSchema.safeParse",
+    "kind": "uses",
+    "from": "roles/claimant.ts",
+    "to": "schemas.ts",
+    "what": "claimantOutputSchema.safeParse",
+    "toSymbol": "schemas.ts#claimantOutputSchema",
+    "line": 231,
+    "lines": [
+     231
+    ],
+    "count": 1
+   },
+   {
+    "id": "uses:roles/fixer.ts->client.ts:DEFAULT_USAGE_PATH",
+    "kind": "uses",
+    "from": "roles/fixer.ts",
+    "to": "client.ts",
+    "what": "DEFAULT_USAGE_PATH",
+    "toSymbol": "client.ts#DEFAULT_USAGE_PATH",
+    "line": 447,
+    "lines": [
+     447
+    ],
+    "count": 1
+   },
+   {
+    "id": "uses:roles/fixer.ts->client.ts:realChat",
+    "kind": "uses",
+    "from": "roles/fixer.ts",
+    "to": "client.ts",
+    "what": "realChat",
+    "toSymbol": "client.ts#chat",
+    "line": 444,
+    "lines": [
+     444
+    ],
+    "count": 1
+   },
+   {
+    "id": "uses:roles/fixer.ts->roles/claimant.ts:COST_UNKNOWN",
+    "kind": "uses",
+    "from": "roles/fixer.ts",
+    "to": "roles/claimant.ts",
+    "what": "COST_UNKNOWN",
+    "toSymbol": "roles/claimant.ts#COST_UNKNOWN",
+    "line": 458,
+    "lines": [
+     458
+    ],
+    "count": 1
+   },
+   {
+    "id": "uses:roles/fixer.ts->roles/claimant.ts:NO_USAGE",
+    "kind": "uses",
+    "from": "roles/fixer.ts",
+    "to": "roles/claimant.ts",
+    "what": "NO_USAGE",
+    "toSymbol": "roles/claimant.ts#NO_USAGE",
+    "line": 458,
+    "lines": [
+     458
+    ],
+    "count": 1
+   },
+   {
+    "id": "uses:roles/investigator.ts->client.ts:realChat",
+    "kind": "uses",
+    "from": "roles/investigator.ts",
+    "to": "client.ts",
+    "what": "realChat",
+    "toSymbol": "client.ts#chat",
+    "line": 286,
+    "lines": [
+     286
+    ],
+    "count": 1
+   },
+   {
+    "id": "uses:roles/investigator.ts->roles/claimant.ts:COST_UNKNOWN",
+    "kind": "uses",
+    "from": "roles/investigator.ts",
+    "to": "roles/claimant.ts",
+    "what": "COST_UNKNOWN",
+    "toSymbol": "roles/claimant.ts#COST_UNKNOWN",
+    "line": 298,
+    "lines": [
+     298
+    ],
+    "count": 1
+   },
+   {
+    "id": "uses:roles/investigator.ts->roles/claimant.ts:NO_USAGE",
+    "kind": "uses",
+    "from": "roles/investigator.ts",
+    "to": "roles/claimant.ts",
+    "what": "NO_USAGE",
+    "toSymbol": "roles/claimant.ts#NO_USAGE",
+    "line": 298,
+    "lines": [
+     298
+    ],
+    "count": 1
+   },
+   {
+    "id": "uses:roles/investigator.ts->roles/claimant.ts:SYSTEM_PREAMBLE",
+    "kind": "uses",
+    "from": "roles/investigator.ts",
+    "to": "roles/claimant.ts",
+    "what": "SYSTEM_PREAMBLE",
+    "toSymbol": "roles/claimant.ts#SYSTEM_PREAMBLE",
+    "line": 153,
+    "lines": [
+     153
+    ],
+    "count": 1
+   },
+   {
+    "id": "uses:roles/outliner.ts->roles/claimant.ts:COST_UNKNOWN",
+    "kind": "uses",
+    "from": "roles/outliner.ts",
+    "to": "roles/claimant.ts",
+    "what": "COST_UNKNOWN",
+    "toSymbol": "roles/claimant.ts#COST_UNKNOWN",
+    "line": 149,
+    "lines": [
+     149
+    ],
+    "count": 1
+   },
+   {
+    "id": "uses:roles/outliner.ts->roles/claimant.ts:NO_USAGE",
+    "kind": "uses",
+    "from": "roles/outliner.ts",
+    "to": "roles/claimant.ts",
+    "what": "NO_USAGE",
+    "toSymbol": "roles/claimant.ts#NO_USAGE",
+    "line": 149,
+    "lines": [
+     149
+    ],
+    "count": 1
+   },
+   {
+    "id": "uses:roles/outliner.ts->roles/investigator.ts:CHARS_PER_TOKEN",
+    "kind": "uses",
+    "from": "roles/outliner.ts",
+    "to": "roles/investigator.ts",
+    "what": "CHARS_PER_TOKEN",
+    "toSymbol": "roles/investigator.ts#CHARS_PER_TOKEN",
+    "line": 140,
+    "lines": [
+     140
+    ],
+    "count": 1
+   },
+   {
+    "id": "uses:roles/outliner.ts->roles/investigator.ts:MEDIUM_EFFORT_ABOVE_TOKENS",
+    "kind": "uses",
+    "from": "roles/outliner.ts",
+    "to": "roles/investigator.ts",
+    "what": "MEDIUM_EFFORT_ABOVE_TOKENS",
+    "toSymbol": "roles/investigator.ts#MEDIUM_EFFORT_ABOVE_TOKENS",
+    "line": 156,
+    "lines": [
+     156
+    ],
+    "count": 1
+   },
+   {
+    "id": "uses:roles/proposer.ts->client.ts:realChat",
+    "kind": "uses",
+    "from": "roles/proposer.ts",
+    "to": "client.ts",
+    "what": "realChat",
+    "toSymbol": "client.ts#chat",
+    "line": 131,
+    "lines": [
+     131
+    ],
+    "count": 1
+   },
+   {
+    "id": "uses:roles/proposer.ts->roles/claimant.ts:COST_UNKNOWN",
+    "kind": "uses",
+    "from": "roles/proposer.ts",
+    "to": "roles/claimant.ts",
+    "what": "COST_UNKNOWN",
+    "toSymbol": "roles/claimant.ts#COST_UNKNOWN",
+    "line": 138,
+    "lines": [
+     138
+    ],
+    "count": 1
+   },
+   {
+    "id": "uses:roles/proposer.ts->roles/claimant.ts:NO_USAGE",
+    "kind": "uses",
+    "from": "roles/proposer.ts",
+    "to": "roles/claimant.ts",
+    "what": "NO_USAGE",
+    "toSymbol": "roles/claimant.ts#NO_USAGE",
+    "line": 138,
+    "lines": [
+     138
+    ],
+    "count": 1
+   },
+   {
+    "id": "uses:roles/proposer.ts->roles/claimant.ts:SYSTEM_PREAMBLE",
+    "kind": "uses",
+    "from": "roles/proposer.ts",
+    "to": "roles/claimant.ts",
+    "what": "SYSTEM_PREAMBLE",
+    "toSymbol": "roles/claimant.ts#SYSTEM_PREAMBLE",
+    "line": 92,
+    "lines": [
+     92
+    ],
+    "count": 1
+   },
+   {
+    "id": "uses:roles/proposer.ts->schemas.ts:proposerOutputSchema.safeParse",
+    "kind": "uses",
+    "from": "roles/proposer.ts",
+    "to": "schemas.ts",
+    "what": "proposerOutputSchema.safeParse",
+    "toSymbol": "schemas.ts#proposerOutputSchema",
+    "line": 114,
+    "lines": [
+     114
+    ],
+    "count": 1
+   }
+  ],
+  "externals": [
+   {
+    "name": "nanoid",
+    "importedBy": [
+     "roles/adversary.ts",
+     "roles/claimant.ts",
+     "roles/investigator.ts",
+     "roles/proposer.ts"
+    ]
+   },
+   {
+    "name": "node:child_process",
+    "importedBy": [
+     "roles/fixer.ts"
+    ]
+   },
+   {
+    "name": "node:fs",
+    "importedBy": [
+     "budget.ts",
+     "client.ts",
+     "roles/fixer.ts"
+    ]
+   },
+   {
+    "name": "node:os",
+    "importedBy": [
+     "client.ts",
+     "roles/fixer.ts"
+    ]
+   },
+   {
+    "name": "node:path",
+    "importedBy": [
+     "client.ts",
+     "roles/fixer.ts"
+    ]
+   },
+   {
+    "name": "node:url",
+    "importedBy": [
+     "client.ts"
+    ]
+   },
+   {
+    "name": "zod",
+    "importedBy": [
+     "roles/investigator.ts",
+     "schemas.ts"
+    ]
+   }
+  ],
+  "notes": []
+ },
+ "verified": {
+  "version": 1,
+  "model": "muse-wonder-1.0",
+  "parts": [
+   {
+    "id": "model-client",
+    "name": {
+     "text": "Meta model client",
+     "by": "model:muse-wonder-1.0"
+    },
+    "purpose": {
+     "text": "Sends chat requests to Meta or Baseten, handles retries and response-format fallback, prices usage, and logs every billed call.",
+     "by": "model:muse-wonder-1.0"
+    },
+    "status": "confirmed",
+    "reasons": [],
+    "spans": [
+     {
+      "path": "client.ts",
+      "lineStart": 1,
+      "lineEnd": 364,
+      "ok": true,
+      "wholeFile": true
+     }
+    ],
+    "files": [
+     "client.ts"
+    ],
+    "patterns": [
+     {
+      "label": "network",
+      "known": true
+     },
+     {
+      "label": "auth",
+      "known": true
+     },
+     {
+      "label": "config",
+      "known": true
+     },
+     {
+      "label": "logging",
+      "known": true
+     },
+     {
+      "label": "error-handling",
+      "known": true
+     }
+    ]
+   },
+   {
+    "id": "secret-redaction",
+    "name": {
+     "text": "Secret redaction",
+     "by": "model:muse-wonder-1.0"
+    },
+    "purpose": {
+     "text": "Removes a whole secret or any sufficiently long piece of it from text before that text is kept or shown.",
+     "by": "model:muse-wonder-1.0"
+    },
+    "status": "confirmed",
+    "reasons": [],
+    "spans": [
+     {
+      "path": "redact-secret.ts",
+      "lineStart": 1,
+      "lineEnd": 36,
+      "ok": true,
+      "wholeFile": true
+     }
+    ],
+    "files": [
+     "redact-secret.ts"
+    ],
+    "patterns": [
+     {
+      "label": "auth",
+      "known": true
+     },
+     {
+      "label": "parsing",
+      "known": true
+     }
+    ]
+   },
+   {
+    "id": "budget",
+    "name": {
+     "text": "Model-call budget",
+     "by": "model:muse-wonder-1.0"
+    },
+    "purpose": {
+     "text": "Limits model use by hourly calls, experiments per session, and total spend, including reservations for concurrent calls.",
+     "by": "model:muse-wonder-1.0"
+    },
+    "status": "confirmed",
+    "reasons": [],
+    "spans": [
+     {
+      "path": "budget.ts",
+      "lineStart": 1,
+      "lineEnd": 148,
+      "ok": true,
+      "wholeFile": true
+     }
+    ],
+    "files": [
+     "budget.ts"
+    ],
+    "patterns": [
+     {
+      "label": "state",
+      "known": true
+     },
+     {
+      "label": "config",
+      "known": true
+     },
+     {
+      "label": "file-io",
+      "known": true
+     },
+     {
+      "label": "validation",
+      "known": true
+     }
+    ]
+   },
+   {
+    "id": "code-guard",
+    "name": {
+     "text": "Code-carrying call guard",
+     "by": "model:muse-wonder-1.0"
+    },
+    "purpose": {
+     "text": "Refuses contributor or otherwise disallowed models and enforces prompt-size and estimated-cost limits before code is sent.",
+     "by": "model:muse-wonder-1.0"
+    },
+    "status": "confirmed",
+    "reasons": [],
+    "spans": [
+     {
+      "path": "pasted-guard.ts",
+      "lineStart": 1,
+      "lineEnd": 73,
+      "ok": true,
+      "wholeFile": true
+     }
+    ],
+    "files": [
+     "pasted-guard.ts"
+    ],
+    "patterns": [
+     {
+      "label": "auth",
+      "known": true
+     },
+     {
+      "label": "validation",
+      "known": true
+     },
+     {
+      "label": "config",
+      "known": true
+     }
+    ]
+   },
+   {
+    "id": "schemas",
+    "name": {
+     "text": "Model answer schemas",
+     "by": "model:muse-wonder-1.0"
+    },
+    "purpose": {
+     "text": "Defines the strict zod shapes for model-returned bets, experiments, adversary proposals, and proposer tests.",
+     "by": "model:muse-wonder-1.0"
+    },
+    "status": "confirmed",
+    "reasons": [],
+    "spans": [
+     {
+      "path": "schemas.ts",
+      "lineStart": 1,
+      "lineEnd": 70,
+      "ok": true,
+      "wholeFile": true
+     }
+    ],
+    "files": [
+     "schemas.ts"
+    ],
+    "patterns": [
+     {
+      "label": "parsing",
+      "known": true
+     },
+     {
+      "label": "validation",
+      "known": true
+     }
+    ]
+   },
+   {
+    "id": "claimant-core",
+    "name": {
+     "text": "Claimant and fixture finding",
+     "by": "model:muse-wonder-1.0"
+    },
+    "purpose": {
+     "text": "Builds the Claimant prompt, validates its experiment and bets against plain-code questions, seals accepted bets, and supplies the hand-written fixture finding.",
+     "by": "model:muse-wonder-1.0"
+    },
+    "status": "confirmed",
+    "reasons": [],
+    "spans": [
+     {
+      "path": "roles/claimant.ts",
+      "lineStart": 1,
+      "lineEnd": 401,
+      "ok": true,
+      "wholeFile": true
+     },
+     {
+      "path": "roles/fixture-finding.ts",
+      "lineStart": 1,
+      "lineEnd": 70,
+      "ok": true,
+      "wholeFile": true
+     }
+    ],
+    "files": [
+     "roles/claimant.ts",
+     "roles/fixture-finding.ts"
+    ],
+    "patterns": [
+     {
+      "label": "validation",
+      "known": true
+     },
+     {
+      "label": "parsing",
+      "known": true
+     },
+     {
+      "label": "logging",
+      "known": true
+     },
+     {
+      "label": "error-handling",
+      "known": true
+     }
+    ]
+   },
+   {
+    "id": "bet-only-claimant",
+    "name": {
+     "text": "Bet-only Claimant",
+     "by": "model:muse-wonder-1.0"
+    },
+    "purpose": {
+     "text": "Asks the model to bet on an already chosen experiment, validates one bet per question, and seals the accepted bets.",
+     "by": "model:muse-wonder-1.0"
+    },
+    "status": "confirmed",
+    "reasons": [],
+    "spans": [
+     {
+      "path": "roles/claimant-bets.ts",
+      "lineStart": 1,
+      "lineEnd": 246,
+      "ok": true,
+      "wholeFile": true
+     }
+    ],
+    "files": [
+     "roles/claimant-bets.ts"
+    ],
+    "patterns": [
+     {
+      "label": "validation",
+      "known": true
+     },
+     {
+      "label": "parsing",
+      "known": true
+     },
+     {
+      "label": "logging",
+      "known": true
+     }
+    ]
+   },
+   {
+    "id": "investigator",
+    "name": {
+     "text": "Investigator role",
+     "by": "model:muse-wonder-1.0"
+    },
+    "purpose": {
+     "text": "Asks a model to propose up to three code findings, verifies each quoted place with plain code, and falls back to another model when needed.",
+     "by": "model:muse-wonder-1.0"
+    },
+    "status": "confirmed",
+    "reasons": [],
+    "spans": [
+     {
+      "path": "roles/investigator.ts",
+      "lineStart": 1,
+      "lineEnd": 378,
+      "ok": true,
+      "wholeFile": true
+     }
+    ],
+    "files": [
+     "roles/investigator.ts"
+    ],
+    "patterns": [
+     {
+      "label": "validation",
+      "known": true
+     },
+     {
+      "label": "parsing",
+      "known": true
+     },
+     {
+      "label": "logging",
+      "known": true
+     },
+     {
+      "label": "error-handling",
+      "known": true
+     }
+    ]
+   },
+   {
+    "id": "adversary",
+    "name": {
+     "text": "Adversary role",
+     "by": "model:muse-wonder-1.0"
+    },
+    "purpose": {
+     "text": "Asks a model for one additional experiment after a run, then applies schema, gate, question, and repeat checks before accepting it.",
+     "by": "model:muse-wonder-1.0"
+    },
+    "status": "confirmed",
+    "reasons": [],
+    "spans": [
+     {
+      "path": "roles/adversary.ts",
+      "lineStart": 1,
+      "lineEnd": 339,
+      "ok": true,
+      "wholeFile": true
+     }
+    ],
+    "files": [
+     "roles/adversary.ts"
+    ],
+    "patterns": [
+     {
+      "label": "validation",
+      "known": true
+     },
+     {
+      "label": "parsing",
+      "known": true
+     },
+     {
+      "label": "logging",
+      "known": true
+     },
+     {
+      "label": "error-handling",
+      "known": true
+     }
+    ]
+   },
+   {
+    "id": "proposer",
+    "name": {
+     "text": "Pasted-code proposer",
+     "by": "model:muse-wonder-1.0"
+    },
+    "purpose": {
+     "text": "Asks Muse Wonder to propose tests for a selected function in pasted code and keeps gate-allowed and gate-refused proposals separate.",
+     "by": "model:muse-wonder-1.0"
+    },
+    "status": "confirmed",
+    "reasons": [],
+    "spans": [
+     {
+      "path": "roles/proposer.ts",
+      "lineStart": 1,
+      "lineEnd": 178,
+      "ok": true,
+      "wholeFile": true
+     }
+    ],
+    "files": [
+     "roles/proposer.ts"
+    ],
+    "patterns": [
+     {
+      "label": "validation",
+      "known": true
+     },
+     {
+      "label": "parsing",
+      "known": true
+     },
+     {
+      "label": "logging",
+      "known": true
+     }
+    ]
+   },
+   {
+    "id": "outliner",
+    "name": {
+     "text": "Outliner role",
+     "by": "model:muse-wonder-1.0"
+    },
+    "purpose": {
+     "text": "Asks Muse Wonder to propose a codebase outline from files and a plain-code map, subject to code-model, prompt, and cost guards.",
+     "by": "model:muse-wonder-1.0"
+    },
+    "status": "confirmed",
+    "reasons": [],
+    "spans": [
+     {
+      "path": "roles/outliner.ts",
+      "lineStart": 1,
+      "lineEnd": 185,
+      "ok": true,
+      "wholeFile": true
+     }
+    ],
+    "files": [
+     "roles/outliner.ts"
+    ],
+    "patterns": [
+     {
+      "label": "validation",
+      "known": true
+     },
+     {
+      "label": "parsing",
+      "known": true
+     },
+     {
+      "label": "logging",
+      "known": true
+     },
+     {
+      "label": "config",
+      "known": true
+     }
+    ]
+   },
+   {
+    "id": "fixer",
+    "name": {
+     "text": "Fixer and Muse Code sandbox",
+     "by": "model:muse-wonder-1.0"
+    },
+    "purpose": {
+     "text": "Runs Muse Code headlessly in a restricted scratch workspace or falls back to chat, then keeps only a plain-code-checked unified diff.",
+     "by": "model:muse-wonder-1.0"
+    },
+    "status": "confirmed",
+    "reasons": [],
+    "spans": [
+     {
+      "path": "roles/fixer.ts",
+      "lineStart": 1,
+      "lineEnd": 571,
+      "ok": true,
+      "wholeFile": true
+     }
+    ],
+    "files": [
+     "roles/fixer.ts"
+    ],
+    "patterns": [
+     {
+      "label": "cli",
+      "known": true
+     },
+     {
+      "label": "file-io",
+      "known": true
+     },
+     {
+      "label": "auth",
+      "known": true
+     },
+     {
+      "label": "validation",
+      "known": true
+     },
+     {
+      "label": "logging",
+      "known": true
+     },
+     {
+      "label": "error-handling",
+      "known": true
+     }
+    ]
+   }
+  ],
+  "joins": [
+   {
+    "id": "wonder:0",
+    "from": "model-client",
+    "to": "secret-redaction",
+    "kind": "imports",
+    "status": "confirmed",
+    "codeEdges": [
+     "calls:client.ts->redact-secret.ts:redactSecret",
+     "imports:client.ts->redact-secret.ts:./redact-secret@20"
+    ],
+    "wonderEvidence": {
+     "path": "client.ts",
+     "line": 20,
+     "matches": true
+    }
+   },
+   {
+    "id": "wonder:1",
+    "from": "budget",
+    "to": "code-guard",
+    "kind": "imports",
+    "status": "confirmed",
+    "codeEdges": [
+     "calls:budget.ts->pasted-guard.ts:estimatedCallUsd",
+     "imports:budget.ts->pasted-guard.ts:./pasted-guard@15"
+    ],
+    "wonderEvidence": {
+     "path": "budget.ts",
+     "line": 15,
+     "matches": true
+    }
+   },
+   {
+    "id": "wonder:2",
+    "from": "budget",
+    "to": "model-client",
+    "kind": "imports",
+    "status": "confirmed",
+    "codeEdges": [
+     "imports:budget.ts->client.ts:./client#type@14"
+    ],
+    "wonderEvidence": {
+     "path": "budget.ts",
+     "line": 14,
+     "matches": true
+    },
+    "typeOnly": true
+   },
+   {
+    "id": "wonder:3",
+    "from": "code-guard",
+    "to": "model-client",
+    "kind": "imports",
+    "status": "confirmed",
+    "codeEdges": [
+     "calls:pasted-guard.ts->client.ts:modelRefusal",
+     "calls:pasted-guard.ts->client.ts:priceFor",
+     "calls:pasted-guard.ts->client.ts:shownModelId",
+     "imports:pasted-guard.ts->client.ts:./client@10",
+     "uses:pasted-guard.ts->client.ts:DEFAULT_MAX_TOKENS",
+     "uses:pasted-guard.ts->client.ts:RETRY_MAX_TOKENS"
+    ],
+    "wonderEvidence": {
+     "path": "pasted-guard.ts",
+     "line": 10,
+     "matches": true
+    }
+   },
+   {
+    "id": "wonder:4",
+    "from": "claimant-core",
+    "to": "model-client",
+    "kind": "imports",
+    "status": "confirmed",
+    "codeEdges": [
+     "imports:roles/claimant.ts->client.ts:../client@21",
+     "uses:roles/claimant.ts->client.ts:realChat"
+    ],
+    "wonderEvidence": {
+     "path": "roles/claimant.ts",
+     "line": 21,
+     "matches": true
+    }
+   },
+   {
+    "id": "wonder:5",
+    "from": "claimant-core",
+    "to": "schemas",
+    "kind": "imports",
+    "status": "confirmed",
+    "codeEdges": [
+     "calls:roles/claimant.ts->schemas.ts:zodReason",
+     "imports:roles/claimant.ts->schemas.ts:../schemas@22",
+     "uses:roles/claimant.ts->schemas.ts:claimantOutputSchema.safeParse"
+    ],
+    "wonderEvidence": {
+     "path": "roles/claimant.ts",
+     "line": 22,
+     "matches": true
+    }
+   },
+   {
+    "id": "wonder:6",
+    "from": "bet-only-claimant",
+    "to": "claimant-core",
+    "kind": "imports",
+    "status": "confirmed",
+    "codeEdges": [
+     "calls:roles/claimant-bets.ts->roles/claimant.ts:addUsage",
+     "calls:roles/claimant-bets.ts->roles/claimant.ts:contextRangeFor",
+     "calls:roles/claimant-bets.ts->roles/claimant.ts:numbered",
+     "calls:roles/claimant-bets.ts->roles/claimant.ts:repairMessage",
+     "calls:roles/claimant-bets.ts->roles/claimant.ts:validateBetsFor",
+     "calls:roles/claimant-bets.ts->roles/claimant.ts:zodSafeReason",
+     "imports:roles/claimant-bets.ts->roles/claimant.ts:./claimant@32",
+     "uses:roles/claimant-bets.ts->roles/claimant.ts:CLAIMANT_MODEL",
+     "uses:roles/claimant-bets.ts->roles/claimant.ts:COST_UNKNOWN",
+     "uses:roles/claimant-bets.ts->roles/claimant.ts:NO_USAGE",
+     "uses:roles/claimant-bets.ts->roles/claimant.ts:SYSTEM_PREAMBLE"
+    ],
+    "wonderEvidence": {
+     "path": "roles/claimant-bets.ts",
+     "line": 32,
+     "matches": true
+    }
+   },
+   {
+    "id": "wonder:7",
+    "from": "bet-only-claimant",
+    "to": "schemas",
+    "kind": "imports",
+    "status": "confirmed",
+    "codeEdges": [
+     "calls:roles/claimant-bets.ts->schemas.ts:zodReason",
+     "imports:roles/claimant-bets.ts->schemas.ts:../schemas@29",
+     "uses:roles/claimant-bets.ts->schemas.ts:claimantBetsOnlySchema.safeParse"
+    ],
+    "wonderEvidence": {
+     "path": "roles/claimant-bets.ts",
+     "line": 29,
+     "matches": true
+    }
+   },
+   {
+    "id": "wonder:8",
+    "from": "investigator",
+    "to": "claimant-core",
+    "kind": "imports",
+    "status": "confirmed",
+    "codeEdges": [
+     "calls:roles/investigator.ts->roles/claimant.ts:addUsage",
+     "calls:roles/investigator.ts->roles/claimant.ts:numbered",
+     "calls:roles/investigator.ts->roles/claimant.ts:repairMessage",
+     "calls:roles/investigator.ts->roles/claimant.ts:zodSafeReason",
+     "imports:roles/investigator.ts->roles/claimant.ts:./claimant@23",
+     "uses:roles/investigator.ts->roles/claimant.ts:COST_UNKNOWN",
+     "uses:roles/investigator.ts->roles/claimant.ts:NO_USAGE",
+     "uses:roles/investigator.ts->roles/claimant.ts:SYSTEM_PREAMBLE"
+    ],
+    "wonderEvidence": {
+     "path": "roles/investigator.ts",
+     "line": 23,
+     "matches": true
+    }
+   },
+   {
+    "id": "wonder:9",
+    "from": "adversary",
+    "to": "claimant-core",
+    "kind": "imports",
+    "status": "confirmed",
+    "codeEdges": [
+     "calls:roles/adversary.ts->roles/claimant.ts:addUsage",
+     "calls:roles/adversary.ts->roles/claimant.ts:contextRangeFor",
+     "calls:roles/adversary.ts->roles/claimant.ts:numbered",
+     "calls:roles/adversary.ts->roles/claimant.ts:repairMessage",
+     "calls:roles/adversary.ts->roles/claimant.ts:zodSafeReason",
+     "imports:roles/adversary.ts->roles/claimant.ts:./claimant@31",
+     "uses:roles/adversary.ts->roles/claimant.ts:COST_UNKNOWN",
+     "uses:roles/adversary.ts->roles/claimant.ts:NO_USAGE",
+     "uses:roles/adversary.ts->roles/claimant.ts:SYSTEM_PREAMBLE"
+    ],
+    "wonderEvidence": {
+     "path": "roles/adversary.ts",
+     "line": 31,
+     "matches": true
+    }
+   },
+   {
+    "id": "wonder:10",
+    "from": "adversary",
+    "to": "schemas",
+    "kind": "imports",
+    "status": "confirmed",
+    "codeEdges": [
+     "calls:roles/adversary.ts->schemas.ts:zodReason",
+     "imports:roles/adversary.ts->schemas.ts:../schemas@28",
+     "uses:roles/adversary.ts->schemas.ts:adversaryOutputSchema.safeParse"
+    ],
+    "wonderEvidence": {
+     "path": "roles/adversary.ts",
+     "line": 28,
+     "matches": true
+    }
+   },
+   {
+    "id": "wonder:11",
+    "from": "proposer",
+    "to": "claimant-core",
+    "kind": "imports",
+    "status": "confirmed",
+    "codeEdges": [
+     "calls:roles/proposer.ts->roles/claimant.ts:addUsage",
+     "calls:roles/proposer.ts->roles/claimant.ts:numbered",
+     "calls:roles/proposer.ts->roles/claimant.ts:repairMessage",
+     "calls:roles/proposer.ts->roles/claimant.ts:zodSafeReason",
+     "imports:roles/proposer.ts->roles/claimant.ts:./claimant@25",
+     "uses:roles/proposer.ts->roles/claimant.ts:COST_UNKNOWN",
+     "uses:roles/proposer.ts->roles/claimant.ts:NO_USAGE",
+     "uses:roles/proposer.ts->roles/claimant.ts:SYSTEM_PREAMBLE"
+    ],
+    "wonderEvidence": {
+     "path": "roles/proposer.ts",
+     "line": 25,
+     "matches": true
+    }
+   },
+   {
+    "id": "wonder:12",
+    "from": "proposer",
+    "to": "schemas",
+    "kind": "imports",
+    "status": "confirmed",
+    "codeEdges": [
+     "calls:roles/proposer.ts->schemas.ts:zodReason",
+     "imports:roles/proposer.ts->schemas.ts:../schemas@22",
+     "uses:roles/proposer.ts->schemas.ts:proposerOutputSchema.safeParse"
+    ],
+    "wonderEvidence": {
+     "path": "roles/proposer.ts",
+     "line": 22,
+     "matches": true
+    }
+   },
+   {
+    "id": "wonder:13",
+    "from": "outliner",
+    "to": "code-guard",
+    "kind": "imports",
+    "status": "confirmed",
+    "codeEdges": [
+     "calls:roles/outliner.ts->pasted-guard.ts:sharedCodeModelRefusal",
+     "calls:roles/outliner.ts->pasted-guard.ts:sharedGuardCodeChat",
+     "imports:roles/outliner.ts->pasted-guard.ts:../pasted-guard@17"
+    ],
+    "wonderEvidence": {
+     "path": "roles/outliner.ts",
+     "line": 17,
+     "matches": true
+    }
+   },
+   {
+    "id": "wonder:14",
+    "from": "outliner",
+    "to": "investigator",
+    "kind": "imports",
+    "status": "confirmed",
+    "codeEdges": [
+     "imports:roles/outliner.ts->roles/investigator.ts:./investigator@21",
+     "uses:roles/outliner.ts->roles/investigator.ts:CHARS_PER_TOKEN",
+     "uses:roles/outliner.ts->roles/investigator.ts:MEDIUM_EFFORT_ABOVE_TOKENS"
+    ],
+    "wonderEvidence": {
+     "path": "roles/outliner.ts",
+     "line": 21,
+     "matches": true
+    }
+   },
+   {
+    "id": "wonder:15",
+    "from": "fixer",
+    "to": "model-client",
+    "kind": "imports",
+    "status": "confirmed",
+    "codeEdges": [
+     "calls:roles/fixer.ts->client.ts:costUsd",
+     "calls:roles/fixer.ts->client.ts:loadApiKey",
+     "calls:roles/fixer.ts->client.ts:modelRefusal",
+     "calls:roles/fixer.ts->client.ts:priceFor",
+     "calls:roles/fixer.ts->client.ts:shownModelId",
+     "imports:roles/fixer.ts->client.ts:../client@45",
+     "uses:roles/fixer.ts->client.ts:DEFAULT_USAGE_PATH",
+     "uses:roles/fixer.ts->client.ts:realChat"
+    ],
+    "wonderEvidence": {
+     "path": "roles/fixer.ts",
+     "line": 45,
+     "matches": true
+    }
+   },
+   {
+    "id": "wonder:16",
+    "from": "fixer",
+    "to": "secret-redaction",
+    "kind": "imports",
+    "status": "confirmed",
+    "codeEdges": [
+     "calls:roles/fixer.ts->redact-secret.ts:redactSecret",
+     "imports:roles/fixer.ts->redact-secret.ts:../redact-secret@42"
+    ],
+    "wonderEvidence": {
+     "path": "roles/fixer.ts",
+     "line": 42,
+     "matches": true
+    }
+   },
+   {
+    "id": "wonder:17",
+    "from": "fixer",
+    "to": "claimant-core",
+    "kind": "imports",
+    "status": "confirmed",
+    "codeEdges": [
+     "calls:roles/fixer.ts->roles/claimant.ts:addUsage",
+     "calls:roles/fixer.ts->roles/claimant.ts:numbered",
+     "imports:roles/fixer.ts->roles/claimant.ts:./claimant@48",
+     "uses:roles/fixer.ts->roles/claimant.ts:COST_UNKNOWN",
+     "uses:roles/fixer.ts->roles/claimant.ts:NO_USAGE"
+    ],
+    "wonderEvidence": {
+     "path": "roles/fixer.ts",
+     "line": 48,
+     "matches": true
+    }
+   },
+   {
+    "id": "code:bet-only-claimant->model-client",
+    "from": "bet-only-claimant",
+    "to": "model-client",
+    "kind": "imports",
+    "status": "code-only",
+    "codeEdges": [
+     "imports:roles/claimant-bets.ts->client.ts:../client@28",
+     "uses:roles/claimant-bets.ts->client.ts:realChat"
+    ]
+   },
+   {
+    "id": "code:investigator->model-client",
+    "from": "investigator",
+    "to": "model-client",
+    "kind": "imports",
+    "status": "code-only",
+    "codeEdges": [
+     "imports:roles/investigator.ts->client.ts:../client@19",
+     "uses:roles/investigator.ts->client.ts:realChat"
+    ]
+   },
+   {
+    "id": "code:adversary->model-client",
+    "from": "adversary",
+    "to": "model-client",
+    "kind": "imports",
+    "status": "code-only",
+    "codeEdges": [
+     "imports:roles/adversary.ts->client.ts:../client@27",
+     "uses:roles/adversary.ts->client.ts:realChat"
+    ]
+   },
+   {
+    "id": "code:proposer->model-client",
+    "from": "proposer",
+    "to": "model-client",
+    "kind": "imports",
+    "status": "code-only",
+    "codeEdges": [
+     "imports:roles/proposer.ts->client.ts:../client@21",
+     "uses:roles/proposer.ts->client.ts:realChat"
+    ]
+   },
+   {
+    "id": "code:outliner->model-client",
+    "from": "outliner",
+    "to": "model-client",
+    "kind": "imports",
+    "status": "code-only",
+    "codeEdges": [
+     "imports:roles/outliner.ts->client.ts:../client#type@16"
+    ],
+    "typeOnly": true
+   },
+   {
+    "id": "code:outliner->claimant-core",
+    "from": "outliner",
+    "to": "claimant-core",
+    "kind": "calls",
+    "status": "code-only",
+    "codeEdges": [
+     "calls:roles/outliner.ts->roles/claimant.ts:addUsage",
+     "calls:roles/outliner.ts->roles/claimant.ts:numbered",
+     "calls:roles/outliner.ts->roles/claimant.ts:repairMessage",
+     "imports:roles/outliner.ts->roles/claimant.ts:./claimant@20",
+     "uses:roles/outliner.ts->roles/claimant.ts:COST_UNKNOWN",
+     "uses:roles/outliner.ts->roles/claimant.ts:NO_USAGE"
+    ]
+   }
+  ],
+  "notInAnyPart": [],
+  "counts": {
+   "confirmedParts": 12,
+   "unconfirmedParts": 0,
+   "confirmedJoins": 18,
+   "modelOnlyJoins": 0,
+   "codeOnlyJoins": 6
+  }
+ },
+ "wonder": {
+  "model": "muse-wonder-1.0",
+  "attempts": [
+   {
+    "attempt": 1,
+    "finishReason": "stop",
+    "usage": {
+     "promptTokens": 58526,
+     "completionTokens": 4958,
+     "reasoningTokens": 2186,
+     "usd": 0.333264
+    }
+   }
+  ]
+ },
+ "usage": {
+  "promptTokens": 58526,
+  "completionTokens": 4958,
+  "reasoningTokens": 2186,
+  "usd": 0.333264
+ },
+ "labels": {
+  "parts": "Parts, names, purposes and patterns: muse-wonder-1.0's words. \"confirmed\" means plain code found these lines in the code, on whole definitions; it does not mean the purpose is true.",
+  "joins": "confirmed: Wonder said it and plain code found an import, call or use inside the first part's lines reaching the second part's lines. model-only: \"Wonder says this; plain code could not check it\" (the reason says why), or, when marked noLinkFound, \"Atlas found no import or call for this\". code-only: found by plain code; Wonder did not say it. A \"data\" join is linked either direction."
+ }
+}

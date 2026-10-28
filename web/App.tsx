@@ -29,10 +29,15 @@ import { ScaleScreen } from "./screens/Scale";
 import { ProofCardPage, ProofLink } from "./screens/ProofCard";
 import type { Finding } from "../src/types";
 import { PasteFlow } from "./screens/Paste";
+import { ExplorerFlow, type BetHandoff } from "./screens/Explorer";
+import type { OutlineView } from "./machines/explorer/outline-data";
+
+/** X2: the saved outline of Atlas's own server/meta at 058ab2a (no code text), loaded only when asked for. */
+const savedOutline = () => import("../tests/fixtures/outline/atlas-server-meta-058ab2a.outline.json").then((m) => m.default as unknown as OutlineView);
 import { PASTE_WORDS } from "../src/paste-words";
 
-type Mode = "fixture" | "pr" | "scale" | "paste";
-type RoundMode = Exclude<Mode, "scale">;
+type Mode = "fixture" | "pr" | "scale" | "paste" | "explore";
+type RoundMode = Exclude<Mode, "scale" | "explore">;
 
 /** D06-03: `?proof=<runId>` opens one round's proof card on its own (the end frame). */
 export function proofIdFromLocation(search: string): string | null {
@@ -53,7 +58,13 @@ function Rounds({ api: given }: { api?: Api }) {
   const prApi = useMemo(() => given ?? createApi(), [given]);
   const scaleApi = useMemo(() => given ?? createApi(), [given]);
   const pasteApi = useMemo(() => given ?? createApi(undefined, undefined, { onSession: (s) => storeSession(PASTE_SESSION_KEY, s) }), [given]);
-  const apiOf = (m: Mode) => (m === "fixture" ? fixtureApi : m === "pr" ? prApi : m === "paste" ? pasteApi : scaleApi);
+  // X2: the explorer shares the paste flow's session, so "Bet on this part" lands in the same session's paste flow.
+  const apiOf = (m: Mode) => (m === "fixture" ? fixtureApi : m === "pr" ? prApi : m === "paste" || m === "explore" ? pasteApi : scaleApi);
+  const [handoff, setHandoff] = useState<BetHandoff | null>(null);
+  const betFromExplorer = useCallback((h: BetHandoff) => {
+    setHandoff(h);
+    setMode("paste");
+  }, []);
   // D07-01: who bets with the person on the next experiment (sent as the x-atlas-claimant header).
   const [claimant, setClaimant] = useState<ClaimantMode>("spark");
   // M4 (day-7 review): while a round is open (its experiment exists, its run has not finished) the toggle is locked.
@@ -73,13 +84,13 @@ function Rounds({ api: given }: { api?: Api }) {
   const [dropped, setDropped] = useState<Record<RoundMode, { count: number; at: string } | null>>({ fixture: null, pr: null, paste: null });
   const reportDropped = useCallback(
     (count: number) => {
-      if (mode === "scale") return; // no "Ask why" on the waves screen
+      if (mode === "scale" || mode === "explore") return; // no "Ask why" on the waves screen or the explorer
       setDropped((d) => (d[mode]?.count === count ? d : { ...d, [mode]: { count, at: new Date().toISOString() } }));
     },
     [mode],
   );
   return (
-    <div className={`shell${stripOpen ? " with-strip" : ""}`}>
+    <div className={`shell${stripOpen ? " with-strip" : ""}${mode === "explore" ? " explore" : ""}`}>
       <main>
         <header>
           <h1>Atlas</h1>
@@ -98,21 +109,26 @@ function Rounds({ api: given }: { api?: Api }) {
           <button type="button" className={mode === "paste" ? "on" : undefined} aria-pressed={mode === "paste"} onClick={() => setMode("paste")} data-testid="mode-paste">
             {PASTE_WORDS.modeButton}
           </button>
+          <button type="button" className={mode === "explore" ? "on" : undefined} aria-pressed={mode === "explore"} onClick={() => setMode("explore")} data-testid="mode-explore">
+            Explore a codebase
+          </button>
         </nav>
-        {mode !== "scale" && <ClaimantToggle api={apiOf(mode)} mode={claimant} onMode={pickClaimant} locked={roundOpen[mode]} />}
+        {mode !== "scale" && mode !== "explore" && <ClaimantToggle api={apiOf(mode)} mode={claimant} onMode={pickClaimant} locked={roundOpen[mode]} />}
         <WhyDroppedContext.Provider value={reportDropped}>
           {mode === "fixture" ? (
             <FixtureFlow api={fixtureApi} onRoundOpen={reportFixtureOpen} />
           ) : mode === "pr" ? (
             <MoonwellFlow api={prApi} onRoundOpen={reportPrOpen} />
           ) : mode === "paste" ? (
-            <PasteFlow api={pasteApi} onRoundOpen={reportPasteOpen} />
+            <PasteFlow api={pasteApi} onRoundOpen={reportPasteOpen} handoff={handoff} onHandoffUsed={() => setHandoff(null)} />
+          ) : mode === "explore" ? (
+            <ExplorerFlow api={pasteApi} onBet={betFromExplorer} saved={savedOutline} />
           ) : (
             <ScaleScreen api={scaleApi} />
           )}
         </WhyDroppedContext.Provider>
       </main>
-      <LiveLogStrip key={mode} api={apiOf(mode)} dropped={mode === "scale" ? null : dropped[mode]} open={stripOpen} onToggle={() => setStripOpen((o) => !o)} />
+      <LiveLogStrip key={mode} api={apiOf(mode)} dropped={mode === "scale" || mode === "explore" ? null : dropped[mode]} open={stripOpen} onToggle={() => setStripOpen((o) => !o)} />
     </div>
   );
 }

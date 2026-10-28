@@ -1,0 +1,17 @@
+wrote explorer.html 1234 KB {"solids":220,"items":420,"lines":24,"runs":36,"trays":13,"files":13,"decks":2,"boxes":12,"levels":3}
+wrote explorer-light.html 1234 KB {"solids":220,"items":420,"lines":24,"runs":36,"trays":13,"files":13,"decks":2,"boxes":12,"levels":3}
+clearance: 0 problems
+clearance apart: 0 problems
+terminals: 0 ends not on a mount
+loose ends: 0
+screen folds: 0
+support: 0 unsupported solids · 0 hanging tubes · 0 sunk pairs
+depth order: 0 problems
+through in mid-flight: 0 pairs
+self-overlap: 0 chunks whose outline crosses itself on screen
+wobble: 0 smoothed profiles whose slope turns between its ends
+saddles off their host apart: 0
+stand-in shapes: 0 items whose recorded shape covers too little of what it draws
+crowding: 0 pairs where a bend or end touches another line on screen
+audit · 36 tube runs · 220 solids · 420 items · 2.6 s
+audit passed

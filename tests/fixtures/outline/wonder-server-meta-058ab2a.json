@@ -1,0 +1,416 @@
+{
+ "parts": [
+  {
+   "id": "model-client",
+   "name": "Meta model client",
+   "purpose": "Sends chat requests to Meta or Baseten, handles retries and response-format fallback, prices usage, and logs every billed call.",
+   "files": [
+    {
+     "path": "client.ts",
+     "lineStart": 1,
+     "lineEnd": 364,
+     "quotedSnippet": "// Meta API client: one function, chat(), used by every Meta role."
+    }
+   ],
+   "patterns": [
+    "network",
+    "auth",
+    "config",
+    "logging",
+    "error-handling"
+   ]
+  },
+  {
+   "id": "secret-redaction",
+   "name": "Secret redaction",
+   "purpose": "Removes a whole secret or any sufficiently long piece of it from text before that text is kept or shown.",
+   "files": [
+    {
+     "path": "redact-secret.ts",
+     "lineStart": 1,
+     "lineEnd": 36,
+     "quotedSnippet": "// Day-7 review M2: removes a secret from text even when only part of it is there."
+    }
+   ],
+   "patterns": [
+    "auth",
+    "parsing"
+   ]
+  },
+  {
+   "id": "budget",
+   "name": "Model-call budget",
+   "purpose": "Limits model use by hourly calls, experiments per session, and total spend, including reservations for concurrent calls.",
+   "files": [
+    {
+     "path": "budget.ts",
+     "lineStart": 1,
+     "lineEnd": 148,
+     "quotedSnippet": "// The model-call budget (S5). Every experiment a person creates asks Muse Spark for its bets, and"
+    }
+   ],
+   "patterns": [
+    "state",
+    "config",
+    "file-io",
+    "validation"
+   ]
+  },
+  {
+   "id": "code-guard",
+   "name": "Code-carrying call guard",
+   "purpose": "Refuses contributor or otherwise disallowed models and enforces prompt-size and estimated-cost limits before code is sent.",
+   "files": [
+    {
+     "path": "pasted-guard.ts",
+     "lineStart": 1,
+     "lineEnd": 73,
+     "quotedSnippet": "// E3: pasted code goes ONLY to Meta models that do not train on their inputs."
+    }
+   ],
+   "patterns": [
+    "auth",
+    "validation",
+    "config"
+   ]
+  },
+  {
+   "id": "schemas",
+   "name": "Model answer schemas",
+   "purpose": "Defines the strict zod shapes for model-returned bets, experiments, adversary proposals, and proposer tests.",
+   "files": [
+    {
+     "path": "schemas.ts",
+     "lineStart": 1,
+     "lineEnd": 70,
+     "quotedSnippet": "// Zod schemas for what Meta models return. Shape only: the meaning checks (is the experiment"
+    }
+   ],
+   "patterns": [
+    "parsing",
+    "validation"
+   ]
+  },
+  {
+   "id": "claimant-core",
+   "name": "Claimant and fixture finding",
+   "purpose": "Builds the Claimant prompt, validates its experiment and bets against plain-code questions, seals accepted bets, and supplies the hand-written fixture finding.",
+   "files": [
+    {
+     "path": "roles/claimant.ts",
+     "lineStart": 1,
+     "lineEnd": 401,
+     "quotedSnippet": "// The Claimant: a Meta model (muse-spark-1.3) reads one finding and proposes one experiment,"
+    },
+    {
+     "path": "roles/fixture-finding.ts",
+     "lineStart": 1,
+     "lineEnd": 70,
+     "quotedSnippet": "// The one finding the Claimant works on today. It is a fixture finding, written by hand: the"
+    }
+   ],
+   "patterns": [
+    "validation",
+    "parsing",
+    "logging",
+    "error-handling"
+   ]
+  },
+  {
+   "id": "bet-only-claimant",
+   "name": "Bet-only Claimant",
+   "purpose": "Asks the model to bet on an already chosen experiment, validates one bet per question, and seals the accepted bets.",
+   "files": [
+    {
+     "path": "roles/claimant-bets.ts",
+     "lineStart": 1,
+     "lineEnd": 246,
+     "quotedSnippet": "// The Claimant in BET-ONLY mode (D02-06): the experiment is already chosen and allowed by the gate"
+    }
+   ],
+   "patterns": [
+    "validation",
+    "parsing",
+    "logging"
+   ]
+  },
+  {
+   "id": "investigator",
+   "name": "Investigator role",
+   "purpose": "Asks a model to propose up to three code findings, verifies each quoted place with plain code, and falls back to another model when needed.",
+   "files": [
+    {
+     "path": "roles/investigator.ts",
+     "lineStart": 1,
+     "lineEnd": 378,
+     "quotedSnippet": "// The Investigator: a Meta model (muse-wonder-1.0) reads a target's files and points at up to 3"
+    }
+   ],
+   "patterns": [
+    "validation",
+    "parsing",
+    "logging",
+    "error-handling"
+   ]
+  },
+  {
+   "id": "adversary",
+   "name": "Adversary role",
+   "purpose": "Asks a model for one additional experiment after a run, then applies schema, gate, question, and repeat checks before accepting it.",
+   "files": [
+    {
+     "path": "roles/adversary.ts",
+     "lineStart": 1,
+     "lineEnd": 339,
+     "quotedSnippet": "// The Adversary, \"what else?\" (D07-02): after a round has run, a Meta model (muse-spark-1.3) reads the"
+    }
+   ],
+   "patterns": [
+    "validation",
+    "parsing",
+    "logging",
+    "error-handling"
+   ]
+  },
+  {
+   "id": "proposer",
+   "name": "Pasted-code proposer",
+   "purpose": "Asks Muse Wonder to propose tests for a selected function in pasted code and keeps gate-allowed and gate-refused proposals separate.",
+   "files": [
+    {
+     "path": "roles/proposer.ts",
+     "lineStart": 1,
+     "lineEnd": 178,
+     "quotedSnippet": "// E3: Muse Wonder proposes tests for pasted code."
+    }
+   ],
+   "patterns": [
+    "validation",
+    "parsing",
+    "logging"
+   ]
+  },
+  {
+   "id": "outliner",
+   "name": "Outliner role",
+   "purpose": "Asks Muse Wonder to propose a codebase outline from files and a plain-code map, subject to code-model, prompt, and cost guards.",
+   "files": [
+    {
+     "path": "roles/outliner.ts",
+     "lineStart": 1,
+     "lineEnd": 185,
+     "quotedSnippet": "// X1: the Outliner. Muse Wonder (muse-wonder-1.0) reads a small codebase and its plain-code map and PROPOSES an"
+    }
+   ],
+   "patterns": [
+    "validation",
+    "parsing",
+    "logging",
+    "config"
+   ]
+  },
+  {
+   "id": "fixer",
+   "name": "Fixer and Muse Code sandbox",
+   "purpose": "Runs Muse Code headlessly in a restricted scratch workspace or falls back to chat, then keeps only a plain-code-checked unified diff.",
+   "files": [
+    {
+     "path": "roles/fixer.ts",
+     "lineStart": 1,
+     "lineEnd": 571,
+     "quotedSnippet": "// The Fixer: Muse Code proposes a change to the code, toward what the bettors expected."
+    }
+   ],
+   "patterns": [
+    "cli",
+    "file-io",
+    "auth",
+    "validation",
+    "logging",
+    "error-handling"
+   ]
+  }
+ ],
+ "joins": [
+  {
+   "from": "model-client",
+   "to": "secret-redaction",
+   "kind": "imports",
+   "evidence": {
+    "path": "client.ts",
+    "line": 20,
+    "quotedSnippet": "import { redactSecret } from \"./redact-secret\";"
+   }
+  },
+  {
+   "from": "budget",
+   "to": "code-guard",
+   "kind": "imports",
+   "evidence": {
+    "path": "budget.ts",
+    "line": 15,
+    "quotedSnippet": "import { estimatedCallUsd } from \"./pasted-guard\";"
+   }
+  },
+  {
+   "from": "budget",
+   "to": "model-client",
+   "kind": "imports",
+   "evidence": {
+    "path": "budget.ts",
+    "line": 14,
+    "quotedSnippet": "import type { ChatArgs, ChatResult } from \"./client\";"
+   }
+  },
+  {
+   "from": "code-guard",
+   "to": "model-client",
+   "kind": "imports",
+   "evidence": {
+    "path": "pasted-guard.ts",
+    "line": 10,
+    "quotedSnippet": "import { DEFAULT_MAX_TOKENS, RETRY_MAX_TOKENS, modelRefusal, priceFor, shownModelId, type ChatArgs, type ChatResult } from \"./client\";"
+   }
+  },
+  {
+   "from": "claimant-core",
+   "to": "model-client",
+   "kind": "imports",
+   "evidence": {
+    "path": "roles/claimant.ts",
+    "line": 21,
+    "quotedSnippet": "import { chat as realChat, type ChatArgs, type ChatMessage, type ChatResult, type Usage } from \"../client\";"
+   }
+  },
+  {
+   "from": "claimant-core",
+   "to": "schemas",
+   "kind": "imports",
+   "evidence": {
+    "path": "roles/claimant.ts",
+    "line": 22,
+    "quotedSnippet": "import { claimantOutputSchema, zodReason, type ClaimantBetOut } from \"../schemas\";"
+   }
+  },
+  {
+   "from": "bet-only-claimant",
+   "to": "claimant-core",
+   "kind": "imports",
+   "evidence": {
+    "path": "roles/claimant-bets.ts",
+    "line": 32,
+    "quotedSnippet": "import { CLAIMANT_MODEL, COST_UNKNOWN, NO_USAGE, SYSTEM_PREAMBLE, addUsage, zodSafeReason, contextRangeFor, numbered, repairMessage, validateBetsFor, type ClaimantAttempt } from \"./claimant\";"
+   }
+  },
+  {
+   "from": "bet-only-claimant",
+   "to": "schemas",
+   "kind": "imports",
+   "evidence": {
+    "path": "roles/claimant-bets.ts",
+    "line": 29,
+    "quotedSnippet": "import { claimantBetsOnlySchema, zodReason } from \"../schemas\";"
+   }
+  },
+  {
+   "from": "investigator",
+   "to": "claimant-core",
+   "kind": "imports",
+   "evidence": {
+    "path": "roles/investigator.ts",
+    "line": 23,
+    "quotedSnippet": "import { COST_UNKNOWN, NO_USAGE, SYSTEM_PREAMBLE, addUsage, numbered, repairMessage, zodSafeReason } from \"./claimant\";"
+   }
+  },
+  {
+   "from": "adversary",
+   "to": "claimant-core",
+   "kind": "imports",
+   "evidence": {
+    "path": "roles/adversary.ts",
+    "line": 31,
+    "quotedSnippet": "import { COST_UNKNOWN, NO_USAGE, SYSTEM_PREAMBLE, addUsage, contextRangeFor, numbered, repairMessage, zodSafeReason, type ClaimantAttempt } from \"./claimant\";"
+   }
+  },
+  {
+   "from": "adversary",
+   "to": "schemas",
+   "kind": "imports",
+   "evidence": {
+    "path": "roles/adversary.ts",
+    "line": 28,
+    "quotedSnippet": "import { adversaryOutputSchema, zodReason } from \"../schemas\";"
+   }
+  },
+  {
+   "from": "proposer",
+   "to": "claimant-core",
+   "kind": "imports",
+   "evidence": {
+    "path": "roles/proposer.ts",
+    "line": 25,
+    "quotedSnippet": "import { COST_UNKNOWN, NO_USAGE, SYSTEM_PREAMBLE, addUsage, numbered, repairMessage, zodSafeReason } from \"./claimant\";"
+   }
+  },
+  {
+   "from": "proposer",
+   "to": "schemas",
+   "kind": "imports",
+   "evidence": {
+    "path": "roles/proposer.ts",
+    "line": 22,
+    "quotedSnippet": "import { proposerOutputSchema, zodReason } from \"../schemas\";"
+   }
+  },
+  {
+   "from": "outliner",
+   "to": "code-guard",
+   "kind": "imports",
+   "evidence": {
+    "path": "roles/outliner.ts",
+    "line": 17,
+    "quotedSnippet": "import { codeModelRefusal as sharedCodeModelRefusal, guardCodeChat as sharedGuardCodeChat } from \"../pasted-guard\";"
+   }
+  },
+  {
+   "from": "outliner",
+   "to": "investigator",
+   "kind": "imports",
+   "evidence": {
+    "path": "roles/outliner.ts",
+    "line": 21,
+    "quotedSnippet": "import { CHARS_PER_TOKEN, MEDIUM_EFFORT_ABOVE_TOKENS } from \"./investigator\";"
+   }
+  },
+  {
+   "from": "fixer",
+   "to": "model-client",
+   "kind": "imports",
+   "evidence": {
+    "path": "roles/fixer.ts",
+    "line": 45,
+    "quotedSnippet": "import { chat as realChat, costUsd, DEFAULT_USAGE_PATH, loadApiKey, modelRefusal, priceFor, shownModelId, type ChatArgs, type ChatResult, type Usage } from \"../client\";"
+   }
+  },
+  {
+   "from": "fixer",
+   "to": "secret-redaction",
+   "kind": "imports",
+   "evidence": {
+    "path": "roles/fixer.ts",
+    "line": 42,
+    "quotedSnippet": "import { redactSecret } from \"../redact-secret\";"
+   }
+  },
+  {
+   "from": "fixer",
+   "to": "claimant-core",
+   "kind": "imports",
+   "evidence": {
+    "path": "roles/fixer.ts",
+    "line": 48,
+    "quotedSnippet": "import { addUsage, COST_UNKNOWN, NO_USAGE, numbered } from \"./claimant\";"
+   }
+  }
+ ]
+}

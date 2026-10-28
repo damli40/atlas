@@ -1,0 +1,70 @@
+.ex .ex-stage{position:relative;outline:none}
+.ex .ex-stage:focus-visible{box-shadow:inset 0 0 0 1px var(--anatomy-mid);border-radius:8px}
+.ex .ex-hit{fill:transparent;stroke:none;cursor:pointer;pointer-events:all}
+.ex .ex-hit:focus{outline:none}
+.ex .ex-plate{fill:var(--anatomy-face)}
+/* the picked box and its lines: exactly one lit accent */
+.ex .it.on>.iso-solid,.ex .it.on>g>.iso-solid{--x-on:1}
+.ex .it.on .iso-edge,.ex .it.on .tb-edge{stroke:var(--anatomy-lit);stroke-width:1.15px}
+/* with a part picked, everything else steps back to quiet strokes (colour only: fills stay opaque) */
+/* with a part picked, every unrelated box and line steps back: lines fade, boxes keep their (opaque) fills and lose
+   their ink; the boxes at the other ends of its lines ("rel") keep theirs */
+.ex[data-picked] .it[data-line]:not(.on){opacity:.14}
+.ex[data-picked] .it[data-of]:not([data-line]):not(.on):not(.rel) .iso-edge{stroke:var(--anatomy-faint)}
+.ex[data-picked] .it[data-of]:not([data-line]):not(.on):not(.rel) .iso-line{stroke:var(--anatomy-faint)}
+.ex[data-picked] .it[data-of]:not(.on):not(.rel) .iso-face-text{fill:var(--anatomy-lo)}
+.ex[data-picked] .it[data-of]:not(.on):not(.rel) circle{fill:var(--anatomy-lo)}
+.ex .it[data-line]{transition:opacity .35s var(--anatomy-ease)}
+/* at rest the lines sit back a little, so the boxes and their names lead */
+.ex:not([data-picked]) .it[data-line]{opacity:.62}
+.ex .it.on .iso-top{fill:var(--anatomy-lit-top)}
+.ex .it.on .iso-shade{fill:var(--anatomy-lit-shade)}
+.ex .it.on .ex-lamp circle,.ex .it.on .ex-lamp path{fill:var(--anatomy-lit)}
+.ex .it.on .tb-body{fill:var(--anatomy-lit-shade)}
+.ex .it .iso-edge,.ex .it .tb-edge,.ex .it .iso-top,.ex .it .iso-shade,.ex .it .tb-body{transition:stroke .35s var(--anatomy-ease),fill .35s var(--anatomy-ease)}
+@media (prefers-reduced-motion:reduce){.ex .it *{transition:none!important}}
+.ex .ex-card,.ex .ex-side{margin-top:18px;padding:16px 18px;border-radius:12px;background:var(--anatomy-card);box-shadow:var(--anatomy-lift);color:var(--anatomy-text)}
+.ex .ex-card h3{margin:0 0 2px;color:var(--anatomy-strong);font-size:17px;font-weight:600}
+.ex .ex-card-label,.ex .ex-side h2{margin:0 0 6px;font:600 11px/1.4 var(--anatomy-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--anatomy-muted)}
+.ex .ex-side h2{margin-top:10px}
+.ex .ex-muted{color:var(--anatomy-muted);margin:4px 0}
+.ex .ex-by{color:var(--anatomy-muted);font-size:12px}
+.ex .ex-quote{margin:8px 0;padding:8px 12px;border-left:2px solid var(--anatomy-mid);color:var(--anatomy-strong)}
+.ex .ex-quote-by{margin:0 0 2px;font:600 11px/1.4 var(--anatomy-mono);color:var(--anatomy-muted)}
+.ex .ex-quote blockquote{margin:0}
+.ex .ex-ranges,.ex .ex-joins{margin:6px 0 0;padding-left:18px}
+.ex .ex-ranges li{font-family:var(--anatomy-mono);font-size:12.5px}
+.ex .ex-joins li{margin:2px 0}
+.ex .ex-status{font:600 11px/1.4 var(--anatomy-mono);padding:1px 6px;border-radius:4px;border:1px solid var(--anatomy-lo)}
+.ex .ex-status[data-s="model-only"]{border-style:dashed;color:var(--anatomy-muted)}
+.ex .ex-chalks{list-style:none;padding:0;margin:8px 0 0}
+.ex .ex-chalk{margin:6px 0}
+.ex .ex-chalk-tag{display:inline-block;font:12px/1.5 var(--anatomy-mono);padding:2px 8px;border:1px dashed var(--anatomy-mid);border-radius:3px;color:var(--anatomy-muted);background:repeating-linear-gradient(-45deg,transparent 0 5px,color-mix(in srgb,var(--anatomy-faint) 40%,transparent) 5px 6px)}
+.ex .ex-chalk-words{color:var(--anatomy-muted);font-size:13px}
+.ex .ex-join-btn{all:unset;cursor:pointer;text-decoration:underline;text-decoration-color:var(--anatomy-lo);text-underline-offset:2px}
+.ex .ex-join-btn:focus-visible{outline:2px solid var(--anatomy-strong);outline-offset:2px}
+@media (max-width:480px){.ex .ex-card,.ex .ex-side{padding:12px}}
+.ex.ex-page{display:grid;grid-template-columns:minmax(0,1fr);gap:0 22px;align-items:start}
+.ex-wrap{container-type:inline-size}
+@container (min-width:1080px){.ex.ex-page{grid-template-columns:minmax(0,3fr) minmax(300px,1fr)}.ex.ex-page .ex-aside>section:first-child{margin-top:0}}
+.ex .ex-commit{font-family:var(--anatomy-mono);font-size:12px;word-break:break-all}
+.ex .iso-face-text{font-weight:600}
+/* the explorer screen in the app (outside the figure's .ex scope) */
+.ex-form{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end;margin:10px 0}
+.ex-form label{display:flex;flex-direction:column;gap:4px;font-size:14px}
+.ex-form input[type="text"],.ex-form input:not([type]){font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);min-width:12em;max-width:100%}
+.ex-form input[type="file"]{max-width:100%}
+.ex-steps{list-style:none;padding:0;margin:12px 0 0;display:grid;gap:4px}
+.ex-steps li{padding-left:22px;position:relative}
+.ex-steps li::before{content:"";position:absolute;left:4px;top:.55em;width:9px;height:9px;border-radius:50%;border:1.5px solid var(--muted)}
+.ex-steps li[data-state="done"]::before{background:var(--muted)}
+.ex-steps li[data-state="now"]{font-weight:600}
+.ex-steps li[data-state="now"]::before{border-color:var(--accent);background:var(--accent)}
+.ex-steps li[data-state="failed"]::before{border-color:var(--label-ink);background:var(--label-ink)}
+.ex .ex-bets{list-style:none;padding:0;margin:6px 0 0;display:grid;gap:6px}
+.ex .ex-bet-btn{font:600 13px/1.3 var(--anatomy-mono);padding:5px 10px;border-radius:6px;border:1px solid var(--anatomy-mid);background:var(--anatomy-card);color:var(--anatomy-strong);cursor:pointer}
+.ex .ex-bet-btn:disabled{opacity:.5;cursor:not-allowed}
+.ex .ex-bet-btn:focus-visible{outline:2px solid var(--anatomy-strong);outline-offset:2px}
+.ex .ex-note{display:block;font-size:12.5px}
+/* Review M1: in explore mode the figure gets the width; the agent log moves under it (full width, shorter) */
+@media (min-width:1200px){.shell.explore main{max-width:1880px}.shell.explore.with-strip{display:block}.shell.explore.with-strip .logstrip{position:static;height:auto;max-width:1880px;margin:0 auto 48px;padding:0 16px}.shell.explore.with-strip .logstrip-lines{max-height:40vh;font-size:16px}}
