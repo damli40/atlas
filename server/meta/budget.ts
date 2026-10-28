@@ -26,9 +26,27 @@ export interface BudgetOptions {
   /** Dollars already spent before this server started (read from usage.jsonl by readUsageTotal). */
   spentAtStartUsd?: number;
   now?: () => number;
+  /** G1: the per-invite ledger. */
+  guard?: SpendGuard;
 }
 
 export type BudgetCheck = { ok: true } | { ok: false; reason: string };
+
+/**
+ * G1 (D33): a second check every model call must pass, per invite code (server/access/ledger.ts). `precheck` says
+ * whether an experiment may ask a model at all; `reserve` holds the call's worst case before it is sent and is settled
+ * with the real cost after. Absent = no per-code accounting (tests, scripts).
+ */
+export interface SpendGuard {
+  precheck(): BudgetCheck;
+  reserve(r: { kind: "model"; usd: number; what: string }): { ok: true; settle(actualUsd: number | undefined, extra?: { what?: string }): void } | { ok: false; reason: string };
+}
+
+/**
+ * G1: the worst case held for a call whose prompt the budget cannot see (Muse Code's `muse exec`, the fixer's chat
+ * fallback): $1.50. A chat call wrapped by `wrap` holds its exact worst case instead (estimatedCallUsd).
+ */
+export const UNKNOWN_CALL_RESERVE_USD = 1.5;
 
 export interface ModelBudget {
   /** May this session's new experiment ask the model? Counts the experiment when it may. */
@@ -39,7 +57,7 @@ export interface ModelBudget {
    * D06-01: the same check and count for a model call that is not a chat() (Muse Code via `muse exec`).
    * `refused` builds the answer when a limit is reached (the call is then not made).
    */
-  track<R extends { usage?: { usd: number } }>(call: () => Promise<R>, refused: (reason: string) => R, reserveUsd?: number): Promise<R>;
+  track<R extends { usage?: { usd: number } }>(call: () => Promise<R>, refused: (reason: string) => R, reserveUsd?: number, guardInfo?: { usd: number; what: string }): Promise<R>;
   /** Dollars spent: at start plus since. */
   spentUsd(): number;
   /** Calls made in the last hour. */
@@ -68,7 +86,8 @@ export function createModelBudget(opts: BudgetOptions = {}): ModelBudget {
     return callTimes.length >= callsPerHour ? { ok: false, reason: "call limit reached" } : { ok: true };
   };
 
-  const track: ModelBudget["track"] = async (call, refused, reserveUsd = 0) => {
+  const guard = opts.guard;
+  const track: ModelBudget["track"] = async (call, refused, reserveUsd = 0, guardInfo) => {
     const money = spendCheck();
     if (!money.ok) return refused(money.reason);
     // A reserving call holds its worst case before it is sent, so calls running at once can never pass the ceiling.
@@ -77,12 +96,21 @@ export function createModelBudget(opts: BudgetOptions = {}): ModelBudget {
     }
     const calls = callCheck();
     if (!calls.ok) return refused(calls.reason);
+    // G1: the invite's own budget, the owner's reserve and the "at once" limit, checked and held in the same step.
+    const held = guard?.reserve({ kind: "model", usd: guardInfo?.usd ?? Math.max(reserveUsd, UNKNOWN_CALL_RESERVE_USD), what: guardInfo?.what ?? "fixer (muse exec or its chat fallback)" });
+    if (held && !held.ok) return refused(held.reason);
     const at = now();
     callTimes.push(at);
     reserved += reserveUsd;
-    const res = await call().finally(() => {
-      reserved -= reserveUsd; // settled: the real cost is added below
-    });
+    const res = await call()
+      .catch((e: unknown) => {
+        // A call that threw may still have been billed; Atlas cannot tell, so it counts nothing it cannot see.
+        if (held?.ok) held.settle(undefined);
+        throw e;
+      })
+      .finally(() => {
+        reserved -= reserveUsd; // settled: the real cost is added below
+      });
     // Final review M7: a call refused before it was sent (no key, refused model id) used nothing: it does not
     // count against the hourly limit, so a keyless server does not run out of calls without making one.
     if ((res as { notSent?: true }).notSent === true) {
@@ -90,6 +118,10 @@ export function createModelBudget(opts: BudgetOptions = {}): ModelBudget {
       if (i >= 0) callTimes.splice(i, 1);
     }
     if (res.usage && Number.isFinite(res.usage.usd) && res.usage.usd > 0) spent += res.usage.usd;
+    if (held?.ok) {
+      const model = (res as { model?: unknown }).model;
+      held.settle(res.usage?.usd, typeof model === "string" ? { what: model } : undefined);
+    }
     return res;
   };
 
@@ -97,6 +129,9 @@ export function createModelBudget(opts: BudgetOptions = {}): ModelBudget {
     startExperiment(sessionId) {
       const money = spendCheck();
       if (!money.ok) return money;
+      // G1: an invite with less left than one model call's worst case is not asked at all ("not asked: ...").
+      const mine = guard?.precheck();
+      if (mine && !mine.ok) return mine;
       const calls = callCheck();
       if (!calls.ok) return calls;
       const n = experiments.get(sessionId) ?? 0;
@@ -105,7 +140,10 @@ export function createModelBudget(opts: BudgetOptions = {}): ModelBudget {
       return { ok: true };
     },
     wrap(chat, wrapOpts) {
-      return (args) => track(() => chat(args), (reason): ChatResult => ({ ok: false, reason }), wrapOpts?.reserveWorstCase ? estimatedCallUsd(args) : 0);
+      return (args) => {
+        const worst = estimatedCallUsd(args);
+        return track(() => chat(args), (reason): ChatResult => ({ ok: false, reason }), wrapOpts?.reserveWorstCase ? worst : 0, { usd: worst, what: `${args.role} ${args.model}` });
+      };
     },
     track,
     spentUsd: () => spent,
