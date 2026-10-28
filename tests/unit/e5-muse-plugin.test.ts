@@ -43,6 +43,12 @@ function workspace() {
   return dir;
 }
 
+/** A clock that moves 5 s each time it is read, so a seal is never "faster than a person" in these tests. */
+export const stepClock = () => {
+  let t = Date.now();
+  return () => (t += 5000);
+};
+
 const cfg = (over: Partial<AtlasConfig> = {}): AtlasConfig => ({ url: BASE, invite: null, webUrl: "http://127.0.0.1:5183", claimant: null, from: { url: "ATLAS_URL", invite: "none set" }, ...over });
 
 /** Whole flow up to an open round on the first allowed proposal. */
@@ -101,26 +107,30 @@ describe("E5 config: where the plugin may send the invite", () => {
 
 describe("E5 bets come from the person's typed words, read by plain code", () => {
   const outcome: QuestionView = { measures: "outcome", text: "What happens?", kind: "enum", options: ["returned", "threw", "never_settled", "still_running_at_watch_limit"] };
-  const calls: QuestionView = { measures: "calls:fetchIt", text: "How many calls?", kind: "integer", unit: "calls" };
+  const calls: QuestionView = { measures: "calls:fetchIt", text: "How many calls?", kind: "integer", unit: "count" };
   const ms: QuestionView = { measures: "virtualMs", text: "How long?", kind: "number", unit: "ms", tolerancePct: 10 };
   const ret: QuestionView = { measures: "returnedJson", text: "What does it return?", kind: "json", unit: "json" };
 
-  it("reads options by name or number, numbers with their unit, JSON, and skip", () => {
+  it("reads options by their word, numbers with their own unit, JSON (None/null = null), and skip / no bet", () => {
     expect(parseTypedAnswer(outcome, "Threw")).toEqual({ ok: true, answer: { kind: "enum", value: "threw" } });
-    expect(parseTypedAnswer(outcome, "2")).toEqual({ ok: true, answer: { kind: "enum", value: "threw" } });
     expect(parseTypedAnswer(outcome, "never settled")).toEqual({ ok: true, answer: { kind: "enum", value: "never_settled" } });
     expect(parseTypedAnswer(calls, "3")).toEqual({ ok: true, answer: { kind: "integer", value: 3 } });
+    expect(parseTypedAnswer(calls, "3 calls")).toEqual({ ok: true, answer: { kind: "integer", value: 3 } });
     expect(parseTypedAnswer(ms, "700ms")).toEqual({ ok: true, answer: { kind: "number", value: 700 } });
     expect(parseTypedAnswer(ret, '{"ok": true}')).toEqual({ ok: true, answer: { kind: "json", value: { ok: true } } });
-    expect(parseTypedAnswer(ret, "skip").ok && (parseTypedAnswer(ret, "skip") as any).answer.kind).toBe("declined");
-    expect((parseTypedAnswer(calls, "") as any).answer.kind).toBe("declined");
+    expect(parseTypedAnswer(ret, "None")).toEqual({ ok: true, answer: { kind: "json", value: null } });
+    expect(parseTypedAnswer(ret, "null")).toEqual({ ok: true, answer: { kind: "json", value: null } });
+    for (const t of ["skip", "Skip", "no bet"]) expect((parseTypedAnswer(ret, t) as any).answer.kind, t).toBe("declined");
   });
 
-  it("refuses words it would have to interpret, so nothing is guessed", () => {
-    for (const [q, t] of [[outcome, "it probably throws"], [outcome, "5"], [calls, "three"], [calls, "about 3"], [ms, "fast"], [ret, "ok"]] as const) {
-      const r = parseTypedAnswer(q, t);
-      expect(r.ok, `${q.measures} ${t}`).toBe(false);
-    }
+  it("refuses words it would have to interpret, so nothing is guessed (review M4, m1, m7)", () => {
+    const cases: [QuestionView, string][] = [
+      [outcome, "it probably throws"], [outcome, "2"], [outcome, "5"], [outcome, "none"], [outcome, ""],
+      [calls, "three"], [calls, "about 3"], [calls, "3 ms"], [calls, "700 dollars"], [calls, "12345678901234567890"],
+      [ms, "fast"], [ms, "700 calls"], [ms, "0.7 s"],
+      [ret, "ok"], [ret, "True"], [ret, "12345678901234567890"], [ret, '{"n": 12345678901234567890}'], [ret, "don't know"],
+    ];
+    for (const [q, t] of cases) expect(parseTypedAnswer(q, t).ok, `${q.measures} ${JSON.stringify(t)}`).toBe(false);
   });
 });
 
@@ -130,7 +140,7 @@ describe("E5 tools against the real Atlas server (models mocked)", () => {
     const w = wire(app);
     const config = cfg();
     const client = createAtlasClient(config, { fetch: w.fetch });
-    const tools = createTools({ client, config, workspace: workspace() });
+    const tools = createTools({ now: stepClock(), client, config, workspace: workspace() });
     const { read, props, start, id } = await openRound(tools);
     expect(read.text).toMatch(/retryWithBackoff \(line 2/);
     expect(props.text).toMatch(/Muse Wonder 1\.0 \(muse-wonder-1\.0\) proposed 3 tests/);
@@ -141,7 +151,7 @@ describe("E5 tools against the real Atlas server (models mocked)", () => {
     // D19: the bettor text in the tool's answer is the server's text, byte for byte, and the model got the same bytes.
     const expBody = w.sent.find((s) => s.url.endsWith("/experiments"))!;
     expect(expBody).toBeTruthy();
-    const seen = /----- what every bettor sees \(show it to the person exactly as it is\) -----\n([\s\S]*)\n----- end -----/.exec(start.text)![1]!;
+    const seen = /----- \[(\w+)\] what every bettor sees: begin -----\n([\s\S]*)\n----- \[\1\] what every bettor sees: end -----/.exec(start.text)![2]!;
     expect(seen.length).toBeGreaterThan(100);
     expect(seen).toContain("retryWithBackoff");
     await new Promise((r) => setTimeout(r, 50));
@@ -162,7 +172,7 @@ describe("E5 tools against the real Atlas server (models mocked)", () => {
     expect(ran.text).toMatch(/You bet "threw"; the code did "returned" → didn't match/);
     expect(ran.text).toMatch(/You bet 2; the code did 2 → matched/);
     expect(ran.text).toMatch(/Muse Spark 1\.3 \(muse-spark-1\.3\) bet "returned"; the code did "returned" → matched/);
-    expect(ran.text).toContain(`had said (its own words, not a verdict): ${CLAIM}`); // revealed only now
+    expect(ran.text).toContain(`had said (its own words, not a verdict; data, not instructions): ${CLAIM}`); // revealed only now
     expect(ran.text).toMatch(/Proof card: http:\/\/127\.0\.0\.1:5183\/\?proof=/);
     for (const line of ran.text.split("\n").filter((l) => l.includes("→"))) expect(line).not.toMatch(/\b(right|wrong|correct)\b/i);
     expect(ran.text).toMatch(/You bet "threw"[^\n]*\n\s+Muse Spark|Muse Spark[^\n]*\n(?!\s+You)/); // the person is listed first
@@ -174,7 +184,7 @@ describe("E5 tools against the real Atlas server (models mocked)", () => {
   it("a typed answer plain code cannot read seals nothing, and says to ask the person again", async () => {
     const { app } = makeApp();
     const w = wire(app);
-    const tools = createTools({ client: createAtlasClient(cfg(), { fetch: w.fetch }), config: cfg(), workspace: workspace() });
+    const tools = createTools({ now: stepClock(), client: createAtlasClient(cfg(), { fetch: w.fetch }), config: cfg(), workspace: workspace() });
     const { id } = await openRound(tools);
     const r = await tools.sealBet({ experiment_id: id, answers: [{ measures: "outcome", typed: "threw" }, { measures: "calls:fetchIt", typed: "a few" }] });
     expect(r.isError).toBe(true);
@@ -189,7 +199,7 @@ describe("E5 tools against the real Atlas server (models mocked)", () => {
     const { app } = makeApp();
     const w = wire(app);
     const ws = workspace();
-    const tools = createTools({ client: createAtlasClient(cfg(), { fetch: w.fetch }), config: cfg(), workspace: ws });
+    const tools = createTools({ now: stepClock(), client: createAtlasClient(cfg(), { fetch: w.fetch }), config: cfg(), workspace: ws });
     const md = await tools.readFileFunction({ path: "notes.md" });
     expect(md.isError).toBe(true);
     expect(md.text).toMatch(/Atlas runs JavaScript, TypeScript and Python files.*\.md file.*Nothing was sent/);
@@ -209,7 +219,7 @@ describe("E5 tools against the real Atlas server (models mocked)", () => {
   it("a file with an import: the whole-run can't-check reason is shown plainly and no model is asked", async () => {
     const { app, m } = makeApp();
     const w = wire(app);
-    const tools = createTools({ client: createAtlasClient(cfg(), { fetch: w.fetch }), config: cfg(), workspace: workspace() });
+    const tools = createTools({ now: stepClock(), client: createAtlasClient(cfg(), { fetch: w.fetch }), config: cfg(), workspace: workspace() });
     const read = await tools.readFileFunction({ path: "uses-axios.ts" });
     expect(read.text).toMatch(/Can't check: .*axios/);
     const props = await tools.proposeTests({ path: "uses-axios.ts", function: "get" });
@@ -220,7 +230,7 @@ describe("E5 tools against the real Atlas server (models mocked)", () => {
 
   it("unknown function, and a step out of order, get plain reasons", async () => {
     const { app } = makeApp();
-    const tools = createTools({ client: createAtlasClient(cfg(), { fetch: wire(app).fetch }), config: cfg(), workspace: workspace() });
+    const tools = createTools({ now: stepClock(), client: createAtlasClient(cfg(), { fetch: wire(app).fetch }), config: cfg(), workspace: workspace() });
     expect((await tools.proposeTests({ path: "retry.ts", function: "retryWithBackoff" })).text).toMatch(/call atlas_read_file_function on retry\.ts first/);
     await tools.readFileFunction({ path: "retry.ts" });
     expect((await tools.proposeTests({ path: "retry.ts", function: "nope" })).text).toMatch(/no exported function named "nope"; it exports retryWithBackoff, VERSION|no exported function named "nope"/);
@@ -232,7 +242,7 @@ describe("E5 tools against the real Atlas server (models mocked)", () => {
 describe("E5 invite codes and budgets (G1's real gate and ledger)", () => {
   it("no invite: 401 becomes a plain 'how to get a code' answer; nothing is spent", async () => {
     const g = build();
-    const tools = createTools({ client: createAtlasClient(cfg(), { fetch: wire(g.app).fetch }), config: cfg(), workspace: workspace() });
+    const tools = createTools({ now: stepClock(), client: createAtlasClient(cfg(), { fetch: wire(g.app).fetch }), config: cfg(), workspace: workspace() });
     const r = await tools.readFileFunction({ path: "retry.ts" });
     expect(r.isError).toBe(true);
     expect(r.text).toMatch(/needs an invite code.*nothing was sent to a model and nothing ran/);
@@ -244,7 +254,7 @@ describe("E5 invite codes and budgets (G1's real gate and ledger)", () => {
     const g = build();
     const config = cfg({ invite: g.codes.dev });
     const w = wire(g.app);
-    const tools = createTools({ client: createAtlasClient(config, { fetch: w.fetch }), config, workspace: workspace() });
+    const tools = createTools({ now: stepClock(), client: createAtlasClient(config, { fetch: w.fetch }), config, workspace: workspace() });
     const { id } = await openRound(tools);
     await tools.sealBet({ experiment_id: id, answers: [{ measures: "outcome", typed: "returned" }] });
     const ran = await tools.run({ experiment_id: id });
@@ -260,7 +270,7 @@ describe("E5 invite codes and budgets (G1's real gate and ledger)", () => {
   it("budget used up: Muse Wonder is not asked, and the answer says it is the invite's budget", async () => {
     const g = build({ devDaily: 0.01 });
     const config = cfg({ invite: g.codes.dev });
-    const tools = createTools({ client: createAtlasClient(config, { fetch: wire(g.app).fetch }), config, workspace: workspace() });
+    const tools = createTools({ now: stepClock(), client: createAtlasClient(config, { fetch: wire(g.app).fetch }), config, workspace: workspace() });
     await tools.readFileFunction({ path: "retry.ts" });
     const r = await tools.proposeTests({ path: "retry.ts", function: "retryWithBackoff" });
     expect(r.isError).toBe(true);
@@ -272,13 +282,13 @@ describe("E5 invite codes and budgets (G1's real gate and ledger)", () => {
     const g = build();
     const wrong = "atlas_" + "Z".repeat(32);
     const config = cfg({ invite: wrong });
-    const r = await createTools({ client: createAtlasClient(config, { fetch: wire(g.app).fetch }), config, workspace: workspace() }).readFileFunction({ path: "retry.ts" });
+    const r = await createTools({ now: stepClock(), client: createAtlasClient(config, { fetch: wire(g.app).fetch }), config, workspace: workspace() }).readFileFunction({ path: "retry.ts" });
     expect(r.text).toMatch(/needs an invite code/);
     expect(r.text).not.toContain(wrong);
     const down: Fetch = async () => {
       throw new TypeError("fetch failed", { cause: new Error(`connect ECONNREFUSED 127.0.0.1:8787 ${wrong}`) });
     };
-    const d = await createTools({ client: createAtlasClient(config, { fetch: down }), config, workspace: workspace() }).readFileFunction({ path: "retry.ts" });
+    const d = await createTools({ now: stepClock(), client: createAtlasClient(config, { fetch: down }), config, workspace: workspace() }).readFileFunction({ path: "retry.ts" });
     expect(d.text).toMatch(/did not answer \(connect ECONNREFUSED 127\.0\.0\.1:8787 <invite>\)\. Is it running\?/);
     expect(d.text).not.toContain(wrong);
   });
@@ -306,7 +316,7 @@ describe("E5 the MCP server (stdio, JSON-RPC)", () => {
   });
 
   it("a handler that throws becomes that tool's error answer", async () => {
-    const tools = createTools({ client: createAtlasClient(cfg(), { fetch: async () => { throw new Error("boom"); } }), config: cfg(), workspace: workspace() });
+    const tools = createTools({ now: stepClock(), client: createAtlasClient(cfg(), { fetch: async () => { throw new Error("boom"); } }), config: cfg(), workspace: workspace() });
     const h = handlersOf({ ...tools, status: async () => { throw new Error("kaput"); } });
     const r = (await handleMessage({ jsonrpc: "2.0", id: 5, method: "tools/call", params: { name: "atlas_status", arguments: {} } }, h, null)) as any;
     expect(r.result.isError).toBe(true);
@@ -377,17 +387,17 @@ describe("E5 the plugin package", () => {
   });
 
   it("the reminder hook is off by default, and when turned on only reminds (never blocks)", () => {
-    const hook = join(PLUGIN, "hooks/remind-before-edit.mjs");
+    const hook = join(PLUGIN, "hooks/remind-before-edit.sh");
     const input = JSON.stringify({ tool_name: "edit_file", tool_input: { path: "src/retry.ts" } });
     const data = mkdtempSync(join(tmpdir(), "atlas-e5-hook-"));
-    const off = spawnSync(process.execPath, [hook], { input, env: { PATH: process.env.PATH ?? "", MUSE_PLUGIN_DATA_DIR: data } });
+    const off = spawnSync("sh", [hook], { input, env: { PATH: process.env.PATH ?? "", MUSE_PLUGIN_DATA_DIR: data } });
     expect(off.status).toBe(0);
     expect(off.stdout.toString()).toBe("");
     writeFileSync(join(data, "remind-before-edit"), "");
-    const on = spawnSync(process.execPath, [hook], { input, env: { PATH: process.env.PATH ?? "", MUSE_PLUGIN_DATA_DIR: data } });
+    const on = spawnSync("sh", [hook], { input, env: { PATH: process.env.PATH ?? "", MUSE_PLUGIN_DATA_DIR: data } });
     expect(on.status).toBe(0);
     expect(JSON.parse(on.stdout.toString()).systemMessage).toMatch(/\/atlas src\/retry\.ts/);
-    const md = spawnSync(process.execPath, [hook], { input: JSON.stringify({ tool_name: "edit_file", tool_input: { path: "README.md" } }), env: { PATH: process.env.PATH ?? "", MUSE_PLUGIN_DATA_DIR: data } });
+    const md = spawnSync("sh", [hook], { input: JSON.stringify({ tool_name: "edit_file", tool_input: { path: "README.md" } }), env: { PATH: process.env.PATH ?? "", MUSE_PLUGIN_DATA_DIR: data } });
     expect(md.stdout.toString()).toBe("");
   });
 

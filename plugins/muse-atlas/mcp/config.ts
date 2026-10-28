@@ -86,7 +86,11 @@ function readFileConfig(dataDir: string | undefined): { ok: true; cfg: FileConfi
   }
 }
 
-const str = (v: unknown): string | undefined => (typeof v === "string" && v.trim() !== "" ? v.trim() : undefined);
+/**
+ * A setting's value, or undefined when it is empty. Review m6: a value that is still a literal "${NAME}" (a Muse that
+ * passed the manifest's placeholder through without filling it in) counts as unset, so config.json can still be used.
+ */
+const str = (v: unknown): string | undefined => (typeof v === "string" && v.trim() !== "" && !/^\$\{[A-Za-z_][A-Za-z0-9_]*\}$/.test(v.trim()) ? v.trim() : undefined);
 
 /** Loads the configuration from the environment first, then the config file. Pure apart from reading that file. */
 export function loadConfig(env: Record<string, string | undefined> = process.env): ConfigResult {

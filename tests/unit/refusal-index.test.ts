@@ -15,7 +15,10 @@ describe("S2: the refusal index is generated from the files and cannot drift", (
     const r = (run: string) => data.rows.filter((x) => x.runId === run).map((x) => x.bettor).sort();
     expect(r("cu96dAM4Bf")).toEqual(["Muse Spark Open (meta-models/muse-spark-open-1026) · via Baseten"]);
     expect(r("ytshhYe28r")).toEqual(["Muse Spark 1.3 (muse-spark-1.3)", "Muse Spark Open (meta-models/muse-spark-open-1026) · via Baseten"]);
-    expect(data.rows).toHaveLength(21);
+    // E5 review r1 (M5): 22 since the E5 live run in Muse Code, where Muse Spark 1.3 declined "what does it return"
+    // (run Ehs2a0hAe8, tests/evidence/E5/live/proof-Ehs2a0hAe8.atlas.json).
+    expect(r("Ehs2a0hAe8")).toEqual(["Muse Spark 1.3 (muse-spark-1.3)"]);
+    expect(data.rows).toHaveLength(22);
   });
   it("a network failure is not a decline: round 4's Spark slot is under 'not counted', never a row", () => {
     expect(data.rows.some((x) => x.runId === "cu96dAM4Bf" && x.bettor.startsWith("Muse Spark 1.3"))).toBe(false);
