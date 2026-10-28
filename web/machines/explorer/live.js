@@ -48,7 +48,9 @@ function show(id) {
   const drawn = box.joins.filter((j) => j.drawn).length;
   readout.textContent = `${box.name} · ${drawn} ${drawn === 1 ? "line" : "lines"}`;
   card.append(el("p", "Part · lines confirmed", { class: "ex-card-label" }), el("h3", box.name), el("p", `Name by ${box.by}`, { class: "ex-by" }));
-  card.append(el("blockquote", box.purpose, { class: "ex-quote", "data-by": `${box.purposeBy} says what this part is for:` }));
+  const quote = el("div", null, { class: "ex-quote" });
+  quote.append(el("p", `${box.purposeBy} says what this part is for:`, { class: "ex-quote-by" }), el("blockquote", box.purpose));
+  card.append(quote);
   card.append(el("p", "Plain code checked that these lines exist, on whole definitions. It did not check the sentence above.", { class: "ex-muted" }));
   card.append(el("p", `Real lines (${box.lines})`, { class: "ex-card-label" }));
   const ul = el("ul", null, { class: "ex-ranges" });

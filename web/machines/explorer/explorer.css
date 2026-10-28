@@ -30,7 +30,8 @@
 .ex .ex-muted{color:var(--anatomy-muted);margin:4px 0}
 .ex .ex-by{color:var(--anatomy-muted);font-size:12px}
 .ex .ex-quote{margin:8px 0;padding:8px 12px;border-left:2px solid var(--anatomy-mid);color:var(--anatomy-strong)}
-.ex .ex-quote::before{content:attr(data-by);display:block;font:600 11px/1.4 var(--anatomy-mono);color:var(--anatomy-muted);margin-bottom:2px}
+.ex .ex-quote-by{margin:0 0 2px;font:600 11px/1.4 var(--anatomy-mono);color:var(--anatomy-muted)}
+.ex .ex-quote blockquote{margin:0}
 .ex .ex-ranges,.ex .ex-joins{margin:6px 0 0;padding-left:18px}
 .ex .ex-ranges li{font-family:var(--anatomy-mono);font-size:12.5px}
 .ex .ex-joins li{margin:2px 0}
@@ -45,7 +46,7 @@
 @media (max-width:480px){.ex .ex-card,.ex .ex-side{padding:12px}}
 .ex.ex-page{display:grid;grid-template-columns:minmax(0,1fr);gap:0 22px;align-items:start}
 .ex-wrap{container-type:inline-size}
-@container (min-width:1080px){.ex.ex-page{grid-template-columns:minmax(0,2.15fr) minmax(320px,1fr)}.ex.ex-page .ex-aside>section:first-child{margin-top:0}}
+@container (min-width:1080px){.ex.ex-page{grid-template-columns:minmax(0,2.6fr) minmax(300px,1fr)}.ex.ex-page .ex-aside>section:first-child{margin-top:0}}
 .ex .ex-commit{font-family:var(--anatomy-mono);font-size:12px;word-break:break-all}
 .ex .iso-face-text{font-weight:600}
 /* the explorer screen in the app (outside the figure's .ex scope) */

@@ -155,9 +155,10 @@ function PartCard({ model, box, onPick, onBet, betUnavailable, betBusy }: { mode
       <p className="ex-card-label">Part · lines confirmed</p>
       <h3>{box.name.text}</h3>
       <p className="ex-by">Name by {authorOf(box.name.by)}</p>
-      <blockquote className="ex-quote" data-by={`${authorOf(box.purpose.by)} says what this part is for:`}>
-        {box.purpose.text}
-      </blockquote>
+      <div className="ex-quote">
+        <p className="ex-quote-by">{`${authorOf(box.purpose.by)} says what this part is for:`}</p>
+        <blockquote>{box.purpose.text}</blockquote>
+      </div>
       <p className="ex-muted">Plain code checked that these lines exist, on whole definitions. It did not check the sentence above.</p>
       <p className="ex-card-label">Real lines ({box.lines})</p>
       <ul className="ex-ranges">
