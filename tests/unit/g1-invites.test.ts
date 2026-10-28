@@ -26,127 +26,7 @@ import { main as invitesCli } from "../../tools/invites";
 import { RETRY_SRC, SPARK_ANSWER, WONDER_ANSWER, allowedA } from "../tools/paste-fixtures";
 import { PR } from "../tools/review-fixtures";
 
-const PEPPER = "test-pepper-".padEnd(48, "x");
-const ENV = { ATLAS_INVITE_PEPPER: PEPPER };
-const tmp = () => mkdtempSync(join(tmpdir(), "atlas-g1-"));
-
-interface BuildOpts {
-  dir?: string;
-  require?: boolean;
-  ceiling?: number;
-  spentAtStart?: number;
-  ownerReserve?: number;
-  /** Pretend the sandbox is Modal (it still runs on this machine's local sandbox; the cost is Modal's estimate). */
-  modal?: boolean;
-  modalStartsPerDay?: number;
-  evmRunsPerDay?: number;
-  devDaily?: number;
-  devMaxConcurrent?: number;
-  usd?: number;
-  slowMs?: number;
-  trustProxy?: boolean;
-  perClientModelLimits?: { modelRoundsPerHour?: number };
-  chat?: (a: ChatArgs) => Promise<ChatResult>;
-  evmRun?: (exp: Experiment, o: { forkBlock: number; onProgress: (s: string) => void }) => Promise<Run>;
-}
-
-/** The server as server/index.ts builds it, with mocks for the models and a counted sandbox. */
-function build(o: BuildOpts = {}) {
-  const dir = o.dir ?? tmp();
-  const store = openInviteStore(dir, { env: ENV });
-  const dev = store.create({ label: "dev-ada", ...(o.devDaily !== undefined ? { dailyUsd: o.devDaily } : {}), ...(o.devMaxConcurrent ? { maxConcurrent: o.devMaxConcurrent } : {}) });
-  const dev2 = store.create({ label: "dev-bo" });
-  const owner = store.create({ label: "dami", role: "owner" });
-  let budget: ModelBudget | undefined;
-  const ledger = openLedger({
-    dir,
-    store,
-    requireInvite: o.require ?? true,
-    ceilingUsd: o.ceiling ?? 100,
-    ownerReserveUsd: o.ownerReserve ?? 20,
-    modelSpentUsd: () => budget!.spentUsd(),
-    ...(o.modalStartsPerDay !== undefined ? { modalStartsPerDay: o.modalStartsPerDay } : {}),
-    ...(o.evmRunsPerDay !== undefined ? { evmRunsPerDay: o.evmRunsPerDay } : {}),
-  });
-  budget = createModelBudget({ spendCeilingUsd: o.ceiling ?? 100, spentAtStartUsd: o.spentAtStart ?? 0, guard: ledger, callsPerHour: 1000, experimentsPerSession: 1000 });
-  const spent = { calls: [] as ChatArgs[], execs: 0, evm: 0 };
-  const usage = { promptTokens: 2100, completionTokens: 400, usd: o.usd ?? 0.0164 };
-  const chat =
-    o.chat ??
-    (async (a: ChatArgs): Promise<ChatResult> => {
-      spent.calls.push(a);
-      if (o.slowMs) await new Promise((r) => setTimeout(r, o.slowMs));
-      return { ok: true, finishReason: "stop", usage, content: a.role === "investigator" ? WONDER_ANSWER : SPARK_ANSWER };
-    });
-  const raw: Executor = o.modal
-    ? { kind: "modal", fingerprint: "g1-test-modal", exec: (r) => (spent.execs++, localExecutor.exec(r)) }
-    : { kind: "local", exec: (r) => (spent.execs++, localExecutor.exec(r)) };
-  const evmRun =
-    o.evmRun ??
-    (async () => {
-      spent.evm++;
-      throw new Error("no fork in this test");
-    });
-  const inner = createApp({
-    agentLog: createAgentLog(),
-    proofs: createProofStore({ publish: false }),
-    modelBets: { chat, budget, sparkOpen: { available: true } },
-    investigator: { chat, budget },
-    paste: { proposer: { chat, budget } },
-    fixer: { chat, budget, museExec: null },
-    adversary: { chat, budget },
-    outline: { outliner: { chat, budget } },
-    executor: meteredExecutor(raw, ledger),
-    runGate: meteredGate(createRunGate(), ledger, "EVM run"),
-    replayGate: meteredGate(createReplayGate(), ledger, "EVM replay"),
-    fetchPr: async () => PR,
-    evmRun,
-    trustProxy: o.trustProxy ?? false,
-    ...(o.perClientModelLimits ? { perClientModelLimits: o.perClientModelLimits } : {}),
-  });
-  const app = withInviteGate(inner, { store, require: o.require ?? true, ledger, secureCookie: false, trustProxy: o.trustProxy ?? false });
-  return { dir, store, ledger, budget, app, inner, spent, codes: { dev: dev.code, dev2: dev2.code, owner: owner.code }, ids: { dev: dev.invite.id, owner: owner.invite.id } };
-}
-
-type App = ReturnType<typeof build>["app"];
-function client(app: App, code?: string, session?: string, extra: Record<string, string> = {}) {
-  let s: string | null = session ?? null;
-  const call = async (method: string, path: string, body?: unknown, headers: Record<string, string> = {}) => {
-    const h: Record<string, string> = { "content-type": "application/json", ...extra, ...headers };
-    if (code) h[INVITE_HEADER] = code;
-    if (s) h["x-atlas-session"] = s;
-    const res = await app.request(path, { method, headers: h, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
-    s ??= res.headers.get("x-atlas-session");
-    const text = await res.text();
-    let json: Record<string, any> = {};
-    try {
-      json = JSON.parse(text);
-    } catch {
-      json = { text };
-    }
-    return { status: res.status, json, headers: res.headers };
-  };
-  return { post: (p: string, b?: unknown, h?: Record<string, string>) => call("POST", p, b ?? {}, h), get: (p: string, h?: Record<string, string>) => call("GET", p, undefined, h), raw: call, session: () => s };
-}
-
-/** A whole pasted round with a valid code: paste, Wonder's tests, an experiment both models bet on, a person's bet, the run. */
-async function pastedRound(c: ReturnType<typeof client>) {
-  const p = await c.post("/paste", { code: RETRY_SRC });
-  expect(p.status).toBe(200);
-  const target = { ref: p.json.target.ref, codeSha256: p.json.target.codeSha256 };
-  const props = await c.post("/paste/proposals", { target, exportName: "retryWithBackoff" });
-  const e = await c.post("/experiments", { target, params: allowedA }, { "x-atlas-claimant": "both" });
-  expect(e.status).toBe(200);
-  const id = e.json.experiment.id as string;
-  await c.post(`/experiments/${id}/model-bets`);
-  const b = await c.post("/bets", { experimentId: id, who: "human", bets: [{ measures: "outcome", answer: { kind: "enum", value: "returned" } }] });
-  expect(b.status).toBe(200);
-  const r = await c.post("/runs", { experimentId: id });
-  return { target, props, e, id, r };
-}
-
-const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
-const logLines = (dir: string) => readFileSync(join(dir, "spend-log.jsonl"), "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l) as Record<string, any>);
+import { ENV, build, client, logLines, pastedRound, sum, tmp } from "../tools/g1-fixtures";
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -241,20 +121,27 @@ describe("G1 gate: every spending route refuses without a code, and nothing is s
 
   it("required but no code set up: the server refuses to start (no pepper; then no active code)", () => {
     const dir = tmp();
-    expect(() => accessFromEnv({ ATLAS_REQUIRE_INVITE: "1", ATLAS_INVITES_DIR: dir }, { ceilingUsd: 100, modelSpentUsd: () => 0 })).toThrow(/no invite pepper/);
-    expect(() => accessFromEnv({ ATLAS_REQUIRE_INVITE: "1", ATLAS_INVITES_DIR: dir, ...ENV }, { ceilingUsd: 100, modelSpentUsd: () => 0 })).toThrow(/no invite code is active/);
+    const O = { ATLAS_PUBLIC_ORIGIN: "https://atlas.example" };
+    expect(() => accessFromEnv({ ATLAS_REQUIRE_INVITE: "1", ATLAS_INVITES_DIR: dir }, { ceilingUsd: 100, modelSpentUsd: () => 0 })).toThrow(/needs ATLAS_PUBLIC_ORIGIN/);
+    expect(() => accessFromEnv({ ATLAS_REQUIRE_INVITE: "1", ATLAS_INVITES_DIR: dir, ...O }, { ceilingUsd: 100, modelSpentUsd: () => 0 })).toThrow(/no invite pepper/);
+    expect(() => accessFromEnv({ ATLAS_REQUIRE_INVITE: "1", ATLAS_INVITES_DIR: dir, ...ENV, ...O }, { ceilingUsd: 100, modelSpentUsd: () => 0 })).toThrow(/no invite code is active/);
     openInviteStore(dir, { env: ENV }).create({ label: "dev-ada" });
-    const a = accessFromEnv({ ATLAS_REQUIRE_INVITE: "1", ATLAS_INVITES_DIR: dir, ...ENV }, { ceilingUsd: 100, modelSpentUsd: () => 0 });
+    const a = accessFromEnv({ ATLAS_REQUIRE_INVITE: "1", ATLAS_INVITES_DIR: dir, ...ENV, ...O }, { ceilingUsd: 100, modelSpentUsd: () => 0 });
     expect(a.require).toBe(true);
+    expect(a.secureCookie).toBe(true); // review m4: an https public origin always makes the cookie Secure
     expect(a.notes[0]).toMatch(/invite codes required: 1 active/);
-    expect(accessFromEnv({ ATLAS_EXECUTOR: "modal", ATLAS_INVITES_DIR: tmp() }, { ceilingUsd: 100, modelSpentUsd: () => 0 }).notes[0]).toMatch(/anyone who can reach this server can spend/);
+    a.release();
+    const b = accessFromEnv({ ATLAS_EXECUTOR: "modal", ATLAS_INVITES_DIR: tmp() }, { ceilingUsd: 100, modelSpentUsd: () => 0 });
+    expect(b.notes[0]).toMatch(/anyone who can reach this server can spend/);
+    b.release();
+    expect(() => accessFromEnv({ ATLAS_PUBLIC_ORIGIN: "https://atlas.example/app", ATLAS_INVITES_DIR: tmp() }, { ceilingUsd: 100, modelSpentUsd: () => 0 })).toThrow(/origin only/);
   });
 });
 
 describe("G1 invite page and cookie", () => {
   it("POST /invite sets an HttpOnly, SameSite=Strict cookie; the cookie then opens the spending routes; forget clears it", async () => {
     const s = build();
-    const page = await s.app.request("/invite", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: `code=${encodeURIComponent(s.codes.dev)}` });
+    const page = await s.app.request("/invite", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", "sec-fetch-site": "same-origin" }, body: `code=${encodeURIComponent(s.codes.dev)}` });
     expect(page.status).toBe(200);
     const cookie = page.headers.get("set-cookie") ?? "";
     expect(cookie).toMatch(new RegExp(`^${INVITE_COOKIE}=`));
@@ -263,22 +150,25 @@ describe("G1 invite page and cookie", () => {
     expect(cookie).toMatch(/Path=\//);
     expect(await page.text()).toContain("dev-ada");
     const jar = cookie.split(";")[0]!;
-    const res = await s.app.request("/paste", { method: "POST", headers: { "content-type": "application/json", cookie: jar }, body: JSON.stringify({ code: RETRY_SRC }) });
+    const res = await s.app.request("/paste", { method: "POST", headers: { "content-type": "application/json", cookie: jar, "sec-fetch-site": "same-origin" }, body: JSON.stringify({ code: RETRY_SRC }) });
     expect(res.status).toBe(200);
     const status = await (await s.app.request("/invite/status", { headers: { cookie: jar } })).json();
     expect(status).toMatchObject({ signedIn: true, label: "dev-ada", role: "dev", dailyUsd: 3 });
-    const forget = await s.app.request("/invite/forget", { method: "POST", headers: { cookie: jar } });
+    const forget = await s.app.request("/invite/forget", { method: "POST", headers: { cookie: jar, "sec-fetch-site": "same-origin" } });
     expect(forget.headers.get("set-cookie")).toMatch(/Max-Age=0/);
   });
 
-  it("a wrong code: 401 and no cookie; after 30 wrong tries from one address, 429", async () => {
+  it("a wrong code: 401 and no cookie; after 30 wrong tries from one address, wrong codes get 429, and a correct code still works (review M4)", async () => {
     const s = build();
-    const bad = await s.app.request("/invite", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code: "atlas_" + "B".repeat(32) }) });
+    const H = { "content-type": "application/json", "sec-fetch-site": "same-origin" };
+    const bad = await s.app.request("/invite", { method: "POST", headers: H, body: JSON.stringify({ code: "atlas_" + "B".repeat(32) }) });
     expect(bad.status).toBe(401);
     expect(bad.headers.get("set-cookie")).toBeNull();
-    for (let i = 0; i < 29; i++) await s.app.request("/invite", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code: "nope" }) });
-    const locked = await s.app.request("/invite", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code: s.codes.dev }) });
+    for (let i = 0; i < 30; i++) await s.app.request("/invite", { method: "POST", headers: H, body: JSON.stringify({ code: "nope" }) });
+    const locked = await s.app.request("/invite", { method: "POST", headers: H, body: JSON.stringify({ code: "atlas_" + "D".repeat(32) }) });
     expect(locked.status).toBe(429);
+    const good = await s.app.request("/invite", { method: "POST", headers: H, body: JSON.stringify({ code: s.codes.owner }) });
+    expect(good.status).toBe(200);
   });
 });
 
