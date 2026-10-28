@@ -13,6 +13,7 @@ import { createProofStore } from "./evm-round";
 import { dotEnv } from "./load-env";
 import { currentStartupNotes } from "./startup-check";
 import { executorFromEnv } from "../runners/executor/select";
+import { pythonSandboxExecutor } from "../runners/executor/sandbox-exec-python";
 import { warmUp } from "../runners/executor/warm";
 import { join, resolve } from "node:path";
 import { accessFromEnv } from "./access/setup";
@@ -76,7 +77,7 @@ const refusalsDir = process.env.ATLAS_PROOFS_DIR ? join(proofsDir, "refusals") :
 // unset or "local" keeps this machine's Node sandbox. An unknown value stops the server here. No fallback.
 // G1: every sandbox is reserved and settled in the ledger (Modal's daily caps kept on disk too).
 // G1 review B3: the Modal executor's own in-memory daily caps are lifted; the ledger keeps them on disk, with shares.
-const executor = meteredExecutor(executorFromEnv(process.env, { maxSandboxesPerDay: 1_000_000, maxSandboxSecondsPerDay: 1_000_000 }), access.ledger);
+const executor = meteredExecutor(executorFromEnv(process.env, { maxSandboxesPerDay: 1_000_000, maxSandboxSecondsPerDay: 1_000_000 }), access.ledger, pythonSandboxExecutor);
 
 // Every model role is wired in server/wiring.ts (E3 review M3: a test builds the same options). Each role is on
 // unless its switch says off: ATLAS_MODEL_BETS, ATLAS_INVESTIGATOR, ATLAS_PROPOSER (E3), ATLAS_FIXER, ATLAS_ADVERSARY.

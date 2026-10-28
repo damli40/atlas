@@ -20,7 +20,7 @@ import type { ReplayGate } from "../replay-limits";
 import { currentPrincipal } from "./context";
 import { MODAL_USD_PER_SECOND_AT_CAPS, modalWorstCaseUsd, type Ledger } from "./ledger";
 
-export function meteredExecutor<E extends Executor>(inner: E, ledger: Ledger): E {
+export function meteredExecutor<E extends Executor>(inner: E, ledger: Ledger, python?: Executor): E {
   const modal = inner.kind === "modal";
   const exec: Executor["exec"] = async (req) => {
     const worst = modal ? modalWorstCaseUsd(req.wallClockMs) : 0;
@@ -40,7 +40,8 @@ export function meteredExecutor<E extends Executor>(inner: E, ledger: Ledger): E
       else held.settle(seconds * MODAL_USD_PER_SECOND_AT_CAPS, { seconds });
     }
   };
-  return { ...inner, exec };
+  // R1 (D43): a local server's Python runs use macOS sandbox-exec, not `inner`; they are metered too (pythonExecutorFor).
+  return { ...inner, exec, ...(!modal && python ? { python: meteredExecutor(python, ledger) } : {}) };
 }
 
 /**
