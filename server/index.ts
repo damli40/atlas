@@ -16,9 +16,10 @@ import { warmUp } from "../runners/executor/warm";
 import { join, resolve } from "node:path";
 import { accessFromEnv } from "./access/setup";
 import { withInviteGate } from "./access/gate";
-import { meteredExecutor, meteredGate } from "./access/metered";
+import { meteredChainFacts, meteredExecutor, meteredGate } from "./access/metered";
 import { runAs } from "./access/context";
-import { createReplayGate, createRunGate } from "./replay-limits";
+import { createReplayGate, createRunGate, createSandboxGate } from "./replay-limits";
+import { createChainFactsReader } from "../runners/evm/chain-facts";
 import type { ModelBudget } from "./meta/budget";
 import { fileURLToPath } from "node:url";
 
@@ -71,7 +72,8 @@ const refusalsDir = process.env.ATLAS_PROOFS_DIR ? join(proofsDir, "refusals") :
 // E4: ATLAS_EXECUTOR=modal runs every sandboxed command in a throwaway Modal Sandbox (the hosted mode, D25);
 // unset or "local" keeps this machine's Node sandbox. An unknown value stops the server here. No fallback.
 // G1: every sandbox is reserved and settled in the ledger (Modal's daily caps kept on disk too).
-const executor = meteredExecutor(executorFromEnv(), access.ledger);
+// G1 review B3: the Modal executor's own in-memory daily caps are lifted; the ledger keeps them on disk, with shares.
+const executor = meteredExecutor(executorFromEnv(process.env, { maxSandboxesPerDay: 1_000_000, maxSandboxSecondsPerDay: 1_000_000 }), access.ledger);
 
 // Every model role is wired in server/wiring.ts (E3 review M3: a test builds the same options). Each role is on
 // unless its switch says off: ATLAS_MODEL_BETS, ATLAS_INVESTIGATOR, ATLAS_PROPOSER (E3), ATLAS_FIXER, ATLAS_ADVERSARY.
@@ -91,10 +93,17 @@ const inner = createApp({
   }),
   executor,
   // G1: EVM fork runs and replays are also counted per invite per day.
-  runGate: meteredGate(createRunGate(), access.ledger, "EVM run"),
-  replayGate: meteredGate(createReplayGate(), access.ledger, "EVM replay"),
+  // G1 review M3/B3: the owner's code has its own copy of each shared gate, so devs cannot use up the owner's slots.
+  runGate: meteredGate(createRunGate(), access.ledger, "EVM run", { ownerGate: createRunGate() }),
+  replayGate: meteredGate(createReplayGate(), access.ledger, "EVM replay", { ownerGate: createReplayGate() }),
+  sandboxGate: meteredGate(createSandboxGate(), access.ledger, "sandbox start", { ownerGate: createSandboxGate(), count: false }),
+  // G1 review m2: the chain-facts read counts as one EVM run of the invite that caused it; a failure is cached 60 s.
+  chainFacts: meteredChainFacts((() => {
+    const r = createChainFactsReader();
+    return (block: number) => r.read(block);
+  })(), access.ledger),
 });
-const app = withInviteGate(inner, { store: access.store, require: access.require, ledger: access.ledger, secureCookie: access.secureCookie });
+const app = withInviteGate(inner, { store: access.store, require: access.require, ledger: access.ledger, secureCookie: access.secureCookie, ...(access.publicOrigin ? { publicOrigin: access.publicOrigin } : {}) });
 for (const note of access.notes) console.log(note);
 
 console.log(`client address for the per-address caps: ${describeClientRule(trustProxyFromEnv(), hops)}`);

@@ -47,8 +47,8 @@ export const modalWorstCaseUsd = (wallClockMs: number): number => ((120_000 + Ma
 
 export type SpendKind = "model" | "sandbox" | "evm";
 
-interface CodeDay { usd: number; modelUsd: number; sandboxUsd: number; calls: number; sandboxes: number; evmRuns: number }
-interface GlobalDay extends CodeDay { modalStarts: number; modalSeconds: number }
+interface CodeDay { usd: number; modelUsd: number; sandboxUsd: number; calls: number; sandboxes: number; evmRuns: number; /** G1 review B3 */ modalSeconds?: number }
+interface GlobalDay extends CodeDay { modalStarts: number; modalSeconds: number; /** G1 review B3: the part used by dev codes. */ devModalStarts?: number; devModalSeconds?: number }
 interface Pending { who: string; label: string; role?: string; kind: SpendKind; usd: number; day: string; at: string; route: string; what: string; modal?: boolean }
 interface LedgerFile {
   version: 1;
@@ -78,10 +78,17 @@ export interface LedgerOptions {
   /** Modal's daily caps (ATLAS_MODAL_MAX_SANDBOXES_PER_DAY / _SECONDS_PER_DAY; defaults 2,000 and 7,200). */
   modalStartsPerDay?: number;
   modalSecondsPerDay?: number;
+  /** G1 review B3: Modal starts and sandbox-seconds ONE dev code may use per UTC day (defaults 150 and 900 = 15 min). */
+  devModalStartsPerDay?: number;
+  devModalSecondsPerDay?: number;
+  /** G1 review B3: dev codes together may use only this share of Modal's daily caps (default 0.8); the rest is the owner's. */
+  devModalShare?: number;
+  /** G1 review B3: sandboxes ALL dev codes may hold at once (default 3, one less than the Modal executor's 4). */
+  devSandboxesAtOnce?: number;
   now?: () => number;
 }
 
-export type Reservation = { ok: true; id: string; settle(actualUsd: number | undefined, extra?: { seconds?: number; what?: string }): void; cancel(): void } | { ok: false; reason: string };
+export type Reservation = { ok: true; id: string; settle(actualUsd: number | undefined, extra?: { seconds?: number; what?: string; unknown?: boolean }): void; cancel(): void } | { ok: false; reason: string };
 
 export interface Ledger {
   /** Asks for the worst case `usd` of one spend for the current principal. */
@@ -108,6 +115,10 @@ export function openLedger(o: LedgerOptions): Ledger {
   const minCall = o.minCallUsd ?? DEFAULT_MIN_CALL_USD;
   const modalStarts = o.modalStartsPerDay ?? 2_000;
   const modalSeconds = o.modalSecondsPerDay ?? 7_200;
+  const devModalStarts = o.devModalStartsPerDay ?? 150;
+  const devModalSeconds = o.devModalSecondsPerDay ?? 900;
+  const devShare = o.devModalShare ?? 0.8;
+  const devSandboxesAtOnce = o.devSandboxesAtOnce ?? 3;
   const dayOf = () => new Date(now()).toISOString().slice(0, 10);
   const iso = () => new Date(now()).toISOString();
 
@@ -119,8 +130,13 @@ export function openLedger(o: LedgerOptions): Ledger {
     }
   };
 
+  // G1 review m6: a store that already has codes but no ledger means the ledger was deleted or the store copied: refuse
+  // rather than restart every counter from zero. tools/invites.ts makes the ledger with the first code.
+  if (!existsSync(path) && o.store.list().length > 0) {
+    throw new Error(`${path} is missing but ${o.dir} already holds invite codes; the spend counters would restart from zero. If that is really intended, run: pnpm tsx tools/invites.ts ledger-init`);
+  }
   let f: LedgerFile = existsSync(path) ? (JSON.parse(readFileSync(path, "utf8")) as LedgerFile) : emptyFile();
-  if (f.version !== 1) throw new Error(`${path} is not an Atlas spend ledger`);
+  if (f.version !== 1 || typeof f.days !== "object" || typeof f.totals !== "object" || typeof f.pending !== "object") throw new Error(`${path} is not an Atlas spend ledger`);
   const save = () => writePrivate(path, JSON.stringify(f));
   const dayRec = (d: string) => (f.days[d] ??= { global: zeroGlobal(), codes: {} });
   const codeDay = (d: string, id: string) => (dayRec(d).codes[id] ??= zeroDay());
@@ -138,9 +154,13 @@ export function openLedger(o: LedgerOptions): Ledger {
       } else r.evmRuns++;
     };
     add(d.global);
-    if (p.kind === "sandbox" && p.modal) d.global.modalSeconds += seconds;
+    if (p.kind === "sandbox" && p.modal) {
+      d.global.modalSeconds += seconds;
+      if (p.role === "dev") d.global.devModalSeconds = (d.global.devModalSeconds ?? 0) + seconds;
+    }
     if (p.who.startsWith("inv_")) {
       add(codeDay(p.day, p.who));
+      if (p.kind === "sandbox" && p.modal) codeDay(p.day, p.who).modalSeconds = (codeDay(p.day, p.who).modalSeconds ?? 0) + seconds;
       f.totals.codes[p.who] = (f.totals.codes[p.who] ?? 0) + cost;
     }
     f.totals.global.usd += cost;
@@ -212,11 +232,26 @@ export function openLedger(o: LedgerOptions): Ledger {
           : `spend limit reached: ${usd(shared)} of the ${usd(o.ceilingUsd)} ceiling is used or held; this one could cost up to ${usd(cost)}`;
       }
     }
+    if (kind === "sandbox" && w.role === "dev") {
+      // G1 review B3: devs together never hold every sandbox slot, so the owner's run never waits behind them.
+      const devRunning = Object.values(f.pending).filter((p) => p.kind === "sandbox" && p.role === "dev").length;
+      if (devRunning >= devSandboxesAtOnce) return `call limit reached: invited developers already have ${devRunning} sandboxes running at once (their limit together is ${devSandboxesAtOnce}); try again in a few seconds`;
+    }
     if (kind === "sandbox" && modal) {
       const g = f.days[day]?.global ?? zeroGlobal();
       const startsNow = g.modalStarts;
       if (startsNow >= modalStarts || g.modalSeconds >= modalSeconds) {
         return `Atlas's daily sandbox budget is used up (${startsNow} of ${modalStarts} sandboxes, ${Math.round(g.modalSeconds)} of ${modalSeconds} sandbox-seconds today); it resets at 00:00 UTC`;
+      }
+      if (w.role === "dev" && w.inviteId) {
+        // G1 review B3: each dev code has its own daily share, and devs together stop at devShare of Modal's caps.
+        const mine = f.days[day]?.codes[w.inviteId];
+        const mySeconds = mine?.modalSeconds ?? 0;
+        const myStarts = (mine?.sandboxes ?? 0) + pendingOf(w.inviteId, day).filter((p) => p.kind === "sandbox").length;
+        if (myStarts >= devModalStarts || mySeconds >= devModalSeconds) return `your invite's daily sandbox share is used up (${myStarts} of ${devModalStarts} sandboxes, ${Math.round(mySeconds)} of ${devModalSeconds} sandbox-seconds today); it resets at 00:00 UTC`;
+        const devStarts = g.devModalStarts ?? 0;
+        const devSeconds = g.devModalSeconds ?? 0;
+        if (devStarts >= modalStarts * devShare || devSeconds >= modalSeconds * devShare) return `the invited developers' share of today's sandboxes is used up (${devStarts} sandboxes, ${Math.round(devSeconds)} sandbox-seconds); the rest is kept for the owner; it resets at 00:00 UTC`;
       }
     }
     return null;
@@ -240,7 +275,10 @@ export function openLedger(o: LedgerOptions): Ledger {
       const id = `r_${randomBytes(6).toString("hex")}`;
       const p: Pending = { who: w.who, label: w.label, ...(w.role ? { role: w.role } : {}), kind, usd: c, day: dayOf(), at: iso(), route: w.route, what, ...(modal ? { modal: true } : {}) };
       f.pending[id] = p;
-      if (kind === "sandbox" && modal) dayRec(p.day).global.modalStarts++; // counted at the start, like the executor's own cap
+      if (kind === "sandbox" && modal) {
+        dayRec(p.day).global.modalStarts++; // counted at the start, like the executor's own cap
+        if (p.role === "dev") dayRec(p.day).global.devModalStarts = (dayRec(p.day).global.devModalStarts ?? 0) + 1;
+      }
       save();
       let done = false;
       return {
@@ -253,13 +291,16 @@ export function openLedger(o: LedgerOptions): Ledger {
           const real = actual !== undefined && Number.isFinite(actual) && actual > 0 ? actual : 0;
           book(p, real, extra?.seconds ?? 0);
           save();
-          log({ invite: p.label, inviteId: w.inviteId, role: p.role, route: p.route, kind, what: extra?.what ?? what, usd: real, reservedUsd: c, day: p.day });
+          log({ invite: p.label, inviteId: w.inviteId, role: p.role, route: p.route, kind, what: extra?.what ?? what, usd: real, reservedUsd: c, day: p.day, ...(extra?.unknown ? { note: "the cost was not reported (a timeout, an error after sending, or a killed run): counted at its worst case" } : {}) });
         },
         cancel() {
           if (done) return;
           done = true;
           delete f.pending[id];
-          if (kind === "sandbox" && modal) dayRec(p.day).global.modalStarts = Math.max(0, dayRec(p.day).global.modalStarts - 1);
+          if (kind === "sandbox" && modal) {
+            dayRec(p.day).global.modalStarts = Math.max(0, dayRec(p.day).global.modalStarts - 1);
+            if (p.role === "dev") dayRec(p.day).global.devModalStarts = Math.max(0, (dayRec(p.day).global.devModalStarts ?? 0) - 1);
+          }
           save();
         },
       };
