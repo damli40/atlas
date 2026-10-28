@@ -1,7 +1,8 @@
 // Final review S3: FIRST, before any module reads process.env: the repo's .env (never printed).
 import "./load-env";
 import { serve } from "@hono/node-server";
-import { createApp } from "./app";
+import { createApp, type AppOptions } from "./app";
+import { createShareLimit, DEFAULT_GITHUB_SHARES } from "./access/shares";
 import { serverOptions, switchesFromEnv } from "./wiring";
 import { removeSandboxLeftovers } from "./sandbox-leftovers";
 import { describeClientRule, trustProxyFromEnv, trustedHopsFromEnv } from "./client-ip";
@@ -39,9 +40,11 @@ const spendCeilingUsd = envNumber(process.env.ATLAS_SPEND_CEILING_USD, DEFAULT_S
 // G1 (D33, D34): invite codes, per-code budgets and the owner's reserve, kept on disk outside the repo
 // (server/access/). ATLAS_REQUIRE_INVITE=1 on the hosted server; a wrong value or a missing code store stops it here.
 let budgetRef: ModelBudget | undefined;
-const access = accessFromEnv(process.env, { ceilingUsd: spendCeilingUsd, modelSpentUsd: () => budgetRef?.spentUsd() ?? 0 });
+const access = accessFromEnv(process.env, { ceilingUsd: spendCeilingUsd, modelSpentUsd: () => budgetRef?.spentUsd() ?? 0, handleSignals: true });
 const budget = createModelBudget({
   callsPerHour: envNumber(process.env.ATLAS_MODEL_CALLS_PER_HOUR, DEFAULT_CALLS_PER_HOUR),
+  // G1 review r2 m8: what all dev codes together may make an hour (default: the same as ATLAS_MODEL_CALLS_PER_HOUR).
+  ...(process.env.ATLAS_MODEL_CALLS_PER_HOUR_DEVS ? { devsCallsPerHour: envNumber(process.env.ATLAS_MODEL_CALLS_PER_HOUR_DEVS, DEFAULT_CALLS_PER_HOUR) } : {}),
   experimentsPerSession: envNumber(process.env.ATLAS_MODEL_EXPERIMENTS_PER_SESSION, DEFAULT_EXPERIMENTS_PER_SESSION),
   spendCeilingUsd,
   // G1: the larger of the usage log and the ledger, so a host whose usage log could not be written still keeps its spend.
@@ -83,7 +86,9 @@ const modelBetsOn = on.modelBets;
 const investigatorOn = on.investigator;
 const fixerOn = on.fixer;
 const adversaryOn = on.adversary;
-const inner = createApp({
+// G1 review B7: one GitHub allowance for the whole server, split into shares (each dev code, all devs, the owner).
+const githubReads = createShareLimit(DEFAULT_GITHUB_SHARES, "GitHub reads");
+const appOptions: AppOptions = {
   ...serverOptions(process.env, {
     makeChat: (timeoutMs) => createMetaClient(timeoutMs !== undefined ? { timeoutMs } : {}).chat,
     budget,
@@ -102,8 +107,15 @@ const inner = createApp({
     const r = createChainFactsReader();
     return (block: number) => r.read(block);
   })(), access.ledger),
-});
-const app = withInviteGate(inner, { store: access.store, require: access.require, ledger: access.ledger, secureCookie: access.secureCookie, ...(access.publicOrigin ? { publicOrigin: access.publicOrigin } : {}) });
+  githubReads,
+};
+// G1 review round 2: the owner's code gets its OWN copy of the app, so every in-memory capacity (sessions, pastes,
+// caches, kept runs and outline jobs, the live log) is the owner's alone. Shared money, sandboxes, GitHub and RPC
+// are the objects above, each with its owner share. With invites required, the owner's copy reads the Moonwell PR
+// once at startup and keeps it, so the finale never depends on GitHub later.
+const inner = createApp(appOptions);
+const ownerInner = access.require ? createApp({ ...appOptions, warmMoonwellPr: true }) : undefined;
+const app = withInviteGate(inner, { store: access.store, require: access.require, ledger: access.ledger, secureCookie: access.secureCookie, ...(access.publicOrigin ? { publicOrigin: access.publicOrigin } : {}), ...(ownerInner ? { ownerInner } : {}) });
 for (const note of access.notes) console.log(note);
 
 console.log(`client address for the per-address caps: ${describeClientRule(trustProxyFromEnv(), hops)}`);

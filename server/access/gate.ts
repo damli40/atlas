@@ -30,7 +30,6 @@ export const OPEN_ROUTES: readonly { method: string; path: RegExp; why: string }
   { method: "GET", path: /^\/health$/, why: "is the server up" },
   { method: "GET", path: /^\/claimants$/, why: "which models the page can offer (known at startup, no call)" },
   { method: "GET", path: /^\/paste\/languages$/, why: "which languages can be pasted (no call)" },
-  { method: "GET", path: /^\/events\/[^/]+$/, why: "the live agent log of a session (reads memory)" },
   { method: "GET", path: /^\/proofs\/[^/]+$/, why: "a public proof card (.atlas.json), read only" },
   { method: "GET", path: /^\/outline\/jobs\/[^/]+(?:\/outline|\/atlas|\/parts\/[^/]+)?$/, why: "an outline job's result, read only" },
   { method: "GET", path: /^\/invite(?:\/status)?$/, why: "the invite page and who you are signed in as" },
@@ -55,6 +54,14 @@ export interface GateOptions {
    * header equal to this. When it is https, the cookie is always Secure (review m4).
    */
   publicOrigin?: string;
+  /**
+   * G1 review round 2: a second copy of the app, used ONLY for the owner's code. Every in-memory capacity of an app
+   * (sessions, pastes, caches, kept runs and outline jobs, the live log) is then the owner's alone, so no dev can fill
+   * it. Money, sandboxes, GitHub and RPC are shared objects with their own owner shares.
+   */
+  ownerInner?: InnerApp;
+  /** G1 review round 2: live-log streams (GET /events) open at once: per dev code, and all dev codes together. */
+  streams?: { perDev: number; devsTotal: number };
 }
 
 /** G1 review B5: refused, because a cookie alone cannot prove the request came from Atlas's own page. */
@@ -161,18 +168,82 @@ export function withInviteGate(inner: InnerApp, o: GateOptions): Hono {
     return c.html(page("Atlas invite", "<h1>Forgotten</h1><p>This browser no longer holds an invite code.</p>"));
   });
 
-  outer.all("*", (c) => {
-    const pass = () => inner.fetch(c.req.raw, c.env);
+  // G1 review round 2: live-log streams held open at once, per dev code and for all dev codes together (the owner's
+  // streams are not counted). A stream is counted until the client goes away or the stream ends.
+  const streamCaps = o.streams ?? { perDev: 4, devsTotal: 40 };
+  const openStreams = new Map<string, number>();
+  let devStreams = 0;
+  const streamCounted = async (id: string, pass: () => Promise<Response>): Promise<Response> => {
+    const mine = openStreams.get(id) ?? 0;
+    if (mine >= streamCaps.perDev) return new Response(JSON.stringify({ error: `this invite already has ${mine} live-log streams open (its limit is ${streamCaps.perDev}); close a tab` }), { status: 429, headers: { "content-type": "application/json" } });
+    if (devStreams >= streamCaps.devsTotal) return new Response(JSON.stringify({ error: `invited developers already have ${devStreams} live-log streams open; try again later` }), { status: 429, headers: { "content-type": "application/json" } });
+    openStreams.set(id, mine + 1);
+    devStreams++;
+    let done = false;
+    const end = () => {
+      if (done) return;
+      done = true;
+      devStreams--;
+      const n = (openStreams.get(id) ?? 1) - 1;
+      if (n <= 0) openStreams.delete(id);
+      else openStreams.set(id, n);
+    };
+    let res: Response;
+    try {
+      res = await pass();
+    } catch (e) {
+      end();
+      throw e;
+    }
+    if (!res.body) {
+      end();
+      return res;
+    }
+    const reader = res.body.getReader();
+    const body = new ReadableStream<Uint8Array>({
+      async pull(ctrl) {
+        try {
+          const { done: d, value } = await reader.read();
+          if (d) {
+            end();
+            ctrl.close();
+          } else ctrl.enqueue(value);
+        } catch (e) {
+          end();
+          ctrl.error(e);
+        }
+      },
+      cancel(reason) {
+        end();
+        return reader.cancel(reason);
+      },
+    });
+    return new Response(body, { status: res.status, headers: res.headers });
+  };
+
+  outer.all("*", async (c): Promise<Response> => {
     const who = principalOf(c);
+    const owner = who !== undefined && "p" in who && who.p.kind === "invite" && who.p.role === "owner";
+    const target = owner && o.ownerInner ? o.ownerInner : inner;
+    const pass = async (): Promise<Response> => {
+      const res = await target.fetch(c.req.raw, c.env);
+      // A public read with no code (a proof card, an outline result) may live in the owner's copy of the app.
+      if (!who && res.status === 404 && c.req.method === "GET" && o.ownerInner) return o.ownerInner.fetch(c.req.raw, c.env);
+      return res;
+    };
     const open = isOpenRoute(c.req.method, c.req.path);
     if (who && "p" in who) {
       // G1 review B5: a cookie is sent by the browser on its own, so a cookie-signed request that can change or spend
       // anything must come from Atlas's own page. The header (x-atlas-invite) cannot be set cross-origin without a
       // CORS preflight, which this server never grants, so it needs no such check.
       const byCookie = !c.req.header(INVITE_HEADER);
-      if (byCookie && (c.req.method !== "GET" || /^\/replay\//.test(c.req.path)) && !fromOwnPage(c)) return c.json({ error: CROSS_SITE }, 403);
+      // Review r2 m12: a GET the person started themselves (a typed URL or a bookmark: `Sec-Fetch-Site: none`, which no
+      // other page can produce) may replay; a link from another site may not.
+      const typedGet = c.req.method === "GET" && c.req.header("sec-fetch-site") === "none";
+      if (byCookie && (c.req.method !== "GET" || /^\/replay\//.test(c.req.path)) && !fromOwnPage(c) && !typedGet) return c.json({ error: CROSS_SITE }, 403);
       // G1 review B5: a spending POST must be JSON (a cross-origin JSON request needs a preflight; a form or text/plain does not).
       if (!open && c.req.method === "POST" && !/^application\/json\s*(;|$)/i.test(c.req.header("content-type") ?? "")) return c.json({ error: "send the request as JSON (content-type: application/json); nothing was run" }, 415);
+      if (/^\/events\//.test(c.req.path) && who.p.kind === "invite" && !owner) return runAs(who.p, () => streamCounted(who.p.kind === "invite" ? who.p.id : "", pass));
       return runAs(who.p, pass);
     }
     if (!o.require || open) return pass();

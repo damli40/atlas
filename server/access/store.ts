@@ -11,8 +11,9 @@
 // The server re-reads invites.json whenever the file changes (checked on every request), so a code made or revoked
 // with the tool takes effect on the next request, with no restart.
 
+import { execFileSync } from "node:child_process";
 import { createHmac, randomBytes } from "node:crypto";
-import { chmodSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, closeSync, existsSync, linkSync, mkdirSync, openSync, readFileSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, relative, resolve, isAbsolute } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -70,44 +71,131 @@ export function refuseInsideRepo(dir: string, repo = REPO_ROOT): void {
 export const EMPTY_LEDGER_TEXT = JSON.stringify({ version: 1, days: {}, totals: { global: { usd: 0, modelUsd: 0, sandboxUsd: 0 }, codes: {} }, pending: {} });
 
 /**
- * G1 review M5: one server process per store. Takes <dir>/server.lock (with this process's pid) or throws when a
- * live process holds it. A lock left by a process that is gone is taken over. Returns the release function.
- * (Checking a pid with signal 0 only asks whether it exists; it stops nothing.)
+ * G1 review B9: when a process started, as the operating system reports it (Linux: /proc/<pid>/stat field 22; macOS and
+ * others: `ps -o lstart=`). Undefined when it cannot be read. Only READS; never signals the process.
  */
-export function acquireStoreLock(dir: string): () => void {
+export function processStartTime(pid: number): string | undefined {
+  try {
+    const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
+    const fields = stat.slice(stat.lastIndexOf(")") + 2).split(" ");
+    return fields[19] ? `linux:${fields[19]}` : undefined;
+  } catch {
+    // not Linux, or no such process
+  }
+  try {
+    const out = execFileSync("ps", ["-o", "lstart=", "-p", String(pid)], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+    return out ? `ps:${out}` : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+interface LockRecord {
+  pid: number;
+  token: string;
+  start?: string;
+}
+
+const heldLocks = new Set<string>();
+
+/**
+ * G1 review M5 / r2 B9: one server process per store. Takes <dir>/server.lock or throws when another live server
+ * holds it. The lock records the pid, a random token and the process's start time. A lock is STALE (taken over) when
+ * its pid is this process's own (a restart that got the same pid, as containers often do), when that pid is not
+ * running, or when the process running under that pid started at a different time (the pid was reused). It is
+ * removed on exit, SIGTERM and SIGINT (`handleSignals`, set by the server). A stale lock is first renamed aside (only
+ * one process can do that), then the fresh lock is created with "create, fail if it exists".
+ */
+export function acquireStoreLock(dir: string, opts: { handleSignals?: boolean } = {}): () => void {
   ensureDir(dir);
   const path = join(dir, "server.lock");
-  for (let tries = 0; tries < 2; tries++) {
+  if (heldLocks.has(path)) throw new Error(`another Atlas server (pid ${process.pid}, this process) is already using the invite store ${dir}; run exactly one server process per store (one container only), or point ATLAS_INVITES_DIR elsewhere`);
+  const mine: LockRecord = { pid: process.pid, token: randomBytes(12).toString("hex"), ...(processStartTime(process.pid) ? { start: processStartTime(process.pid)! } : {}) };
+  const readRecord = (p: string): LockRecord | undefined => {
+    try {
+      const text = readFileSync(p, "utf8").trim();
+      if (/^\d+$/.test(text)) return { pid: Number(text), token: "" }; // a lock from the first G1 version
+      const r = JSON.parse(text) as LockRecord;
+      return Number.isInteger(r.pid) ? r : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+  const stale = (r: LockRecord | undefined): boolean => {
+    if (!r) return true; // unreadable: no live server wrote it completely
+    if (r.pid === process.pid) return true; // this process does not hold it (checked above), so it is a leftover
+    let alive = false;
+    try {
+      process.kill(r.pid, 0); // signal 0: only asks whether the pid exists
+      alive = true;
+    } catch (err) {
+      alive = (err as NodeJS.ErrnoException).code === "EPERM";
+    }
+    if (!alive) return true;
+    if (r.start !== undefined) {
+      const now = processStartTime(r.pid);
+      if (now !== undefined && now !== r.start) return true; // the pid now belongs to another process
+    }
+    return false;
+  };
+  for (let tries = 0; tries < 5; tries++) {
     try {
       const fd = openSync(path, "wx", 0o600);
-      writeFileSync(fd, `${process.pid}\n`);
+      writeFileSync(fd, `${JSON.stringify(mine)}\n`);
       closeSync(fd);
+      heldLocks.add(path);
       let released = false;
       const release = () => {
         if (released) return;
         released = true;
+        heldLocks.delete(path);
         try {
-          if (readFileSync(path, "utf8").trim() === String(process.pid)) unlinkSync(path);
+          if (readRecord(path)?.token === mine.token) unlinkSync(path);
         } catch {
           // already gone
         }
       };
       process.once("exit", release);
+      if (opts.handleSignals) {
+        for (const sig of ["SIGTERM", "SIGINT"] as const) {
+          process.once(sig, () => {
+            release();
+            process.exit(0);
+          });
+        }
+      }
       return release;
     } catch (e) {
       if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
-      const pid = Number(readFileSync(path, "utf8").trim());
-      let alive = false;
-      if (Number.isInteger(pid) && pid > 0) {
-        try {
-          process.kill(pid, 0);
-          alive = true;
-        } catch (err) {
-          alive = (err as NodeJS.ErrnoException).code === "EPERM";
-        }
+      const found = readRecord(path);
+      if (!stale(found)) throw new Error(`another Atlas server (pid ${found!.pid}) is already using the invite store ${dir}; run exactly one server process per store (one container only), or point ATLAS_INVITES_DIR elsewhere`);
+      const aside = `${path}.stale.${mine.token}`;
+      try {
+        renameSync(path, aside); // atomic: only one process moves a given lock file
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === "ENOENT") continue; // someone else moved it; try to create again
+        throw err;
       }
-      if (alive) throw new Error(`another Atlas server (pid ${pid}) is already using the invite store ${dir}; run exactly one server process per store (one container only), or point ATLAS_INVITES_DIR elsewhere`);
-      unlinkSync(path); // the process that held it is gone
+      const moved = readRecord(aside);
+      if (moved && found && moved.token !== found.token) {
+        // Between our read and our rename, another process took the lock: put its lock back and stop.
+        try {
+          linkSync(aside, path);
+        } catch {
+          // a third process already created one
+        }
+        try {
+          unlinkSync(aside);
+        } catch {
+          // gone
+        }
+        throw new Error(`another Atlas server (pid ${moved.pid}) took the invite store ${dir} at the same moment; run exactly one server process per store`);
+      }
+      try {
+        unlinkSync(aside);
+      } catch {
+        // gone
+      }
     }
   }
   throw new Error(`could not take the lock on the invite store ${dir}`);

@@ -32,7 +32,7 @@ export interface Access {
 
 const whole = (raw: string | undefined, fallback: number, max: number) => (raw !== undefined && /^\d{1,7}$/.test(raw.trim()) ? Math.min(Number(raw.trim()), max) : fallback);
 
-export function accessFromEnv(env: Record<string, string | undefined>, deps: { ceilingUsd: number; modelSpentUsd: () => number }): Access {
+export function accessFromEnv(env: Record<string, string | undefined>, deps: { ceilingUsd: number; modelSpentUsd: () => number; /** G1 review B9: remove the store lock on SIGTERM/SIGINT (the server sets it). */ handleSignals?: boolean }): Access {
   const require = requireInviteFromEnv(env);
   const dir = defaultAccessDir(env);
   const store = openInviteStore(dir, { env, createPepper: false });
@@ -59,7 +59,7 @@ export function accessFromEnv(env: Record<string, string | undefined>, deps: { c
   } else if (env.ATLAS_EXECUTOR?.trim() === "modal") {
     notes.push("ATLAS_EXECUTOR=modal but ATLAS_REQUIRE_INVITE is not 1: anyone who can reach this server can spend its credits");
   }
-  const release = acquireStoreLock(dir);
+  const release = acquireStoreLock(dir, { handleSignals: deps.handleSignals ?? false });
   const ownerReserveUsd = envNumber(env.ATLAS_OWNER_RESERVE_USD, DEFAULT_OWNER_RESERVE_USD);
   let ledger: Ledger;
   try {

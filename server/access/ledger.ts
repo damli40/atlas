@@ -31,11 +31,11 @@ export const DEFAULT_OWNER_RESERVE_USD = 20; // D34
 /** EVM fork runs (paid RPC reads, no dollar figure here) per invite per UTC day, for "dev" codes. */
 export const DEFAULT_EVM_RUNS_PER_DAY = 10;
 /**
- * The smallest worst case of one model call (muse-spark-1.3: 16,000 + 32,000 output tokens at $20 per 1M = $0.96, before
- * any prompt). Below this much left, an experiment does not ask the model at all ("not asked"), instead of asking and
- * being refused mid-round.
+ * The smallest worst case of one model call's first try: a bet (muse-spark-1.3: 4,000 output tokens at $20 per 1M =
+ * $0.08, G1 review M7) plus a small prompt. Below this much left, an experiment does not ask the model at all
+ * ("not asked"), instead of asking and being refused mid-round.
  */
-export const DEFAULT_MIN_CALL_USD = 0.96;
+export const DEFAULT_MIN_CALL_USD = 0.1;
 /**
  * Modal sandbox price at the executor's caps (1 physical core, 1 GiB): $0.00003942 per core-second plus $0.00000667
  * per GiB-second (modal.com/pricing, "Modal Sandbox pricing", read 2026-10-28). An upper bound: Modal bills
@@ -235,6 +235,9 @@ export function openLedger(o: LedgerOptions): Ledger {
     if (kind === "sandbox" && w.role === "dev") {
       // G1 review B3: devs together never hold every sandbox slot, so the owner's run never waits behind them.
       const devRunning = Object.values(f.pending).filter((p) => p.kind === "sandbox" && p.role === "dev").length;
+      // Review r2 m9: and one dev code holds at most 2 of them, so other devs are not shut out either.
+      const mineRunning = w.inviteId ? pendingOf(w.inviteId).filter((p) => p.kind === "sandbox").length : 0;
+      if (mineRunning >= 2) return `call limit reached: this invite already has ${mineRunning} sandboxes running at once (its limit is 2); try again in a few seconds`;
       if (devRunning >= devSandboxesAtOnce) return `call limit reached: invited developers already have ${devRunning} sandboxes running at once (their limit together is ${devSandboxesAtOnce}); try again in a few seconds`;
     }
     if (kind === "sandbox" && modal) {
