@@ -1,0 +1,9 @@
+      Tests  16 passed (16)
+   Duration  135.57s (tests 100%)
+sandbox sb-01M60WMB0BRV0BG7VSJ1VK9GP1 tags {} exit null
+2026-10-28T09:14:55.074Z listed in app atlas-sandboxes : 1
+sandbox sb-01M60WMB0BRV0BG7VSJ1VK9GP1 tags {} exit null
+2026-10-28T09:15:05.178Z listed in app atlas-sandboxes : 1
+sandbox sb-01M60WMB0BRV0BG7VSJ1VK9GP1 tags {} exit null
+2026-10-28T09:15:07.318Z listed in app atlas-sandboxes : 1
+2026-10-28T12:04:41Z modal container list: 0 active containers

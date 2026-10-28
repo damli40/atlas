@@ -5,7 +5,7 @@ Branch `r1-facts`, from main `298a781`.
 
 ## Where to look first
 
-> **Read "Review round 1" at the end first.** The adversarial review found 2 blockers. The design changed after it,
+> **Read "Review round 2", then "Review round 1", at the end first.** The adversarial review found 2 blockers. The design changed after it,
 > and these parts of the first round below are now **out of date**:
 > - "timed work" is no longer decided by a 2 ms CPU line, and no longer refuses;
 > - `process.nextTick` is disclosed, not refused;
@@ -377,3 +377,122 @@ needs a matching change, committed on `b1-bench` before a registered "after" run
   before its live run.
 - `R1_SINCE` is 2026-10-29. A run from today (2026-10-28) can still be relabelled as "seed none" without being
   caught.
+
+
+---
+
+## Review round 2 (2026-10-28)
+
+The review (`scratchpad/review-R1-r2.md`, outside the repo) found **3 BLOCKER, 2 MAJOR, 6 MINOR**. All of round 1's
+fixes held: over-refusal 0 of 25, Modal 16 of 16, and deterministic values byte-identical on this Mac and on Modal.
+
+The decisions are renumbered: **D42** is "seed + disclose" (called D36 before) and **D43** is "the double run and the
+rest" (called D37 before). Every reference in code comments, tests and this evidence was changed (commit `b77fe5d`).
+Fixes are in `1630151` (code), `7dfda8c` and `dd6aef6` (tests).
+
+### Where to look first
+
+- **B1, machine reads outside the list. They are now noted at run time, not by reading the code's text.**
+  - **JavaScript:**
+    - `process.env` sits behind a noting proxy: the TZ / LANG / LC_* variables count as time-zone-or-locale, and
+      every other read, including `Object.keys(process.env)`, counts as `host`. Reads made by Node's own code do
+      not count, so `console.log` stays quiet.
+    - `process.getActiveResourcesInfo()` is noted.
+    - `import.meta` is syntax, so no read of it can be watched. It is found in the file's text, and a mention in a
+      comment also counts (a disclosure, never a fact).
+  - **Python:**
+    - `sys`, `os`, `platform`, `threading` and `_thread` come back to the pasted code behind a noting module proxy.
+      `import sys as s`, `from sys import platform`, `from os import environ, getenv` and `getattr(sys, "platform")`
+      are all seen, and `threading.get_ident()` / `get_native_id()` are noted.
+    - The old check that read the code's text for `sys.platform` is gone.
+  - **The same environment on both executors:**
+    - macOS's `__CF_USER_TEXT_ENCODING` is removed and the names are put in order. JS now sees exactly
+      `["LC_ALL","TZ"]`.
+    - Python runs with `LC_ALL=C` and `PYTHONCOERCECLOCALE=0`, so it sees exactly
+      `["LC_ALL","PYTHONCOERCECLOCALE","PYTHONHASHSEED","TZ"]`, and the locale is C in every category on both
+      executors (before, it was C here and C.UTF-8 on Modal). Python's UTF-8 mode still applies, so printing non-ASCII
+      text works.
+    - Atlas's pin check now includes LC_CTYPE.
+  - **"None" no longer claims a complete check.** It now reads: "None of the conditions Atlas checks for (clock,
+    randomness, time zone, locale, the machine details it watches); the second run matched."
+- **B2, values hashed or ordered by memory address.**
+  - In pasted Python, `hash()`, `id()`, `set()` and `frozenset()` add a `memory-address` condition **every time** they
+    meet an object that hashes by its address. The sentence says the second run "catches most values that come from
+    them, not all".
+  - `set` / `frozenset` keep working as types: `isinstance`, subclassing, `set.union` and `set[int]` are tested.
+    `type(x) is set` still holds, because the values are real sets.
+  - The second run's heap spacer now has large blocks too.
+  - The `hash-seed` sentence no longer promises a catch.
+  - Escapes over 30 runs (an escape is a value the double run did not catch, so it was reported as measured),
+    before → after (`address-escapes-review2.txt`; before: the review's `a4.txt` / `a5.txt`):
+
+    | Code | escaped before | escaped after | label on an escape after |
+    |---|---|---|---|
+    | set of 12 large `__slots__` objects | 20 of 30 (a4) / 17 of 30 (a5) | **1 of 30 / 0 of 30** | memory-address |
+    | default repr of a large object | 30 of 30 | **0 of 30** | (caught) |
+    | `hash(object()) % 7` | 9 of 30 | **4 of 30** | memory-address, every time |
+    | set of plain objects, sorted by hash, dict repr | 0 of 30 | 0 of 30 | |
+
+    A value with only a few possible answers can still match by chance in both runs. That is why the label is
+    always there, rather than relying on the double run alone.
+- **B3:** a locale counts as named only when it is a non-empty string, or a non-empty list of non-empty strings.
+  `toLocaleString([])` and `Intl.NumberFormat([])` now carry the locale condition.
+- **M1:** the pins sentence ("Atlas runs it on a simulated clock starting 2026-01-01 UTC, in time zone UTC with an
+  en-US locale, with randomness seeded (seed 20260101).") is shown above the bet questions, always visible. The page
+  takes the line from the shared bettor text itself (`pinsLineOf`), and a test checks that the bytes are the same.
+  **Not checked in a browser.**
+- **M2:** pasted Python has `__file__ = "/atlas/target.py"`, the same on both runs and both executors, with a `host`
+  note when the code uses it. A global read cannot be watched, so it is found in the code's text.
+  `Path(__file__).parent / "data.json"` now gives `/atlas/data.json` instead of a NameError.
+- **Minors:**
+  - The runtime version is noted when read: `process.version(s)` was already noted, and `sys.version` / `version_info`
+    now are, through the proxy.
+  - The Python locale text "C" is now true on both executors.
+  - `R1_SINCE` is 2026-10-28, so today's files are covered too. Relabelling a run as "seed none" now fails.
+  - Logged, not fixed:
+    - Python's whole-file detection noise (m4).
+    - Noise conditions on ordinary code (m5).
+    - The suite count moving by one skip between machines and runs (m6; it varies here too, 35 or 36 skipped).
+- **Counts:**
+  - Full suite 3×: **1,314 passed, 36 skipped, 0 failed** (`full-suite-review2.txt`).
+  - An earlier set of 3 runs (`full-suite-review2-first-attempt.txt`) had two load-only failures:
+    - the day gate's "under 5 s" (5.19 s with the suite running; 1.7 s alone; not loosened);
+    - the step-limit test's 30 s timeout, now 60 s, because the double run runs that test twice.
+  - An `id()` test that claimed "always caught" was itself too strong (B2): it now asserts the label instead.
+  - tsc clean.
+  - **Modal live once: 16 of 16 passed, 136 s** of wall time (`modal-live-review2.txt`). Afterwards one sandbox
+    stayed listed for about 50 s before shutting down. `modal container list` then showed **0 active containers**.
+
+### Probes after the fixes (`host-probes-review2.txt`, from the review's `a1`–`a3`)
+
+- **JavaScript:**
+  - Measured, with the right label:
+    - `Object.keys(process.env)` → `["LC_ALL","TZ"]`, host;
+    - the `PORT ?? 3000` config → host;
+    - `process.env.TZ` and `resolvedOptions().timeZone` → time-zone-or-locale;
+    - `[]` locales → time-zone-or-locale;
+    - `getActiveResourcesInfo` and `getuid` → host.
+  - Caught by the double run: `import.meta.url` here (temp folder; it is labelled host on Modal).
+- **Python:**
+  - Measured, with host naming the read: `from sys import platform`, `import sys as s`, `getattr(sys,…)`,
+    `sys.version_info`, `from os import environ, getenv`, `os.getenv("PORT", "8000")`, `__file__`.
+  - Caught by the double run: `threading.get_ident()`.
+- **No condition yet** (runtime-version facts that are the same on both executors, Node 25.8.1 and Python 3.14.7):
+  - `Intl.DisplayNames(…).of("TR")` → "Türkiye", `Intl.supportedValuesOf("timeZone").length`, a JSON error message;
+  - Python `unicodedata.unidata_version`, `time.strftime("%c", …)` under C.
+
+  A person on another Node or Python version may get different values. The "None" wording no longer claims these
+  were checked.
+
+### What this does not cover (round 2)
+
+- **Runtime-version facts** (above) carry no condition unless the code reads the version itself.
+- **Escapes the instrumentation misses:**
+  - A Python set literal or set comprehension of plain objects (`{a, b}`, `{x for x in objs}`) is not intercepted:
+    only `set()` / `frozenset()` calls are. The double run catches most of these.
+  - Code reaching the real modules through `sys.modules["sys"]` skips the proxy.
+  - `type(set)` compared by identity with the builtin, or `case set():` in a `match`, behaves differently, because the
+    pasted code's `set` is Atlas's stand-in.
+- **The double run doubles the worst-case wait.** A pasted test that hits Atlas's 10 s real-time limit now takes up to
+  about 20 s before its "can't check".
+- **Bench M** still needs a new dry run: the bettor text changed in round 1, and the pins line is now also on the page.

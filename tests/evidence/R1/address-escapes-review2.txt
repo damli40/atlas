@@ -1,0 +1,15 @@
+== a4
+controls true true
+objset caught 30/30 measured distinct 0 e.g. [] kinds ["changed-between-runs","hash-seed","memory-address"] s/run 0.33
+dictrepr caught 30/30 measured distinct 0 e.g. [] kinds ["changed-between-runs"] s/run 0.39
+bigslots caught 29/30 measured distinct 1 e.g. ["[0,4,3,1,2,5,6,7,8,9,10,11]"] kinds ["changed-between-runs","hash-seed","memory-address"] s/run 0.35
+bigrepr caught 30/30 measured distinct 0 e.g. [] kinds ["changed-between-runs"] s/run 0.28
+objhashmod caught 26/30 measured distinct 2 e.g. ["1","6","6"] kinds ["changed-between-runs","hash-seed","memory-address"] s/run 0.25
+sortedbyhash caught 30/30 measured distinct 0 e.g. [] kinds ["changed-between-runs","memory-address"] s/run 0.23
+== a5
+controls true true
+three caught 30/30 measured values (count) {} kinds ["changed-between-runs","hash-seed"]
+firstOfTwo caught 0/30 measured values (count) {"2":30} kinds ["hash-seed"]
+bigslots caught 30/30 measured values (count) {} kinds ["changed-between-runs","hash-seed","memory-address"]
+bigrepr caught 30/30 measured values (count) {} kinds ["changed-between-runs"]
+shard caught 0/30 measured values (count) {"0":30} kinds ["hash-seed","memory-address"]
