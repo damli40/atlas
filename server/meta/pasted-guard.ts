@@ -15,16 +15,42 @@ import { DEFAULT_MAX_TOKENS, RETRY_MAX_TOKENS, modelRefusal, priceFor, shownMode
  */
 export const MAX_PASTED_PROMPT_CHARS = 160_000;
 /**
- * E3 review M5: the most one call may cost, estimated BEFORE it is sent: every prompt character counted as a token
+ * E3 review M5: the most one call may cost, estimated BEFORE it is sent: every prompt byte (G1 review B4; was: character) counted as a token
  * (an over-count), plus the largest output the client may ask for (one retry at RETRY_MAX_TOKENS), at the model's price.
  */
 export const MAX_PASTED_CALL_USD = 2;
 
-/** The upper-bound cost of one call, before it is sent. */
-export function estimatedCallUsd(args: Pick<ChatArgs, "model" | "messages" | "maxTokens">): number {
+/**
+ * G1 review B4: the prompt's tokens, counted as its UTF-8 BYTES. A byte-level tokenizer never makes a token smaller
+ * than one byte, so bytes are a true upper bound. (Counting characters undercounted CJK, emoji and rare scripts,
+ * where one character can be 2 or 3 tokens.)
+ */
+export const promptTokensUpperBound = (messages: readonly { content: string }[]): number => messages.reduce((n, m) => n + Buffer.byteLength(m.content, "utf8"), 0);
+
+type CostArgs = Pick<ChatArgs, "model" | "messages" | "maxTokens" | "retryMaxTokens">;
+
+/** G1 review B8: the most the FIRST try can cost: the prompt plus its whole output room. */
+export function firstTryUsd(args: CostArgs): number {
   const { price } = priceFor(args.model);
-  const inTokens = args.messages.reduce((n, m) => n + m.content.length, 0);
-  const outTokens = (args.maxTokens ?? DEFAULT_MAX_TOKENS) + RETRY_MAX_TOKENS;
+  return (promptTokensUpperBound(args.messages) * price.inPerM + (args.maxTokens ?? DEFAULT_MAX_TOKENS) * price.outPerM) / 1_000_000;
+}
+/** G1 review B8: the most the "ran out of room" retry can cost: the WHOLE prompt again plus the retry's output room. */
+export function retryTryUsd(args: CostArgs): number {
+  const { price } = priceFor(args.model);
+  return (promptTokensUpperBound(args.messages) * price.inPerM + (args.retryMaxTokens ?? RETRY_MAX_TOKENS) * price.outPerM) / 1_000_000;
+}
+/** G1 review B8: the most one call can cost with its retry: both tries, the prompt counted twice. */
+export const fullWorstCaseUsd = (args: CostArgs): number => firstTryUsd(args) + retryTryUsd(args);
+
+/**
+ * The upper-bound cost of one call, before it is sent, as the per-call caps ($2 pasted, $2.50 codebase) measure it:
+ * the prompt once plus both tries' output room. (The budget holds the retry's second copy of the prompt separately,
+ * just before the retry is sent: fullWorstCaseUsd.)
+ */
+export function estimatedCallUsd(args: CostArgs): number {
+  const { price } = priceFor(args.model);
+  const inTokens = promptTokensUpperBound(args.messages);
+  const outTokens = (args.maxTokens ?? DEFAULT_MAX_TOKENS) + (args.retryMaxTokens ?? RETRY_MAX_TOKENS);
   return (inTokens * price.inPerM + outTokens * price.outPerM) / 1_000_000;
 }
 

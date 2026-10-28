@@ -91,8 +91,8 @@ describe("S4 session store", () => {
     expect(store.peek("c")).toBeDefined();
   });
 
-  it("a session with sealed, unrun bets is kept for 2 hours; when all are kept a new session is refused; after 2 hours it may go", () => {
-    let t = 0;
+  it("a session with sealed, unrun bets is kept for 30 minutes from its oldest sealed bet (G1 review B6; was 2 hours after its last use); when all are kept a new session is refused; then it may go", () => {
+    let t = Date.now();
     const store = createBetStore({ maxSessions: 1, now: () => t });
     const opened = store.open("victim");
     if (!opened.ok) throw new Error("open failed");
@@ -103,7 +103,8 @@ describe("S4 session store", () => {
     expect(refused.ok).toBe(false);
     if (!refused.ok) expect(refused.reason).toMatch(/sealed bets that have not run yet/);
     expect(store.peek("victim")).toBeDefined();
-    t += 2 * 60 * 60 * 1000;
+    store.touch("victim"); // a later use no longer extends the protection
+    t += 30 * 60 * 1000 + 1000;
     expect(store.open("newcomer").ok).toBe(true);
     expect(store.peek("victim")).toBeUndefined();
   });

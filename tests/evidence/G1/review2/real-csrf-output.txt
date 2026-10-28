@@ -1,0 +1,15 @@
+GET /invite -> 200 [sec-fetch-site=none origin=- cookie=no]
+POST /invite -> 200 [sec-fetch-site=same-origin origin=http://127.0.0.1:47891 cookie=no]
+--- signed in on Atlas's own page: You're in as dami
+--- attacker page at http://127.0.0.1:47733
+POST /experiments -> 403 [sec-fetch-site=- origin=- cookie=no]
+POST /experiments -> 401 [sec-fetch-site=- origin=- cookie=no]
+page saw: done:nocors-text-experiments:sent|cors-json-paste:Failed to fetch|cors-header-empty:Failed to fetch
+POST /paste -> 403 [sec-fetch-site=same-site origin=http://127.0.0.1:47733 cookie=yes]
+--- attacker page at http://localhost:47733
+POST /experiments -> 401 [sec-fetch-site=- origin=- cookie=no]
+POST /experiments -> 401 [sec-fetch-site=- origin=- cookie=no]
+page saw: done:nocors-text-experiments:sent|cors-json-paste:Failed to fetch|cors-header-empty:Failed to fetch
+POST /paste -> 401 [sec-fetch-site=cross-site origin=http://localhost:47733 cookie=no]
+GET /invite -> 200 [sec-fetch-site=none origin=- cookie=yes]
+--- control: POST /paste from Atlas's own page -> 400

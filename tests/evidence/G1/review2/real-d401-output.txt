@@ -1,0 +1,4 @@
+open GET /health -> 200
+open GET /claimants -> 200
+open GET /paste/languages -> 200
+open GET /invite -> 200

@@ -39,6 +39,7 @@ import { dirname, join } from "node:path";
 import { extractDiff } from "../../../src/diff";
 import type { Experiment } from "../../../src/types";
 import { changeProposer } from "../../../src/claimants";
+import { fullWorstCaseUsd } from "../pasted-guard";
 import { redactSecret } from "../redact-secret";
 import { checkChange, MAX_CHANGED_LINES, type ChangeContext, type CheckedChange } from "../../../runners/change";
 import { makeScratch } from "../../../runners/scratch";
@@ -90,7 +91,19 @@ export interface FixerInput {
  */
 export type MuseExecResult =
   | { ok: true; text: string; model: string; usage?: Usage; models?: string[]; contributorSeen?: boolean }
-  | { ok: false; reason: string; model?: string; usage?: Usage; models?: string[]; contributorSeen?: boolean };
+  | { ok: false; reason: string; model?: string; usage?: Usage; models?: string[]; contributorSeen?: boolean; /** G1 review M1: muse exec started and was killed or failed; what it spent may not be in `usage`. */ costUnknown?: true };
+
+/**
+ * G1 review M1: the most one `muse exec` run can cost, held before it starts. Muse Code runs up to `maxSteps` model
+ * calls inside its own CLI; Atlas cannot see their prompts, so each step is assumed to read the whole workspace and
+ * prompt (as UTF-8 bytes) plus 32,000 tokens of earlier steps, and to write 16,000 tokens, at muse-spark-1.3's price
+ * ($4 in, $20 out per 1M; unverified, an upper-bound assumption). An ASSUMPTION about muse's internals, not measured.
+ */
+export function museWorstCaseUsd(req: { files: Record<string, string>; prompt: string; maxSteps?: number }): number {
+  const bytes = Buffer.byteLength(req.prompt, "utf8") + Object.values(req.files).reduce((n, t) => n + Buffer.byteLength(t, "utf8"), 0);
+  const perStep = ((bytes + 32_000) * 4 + 16_000 * 20) / 1_000_000;
+  return (req.maxSteps ?? MUSE_MAX_STEPS) * perStep;
+}
 
 /** Runs `muse exec` once with this workspace and prompt. Injected in tests. `maxSteps` defaults to MUSE_MAX_STEPS. */
 export type MuseExec = (req: { files: Record<string, string>; prompt: string; timeoutMs: number; maxSteps?: number }) => Promise<MuseExecResult>;
@@ -127,7 +140,7 @@ export interface FixerDeps {
   musePreflight?: MuseExec | null;
   chat?: (args: ChatArgs) => Promise<ChatResult>;
   /** Wraps each model call (the server passes its budget's track()). Default: the call runs as is. */
-  guard?: <R extends { usage?: { usd: number } }>(call: () => Promise<R>, refused: (reason: string) => R) => Promise<R>;
+  guard?: <R extends { usage?: { usd: number } }>(call: () => Promise<R>, refused: (reason: string) => R, reserveUsd?: number, guardInfo?: { usd: number; what: string }) => Promise<R>;
   log?: Pick<SessionEmitter, "emit" | "model">;
   /**
    * Which path the one repair try uses when Muse Code answered but plain code refused the diff:
@@ -365,7 +378,7 @@ export function realMuseExec(opts: { bin?: string; apiKey?: string } = {}): Muse
         const timer = setTimeout(() => {
           child.kill("SIGKILL");
           const parsed = parseMuseJsonl(stdout);
-          done({ ok: false, reason: `muse exec did not finish within ${Math.round(timeoutMs / 1000)} s`, ...(parsed.model ? { model: parsed.model } : {}), ...(parsed.usage ? { usage: parsed.usage } : {}) });
+          done({ ok: false, reason: `muse exec did not finish within ${Math.round(timeoutMs / 1000)} s`, ...(parsed.model ? { model: parsed.model } : {}), ...(parsed.usage ? { usage: parsed.usage } : {}), costUnknown: true });
         }, timeoutMs);
         child.stdout.on("data", (d: Buffer) => {
           if (stdout.length < 32 * 1024 * 1024) stdout += d.toString("utf8");
@@ -378,10 +391,10 @@ export function realMuseExec(opts: { bin?: string; apiKey?: string } = {}): Muse
           const parsed0 = parseMuseJsonl(stdout);
           // S4: "contributor" anywhere in stdout OR stderr counts.
           const parsed = { ...parsed0, contributorSeen: parsed0.contributorSeen === true || /contributor/i.test(stderr) } as MuseExecResult;
-          if (code !== 0 && parsed.ok) return done({ ok: false, reason: `muse exec exited with code ${code}`, model: parsed.model, ...(parsed.usage ? { usage: parsed.usage } : {}) });
+          if (code !== 0 && parsed.ok) return done({ ok: false, reason: `muse exec exited with code ${code}`, model: parsed.model, ...(parsed.usage ? { usage: parsed.usage } : {}), costUnknown: true });
           if (code !== 0) {
             const tail = scrub(stderr.trim().split("\n").filter((l) => !/^muse: (workspace root|local session|Agent delegation)/.test(l)).slice(-2).join(" | "));
-            return done({ ...parsed, reason: `muse exec exited with code ${code}${tail ? ` (${tail.slice(0, 200)})` : ""}` } as MuseExecResult);
+            return done({ ...parsed, reason: `muse exec exited with code ${code}${tail ? ` (${tail.slice(0, 200)})` : ""}`, costUnknown: true } as MuseExecResult);
           }
           done(parsed);
         });
@@ -475,7 +488,8 @@ export async function runFixer(input: FixerInput, deps: FixerDeps = {}): Promise
     const before = modelRefusal(FIXER_MUSE_MODEL);
     if (before) return { ok: false, reason: `not asked (${before})` };
     if (preflight && !preflightDone) {
-      const p = await guard(() => preflight({ files: { "README.txt": "Atlas preflight: no code here.\n" }, prompt: PREFLIGHT_PROMPT, timeoutMs: PREFLIGHT_TIMEOUT_MS, maxSteps: 1 }), (reason): MuseExecResult => ({ ok: false, reason }));
+      const preReq = { files: { "README.txt": "Atlas preflight: no code here.\n" }, prompt: PREFLIGHT_PROMPT, timeoutMs: PREFLIGHT_TIMEOUT_MS, maxSteps: 1 };
+      const p = await guard(() => preflight(preReq), (reason): MuseExecResult => ({ ok: false, reason }), 0, { usd: museWorstCaseUsd(preReq), what: `${MUSE_CODE} preflight` });
       if (p.usage && p.model) logMuseUsage(usagePath, p.model, p.usage, p.ok ? "preflight" : "preflight failed", now());
       total = addUsage(total, p.usage);
       const problem = p.ok ? reportProblem(p) : `the preflight did not finish (${p.reason})`;
@@ -483,7 +497,8 @@ export async function runFixer(input: FixerInput, deps: FixerDeps = {}): Promise
       if (problem) return { ok: false, reason: `not asked (preflight, no code sent: ${problem})`, ...(p.model ? { model: p.model } : {}) };
       preflightDone = true;
     }
-    const r = await guard(() => museExec!({ files: input.context.files, prompt, timeoutMs: MUSE_TIMEOUT_MS }), (reason): MuseExecResult => ({ ok: false, reason: `not asked (${reason})` }));
+    const req = { files: input.context.files, prompt, timeoutMs: MUSE_TIMEOUT_MS };
+    const r = await guard(() => museExec!(req), (reason): MuseExecResult => ({ ok: false, reason: `not asked (${reason})` }), 0, { usd: museWorstCaseUsd(req), what: MUSE_CODE });
     // The model id muse exec REPORTS is logged as is; an unknown, missing or contributor id: the answer is not used.
     if (r.usage && r.model) logMuseUsage(usagePath, r.model, r.usage, r.ok ? "completed" : "failed", now());
     if (!r.ok) return r; // no answer: nothing is used either way (its model id, when reported, is in the log)
@@ -499,19 +514,17 @@ export async function runFixer(input: FixerInput, deps: FixerDeps = {}): Promise
     return r;
   };
   const askChat = async (): Promise<MuseExecResult> => {
-    const r = await guard(
-      () =>
-        chat({
-          role: "fixer",
-          model: FIXER_FALLBACK_MODEL,
-          messages: [
-            { role: "system", content: "You propose. You never decide. Plain code will apply your change in a scratch copy, run the same experiment and judge. Output a unified diff only." },
-            { role: "user", content: prompt },
-          ],
-          reasoningEffort: "low",
-        }),
-      (reason): ChatResult => ({ ok: false, reason: `not asked (${reason})` }),
-    );
+    const args: ChatArgs = {
+      role: "fixer",
+      model: FIXER_FALLBACK_MODEL,
+      messages: [
+        { role: "system", content: "You propose. You never decide. Plain code will apply your change in a scratch copy, run the same experiment and judge. Output a unified diff only." },
+        { role: "user", content: prompt },
+      ],
+      reasoningEffort: "low",
+    };
+    // G1: the chat fallback holds its exact worst case: both tries, the prompt counted twice (G1 review B8).
+    const r = await guard(() => chat(args), (reason): ChatResult => ({ ok: false, reason: `not asked (${reason})` }), 0, { usd: fullWorstCaseUsd(args), what: `fixer ${FIXER_FALLBACK_MODEL}` });
     return r.ok ? { ok: true, text: r.content, model: FIXER_FALLBACK_MODEL, usage: r.usage } : { ok: false, reason: r.reason, model: FIXER_FALLBACK_MODEL, ...(r.usage ? { usage: r.usage } : {}) };
   };
 

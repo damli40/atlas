@@ -1,0 +1,1 @@
+{"who":"dev4","pasteBytes":63026,"rounds":7,"seconds":2,"spentUsd":1.15704525,"heldUsd":0,"perRoundUsd":0.1653,"stop":"model slots: Muse Spark 1.3 (muse-spark-1.3): off (call limit reached: this invite may make 15 model calls an hour); Muse Spark Open (meta-models/muse-spark-open-1026) · via Baseten: off (call limit reached: this invite may make 15 model calls an hour)"}

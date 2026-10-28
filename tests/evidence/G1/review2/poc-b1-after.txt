@@ -1,0 +1,3 @@
+B1-r2 length retry [Spark, PUA text (1 token per byte, byte fallback)]: hold per call $1.24, real per call $1.19; 0 calls answered, 4 requests sent; ledger booked $2.91 for a $3.00/day code (over by $0.00); provider bill $2.38
+B1-r2 length retry [Spark, ASCII code (~0.3 token per byte)]: hold per call $1.24, real per call $0.81; 0 calls answered, 4 requests sent; ledger booked $2.14 for a $3.00/day code (over by $0.00); provider bill $1.61
+B1-r2 length retry [Spark Open, PUA]: hold per call $0.29, real per call $0.31; 0 calls answered, 3 requests sent; ledger booked $2.88 for a $3.00/day code (over by $0.00); provider bill $0.46

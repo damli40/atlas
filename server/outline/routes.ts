@@ -28,6 +28,7 @@ import { plural } from "../../src/words";
 import { oneLine, sessionEmitter, type AgentLog } from "../log/agentlog";
 import { BAD_SESSION, sessionIdOf } from "../log/sse";
 import type { ModelBudget } from "../meta/budget";
+import { currentPrincipal } from "../access/context";
 import type { ChatArgs, ChatResult } from "../meta/client";
 import { OUTLINER_MODEL, runOutliner } from "../meta/roles/outliner";
 import { intakeGithub, intakeUpload, MAX_UPLOAD_ENTRIES, OutlineIntakeError, parseRepoRequest, type Codebase, type RepoRequest } from "./intake";
@@ -62,6 +63,8 @@ export interface OutlineDeps {
   budget?: ModelBudget;
   /** Per-address limit on outline jobs. */
   takeOutline: (c: Context) => { ok: true } | { ok: false; reason: string };
+  /** G1 review B7: one GitHub read from the spender's share, for an outline of a GitHub repo. Absent = not limited. */
+  takeGithubRead?: () => { ok: true } | { ok: false; reason: string };
   /** Per-address model-round limit, shared with the other model features. */
   takeModelRound: (c: Context) => { ok: true } | { ok: false; reason: string };
 }
@@ -71,6 +74,8 @@ export type JobStatus = "reading" | "mapping" | "asking-wonder" | "checking" | "
 interface Job {
   id: string;
   sessionId: string;
+  /** G1 review M2: who started it ("owner:<id>", "dev:<id>", or "other"), for the running-jobs shares. */
+  who: string;
   status: JobStatus;
   createdAt: string;
   what: string;
@@ -266,16 +271,28 @@ export function createOutlineRoutes(opts: OutlineOptions, deps: OutlineDeps) {
       const sessionJobs = [...jobs.values()].filter((j) => j.sessionId === sessionId);
       if (sessionJobs.some((j) => j.status !== "done" && j.status !== "failed")) return c.json({ error: "this session already has an outline job running; wait for it to finish" }, 409);
       prune();
-      if ([...jobs.values()].filter((j) => !finished(j)).length >= MAX_RUNNING_JOBS) return c.json({ error: `Atlas is already outlining ${MAX_RUNNING_JOBS} codebases; try again in a minute` }, 503);
+      // G1 review M2: one running job per dev code, and dev codes together leave the last slot for the owner.
+      const p = currentPrincipal();
+      const who = p?.kind === "invite" ? `${p.role}:${p.id}` : "other";
+      const running = [...jobs.values()].filter((j) => !finished(j));
+      if (running.length >= MAX_RUNNING_JOBS) return c.json({ error: `Atlas is already outlining ${MAX_RUNNING_JOBS} codebases; try again in a minute` }, 503);
+      if (who.startsWith("dev:")) {
+        if (running.some((j) => j.who === who)) return c.json({ error: "this invite already has an outline job running; wait for it to finish" }, 409);
+        if (running.filter((j) => !j.who.startsWith("owner:")).length >= MAX_RUNNING_JOBS - 1) return c.json({ error: `invited developers are already outlining ${MAX_RUNNING_JOBS - 1} codebases (the last slot is kept for the owner); try again in a minute` }, 503);
+      }
       const count = started.get(sessionId) ?? 0;
       if (count >= MAX_OUTLINE_JOBS_PER_SESSION) return c.json({ error: `a session may start at most ${MAX_OUTLINE_JOBS_PER_SESSION} outline jobs; start a new session` }, 429);
       const byIp = deps.takeOutline(c);
       if (!byIp.ok) return c.json({ error: `outline not started: ${byIp.reason}` }, 429);
+      if ("repo" in parsed.data && deps.takeGithubRead) {
+        const gh = deps.takeGithubRead();
+        if (!gh.ok) return c.json({ error: `outline not started: ${gh.reason}` }, 429);
+      }
       started.set(sessionId, count + 1);
       while (started.size > 1000) started.delete(started.keys().next().value!);
       // Wonder is asked only when this server has it and the client's model-round allowance is not used up.
       // The model round is taken only when Wonder is really asked (after the map is built and within the caps).
-      const job: Job = { id: `ol_${nanoid(10)}`, sessionId, status: "reading", createdAt: now().toISOString(), what, takeRound: () => deps.takeModelRound(c) };
+      const job: Job = { id: `ol_${nanoid(10)}`, sessionId, who, status: "reading", createdAt: now().toISOString(), what, takeRound: () => deps.takeModelRound(c) };
       keep(job);
       say(sessionId, "human", `asks for an outline of ${what}`);
       void run(job, read);

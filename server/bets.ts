@@ -31,6 +31,7 @@ import type { JsonValue } from "../src/types";
 import type { Bet, BetAnswer, Experiment, Finding, Run, RunAttempt, Verdict } from "../src/types";
 import type { ClaimantMode } from "../src/claimants";
 import type { ChainFactsResult } from "../src/chain-facts";
+import { spenderOf } from "./access/context";
 
 export const MAX_SESSIONS = 500;
 export const MAX_EXPERIMENTS = 50;
@@ -169,8 +170,14 @@ export interface Round {
   repeatOf?: string;
 }
 
-/** How long a session holding sealed-but-unrun bets is kept safe from eviction, after its last use. */
-export const PROTECT_SEALED_MS = 2 * 60 * 60 * 1000;
+/**
+ * How long a session holding sealed-but-unrun bets is kept safe from eviction. G1 review B6: counted from the OLDEST
+ * sealed bet that has not run (not from the last use), so no request can keep a slot pinned: 30 minutes (was 2 hours
+ * after the last use).
+ */
+export const PROTECT_SEALED_MS = 30 * 60 * 1000;
+/** G1 review B6: sessions one dev invite code may hold; its 21st drops its own least recently used one. */
+export const MAX_SESSIONS_PER_CODE = 20;
 
 export interface BetStore {
   /** The rounds of one session, or undefined. Never creates a session and never counts as a use. */
@@ -188,21 +195,33 @@ export interface BetStore {
   size(): number;
 }
 
-/** True while a session holds bets that are sealed but not yet judged (or a run in progress). */
-function holdsUnrunBets(rounds: Map<string, Round>): boolean {
+/**
+ * G1 review B6: the time protection started for a session: now while a run is in progress, the oldest sealed bet that
+ * has not run yet, or undefined when there is nothing to protect.
+ */
+function protectedSince(rounds: Map<string, Round>, t: number): number | undefined {
+  let since: number | undefined;
   for (const r of rounds.values()) {
-    if (r.status === "running") return true;
-    if (r.status === "open" && r.bets.length > 0) return true;
+    if (r.status === "running") return t;
+    if (r.status === "open") for (const b of r.bets) {
+      const at = Date.parse(b.sealedAt);
+      if (Number.isFinite(at)) since = since === undefined ? at : Math.min(since, at);
+    }
   }
-  return false;
+  return since;
 }
 
-export function createBetStore(opts: { maxSessions?: number; protectMs?: number; now?: () => number } = {}): BetStore {
+export function createBetStore(opts: { maxSessions?: number; protectMs?: number; perCode?: number; now?: () => number } = {}): BetStore {
   const maxSessions = opts.maxSessions ?? MAX_SESSIONS;
   const protectMs = opts.protectMs ?? PROTECT_SEALED_MS;
+  const perCode = opts.perCode ?? MAX_SESSIONS_PER_CODE;
   const now = opts.now ?? Date.now;
   // Insertion order = least recently used first. Only touch() and open() reorder it.
-  const sessions = new Map<string, { rounds: Map<string, Round>; lastUsed: number }>();
+  const sessions = new Map<string, { rounds: Map<string, Round>; lastUsed: number; who: string }>();
+  const isProtected = (s: { rounds: Map<string, Round> }, t: number) => {
+    const since = protectedSince(s.rounds, t);
+    return since !== undefined && t - since < protectMs;
+  };
 
   const touch = (sessionId: string) => {
     const s = sessions.get(sessionId);
@@ -221,19 +240,24 @@ export function createBetStore(opts: { maxSessions?: number; protectMs?: number;
         touch(sessionId);
         return { ok: true, rounds: found.rounds };
       }
+      const who = spenderOf();
+      if (who.kind === "dev") {
+        // G1 review B6: a dev code holds at most `perCode` sessions; past it, its OWN least recently used one goes.
+        const mine = [...sessions.entries()].filter(([, s]) => s.who === who.key);
+        if (mine.length >= perCode) sessions.delete(mine[0]![0]);
+      }
       if (sessions.size >= maxSessions) {
         const t = now();
         for (const [id, s] of sessions) {
           if (sessions.size < maxSessions) break;
-          const protectedNow = holdsUnrunBets(s.rounds) && t - s.lastUsed < protectMs;
-          if (!protectedNow) sessions.delete(id);
+          if (!isProtected(s, t)) sessions.delete(id);
         }
         if (sessions.size >= maxSessions) {
           return { ok: false, reason: `the server is holding ${maxSessions} rounds with sealed bets that have not run yet; try again later` };
         }
       }
       const rounds = new Map<string, Round>();
-      sessions.set(sessionId, { rounds, lastUsed: now() });
+      sessions.set(sessionId, { rounds, lastUsed: now(), who: who.key });
       return { ok: true, rounds };
     },
     size: () => sessions.size,

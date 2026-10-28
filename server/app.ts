@@ -82,6 +82,8 @@ import { judge } from "../src/judge";
 import { canonicalJson, verifySeal } from "../src/seal";
 import { bodyLimit } from "hono/body-limit";
 import { createModelBudget, type ModelBudget } from "./meta/budget";
+import { principalClientKey, runAs } from "./access/context";
+import { createShareLimit, DEFAULT_GITHUB_SHARES, type ShareLimit } from "./access/shares";
 import { cleanRecord, type RefusalWriter } from "./proofs/refusals";
 import { checkAnswer, createBetStore, humanBetBody, humanBetsBody, MAX_BETS, MAX_EXPERIMENTS, modelSlotsOf, modelSlotView, modelSlotViews, newExperimentId, newRound, publicBet, sealedAfter, sealHumanBet, type BetStore, type ModelSlot, type Round } from "./bets";
 import type { ChatArgs, ChatResult } from "./meta/client";
@@ -109,7 +111,7 @@ import { RunDidNotFinish, runFailureReason } from "./run-failure";
 import { createHourlyLimit, createReplayGate, createRunGate, createSandboxGate, type ReplayGate } from "./replay-limits";
 import { clientIpOf, trustProxyFromEnv, trustedHopsFromEnv } from "./client-ip";
 import { buildAtlasFile, callRunAgreesWithItsTrace, resultDiff, sameJson, verifyAtlasFile, withChange } from "../src/atlasfile";
-import { ASKED_FIELD, createProofStore, EVM_GATE_CONTEXT, evmTargetRefusal, extraCaptionsFor, forkBlockFor, humanFinding, recordedFindings, type ProofStore } from "./evm-round";
+import { ASKED_FIELD, createProofStore, EVM_GATE_CONTEXT, MOONWELL_PR_REF, evmTargetRefusal, extraCaptionsFor, forkBlockFor, humanFinding, recordedFindings, type ProofStore } from "./evm-round";
 import { control as runTsControl, readFixture, runExperiment, tsRunner } from "../runners/ts/control";
 import { changeAndReplay, type ChangeAnswer, type ReplayFn } from "./changes";
 import { MUSE_CODE, type MuseExec } from "./meta/roles/fixer";
@@ -385,6 +387,10 @@ export interface AppOptions {
    * asked; the code map is still built) and the GitHub reader (tests pass a stand-in).
    */
   outline?: OutlineOptions;
+  /** G1 review B7: the shared GitHub allowance (one object for every app on the server). */
+  githubReads?: ShareLimit;
+  /** G1 review B7: read the Moonwell PR once at startup so the finale never depends on GitHub later. */
+  warmMoonwellPr?: boolean;
 }
 
 /** D07-02: "what else?" questions one session may ask (each is up to 2 Adversary calls, Spark's bets and one run). */
@@ -448,19 +454,49 @@ export function createApp(opts: AppOptions = {}) {
     return s;
   };
   const prCache = new Map<string, Promise<GithubPrTarget>>();
+  /** G1 review B7: a failed read is remembered for 60 s, so asking again does not spend GitHub's allowance. */
+  const prFailed = new Map<string, { at: number; error: unknown }>();
   const fetchPrFn = opts.fetchPr ?? opts.investigator?.fetchPr ?? ((p: { owner: string; repo: string; number: number }) => fetchGithubPr(p));
-  /** Reads a PR once (cached; a failed read is tried again next time). */
+  /** G1 review B7: GitHub reads per invite code an hour (shared with the owner's app when the server passes one in). */
+  const githubReads = opts.githubReads ?? createShareLimit(DEFAULT_GITHUB_SHARES, "GitHub reads");
+  const prKey = (ref: { owner: string; repo: string; number: number }) => `${ref.owner}/${ref.repo}#${ref.number}`.toLowerCase();
+  const PINNED_PR = MOONWELL_PR_REF.toLowerCase();
+  /**
+   * Reads a PR once (cached). G1 review B7: a read that is not cached takes one GitHub read from the spender's share
+   * (refused with the reason, nothing fetched); a failed read is remembered for 60 s; the Moonwell PR (the finale) is
+   * never dropped from the cache once read.
+   */
   const readPr = (ref: { owner: string; repo: string; number: number }, fetchPr = fetchPrFn): Promise<GithubPrTarget> => {
-    const key = `${ref.owner}/${ref.repo}#${ref.number}`.toLowerCase();
+    const key = prKey(ref);
     let got = prCache.get(key);
     if (!got) {
+      const failed = prFailed.get(key);
+      if (failed && Date.now() - failed.at < 60_000) return Promise.reject(failed.error);
+      const allowed = githubReads.take();
+      if (!allowed.ok) return Promise.reject(new Error(allowed.reason));
       got = fetchPr(ref);
       prCache.set(key, got);
-      got.catch(() => prCache.delete(key));
-      while (prCache.size > MAX_CACHED_PRS) prCache.delete(prCache.keys().next().value!);
+      got.then(
+        () => prFailed.delete(key),
+        (error: unknown) => {
+          prCache.delete(key);
+          prFailed.set(key, { at: Date.now(), error });
+          while (prFailed.size > 200) prFailed.delete(prFailed.keys().next().value!);
+        },
+      );
+      while (prCache.size > MAX_CACHED_PRS) {
+        const oldest = [...prCache.keys()].find((k) => k !== PINNED_PR);
+        if (oldest === undefined) break;
+        prCache.delete(oldest);
+      }
     }
     return got;
   };
+  // G1 review B7: the server may read the finale's PR once at startup (as the server itself), so it is cached and pinned.
+  if (opts.warmMoonwellPr) {
+    const m = /^([^/]+)\/([^#]+)#(\d+)$/.exec(MOONWELL_PR_REF)!;
+    void runAs({ kind: "system", label: "Moonwell PR warm-up", route: "startup" }, () => readPr({ owner: m[1]!, repo: m[2]!, number: Number(m[3]) }).catch(() => undefined));
+  }
   /** github-pr targets Atlas registered, with their files, by codeSha256. */
   const prTargets = new Map<string, GithubPrTarget>();
   const prFiles = (pr: GithubPrTarget) => pr.files.filter((f) => f.content !== undefined).map((f) => ({ path: f.path, text: f.content! }));
@@ -506,7 +542,9 @@ export function createApp(opts: AppOptions = {}) {
   const pastedOwners = new Map<string, string>();
   const trustProxy = opts.trustProxy ?? trustProxyFromEnv();
   const proxyHops = trustedHopsFromEnv(); // E3 review r2 M4: read once; an invalid value throws here, not per request
-  const clientOf = (c: Context) => clientIpOf(c, trustProxy, proxyHops);
+  // G1: with an invite code, the per-address limits count by the code (server/access/context.ts), so a new address or a
+  // new X-Forwarded-For hop gives nothing extra; without one, by the client address as before.
+  const clientOf = (c: Context) => principalClientKey() ?? clientIpOf(c, trustProxy, proxyHops);
   const modelRoundsByIp = createHourlyLimit(opts.perClientModelLimits?.modelRoundsPerHour ?? envCount(process.env.ATLAS_MODEL_ROUNDS_PER_IP_PER_HOUR, DEFAULT_MODEL_ROUNDS_PER_IP_PER_HOUR), "model rounds");
   const investigationsByIp = createHourlyLimit(opts.perClientModelLimits?.investigationsPerHour ?? envCount(process.env.ATLAS_INVESTIGATIONS_PER_IP_PER_HOUR, DEFAULT_INVESTIGATIONS_PER_IP_PER_HOUR), "investigations");
   const proofStore = opts.proofs ?? createProofStore({ publish: false });
@@ -616,7 +654,7 @@ export function createApp(opts: AppOptions = {}) {
       if (!b.ok) return b;
       outlinesByIp.take(ip);
       return pastesByIp.take(ip);
-    }, takeModelRound: (c) => modelRoundsByIp.take(clientOf(c)) });
+    }, takeModelRound: (c) => modelRoundsByIp.take(clientOf(c)), takeGithubRead: () => githubReads.take() });
   /** The text of one file of a target, as Atlas read it. */
   const fileTextOf = (target: Target, file: string): string | undefined => {
     if (target.kind === "ts-fixture") return file === target.ref ? readFixture(target) : undefined;
@@ -875,7 +913,8 @@ export function createApp(opts: AppOptions = {}) {
       try {
         pr = await readPr({ owner: m[1]!, repo: m[2]!, number: Number(m[3]) });
       } catch (e) {
-        return c.json({ error: `could not read pull request ${parsed.data.ref}: ${e instanceof Error ? e.message : String(e)}` }, 502);
+        const msg = e instanceof Error ? e.message : String(e);
+        return c.json({ error: `could not read pull request ${parsed.data.ref}: ${msg}` }, /^call limit reached/.test(msg) ? 429 : 502); // G1 review B7
       }
       const refusal = evmTargetRefusal(pr.target.ref, pr.target.codeSha256, pr.target.commit);
       if (refusal) return c.json({ error: refusal, target: pr.target }, 422);
@@ -1100,7 +1139,8 @@ export function createApp(opts: AppOptions = {}) {
       try {
         prTarget = await readPr(ref, opts.investigator?.fetchPr ?? fetchPrFn);
       } catch (e) {
-        return c.json({ error: `could not read pull request ${body.pr}: ${e instanceof Error ? e.message : String(e)}` }, 502);
+        const msg = e instanceof Error ? e.message : String(e);
+        return c.json({ error: `could not read pull request ${body.pr}: ${msg}` }, /^call limit reached/.test(msg) ? 429 : 502); // G1 review B7
       }
       target = prTarget.target;
       files = prTarget.files.filter((f) => f.content !== undefined).map((f) => ({ path: f.path, text: f.content! }));

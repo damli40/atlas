@@ -33,6 +33,10 @@ import { CLAIMANT_MODEL, COST_UNKNOWN, NO_USAGE, SYSTEM_PREAMBLE, addUsage, zodS
 import { plural } from "../../../src/words";
 import { BET_INSTRUCTION } from "../../../src/chain-facts";
 
+/** G1 review M7: the output room of one bet call, and of its one "ran out of room" retry. */
+export const BET_MAX_TOKENS = 4_000;
+export const BET_RETRY_MAX_TOKENS = 8_000;
+
 /**
  * How the screen names the model: its product name AND its id (D10: model names stay visible).
  * D07-01: the list lives in src/claimants.ts so the page and the server use the same words.
@@ -205,7 +209,9 @@ export async function runClaimantBets(input: BetOnlyInput, deps: BetOnlyDeps = {
   let lastError = "";
   let lastSafe = "";
   for (let attempt = 0; attempt < 2; attempt++) {
-    const res = await chat({ role: "claimant", model, messages: [...messages], json: true });
+    // G1 review M7: bets are small JSON answers (at most 2,297 output tokens in all 49 live claimant calls in
+    // tests/evidence/usage/usage.jsonl), so 4,000 output tokens with one retry at 8,000 keeps the worst-case hold small.
+    const res = await chat({ role: "claimant", model, messages: [...messages], json: true, maxTokens: BET_MAX_TOKENS, retryMaxTokens: BET_RETRY_MAX_TOKENS });
     usage = addUsage(usage, res.usage);
     if (!res.ok) {
       attempts.push({ content: null, error: res.reason, ...(res.usage ? { usage: res.usage } : {}) });
