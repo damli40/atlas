@@ -1,0 +1,1042 @@
+{
+  "meta": {
+    "bench": "models",
+    "kind": "dry run (no model call)",
+    "date": "2026-10-28",
+    "builder": "e3",
+    "corpusSha256": "dce60febc37141c4fe07663743ddf7c2dbb6e197cbf273f6341c2be65060744b",
+    "tests": 90,
+    "functions": 30,
+    "questions": 309
+  },
+  "estimate": {
+    "sparkAndSparkOpen": {
+      "assumptions": {
+        "charsPerToken": 3.5,
+        "completionCentral": 1500,
+        "completionHigh": 3000,
+        "repairShare": 0.1,
+        "betMaxTokens": 4000,
+        "betRetryMaxTokens": 8000,
+        "overflowShareCentral": 0.02,
+        "overflowShareHigh": 0.05,
+        "overflowExtraCompletion": 10500
+      },
+      "perModel": [
+        {
+          "model": "muse-spark-1.3",
+          "priceVerified": false,
+          "calls": 99,
+          "promptTokens": 98364,
+          "centralUsd": 3.7871,
+          "highUsd": 7.3926
+        },
+        {
+          "model": "meta-models/muse-spark-open-1026",
+          "priceVerified": true,
+          "calls": 99,
+          "promptTokens": 98364,
+          "centralUsd": 0.8449,
+          "highUsd": 1.6122
+        }
+      ],
+      "totalCentralUsd": 4.632,
+      "totalHighUsd": 9.0048
+    },
+    "withWonder": {
+      "assumptions": {
+        "charsPerToken": 3.5,
+        "completionCentral": 1500,
+        "completionHigh": 3000,
+        "repairShare": 0.1,
+        "betMaxTokens": 4000,
+        "betRetryMaxTokens": 8000,
+        "overflowShareCentral": 0.02,
+        "overflowShareHigh": 0.05,
+        "overflowExtraCompletion": 10500
+      },
+      "perModel": [
+        {
+          "model": "muse-spark-1.3",
+          "priceVerified": false,
+          "calls": 99,
+          "promptTokens": 98364,
+          "centralUsd": 3.7871,
+          "highUsd": 7.3926
+        },
+        {
+          "model": "meta-models/muse-spark-open-1026",
+          "priceVerified": true,
+          "calls": 99,
+          "promptTokens": 98364,
+          "centralUsd": 0.8449,
+          "highUsd": 1.6122
+        },
+        {
+          "model": "muse-wonder-1.0",
+          "priceVerified": true,
+          "calls": 99,
+          "promptTokens": 98364,
+          "centralUsd": 3.7871,
+          "highUsd": 7.3926
+        }
+      ],
+      "totalCentralUsd": 8.4191,
+      "totalHighUsd": 16.3974
+    }
+  },
+  "prompts": [
+    {
+      "testId": "m01a",
+      "promptSha256": "b7410ee438fe52af5903847eda3172c5f84b48009036baa2e0c87da8f3cdbd5f",
+      "promptChars": 2864,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m01b",
+      "promptSha256": "6a54bdf4c6294509f3ef6b4682a7e281eda0e2ed031785f3dace463931ff3f34",
+      "promptChars": 2804,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m01c",
+      "promptSha256": "9f3a4eada4e5dd0404ed444090a86b9a08c6e7a781a72a01e5e0db76da7c2d66",
+      "promptChars": 2894,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m02a",
+      "promptSha256": "577c5166b61b0846e236d5260b8be573ec6fc6f8317e21ea72c090d94358a5ea",
+      "promptChars": 3097,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m02b",
+      "promptSha256": "40a2aafe7ed44b30a1d322619e2ba7668f7f557c574737dd81d0bef7c78d0a64",
+      "promptChars": 3112,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m02c",
+      "promptSha256": "7a811e919004a5021acb17c2690235367592ce0edfd9caf58750ce1da1fd7d3a",
+      "promptChars": 3072,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m03a",
+      "promptSha256": "8645eae3ccfcee3fd8087b69c24a8c63b8d3a68905e8cdd2b544e57f398e86b9",
+      "promptChars": 4318,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs",
+        "calls:call"
+      ]
+    },
+    {
+      "testId": "m03b",
+      "promptSha256": "c2b66f79a5f5bf4c1f9dfda8dffcf318512b2d41963ef936f7cfc056b11c685a",
+      "promptChars": 4122,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs",
+        "calls:call"
+      ]
+    },
+    {
+      "testId": "m03c",
+      "promptSha256": "caefaf5c40643e183b879ab85aa4607aefe17f9ef04f51551dbfc6fb90305ff2",
+      "promptChars": 4411,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs",
+        "calls:call"
+      ]
+    },
+    {
+      "testId": "m04a",
+      "promptSha256": "fa15404f9703d47baf0d0eb730850174b5e294124ac693fb21d34b76ec23f1cf",
+      "promptChars": 3911,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs",
+        "calls:step"
+      ]
+    },
+    {
+      "testId": "m04b",
+      "promptSha256": "9381a5fa89a9763f8ed2475dd41a5633df1b47f4063c0a4f9554c808bbe4c1ae",
+      "promptChars": 3911,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs",
+        "calls:step"
+      ]
+    },
+    {
+      "testId": "m04c",
+      "promptSha256": "d56b262c9b9e0268a464ddeccc4efaa6bce7bf84df8426dd3d647268d1c8fdf8",
+      "promptChars": 4023,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs",
+        "calls:step"
+      ]
+    },
+    {
+      "testId": "m05a",
+      "promptSha256": "47abdfe84df405187bde65d6d25f210c4ae64e20576db9512ff5fc071bb2d935",
+      "promptChars": 4809,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs",
+        "calls:fetcher"
+      ]
+    },
+    {
+      "testId": "m05b",
+      "promptSha256": "ee563c93c723d7cf7c689be57463e0fe55ea0c5a8d9d56c970d61c3c54ae04a0",
+      "promptChars": 4809,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs",
+        "calls:fetcher"
+      ]
+    },
+    {
+      "testId": "m05c",
+      "promptSha256": "8cdfd6f1c3f348c7c6bfdf6f1e2bbbc4d830c8facf1375b6e3ffd4ffd2152e4b",
+      "promptChars": 4578,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs",
+        "calls:fetcher"
+      ]
+    },
+    {
+      "testId": "m06a",
+      "promptSha256": "d5e240a581ee1313167b090c4281135320a557ba817a44b61a9ab0fb594b58c1",
+      "promptChars": 3285,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m06b",
+      "promptSha256": "e3c0fc2822dd545715996bb9c40f4f510c39d814d3c7464c82e6801a6790dab2",
+      "promptChars": 3305,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m06c",
+      "promptSha256": "a11a4c898188a7ef91fe238455b53751caa8ab534b0ad26a85bd742eecb62070",
+      "promptChars": 3270,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m07a",
+      "promptSha256": "6ac6af169cc8de5f4803782c43580769e34076b874c4f4838e5fb9aa830e9e6e",
+      "promptChars": 3113,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m07b",
+      "promptSha256": "8ba8f05e442b1e15a284dbd2a99b8b512bf2eaaa15e766849313fd4e609499d0",
+      "promptChars": 3118,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m07c",
+      "promptSha256": "baafa5fdb4ee54beadcf0b40af8b9b83059a64fd9ef84de6f375d228528a016f",
+      "promptChars": 2998,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m08a",
+      "promptSha256": "54ac21d753ee60cb9e0fb308e4c4c2fc6facf35690cff6a77a9d43bb59bdc980",
+      "promptChars": 2758,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m08b",
+      "promptSha256": "1fd1c19993a68c5ca8c10038586f8e2b55f142319ba0530fb3705b133aafd611",
+      "promptChars": 2743,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m08c",
+      "promptSha256": "baf5afc7a64eb8a83c8385537f4f66cae09a7c2c340e8818219f6f9a3d6ecf11",
+      "promptChars": 2748,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m09a",
+      "promptSha256": "60691086aa72b2d0159992a5b6e186418737f5acb74bca7dfc876b6af0819ec5",
+      "promptChars": 2941,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m09b",
+      "promptSha256": "1b610e800989c964df7a909ced4fd8c97d6d37761cde6b834c29cd9614958fd0",
+      "promptChars": 2941,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m09c",
+      "promptSha256": "58a1cfeedea151f78e9fbd95a900b8a6e9e3a26afeab15dfb5173ebe5d0250f2",
+      "promptChars": 2941,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m10a",
+      "promptSha256": "deef7d7d185834fb88490269737c5c8ff046306f76b0539e90ee244a841fc3c9",
+      "promptChars": 4762,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs",
+        "calls:call"
+      ]
+    },
+    {
+      "testId": "m10b",
+      "promptSha256": "d5ebda86828df70008881393451c81c38573d26db44bf9c76711c856d5ac05bc",
+      "promptChars": 4532,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs",
+        "calls:call"
+      ]
+    },
+    {
+      "testId": "m10c",
+      "promptSha256": "162afbb0f1043bf5623308e35f9607caf3c676af7a6396aa0ee1184960c27122",
+      "promptChars": 4895,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs",
+        "calls:call"
+      ]
+    },
+    {
+      "testId": "m11a",
+      "promptSha256": "a7385dd708b69268e2c9503a5d0b99b5c39e80b8e518626a4e1dfec73f08cef2",
+      "promptChars": 2917,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m11b",
+      "promptSha256": "de90eacb96d22f3de88b5f01bca9a1983dc253795824aff16b075545d9279222",
+      "promptChars": 2872,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m11c",
+      "promptSha256": "b52f0acdd398e3c3f8c5edb084a43fce45f4b7d398eb28d8f31a47d654f0f8df",
+      "promptChars": 2927,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m12a",
+      "promptSha256": "ab95289b9b55cd49b2953890b7dace48ad13d1aa0bb756e35fa9c8c2144b9cc2",
+      "promptChars": 3110,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m12b",
+      "promptSha256": "1bef4992abd8b469d4c0b6e6f55ff4218e0ca56fa9dd5a04d4a7eebc4593e451",
+      "promptChars": 3020,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m12c",
+      "promptSha256": "4c78890335b09c3ec7700ef31fd7d27e3cf3c551fdcf1b1900e39b36f0b0a6e8",
+      "promptChars": 2955,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m13a",
+      "promptSha256": "0ab2bfcbade777d0bbb4a8483da0d82cac28c84ca34b9bd5aaae906d48d5befa",
+      "promptChars": 3072,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m13b",
+      "promptSha256": "3147e3bcff6f05fd6451e5b5cbf2ab9e1ef30a540aa5b3b5a19f05b50e5a8efd",
+      "promptChars": 2972,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m13c",
+      "promptSha256": "7fe6c73032a942a927db3507a2f3592698d8376ba04cb905aaf7803ea576827c",
+      "promptChars": 3032,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m14a",
+      "promptSha256": "58f80d0e4c2ae83d92629bca67b7dfa173f350cb22d9046246ca5f76f1d58ea6",
+      "promptChars": 4285,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs",
+        "calls:job"
+      ]
+    },
+    {
+      "testId": "m14b",
+      "promptSha256": "746fc50cead5ab5e5906d05fe5dfdec1431dedc9582bbd3140b1f70f2bd90fe8",
+      "promptChars": 4285,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs",
+        "calls:job"
+      ]
+    },
+    {
+      "testId": "m14c",
+      "promptSha256": "e36ef305a0ff73be0e4f70441bd767a3d055f72c740d384558b277c327e068cc",
+      "promptChars": 4450,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs",
+        "calls:job"
+      ]
+    },
+    {
+      "testId": "m15a",
+      "promptSha256": "8c34b30ae13c64bd3a1190987bea8ff7e51f5fc2933ef250c45c8af3d5af3eed",
+      "promptChars": 2851,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m15b",
+      "promptSha256": "0866ca92edf28c5b7ac5284860b02beabcf15ba6bf98a24a6ee00ef56ffca583",
+      "promptChars": 2846,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m15c",
+      "promptSha256": "7f5315f1872aac51d6546e7124b309236fc81f075d7e7402295e5e524235a528",
+      "promptChars": 2916,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m16a",
+      "promptSha256": "3a8aceff26d1821beaac02fec797e2a04d67713d9978dd51dc974f94c107814d",
+      "promptChars": 4833,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs",
+        "calls:login",
+        "calls:logout"
+      ]
+    },
+    {
+      "testId": "m16b",
+      "promptSha256": "182a258491353cc4d53dd27b34529df8852244bdb8bbf74d727df1c9644bf266",
+      "promptChars": 4728,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs",
+        "calls:login",
+        "calls:logout"
+      ]
+    },
+    {
+      "testId": "m16c",
+      "promptSha256": "44645aafb51b743ab193b3b5d2aae013246cf5d0561f7d00490ab18fb17b8428",
+      "promptChars": 4498,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs",
+        "calls:login",
+        "calls:logout"
+      ]
+    },
+    {
+      "testId": "m17a",
+      "promptSha256": "574dd70b4ac119e0f1da954d2a9d5d656bb7f0e117d077b576f5f4ec95f781aa",
+      "promptChars": 2877,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m17b",
+      "promptSha256": "310a6b96e4ac3e28a0d959adf8a42680d8e5a12ac4f3edf109e88980c39fd834",
+      "promptChars": 2872,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m17c",
+      "promptSha256": "fbaf6efee52130e7189917dc7940e353d8a0c673eb287dbc1881567f0cbe9269",
+      "promptChars": 2842,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m18a",
+      "promptSha256": "7510e15f31814aac71035c760e181d43f8a0d9609b621528dc19910a6584589f",
+      "promptChars": 3779,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs",
+        "calls:onClick"
+      ]
+    },
+    {
+      "testId": "m18b",
+      "promptSha256": "f4a11ee3e3993d30715047dc2e48bed2bbfda16fff4f317c9463b26d32b81041",
+      "promptChars": 3779,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs",
+        "calls:onClick"
+      ]
+    },
+    {
+      "testId": "m18c",
+      "promptSha256": "9af457d4879d1efdd1122a8cecfa9169a6f35b97c570b02b7367217d11ed08fa",
+      "promptChars": 3767,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs",
+        "calls:onClick"
+      ]
+    },
+    {
+      "testId": "m19a",
+      "promptSha256": "b3f0e9115b17931f6364300c43b82e59a4af2d8c3e33f9af925b3420a9526b7f",
+      "promptChars": 3067,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m19b",
+      "promptSha256": "92753bc6d4e19609d6956b8d8d007b37445f6b763c8e65962c2c950b4ce31dd0",
+      "promptChars": 3062,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m19c",
+      "promptSha256": "ffb56a0ba021d2229d1baf79a904bd4742e0d1732e762235e394fd416de81879",
+      "promptChars": 3002,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m20a",
+      "promptSha256": "69f7550ac45d87e7c9d8f7607eae6db7f35def18ca482a67001064e87b94ab61",
+      "promptChars": 2945,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m20b",
+      "promptSha256": "1971d0c38215fc8bf58606251f87b0ae1147f9c19ea2b99a33f8c62c2192c326",
+      "promptChars": 2975,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m20c",
+      "promptSha256": "5a4a5c099a55a379981ee1981b07ff6e67502f389d463368c8a5aa23749530ef",
+      "promptChars": 2925,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m21a",
+      "promptSha256": "3bfe7a19f4cd345e058bc57ea01459eb9c0f4c74dea36805d8783a4d98a23d50",
+      "promptChars": 4659,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs",
+        "calls:primary",
+        "calls:backup"
+      ]
+    },
+    {
+      "testId": "m21b",
+      "promptSha256": "b777fff96ce32faf05299785ef51cb44f3e34d41db8dc17f93e8d5a315f060c8",
+      "promptChars": 4816,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs",
+        "calls:primary",
+        "calls:backup"
+      ]
+    },
+    {
+      "testId": "m21c",
+      "promptSha256": "38e96b65f376dac43ef95bfc5aa9f04d16ba923a4934db4b8b9b34c6e9004ab2",
+      "promptChars": 4872,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs",
+        "calls:primary",
+        "calls:backup"
+      ]
+    },
+    {
+      "testId": "m22a",
+      "promptSha256": "fb21561c3ba2a73fbfabefe74cb2e1d31b1a8b82c623393962e609642703a839",
+      "promptChars": 3296,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m22b",
+      "promptSha256": "f36ba9dc32ae5e764612ef26bd8c91752a202ed9428d9031c977fac1cc5b2ec2",
+      "promptChars": 3306,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m22c",
+      "promptSha256": "223e3dc35becb7326650b550395515eef879b8a5033586123d056e25b513396e",
+      "promptChars": 3291,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m23a",
+      "promptSha256": "68bf59090675402f2a4117b07f452e2128d78daa91897e430fb3a44c212e7c0e",
+      "promptChars": 4395,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs",
+        "calls:fetch"
+      ]
+    },
+    {
+      "testId": "m23b",
+      "promptSha256": "9a979c009e8df8b7e2d1ba9f0894b162b9819a9f27ce8c1c980a9e70bb8581a7",
+      "promptChars": 4395,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs",
+        "calls:fetch"
+      ]
+    },
+    {
+      "testId": "m23c",
+      "promptSha256": "28aff15d1ce2d09b31d85cb2f906cd958d4bde56f484a89722d0938e17dae297",
+      "promptChars": 4390,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs",
+        "calls:fetch"
+      ]
+    },
+    {
+      "testId": "m24a",
+      "promptSha256": "3a609c6d2e615b85fa2ef67f692e7fec114e2cfed7bf4d81c6606e570d9a1191",
+      "promptChars": 2995,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m24b",
+      "promptSha256": "ed70b5f772262b2482177c4e9b169a017d0349d50deca169cc7cbb9678117b07",
+      "promptChars": 2980,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m24c",
+      "promptSha256": "09a7da030d3ca714b007ee358e824227d2534229e8d511e6420f2d3d7e5f6659",
+      "promptChars": 2995,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m25a",
+      "promptSha256": "64225fea5cd09f85f35ed6f8b29ed276d0146ca636c4e6f1d1aef4725ca51268",
+      "promptChars": 3032,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m25b",
+      "promptSha256": "7750a7ac8e6e40663c884928b714b4c23549512f4f49bb86c5d059eee355eaf6",
+      "promptChars": 2912,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m25c",
+      "promptSha256": "c6d583e1e7ce13a65becd95438cd8d5be35774d0a1ac5044ef61b1b2876a4095",
+      "promptChars": 2902,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m26a",
+      "promptSha256": "75354e61fe01bebb901b539eca521fce0b757ea6a3727b594bcb01a55f011c57",
+      "promptChars": 3959,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs",
+        "calls:op"
+      ]
+    },
+    {
+      "testId": "m26b",
+      "promptSha256": "f1033a42c6d799b6de431720020f78c0b34dce71075f1627506ae03a183e2251",
+      "promptChars": 3850,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs",
+        "calls:op"
+      ]
+    },
+    {
+      "testId": "m26c",
+      "promptSha256": "2ebf5845c417aafb66d7ab5743a2822ad3e699970f2df74cf57bf9c36040195b",
+      "promptChars": 3916,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs",
+        "calls:op"
+      ]
+    },
+    {
+      "testId": "m27a",
+      "promptSha256": "e25b87f333ac3a7e03237e424f4519c2ecb7ec1e4664e0e717e4a04afcf27eca",
+      "promptChars": 3811,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs",
+        "calls:beat"
+      ]
+    },
+    {
+      "testId": "m27b",
+      "promptSha256": "0c119b90a7a1221968d12b14d8124ce1aec1e7cd455a44a0ef4d4cec1936ef92",
+      "promptChars": 3923,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs",
+        "calls:beat"
+      ]
+    },
+    {
+      "testId": "m27c",
+      "promptSha256": "d91415422bc9103105e0c5851bddb8d9d1b8b0a61436053f61786f16c1169018",
+      "promptChars": 4075,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs",
+        "calls:beat"
+      ]
+    },
+    {
+      "testId": "m28a",
+      "promptSha256": "e9494a46b0cbb16e59d89c7c7961b1597068b57eb335f0cd0755990721ecb90a",
+      "promptChars": 3023,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m28b",
+      "promptSha256": "1c7cf3a188a9a214105d37b35dc70b437439cd0e1d381fa751d4675c3137840b",
+      "promptChars": 3033,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m28c",
+      "promptSha256": "3f7d4c0b0550714ae61168a2250dc1e678801913a00928a6acca0a9cca3e3a00",
+      "promptChars": 3028,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m29a",
+      "promptSha256": "6cac04aa46c6f9f86856f66ee8626731dc1e9bd8b962fd151b0eee0666c2f9d9",
+      "promptChars": 3173,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m29b",
+      "promptSha256": "1b9f0fc66a683a95baf4b3ceba8ef21dcba1808779473eedfb2fa6592c4037a6",
+      "promptChars": 3133,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m29c",
+      "promptSha256": "36af42bb758ff13d8f2af5a0b5f00bc3c825283327c2e8473e7b5a83b38ccd14",
+      "promptChars": 3003,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m30a",
+      "promptSha256": "8340fb59b0686225041001d11636445c017b6b527b606783eb8653a2dd72e46d",
+      "promptChars": 2737,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m30b",
+      "promptSha256": "e8be63d08689b7e23a3bcc5d230fd7541eabbab55b2548bff9040604f3e41dd7",
+      "promptChars": 2717,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    },
+    {
+      "testId": "m30c",
+      "promptSha256": "d9fc14a34cd3fff43d58a3c66a956728e05bc6ab5d892b585a6c10949a60fa4d",
+      "promptChars": 2677,
+      "questions": [
+        "outcome",
+        "returnedJson",
+        "virtualMs"
+      ]
+    }
+  ],
+  "samplePrompt": {
+    "testId": "m01a",
+    "messages": [
+      {
+        "role": "system",
+        "content": "You propose. You never decide. Plain code will run the code and judge. Say 'unknown' instead of guessing. Return only JSON matching the schema."
+      },
+      {
+        "role": "user",
+        "content": "WHAT THE PERSON SEES BEFORE BETTING (you get exactly this; the person sees the same text on screen)\nCode: one pasted JavaScript file, 9 lines, fingerprint 0e159dfcba51…\nWhere it runs: Atlas's sandbox, with no network, no files and no packages, on a virtual clock that starts at 2026-01-01T00:00:00Z (waits cost no real time).\nAtlas runs it on a simulated clock starting 2026-01-01 UTC, in time zone UTC with an en-US locale, with randomness seeded (seed 20260101).\nWhat will run: Atlas calls tierCounts([90,75,76,100]).\nTest written by: you (the person).\nAtlas watches for at most 30,000 ms of virtual time.\nQuestions (written by plain code):\n1. What does tierCounts do? Answer: one of returned, threw, never_settled, still_running_at_watch_limit.\n2. If tierCounts returns, what value does it return, as JSON? Answer: a JSON value (matched when it is exactly the returned value, key order ignored).\n3. How long until tierCounts returns or throws, in ms of Atlas's virtual clock? Answer: a number in ms, matched within 10% of what the run measures.\nThe test exactly, as JSON (what Atlas runs): {\"args\":[{\"kind\":\"json\",\"value\":[90,75,76,100]}],\"exportName\":\"tierCounts\",\"shape\":\"call-function\"}\nHow to bet: Give your best estimate for each question. Decline only if you cannot form any estimate at all; if you decline, say why.\nThe whole file, numbered as on screen, line 1 (where tierCounts is declared) marked \">\":\n> 1| export function tierCounts(scores) {\n  2|   const counts = { A: 0, B: 0, C: 0 };\n  3|   for (const s of scores) {\n  4|     if (s >= 90) counts.A++;\n  5|     else if (s > 75) counts.B++;\n  6|     else counts.C++;\n  7|   }\n  8|   return counts;\n  9| }\n\nQUESTIONS (written by plain code; a person answers the same ones)\n1. measures \"outcome\": Atlas calls tierCounts([90,75,76,100]). What does tierCounts do?\n   answer: {\"kind\":\"enum\",\"value\":<one of \"returned\" | \"threw\" | \"never_settled\" | \"still_running_at_watch_limit\">,\"options\":[\"returned\",\"threw\",\"never_settled\",\"still_running_at_watch_limit\"]}\n2. measures \"returnedJson\": Atlas calls tierCounts([90,75,76,100]). If tierCounts returns, what value does it return, as JSON?\n   answer: {\"kind\":\"json\",\"value\":<any JSON value>}\n3. measures \"virtualMs\": Atlas calls tierCounts([90,75,76,100]). How long until tierCounts returns or throws, in ms of Atlas's virtual clock?\n   answer: {\"kind\":\"number\",\"value\":<number>,\"tolerancePct\":10,\"unit\":\"ms\"}\n\nTASK\nBet on what this experiment's run will measure:\nexactly one bet per question, using the answer JSON shown for it.\nTo decline, bet {\"kind\":\"declined\",\"reason\":\"unknown: <why>\"}.\n\nReturn only this JSON object:\n{\"bets\": [{\"measures\": \"<field>\", \"answer\": {...}, \"rationale\": \"<one or two sentences>\"}]}"
+      }
+    ]
+  }
+}
