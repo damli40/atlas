@@ -296,47 +296,77 @@ export function buildFigure(M) {
   };
   const L = M.lines.map((l) => ({ ...l, r: l.typeOnly ? R_TYPE : (R_OF[l.kind] ?? 0.86), a: jacks.get(`${l.id}:${l.from}`), b: jacks.get(`${l.id}:${l.to}`) }));
   const TV = [Math.cos((AZIMUTH * Math.PI) / 180), Math.sin((AZIMUTH * Math.PI) / 180)];
-  const allEnds = L.flatMap((l) => [l.a, l.b]);
-  const JOG = 14;
-  for (const l of L) {
+  const COS_E = Math.cos((ELEVATION * Math.PI) / 180);
+  // A leg's vertical bend faces the viewer enough when the leg runs across the view (else the bend pinches to a V).
+  const facingOf = (a, b) => {
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+    return COS_E * Math.abs((-(b[1] - a[1]) / len) * TV[0] + ((b[0] - a[0]) / len) * TV[1]);
+  };
+  const legOk = (plan) => plan.length === 2 || plan.every((q, i) => i === 0 || Math.hypot(q[0] - plan[i - 1][0], q[1] - plan[i - 1][1]) >= 7);
+  const FACE_MIN = 0.34;
+  // Candidate plans for each line, most direct first: straight; a side jog either way at three widths; an L either way.
+  const candidatesOf = (l) => {
     const len = Math.hypot(l.b[0] - l.a[0], l.b[1] - l.a[1]) || 1;
-    const d = [(l.b[0] - l.a[0]) / len, (l.b[1] - l.a[1]) / len];
-    const n = [-d[1], d[0]];
-    const facing = Math.cos((ELEVATION * Math.PI) / 180) * Math.abs(n[0] * TV[0] + n[1] * TV[1]);
-    if (facing >= 0.34) {
-      l.plan = [l.a, l.b];
-      continue;
-    }
-    const options = [1, -1].map((sg) => {
-      const plan = [l.a, [l.a[0] + n[0] * JOG * sg, l.a[1] + n[1] * JOG * sg], [l.b[0] + n[0] * JOG * sg, l.b[1] + n[1] * JOG * sg], l.b];
-      return { plan, near: allEnds.filter((e) => e !== l.a && e !== l.b && polyDist(e, plan) < 5).length };
-    });
-    options.sort((x, y) => x.near - y.near);
-    l.plan = options[0].plan;
+    const n = [-(l.b[1] - l.a[1]) / len, (l.b[0] - l.a[0]) / len];
+    const out = [[l.a, l.b]];
+    for (const d of [14, 20, 27]) for (const sg of [1, -1]) out.push([l.a, [l.a[0] + n[0] * d * sg, l.a[1] + n[1] * d * sg], [l.b[0] + n[0] * d * sg, l.b[1] + n[1] * d * sg], l.b]);
+    out.push([l.a, [l.b[0], l.a[1]], l.b], [l.a, [l.a[0], l.b[1]], l.b]);
+    return out.filter((plan) => legOk(plan) && facingOf(plan[0], plan[1]) >= FACE_MIN && facingOf(plan[plan.length - 2], plan[plan.length - 1]) >= FACE_MIN);
+  };
+  const ownEnd = (l, e) => Math.hypot(e[0] - l.a[0], e[1] - l.a[1]) < 0.1 || Math.hypot(e[0] - l.b[0], e[1] - l.b[1]) < 0.1;
+  const crowdOf = (l, plan) => L.reduce((n, o) => n + (o === l ? 0 : [o.a, o.b].filter((e) => !ownEnd(l, e) && polyDist(e, plan) < l.r + o.r + 1.4).length), 0);
+  const planLength = (plan) => plan.reduce((a, q, i) => (i ? a + Math.hypot(q[0] - plan[i - 1][0], q[1] - plan[i - 1][1]) : 0), 0);
+  for (const l of L) {
+    l.options = candidatesOf(l)
+      .map((plan) => ({ plan, crowd: crowdOf(l, plan), length: planLength(plan) }))
+      .sort((x, y) => x.crowd - y.crowd || x.length - y.length);
+    if (l.options.length === 0) throw new Error(`no route for ${l.id} keeps its bends facing the viewer`);
+    l.choice = 0;
+    l.plan = l.options[0].plan;
   }
   const NEAR = 4.4;
-  const above = L.map(() => new Set());
-  L.forEach((li, i) =>
-    L.forEach((lj, j) => {
-      if (i === j) return;
-      for (const e of [lj.a, lj.b]) if (polyDist(e, li.plan) < li.r + lj.r + 1.4 && Math.hypot(e[0] - li.a[0], e[1] - li.a[1]) > 0.1 && Math.hypot(e[0] - li.b[0], e[1] - li.b[1]) > 0.1) above[i].add(j);
-    }),
-  );
-  const lenOf = (l) => Math.hypot(l.b[0] - l.a[0], l.b[1] - l.a[1]);
-  const order = [];
-  {
+  // above[i] has j: line i passes over line j's fitting, so it must run higher than line j.
+  const aboveOf = () =>
+    L.map((li, i) => new Set(L.map((lj, j) => j).filter((j) => j !== i && [L[j].a, L[j].b].some((e) => !ownEnd(li, e) && polyDist(e, li.plan) < li.r + L[j].r + 1.4))));
+  const topo = (above) => {
     const indeg = L.map((_, i) => above[i].size);
-    const ready = L.map((_, i) => i).filter((i) => indeg[i] === 0);
     const below = L.map(() => []);
     L.forEach((_, i) => above[i].forEach((j) => below[j].push(i)));
+    const ready = L.map((_, i) => i).filter((i) => indeg[i] === 0);
+    const order = [];
     while (ready.length) {
-      ready.sort((x, y) => lenOf(L[x]) - lenOf(L[y]));
+      ready.sort((x, y) => planLength(L[x].plan) - planLength(L[y].plan));
       const i = ready.shift();
       order.push(i);
       for (const up of below[i]) if (--indeg[up] === 0) ready.push(up);
     }
-    if (order.length !== L.length) throw new Error(`the lines cannot be stacked without one passing through another (${L.filter((_, i) => !order.includes(i)).map((l) => l.id).join(", ")})`);
+    return order;
+  };
+  // Break every cycle by moving one of its lines to its next candidate route; give up only when none is left.
+  let above = aboveOf();
+  let order = topo(above);
+  for (let guard = 0; order.length !== L.length && guard < 400; guard++) {
+    const stuck = L.map((_, i) => i).filter((i) => !order.includes(i));
+    let best = null;
+    for (const i of stuck) {
+      const l = L[i];
+      for (let c = 0; c < l.options.length; c++) {
+        if (c === l.choice) continue;
+        const keep = l.plan;
+        l.plan = l.options[c].plan;
+        const tryAbove = aboveOf();
+        const left = L.length - topo(tryAbove).length;
+        l.plan = keep;
+        if (!best || left < best.left || (left === best.left && l.options[c].length < best.length)) best = { i, c, left, length: l.options[c].length };
+      }
+    }
+    if (!best || best.left >= stuck.length) break;
+    L[best.i].choice = best.c;
+    L[best.i].plan = L[best.i].options[best.c].plan;
+    above = aboveOf();
+    order = topo(above);
   }
+  if (order.length !== L.length) throw new Error(`the lines cannot be stacked without one passing through another (${L.filter((_, i) => !order.includes(i)).map((l) => l.id).join(", ")})`);
   const level = L.map(() => 0);
   const assigned = new Set();
   for (const i of order) {

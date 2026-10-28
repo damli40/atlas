@@ -12,7 +12,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as k from "../iso/iso-kit.mjs";
 import { buildFigure, auditFigure } from "./figure.mjs";
-import { explorerModel, authorOf, joinWords, spanText, CHALK_WORDS, NO_LINK_WORDS } from "./model.ts";
+import { explorerModel, authorOf, chalkText, joinWords, spanText, CHALK_WORDS, NO_LINK_WORDS } from "./model.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const FIXTURE = resolve(HERE, "../../../tests/fixtures/outline/atlas-server-meta-058ab2a.outline.json");
@@ -62,7 +62,7 @@ function listsHtml(M) {
   const names = new Map(M.boxes.map((b) => [b.id, b.name.text]));
   const nameOf = (id) => names.get(id) ?? id;
   const chalk = M.chalk
-    .map((c) => `<li class="ex-chalk" data-chalk="${esc(c.id)}"><span class="ex-chalk-tag">${esc(nameOf(c.from))} → ${esc(nameOf(c.to))} · ${esc(c.kind)}</span> <span class="ex-chalk-words">${esc(c.words)}.${c.reason && c.reason !== c.words ? ` ${esc(c.reason)}` : ""}</span></li>`)
+    .map((c) => `<li class="ex-chalk" data-chalk="${esc(c.id)}"><span class="ex-chalk-tag">${esc(nameOf(c.from))} → ${esc(nameOf(c.to))} · ${esc(c.kind)}</span> <span class="ex-chalk-words">${esc(chalkText(c))}</span></li>`)
     .join("");
   const unconf = M.unconfirmed.map((u) => `<li>${esc(u.name.text)} <span class="ex-by">(name by ${esc(authorOf(u.name.by))})</span>: ${esc(u.reasons.join("; "))}</li>`).join("");
   return (

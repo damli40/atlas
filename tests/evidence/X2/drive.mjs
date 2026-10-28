@@ -143,14 +143,16 @@ async function outlineLive(page) {
   say(`outline job to drawn machine: ${(results.timings.outline / 1000).toFixed(1)} s`);
   say("progress:", flat(await page.getByTestId("outline-progress").innerText()));
 }
-async function pick(page, name) {
+/** Picks, by keyboard, the part whose card offers `fn` (Wonder names parts its own way on every run). Returns its name. */
+async function pick(page, fn = "redactSecret") {
+  await page.mouse.move(2, 2);
   const stage = page.getByTestId("explorer-stage");
   await stage.focus();
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 40; i++) {
     await page.keyboard.press("ArrowRight");
-    if ((await page.locator(`${S.card} h3`).count()) && (await page.locator(`${S.card} h3`).innerText()) === name) return;
+    if (await page.getByTestId(`bet-${fn}`).count()) return page.locator(`${S.card} h3`).innerText();
   }
-  throw new Error(`could not pick ${name}`);
+  throw new Error(`no part offers ${fn}`);
 }
 const shotMachine = async (page, path) => {
   await page.locator(S.machine).scrollIntoViewIfNeeded();
@@ -159,7 +161,8 @@ const shotMachine = async (page, path) => {
 };
 
 // ---------- 1. the whole flow at 1920×1080, light then dark ----------
-for (const theme of ["light", "dark"]) {
+// A live run (real models) outlines once (light) to keep the spend to one Muse Wonder outline call.
+for (const theme of LIVE ? ["light"] : ["light", "dark"]) {
   say(`=== explorer at 1920×1080 (${theme})`);
   const page = await newPage(1920, 1080, theme);
   await outlineLive(page);
@@ -171,9 +174,10 @@ for (const theme of ["light", "dark"]) {
   check(chalk.every((c) => !drawn.includes(c)), "no Wonder-only join is drawn as a line");
   await axe(page, `explorer-rest-${theme}`);
   await motion(page, `explorer-rest-${theme}`);
-  await pick(page, "Secret redaction");
+  const picked = await pick(page);
+  say(`picked: ${picked}`);
   await page.waitForTimeout(200);
-  check((await page.locator(S.machine).getAttribute("data-picked")) === "secret-redaction", "picking a box marks it on the machine");
+  check((await page.locator(S.machine).getAttribute("data-picked")) !== null, "picking a box marks it on the machine");
   const faded = await page.locator('[data-testid="explorer-stage"] .it[data-line]:not(.on)').first().evaluate((e) => getComputedStyle(e).opacity);
   check(Number(faded) < 0.3, `unrelated lines fade when a part is picked (opacity ${faded})`);
   await shotMachine(page, `${outDir}/film-selected-1920-${theme}.png`);
@@ -190,6 +194,7 @@ for (const theme of ["light", "dark"]) {
     continue;
   }
   // ---------- 2. Bet on this part → the paste flow → a verdict ----------
+  check((await page.getByTestId("bet-redactSecret").count()) === 1, `the picked part still offers redactSecret after scrolling (${picked})`);
   await page.getByTestId("bet-redactSecret").click();
   await page.getByTestId("paste-read-result").waitFor({ timeout: 30000 });
   await page.getByTestId("export-redactSecret").waitFor();
@@ -219,7 +224,7 @@ for (const theme of ["light", "dark"]) {
 }
 
 // ---------- 3. 390 px (the saved outline, no model call) and the not-drawn state ----------
-for (const theme of ["light", "dark"]) {
+for (const theme of LIVE ? [] : ["light", "dark"]) {
   say(`=== explorer at 390 px (${theme})`);
   const page = await newPage(390, 844, theme);
   await page.goto(URL0);
@@ -227,7 +232,7 @@ for (const theme of ["light", "dark"]) {
   await page.getByTestId("outline-saved").click();
   await page.getByTestId("explorer-machine").waitFor();
   await overflow(page, `explorer-saved-${theme}`);
-  await pick(page, "Secret redaction");
+  await pick(page);
   await overflow(page, `explorer-picked-${theme}`);
   await overlap(page, `card-390-${theme}`, S.card);
   await page.screenshot({ path: `${outDir}/phone-390-${theme}.png`, fullPage: true });

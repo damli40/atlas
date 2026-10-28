@@ -280,3 +280,10 @@ export function joinWords(j: Pick<BoxJoin, "status" | "typeOnly" | "noLinkFound"
   const t = j.typeOnly ? " (type-only: no link at run time)" : "";
   return j.status === "code-only" ? `found by plain code; Wonder did not name it${t}` : `confirmed: Wonder named it and plain code found it${t}`;
 }
+
+/** A chalk tag's sentence: the words, then plain code's reason (once: X1's reason already starts with the words). */
+export function chalkText(c: Pick<Chalk, "words" | "reason">): string {
+  const r = c.reason.trim();
+  if (!r) return `${c.words}.`;
+  return r.startsWith(c.words) ? (/[.!?]$/.test(r) ? r : `${r}.`) : `${c.words}. ${r}${/[.!?]$/.test(r) ? "" : "."}`;
+}

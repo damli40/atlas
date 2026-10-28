@@ -80,7 +80,13 @@ function show(id) {
 
 for (const h of hits) {
   const id = h.getAttribute("data-hit");
-  h.addEventListener("pointerenter", () => { touched = true; show(id); });
+  h.addEventListener("pointermove", (e) => {
+    // only a real pointer move picks: scrolling under a still pointer must not change the part
+    if (e.movementX === 0 && e.movementY === 0) return;
+    if (picked === id) return;
+    touched = true;
+    show(id);
+  });
   h.addEventListener("click", () => { touched = true; show(id); });
 }
 stage.addEventListener("keydown", (e) => {

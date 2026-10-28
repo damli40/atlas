@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type Keyboa
 import { Plate } from "../iso/react/draw";
 import { stillNow, useVisible } from "../env";
 import { buildFigure, type Figure } from "./figure.mjs";
-import { authorOf, joinWords, spanText, type BetChoice, type Box, type ExplorerModel } from "./model";
+import { authorOf, chalkText, joinWords, spanText, type BetChoice, type Box, type ExplorerModel } from "./model";
 import { applyPick } from "./pick";
 
 const DARK = "(prefers-color-scheme: dark)";
@@ -70,6 +70,15 @@ export function ExplorerMachine({ model, onBet, betUnavailable, betBusy = null, 
     return () => clearInterval(t);
   }, [visible, built, model]);
 
+  // Hover picks only on a real pointer move: scrolling the page under a still pointer fires "over" events, and a
+  // part must not change because the reader scrolled (found in the live click-through).
+  const lastPointer = useRef<{ x: number; y: number } | null>(null);
+  const hoverPick = (e: PointerEvent<HTMLDivElement>) => {
+    const last = lastPointer.current;
+    lastPointer.current = { x: e.clientX, y: e.clientY };
+    if (!last || (last.x === e.clientX && last.y === e.clientY)) return;
+    pickFrom(e);
+  };
   const pickFrom = (e: PointerEvent<HTMLDivElement>) => {
     const hit = (e.target as Element).closest?.("[data-hit]");
     if (!hit) return;
@@ -118,7 +127,7 @@ export function ExplorerMachine({ model, onBet, betUnavailable, betBusy = null, 
               tabIndex={0}
               role="group"
               aria-label="Code explorer machine. Use left and right arrows to pick a part; Escape clears."
-              onPointerOver={pickFrom}
+              onPointerMove={hoverPick}
               onClick={pickFrom}
               onKeyDown={onKey}
               data-testid="explorer-stage"
@@ -223,7 +232,7 @@ function Lists({ model }: { model: ExplorerModel }) {
         {model.chalk.length === 0 ? <li className="ex-muted">None: plain code found every join Wonder named.</li> : null}
         {model.chalk.map((c) => (
           <li className="ex-chalk" key={c.id} data-chalk={c.id}>
-            <span className="ex-chalk-tag">{`${nameOf(c.from)} → ${nameOf(c.to)} · ${c.kind}`}</span> <span className="ex-chalk-words">{`${c.words}.${c.reason && c.reason !== c.words ? ` ${c.reason}` : ""}`}</span>
+            <span className="ex-chalk-tag">{`${nameOf(c.from)} → ${nameOf(c.to)} · ${c.kind}`}</span> <span className="ex-chalk-words">{chalkText(c)}</span>
           </li>
         ))}
       </ul>
