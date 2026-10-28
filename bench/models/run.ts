@@ -293,7 +293,15 @@ export async function runLive(plan: readonly PlannedPrompt[], models: readonly s
     if (answers.length === 0) break;
     // A test cut short by the cap still runs and scores the bets already sealed; the models not asked are absent.
     // Every bet on this test is sealed before its run starts.
-    const run = await deps.run(p.experiment);
+    // A run that cannot start (a sandbox error) must not lose the sealed bets already paid for: it is recorded as a
+    // run with no trusted result, so every bet on it is "not checkable" with the reason.
+    let run: Run;
+    try {
+      run = await deps.run(p.experiment);
+    } catch (err) {
+      const why = `the run did not start: ${err instanceof Error ? err.message.slice(0, 200) : String(err).slice(0, 200)}`;
+      run = { id: `not-started-${p.testId}`, experimentId: p.experiment.id, runner: "ts", executor: "local", codeSha256: p.experiment.target.codeSha256, seed: "none", startedAt: "", finishedAt: "", trace: [], result: { measured: {}, notMeasured: { wholeRun: why, control: why } }, controlPassed: false };
+    }
     const scored = answers.map((a) => ({
       model: a.model,
       invalid: a.invalid,

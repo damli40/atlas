@@ -53,3 +53,8 @@ in the same commit. `tests/unit/bench-order.test.ts` checks this. Earlier entrie
 - `bench/models/run.ts`: live bet calls pass G1's caps (`maxTokens` 4,000, `retryMaxTokens` 8,000), as the product's
   bet-only Claimant does; the estimate's overflow extra is now 10,500 completion tokens (was 46,500 with the old
   16,000 / 32,000 caps). With E3 on the branch, prompts come from E3's builder (amendment 1).
+
+## 2026-10-28: bench M live loop keeps sealed bets when a run cannot start
+
+- `bench/models/run.ts`: if Atlas cannot start a test's run, the bets stay in the result and are "not checkable" with
+  the reason, instead of the whole live run ending with nothing written.
