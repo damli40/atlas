@@ -39,7 +39,7 @@ import { dirname, join } from "node:path";
 import { extractDiff } from "../../../src/diff";
 import type { Experiment } from "../../../src/types";
 import { changeProposer } from "../../../src/claimants";
-import { estimatedCallUsd } from "../pasted-guard";
+import { fullWorstCaseUsd } from "../pasted-guard";
 import { redactSecret } from "../redact-secret";
 import { checkChange, MAX_CHANGED_LINES, type ChangeContext, type CheckedChange } from "../../../runners/change";
 import { makeScratch } from "../../../runners/scratch";
@@ -523,8 +523,8 @@ export async function runFixer(input: FixerInput, deps: FixerDeps = {}): Promise
       ],
       reasoningEffort: "low",
     };
-    // G1: the chat fallback holds its exact worst case (from its prompt), like every other chat call.
-    const r = await guard(() => chat(args), (reason): ChatResult => ({ ok: false, reason: `not asked (${reason})` }), 0, { usd: estimatedCallUsd(args), what: `fixer ${FIXER_FALLBACK_MODEL}` });
+    // G1: the chat fallback holds its exact worst case: both tries, the prompt counted twice (G1 review B8).
+    const r = await guard(() => chat(args), (reason): ChatResult => ({ ok: false, reason: `not asked (${reason})` }), 0, { usd: fullWorstCaseUsd(args), what: `fixer ${FIXER_FALLBACK_MODEL}` });
     return r.ok ? { ok: true, text: r.content, model: FIXER_FALLBACK_MODEL, usage: r.usage } : { ok: false, reason: r.reason, model: FIXER_FALLBACK_MODEL, ...(r.usage ? { usage: r.usage } : {}) };
   };
 

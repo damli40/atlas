@@ -85,6 +85,13 @@ export interface ChatArgs {
   /** Ask for a JSON object (response_format json_object). The caller must still schema-check the content. */
   json?: boolean;
   maxTokens?: number;
+  /** G1 review M7: max_tokens for the one "ran out of room" retry (default RETRY_MAX_TOKENS, 32,000). */
+  retryMaxTokens?: number;
+  /**
+   * G1 review B8: asked before the "ran out of room" retry is sent (the retry sends the whole prompt again, so it is held
+   * as its own worst case). When it answers not ok, the retry is not sent and the call ends with that reason.
+   */
+  beforeRetry?: () => { ok: true } | { ok: false; reason: string };
   reasoningEffort?: "none" | "minimal" | "low" | "medium" | "high";
   temperature?: number;
 }
@@ -358,13 +365,15 @@ export function createMetaClient(opts: ClientOptions = {}) {
       const empty = a.content.trim() === "";
 
       if (empty && a.finishReason === "length" && !lengthRetried) {
+        const may = args.beforeRetry?.() ?? { ok: true as const };
+        if (!may.ok) return { ok: false, reason: `the model ran out of room and was not asked again (${may.reason})`, ...tail() };
         lengthRetried = true;
-        maxTokens = RETRY_MAX_TOKENS;
+        maxTokens = args.retryMaxTokens ?? RETRY_MAX_TOKENS;
         continue;
       }
       if (empty) {
         const why = lengthRetried
-          ? `no content after retry at max_tokens ${RETRY_MAX_TOKENS} (finish_reason ${a.finishReason})`
+          ? `no content after retry at max_tokens ${maxTokens} (finish_reason ${a.finishReason})`
           : `empty content (finish_reason ${a.finishReason})`;
         return { ok: false, reason: why, ...tail() };
       }

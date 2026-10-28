@@ -27,11 +27,30 @@ export const MAX_PASTED_CALL_USD = 2;
  */
 export const promptTokensUpperBound = (messages: readonly { content: string }[]): number => messages.reduce((n, m) => n + Buffer.byteLength(m.content, "utf8"), 0);
 
-/** The upper-bound cost of one call, before it is sent. */
-export function estimatedCallUsd(args: Pick<ChatArgs, "model" | "messages" | "maxTokens">): number {
+type CostArgs = Pick<ChatArgs, "model" | "messages" | "maxTokens" | "retryMaxTokens">;
+
+/** G1 review B8: the most the FIRST try can cost: the prompt plus its whole output room. */
+export function firstTryUsd(args: CostArgs): number {
+  const { price } = priceFor(args.model);
+  return (promptTokensUpperBound(args.messages) * price.inPerM + (args.maxTokens ?? DEFAULT_MAX_TOKENS) * price.outPerM) / 1_000_000;
+}
+/** G1 review B8: the most the "ran out of room" retry can cost: the WHOLE prompt again plus the retry's output room. */
+export function retryTryUsd(args: CostArgs): number {
+  const { price } = priceFor(args.model);
+  return (promptTokensUpperBound(args.messages) * price.inPerM + (args.retryMaxTokens ?? RETRY_MAX_TOKENS) * price.outPerM) / 1_000_000;
+}
+/** G1 review B8: the most one call can cost with its retry: both tries, the prompt counted twice. */
+export const fullWorstCaseUsd = (args: CostArgs): number => firstTryUsd(args) + retryTryUsd(args);
+
+/**
+ * The upper-bound cost of one call, before it is sent, as the per-call caps ($2 pasted, $2.50 codebase) measure it:
+ * the prompt once plus both tries' output room. (The budget holds the retry's second copy of the prompt separately,
+ * just before the retry is sent: fullWorstCaseUsd.)
+ */
+export function estimatedCallUsd(args: CostArgs): number {
   const { price } = priceFor(args.model);
   const inTokens = promptTokensUpperBound(args.messages);
-  const outTokens = (args.maxTokens ?? DEFAULT_MAX_TOKENS) + RETRY_MAX_TOKENS;
+  const outTokens = (args.maxTokens ?? DEFAULT_MAX_TOKENS) + (args.retryMaxTokens ?? RETRY_MAX_TOKENS);
   return (inTokens * price.inPerM + outTokens * price.outPerM) / 1_000_000;
 }
 

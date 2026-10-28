@@ -13,8 +13,8 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import type { ChatArgs, ChatResult } from "./client";
-import { estimatedCallUsd } from "./pasted-guard";
-import { currentPrincipal } from "../access/context";
+import { firstTryUsd, retryTryUsd } from "./pasted-guard";
+import { spenderOf } from "../access/context";
 
 export const DEFAULT_CALLS_PER_HOUR = 60;
 export const DEFAULT_EXPERIMENTS_PER_SESSION = 10;
@@ -32,6 +32,8 @@ export interface BudgetOptions {
   guard?: SpendGuard;
   /** G1 review B2: model calls an hour for ONE dev code (default a quarter of callsPerHour). The owner has its own callsPerHour. */
   devCallsPerHour?: number;
+  /** G1 review r2 m8: model calls an hour ALL dev codes together may make (default callsPerHour). Size it to the codes handed out. */
+  devsCallsPerHour?: number;
 }
 
 export type BudgetCheck = { ok: true } | { ok: false; reason: string };
@@ -43,7 +45,7 @@ export type BudgetCheck = { ok: true } | { ok: false; reason: string };
  */
 export interface SpendGuard {
   precheck(): BudgetCheck;
-  reserve(r: { kind: "model"; usd: number; what: string }): { ok: true; settle(actualUsd: number | undefined, extra?: { what?: string; unknown?: boolean }): void } | { ok: false; reason: string };
+  reserve(r: { kind: "model"; usd: number; what: string }): { ok: true; settle(actualUsd: number | undefined, extra?: { what?: string; unknown?: boolean }): void; cancel(): void } | { ok: false; reason: string };
 }
 
 /**
@@ -51,6 +53,16 @@ export interface SpendGuard {
  * fallback): $1.50. A chat call wrapped by `wrap` holds its exact worst case instead (estimatedCallUsd).
  */
 export const UNKNOWN_CALL_RESERVE_USD = 1.5;
+
+/** What the guard holds for a call: its worst case, and (G1 review B8) the extra worst case held later for a retry. */
+export interface GuardInfo {
+  usd: number;
+  what: string;
+  /** Dollars held after the call started (a retry's hold); counted into the worst case when the cost is unknown. */
+  extraHeld?: () => number;
+  /** Releases the extra holds once the call is settled (the real cost is booked on the first hold). */
+  releaseExtra?: () => void;
+}
 
 export interface ModelBudget {
   /** May this session's new experiment ask the model? Counts the experiment when it may. */
@@ -61,27 +73,19 @@ export interface ModelBudget {
    * D06-01: the same check and count for a model call that is not a chat() (Muse Code via `muse exec`).
    * `refused` builds the answer when a limit is reached (the call is then not made).
    */
-  track<R extends { usage?: { usd: number } }>(call: () => Promise<R>, refused: (reason: string) => R, reserveUsd?: number, guardInfo?: { usd: number; what: string }): Promise<R>;
+  track<R extends { usage?: { usd: number } }>(call: () => Promise<R>, refused: (reason: string) => R, reserveUsd?: number, guardInfo?: GuardInfo): Promise<R>;
   /** Dollars spent: at start plus since. */
   spentUsd(): number;
   /** Calls made in the last hour. */
   callsLastHour(): number;
 }
 
-/**
- * G1 review B2: who a call or an experiment is counted for. The owner's code has its own counters (devs can never use
- * them up); each dev code has its own share; every dev and any request without a code (a local server) also count in
- * the shared counter.
- */
-function spender(): { kind: "owner" | "dev" | "other"; key: string } {
-  const p = currentPrincipal();
-  if (p?.kind === "invite") return p.role === "owner" ? { kind: "owner", key: `owner:${p.id}` } : { kind: "dev", key: `dev:${p.id}` };
-  return { kind: "other", key: p?.kind === "system" ? "system" : "anonymous" };
-}
+const spender = spenderOf;
 
 export function createModelBudget(opts: BudgetOptions = {}): ModelBudget {
   const callsPerHour = opts.callsPerHour ?? DEFAULT_CALLS_PER_HOUR;
   const devCallsPerHour = opts.devCallsPerHour ?? Math.max(1, Math.ceil(callsPerHour / 4));
+  const devsCallsPerHour = opts.devsCallsPerHour ?? callsPerHour;
   const perSession = opts.experimentsPerSession ?? DEFAULT_EXPERIMENTS_PER_SESSION;
   const ceiling = opts.spendCeilingUsd ?? DEFAULT_SPEND_CEILING_USD;
   const now = opts.now ?? Date.now;
@@ -101,7 +105,7 @@ export function createModelBudget(opts: BudgetOptions = {}): ModelBudget {
   };
   /** The counters this spender's call is counted in. */
   const countersOf = (who: ReturnType<typeof spender>): { key: string; cap: number }[] =>
-    who.kind === "owner" ? [{ key: who.key, cap: callsPerHour }] : who.kind === "dev" ? [{ key: who.key, cap: devCallsPerHour }, { key: "shared", cap: callsPerHour }] : [{ key: "shared", cap: callsPerHour }];
+    who.kind === "owner" ? [{ key: who.key, cap: callsPerHour }] : who.kind === "dev" ? [{ key: who.key, cap: devCallsPerHour }, { key: "shared", cap: devsCallsPerHour }] : [{ key: "shared", cap: callsPerHour }];
   const spendCheck = (): BudgetCheck =>
     spent >= ceiling ? { ok: false, reason: `spend limit reached: $${spent.toFixed(2)} of the $${ceiling} ceiling is used` } : { ok: true };
   const callCheck = (who: ReturnType<typeof spender>): BudgetCheck => {
@@ -123,9 +127,10 @@ export function createModelBudget(opts: BudgetOptions = {}): ModelBudget {
     const calls = callCheck(who);
     if (!calls.ok) return refused(calls.reason);
     /** G1 review B1: what a call that was sent but reported no usage is counted at: its worst case. */
-    const worst = guardInfo?.usd ?? Math.max(reserveUsd, UNKNOWN_CALL_RESERVE_USD);
+    const worst0 = guardInfo?.usd ?? Math.max(reserveUsd, UNKNOWN_CALL_RESERVE_USD);
+    const worstNow = () => worst0 + (guardInfo?.extraHeld?.() ?? 0);
     // G1: the invite's own budget, the owner's reserve and the "at once" limit, checked and held in the same step.
-    const held = guard?.reserve({ kind: "model", usd: worst, what: guardInfo?.what ?? "fixer (muse exec or its chat fallback)" });
+    const held = guard?.reserve({ kind: "model", usd: worst0, what: guardInfo?.what ?? "fixer (muse exec or its chat fallback)" });
     if (held && !held.ok) return refused(held.reason);
     const at = now();
     const counted = countersOf(who).map((c) => times(c.key));
@@ -134,8 +139,10 @@ export function createModelBudget(opts: BudgetOptions = {}): ModelBudget {
     const res = await call()
       .catch((e: unknown) => {
         // G1 review B1: a call that threw may have been sent and billed: counted at its worst case, never $0.
+        const worst = worstNow();
         spent += worst;
         if (held?.ok) held.settle(worst, { what: guardInfo?.what ?? "unknown", unknown: true });
+        guardInfo?.releaseExtra?.();
         throw e;
       })
       .finally(() => {
@@ -154,9 +161,10 @@ export function createModelBudget(opts: BudgetOptions = {}): ModelBudget {
     // G1 review B1: sent, but some or all of its cost was not reported (a timeout, a killed muse exec, a 200 with no
     // usage): counted at its worst case. Only a call proven not sent (notSent) is free.
     const unknown = r.notSent !== true && r.costUnknown === true;
-    const charge = unknown ? Math.max(reported, worst) : reported;
+    const charge = unknown ? Math.max(reported, worstNow()) : reported;
     spent += charge;
     if (held?.ok) held.settle(charge, { ...(typeof r.model === "string" ? { what: r.model } : {}), ...(unknown ? { unknown: true } : {}) });
+    guardInfo?.releaseExtra?.();
     return res;
   };
 
@@ -180,8 +188,31 @@ export function createModelBudget(opts: BudgetOptions = {}): ModelBudget {
     },
     wrap(chat, wrapOpts) {
       return (args) => {
-        const worst = estimatedCallUsd(args);
-        return track(() => chat(args), (reason): ChatResult => ({ ok: false, reason }), wrapOpts?.reserveWorstCase ? worst : 0, { usd: worst, what: `${args.role} ${args.model}` });
+        // G1 review B8: the first try holds its own worst case; the "ran out of room" retry, which sends the whole
+        // prompt again, holds ITS worst case just before it is sent (and is not sent when that hold is refused).
+        const first = firstTryUsd(args);
+        const retry = retryTryUsd(args);
+        const extra: { cancel(): void }[] = [];
+        const what = `${args.role} ${args.model}`;
+        const withRetryHold: ChatArgs = {
+          ...args,
+          beforeRetry: () => {
+            const prior = args.beforeRetry?.() ?? { ok: true as const };
+            if (!prior.ok || !guard) return prior;
+            const h = guard.reserve({ kind: "model", usd: retry, what: `${what} (retry)` });
+            if (!h.ok) return h;
+            extra.push(h);
+            return { ok: true };
+          },
+        };
+        return track(() => chat(withRetryHold), (reason): ChatResult => ({ ok: false, reason }), wrapOpts?.reserveWorstCase ? first + retry : 0, {
+          usd: first,
+          what,
+          extraHeld: () => extra.length * retry,
+          releaseExtra: () => {
+            for (const h of extra.splice(0)) h.cancel();
+          },
+        });
       };
     },
     track,
