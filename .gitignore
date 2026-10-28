@@ -27,6 +27,8 @@
 !/tests/
 !/public/
 !/proofs/
+# G1: the operator's invite-code tool (no codes or secrets live in it; they live in ~/.config/atlas/)
+!/tools/
 !/.github/
 # the pre-commit secret scan (tests/tools/secret-scan.mjs); public on purpose
 !/.githooks/
