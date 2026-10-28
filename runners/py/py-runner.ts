@@ -26,9 +26,9 @@ import { MODAL_IMAGE } from "../executor/modal.ts";
 import { findPython, pythonSandboxExecutor } from "../executor/sandbox-exec-python.ts";
 import type { ExecRuntime, Executor } from "../runner.ts";
 import { CALL_DEFAULT_WATCH_LIMIT_MS, type CallRunRequest, type CallWorkerResponse } from "../ts/call-harness.ts";
-import { CALL_SEED, compareCallCase, parseCallWorkerOutput, reuseControl, toWire, type CallControlCase } from "../ts/call-runner.ts";
-import { ACCESS_REASON, CLOCK_DURING_WORK_REASON, PIN_FAILED_REASON, PROCESS_REASON, REAL_TIME_REASON } from "../ts/call-words.ts";
-import { CALL_PINNED_LOCALE, CALL_PINNED_TIME_ZONE, conditionKindsInTrace, conditionsFromKinds, isCallSeed, pinnedFor } from "../../src/conditions.ts";
+import { CALL_SEED, compareCallCase, parseCallWorkerOutput, reuseControl, toWire, twinRun, type CallControlCase } from "../ts/call-runner.ts";
+import { ACCESS_REASON, PIN_FAILED_REASON, PROCESS_REASON, REAL_TIME_REASON } from "../ts/call-words.ts";
+import { CALL_PINNED_LOCALE, CALL_PINNED_TIME_ZONE, conditionsFromTrace, isCallSeed, pinnedFor } from "../../src/conditions.ts";
 import {
   PY_INTERNALS_REASON,
   PY_NAMED_AT_RUN_TIME,
@@ -86,7 +86,6 @@ export function pyWords(): Record<string, string> {
     notAFunction: pyNotAFunctionReason("{name}", "{type}"),
     // R1 (D36)
     pinFailed: PIN_FAILED_REASON(W),
-    cpuWork: CLOCK_DURING_WORK_REASON,
   };
 }
 
@@ -94,6 +93,8 @@ export interface PyWorkerRequest {
   runs: CallRunRequest[];
   /** R1 (D36): the seed (Python's random, uuid, secrets, os.urandom and PYTHONHASHSEED). Default CALL_SEED. */
   seed?: string;
+  /** R1 review round 1: 1 for the second of the two identical runs (it starts with a different heap layout). */
+  variant?: 0 | 1;
 }
 
 /** R1 (D36): the environment of a Python run: the string-hash seed and the time zone, nothing else. */
@@ -141,7 +142,7 @@ async function pySandboxAnswer(executor: Executor, code: string, request: PyWork
   for (const f of SANDBOX_FILES) files[f] = own(f);
   files["target.py"] = code;
   const seed = request.seed ?? CALL_SEED;
-  files["request.json"] = JSON.stringify({ words: pyWords(), runs: request.runs, seed, pins: { timeZone: CALL_PINNED_TIME_ZONE, locale: CALL_PINNED_LOCALE.py } });
+  files["request.json"] = JSON.stringify({ words: pyWords(), runs: request.runs, seed, variant: request.variant ?? 0, pins: { timeZone: CALL_PINNED_TIME_ZONE, locale: CALL_PINNED_LOCALE.py } });
   let res: Awaited<ReturnType<Executor["exec"]>>;
   try {
     res = await executor.exec({ files, cmd: ["python3", "boot.py"], stdin: `${key}\n`, env: pyRunEnv(seed), wallClockMs, allowNetwork: false });
@@ -396,6 +397,7 @@ export async function runPyCallExperiment(exp: Experiment, ctl: Run, opts: { exe
   let trace: TraceEvent[] = [];
   let python: PythonInfo | undefined;
   let runtime: ExecRuntime | undefined;
+  let twin: Run["twin"];
   const refused = staticRefusalPy(source);
   if (refused) {
     result = { measured: {}, notMeasured: { wholeRun: refused } };
@@ -407,8 +409,16 @@ export async function runPyCallExperiment(exp: Experiment, ctl: Run, opts: { exe
     runtime = res.runtime;
     const out = res.ok ? res.runs.find((r) => r.id === exp.id) : undefined;
     if (out) {
-      result = out.result;
-      trace = [...out.trace];
+      // R1 review round 1 (B1, B2): the same test again, in a fresh sandbox, with the same seed and pins.
+      const done = await twinRun(out, async () => {
+        const again = await runInPySandbox(executor, source, { runs: [runRequest(exp.id, exp.params as CallShape)], seed, variant: 1 }, opts.wallClockMs ?? DEFAULT_WALL_CLOCK_MS);
+        if (!again.ok) return { reason: again.reason };
+        const o = again.runs.find((r) => r.id === exp.id);
+        return o ? { out: o } : { reason: "the sandbox returned no result for this experiment" };
+      });
+      result = done.result;
+      trace = done.trace;
+      twin = done.twin;
     } else {
       const why = res.ok ? "the sandbox returned no result for this experiment" : res.reason;
       result = { measured: {}, notMeasured: { wholeRun: why } };
@@ -444,7 +454,8 @@ export async function runPyCallExperiment(exp: Experiment, ctl: Run, opts: { exe
     timeZone: CALL_PINNED_TIME_ZONE,
     locale: CALL_PINNED_LOCALE.py,
     // R1 (D36): the conditions the sandbox noticed, in Atlas's words (verify rechecks them against the trace).
-    conditions: conditionsFromKinds(conditionKindsInTrace(trace) ?? [], pinnedFor("py", seed)),
+    conditions: conditionsFromTrace(trace, pinnedFor("py", seed)),
+    ...(twin ? { twin } : {}),
     startedAt,
     finishedAt: new Date().toISOString(),
     trace,

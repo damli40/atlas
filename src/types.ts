@@ -162,6 +162,11 @@ export interface Run {
   locale?: string;
   /** R1 (D36): what the result depends on that is Atlas's, not the code's (src/conditions.ts). The "conditions" line. */
   conditions?: RunCondition[];
+  /**
+   * R1 review round 1: the second, identical run of a pasted test (fresh sandbox, same seed and pins). A field it
+   * measured differently is not reported in `result`; verify rechecks this against it (src/conditions.ts).
+   */
+  twin?: { trace: TraceEvent[]; result: RunResult };
   startedAt: string; finishedAt: string;
   trace: TraceEvent[];
   result: RunResult;

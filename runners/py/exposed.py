@@ -463,7 +463,51 @@ def v_seed(self, a=None, version=2):
     if a is None:
         _note("randomness")  # a generator seeded "from the machine": Atlas gives it a seed from its own
         a = _RNG[0].getrandbits(64)
+    elif self is _random_mod._inst:
+        _audit("atlas.condition", "self-seeded")  # random.seed(n): the code chose its own seed
     return _real_random_seed(self, a, version)
+
+
+# ---- R1 review B1: reads of the machine the code runs on ----
+
+def _host(what):
+    _audit("atlas.host", what)
+
+
+def _host_wrap(mod, name, label):
+    real = getattr(mod, name, None)
+    if real is None:
+        return
+
+    def wrapped(*args, **kwargs):
+        _host(label)
+        return real(*args, **kwargs)
+
+    wrapped.__name__ = name
+    setattr(mod, name, wrapped)
+
+
+_real_id = id
+
+
+def v_id(obj):
+    _host("id() (a memory address)")
+    return _real_id(obj)
+
+
+def install_host_notes():
+    import platform as _platform
+    import uuid as _uuid
+    for name in ("getpid", "getppid", "getcwd", "getcwdb", "cpu_count", "process_cpu_count", "uname", "getuid", "getgid",
+                 "geteuid", "getegid", "getlogin", "getloadavg", "getgroups"):
+        for mod in (_os, _posix):
+            _host_wrap(mod, name, "os." + name + "()")
+    for name in ("system", "node", "machine", "platform", "processor", "release", "version", "uname", "python_version",
+                 "python_implementation", "mac_ver", "libc_ver", "architecture", "freedesktop_os_release"):
+        _host_wrap(_platform, name, "platform." + name + "()")
+    # uuid1 is built from the REAL clock and the machine's network address: refused (the virtual clock cannot stand in).
+    _uuid.uuid1 = refuser("realtime", "uuid.uuid1 (the real clock and the machine's network address)")
+    _uuid.getnode = refuser("realtime", "uuid.getnode (the machine's network address)")
 
 
 def pin_randomness(seed):
@@ -477,6 +521,10 @@ def pin_randomness(seed):
         if hasattr(mod, "getrandom"):
             mod.getrandom = v_getrandom
     _random_mod.Random.seed = v_seed
+    # random.seed is a method bound to the shared generator when random is imported: replace it too, so random.seed(n)
+    # by the code is seen as the code's own seed (R1 review M3).
+    _random_mod.seed = lambda a=None, version=2: v_seed(_random_mod._inst, a, version)
+    install_host_notes()
 
 
 def install(signal_names, imp_names):

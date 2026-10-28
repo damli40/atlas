@@ -59,10 +59,6 @@ export const notAFunctionReason = (name: string, type: string) => `"${name}" is 
 // Shared by the JavaScript harness and (through request.json) the Python harness, so the same cause gets the
 // same words in both languages.
 
-/** The code timed work that ran without waiting: on Atlas's clock no time passes during work. */
-export const CLOCK_DURING_WORK_REASON =
-  "the code read the clock before and after work that ran without waiting (at least 2 ms of real CPU time in between), and Atlas's simulated clock does not move during work, only while the code waits; any time the code measured that way is 0 on Atlas's clock but not on a real machine";
-
 /** Callbacks whose order real Node leaves open (a 0 ms timer and setImmediate; process.nextTick and promises). */
 export const TIMER_ORDER_REASON =
   "the code queued callbacks whose order Node leaves open (a 0 ms timer next to setImmediate, or process.nextTick next to promise callbacks, whose order depends on how the call is started), so the order Atlas ran them in is Atlas's choice, not a fact about the code";

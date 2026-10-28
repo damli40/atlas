@@ -48,7 +48,7 @@ export interface ProofCardModel {
   /** Plain lines about the known-case check, read from the run. */
   controls: string[];
   /** R1 (D36): the run with its recorded pins and conditions, for the "conditions" line (absent before R1). */
-  conditionsRun?: Pick<Run, "conditions" | "seed" | "timeZone" | "locale">;
+  conditionsRun?: Pick<Run, "conditions" | "seed" | "timeZone" | "locale"> & { result: Pick<Run["result"], "notMeasured"> };
   /** src/trust.ts: when not null, nothing from the run is shown as fact; the card shows this instead. */
   notShownAsFact: string | null;
   captions: string[];
@@ -156,7 +156,7 @@ export function proofCardModel(file: AtlasFile): ProofCardModel {
     attempts: (file.attempts ?? []).map((a) => `attempt ${a.attempt} did not finish (${a.stoppedAt}): ${a.reason}`),
     controlPassed: run.controlPassed === true,
     controls: controlLines(run),
-    ...(run.conditions !== undefined ? { conditionsRun: { conditions: run.conditions, ...(run.seed ? { seed: run.seed } : {}), ...(run.timeZone ? { timeZone: run.timeZone } : {}), ...(run.locale ? { locale: run.locale } : {}) } } : {}),
+    ...(run.conditions !== undefined ? { conditionsRun: { conditions: run.conditions, result: { notMeasured: run.result.notMeasured }, ...(run.seed ? { seed: run.seed } : {}), ...(run.timeZone ? { timeZone: run.timeZone } : {}), ...(run.locale ? { locale: run.locale } : {}) } } : {}),
     notShownAsFact: notShownAsFact(run),
     captions: [...file.captions],
     bets,

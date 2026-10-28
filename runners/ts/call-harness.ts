@@ -60,7 +60,6 @@ import {
 import {
   ACCESS_REASON,
   BLOCKING_REASON,
-  CLOCK_DURING_WORK_REASON,
   REAL_TIME_REASON,
   CODEGEN_REASON,
   INTERNALS_REASON,
@@ -93,15 +92,6 @@ const TypedArrayProto = ReflectGetPrototypeOf(Uint8Array.prototype) as object;
 const taBuffer = ObjectGetOwnPropertyDescriptor(TypedArrayProto, "buffer")!.get!;
 const taByteOffset = ObjectGetOwnPropertyDescriptor(TypedArrayProto, "byteOffset")!.get!;
 const taByteLength = ObjectGetOwnPropertyDescriptor(TypedArrayProto, "byteLength")!.get!;
-// R1 (D36): real CPU time, read only by Atlas (the guards refuse process.cpuUsage to the code). It tells Atlas when the
-// code did real work between two clock reads at the same virtual moment (its elapsed time would be 0 here).
-const nativeCpuUsage = process.cpuUsage;
-const cpuMicros = (): number => {
-  const u = ReflectApply(nativeCpuUsage, process, []) as { user: number; system: number };
-  return u.user + u.system;
-};
-/** At least this much real CPU time (µs) between two clock reads at one virtual moment counts as "timed work". */
-const CPU_WORK_US = 2_000;
 
 /** Atlas's virtual clock starts here: 2026-01-01T00:00:00.000Z. Date.now() in a run is this plus the virtual ms. */
 export const VIRTUAL_EPOCH_MS = 1_767_225_600_000;
@@ -204,9 +194,11 @@ const loadConds = record<Record<string, true>>();
 let runConds = record<Record<string, true>>();
 /** Set when how the call ends depends on something outside the code; the first reason wins. */
 let undecided: string | null = null;
-/** The last clock read in this run: its virtual time and the real CPU time then. */
+/** The virtual time of the last clock read in this run. */
 let lastReadAt = -1;
-let lastReadCpu = 0;
+/** R1 review B1: what the code read about the machine, by name (the "host" condition says which). */
+let hostReads = record<Record<string, true>>();
+const loadHostReads = record<Record<string, true>>();
 /** True only while the called function's own synchronous part runs (before it returns its promise). */
 let inSyncCall = false;
 
@@ -217,16 +209,28 @@ function noteUndecided(kind: string, reason: string): void {
   noteCondition(kind);
   if (active && undecided === null) undecided = reason;
 }
-/** The code read the clock. Two reads at the same virtual moment with real work between them: "timed work". */
+/**
+ * The code read the clock. R1 review M1-M3: two or more reads at one moment of the virtual clock mean the code timed
+ * its own work, which takes no time here: disclosed ("timed-work"), the value stays measured. Decided from the code's
+ * own reads, never from CPU time, so the same test gives the same answer on every machine.
+ */
 function noteClockRead(): void {
   noteCondition("clock");
   if (!active) return;
-  const cpu = cpuMicros();
-  if (lastReadAt === active.now && cpu - lastReadCpu >= CPU_WORK_US) noteUndecided("clock-during-work", CLOCK_DURING_WORK_REASON);
+  if (lastReadAt === active.now) noteCondition("timed-work");
   lastReadAt = active.now;
-  lastReadCpu = cpu;
 }
 const noteHost = () => noteCondition("time-zone-or-locale");
+/**
+ * R1 review M3: date text that does not depend on the time zone: an ISO date alone (read as UTC by the standard) or an
+ * ISO date and time with "Z" or an offset. Any other text may be read as local time.
+ */
+const ZONED_DATE_TEXT = /^[+-]?\d{4,6}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:\d{2}))?$/;
+/** R1 review B1: the code read a detail of the machine (process id, platform, CPU count, a stack trace's paths, ...). */
+function noteHostRead(what: string): void {
+  noteCondition("host");
+  put(active ? hostReads : loadHostReads, what, true);
+}
 
 // ---- R1 (D36): seeded randomness. sfc32, seeded from the seed text (cyrb128); the same seed gives the same values
 // on every machine, because it is plain 32-bit arithmetic. Math.random, crypto.getRandomValues and
@@ -528,7 +532,7 @@ export function installVirtualClock(): void {
       return ReflectApply(realToString, new RealDate(virtualNow()), []);
     }
     // Local date parts (new Date(2026, 0, 1)) or a date text (which may be read as local time) depend on the time zone.
-    if (a.length >= 2 || (a.length === 1 && typeof a[0] === "string")) noteHost();
+    if (a.length >= 2 || (a.length === 1 && typeof a[0] === "string" && !ZONED_DATE_TEXT.test(a[0]))) noteHost();
     return ReflectConstruct(RealDate, a.length === 0 ? [virtualNow()] : a, new.target);
   } as unknown as DateConstructor;
   ObjectDefineProperty(FakeDate, "prototype", { __proto__: null, value: RealDate.prototype, writable: false, enumerable: false, configurable: false } as PropertyDescriptor);
@@ -537,7 +541,7 @@ export function installVirtualClock(): void {
   ObjectDefineProperty(FakeDate, "parse", {
     __proto__: null,
     value: function parse(s: unknown) {
-      noteHost();
+      if (!(typeof s === "string" && ZONED_DATE_TEXT.test(s))) noteHost();
       return ReflectApply(realParse, RealDate, [s]);
     },
     writable: true,
@@ -690,14 +694,18 @@ function installSeededRandomness(): void {
  * the caller starts the call), and every read of the time zone or the locale (Atlas runs in UTC with en-US).
  */
 function installOrderAndHostNotes(): void {
-  const wrapHost = (obj: object | undefined, names: string[]) => {
+  // R1 review M3: only IMPLICIT dependence counts. A call that names its locale (and, for dates, its time zone) does
+  // not depend on Atlas's pins, so it gets no condition. `explicit` reads the arguments without running any getter.
+  const named = (v: unknown) => v !== undefined;
+  const zoneNamed = (opts: unknown) => opts !== null && typeof opts === "object" && typeof ownData(opts, "timeZone") === "string";
+  const wrapHost = (obj: object | undefined, names: string[], explicit: (a: unknown[]) => boolean = () => false) => {
     if (!obj) return;
     for (const name of names) {
       const d = ObjectGetOwnPropertyDescriptor(obj, name);
       if (!d || typeof d.value !== "function") continue;
       const real = d.value as (...x: unknown[]) => unknown;
       const w = function (this: unknown, ...a: unknown[]) {
-        noteHost();
+        if (!explicit(a)) noteHost();
         return ReflectApply(real, this, a);
       };
       ObjectDefineProperty(w, "name", { __proto__: null, value: name, writable: false, enumerable: false, configurable: true } as PropertyDescriptor);
@@ -705,23 +713,26 @@ function installOrderAndHostNotes(): void {
     }
   };
   // Date methods that read or write LOCAL time (the UTC ones and toISOString / toJSON do not).
-  wrapHost(RealDate.prototype, ["getFullYear", "getYear", "getMonth", "getDate", "getDay", "getHours", "getMinutes", "getTimezoneOffset", "setFullYear", "setYear", "setMonth", "setDate", "setHours", "setMinutes", "toString", "toDateString", "toTimeString", "toLocaleString", "toLocaleDateString", "toLocaleTimeString"]);
-  wrapHost(Number.prototype, ["toLocaleString"]);
-  wrapHost(BigInt.prototype, ["toLocaleString"]);
-  wrapHost(Array.prototype, ["toLocaleString"]);
-  wrapHost(String.prototype, ["localeCompare", "toLocaleUpperCase", "toLocaleLowerCase"]);
+  wrapHost(RealDate.prototype, ["getFullYear", "getYear", "getMonth", "getDate", "getDay", "getHours", "getMinutes", "getTimezoneOffset", "setFullYear", "setYear", "setMonth", "setDate", "setHours", "setMinutes", "toString", "toDateString", "toTimeString"]);
+  wrapHost(RealDate.prototype, ["toLocaleString", "toLocaleDateString", "toLocaleTimeString"], (a) => named(a[0]) && zoneNamed(a[1]));
+  wrapHost(Number.prototype, ["toLocaleString"], (a) => named(a[0]));
+  wrapHost(BigInt.prototype, ["toLocaleString"], (a) => named(a[0]));
+  wrapHost(Array.prototype, ["toLocaleString"], (a) => named(a[0]));
+  wrapHost(String.prototype, ["localeCompare"], (a) => named(a[1]));
+  wrapHost(String.prototype, ["toLocaleUpperCase", "toLocaleLowerCase"], (a) => named(a[0]));
   const intl = g.Intl as Record<string, unknown> | undefined;
   if (intl) {
     for (const name of ["DateTimeFormat", "NumberFormat", "Collator", "PluralRules", "RelativeTimeFormat", "ListFormat", "DisplayNames", "Segmenter", "DurationFormat"]) {
       const real = intl[name];
       if (typeof real !== "function") continue;
+      const explicit = (a: unknown[]) => named(a[0]) && (name !== "DateTimeFormat" || zoneNamed(a[1]));
       defHidden(intl, name, new Proxy(real as (...x: unknown[]) => unknown, {
         apply(t, thisArg, a) {
-          noteHost();
+          if (!explicit(a)) noteHost();
           return ReflectApply(t, thisArg, a);
         },
         construct(t, a, nt) {
-          noteHost();
+          if (!explicit(a)) noteHost();
           return ReflectConstruct(t, a, nt);
         },
       }));
@@ -817,14 +828,23 @@ export function installSandboxGuards(): void {
     const d = ObjectGetOwnPropertyDescriptor(obj, key);
     if (!d || !ObjectHasOwn(d, "value") || typeof d.value !== "function" || !d.configurable) return;
     const orig = d.value as (...a: unknown[]) => unknown;
-    def(obj, key, function (this: unknown, ...a: unknown[]) {
+    const w = function (this: unknown, ...a: unknown[]) {
       try {
         return ReflectApply(orig, this, a);
       } catch (e) {
         if (isAccessDenied(e)) markWholeRun(ACCESS_REASON(label));
         throw e;
       }
-    });
+    };
+    // R1 review: keep the function's own extras (process.memoryUsage.rss, process.hrtime.bigint).
+    const extra = ReflectOwnKeys(orig);
+    for (let i = 0; i < extra.length; i++) {
+      const k = extra[i]!;
+      if (k === "length" || k === "name" || k === "prototype") continue;
+      const kd = ObjectGetOwnPropertyDescriptor(orig, k);
+      if (kd) ObjectDefineProperty(w, k, kd);
+    }
+    def(obj, key, w);
   };
   const procKeys = ReflectOwnKeys(proc);
   for (let i = 0; i < procKeys.length; i++) {
@@ -864,13 +884,90 @@ export function installSandboxGuards(): void {
   // promises run first; a CommonJS script calling it directly runs the tick first). Installed last, so it wraps the
   // access watcher above; Node's own internals (console.log's stream, for one) also call process.nextTick, and those
   // calls are told apart by their caller (a node: frame) and do not count.
+  // R1 review M3: disclosed, not refused. Atlas calls the function from a plain async function (promise callbacks run
+  // first, as in an ES module); the "tick-order" condition says so.
   const realNextTick = process.nextTick;
   const nextTick = function nextTick(...a: unknown[]) {
-    if (inSyncCall && !calledFromNode(nextTick)) noteUndecided("timer-order", TIMER_ORDER_REASON);
+    if (inSyncCall && !calledFromNode(nextTick)) noteCondition("tick-order");
     return ReflectApply(realNextTick, process, a);
   };
   defHidden(process, "nextTick", nextTick);
+  installHostReadNotes();
 }
+
+/**
+ * R1 review B1: reads of the machine the code runs on. Values that change between runs (a process id, a memory
+ * figure, a temp-folder path) are caught by the double run; values that stay the same here but differ by machine (the
+ * platform, the CPU count) are measured and the "host" condition names them.
+ */
+function installHostReadNotes(): void {
+  const proc = process as unknown as Record<string, unknown>;
+  for (const name of ["pid", "ppid", "platform", "arch", "version", "versions", "release", "execPath", "argv", "argv0", "execArgv", "title", "config", "features"]) {
+    const d = ObjectGetOwnPropertyDescriptor(proc, name);
+    if (!d || !d.configurable) continue;
+    const getReal = d.get ? (d.get as () => unknown) : null;
+    const value = d.value;
+    ObjectDefineProperty(proc, name, {
+      __proto__: null,
+      get() {
+        noteHostRead(`process.${name}`);
+        return getReal ? ReflectApply(getReal, proc, []) : value;
+      },
+      set: d.set,
+      enumerable: d.enumerable,
+      configurable: true,
+    } as PropertyDescriptor);
+  }
+  for (const name of ["cwd", "memoryUsage", "availableMemory", "constrainedMemory", "getuid", "geteuid", "getgid", "getegid", "getgroups", "umask", "uptime"]) {
+    const real = proc[name];
+    if (typeof real !== "function" || name === "uptime") continue; // uptime is Atlas's clock (installVirtualClock)
+    const w = function (this: unknown, ...a: unknown[]) {
+      noteHostRead(`process.${name}()`);
+      return ReflectApply(real as (...x: unknown[]) => unknown, this, a);
+    };
+    for (const k of ReflectOwnKeys(real as object)) {
+      if (k === "length" || k === "name" || k === "prototype") continue;
+      const kd = ObjectGetOwnPropertyDescriptor(real as object, k);
+      if (kd) ObjectDefineProperty(w, k, kd); // process.memoryUsage.rss() and friends
+    }
+    defHidden(proc, name, w);
+  }
+  const nav = g.navigator as object | undefined;
+  const navProto = nav ? (ReflectGetPrototypeOf(nav) as object | null) : null;
+  if (navProto) {
+    for (const name of ["hardwareConcurrency", "platform", "userAgent", "language", "languages"]) {
+      const d = ObjectGetOwnPropertyDescriptor(navProto, name);
+      if (!d || !d.get || !d.configurable) continue;
+      const getReal = d.get as () => unknown;
+      ObjectDefineProperty(navProto, name, {
+        __proto__: null,
+        get() {
+          if (name === "language" || name === "languages") noteHost();
+          else noteHostRead(`navigator.${name}`);
+          return ReflectApply(getReal, this, []);
+        },
+        enumerable: d.enumerable,
+        configurable: true,
+      } as PropertyDescriptor);
+    }
+  }
+  // A stack trace names the files and folders the code runs from. V8 asks Error.prepareStackTrace when the code first
+  // reads an error's .stack; Atlas notes it there and writes V8's own format. Atlas's own reads are not counted.
+  const ErrorProtoToString = ErrorCtor.prototype.toString;
+  defHidden(ErrorCtor, "prepareStackTrace", function prepareStackTrace(err: unknown, frames: unknown[]) {
+    if (!atlasReadingStack) noteHostRead("an error's stack trace (file paths)");
+    let head = "Error";
+    try {
+      head = ReflectApply(ErrorProtoToString, err, []) as string;
+    } catch {
+      head = "Error";
+    }
+    let s = head;
+    for (let i = 0; i < frames.length; i++) s += `\n    at ${StringCtor(frames[i])}`;
+    return s;
+  });
+}
+let atlasReadingStack = false;
 
 const ErrorCaptureStackTrace = (ErrorCtor as unknown as { captureStackTrace: (o: object, f: unknown) => void }).captureStackTrace;
 const StringSplit = String.prototype.split;
@@ -878,12 +975,16 @@ const StringIncludes = String.prototype.includes;
 /** True when the function that called `below` is Node's own code (a "node:" frame), not the code under test. */
 function calledFromNode(below: unknown): boolean {
   const holder: { stack?: unknown } = {};
+  let st: unknown;
+  atlasReadingStack = true;
   try {
     ReflectApply(ErrorCaptureStackTrace, ErrorCtor, [holder, below]);
+    st = holder.stack;
   } catch {
     return false;
+  } finally {
+    atlasReadingStack = false;
   }
-  const st = holder.stack;
   if (typeof st !== "string") return false;
   const lines = ReflectApply(StringSplit, st, ["\n"]) as string[];
   for (let i = 1; i < lines.length; i++) {
@@ -1332,7 +1433,8 @@ export async function runCall(fn: unknown, req: CallRunRequest, opts: CallHarnes
   for (const k of ReflectOwnKeys(loadConds)) put(runConds, k as string, true);
   undecided = null;
   lastReadAt = -1;
-  lastReadCpu = 0;
+  hostReads = record<Record<string, true>>();
+  for (const k of ReflectOwnKeys(loadHostReads)) put(hostReads, k as string, true);
   let unrefStop = false;
   const before = activeResources();
   emit("start", { exportName: req.exportName, args: req.args.length, watchLimitMs });
@@ -1452,7 +1554,8 @@ export async function runCall(fn: unknown, req: CallRunRequest, opts: CallHarnes
     const ev = record<TraceEvent>();
     put(ev, "t", clock.now);
     put(ev, "event", "conditions");
-    put(ev, "data", { kinds: ReflectApply(ArraySort, kinds, []) });
+    const host = ReflectOwnKeys(hostReads) as string[];
+    put(ev, "data", host.length > 0 ? { kinds: ReflectApply(ArraySort, kinds, []), host: ReflectApply(ArraySort, host, []) } : { kinds: ReflectApply(ArraySort, kinds, []) });
     append(trace, ev);
   }
 

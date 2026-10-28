@@ -19,6 +19,7 @@ import type { Experiment, ExperimentShape } from "./types";
 import { plural } from "./words";
 import { modelDisplay } from "./claimants";
 import { WONDER_MODEL, WONDER_DISPLAY } from "./paste-words";
+import { CALL_PINNED_LOCALE, CALL_PINNED_SEED, CALL_PINNED_TIME_ZONE } from "./conditions";
 
 type CallShape = Extract<ExperimentShape, { shape: "call-function" }>;
 
@@ -107,6 +108,8 @@ export function pastedBetHead(input: PastedContextInput & { repeatOf?: string })
   return [
     `Code: one pasted ${lang} file, ${plural(lineCount, "line")}, fingerprint ${t.codeSha256.slice(0, 12)}…`,
     "Where it runs: Atlas's sandbox, with no network, no files and no packages, on a virtual clock that starts at 2026-01-01T00:00:00Z (waits cost no real time).",
+    // R1 review M5: the pins are said to every bettor before sealing (a bet is about Atlas's run, so its settings count).
+    `Atlas runs it on a simulated clock starting 2026-01-01 UTC, in time zone ${CALL_PINNED_TIME_ZONE} with ${CALL_PINNED_LOCALE[t.language ?? "js"] === "C" ? "a C" : `an ${CALL_PINNED_LOCALE[t.language ?? "js"]}`} locale, with randomness seeded (seed ${CALL_PINNED_SEED}).`,
     `What will run: ${said}`,
     `Test written by: ${testWrittenBy(input.experiment.proposedBy)}.`,
     // E3 review r2 M2 (coordinator's decision): a repeat is accepted and said, to the person and to every model alike.

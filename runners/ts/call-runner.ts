@@ -19,7 +19,7 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { nanoid } from "nanoid";
-import { CALL_PINNED_LOCALE, CALL_PINNED_SEED, CALL_PINNED_TIME_ZONE, conditionKindsInTrace, conditionsFromKinds, isCallSeed, pinnedFor } from "../../src/conditions.ts";
+import { CALL_PINNED_LOCALE, CALL_PINNED_SEED, CALL_PINNED_TIME_ZONE, conditionsFromTrace, isCallSeed, mergeTwin, pinnedFor, CHANGED_BETWEEN_RUNS_REASON } from "../../src/conditions.ts";
 import { gate } from "../../src/gate.ts";
 import { staticRefusal } from "../../src/pasted-code.ts";
 import type { ArgSpec, Experiment, ExperimentShape, JsonValue, Run, Target, TraceEvent } from "../../src/types.ts";
@@ -413,6 +413,30 @@ export function forgetReusableControls(): void {
   reusable.clear();
 }
 
+// ── R1 review round 1: the double run ────────────────────────────────────────────────────────────
+
+type Out = { trace: TraceEvent[]; result: Run["result"] };
+
+/**
+ * R1 review round 1 (B1, B2): every pasted test runs twice, in two fresh sandboxes, with the same seed and pins. A
+ * field the two runs measured differently is not reported (CHANGED_BETWEEN_RUNS_REASON), whatever made it differ:
+ * memory addresses, process ids, temp-folder paths. The second run is kept as the run's `twin`; verify rechecks it.
+ * If the second run does not finish, nothing from either counts (whole-run can't check, with why).
+ */
+export async function twinRun(first: Out, again: () => Promise<{ out?: Out; reason?: string }>): Promise<{ trace: TraceEvent[]; result: Run["result"]; twin?: Out }> {
+  const second = await again();
+  if (!second.out) {
+    const why = `the second, identical run of this test did not finish (${second.reason ?? "no result"}), so Atlas cannot tell which values stay the same between runs`;
+    return { trace: [{ t: 0, event: "whole_run_cant_check", data: { reason: why } }], result: { measured: {}, notMeasured: { wholeRun: why } } };
+  }
+  const merged = mergeTwin(first.result, second.out.result);
+  const trace = [...first.trace];
+  const t = trace.length ? trace[trace.length - 1]!.t : 0;
+  if (merged.changed.length > 0) trace.push({ t, event: "twin_differs", data: { fields: merged.changed } });
+  if (merged.endingChanged) trace.push({ t, event: "stopped_watching", data: { reason: CHANGED_BETWEEN_RUNS_REASON } });
+  return { trace, result: merged.result, twin: { trace: second.out.trace, result: second.out.result } };
+}
+
 // ── the experiment ───────────────────────────────────────────────────────────────────────────────
 
 /** The pasted source of a target, checked against its fingerprint. Throws on a caller mistake (not a code fact). */
@@ -442,6 +466,7 @@ export async function runCallExperiment(exp: Experiment, ctl: Run, opts: { execu
   let result: Run["result"];
   let trace: TraceEvent[] = [];
   let runtime: ExecRuntime | undefined;
+  let twin: Run["twin"];
   const refused = staticRefusal(source);
   if (refused) {
     result = { measured: {}, notMeasured: { wholeRun: refused } };
@@ -452,8 +477,16 @@ export async function runCallExperiment(exp: Experiment, ctl: Run, opts: { execu
     runtime = res.runtime;
     const out = res.ok ? res.runs.find((r) => r.id === exp.id) : undefined;
     if (out) {
-      result = out.result;
-      trace = [...out.trace];
+      // R1 review round 1 (B1, B2): the same test again, in a fresh sandbox, with the same seed and pins.
+      const done = await twinRun(out, async () => {
+        const again = await runInSandbox(executor, source, language, { runs: [runRequest(exp.id, exp.params as CallShape)], seed }, opts.wallClockMs ?? DEFAULT_WALL_CLOCK_MS);
+        if (!again.ok) return { reason: again.reason };
+        const o = again.runs.find((r) => r.id === exp.id);
+        return o ? { out: o } : { reason: "the sandbox returned no result for this experiment" };
+      });
+      result = done.result;
+      trace = done.trace;
+      twin = done.twin;
     } else {
       const why = res.ok ? "the sandbox returned no result for this experiment" : res.reason;
       result = { measured: {}, notMeasured: { wholeRun: why } };
@@ -483,7 +516,8 @@ export async function runCallExperiment(exp: Experiment, ctl: Run, opts: { execu
     timeZone: CALL_PINNED_TIME_ZONE,
     locale: CALL_PINNED_LOCALE[language],
     // R1 (D36): the conditions the sandbox noticed, in Atlas's words (verify rechecks them against the trace).
-    conditions: conditionsFromKinds(conditionKindsInTrace(trace) ?? [], pinnedFor(language, seed)),
+    conditions: conditionsFromTrace(trace, pinnedFor(language, seed)),
+    ...(twin ? { twin } : {}),
     startedAt,
     finishedAt: new Date().toISOString(),
     trace,

@@ -137,6 +137,13 @@ const runSchema = z
     timeZone: z.string().optional(),
     locale: z.string().optional(),
     conditions: z.array(z.object({ kind: z.string(), says: z.string() }).strict()).optional(),
+    twin: z
+      .object({
+        trace: z.array(z.object({ t: z.number(), event: z.string(), data: z.record(z.string(), z.unknown()).optional() }).strict()),
+        result: z.object({ measured: z.record(z.string(), scalar), notMeasured: z.record(z.string(), z.string()) }).strict(),
+      })
+      .strict()
+      .optional(),
     startedAt: iso,
     finishedAt: iso,
     trace: z.array(z.object({ t: z.number(), event: z.string(), data: z.record(z.string(), z.unknown()).optional() }).strict()),

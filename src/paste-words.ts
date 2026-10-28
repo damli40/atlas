@@ -131,15 +131,26 @@ export const PASTE_WORDS = {
 export const CONDITION_WORDS = {
   heading: "Conditions",
   intro: "What this result depends on that is Atlas's, not the code's:",
-  none: "None: the code read no clock, used no randomness and read no time zone or locale.",
+  // R1 review B1: never "nothing": only what Atlas looked for, and that a second run checks everything else.
+  none: "None that Atlas noticed: no clock, randomness, time zone, locale or machine details. Atlas also ran the test a second time, and every value it reports was the same both times.",
+  // R1 review M6: a run that did not run to the end tells nothing about what the code depends on.
+  notKnown: "Not known: the run did not finish, so Atlas cannot say what the result depends on.",
   pins: (seed: string, timeZone: string, locale: string) => `seed ${seed} · time zone ${timeZone} · locale ${locale}`,
   clock: "This code read the clock. Atlas's clock is simulated (it starts at 2026-01-01T00:00:00Z and moves only while the code waits), so time-based values are Atlas's, not your machine's.",
-  clockDuringWork:
-    "This code read the clock before and after work that ran without waiting. Atlas's clock does not move during work, so the time it measured would be 0 here and not on your machine; Atlas did not report how the call ended.",
+  // R1 review M1-M3: decided from the code's own clock reads (two or more at one simulated moment), never from CPU time.
+  timedWork:
+    "This code timed its own work: it read the clock more than once at the same moment of Atlas's simulated clock, which moves only while the code waits. Elapsed times read 0 ms here and don't reflect your machine.",
+  changedBetweenRuns: (fields: string) =>
+    `Atlas ran this test twice with the same seed and pins, and these values changed between the two runs: ${fields}. They depend on something Atlas does not control (memory addresses, process ids, paths), so Atlas does not report them.`,
+  host: (what: string) =>
+    `This code read details of the machine it runs on (${what}). Atlas reports what its sandbox gave, the same in both of its runs, but your machine would give its own.`,
+  tickOrder:
+    "This code used process.nextTick next to promise callbacks. Their order depends on how the function is called; Atlas calls it from a plain async function (promise callbacks first), as an ES module would.",
   randomness: (seed: string) =>
     `This code used randomness (Math.random, crypto random values, Python's random, uuid or secrets). Atlas pins it to seed ${seed}, so the random values are the ones that seed gives, the same on every Atlas run, not the ones your machine would give.`,
   hashSeed: (seed: string) =>
-    `This code builds a set or calls hash(). Python orders a set of text by a hash seed that changes every time Python starts; Atlas pins that seed to ${seed}, so an order that comes from a set is Atlas's pinned one, not your machine's.`,
+    // R1 review B2: only sets of text or bytes are ordered by the hash seed; objects hash by memory address (the second run checks those).
+    `This code builds a set or calls hash(). Python orders a set of text or bytes by a hash seed that changes every time Python starts; Atlas pins that seed to ${seed}, so such an order is Atlas's pinned one, not your machine's. A set of objects is ordered by memory addresses, which Atlas does not pin: its second run catches an order that changes.`,
   timeZoneOrLocale: (timeZone: string, locale: string) =>
     `This code read the time zone or the locale (local hours, toLocaleString, Intl, Python's localtime, ...). Atlas runs every call in time zone ${timeZone} with locale ${locale}, so local times and formats are ${timeZone} / ${locale} ones, not your machine's.`,
   timerOrder:

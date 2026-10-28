@@ -96,9 +96,8 @@ def main(key_text):
     stdlib_names = frozenset(_sys.stdlib_module_names)
     stdlib_dir = _pp.dirname(_pp.dirname(_json.__file__))
     INF = float("inf")
-    # R1 (D36): real CPU time (exposed.py later refuses time.process_time to the code), the real localtime (to check
+    # R1 (D36): the real localtime (to check
     # the pinned time zone), and the module-wide random generator's state, read through C so the code cannot fake it.
-    cpu_clock = _tm.process_time
     real_localtime = _tm.localtime
     real_tzname = tuple(_tm.tzname)
     rand_getstate = _random.Random.getstate
@@ -585,6 +584,13 @@ def main(key_text):
     if type(seed_text) is not str or not seed_text.isdigit() or len(seed_text) > 10 or seed_text[0] == "0":
         die("started without a valid seed")
     E["pin_randomness"](int(seed_text))
+    # R1 review round 1 (B2): the second of the two identical runs starts with a different heap layout, so a value
+    # that comes from memory addresses (a set of objects, id(), a default repr) almost always differs between the
+    # two runs and is caught, instead of matching by chance. Harness-private; the code cannot reach it.
+    # Python allocates each object size from its own pool, so the spacer covers every small size and the common shapes.
+    SpacerCls = type("AtlasSpacer", (), {})
+    spacer = ([bytes(i % 512) for i in range(4000)] + [SpacerCls() for _ in range(301)] + [{} for _ in range(77)]
+              + [[] for _ in range(53)]) if req.get("variant") == 1 else []
     CLOCK = E["CLOCK"]
     WATCH = E["WATCH"]
     WatchLimit = E["AtlasWatchLimit"]
@@ -663,10 +669,12 @@ def main(key_text):
                                 "_posixsubprocess.fork_exec", "os.register_at_fork"))
 
     # R1 (D36): conditions. `current` is the run in progress (None while the file loads); kinds noticed while the file
-    # loads count for every run. Two clock reads at one virtual moment with real CPU work between them mean the code
-    # timed work, which takes no time on Atlas's clock: how the call ends is then not reported.
+    # loads count for every run. R1 review M1-M3: two or more clock reads at one moment of the virtual clock mean the
+    # code timed its own work, which takes no time here: disclosed ("timed-work"), never decided from CPU time.
     current = [None]
     load_conds = set()
+    load_host = set()
+    load_self_seeded = [False]
 
     def note(kind):
         c = current[0]
@@ -675,16 +683,19 @@ def main(key_text):
         else:
             c["conds"].add(kind)
 
+    def note_host(what):
+        note("host")
+        c = current[0]
+        (load_host if c is None else c["host"]).add(clean(what, 60))
+
     def note_clock(v):
         note("clock")
         c = current[0]
         if c is None or (type(v) is not float and type(v) is not int):
             return
-        cpu = cpu_clock()
-        last = c["lastRead"]
-        if last is not None and last[0] == v and cpu - last[1] >= 0.002:
-            c["cpuWork"] = True
-        c["lastRead"] = (v, cpu)
+        if c["lastRead"] is not None and c["lastRead"] == v:
+            c["conds"].add("timed-work")
+        c["lastRead"] = v
 
     def refuse(code, what, exc=None):
         mark_code(code, what)
@@ -712,6 +723,19 @@ def main(key_text):
             k = args[0] if len(args) > 0 else None
             if type(k) is str and k in ("randomness", "time-zone-or-locale"):
                 note(k)
+            elif k == "self-seeded":
+                # R1 review M3: the code seeded the shared generator itself (random.seed(n)); its draws are the code's
+                # own, so the shared generator's state change is not Atlas's randomness.
+                c = current[0]
+                if c is None:
+                    load_self_seeded[0] = True
+                else:
+                    c["selfSeeded"] = True
+            return
+        if event == "atlas.host":
+            w = args[0] if len(args) > 0 else None
+            if type(w) is str:
+                note_host(w)
             return
         if event == "object.__getattr__":
             name = args[1] if len(args) > 1 else None
@@ -855,7 +879,7 @@ def main(key_text):
 
     runs = []
     for r in req["runs"]:
-        ctx = {"trace": [], "settled": False, "clock": 0.0, "interfered": None, "conds": set(), "lastRead": None, "cpuWork": False}
+        ctx = {"trace": [], "settled": False, "clock": 0.0, "interfered": None, "conds": set(), "lastRead": None, "host": set(), "selfSeeded": False}
         args = []
         gens = []
         for a in r["args"]:
@@ -939,6 +963,10 @@ def main(key_text):
     # Python's string-hash seed, which Atlas pins; time.timezone / tzname / altzone / daylight, astimezone and the
     # locale module mean the machine's zone or locale, which Atlas pins to UTC / C.
     static_conds = set()
+    static_host = set()
+    HOST_ATTRS = frozenset((("sys", "platform"), ("sys", "version"), ("sys", "version_info"), ("sys", "executable"),
+                            ("sys", "argv"), ("sys", "prefix"), ("sys", "path"), ("sys", "implementation"), ("os", "name"),
+                            ("os", "environ"), ("sys", "byteorder"), ("sys", "maxsize")))
     try:
         for node in _ast.walk(_ast.parse(source)):
             t = type(node)
@@ -957,12 +985,17 @@ def main(key_text):
                 static_conds.add("time-zone-or-locale")
             elif t is _ast.ImportFrom and node.module == "time" and any(a.name in ("timezone", "tzname", "altzone", "daylight") for a in node.names):
                 static_conds.add("time-zone-or-locale")
+            # R1 review B1: attributes that describe the machine (functions are noted when called, in exposed.py).
+            if t is _ast.Attribute and type(node.value) is _ast.Name and (node.value.id, node.attr) in HOST_ATTRS:
+                static_conds.add("host")
+                static_host.add(node.value.id + "." + node.attr)
     except (SyntaxError, ValueError, RecursionError, MemoryError):
         pass  # the file compiled above; a reader that cannot finish only means fewer disclosures, never a fact
 
     module = _types.ModuleType("target")
     target_builtins = dict(_bi.__dict__)
     target_builtins["__import__"] = import_guard
+    target_builtins["id"] = E["v_id"]  # R1 review B1: id() is a memory address
     module.__dict__["__builtins__"] = target_builtins
     _sys.modules["target"] = module
     moddict = module.__dict__
@@ -983,7 +1016,7 @@ def main(key_text):
                 mark(word("loadFailed", what=describe_exc(e)))
     if whole[0] is not None:
         finish(whole_payload())
-    if rand_getstate(rand_inst) != rand_at_load:
+    if rand_getstate(rand_inst) != rand_at_load and not load_self_seeded[0]:
         load_conds.add("randomness")
 
     # ---------------------------------------------------------------------------------------------------------
@@ -1183,7 +1216,7 @@ def main(key_text):
                 ctx["settled"] = True
                 settled = ("returned", value)
         current[0] = None
-        if rand_getstate(rand_inst) != rand_before:
+        if rand_getstate(rand_inst) != rand_before and not ctx["selfSeeded"] and not load_self_seeded[0]:
             ctx["conds"].add("randomness")
         set_recursion_limit(base_recursion_limit)  # the code may have lowered it to break Atlas's own readers
         side_checks()
@@ -1196,13 +1229,6 @@ def main(key_text):
         if settled is not None and ctx["settledAt"] > ctx["watch"]:
             settled = None
             limit = True
-
-        # R1 (D36): the code timed work that ran without waiting. On Atlas's clock no time passed, so anything it
-        # decided from that elapsed time is Atlas's, not the code's: how the call ended is not reported.
-        if ctx["cpuWork"] and stop is None:
-            stop = word("cpuWork")
-            settled = None
-            limit = False
 
         facts = None
         if settled is not None and settled[0] == "returned":
@@ -1242,10 +1268,12 @@ def main(key_text):
 
         # R1 (D36): the conditions this run noticed, in one event (src/conditions.ts reads it; verify rechecks it).
         kinds = set(static_conds) | load_conds | ctx["conds"]
-        if ctx["cpuWork"]:
-            kinds.add("clock-during-work")
+        host = static_host | load_host | ctx["host"]
         if kinds:
-            ctx["trace"].append({"t": ms(ctx["clock"]), "event": "conditions", "data": {"kinds": sorted(kinds)}})
+            data = {"kinds": sorted(kinds)}
+            if host:
+                data["host"] = sorted(host)
+            ctx["trace"].append({"t": ms(ctx["clock"]), "event": "conditions", "data": data})
 
         measured = {}
         not_measured = {}

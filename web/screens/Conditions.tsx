@@ -6,14 +6,20 @@
 import type { Run } from "../../src/types";
 import { CONDITION_WORDS } from "../../src/paste-words";
 
-export function ConditionsLine({ run }: { run: Pick<Run, "conditions" | "seed" | "timeZone" | "locale"> | undefined }) {
+export function ConditionsLine({ run }: { run: (Pick<Run, "conditions" | "seed" | "timeZone" | "locale"> & { result?: Pick<Run["result"], "notMeasured"> }) | undefined }) {
   if (!run || run.conditions === undefined) return null;
   const W = CONDITION_WORDS;
+  // R1 review M6: a run that did not run to the end says nothing about what the code depends on.
+  const didNotFinish = run.result?.notMeasured.wholeRun !== undefined;
   return (
     <div className="conditions small" data-testid="conditions" aria-label="conditions">
       <strong>{W.heading}</strong>
       {run.seed && run.timeZone && run.locale ? <span className="muted"> ({W.pins(run.seed, run.timeZone, run.locale)})</span> : null}
-      {run.conditions.length === 0 ? (
+      {didNotFinish ? (
+        <p className="muted" data-testid="conditions-not-known">
+          {W.notKnown}
+        </p>
+      ) : run.conditions.length === 0 ? (
         <p className="muted" data-testid="conditions-none">
           {W.none}
         </p>
