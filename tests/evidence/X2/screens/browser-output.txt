@@ -1,0 +1,56 @@
+=== explorer at 1920×1080 (light)
+outline job to drawn machine: 4.0 s
+progress: Reading the files (pinned to one commit) Plain code maps the code: definitions, imports, calls Muse Wonder proposes parts and joins Plain code checks every part and join against the files Done: 12 of 12 parts with lines confirmed
+PASS overlap form-light: 1389 px wide, 15 text boxes, 0 overlapping pairs, 0 outside
+drawn lines: 24; chalk tags: 0
+PASS no Wonder-only join is drawn as a line
+PASS axe explorer-rest-light: 0 violations  (37 rules passed)
+PASS reduced motion explorer-rest-light: 0 running animations
+picked: Secret redaction
+PASS picking a box marks it on the machine
+PASS unrelated lines fade when a part is picked (opacity 0.14)
+PASS overlap card-light: 380 px wide, 38 text boxes, 0 overlapping pairs, 0 outside
+PASS overlap lists-light: 380 px wide, 8 text boxes, 0 overlapping pairs, 0 outside
+PASS axe explorer-picked-light: 0 violations  (37 rules passed)
+card: PART · LINES CONFIRMED Secret redaction Name by muse-wonder-1.0 muse-wonder-1.0 says what this part is for: Removes a whole secret or any sufficiently long piece of it from text before that text is kept or shown. Plain code checked that these lines exist, on whole definitions. It did not check the sentence above. REAL LINES (36) redact-secret.ts · whole file (lines 1–36) damli40/atlas · server/met
+PASS the card says lines confirmed, never purpose confirmed
+PASS the purpose is labelled as Muse Wonder's words
+PASS the card shows the commit
+PASS the picked part still offers redactSecret after scrolling (Secret redaction)
+PASS the paste flow opens with redactSecret picked
+hand-off: From the explorer: server/meta/redact-secret.ts in damli40/atlas at 058ab2a, function redactSecret.
+PASS axe handoff: 0 violations  (33 rules passed)
+proposal 1: Atlas calls redactSecret("Invalid API key bt-abc123def456... refused", "bt-abc123def456ghi789"). Allowed by Atlas's gate Use this test Edit it first The test as JSON
+run facts: What the run measured Run pL2HnL9KRE · known-case check matched first · local sandbox field the code outcome returned virtualMs 0 returnedType string no bet compares this field yet, so a bet on it is can't check returnedJson "Invalid API key [redacted]... refused" thrownName can't check: the call re
+verdicts: question You Muse Spark 1.3 (muse-spark-1.3) observed What does redactSecret do? returned · matched returned · matched returned judged by src/judge.ts If redactSecret returns, what value does it return, as JSON? "Invalid API key [redacted]... refused" · matched "Invalid API key [redacted]... refused" · matched "Invalid API key [redacted]... refused" judged by src/judge.ts How long until redactSecret returns or throws, in ms of Atlas's virtual clock? - declined · can't check (the bettor declined) 0 judged by src/judge.ts
+PASS axe verdict: 0 violations  (46 rules passed)
+=== explorer at 1920×1080 (dark)
+outline job to drawn machine: 4.1 s
+progress: Reading the files (pinned to one commit) Plain code maps the code: definitions, imports, calls Muse Wonder proposes parts and joins Plain code checks every part and join against the files Done: 12 of 12 parts with lines confirmed
+PASS overlap form-dark: 1389 px wide, 15 text boxes, 0 overlapping pairs, 0 outside
+drawn lines: 24; chalk tags: 0
+PASS no Wonder-only join is drawn as a line
+PASS axe explorer-rest-dark: 0 violations  (37 rules passed)
+PASS reduced motion explorer-rest-dark: 0 running animations
+picked: Secret redaction
+PASS picking a box marks it on the machine
+PASS unrelated lines fade when a part is picked (opacity 0.14)
+PASS overlap card-dark: 380 px wide, 38 text boxes, 0 overlapping pairs, 0 outside
+PASS overlap lists-dark: 380 px wide, 8 text boxes, 0 overlapping pairs, 0 outside
+PASS axe explorer-picked-dark: 0 violations  (37 rules passed)
+card: PART · LINES CONFIRMED Secret redaction Name by muse-wonder-1.0 muse-wonder-1.0 says what this part is for: Removes a whole secret or any sufficiently long piece of it from text before that text is kept or shown. Plain code checked that these lines exist, on whole definitions. It did not check the sentence above. REAL LINES (36) redact-secret.ts · whole file (lines 1–36) damli40/atlas · server/met
+PASS the card says lines confirmed, never purpose confirmed
+PASS the purpose is labelled as Muse Wonder's words
+PASS the card shows the commit
+=== explorer at 390 px (light)
+PASS 390px explorer-saved-light: scrollWidth 390 vs 390
+PASS 390px explorer-picked-light: scrollWidth 390 vs 390
+PASS overlap card-390-light: 358 px wide, 40 text boxes, 0 overlapping pairs, 0 outside
+PASS axe explorer-390-light: 0 violations  (37 rules passed)
+PASS reduced motion explorer-390-light: 0 running animations
+=== explorer at 390 px (dark)
+PASS 390px explorer-saved-dark: scrollWidth 390 vs 390
+PASS 390px explorer-picked-dark: scrollWidth 390 vs 390
+PASS overlap card-390-dark: 358 px wide, 40 text boxes, 0 overlapping pairs, 0 outside
+PASS axe explorer-390-dark: 0 violations  (37 rules passed)
+PASS reduced motion explorer-390-dark: 0 running animations
