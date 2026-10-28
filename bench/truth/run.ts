@@ -194,7 +194,6 @@ export function renderMarkdown(meta: Record<string, unknown>, records: TestRecor
     for (const r of noted) for (const n of r.notes) lines.push(`- ${r.id}: ${n}`);
     lines.push("");
   }
-  lines.push("## Every test", "");
   if (meta.factTestsWithConditions !== undefined) {
     lines.push("## Conditions (batch R1)", "");
     lines.push(`- Fact tests whose run carries a conditions line: ${meta.factTestsWithConditions}; with no condition ("None of the conditions Atlas checks for ..."): ${meta.factTestsWithNoCondition}.`);
@@ -202,6 +201,7 @@ export function renderMarkdown(meta: Record<string, unknown>, records: TestRecor
     lines.push(`- Tests with a field refused by the double run: ${meta.doubleRunRefusals}.`);
     lines.push(`- Labelled values counted (bench T2 amendment 1 in force): ${meta.labelsInForce ? "yes" : "no"}.`, "");
   }
+  lines.push("## Every test", "");
   lines.push("| Test | Lang | Category | Expected (written before the run) | Measured by Atlas | Conditions | Classification |", "|---|---|---|---|---|---|---|");
   for (const r of records) lines.push(`| ${r.id} | ${r.language} | ${short(r.category, 40)} | ${expectedCell(r.expected)} | ${measuredCell(r)} | ${(r.conditions ?? []).map((c) => c.kind).join(", ") || "none"} | ${r.classification} |`);
   lines.push("");

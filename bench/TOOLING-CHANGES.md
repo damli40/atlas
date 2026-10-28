@@ -42,3 +42,8 @@ in the same commit. `tests/unit/bench-order.test.ts` checks this. Earlier entrie
   the amendment files' SHA-256, whether labels were in force, conditions counts and double-run refusals; the table
   shows each test's condition kinds.
 - `tests/unit/bench-order.test.ts`: (l) amendment files are never edited; a result's recorded amendments match.
+
+## 2026-10-28: table heading order
+
+- `bench/truth/run.ts`: the "Every test" heading now comes after the "Conditions" section (in the two results of
+  2026-10-28-2 the heading sits above it; those files are append-only and stay as written). Scoring unchanged.
