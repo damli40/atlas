@@ -147,6 +147,11 @@ export interface PasteDeps {
   takePaste: (c: Context) => { ok: true } | { ok: false; reason: string };
   /** E3 review r3 B1: where runs happen on this server (the page's privacy sentence is built from it). */
   executorKind: "local" | "modal";
+  /**
+   * X3 (D27): the kinds of question where this person's sealed bets most often didn't match, with counts (plain code,
+   * src/track-record.ts weakSpotSummary), or null. Only Muse Wonder's proposal prompt gets it; never a betting model.
+   */
+  weakSpotsOf?: (c: Context, sessionId: string) => string | null;
 }
 
 export function createPaste(opts: PasteOptions, deps: PasteDeps) {
@@ -375,6 +380,7 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
       const byIp = deps.takeModelRound(c);
       if (!byIp.ok) return notAsked(byIp.reason);
       proposalCount.set(sessionId, used + 1);
+      const aimedAt = deps.weakSpotsOf?.(c, sessionId) ?? null;
       const r = await runProposer(
         {
           source: entry.target.source!,
@@ -383,6 +389,7 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
           exportLine: exp.line,
           exportNames: entry.exports.map((e) => e.name),
           model: proposerModel,
+          ...(aimedAt ? { weakSpots: aimedAt } : {}),
         },
         { chat: proposerChat, log: sessionEmitter(deps.agentLog, sessionId) },
       );
@@ -407,6 +414,8 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
         proposals: shown,
         claimHeld: r.ok,
         usage: r.usage ?? null,
+        // X3: whether Muse Wonder was told this person's weak spots (the page says so; the text is plain code's counts).
+        aimedAt,
       });
     });
 

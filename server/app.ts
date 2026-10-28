@@ -128,8 +128,14 @@ import { quizQuestionsFor } from "../src/quiz";
 import { pastedSeenCap } from "./meta/roles/claimant-bets";
 import { MAX_PASTED_PROMPT_CHARS } from "./meta/pasted-guard";
 import { createOutlineRoutes, DEFAULT_OUTLINES_PER_IP_PER_HOUR, OUTLINE_BODY_BYTES, type OutlineOptions } from "./outline/routes";
+import { memoryTrackStore, type Person, type TrackStore } from "./track-store";
+import { entriesFromRound, recordBefore, trackRecordOf, weakSpotSummary, type TrackRecord } from "../src/track-record";
+import { registerLabelRoutes } from "./labels";
+import { currentPrincipal } from "./access/context";
 
 const REPO_ROOT = fileURLToPath(new URL("../", import.meta.url));
+/** X3: the page's random per-browser id (localStorage), naming "this browser" for the track record when there is no invite code. */
+export const BROWSER_HEADER = "x-atlas-browser";
 const PRE_EXISTING_PATH = resolve(REPO_ROOT, "PRE-EXISTING.md");
 export const PRE_EXISTING_LABEL = { label: "Pre-existing: written before the hackathon", listedIn: "PRE-EXISTING.md" } as const;
 
@@ -394,6 +400,11 @@ export interface AppOptions {
   githubReads?: ShareLimit;
   /** G1 review B7: read the Moonwell PR once at startup so the finale never depends on GitHub later. */
   warmMoonwellPr?: boolean;
+  /**
+   * X3 (D27): where each person's track record is kept (server/track-store.ts). server/index.ts passes the on-disk
+   * store next to the invite store; default: in memory only.
+   */
+  trackStore?: TrackStore;
 }
 
 /** D07-02: "what else?" questions one session may ask (each is up to 2 Adversary calls, Spark's bets and one run). */
@@ -619,7 +630,30 @@ export function createApp(opts: AppOptions = {}) {
   const proofOf = (runId: string) => proofStore.get(runId) ?? pastedProofs.get(runId);
   const pastedExperimentsByIp = createHourlyLimit(envCount(process.env.ATLAS_PASTED_EXPERIMENTS_PER_IP_PER_HOUR, 200), "experiments on pasted code");
   const pastesByIp = createHourlyLimit(envCount(process.env.ATLAS_PASTES_PER_IP_PER_HOUR, DEFAULT_PASTES_PER_IP_PER_HOUR), "pastes");
-  const paste = createPaste(opts.paste ?? {}, { agentLog, betStore, ...(budget ? { budget } : {}), takeModelRound: (c) => modelRoundsByIp.take(clientOf(c)), takePaste: (c) => pastesByIp.take(clientOf(c)), executorKind: executor.kind });
+  // X3 (D27): each person's track record, from their sealed bets and the judge's verdicts only (src/track-record.ts).
+  const trackStore = opts.trackStore ?? memoryTrackStore();
+  /**
+   * Who "the person" is for the track record: the invite code (by its id) when there is one; otherwise this browser
+   * (the page's random id in x-atlas-browser, kept in localStorage); otherwise the session.
+   */
+  const personOf = (c: Context, sessionId: string): Person => {
+    const p = currentPrincipal();
+    if (p?.kind === "invite") return { kind: "invite", id: p.id };
+    const b = c.req.header(BROWSER_HEADER);
+    if (b && /^[A-Za-z0-9_-]{16,64}$/.test(b)) return { kind: "browser", id: b };
+    return { kind: "session", id: sessionId };
+  };
+  const recordOf = (person: Person): TrackRecord => trackRecordOf(trackStore.entries(person));
+  const paste = createPaste(opts.paste ?? {}, {
+    agentLog,
+    betStore,
+    ...(budget ? { budget } : {}),
+    takeModelRound: (c) => modelRoundsByIp.take(clientOf(c)),
+    takePaste: (c) => pastesByIp.take(clientOf(c)),
+    executorKind: executor.kind,
+    // X3: Muse Wonder is told only the kinds of question where this person's bets most often didn't match (counts).
+    weakSpotsOf: (c, sessionId) => weakSpotSummary(recordOf(personOf(c, sessionId))),
+  });
   opts.paste?.expose?.(paste);
   /** E3 review r2 B3: a pasted round's bettor text: its shared test part, then the file's shared numbered block. */
   const seenOf = (round: Round): string | undefined => {
@@ -901,6 +935,31 @@ export function createApp(opts: AppOptions = {}) {
   });
   registerEventRoutes(app, agentLog); // D02-05: GET /events/:sessionId (SSE)
   paste.register(app); // E3: GET /paste/languages, POST /paste, /paste/proposals, /paste/claim
+  // X3 (D28): common-failure labels for a pasted function and for every confirmed part of an outline (plain code).
+  registerLabelRoutes(app, {
+    paste,
+    betStore,
+    proofOf,
+    outlineJobOf: (id) => {
+      const j = outline.jobOf(id);
+      return j ? { sessionId: j.sessionId, ...(j.section ? { section: j.section } : {}) } : undefined;
+    },
+  });
+
+  // X3 (D27): GET /track-record[?before=<runId>] → this person's record now and, with `before`, their record before
+  // that round (null when the round is not in their record). Plain code over their own sealed bets and verdicts.
+  app.get("/track-record", (c) => {
+    const sessionId = sessionIdOf(c);
+    if (sessionId === null) return c.json({ error: BAD_SESSION }, 400);
+    const person = personOf(c, sessionId);
+    const entries = trackStore.entries(person);
+    const before = c.req.query("before");
+    return c.json({
+      person: person.kind,
+      record: trackRecordOf(entries),
+      ...(before !== undefined ? { before: /^[A-Za-z0-9_-]{1,64}$/.test(before) ? recordBefore(entries, before) : null } : {}),
+    });
+  });
   outline.register(app); // X1: POST /outline/jobs, GET /outline/jobs/:id[/outline|/parts/:partId|/atlas]
 
   app.post("/targets", async (c) => {
@@ -1326,6 +1385,8 @@ export function createApp(opts: AppOptions = {}) {
     }
     try {
       const r = await runRound(sessionId, round);
+      // X3 (D27): the person's judged bets go into their track record (plain code; never the code itself).
+      if (r.status === 200) Object.assign(r.body, { track: recordRound(personOf(c, sessionId), r.body) });
       return c.json(r.body, r.status);
     } catch (e) {
       // Final review S2: the run did not finish. Nothing was judged; the experiment and its sealed bets stay,
@@ -1336,6 +1397,24 @@ export function createApp(opts: AppOptions = {}) {
       runSlot?.release();
     }
   });
+
+  /**
+   * X3 (D27): adds the person's judged bets of one finished round to their track record. Returns their record before
+   * and after this round. A store that cannot write never changes the run's answer: the reason is returned instead.
+   */
+  function recordRound(person: Person, body: Record<string, unknown>): { person: Person["kind"]; before: TrackRecord; after: TrackRecord } | { error: string } {
+    try {
+      const run = body.run as Run | undefined;
+      const bets = body.bets as Bet[] | undefined;
+      const verdicts = body.verdicts as Verdict[] | undefined;
+      const before = recordOf(person);
+      if (!run || !bets || !verdicts) return { person: person.kind, before, after: before };
+      trackStore.add(person, entriesFromRound(bets, verdicts, run));
+      return { person: person.kind, before, after: recordOf(person) };
+    } catch (e) {
+      return { error: `the track record could not be saved: ${e instanceof Error ? e.message : String(e)}` };
+    }
+  }
 
   /**
    * The body of POST /runs once the request is accepted (and, on the EVM runner, holds a run slot).

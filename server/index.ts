@@ -17,6 +17,7 @@ import { pythonSandboxExecutor } from "../runners/executor/sandbox-exec-python";
 import { warmUp } from "../runners/executor/warm";
 import { join, resolve } from "node:path";
 import { accessFromEnv } from "./access/setup";
+import { diskTrackStore } from "./track-store";
 import { withInviteGate } from "./access/gate";
 import { meteredChainFacts, meteredExecutor, meteredGate } from "./access/metered";
 import { runAs } from "./access/context";
@@ -89,6 +90,9 @@ const fixerOn = on.fixer;
 const adversaryOn = on.adversary;
 // G1 review B7: one GitHub allowance for the whole server, split into shares (each dev code, all devs, the owner).
 const githubReads = createShareLimit(DEFAULT_GITHUB_SHARES, "GitHub reads");
+// X3: one track-record store for both copies of the app (a person's record does not depend on which copy served them).
+const trackStore = diskTrackStore(access.dir);
+console.log("track records kept on disk in the invite store's folder (track-record/: one file per person, no code)");
 const appOptions: AppOptions = {
   ...serverOptions(process.env, {
     makeChat: (timeoutMs) => createMetaClient(timeoutMs !== undefined ? { timeoutMs } : {}).chat,
@@ -109,6 +113,8 @@ const appOptions: AppOptions = {
     return (block: number) => r.read(block);
   })(), access.ledger),
   githubReads,
+  // X3 (D27): each person's track record, one small file per person next to the invite store (survives a restart).
+  trackStore,
 };
 // G1 review round 2: the owner's code gets its OWN copy of the app, so every in-memory capacity (sessions, pastes,
 // caches, kept runs and outline jobs, the live log) is the owner's alone. Shared money, sandboxes, GitHub and RPC

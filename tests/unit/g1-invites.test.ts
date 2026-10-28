@@ -51,6 +51,10 @@ const SPENDING: { method: string; route: string; path: string; body?: unknown; s
   { method: "POST", route: "/paste/proposals", path: "/paste/proposals", body: {}, spends: "Muse Wonder test proposals (Meta)" },
   { method: "POST", route: "/paste/claim", path: "/paste/claim", body: {}, spends: "nothing (shows a held claim)" },
   { method: "POST", route: "/outline/jobs", path: "/outline/jobs", body: { files: [{ path: "a.ts", text: "export const a = 1;\n" }] }, spends: "Muse Wonder Outliner (Meta) + GitHub reads" },
+  // X3: read only and free, but they are about a person's own code and record, so closed by default.
+  { method: "GET", route: "/track-record", path: "/track-record", spends: "nothing (a person's own track record; closed by default)" },
+  { method: "POST", route: "/paste/labels", path: "/paste/labels", body: {}, spends: "nothing (plain-code labels on a person's own paste; closed by default)" },
+  { method: "GET", route: "/outline/jobs/:id/labels", path: "/outline/jobs/x/labels", spends: "nothing (plain-code labels on a person's own outline; closed by default)" },
 ];
 
 describe("G1 gate: every spending route refuses without a code, and nothing is spent", () => {
