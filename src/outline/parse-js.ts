@@ -40,7 +40,7 @@ export interface RawCall {
   line: number;
   local: string;
   member?: string;
-  form: "call" | "new" | "jsx" | "extends" | "ref";
+  form: "call" | "new" | "jsx" | "extends" | "ref" | "export";
   imp?: number;
   own?: true;
 }
@@ -296,6 +296,25 @@ export function parseJsFile(path: string, text: string, language: OutlineLanguag
     }
     return false;
   };
+  const inExportFooter = (id: ts.Node): boolean => {
+    for (let p: ts.Node | undefined = id.parent; p && p !== bound; p = p.parent) {
+      if (ts.isFunctionLike(p) || ts.isClassLike(p)) return false;
+      if (ts.isExportAssignment(p)) return true;
+      if (ts.isExpressionStatement(p) && p.parent === bound && ts.isBinaryExpression(p.expression) && p.expression.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
+        const lhs = p.expression.left.getText(bound).replace(/\s+/g, "");
+        return lhs === "module.exports" || /^(?:module\.)?exports\.[A-Za-z_$][\w$]*$/.test(lhs);
+      }
+    }
+    return false;
+  };
+  // Review round 3 (R3-B1): a loader plain code does not follow (createRequire, `require` used as a value, require of a
+  // computed name) is recorded as a dynamic import, so Atlas never says it found no link.
+  const loaderUse = (id: ts.Identifier): boolean => {
+    const parent = id.parent;
+    if (id.text === "createRequire" && parent && ts.isCallExpression(parent) && parent.expression === id) return true;
+    if (id.text === "require" && !(parent && ts.isCallExpression(parent) && parent.expression === id && parent.arguments.length === 1 && strOf(parent.arguments[0]) !== undefined)) return true;
+    return false;
+  };
   const useOf = (id: ts.Identifier): void => {
     const parent = id.parent;
     if (!parent || ts.isImportSpecifier(parent) || ts.isImportClause(parent) || ts.isNamespaceImport(parent) || ts.isImportEqualsDeclaration(parent) || ts.isExportSpecifier(parent)) return;
@@ -303,6 +322,10 @@ export function parseJsFile(path: string, text: string, language: OutlineLanguag
     if (ts.isPropertyAssignment(parent) && parent.name === id) return;
     // The name a declaration declares (a variable, a parameter, a function, a property...) is not a use.
     if ((parent as { name?: ts.Node }).name === id) return;
+    if (loaderUse(id)) {
+      out.imports.push({ line: bline(id), specifier: "<computed>", kind: "dynamic", names: [], computed: true });
+      return;
+    }
     if (inType(id)) return;
     const sym = checker.getSymbolAtLocation(id);
     const decl = sym?.declarations?.[0];
@@ -333,6 +356,10 @@ export function parseJsFile(path: string, text: string, language: OutlineLanguag
       form = "jsx";
     } else if (cp && ts.isExpressionWithTypeArguments(cp) && ts.isHeritageClause(cp.parent)) form = "extends";
     else if (cp && ts.isDecorator(cp)) form = "call";
+    // Review round 3 (R3-B2): a name inside an export statement or footer (`export default x`, `export = x`,
+    // `module.exports = …`, `exports.x = …`) is an export, like an import line: it links only a part holding the
+    // whole file. A name inside a function written in that footer is that function's own use.
+    if (inExportFooter(id)) form = "export";
     out.calls.push({ line: bline(id), local, ...(member ? { member } : {}), form, ...(imp !== undefined ? { imp } : {}), ...(own ? { own: true as const } : {}) });
   };
   const walk = (n: ts.Node): void => {

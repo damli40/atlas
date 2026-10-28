@@ -234,7 +234,10 @@ function parseImport(l: Logical): RawImport[] {
       const d = dotted(part, 0);
       if (!d) return [];
       const alias = isName(part[d.next], "as") && isName(part[d.next + 1]) ? part[d.next + 1]!.v : undefined;
-      return [{ line, specifier: d.name, kind: "static" as const, names: [{ imported: "*", local: alias ?? d.name }] }];
+      // Review round 3 (R3-B1, L3): `import a.b.c` also loads and binds the package `a` (a/__init__.py).
+      const top = d.name.split(".")[0]!;
+      const extra = !alias && top !== d.name ? [{ line, specifier: top, kind: "static" as const, names: [{ imported: "*", local: top }] }] : [];
+      return [{ line, specifier: d.name, kind: "static" as const, names: [{ imported: "*", local: alias ?? d.name }] }, ...extra];
     });
   }
   // from <dots><module> import a [as b], (c, d) | *
@@ -315,9 +318,133 @@ function allNames(l: Logical): string[] | null {
   return out;
 }
 
+/** Calls that load or run code by name: listed as dynamic imports, never followed (review round 3, R3-B1). */
+const DYNAMIC_LOADERS = new Set(["import_module", "__import__", "run_module", "run_path", "spec_from_file_location", "module_from_spec", "load_source", "exec", "eval", "execfile"]);
+
+const COMPOUND = new Set(["if", "elif", "else", "while", "for", "try", "except", "finally", "with", "def", "class", "match", "case"]);
+
+/**
+ * X1 review round 3 (R3-B1): one logical line may hold several statements: `a = 1; import db`, or a one-line
+ * compound statement `if x: import db`, `try: from db import f`. Each is split into its own statement (a body after
+ * a header's ":" one level deeper), so every import is read where it is.
+ */
+function splitStatements(lines: Logical[]): Logical[] {
+  const out: Logical[] = [];
+  const push = (indent: number, toks: Tok[]): void => {
+    if (toks.length === 0) return;
+    // Split at ";" outside brackets.
+    let d = 0;
+    let startAt = 0;
+    const parts: Tok[][] = [];
+    toks.forEach((x, j) => {
+      if (x.t === "op" && "([{".includes(x.v)) d++;
+      if (x.t === "op" && ")]}".includes(x.v)) d--;
+      if (d === 0 && isOp(x, ";")) {
+        parts.push(toks.slice(startAt, j));
+        startAt = j + 1;
+      }
+    });
+    parts.push(toks.slice(startAt));
+    for (const part of parts) {
+      if (part.length === 0) continue;
+      const k = isName(part[0], "async") ? 1 : 0;
+      if (part[k]?.t === "name" && COMPOUND.has(part[k]!.v)) {
+        // The ":" that ends the header (outside brackets; `lambda x: …` inside a header is inside brackets or after it).
+        let dd = 0;
+        let colon = -1;
+        for (let j = k + 1; j < part.length; j++) {
+          const x = part[j]!;
+          if (x.t === "op" && "([{".includes(x.v)) dd++;
+          if (x.t === "op" && ")]}".includes(x.v)) dd--;
+          if (dd === 0 && isName(x, "lambda")) break;
+          if (dd === 0 && isOp(x, ":")) {
+            colon = j;
+            break;
+          }
+        }
+        if (colon >= 0 && colon < part.length - 1) {
+          out.push({ indent, toks: part.slice(0, colon + 1) });
+          push(indent + 1, part.slice(colon + 1));
+          continue;
+        }
+      }
+      out.push({ indent, toks: part });
+    }
+  };
+  for (const l of lines) push(l.indent, l.toks);
+  return out;
+}
+
+/**
+ * X1 review round 3 (R3-M1): every name a statement binds: all assignment targets (tuple unpacking, starred, chained
+ * `a = b = …`, augmented, annotated), `for`/`async for` targets, `with … as x` / `as (a, b)`, `except … as x`, `:=`,
+ * `case` captures, and def/class names. Not names after "." or inside [ ] (attributes and subscripts are not names).
+ */
+function boundNames(t: Tok[]): Set<string> {
+  const out = new Set<string>();
+  const namesIn = (toks: Tok[]) => {
+    let sq = 0;
+    toks.forEach((x, j) => {
+      if (isOp(x, "[")) sq++;
+      if (isOp(x, "]")) sq--;
+      if (x.t === "name" && sq === 0 && !KEYWORDS.has(x.v) && !isOp(toks[j - 1], ".") && !isOp(toks[j + 1], ".") && !isOp(toks[j + 1], "(")) out.add(x.v);
+    });
+  };
+  const k = isName(t[0], "async") ? 1 : 0;
+  const head = t[k];
+  if (isName(head, "def") || isName(head, "class")) {
+    if (isName(t[k + 1])) out.add(t[k + 1]!.v);
+  } else if (isName(head, "for")) {
+    const inAt = t.findIndex((x, j) => j > k && isName(x, "in"));
+    namesIn(t.slice(k + 1, inAt < 0 ? t.length : inAt));
+  } else if (isName(head, "case")) {
+    // Capture patterns: bare names (not dotted value patterns, not class patterns `Point(...)`, not keyword names).
+    t.forEach((x, j) => {
+      if (j > 0 && x.t === "name" && x.v !== "_" && !KEYWORDS.has(x.v) && !isOp(t[j - 1], ".") && !isOp(t[j + 1], ".") && !isOp(t[j + 1], "(") && !isOp(t[j + 1], "=")) out.add(x.v);
+    });
+  } else if (!(isName(head, "import") || isName(head, "from") || isName(head, "global") || isName(head, "nonlocal"))) {
+    // Assignment targets: everything left of the last "=" outside brackets (an annotation's ":" ends the target).
+    let d = 0;
+    let lastEq = -1;
+    for (let j = 0; j < t.length; j++) {
+      const x = t[j]!;
+      if (x.t === "op" && "([{".includes(x.v)) d++;
+      if (x.t === "op" && ")]}".includes(x.v)) d--;
+      if (d === 0 && isOp(x, "=")) lastEq = j;
+    }
+    if (lastEq > 0) {
+      const left = t.slice(0, lastEq);
+      const colon = left.findIndex((x) => isOp(x, ":"));
+      namesIn(colon >= 0 && isName(left[0]) && colon === 1 ? left.slice(0, 1) : left);
+    } else if (isName(t[0]) && isOp(t[1], ":") && !KEYWORDS.has(t[0]!.v)) out.add(t[0]!.v); // `x: int` (annotation only)
+  }
+  // `with … as x` / `as (a, b)` and `except … as x`, anywhere in the statement (not in import lines).
+  if (!(isName(head, "import") || isName(head, "from"))) {
+    for (let j = 0; j + 1 < t.length; j++) {
+      if (!isName(t[j], "as")) continue;
+      if (isName(t[j + 1])) out.add(t[j + 1]!.v);
+      else if (isOp(t[j + 1], "(")) {
+        let d = 0;
+        let q = j + 1;
+        const inner: Tok[] = [];
+        for (; q < t.length; q++) {
+          if (isOp(t[q], "(")) d++;
+          if (isOp(t[q], ")") && --d === 0) break;
+          if (q > j + 1) inner.push(t[q]!);
+        }
+        namesIn(inner);
+      }
+    }
+  }
+  // The walrus binds in the enclosing function.
+  for (let j = 1; j < t.length; j++) if (isOp(t[j], ":=") && isName(t[j - 1])) out.add(t[j - 1]!.v);
+  return out;
+}
+
 export function parsePyFile(text: string): ParsedFile {
   const out: ParsedFile = { symbols: [], imports: [], calls: [], exportedLocals: [], notes: [] };
-  const { lines, problem } = scan(text);
+  const { lines: physical, problem } = scan(text);
+  const lines = splitStatements(physical);
   if (problem) out.notes.push(`the Python reader stopped early: ${problem}; what came before it was read`);
   const lastLine = (l: Logical) => {
     const t = l.toks[l.toks.length - 1]!;
@@ -415,16 +542,36 @@ export function parsePyFile(text: string): ParsedFile {
     }
     const base = l.indent;
     let end = lastLine(l);
+    const globals = new Set<string>();
     for (let j = idx + 1; j < lines.length && lines[j]!.indent > base; j++) {
       const b = lines[j]!.toks;
       end = lastLine(lines[j]!);
-      if (isName(b[0]) && !KEYWORDS.has(b[0]!.v) && (isOp(b[1], "=") || isOp(b[1], ":") || isOp(b[1], ","))) names.add(b[0]!.v);
-      if ((isName(b[0], "def") || isName(b[0], "class")) && isName(b[1])) names.add(b[1]!.v);
-      if (isName(b[0], "async") && isName(b[1], "def") && isName(b[2])) names.add(b[2]!.v);
-      if (isName(b[0], "for")) for (let q = 1; q < b.length && !isName(b[q], "in"); q++) if (isName(b[q])) names.add(b[q]!.v);
-      for (let q = 0; q + 1 < b.length; q++) if (isName(b[q], "as") && isName(b[q + 1]) && !(isName(b[0], "import") || isName(b[0], "from"))) names.add(b[q + 1]!.v);
+      if (isName(b[0], "global") || isName(b[0], "nonlocal")) for (const x of b.slice(1)) if (x.t === "name") globals.add(x.v);
+      for (const n of boundNames(b)) names.add(n);
     }
+    for (const g of globals) names.delete(g);
     scopes.push({ from: t[0]!.line, to: end, names });
+  });
+  // Review round 3 (R3-M1): a class body binds names for its own direct statements only (not inside its methods).
+  interface ClassScope {
+    lines: Set<number>;
+    names: Set<string>;
+  }
+  const classScopes: ClassScope[] = [];
+  lines.forEach((l, idx) => {
+    const t = l.toks;
+    if (!(isName(t[0], "class") && isName(t[1]))) return;
+    const base = l.indent;
+    let bodyIndent: number | null = null;
+    const sc: ClassScope = { lines: new Set(), names: new Set() };
+    for (let j = idx + 1; j < lines.length && lines[j]!.indent > base; j++) {
+      const b = lines[j]!;
+      if (bodyIndent === null) bodyIndent = b.indent;
+      if (b.indent !== bodyIndent) continue;
+      for (let n = b.toks[0]!.line; n <= lastLine(b); n++) sc.lines.add(n);
+      for (const n of boundNames(b.toks)) sc.names.add(n);
+    }
+    classScopes.push(sc);
   });
   /** The innermost def scope holding a line (null = module level). */
   const scopeAt = (line: number): Scope | null => {
@@ -435,12 +582,17 @@ export function parsePyFile(text: string): ParsedFile {
   const importScope = out.imports.map((imp) => scopeAt(imp.line));
   /** Names the module defines at top level (def, class, assignment): an import of the same name is then unsure. */
   const topDefined = new Set(out.symbols.filter((s) => s.parent === undefined).map((s) => s.name));
+  // Review round 3 (R3-M1): every name a module-level statement binds (tuple unpacking, for, with, := …) is unsure too.
+  const topRebound = new Set<string>();
+  for (const l of lines) if (scopeAt(l.toks[0]!.line) === null && !classScopes.some((c) => c.lines.has(l.toks[0]!.line)) && !isName(l.toks[0], "def") && !isName(l.toks[0], "class") && !isName(l.toks[1], "def")) for (const n of boundNames(l.toks)) topRebound.add(n);
+  for (const n of topRebound) topDefined.add(n);
   const ownCallable = new Set(out.symbols.filter((s) => s.parent === undefined && (s.kind === "function" || s.kind === "class")).map((s) => s.name));
 
   /** The import (or own definition) a dotted name used at `line` refers to, or null (shadowed, unsure, unknown). */
   const resolveChain = (parts: string[], line: number, lineLocals: Set<string>): { imp: number; local: string; member: string } | { own: true; local: string; member: string } | null => {
     const first = parts[0]!;
     if (lineLocals.has(first)) return null; // a lambda parameter or comprehension variable on this line
+    if (classScopes.some((c) => c.lines.has(line) && c.names.has(first))) return null; // a class-body name
     const findImport = (scope: Scope | null) => {
       for (let p = parts.length; p >= 1; p--) {
         const local = parts.slice(0, p).join(".");
@@ -458,7 +610,8 @@ export function parsePyFile(text: string): ParsedFile {
     }
     const mod = findImport(null);
     if (mod) return topDefined.has(first) ? null : mod; // redefined at module level: plain code cannot tell which one runs
-    if (ownCallable.has(first)) return { own: true, local: first, member: parts.slice(1).join(".") };
+    // A module-level def/class whose name a module-level statement also rebinds (`for f in …`, `f = …`) is unsure.
+    if (ownCallable.has(first) && !topRebound.has(first)) return { own: true, local: first, member: parts.slice(1).join(".") };
     return null;
   };
 
@@ -480,6 +633,9 @@ export function parsePyFile(text: string): ParsedFile {
   for (const l of lines) {
     const t = l.toks;
     if (isName(t[0], "import") || (isName(t[0], "from") && !isOp(t[1], "("))) continue;
+    // An `import` keyword anywhere else is an import form plain code did not read (review round 3, R3-B1).
+    const stray = t.findIndex((x, j) => j > 0 && isName(x, "import") && !isName(t[0], "from"));
+    if (stray >= 0) out.notes.push(`line ${t[stray]!.line} holds an import plain code did not read`);
     const lineLocals = lineLocalsOf(t);
     const isClassLine = isName(t[0], "class") && isName(t[1]) && isOp(t[2], "(");
     let classClose = -1;
@@ -537,7 +693,8 @@ export function parsePyFile(text: string): ParsedFile {
         j = d.next - 1;
         continue;
       }
-      if (isOp(next, "(") && (d.name === "importlib.import_module" || d.name === "__import__")) {
+      // Review round 3 (R3-B1): any module loader, however it was imported, is a dynamic import plain code does not follow.
+      if (isOp(next, "(") && DYNAMIC_LOADERS.has(d.name.split(".").pop()!)) {
         const arg = t[d.next + 1];
         const lit = arg?.t === "str" && isOp(t[d.next + 2], ")") ? /^[rRuU]?(['"])(.*)\1$/.exec(arg.v)?.[2] : undefined;
         out.imports.push({ line: tok.line, specifier: lit ?? "<computed>", kind: "dynamic", names: [], ...(lit === undefined ? { computed: true } : {}) });

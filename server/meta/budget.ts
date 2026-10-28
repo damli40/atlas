@@ -12,6 +12,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import type { ChatArgs, ChatResult } from "./client";
+import { estimatedCallUsd } from "./pasted-guard";
 
 export const DEFAULT_CALLS_PER_HOUR = 60;
 export const DEFAULT_EXPERIMENTS_PER_SESSION = 10;
@@ -33,12 +34,12 @@ export interface ModelBudget {
   /** May this session's new experiment ask the model? Counts the experiment when it may. */
   startExperiment(sessionId: string): BudgetCheck;
   /** Wraps a chat function: each call is checked and counted, and its reported cost is added. */
-  wrap(chat: (args: ChatArgs) => Promise<ChatResult>): (args: ChatArgs) => Promise<ChatResult>;
+  wrap(chat: (args: ChatArgs) => Promise<ChatResult>, opts?: { reserveWorstCase?: boolean }): (args: ChatArgs) => Promise<ChatResult>;
   /**
    * D06-01: the same check and count for a model call that is not a chat() (Muse Code via `muse exec`).
    * `refused` builds the answer when a limit is reached (the call is then not made).
    */
-  track<R extends { usage?: { usd: number } }>(call: () => Promise<R>, refused: (reason: string) => R): Promise<R>;
+  track<R extends { usage?: { usd: number } }>(call: () => Promise<R>, refused: (reason: string) => R, reserveUsd?: number): Promise<R>;
   /** Dollars spent: at start plus since. */
   spentUsd(): number;
   /** Calls made in the last hour. */
@@ -51,6 +52,8 @@ export function createModelBudget(opts: BudgetOptions = {}): ModelBudget {
   const ceiling = opts.spendCeilingUsd ?? DEFAULT_SPEND_CEILING_USD;
   const now = opts.now ?? Date.now;
   let spent = opts.spentAtStartUsd ?? 0;
+  /** X1 review round 3 (minor 4): worst-case dollars held for calls in flight (only for calls that reserve). */
+  let reserved = 0;
   const callTimes: number[] = [];
   const experiments = new Map<string, number>();
 
@@ -65,14 +68,21 @@ export function createModelBudget(opts: BudgetOptions = {}): ModelBudget {
     return callTimes.length >= callsPerHour ? { ok: false, reason: "call limit reached" } : { ok: true };
   };
 
-  const track: ModelBudget["track"] = async (call, refused) => {
+  const track: ModelBudget["track"] = async (call, refused, reserveUsd = 0) => {
     const money = spendCheck();
     if (!money.ok) return refused(money.reason);
+    // A reserving call holds its worst case before it is sent, so calls running at once can never pass the ceiling.
+    if (reserveUsd > 0 && spent + reserved + reserveUsd > ceiling) {
+      return refused(`spend limit reached: $${spent.toFixed(2)} spent and $${reserved.toFixed(2)} held for calls in flight; this call could cost up to $${reserveUsd.toFixed(2)} of the $${ceiling} ceiling`);
+    }
     const calls = callCheck();
     if (!calls.ok) return refused(calls.reason);
     const at = now();
     callTimes.push(at);
-    const res = await call();
+    reserved += reserveUsd;
+    const res = await call().finally(() => {
+      reserved -= reserveUsd; // settled: the real cost is added below
+    });
     // Final review M7: a call refused before it was sent (no key, refused model id) used nothing: it does not
     // count against the hourly limit, so a keyless server does not run out of calls without making one.
     if ((res as { notSent?: true }).notSent === true) {
@@ -94,8 +104,8 @@ export function createModelBudget(opts: BudgetOptions = {}): ModelBudget {
       experiments.set(sessionId, n + 1);
       return { ok: true };
     },
-    wrap(chat) {
-      return (args) => track(() => chat(args), (reason): ChatResult => ({ ok: false, reason }));
+    wrap(chat, wrapOpts) {
+      return (args) => track(() => chat(args), (reason): ChatResult => ({ ok: false, reason }), wrapOpts?.reserveWorstCase ? estimatedCallUsd(args) : 0);
     },
     track,
     spentUsd: () => spent,

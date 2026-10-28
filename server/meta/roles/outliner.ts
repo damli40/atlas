@@ -129,6 +129,8 @@ export interface OutlinerDeps {
   /** The server passes the budget-wrapped chat; this role adds the code guard in front of it. */
   chat: (args: ChatArgs) => Promise<ChatResult>;
   log?: Pick<SessionEmitter, "emit" | "model">;
+  /** Called once, right before the first call is sent (after every check): may refuse (e.g. the client's model rounds). */
+  beforeFirstCall?: () => { ok: true } | { ok: false; reason: string };
 }
 
 export type OutlinerResult =
@@ -159,6 +161,8 @@ export async function runOutliner(input: OutlinerInput, deps: OutlinerDeps): Pro
     return { ok: false, model, reason: `${model}: not asked (the prompt would be about ${tokens} tokens; Atlas sends at most ${MAX_OUTLINE_PROMPT_TOKENS}, so at most about $${worstCaseUsd(MAX_OUTLINE_PROMPT_TOKENS).toFixed(2)} a job). Choose a smaller folder.`, attempts };
   }
 
+  const allowed = deps.beforeFirstCall?.() ?? { ok: true as const };
+  if (!allowed.ok) return { ok: false, model, reason: `${model}: not asked (${allowed.reason})`, attempts };
   for (let attempt = 1; attempt <= 2; attempt++) {
     const res = await chat({ role: "outliner", model, messages: [...messages], json: true, reasoningEffort: effort, maxTokens: OUTLINER_MAX_TOKENS });
     usage = addUsage(usage, res.usage);

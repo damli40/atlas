@@ -139,6 +139,8 @@ export interface CodeEdge {
   typeOnly?: true;
   /** Plain code's note on the target (for example an ambiguous re-export). */
   note?: string;
+  /** Review round 3 (R3-B2): a name in an export statement or footer: like an import line, it links only a part holding the whole file. */
+  onExport?: true;
 }
 
 export interface CodeMap {

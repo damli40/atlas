@@ -156,7 +156,14 @@ export function createReplayGate(limits: ReplayLimits = replayLimitsFromEnv(), n
 /** A plain hourly counter per key (S5: model calls per client address). */
 export function createHourlyLimit(perHour: number, what: string, now: () => number = Date.now) {
   const of = counters();
+  const check = (key: string): { ok: true } | { ok: false; reason: string } => {
+    const c = of(key);
+    c.started = c.started.filter((t) => now() - t < HOUR_MS);
+    return c.started.length >= perHour ? { ok: false, reason: `call limit reached: one client address may ask for ${perHour} ${what} an hour` } : { ok: true };
+  };
   return {
+    /** X1: say whether one more would be allowed, without counting it. */
+    check,
     /** Count one, or say why not. */
     take(key: string): { ok: true } | { ok: false; reason: string } {
       const c = of(key);

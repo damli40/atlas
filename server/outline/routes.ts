@@ -82,6 +82,8 @@ interface Job {
   outlineJson?: string;
   /** Why Wonder was not asked (set before the job runs). */
   notAsked?: string;
+  /** Takes this job's model round from the client's allowance, just before Wonder is asked (review round 3, minor 3). */
+  takeRound?: () => { ok: true } | { ok: false; reason: string };
 }
 
 const fileEntry = z.strictObject({ path: z.string().min(1).max(1000), text: z.string().max(MAX_OUTLINE_FILE_BYTES * 4) });
@@ -108,7 +110,8 @@ export function createOutlineRoutes(opts: OutlineOptions, deps: OutlineDeps) {
   const now = opts.now ?? (() => new Date());
   const model = opts.outliner?.model ?? OUTLINER_MODEL;
   // The role adds the code guard in front of this (refused ids are never counted or sent).
-  const outlinerChat = opts.outliner && deps.budget ? deps.budget.wrap(opts.outliner.chat) : undefined;
+  // Review round 3 (minor 4): each outline call reserves its worst case on the shared budget before it is sent.
+  const outlinerChat = opts.outliner && deps.budget ? deps.budget.wrap(opts.outliner.chat, { reserveWorstCase: true }) : undefined;
   const readGithub = opts.readGithub ?? ((req: RepoRequest) => intakeGithub(req));
   const offLoop = opts.offLoop ?? childProcessOffLoop();
   const jobs = new Map<string, Job>();
@@ -156,7 +159,7 @@ export function createOutlineRoutes(opts: OutlineOptions, deps: OutlineDeps) {
       const kb = Math.ceil(codebase.files.reduce((n, f) => n + f.bytes, 0) / 1024);
       const label = codebase.source.kind === "github" ? `${codebase.source.repo}@${codebase.source.commit.slice(0, 12)}${codebase.source.subfolder ? ` (${codebase.source.subfolder})` : ""}` : "uploaded files";
       // Off the event loop (review round 2, B2): a hostile codebase slows only its own job.
-      const codeMap = await offLoop.map(codebase.files, codebase.configFiles);
+      const codeMap = await offLoop.map(codebase.files, codebase.configFiles, codebase.skipped.map((x) => x.path));
       const tooBig = codeMapTooLarge(codeMap);
       if (tooBig) throw new OutlineIntakeError("too_large", tooBig);
       // The fingerprint is computed by the section below; this log line names the files only by count and size.
@@ -167,7 +170,7 @@ export function createOutlineRoutes(opts: OutlineOptions, deps: OutlineDeps) {
         wonder = { model, outline: null, attempts: [], failure: `not asked (${job.notAsked ?? "this server asks no Meta model for outlines"})` };
       } else {
         const files = [...codebase.files].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
-        const r = await runOutliner({ files, codeMap, label, codeSha256: codebaseSha256(files), model }, { chat: outlinerChat, log: sessionEmitter(deps.agentLog, job.sessionId) });
+        const r = await runOutliner({ files, codeMap, label, codeSha256: codebaseSha256(files), model }, { chat: outlinerChat, log: sessionEmitter(deps.agentLog, job.sessionId), ...(job.takeRound ? { beforeFirstCall: job.takeRound } : {}) });
         wonder = r.ok ? { model: r.model, outline: r.outline, attempts: r.attempts } : { model: r.model, outline: null, attempts: r.attempts, failure: oneLine(r.reason, 600) };
       }
       job.status = "checking";
@@ -246,12 +249,8 @@ export function createOutlineRoutes(opts: OutlineOptions, deps: OutlineDeps) {
       started.set(sessionId, count + 1);
       while (started.size > 1000) started.delete(started.keys().next().value!);
       // Wonder is asked only when this server has it and the client's model-round allowance is not used up.
-      let notAsked: string | undefined;
-      if (outlinerChat) {
-        const round = deps.takeModelRound(c);
-        if (!round.ok) notAsked = round.reason;
-      }
-      const job: Job = { id: `ol_${nanoid(10)}`, sessionId, status: "reading", createdAt: now().toISOString(), what, ...(notAsked !== undefined ? { notAsked } : {}) };
+      // The model round is taken only when Wonder is really asked (after the map is built and within the caps).
+      const job: Job = { id: `ol_${nanoid(10)}`, sessionId, status: "reading", createdAt: now().toISOString(), what, takeRound: () => deps.takeModelRound(c) };
       keep(job);
       say(sessionId, "human", `asks for an outline of ${what}`);
       void run(job, read);

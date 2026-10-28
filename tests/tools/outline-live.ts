@@ -69,7 +69,7 @@ const codebase: Codebase = saved
   : process.env.OUTLINE_CLONE
     ? intakeClone(process.env.OUTLINE_CLONE, req)
     : await intakeGithub(req);
-const codeMap = buildCodeMap(codebase.files, codebase.configFiles);
+const codeMap = buildCodeMap(codebase.files, codebase.configFiles, codebase.skipped.map((x) => x.path));
 const files = [...codebase.files].sort((a, b) => (a.path < b.path ? -1 : 1));
 const codeSha256 = codebaseSha256(files);
 const label = `${req.owner}/${req.repo}@${codebase.source.kind === "github" ? codebase.source.commit.slice(0, 12) : ""}${req.subfolder ? ` (${req.subfolder})` : ""}`;

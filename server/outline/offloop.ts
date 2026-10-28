@@ -58,13 +58,13 @@ function run<T>(request: unknown, limitMs: number): Promise<T> {
 }
 
 export interface OffLoop {
-  map(files: OutlineFile[], configFiles: ConfigFile[]): Promise<CodeMap>;
+  map(files: OutlineFile[], configFiles: ConfigFile[], skippedPaths?: string[]): Promise<CodeMap>;
   section(input: OutlineSectionInput): Promise<OutlineSection>;
 }
 
 export function childProcessOffLoop(limitMs = OFF_LOOP_LIMIT_MS): OffLoop {
   return {
-    map: async (files, configFiles) => (await run<{ codeMap: CodeMap }>({ op: "map", files, configFiles }, limitMs)).codeMap,
+    map: async (files, configFiles, skippedPaths = []) => (await run<{ codeMap: CodeMap }>({ op: "map", files, configFiles, skippedPaths }, limitMs)).codeMap,
     section: async (input) => (await run<{ section: OutlineSection }>({ op: "section", input }, limitMs)).section,
   };
 }

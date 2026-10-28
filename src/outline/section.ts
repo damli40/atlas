@@ -160,7 +160,7 @@ function sectionProblems(raw: unknown): string[] {
   if (codeSha !== s.codeSha256) say(`the files hash to ${codeSha.slice(0, 12)}…, not the recorded codeSha256 ${s.codeSha256.slice(0, 12)}…`);
 
   // The code map, rebuilt.
-  const map = buildCodeMap(s.files, s.configFiles ?? []);
+  const map = buildCodeMap(s.files, s.configFiles ?? [], s.skipped.map((x) => x.path));
   if (!sameJson(map, s.codeMap)) say("the code map is not what plain code (src/outline/codemap.ts) builds from these files");
 
   // Wonder's outline and plain code's verdict on it.
@@ -228,7 +228,7 @@ export interface OutlineSectionInput {
 export function makeOutlineSection(input: OutlineSectionInput): OutlineSection {
   const files = [...input.files].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
   const configFiles = input.configFiles && input.configFiles.length ? [...input.configFiles].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0)) : undefined;
-  const codeMap = input.codeMap ?? buildCodeMap(files, configFiles ?? []);
+  const codeMap = input.codeMap ?? buildCodeMap(files, configFiles ?? [], input.skipped.map((x) => x.path));
   const used = input.wonder.attempts.map((a) => a.usage).filter((u): u is NonNullable<typeof u> => u !== undefined);
   const reasoning = used.some((u) => u.reasoningTokens !== undefined) ? { reasoningTokens: used.reduce((n, u) => n + (u.reasoningTokens ?? 0), 0) } : {};
   const usage = used.length

@@ -42,3 +42,11 @@ export const PYTHON_STDLIB: ReadonlySet<string> = new Set([
   "venv", "warnings", "wave", "weakref", "webbrowser", "winreg", "winsound", "wsgiref", "xml", "xmlrpc", "zipapp",
   "zipfile", "zipimport", "zlib", "zoneinfo",
 ]);
+
+/**
+ * X1 review round 3 (R3-B1, S1): modules CPython finds before it looks at any folder: the built-in ones
+ * (`sys.builtin_module_names`) and the frozen ones (`_imp._frozen_module_names()`), CPython 3.14.7.
+ * Every other standard-library module is found on the path, so a script's own sibling file (scripts/queue.py next to
+ * scripts/worker.py) wins over it, as CPython does.
+ */
+export const PYTHON_FOUND_FIRST: ReadonlySet<string> = new Set(["_abc", "_ast", "_codecs", "_collections", "_contextvars", "_datetime", "_functools", "_imp", "_io", "_locale", "_opcode", "_operator", "_signal", "_sre", "_stat", "_string", "_suggestions", "_symtable", "_sysconfig", "_thread", "_tokenize", "_tracemalloc", "_types", "_typing", "_warnings", "_weakref", "atexit", "builtins", "errno", "faulthandler", "gc", "itertools", "marshal", "posix", "pwd", "sys", "time", "_collections_abc", "_frozen_importlib", "_frozen_importlib_external", "_sitebuiltins", "abc", "codecs", "genericpath", "importlib.machinery", "importlib.util", "io", "ntpath", "os", "posixpath", "runpy", "site", "stat", "zipimport"]);

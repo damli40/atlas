@@ -18,7 +18,7 @@
 
 import { parseJsFile, type ParsedFile, type RawImport } from "./parse-js";
 import { parsePyFile } from "./parse-py";
-import { PYTHON_STDLIB, PYTHON_STDLIB_VERSION } from "./py-stdlib";
+import { PYTHON_FOUND_FIRST, PYTHON_STDLIB, PYTHON_STDLIB_VERSION } from "./py-stdlib";
 import { plural } from "../words";
 import { visibleText } from "../gate";
 import type { CodeEdge, CodeImport, CodeMap, CodeMapFile, CodeSymbol, ConfigFile, ImportTarget, OutlineFile, OutlineLanguage } from "./types";
@@ -279,7 +279,7 @@ export function pyRoots(importer: string, files: ReadonlySet<string>): string[] 
  * Where a Python import goes. A `from pkg import a, b` may name submodules (pkg/a.py), so one import line can
  * become several CodeImports: one per submodule, and one for the names that live in the package itself.
  */
-export function resolvePy(importer: string, imp: RawImport, files: ReadonlySet<string>): CodeImport[] {
+export function resolvePy(importer: string, imp: RawImport, files: ReadonlySet<string>, skipped: ReadonlySet<string> = new Set()): CodeImport[] {
   const base = { line: imp.line, specifier: imp.specifier, kind: imp.kind };
   if (imp.computed || imp.kind === "dynamic") {
     return [{ ...base, names: imp.names, target: { kind: "unresolved", reason: imp.computed ? "the module name is computed at run time, so plain code cannot follow it" : "a dynamic import (importlib / __import__): plain code lists it but does not follow it" } }];
@@ -309,15 +309,29 @@ export function resolvePy(importer: string, imp: RawImport, files: ReadonlySet<s
     target = hit ? { kind: "file", path: hit } : { kind: "unresolved", reason: `no file for "${imp.specifier}" among the files Atlas read` };
   } else {
     const top = mod.split(".")[0]!;
-    const root = PYTHON_STDLIB.has(top) ? undefined : pyRoots(importer, files).find((r) => pyModuleAt(r, mod, files) !== null);
-    if (root !== undefined) {
+    // Review round 3 (R3-B1, S1): CPython looks for a built-in or frozen module first, then along its path, whose first
+    // folder is a script's own folder. So a script's sibling queue.py beats the standard library's queue; then the
+    // standard library; then the codebase root and src-style roots.
+    const roots = pyRoots(importer, files);
+    const scriptDir = roots[0] !== "" || !files.has("__init__.py") ? roots[0]! : null;
+    const foundFirst = PYTHON_FOUND_FIRST.has(top) || PYTHON_FOUND_FIRST.has(mod);
+    const own = dirOf(importer);
+    const ownIsScript = !files.has(own === "" ? "__init__.py" : `${own}/__init__.py`);
+    const sibling = !foundFirst && ownIsScript && scriptDir === own && pyModuleAt(own, mod, files) !== null ? own : undefined;
+    const root = sibling ?? (PYTHON_STDLIB.has(top) ? undefined : roots.find((r) => pyModuleAt(r, mod, files) !== null));
+    const rel = mod.split(".").join("/");
+    const skippedHit = root === undefined && !PYTHON_STDLIB.has(top) ? roots.map((r) => (r === "" ? rel : `${r}/${rel}`)).find((p) => skipped.has(`${p}.py`) || skipped.has(`${p}/__init__.py`)) : undefined;
+    if (skippedHit !== undefined) {
+      // Review round 3 (L7): a local module Atlas skipped (over a cap) is never called an outside package.
+      target = { kind: "unresolved", reason: `"${imp.specifier}" is a file of this codebase that Atlas did not read (it was skipped)` };
+      pkgDir = null;
+    } else if (root !== undefined) {
       const hit = pyModuleAt(root, mod, files)!;
       target = { kind: "file", path: hit };
       pkgDir = hit.endsWith("/__init__.py") || hit === "__init__.py" ? dirOf(hit) : hit.replace(/\.py$/, "");
     } else {
       // Review round 2 (minor 2): a folder of .py files without __init__.py is a namespace package. It is not an
       // outside package; a submodule named in `from ns.sub import mod` still resolves below.
-      const rel = mod.split(".").join("/");
       const ns = PYTHON_STDLIB.has(top) ? undefined : pyRoots(importer, files).map((r) => (r === "" ? rel : `${r}/${rel}`)).find((d) => [...files].some((f) => f.startsWith(`${d}/`)));
       if (ns !== undefined) {
         target = { kind: "unresolved", reason: `"${imp.specifier}" is a namespace package (a folder without __init__.py), which plain code does not read as a module` };
@@ -351,7 +365,12 @@ interface Parsed {
 }
 
 /** Builds the code map. Pure and deterministic; never throws for any file content. */
-export function buildCodeMap(files: ReadonlyArray<Pick<OutlineFile, "path" | "language" | "text">>, configs: ReadonlyArray<Pick<ConfigFile, "path" | "text">> = []): CodeMap {
+export function buildCodeMap(
+  files: ReadonlyArray<Pick<OutlineFile, "path" | "language" | "text">>,
+  configs: ReadonlyArray<Pick<ConfigFile, "path" | "text">> = [],
+  /** Review round 3 (L7): paths the intake skipped (over a cap): an import of one is "Atlas did not read it". */
+  skippedPaths: readonly string[] = [],
+): CodeMap {
   const sorted = [...files].sort((a, b) => cmp(a.path, b.path));
   const paths = new Set(sorted.map((f) => f.path));
   const byPath = new Map<string, Parsed>();
@@ -368,7 +387,7 @@ export function buildCodeMap(files: ReadonlyArray<Pick<OutlineFile, "path" | "la
   }
 
   try {
-    return buildChecked(sorted, paths, aliases, notes);
+    return buildChecked(sorted, paths, aliases, notes, new Set(skippedPaths));
   } catch (e) {
     if (!(e instanceof TooComplex)) throw e;
     // Review round 2 (B2): past the counted work budget the map is given up, the same way on every machine.
@@ -388,7 +407,7 @@ export const MAX_MAP_WORK = 3_000_000;
 export const TOO_COMPLEX_TO_MAP = "can't check: the codebase is too complex to map (its re-exports and uses need more steps than Atlas allows)";
 class TooComplex extends Error {}
 
-function buildChecked(sorted: ReadonlyArray<Pick<OutlineFile, "path" | "language" | "text">>, paths: ReadonlySet<string>, aliases: readonly PathAliases[], notes: string[]): CodeMap {
+function buildChecked(sorted: ReadonlyArray<Pick<OutlineFile, "path" | "language" | "text">>, paths: ReadonlySet<string>, aliases: readonly PathAliases[], notes: string[], skipped: ReadonlySet<string>): CodeMap {
   const byPath = new Map<string, Parsed>();
   let work = 0;
   const spend = (n = 1) => {
@@ -401,7 +420,7 @@ function buildChecked(sorted: ReadonlyArray<Pick<OutlineFile, "path" | "language
     const parsed = parseOne(f);
     spend(Math.ceil(f.text.length / 100));
     const groups: CodeImport[][] = parsed.imports.map((imp) =>
-      f.language === "py" ? resolvePy(f.path, imp, paths) : [{ line: imp.line, specifier: visibleText(imp.specifier), kind: imp.kind, names: imp.names, target: resolveJs(f.path, imp, paths, aliases) }],
+      f.language === "py" ? resolvePy(f.path, imp, paths, skipped) : [{ line: imp.line, specifier: visibleText(imp.specifier), kind: imp.kind, names: imp.names, target: resolveJs(f.path, imp, paths, aliases) }],
     );
     byRaw.set(f.path, groups);
     const imports = groups.flat();
@@ -424,6 +443,14 @@ function buildChecked(sorted: ReadonlyArray<Pick<OutlineFile, "path" | "language
     byPath.set(f.path, { file: f, parsed, imports, symbols });
   }
 
+  /**
+   * A file's top-level definition of a name. Review round 3 (minor 1): Python runs the LAST definition (the first
+   * ones may be `@overload` stubs); JS/TS keeps the one definition (overload signatures have no body and are skipped).
+   */
+  const topSym = (p: Parsed, name: string): CodeSymbol | undefined => {
+    const all = p.symbols.filter((s) => s.parent === undefined && s.name === name);
+    return p.file.language === "py" ? all[all.length - 1] : all[0];
+  };
   type Found = { path: string; symbol?: string; note?: string };
   const memo = new Map<string, Found>();
   const inProgress = new Set<string>();
@@ -450,7 +477,7 @@ function buildChecked(sorted: ReadonlyArray<Pick<OutlineFile, "path" | "language
     if (!p) return { path };
     const exportedAs = p.parsed.exportedLocals.find((e) => e.exported === name);
     const local = exportedAs?.local ?? name;
-    const own = name === "default" ? p.symbols.find((s) => s.parent === undefined && s.isDefault) : p.symbols.find((s) => s.parent === undefined && s.name === local);
+    const own = name === "default" ? p.symbols.find((s) => s.parent === undefined && s.isDefault) : topSym(p, local);
     if (own) return { path, symbol: own.id };
     // A named re-export, or an import bound to that name. In JS/TS an imported name is reachable only when the file
     // exports it again (review minor 4); in Python every module-level name, imported ones included, is reachable.
@@ -525,16 +552,19 @@ function buildChecked(sorted: ReadonlyArray<Pick<OutlineFile, "path" | "language
     }
     const groups = byRaw.get(from) ?? [];
     for (const use of p.parsed.calls) {
-      const kind = use.form === "extends" || use.form === "ref" ? ("uses" as const) : ("calls" as const);
+      let kind: CodeEdge["kind"] = use.form === "extends" || use.form === "ref" || use.form === "export" ? "uses" : "calls";
+      const onExport = use.form === "export" ? { onExport: true as const } : {};
       const shown = visibleText(
-        `${use.form === "new" ? "new " : use.form === "jsx" ? "<" : use.form === "extends" ? "extends " : ""}${use.member ? `${use.local}.${use.member}` : use.local}${use.form === "jsx" ? ">" : ""}`,
+        `${use.form === "new" ? "new " : use.form === "jsx" ? "<" : use.form === "extends" ? "extends " : use.form === "export" ? "export " : ""}${use.member ? `${use.local}.${use.member}` : use.local}${use.form === "jsx" ? ">" : ""}`,
       );
       if (use.own) {
         // A use of this file's own top-level definition (a call inside one file, a base class, a reference).
-        const sym = p.symbols.find((s) => s.parent === undefined && s.name === use.local);
+        const sym = topSym(p, use.local);
         if (!sym) continue;
         const d = memberOf({ path: from, symbol: sym.id }, use.member);
-        addEdge({ kind, from, to: from, what: shown, toSymbol: d.symbol! }, use.line);
+        // Review round 3 (minor 2): `X.map()` on a constant calls the value's method, not code of X: a use.
+        if (kind === "calls" && use.member && sym.kind === "variable") kind = "uses";
+        addEdge({ kind, from, to: from, what: shown, toSymbol: d.symbol!, ...onExport }, use.line);
         continue;
       }
       if (use.imp === undefined) continue;
@@ -546,7 +576,10 @@ function buildChecked(sorted: ReadonlyArray<Pick<OutlineFile, "path" | "language
       const wanted = n.imported === "*" ? parts[0] : n.imported;
       const rest = n.imported === "*" ? parts.slice(1).join(".") : use.member;
       const d: Found = wanted !== undefined ? memberOf(definer(imp.target.path, wanted), rest || undefined) : { path: imp.target.path };
-      addEdge({ kind, from, to: d.path, what: shown, ...(d.symbol ? { toSymbol: d.symbol } : {}), ...(d.note ? { note: d.note } : {}) }, use.line);
+      const base = wanted !== undefined ? definer(imp.target.path, wanted) : undefined;
+      const baseSym = base?.symbol ? byPath.get(base.path)?.symbols.find((x) => x.id === base.symbol) : undefined;
+      if (kind === "calls" && rest && baseSym?.kind === "variable") kind = "uses";
+      addEdge({ kind, from, to: d.path, what: shown, ...(d.symbol ? { toSymbol: d.symbol } : {}), ...(d.note ? { note: d.note } : {}), ...onExport }, use.line);
     }
   }
 

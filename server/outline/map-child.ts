@@ -11,7 +11,7 @@ import { buildCodeMap } from "../../src/outline/codemap";
 import { makeOutlineSection, type OutlineSectionInput } from "../../src/outline/section";
 import type { ConfigFile, OutlineFile } from "../../src/outline/types";
 
-type Request = { op: "map"; files: OutlineFile[]; configFiles: ConfigFile[] } | { op: "section"; input: OutlineSectionInput };
+type Request = { op: "map"; files: OutlineFile[]; configFiles: ConfigFile[]; skippedPaths?: string[] } | { op: "section"; input: OutlineSectionInput };
 
 const chunks: Buffer[] = [];
 process.stdin.on("data", (c: Buffer) => chunks.push(c));
@@ -19,7 +19,7 @@ process.stdin.on("end", () => {
   let out: unknown;
   try {
     const req = JSON.parse(Buffer.concat(chunks).toString("utf8")) as Request;
-    out = req.op === "map" ? { ok: true, codeMap: buildCodeMap(req.files, req.configFiles) } : { ok: true, section: makeOutlineSection(req.input) };
+    out = req.op === "map" ? { ok: true, codeMap: buildCodeMap(req.files, req.configFiles, req.skippedPaths ?? []) } : { ok: true, section: makeOutlineSection(req.input) };
   } catch (e) {
     out = { ok: false, reason: e instanceof Error ? e.message.slice(0, 500) : "the check stopped" };
   }

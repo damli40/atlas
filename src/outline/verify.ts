@@ -30,6 +30,7 @@ import { visibleText } from "../gate";
 import { jsonDepth } from "../seal";
 import { countLines } from "./codemap";
 import { anchoredProblem } from "./quote";
+import { PYTHON_STDLIB } from "./py-stdlib";
 import type { CodeEdge, CodeMap, CodeSymbol, JoinKind, OutlineFile, VerifiedJoin, VerifiedOutline, VerifiedPart, WonderOutline } from "./types";
 
 export const MAX_ANSWER_CHARS = 400_000;
@@ -309,7 +310,8 @@ function verifyCounted(files: ReadonlyArray<Pick<OutlineFile, "path" | "text">>,
       // Review round 2 (B1): an import statement counts only for a part that holds the importing file whole. A part
       // that holds some definitions of the file links through the uses its own lines make (calls, references).
       const sources: Set<string>[] = [];
-      if (e.kind === "imports") sources.push(wholeHolders(e.from));
+      // Review round 3 (R3-B2): a name in an export statement or footer is treated the same way.
+      if (e.kind === "imports" || e.onExport) sources.push(wholeHolders(e.from));
       else {
         const seenSets = new Set<string>();
         for (const line of e.lines) {
@@ -340,14 +342,46 @@ function verifyCounted(files: ReadonlyArray<Pick<OutlineFile, "path" | "text">>,
     if (kind === "calls") return fwd.filter((e) => e.kind === "calls");
     if (kind === "imports") return fwd;
     // "data": a real use inside the parts' lines (a call or a reference, never a bare import line or a type), either way.
-    return [...fwd, ...(linked.get(`${b}\u0000${a}`) ?? [])].filter((e) => e.kind !== "imports" && !e.typeOnly);
+    return [...fwd, ...(linked.get(`${b}\u0000${a}`) ?? [])].filter((e) => e.kind !== "imports" && !e.typeOnly && !e.onExport);
   };
-  /** Plain code positively found nothing: different files, no file of A imports a file of B, nothing it cannot follow. */
-  const foundNothing = (a: VerifiedPart, b: VerifiedPart): boolean => {
+  /**
+   * Review round 3 (R3-B1): plain code positively found nothing only when it provably covered every way A could reach
+   * B. It walks the imports from A's files through every codebase file they reach (barrels, re-exports, packages),
+   * and says "found nothing" only when none of those files is B's, and none of them holds anything plain code does not
+   * follow: a parse note, an unresolved or dynamic import, a star import, a whole-module or bare import (its names
+   * may be reached through destructuring or `require(...).x`), a skipped file, or an "outside package" that is not the
+   * language's own library (it may be a path alias or a skipped local file). For a "data" join both directions
+   * must be clean. Anything less is "could not check".
+   */
+  const byFile = new Map(codeMap.files.map((f) => [f.path, f] as const));
+  const provablyApart = (from: readonly string[], to: readonly string[]): boolean => {
+    const seen = new Set<string>();
+    const queue = [...from];
+    while (queue.length > 0) {
+      spend(1);
+      const f = queue.shift()!;
+      if (seen.has(f)) continue;
+      seen.add(f);
+      if (to.includes(f)) return false;
+      const m = byFile.get(f);
+      if (!m || m.parseNotes.length > 0) return false;
+      for (const i of m.imports) {
+        if (i.kind === "dynamic" || i.target.kind === "unresolved") return false;
+        // An "outside package" may really be local code plain code could not place (a skipped file, a path alias set
+        // in a config Atlas did not read). Only the language's own library is provably outside.
+        if (i.target.kind === "external") {
+          if (m.language === "py" ? !PYTHON_STDLIB.has(i.target.name) : !i.target.name.startsWith("node:")) return false;
+          continue;
+        }
+        if (i.kind !== "type-only" && (i.names.length === 0 || i.names.some((n) => n.imported === "*" || n.local === "*"))) return false;
+        queue.push(i.target.path);
+      }
+    }
+    return true;
+  };
+  const foundNothing = (a: VerifiedPart, b: VerifiedPart, kind: JoinKind): boolean => {
     if (codeMap.cantMap || a.files.some((f) => b.files.includes(f))) return false;
-    const mapFiles = codeMap.files.filter((f) => a.files.includes(f.path));
-    if (mapFiles.some((f) => f.parseNotes.length > 0 || f.imports.some((i) => i.target.kind === "unresolved"))) return false;
-    return !codeMap.edges.some((e) => a.files.includes(e.from) && b.files.includes(e.to));
+    return provablyApart(a.files, b.files) && (kind !== "data" || provablyApart(b.files, a.files));
   };
 
   const joins: VerifiedJoin[] = outline.joins.map((j, index) => {
@@ -374,7 +408,7 @@ function verifyCounted(files: ReadonlyArray<Pick<OutlineFile, "path" | "text">>,
       anchoredProblem(f.lines, f.count, ev.line, Math.min(f.count, ev.line + 20), ev.quotedSnippet) === null;
     const wonderEvidence = { path: visibleText(ev.path), line: ev.line, matches };
     if (edges.length === 0) {
-      if (foundNothing(a, b)) return modelOnly(`${FOUND_NO_LINK}: no file of ${shown(j.from)} imports a file of ${shown(j.to)}`, { wonderEvidence, noLinkFound: true });
+      if (foundNothing(a, b, j.kind)) return modelOnly(`${FOUND_NO_LINK}: no file of ${shown(j.from)} imports a file of ${shown(j.to)}`, { wonderEvidence, noLinkFound: true });
       const what = j.kind === "calls" ? "call" : j.kind === "imports" ? "import or use" : "call or use (an import line alone does not count)";
       return modelOnly(`${COULD_NOT_CHECK}: it found no ${what} inside ${shown(j.from)}'s lines reaching ${shown(j.to)}'s lines${j.kind === "data" ? " (either way)" : ""}, and it does not see every kind of link`, { wonderEvidence });
     }
