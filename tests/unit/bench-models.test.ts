@@ -52,10 +52,16 @@ describe("bench M prompt plan (built by plain code, no model call)", () => {
     expect(three.totalCentralUsd).toBeGreaterThan(two.totalCentralUsd);
     expect(three.assumptions.completionCentral).toBe(1500);
     // B1 review minor 9: the 32,000-token retry is in the estimate.
-    expect(three.assumptions.overflowExtraCompletion).toBe(46500);
+    expect(three.assumptions.overflowExtraCompletion).toBe(10500);
     const noOverflow = { ...three.assumptions };
     expect(noOverflow.overflowShareCentral).toBeGreaterThan(0);
   });
+});
+
+it("the bench's bet token caps are the product's (G1): 4,000, retry 8,000", async () => {
+  const { BET_MAX_TOKENS, BET_RETRY_MAX_TOKENS } = await import("../../server/meta/roles/claimant-bets.ts");
+  const { ESTIMATE } = await import("../../bench/models/run.ts");
+  expect([ESTIMATE.betMaxTokens, ESTIMATE.betRetryMaxTokens]).toEqual([BET_MAX_TOKENS, BET_RETRY_MAX_TOKENS]);
 });
 
 describe("bench M prompt freeze reads the COMMITTED dry run", () => {

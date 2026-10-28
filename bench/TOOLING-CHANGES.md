@@ -47,3 +47,9 @@ in the same commit. `tests/unit/bench-order.test.ts` checks this. Earlier entrie
 
 - `bench/truth/run.ts`: the "Every test" heading now comes after the "Conditions" section (in the two results of
   2026-10-28-2 the heading sits above it; those files are append-only and stay as written). Scoring unchanged.
+
+## 2026-10-28: bench M after G1 and E3 on main (no bench M result yet)
+
+- `bench/models/run.ts`: live bet calls pass G1's caps (`maxTokens` 4,000, `retryMaxTokens` 8,000), as the product's
+  bet-only Claimant does; the estimate's overflow extra is now 10,500 completion tokens (was 46,500 with the old
+  16,000 / 32,000 caps). With E3 on the branch, prompts come from E3's builder (amendment 1).

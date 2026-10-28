@@ -52,13 +52,17 @@ export const ESTIMATE = {
   completionHigh: 3000,
   repairShare: 0.1,
   /**
-   * Added after the B1 review (minor 9): when a reasoning model runs out of room (16,000 tokens), Atlas's client retries
-   * once at 32,000. One such event costs up to 16,000 wasted + 32,000 retry tokens instead of the usual answer,
-   * i.e. about 46,500 more completion tokens. Assumed share of calls that overflow: 2% central, 5% high.
+   * The bet call's token cap (G1, main 233e297: BET_MAX_TOKENS 4,000, retry BET_RETRY_MAX_TOKENS 8,000; the live run
+   * passes both, as the product's bet-only Claimant does). When a reasoning model runs out of room, the client retries
+   * once at the retry cap: one such event costs about (4,000 - 1,500) + 8,000 = 10,500 more completion tokens than an
+   * ordinary answer. Assumed share of calls that overflow: 2% central, 5% high. (Before G1 the caps were 16,000 and
+   * 32,000, and this extra was 46,500 tokens.)
    */
+  betMaxTokens: 4000,
+  betRetryMaxTokens: 8000,
   overflowShareCentral: 0.02,
   overflowShareHigh: 0.05,
-  overflowExtraCompletion: 16000 - 1500 + 32000,
+  overflowExtraCompletion: 4000 - 1500 + 8000,
 };
 
 export interface PlannedPrompt {
@@ -222,7 +226,7 @@ export function rates(t: Tally) {
 // ── live (gated) ────────────────────────────────────────────────────────────────────────────────────
 
 export interface LiveDeps {
-  chat: (args: { role: "claimant"; model: string; messages: ChatMessageLike[]; json: true }) => Promise<
+  chat: (args: { role: "claimant"; model: string; messages: ChatMessageLike[]; json: true; maxTokens: number; retryMaxTokens: number }) => Promise<
     { ok: true; content: string; finishReason: string; usage: { usd: number; promptTokens: number; completionTokens: number } } | { ok: false; reason: string; usage?: { usd: number; promptTokens: number; completionTokens: number } }
   >;
   validate: (content: string, questions: readonly Question[]) => { ok: true; bets: { question: Question; out: { answer: unknown; rationale?: string } }[] } | { ok: false; error: string; safe: string };
@@ -248,7 +252,7 @@ export async function askModel(p: PlannedPrompt, model: string, deps: LiveDeps):
   const a: ModelAnswer = { model, bets: [], usd: 0, promptTokens: 0, completionTokens: 0, attempts: 0 };
   for (let attempt = 0; attempt < 2; attempt++) {
     a.attempts++;
-    const res = await deps.chat({ role: "claimant", model, messages: [...messages], json: true });
+    const res = await deps.chat({ role: "claimant", model, messages: [...messages], json: true, maxTokens: ESTIMATE.betMaxTokens, retryMaxTokens: ESTIMATE.betRetryMaxTokens });
     if (res.usage) {
       a.usd += res.usage.usd;
       a.promptTokens += res.usage.promptTokens;
