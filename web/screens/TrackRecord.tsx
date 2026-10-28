@@ -74,7 +74,7 @@ export function RecordBefore({ api, runId }: { api: Api; runId: string }) {
   if (!before) return null; // not this person's round (or no record): nothing is shown
   return (
     <section className="card proof-record" aria-label={TRACK_WORDS.beforeHeading} data-testid="record-before">
-      <h3>{TRACK_WORDS.beforeHeading}</h3>
+      <h2>{TRACK_WORDS.beforeHeading}</h2>
       <p className="muted small">{TRACK_WORDS.subheading}</p>
       {before.counted === 0 && before.excludedRepeats === 0 ? <p className="small">{TRACK_WORDS.beforeNone}</p> : <RecordView record={before} />}
     </section>
