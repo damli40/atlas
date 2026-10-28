@@ -595,6 +595,13 @@ def main(key_text):
               + [bytearray(1 << 17) for _ in range(3)]) if req.get("variant") == 1 else []
     CLOCK = E["CLOCK"]
     WATCH = E["WATCH"]
+    # R2 (D45): the second run of the double run moves the clock reading 10 ms at each repeated read at one moment.
+    NUDGE = E["NUDGE"]
+    REPEATS = E["_REPEATS"]
+    nudge_ms = req.get("nudgeClockMs", 0)
+    if nudge_ms not in (0, 10) or type(nudge_ms) is not int:
+        die("started with a clock nudge Atlas does not use")
+    nudge_want = [0.0]  # what NUDGE must hold: 0.0 until the first run starts, then nudge_ms / 1000
     WatchLimit = E["AtlasWatchLimit"]
     NeverWakes = E["_NeverWakes"]
     AtlasRefused = E["AtlasRefused"]
@@ -1044,6 +1051,8 @@ def main(key_text):
         changed = exposed_change()
         if changed is not None:
             tamper(changed)
+        if type(NUDGE[0]) is not float or NUDGE[0] != nudge_want[0] or len(NUDGE) != 1:
+            tamper("exposed.py's NUDGE")
         if atexit_count() != base_atexit:
             mark(word("process", what="atexit.register (a function run when the process ends, which Atlas never reaches)"))
         if len(gc_callbacks) != base_gc_callbacks:
@@ -1178,6 +1187,10 @@ def main(key_text):
         CLOCK[0] = 0.0
         ctx["clock"] = 0.0
         clock_high[0] = 0.0
+        nudge_want[0] = nudge_ms / 1000.0
+        NUDGE[0] = nudge_want[0]
+        REPEATS[0] = None
+        REPEATS[1] = 0
         name = r["exportName"]
         names = [g[0] for g in run["gens"]]
         emit(ctx, "python", {"version": py_version, "implementation": py_impl})

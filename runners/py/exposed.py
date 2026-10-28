@@ -73,8 +73,25 @@ def refuser(code, what):
 CONDITION_KINDS = ("randomness", "time-zone-or-locale")
 
 
+#: R2 (D45): seconds the clock reading moves at each repeated read at one moment. 0.0 in the first run; harness.py
+#: sets 0.010 in the second run of the double run. Only the reading moves, never CLOCK or a timer. harness.py checks
+#: after each run that this still holds its value.
+NUDGE = [0.0]
+#: R2 (D45): [CLOCK value of the last read, how many reads in a row came at that value after the first].
+#: harness.py resets it when each run starts.
+_REPEATS = [None, 0]
+
+
 def _read():
+    """Announce a read of the clock; return the reading (CLOCK, plus the second run's nudge on a repeated read)."""
     _audit("atlas.clockread", CLOCK[0])
+    now = CLOCK[0]
+    if _REPEATS[0] is not None and _REPEATS[0] == now:
+        _REPEATS[1] = _REPEATS[1] + 1
+    else:
+        _REPEATS[0] = now
+        _REPEATS[1] = 0
+    return now + _REPEATS[1] * NUDGE[0]
 
 
 def _note(kind):
@@ -88,23 +105,19 @@ def _now():
 
 
 def v_time():
-    _read()
-    return EPOCH + CLOCK[0]
+    return EPOCH + _read()
 
 
 def v_time_ns():
-    _read()
-    return int(EPOCH) * 1_000_000_000 + int(round(CLOCK[0] * 1e9))
+    return int(EPOCH) * 1_000_000_000 + int(round(_read() * 1e9))
 
 
 def v_monotonic():
-    _read()
-    return CLOCK[0]
+    return _read()
 
 
 def v_monotonic_ns():
-    _read()
-    return int(round(CLOCK[0] * 1e9))
+    return int(round(_read() * 1e9))
 
 
 def v_sleep(secs):

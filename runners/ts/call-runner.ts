@@ -19,7 +19,7 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { nanoid } from "nanoid";
-import { CALL_PINNED_LOCALE, CALL_PINNED_SEED, CALL_PINNED_TIME_ZONE, conditionsFromTrace, isCallSeed, mergeTwin, pinnedFor, CHANGED_BETWEEN_RUNS_REASON } from "../../src/conditions.ts";
+import { CALL_PINNED_LOCALE, CALL_PINNED_SEED, CALL_PINNED_TIME_ZONE, CLOCK_NUDGE_MS, conditionsFromTrace, isCallSeed, mergeTwin, pinnedFor, timedWorkIn, CHANGED_BETWEEN_RUNS_REASON, TIMED_WORK_REASON } from "../../src/conditions.ts";
 import { gate } from "../../src/gate.ts";
 import { staticRefusal } from "../../src/pasted-code.ts";
 import type { ArgSpec, Experiment, ExperimentShape, JsonValue, Run, Target, TraceEvent } from "../../src/types.ts";
@@ -157,7 +157,7 @@ async function sandboxAnswer(executor: Executor, code: string, language: "js" | 
   for (const f of SANDBOX_FILES) files[f] = own(f);
   files[targetFile] = code;
   const seed = request.seed ?? CALL_SEED;
-  files["request.json"] = JSON.stringify({ targetFile, runs: request.runs, seed, pins: { timeZone: CALL_PINNED_TIME_ZONE, locale: CALL_PINNED_LOCALE.js } } satisfies CallWorkerRequest);
+  files["request.json"] = JSON.stringify({ targetFile, runs: request.runs, seed, pins: { timeZone: CALL_PINNED_TIME_ZONE, locale: CALL_PINNED_LOCALE.js }, ...(request.nudgeClockMs ? { nudgeClockMs: request.nudgeClockMs } : {}) } satisfies CallWorkerRequest);
   let res: Awaited<ReturnType<Executor["exec"]>>;
   try {
     res = await executor.exec({
@@ -422,6 +422,10 @@ type Out = { trace: TraceEvent[]; result: Run["result"] };
  * field the two runs measured differently is not reported (CHANGED_BETWEEN_RUNS_REASON), whatever made it differ:
  * memory addresses, process ids, temp-folder paths. The second run is kept as the run's `twin`; verify rechecks it.
  * If the second run does not finish, nothing from either counts (whole-run can't check, with why).
+ *
+ * R2 (D45): the second run is started with the clock nudge (`again` passes CLOCK_NUDGE_MS to the sandbox). When that
+ * run timed its own work (its clock moved), every field that differs is "can't check" with TIMED_WORK_REASON and named
+ * in a "clock_differs" event instead. Without timed work the nudge never fires, so the second run is the same run.
  */
 export async function twinRun(first: Out, again: () => Promise<{ out?: Out; reason?: string }>): Promise<{ trace: TraceEvent[]; result: Run["result"]; twin?: Out }> {
   const second = await again();
@@ -429,11 +433,13 @@ export async function twinRun(first: Out, again: () => Promise<{ out?: Out; reas
     const why = `the second, identical run of this test did not finish (${second.reason ?? "no result"}), so Atlas cannot tell which values stay the same between runs`;
     return { trace: [{ t: 0, event: "whole_run_cant_check", data: { reason: why } }], result: { measured: {}, notMeasured: { wholeRun: why } } };
   }
-  const merged = mergeTwin(first.result, second.out.result);
+  const timed = timedWorkIn(second.out.trace);
+  const reason = timed ? TIMED_WORK_REASON : CHANGED_BETWEEN_RUNS_REASON;
+  const merged = mergeTwin(first.result, second.out.result, reason);
   const trace = [...first.trace];
   const t = trace.length ? trace[trace.length - 1]!.t : 0;
-  if (merged.changed.length > 0) trace.push({ t, event: "twin_differs", data: { fields: merged.changed } });
-  if (merged.endingChanged) trace.push({ t, event: "stopped_watching", data: { reason: CHANGED_BETWEEN_RUNS_REASON } });
+  if (merged.changed.length > 0) trace.push({ t, event: timed ? "clock_differs" : "twin_differs", data: { fields: merged.changed } });
+  if (merged.endingChanged) trace.push({ t, event: "stopped_watching", data: { reason } });
   return { trace, result: merged.result, twin: { trace: second.out.trace, result: second.out.result } };
 }
 
@@ -479,7 +485,7 @@ export async function runCallExperiment(exp: Experiment, ctl: Run, opts: { execu
     if (out) {
       // R1 review round 1 (B1, B2): the same test again, in a fresh sandbox, with the same seed and pins.
       const done = await twinRun(out, async () => {
-        const again = await runInSandbox(executor, source, language, { runs: [runRequest(exp.id, exp.params as CallShape)], seed }, opts.wallClockMs ?? DEFAULT_WALL_CLOCK_MS);
+        const again = await runInSandbox(executor, source, language, { runs: [runRequest(exp.id, exp.params as CallShape)], seed, nudgeClockMs: CLOCK_NUDGE_MS }, opts.wallClockMs ?? DEFAULT_WALL_CLOCK_MS);
         if (!again.ok) return { reason: again.reason };
         const o = again.runs.find((r) => r.id === exp.id);
         return o ? { out: o } : { reason: "the sandbox returned no result for this experiment" };

@@ -136,6 +136,8 @@ export interface CallWorkerRequest {
   seed: string;
   /** R1 (D42): the time zone and locale the sandbox must have; the worker checks them before the code exists. */
   pins: { timeZone: string; locale: string };
+  /** R2 (D45): the second run of the double run only: ms the clock moves at each repeated read at one moment. */
+  nudgeClockMs?: number;
 }
 export interface CallHarnessOutput {
   trace: TraceEvent[];
@@ -209,16 +211,30 @@ function noteUndecided(kind: string, reason: string): void {
   noteCondition(kind);
   if (active && undecided === null) undecided = reason;
 }
+/** R2 (D45): ms the clock moves at each repeated read at one moment. 0 in the first run; the second run sets it. */
+let clockNudgeMs = 0;
+/** R2 (D45): how many reads in a row came at the current virtual moment, after the first. */
+let repeatsAtMoment = 0;
+/** R2 (D45): the worker sets the second run's nudge (src/conditions.ts CLOCK_NUDGE_MS) before the code loads. */
+export function setClockNudge(ms: number): void {
+  clockNudgeMs = ms;
+}
 /**
  * The code read the clock. R1 review M1-M3: two or more reads at one moment of the virtual clock mean the code timed
- * its own work, which takes no time here: disclosed ("timed-work"), the value stays measured. Decided from the code's
- * own reads, never from CPU time, so the same test gives the same answer on every machine.
+ * its own work, which takes no time here ("timed-work"). Decided from the code's own reads, never from CPU time, so
+ * the same test gives the same answer on every machine. Returns the ms to add to this reading: 0, except in the
+ * second run of the double run (R2, D45), where each repeated read at one moment reads 10 ms later than the one
+ * before. Only the reading moves; the virtual clock and its timers do not.
  */
-function noteClockRead(): void {
+function noteClockRead(): number {
   noteCondition("clock");
-  if (!active) return;
-  if (lastReadAt === active.now) noteCondition("timed-work");
+  if (!active) return 0;
+  if (lastReadAt === active.now) {
+    noteCondition("timed-work");
+    repeatsAtMoment++;
+  } else repeatsAtMoment = 0;
   lastReadAt = active.now;
+  return repeatsAtMoment * clockNudgeMs;
 }
 const noteHost = () => noteCondition("time-zone-or-locale");
 /**
@@ -526,8 +542,8 @@ export function installVirtualClock(): void {
   // R1 (D42): every read of the clock is noted (the "conditions" line), and two reads at one virtual moment with real
   // work between them make how the call ends "can't check" (noteClockRead).
   const virtualNow = () => {
-    noteClockRead();
-    return VIRTUAL_EPOCH_MS + (active ? active.now : 0);
+    const nudge = noteClockRead();
+    return VIRTUAL_EPOCH_MS + (active ? active.now : 0) + nudge;
   };
   const realToString = RealDate.prototype.toString;
   const FakeDate = function Date(this: unknown, ...a: unknown[]) {
@@ -557,7 +573,7 @@ export function installVirtualClock(): void {
   g.Date = FakeDate;
   const perf = g.performance as Record<string, unknown> | undefined;
   if (perf) {
-    ObjectDefineProperty(perf, "now", { __proto__: null, value: function now() { noteClockRead(); return active ? active.now : 0; }, writable: true, enumerable: true, configurable: true } as PropertyDescriptor);
+    ObjectDefineProperty(perf, "now", { __proto__: null, value: function now() { const nudge = noteClockRead(); return (active ? active.now : 0) + nudge; }, writable: true, enumerable: true, configurable: true } as PropertyDescriptor);
     // Review round 1 (minor): timeOrigin + now() must give the virtual time, as in real Node it gives the real one.
     ObjectDefineProperty(perf, "timeOrigin", { __proto__: null, value: VIRTUAL_EPOCH_MS, writable: false, enumerable: true, configurable: true } as PropertyDescriptor);
   }
@@ -617,8 +633,8 @@ export function installVirtualClock(): void {
     }
   }
   const hrtime = function hrtime(prev?: [number, number]) {
-    noteClockRead();
-    const ms = active ? active.now : 0;
+    const nudge = noteClockRead();
+    const ms = (active ? active.now : 0) + nudge;
     let s = MathTrunc(ms / 1000);
     let ns = MathTrunc((ms - s * 1000) * 1e6);
     if (ArrayIsArray(prev)) {
@@ -631,9 +647,9 @@ export function installVirtualClock(): void {
     }
     return [s, ns];
   };
-  ObjectDefineProperty(hrtime, "bigint", { __proto__: null, value: function bigint() { noteClockRead(); return BigIntCtor(MathTrunc((active ? active.now : 0) * 1e6)); }, writable: true, enumerable: true, configurable: true } as PropertyDescriptor);
+  ObjectDefineProperty(hrtime, "bigint", { __proto__: null, value: function bigint() { const nudge = noteClockRead(); return BigIntCtor(MathTrunc(((active ? active.now : 0) + nudge) * 1e6)); }, writable: true, enumerable: true, configurable: true } as PropertyDescriptor);
   ObjectDefineProperty(process, "hrtime", { __proto__: null, value: hrtime, writable: true, enumerable: true, configurable: true } as PropertyDescriptor);
-  ObjectDefineProperty(process, "uptime", { __proto__: null, value: function uptime() { noteClockRead(); return (active ? active.now : 0) / 1000; }, writable: true, enumerable: true, configurable: true } as PropertyDescriptor);
+  ObjectDefineProperty(process, "uptime", { __proto__: null, value: function uptime() { const nudge = noteClockRead(); return ((active ? active.now : 0) + nudge) / 1000; }, writable: true, enumerable: true, configurable: true } as PropertyDescriptor);
 
   installSeededRandomness();
   installOrderAndHostNotes();
@@ -1472,6 +1488,7 @@ export async function runCall(fn: unknown, req: CallRunRequest, opts: CallHarnes
   for (const k of ReflectOwnKeys(loadConds)) put(runConds, k as string, true);
   undecided = null;
   lastReadAt = -1;
+  repeatsAtMoment = 0;
   hostReads = record<Record<string, true>>();
   for (const k of ReflectOwnKeys(loadHostReads)) put(hostReads, k as string, true);
   let unrefStop = false;
