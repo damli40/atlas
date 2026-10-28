@@ -1,0 +1,12 @@
+load at start: { 2.32 2.36 2.20 }
+$ vitest run
+
+ RUN  v5.0.5 <repo>
+
+
+ Test Files  101 passed | 2 skipped (103)
+      Tests  1304 passed | 35 skipped (1339)
+   Start at  02:05:09
+   Duration  40.62s (tests 83%, import 16%, transform 1%)
+
+load at end: { 5.64 3.26 2.53 }

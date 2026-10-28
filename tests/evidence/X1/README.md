@@ -139,6 +139,31 @@ in `tests/unit/outline-review2.test.ts` (21), plus updates to the earlier files.
 past the "$2 worst case" (about $3 by arithmetic, not measured), and the repair call is not re-gated. Logged, not
 fixed.
 
+## Rebase onto main (E3 paste flow + E4 Modal executor, 298a781)
+
+- `x1-outline` was replayed onto main with a plain `git rebase main`. The conflicts were resolved by keeping both
+  sides:
+  - `server/app.ts`: E3's paste routes, sweep and body limit; E4's executor; the outline routes. Both larger body
+    limits (`/paste`, `/outline/jobs`) sit in one middleware.
+  - `server/index.ts`: main's new `server/wiring.ts` wiring and E4's warm-up; the outliner is now wired there.
+  - this evidence index: E3's and E4's rows are kept, and the X1 row is updated.
+- **One shared code guard.** `codeModelRefusal` and `guardCodeChat` live in E3's `server/meta/pasted-guard.ts`. The
+  paste path (`guardPastedChat`) and the outline path (`server/meta/roles/outliner.ts`) both call them. Each keeps its
+  own wording and prompt limit:
+  - pasted code: 160,000 characters, $2 a call;
+  - a codebase: 280,000 characters, $2.50 a call (every prompt character counted as a token, plus the full output
+    room).
+
+  Both refuse every contributor id whatever `ATLAS_ALLOW_CONTRIBUTOR` says, and send nothing.
+- **Shared budgets.** `server/wiring.ts` turns the outliner on (`ATLAS_OUTLINER`, a 5-minute call limit) with the same
+  model-budget object as every other role, so one spend ceiling covers everything. The Wonder call takes the shared
+  per-address model-round limit. An outline job also counts against E3's per-address paste allowance.
+- Tests: `tests/unit/outline-merge.test.ts` (5) covers both guard paths, the wiring, and the shared paste allowance.
+  Full suite after the rebase, run three times at low machine load: **1304 passed, 35 skipped (103 files), all three
+  runs identical** (`merge-full-suite-1/2/3.txt`; the skips are main's own: RPC, Modal and network checks). tsc is
+  clean (`merge-tsc-output.txt` is empty).
+- `live-r2-atlas-server-meta.json` is unchanged (an Anatomy prototype reads it).
+
 ## Routes for X2
 
 - `POST /outline/jobs {repo, ref?, subfolder?} | {files}` → 202 `{jobId}`.
