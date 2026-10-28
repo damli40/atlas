@@ -32,7 +32,8 @@ export function TrackRecordPanel({ api, refreshKey }: { api: Api; refreshKey: st
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     let live = true;
-    api.trackRecord().then(
+    // A rejection (or an api without this route) shows the reason instead of breaking the page.
+    Promise.resolve().then(() => api.trackRecord()).then(
       (a) => {
         if (!live) return;
         setAnswer(a);
@@ -62,7 +63,7 @@ export function RecordBefore({ api, runId }: { api: Api; runId: string }) {
   const [before, setBefore] = useState<TrackRecord | null | undefined>(undefined);
   useEffect(() => {
     let live = true;
-    api.trackRecord(runId).then(
+    Promise.resolve().then(() => api.trackRecord(runId)).then(
       (a) => live && setBefore(a.before ?? null),
       () => live && setBefore(null),
     );

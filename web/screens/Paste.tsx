@@ -134,7 +134,7 @@ export function PasteFlow({ api, onRoundOpen, handoff = null, onHandoffUsed }: {
       return;
     }
     let live = true;
-    api.pasteLabels(target, exportName).then(
+    Promise.resolve().then(() => api.pasteLabels(target, exportName)).then(
       (a) => {
         if (!live) return;
         setLabels(a);

@@ -154,7 +154,7 @@ export function ExplorerFlow({ api, onBet, saved, initialRepo, initialFiles, vis
   useEffect(() => {
     if (!view || isSaved || !visible) return;
     let on = true;
-    api.outlineLabels(view.jobId).then(
+    Promise.resolve().then(() => api.outlineLabels(view.jobId)).then(
       (a) => on && setLabels(a.parts),
       () => on && setLabels(null),
     );

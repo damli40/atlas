@@ -25,6 +25,7 @@
 // written in an unusual way, and the list says for each marker exactly what it looks for.
 
 import type { ArgSpec, ExperimentShape, Run } from "./types";
+import { fileLines } from "./words";
 
 export type FailureLabelKind = "common pattern" | "found in this code" | "reproduced" | "inconclusive";
 export type Lang = "js" | "ts" | "py";
@@ -617,6 +618,6 @@ export function labelFailures(input: LabelInput): LabelsAnswer {
       }
     }
   }
-  const read = input.spans.map((s) => `${s.path} lines ${s.lineStart}–${s.lineEnd}`).join("; ");
+  const read = input.spans.map((s) => fileLines(s.path, s.lineStart, s.lineEnd)).join("; ");
   return { labels, checked: CURATED.map((k) => k.id), read };
 }

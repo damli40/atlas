@@ -6,6 +6,7 @@
 // - "common pattern" says only Atlas's list holds it: it is never shown as present in this code.
 
 import type { FailureLabelKind, LabelledFailure, LabelsAnswer } from "../../src/failure-labels";
+import { fileLines, lineSpan } from "../../src/words";
 
 const LABEL_CLASS: Record<FailureLabelKind, string> = {
   "common pattern": "fl-common",
@@ -14,7 +15,7 @@ const LABEL_CLASS: Record<FailureLabelKind, string> = {
   inconclusive: "fl-inconclusive",
 };
 
-const span = (l: { path: string; lineStart: number; lineEnd: number }, showPath: boolean) => `${showPath ? `${l.path} ` : ""}${l.lineStart === l.lineEnd ? `line ${l.lineStart}` : `lines ${l.lineStart}–${l.lineEnd}`}`;
+const span = (l: { path: string; lineStart: number; lineEnd: number }, showPath: boolean) => (showPath ? fileLines(l.path, l.lineStart, l.lineEnd) : lineSpan(l.lineStart, l.lineEnd));
 
 export const FL_WORDS = {
   heading: "Known ways this kind of code fails",
