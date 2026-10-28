@@ -31,3 +31,13 @@ export const principalClientKey = (): string | undefined => {
   const p = store.getStore();
   return p?.kind === "invite" ? `invite:${p.id}` : undefined;
 };
+
+/**
+ * G1 review B2/B6: who a shared counter counts this for. The owner's code has its own counters (devs can never use them
+ * up); each dev code has its own share; requests without a code (a local server) and the server itself share one.
+ */
+export function spenderOf(): { kind: "owner" | "dev" | "other"; key: string } {
+  const p = store.getStore();
+  if (p?.kind === "invite") return p.role === "owner" ? { kind: "owner", key: `owner:${p.id}` } : { kind: "dev", key: `dev:${p.id}` };
+  return { kind: "other", key: p?.kind === "system" ? "system" : "anonymous" };
+}

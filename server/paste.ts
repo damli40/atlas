@@ -16,6 +16,7 @@
 // Model calls that carry pasted code go through server/meta/pasted-guard.ts (non-contributor Meta models only),
 // then the shared model budget, and count against the per-address and per-session limits.
 
+import { spenderOf } from "./access/context";
 import type { Context, Hono } from "hono";
 import { nanoid } from "nanoid";
 import { prototypeKeyIn } from "./paste-keys";
@@ -42,6 +43,8 @@ export const PASTE_BODY_BYTES = 512 * 1024;
 export const MAX_PASTES_PER_SESSION = 5;
 /** Sessions whose pastes are kept (the least recently used drops first). 200 × 5 × 64 KB is at most about 64 MB. */
 export const MAX_PASTE_SESSIONS = 200;
+/** G1 review M6: paste sessions one dev invite code may hold (its own oldest is dropped first). */
+export const MAX_PASTE_SESSIONS_PER_CODE = 10;
 /** Pastes one client address may send an hour (sessions are free to make; env ATLAS_PASTES_PER_IP_PER_HOUR). */
 export const DEFAULT_PASTES_PER_IP_PER_HOUR = 60;
 /** Wonder proposal requests one session may make (each is 1–2 paid calls). */
@@ -148,6 +151,8 @@ export interface PasteDeps {
 export function createPaste(opts: PasteOptions, deps: PasteDeps) {
   const runners = opts.runners ?? PASTED_RUNNERS;
   const sessions = new Map<string, Map<string, PastedEntry>>();
+  /** G1 review M6: which spender opened each paste session. */
+  const sessionWho = new Map<string, string>();
   const sets = new Map<string, Map<string, ProposalSet>>(); // session → set id → set
   const proposalCount = new Map<string, number>();
   /** experiment id → the proposal set it came from (session-scoped by the round store itself). */
@@ -308,7 +313,19 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
       }
       const read = runner.read(code);
       const entry: PastedEntry = { bytes, at: Date.now(), target, exports: read.exports, refusal: read.refusal };
+      // G1 review M6: a dev invite code holds at most MAX_PASTE_SESSIONS_PER_CODE paste sessions; a new one past that
+      // drops the code's OWN least recently used one, never another person's.
+      const who = spenderOf();
+      if (!sessions.has(sessionId) && who.kind === "dev") {
+        const own = [...sessions.keys()].filter((k) => sessionWho.get(k) === who.key);
+        if (own.length >= MAX_PASTE_SESSIONS_PER_CODE) {
+          sessions.delete(own[0]!);
+          sessionWho.delete(own[0]!);
+        }
+      }
       const mine = touch(sessions, sessionId, () => new Map<string, PastedEntry>(), MAX_PASTE_SESSIONS);
+      sessionWho.set(sessionId, who.key);
+      while (sessionWho.size > MAX_PASTE_SESSIONS * 2) sessionWho.delete(sessionWho.keys().next().value!);
       // E3 review M1: a second paste of the same code REPLACES the first (its language may differ), never keeps it.
       mine.delete(target.codeSha256);
       mine.set(target.codeSha256, entry);
