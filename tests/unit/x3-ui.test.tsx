@@ -17,6 +17,8 @@ import type { OutlineView } from "../../web/machines/explorer/outline-data";
 import type { Api, TrackAnswer } from "../../web/api";
 import saved from "../fixtures/outline/atlas-server-meta-058ab2a.outline.json";
 import { RETRY_SRC } from "../tools/paste-fixtures";
+import { PasteFlow } from "../../web/screens/Paste";
+import type { PasteAnswer } from "../../web/api";
 
 const BANNED = /\b(learn\w*|teach\w*|score\w*|skill\w*|right|wrong)\b/i;
 const e = (type: TrackEntry["type"], outcome: TrackEntry["outcome"], runId: string, extra: Partial<TrackEntry> = {}): TrackEntry => ({ runId, betId: `${runId}-${type}`, sealedHash: "d".repeat(64), type, outcome, repeat: false, at: "2026-10-28T10:00:00.000Z", ...extra });
@@ -65,7 +67,7 @@ describe("X3 UI: the track record panel", () => {
 const NEVER: RunEvidence = {
   runId: "runRepro1",
   params: { shape: "call-function", exportName: "retryWithBackoff", args: [{ kind: "stand-in", name: "fetchIt", async: true, calls: [{ do: "never_settle" }], then: "repeat_last" }] },
-  run: { id: "runRepro1", controlPassed: true, result: { measured: { outcome: "never_settled" }, notMeasured: {} } },
+  run: { id: "runRepro1", controlPassed: true, result: { measured: { outcome: "never_settled", "calls:fetchIt": 1 }, notMeasured: {} } },
 };
 
 describe("X3 UI: failure labels", () => {
@@ -84,7 +86,7 @@ describe("X3 UI: failure labels", () => {
     expect(common.textContent).toContain("Only Atlas's list says this kind of code often fails this way");
     expect(common.querySelector("a")).toBeNull();
 
-    const repro = labelFailures({ language: "ts", spans: [{ path: "pasted", text: RETRY_SRC, lineStart: 1, lineEnd: n }], runs: [NEVER] });
+    const repro = labelFailures({ language: "ts", spans: [{ path: "pasted", text: RETRY_SRC, lineStart: 1, lineEnd: n }], functions: [{ path: "pasted", name: "retryWithBackoff", lineStart: 2, lineEnd: 13, params: ["fetchIt", "attempts", "baseMs"] }], runs: [NEVER] });
     host.innerHTML = renderToStaticMarkup(<FailureLabels answer={repro} idPrefix="paste" />);
     const r = host.querySelector('[data-failure="no-overall-timeout"]')!;
     expect(r.getAttribute("data-label")).toBe("reproduced");
@@ -101,5 +103,39 @@ describe("X3 UI: failure labels", () => {
     expect(html).toContain("Known ways this kind of code fails");
     expect(html).toContain("Muse Wonder (muse-wonder-1.0) tagged this part &quot;retry&quot;");
     expect(html).not.toContain('data-label="found in this code"');
+  });
+});
+
+describe("X3 review M2: the paste screen shows failure labels only after the round's bets are sealed", () => {
+  it("with a function picked and no sealed bets, the labels are not even asked for; the page says when they appear", async () => {
+    const asked: unknown[] = [];
+    const PASTED: PasteAnswer = {
+      target: { kind: "pasted", ref: "pasted:abc", codeSha256: "a".repeat(64), language: "ts" },
+      language: { chosen: "ts", guessed: "ts", why: "a type annotation", chosenBy: "person" },
+      languages: [{ language: "ts", name: "TypeScript", runnable: true }],
+      runnable: true,
+      exports: [{ name: "retryWithBackoff", line: 2, declaredAs: "function" }],
+      cantCheck: null,
+      lines: 15,
+    };
+    const api = {
+      pasteLanguages: async () => ({ languages: PASTED.languages, maxBytes: 65536, executor: "local", privacy: "kept in memory" }),
+      paste: async () => PASTED,
+      pasteLabels: async (...a: unknown[]) => {
+        asked.push(a);
+        return { labels: [], checked: [], read: "", exportName: "retryWithBackoff" };
+      },
+      trackRecord: async () => ({ person: "browser", record: trackRecordOf([]) }),
+      claimants: async () => ({ sparkOpen: { available: false } }),
+      session: () => "s1",
+    } as unknown as Api;
+    const host = await render(<PasteFlow api={api} handoff={{ code: RETRY_SRC, language: "ts", exportName: "retryWithBackoff", from: "retry.ts (uploaded)", nonce: 1 }} />);
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    expect(host.querySelector('input[type="radio"]:checked')).not.toBeNull();
+    expect(asked).toEqual([]);
+    expect(host.querySelector('[data-testid="paste-failure-labels"]')).toBeNull();
+    expect(host.querySelector('[data-testid="labels-after-seal"]')!.textContent).toMatch(/appear once your bets on a round are sealed/);
   });
 });

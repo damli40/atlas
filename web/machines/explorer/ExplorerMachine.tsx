@@ -40,9 +40,11 @@ export interface ExplorerMachineProps {
   initialPick?: string | null;
   /** X3 (D28): plain code's common-failure labels per part id (GET /outline/jobs/:id/labels). Absent: not shown. */
   labels?: Record<string, LabelsAnswer> | null;
+  /** X3 review M2: labels are held while a round on this code has bets still to seal. */
+  labelsHeld?: boolean;
 }
 
-export function ExplorerMachine({ model, onBet, betUnavailable, betBusy = null, theme, initialPick = null, labels = null }: ExplorerMachineProps) {
+export function ExplorerMachine({ model, onBet, betUnavailable, betBusy = null, theme, initialPick = null, labels = null, labelsHeld = false }: ExplorerMachineProps) {
   const dark = useDark();
   const shown = theme ?? (dark ? "dark" : "light");
   const built = useBuiltFigure(model);
@@ -132,7 +134,7 @@ export function ExplorerMachine({ model, onBet, betUnavailable, betBusy = null, 
         )}
       </div>
       <div className="ex-aside">
-        <PartCard model={model} box={box} onPick={(id) => setPicked(id)} {...(onBet ? { onBet } : {})} {...(betUnavailable ? { betUnavailable } : {})} betBusy={betBusy} labels={box && labels ? (labels[box.id] ?? null) : null} />
+        <PartCard model={model} box={box} onPick={(id) => setPicked(id)} {...(onBet ? { onBet } : {})} {...(betUnavailable ? { betUnavailable } : {})} betBusy={betBusy} labels={box && labels ? (labels[box.id] ?? null) : null} labelsHeld={labelsHeld} />
         <Lists model={model} />
       </div>
     </div>
@@ -140,7 +142,7 @@ export function ExplorerMachine({ model, onBet, betUnavailable, betBusy = null, 
   );
 }
 
-function PartCard({ model, box, onPick, onBet, betUnavailable, betBusy, labels }: { model: ExplorerModel; box: Box | null; onPick: (id: string) => void; onBet?: (c: BetChoice, b: Box) => void; betUnavailable?: string; betBusy: string | null; labels: LabelsAnswer | null }) {
+function PartCard({ model, box, onPick, onBet, betUnavailable, betBusy, labels, labelsHeld }: { model: ExplorerModel; box: Box | null; onPick: (id: string) => void; onBet?: (c: BetChoice, b: Box) => void; betUnavailable?: string; betBusy: string | null; labels: LabelsAnswer | null; labelsHeld: boolean }) {
   if (!box)
     return (
       <section className="ex-card" aria-label="part" data-testid="part-card">
@@ -207,7 +209,13 @@ function PartCard({ model, box, onPick, onBet, betUnavailable, betBusy, labels }
           {betBusy ? <p className="ex-muted" role="status">{betBusy}</p> : null}
         </>
       )}
-      {labels ? (
+      {labelsHeld ? (
+        <>
+          <p className="ex-card-label">{FL_WORDS.heading}</p>
+          <p className="ex-muted" data-testid="labels-held">{FL_WORDS.held}</p>
+        </>
+      ) : null}
+      {labels && !labelsHeld ? (
         <>
           <p className="ex-card-label">{FL_WORDS.heading}</p>
           <FailureLabels answer={labels} idPrefix={`part-${box.id}`} showPath compact />

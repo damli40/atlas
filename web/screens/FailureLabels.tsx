@@ -21,7 +21,9 @@ export const FL_WORDS = {
   heading: "Known ways this kind of code fails",
   intro: "Atlas's short list of failures for each kind of code. Plain code decides each label; Muse Wonder may suggest a kind, never a label.",
   none: "Plain code saw none of the kinds of code on Atlas's list (retry, network call, concurrency, queue, database write, time) in these lines.",
-  legend: "Labels: reproduced (a sealed Atlas run showed it) · inconclusive (a run that set it up came back can't check) · found in this code (plain code saw the marker in these lines) · common pattern (only Atlas's list says so).",
+  afterSeal: "Atlas's failure labels for this function appear once your bets on a round are sealed, so you and the betting models bet on the same information.",
+  held: "Failure labels are held while a round on this code has bets still to seal, so you and the betting models bet on the same information.",
+  legend: "Labels: reproduced (a sealed Atlas run showed it) · inconclusive (a run was tried but cannot show it) · found in this code (plain code saw the failure's marker in these lines; not a run) · common pattern (only Atlas's list says so).",
 } as const;
 
 function Item({ l, idPrefix, showPath }: { l: LabelledFailure; idPrefix: string; showPath: boolean }) {
@@ -30,10 +32,13 @@ function Item({ l, idPrefix, showPath }: { l: LabelledFailure; idPrefix: string;
   return (
     <li className="fl-item" data-label={l.label} data-failure={l.failure} data-testid={`fl-${l.failure}`}>
       <p className="fl-head">
-        <span className={`fl-badge ${LABEL_CLASS[l.label]}`}>{l.label}</span> <b>{l.name}</b> <span className="muted small">{`(${l.kindName})`}</span>
+        <span className={`fl-badge ${LABEL_CLASS[l.label]}`} title={l.tooltip}>
+          {l.label}
+        </span> <b>{l.name}</b> <span className="muted small">{`(${l.kindName})`}</span>
       </p>
-      <p className="small">{l.says}</p>
+      <p className="small">{`What can go wrong: ${l.says}`}</p>
       <p className="small">{l.why}</p>
+      {l.label !== "common pattern" && l.tooltip !== undefined ? <p className="muted small">{l.tooltip}</p> : null}
       {l.label === "reproduced" && l.runId ? (
         <p className="small">
           <a href={`?proof=${encodeURIComponent(l.runId)}`} data-testid={`fl-proof-${l.failure}`}>{`Open the proof card for run ${l.runId}`}</a>
@@ -60,7 +65,7 @@ function Item({ l, idPrefix, showPath }: { l: LabelledFailure; idPrefix: string;
       ) : null}
       {l.triedNotShown ? <p className="muted small">{`Run ${l.triedNotShown.runId} set this up and did not show it: ${l.triedNotShown.fact}.`}</p> : null}
       {l.markerRule && l.label !== "found in this code" ? <p className="muted small">{`The marker plain code looks for: ${l.markerRule}.`}</p> : null}
-      {!l.markerRule ? <p className="muted small">No plain-code marker: Atlas cannot see this one in the code, only in a run.</p> : null}
+      {!l.markerRule ? <p className="muted small">No plain-code marker: Atlas never claims this one is present in the code; it stays a common pattern.</p> : null}
       <p className="muted small">{`Why this kind is listed: ${kindWhy}.`}</p>
     </li>
   );

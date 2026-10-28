@@ -150,13 +150,24 @@ export function ExplorerFlow({ api, onBet, saved, initialRepo, initialFiles, vis
 
   // X3 (D28): plain code's common-failure labels per part, read when the outline arrives and each time the screen is
   // shown again (a round run from "Bet on this part" can turn a label into "reproduced").
+  // X3 review M2: while a round on this code has the person's bets still to seal, the server holds the labels (409);
+  // the card then says so instead of showing any.
   const [labels, setLabels] = useState<Record<string, LabelsAnswer> | null>(null);
+  const [labelsHeld, setLabelsHeld] = useState(false);
   useEffect(() => {
     if (!view || isSaved || !visible) return;
     let on = true;
     Promise.resolve().then(() => api.outlineLabels(view.jobId)).then(
-      (a) => on && setLabels(a.parts),
-      () => on && setLabels(null),
+      (a) => {
+        if (!on) return;
+        setLabels(a.parts);
+        setLabelsHeld(false);
+      },
+      (e: unknown) => {
+        if (!on) return;
+        setLabels(null);
+        setLabelsHeld(e instanceof ApiError && e.status === 409);
+      },
     );
     return () => {
       on = false;
@@ -242,7 +253,7 @@ export function ExplorerFlow({ api, onBet, saved, initialRepo, initialFiles, vis
       {model ? (
         <section aria-label="explorer" data-testid="explorer">
           {isSaved ? <p className="muted">{SAVED_NOTE}</p> : null}
-          <ExplorerMachine model={model} {...(isSaved ? { betUnavailable: SAVED_NOTE } : expired ? { betUnavailable: EXPIRED_NOTE } : { onBet: bet })} betBusy={betBusy} labels={isSaved ? null : labels} />
+          <ExplorerMachine model={model} {...(isSaved ? { betUnavailable: SAVED_NOTE } : expired ? { betUnavailable: EXPIRED_NOTE } : { onBet: bet })} betBusy={betBusy} labels={isSaved ? null : labels} labelsHeld={!isSaved && labelsHeld} />
         </section>
       ) : null}
     </>
