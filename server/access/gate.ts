@@ -49,7 +49,16 @@ export interface GateOptions {
   /** Cookie `Secure` flag: "auto" (when the request came over HTTPS, directly or per X-Forwarded-Proto), or forced. */
   secureCookie?: "auto" | boolean;
   trustProxy?: boolean;
+  /**
+   * G1 review B5: the origin the page AND the API are served from (ATLAS_PUBLIC_ORIGIN, e.g. "https://atlas.example").
+   * A cookie-signed request that changes something must come from it: `Sec-Fetch-Site: same-origin`, or an `Origin`
+   * header equal to this. When it is https, the cookie is always Secure (review m4).
+   */
+  publicOrigin?: string;
 }
+
+/** G1 review B5: refused, because a cookie alone cannot prove the request came from Atlas's own page. */
+export const CROSS_SITE = "Atlas refused this request: it carried the invite cookie but did not come from Atlas's own page (cross-site requests cannot spend an invite's budget). Nothing was run.";
 
 /** Reads ATLAS_REQUIRE_INVITE: unset or "0" is off, "1" is on, anything else stops the server (a typo must not mean "off"). */
 export function requireInviteFromEnv(env: Record<string, string | undefined> = process.env): boolean {
@@ -80,7 +89,16 @@ export function withInviteGate(inner: InnerApp, o: GateOptions): Hono {
   const outer = new Hono();
   const trustProxy = o.trustProxy ?? trustProxyFromEnv();
   const hops = trustedHopsFromEnv();
+  // G1 review M4: only FAILED tries are limited, per address and across the server; a correct code is never refused.
   const failedByIp = createHourlyLimit(30, "invite code tries");
+  const failedAll = createHourlyLimit(300, "invite code tries");
+  const httpsOrigin = o.publicOrigin?.startsWith("https://") === true;
+  /** G1 review B5: the request came from Atlas's own page (same origin), as the browser reports it. */
+  const fromOwnPage = (c: Context): boolean => {
+    if (c.req.header("sec-fetch-site") === "same-origin") return true;
+    const origin = c.req.header("origin");
+    return origin !== undefined && o.publicOrigin !== undefined && origin === o.publicOrigin;
+  };
 
   const codeOf = (c: Context): string | undefined => c.req.header(INVITE_HEADER)?.trim() || getCookie(c, INVITE_COOKIE)?.trim() || undefined;
   const principalOf = (c: Context): { p: Principal } | { reason: string } | undefined => {
@@ -91,6 +109,7 @@ export function withInviteGate(inner: InnerApp, o: GateOptions): Hono {
     return { p: { kind: "invite", id: v.invite.id, label: v.invite.label, role: v.invite.role, route: `${c.req.method} ${c.req.path}` } };
   };
   const secure = (c: Context) => {
+    if (httpsOrigin) return true;
     if (o.secureCookie === true || o.secureCookie === false) return o.secureCookie;
     return new URL(c.req.url).protocol === "https:" || (trustProxy && c.req.header("x-forwarded-proto")?.split(",").pop()?.trim() === "https");
   };
@@ -113,9 +132,9 @@ export function withInviteGate(inner: InnerApp, o: GateOptions): Hono {
     return c.json({ required: o.require, signedIn: true, label: who.p.label, role: who.p.role, dailyUsd: inv?.dailyUsd ?? null, today: o.ledger?.today(who.p.id) ?? null });
   });
   outer.post("/invite", async (c) => {
+    // G1 review m3: signing in is only from Atlas's own page (a cross-site form cannot plant a code in a browser).
+    if (!fromOwnPage(c)) return c.json({ error: CROSS_SITE }, 403);
     const ip = clientIpOf(c, trustProxy, hops);
-    const room = failedByIp.check(ip);
-    if (!room.ok) return c.json({ error: "too many invite codes that did not work came from this address in the last hour; try again later" }, 429);
     const json = (c.req.header("content-type") ?? "").includes("application/json");
     let code = "";
     try {
@@ -126,22 +145,37 @@ export function withInviteGate(inner: InnerApp, o: GateOptions): Hono {
     }
     const v = o.store.verify(code);
     if (!v.ok) {
+      // G1 review M4: checked after the code, so a correct code is never refused by someone else's failures.
+      const room = failedByIp.check(ip).ok && failedAll.check("all").ok;
       failedByIp.take(ip);
+      failedAll.take("all");
+      if (!room) return c.json({ error: "too many invite codes that did not work came in the last hour; try again later" }, 429);
       return json ? c.json({ error: v.reason }, 401) : c.html(page("Atlas invite", `<h1>That code did not work</h1><p>${esc(v.reason)}.</p><p><a href="invite">Try again</a></p>`), 401);
     }
     setCookie(c, INVITE_COOKIE, code.trim(), { httpOnly: true, sameSite: "Strict", path: "/", secure: secure(c), maxAge: COOKIE_DAYS * 24 * 3600 });
     return json ? c.json({ ok: true, label: v.invite.label, role: v.invite.role, dailyUsd: v.invite.dailyUsd }) : c.html(page("Atlas invite", `<h1>You're in as ${esc(v.invite.label)}</h1><p>Go back to Atlas and carry on.</p>`));
   });
   outer.post("/invite/forget", (c) => {
-    deleteCookie(c, INVITE_COOKIE, { path: "/" });
+    if (!fromOwnPage(c)) return c.json({ error: CROSS_SITE }, 403); // review m3: a cross-site form cannot sign anyone out
+    deleteCookie(c, INVITE_COOKIE, { path: "/", secure: secure(c) });
     return c.html(page("Atlas invite", "<h1>Forgotten</h1><p>This browser no longer holds an invite code.</p>"));
   });
 
   outer.all("*", (c) => {
     const pass = () => inner.fetch(c.req.raw, c.env);
     const who = principalOf(c);
-    if (who && "p" in who) return runAs(who.p, pass);
-    if (!o.require || isOpenRoute(c.req.method, c.req.path)) return pass();
+    const open = isOpenRoute(c.req.method, c.req.path);
+    if (who && "p" in who) {
+      // G1 review B5: a cookie is sent by the browser on its own, so a cookie-signed request that can change or spend
+      // anything must come from Atlas's own page. The header (x-atlas-invite) cannot be set cross-origin without a
+      // CORS preflight, which this server never grants, so it needs no such check.
+      const byCookie = !c.req.header(INVITE_HEADER);
+      if (byCookie && (c.req.method !== "GET" || /^\/replay\//.test(c.req.path)) && !fromOwnPage(c)) return c.json({ error: CROSS_SITE }, 403);
+      // G1 review B5: a spending POST must be JSON (a cross-origin JSON request needs a preflight; a form or text/plain does not).
+      if (!open && c.req.method === "POST" && !/^application\/json\s*(;|$)/i.test(c.req.header("content-type") ?? "")) return c.json({ error: "send the request as JSON (content-type: application/json); nothing was run" }, 415);
+      return runAs(who.p, pass);
+    }
+    if (!o.require || open) return pass();
     return c.json({ error: who ? `${NEEDS_INVITE} (${who.reason})` : NEEDS_INVITE, invite: { required: true, page: "/invite" } }, 401);
   });
   return outer;

@@ -29,6 +29,8 @@
 !/proofs/
 # G1: the operator's invite-code tool (no codes or secrets live in it; they live in ~/.config/atlas/)
 !/tools/
+/tools/*
+!/tools/invites.ts
 !/.github/
 # the pre-commit secret scan (tests/tools/secret-scan.mjs); public on purpose
 !/.githooks/
@@ -48,6 +50,12 @@ coverage/
 !.env.example
 *.key
 *.pem
+# G1: the invite store's files, should one ever be put inside the repo by mistake (the tool refuses that too)
+pepper
+invites.json
+spend.json
+spend-log.jsonl
+server.lock
 *.log
 log.md
 .DS_Store

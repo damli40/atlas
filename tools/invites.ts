@@ -12,7 +12,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { readLedgerFile } from "../server/access/ledger";
-import { defaultAccessDir, openInviteStore, type Invite } from "../server/access/store";
+import { EMPTY_LEDGER_TEXT, defaultAccessDir, openInviteStore, writePrivate, type Invite } from "../server/access/store";
 
 const HELP = `Atlas invite codes
 
@@ -24,7 +24,10 @@ const HELP = `Atlas invite codes
   usage [--day YYYY-MM-DD] [--name <who>]
                             What each code spent (from spend-log.jsonl): today (or --day), in all, by route and model.
 
-  --dir <folder>            The store folder (default: ATLAS_INVITES_DIR, else ~/.config/atlas/).
+  ledger-init               Only when the server refuses to start because spend.json is missing: makes an empty
+                            one. Every spend counter restarts from zero, so do this only on purpose.
+
+  --dir <folder>            The store folder (default: ATLAS_INVITES_DIR, else ~/.config/atlas/). Never inside the repo.
 `;
 
 type Args = { cmd: string; pos: string[]; flags: Record<string, string | true> };
@@ -75,6 +78,16 @@ export function main(argv: string[], out: (line: string) => void = (l) => consol
       out(`Made ${invite.role} code ${invite.id} for "${invite.label}": ${money(invite.dailyUsd)} a UTC day, ${money(invite.totalUsd)} in all, ${invite.maxConcurrent} at once.`);
       out("The code (shown once; Atlas keeps only its fingerprint; send it privately):");
       out(code);
+      return 0;
+    }
+    case "ledger-init": {
+      const path = join(dir, "spend.json");
+      if (existsSync(path)) {
+        out(`${path} already exists; nothing changed.`);
+        return 1;
+      }
+      writePrivate(path, EMPTY_LEDGER_TEXT);
+      out(`Made an empty ${path}. Every spend counter starts from zero.`);
       return 0;
     }
     case "list": {

@@ -12,9 +12,10 @@
 // with the tool takes effect on the next request, with no restart.
 
 import { createHmac, randomBytes } from "node:crypto";
-import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, relative, resolve, isAbsolute } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { InviteRole } from "./context";
 
 export const DEFAULT_DAILY_USD = 3; // D34
@@ -50,6 +51,67 @@ export const newCode = (): string => `atlas_${randomBytes(24).toString("base64ur
 export const looksLikeCode = (s: string): boolean => /^atlas_[A-Za-z0-9_-]{32}$/.test(s);
 
 export const hashCode = (pepper: string, code: string): string => createHmac("sha256", pepper).update(code, "utf8").digest("hex");
+
+/** The repo this code runs from. G1 review m5: the store must never live inside it (it could be committed). */
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
+const real = (p: string) => {
+  try {
+    return realpathSync(p);
+  } catch {
+    return resolve(p);
+  }
+};
+export function refuseInsideRepo(dir: string, repo = REPO_ROOT): void {
+  const rel = relative(real(repo), real(resolve(dir)));
+  if (rel === "" || (!rel.startsWith("..") && !isAbsolute(rel))) throw new Error(`the invite store folder ${dir} is inside the repo; keep it outside (default ~/.config/atlas/) so no code or pepper can be committed`);
+}
+
+/** The ledger a new store starts with (written by the tool with the first code; server/access/ledger.ts reads it). */
+export const EMPTY_LEDGER_TEXT = JSON.stringify({ version: 1, days: {}, totals: { global: { usd: 0, modelUsd: 0, sandboxUsd: 0 }, codes: {} }, pending: {} });
+
+/**
+ * G1 review M5: one server process per store. Takes <dir>/server.lock (with this process's pid) or throws when a
+ * live process holds it. A lock left by a process that is gone is taken over. Returns the release function.
+ * (Checking a pid with signal 0 only asks whether it exists; it stops nothing.)
+ */
+export function acquireStoreLock(dir: string): () => void {
+  ensureDir(dir);
+  const path = join(dir, "server.lock");
+  for (let tries = 0; tries < 2; tries++) {
+    try {
+      const fd = openSync(path, "wx", 0o600);
+      writeFileSync(fd, `${process.pid}\n`);
+      closeSync(fd);
+      let released = false;
+      const release = () => {
+        if (released) return;
+        released = true;
+        try {
+          if (readFileSync(path, "utf8").trim() === String(process.pid)) unlinkSync(path);
+        } catch {
+          // already gone
+        }
+      };
+      process.once("exit", release);
+      return release;
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
+      const pid = Number(readFileSync(path, "utf8").trim());
+      let alive = false;
+      if (Number.isInteger(pid) && pid > 0) {
+        try {
+          process.kill(pid, 0);
+          alive = true;
+        } catch (err) {
+          alive = (err as NodeJS.ErrnoException).code === "EPERM";
+        }
+      }
+      if (alive) throw new Error(`another Atlas server (pid ${pid}) is already using the invite store ${dir}; run exactly one server process per store (one container only), or point ATLAS_INVITES_DIR elsewhere`);
+      unlinkSync(path); // the process that held it is gone
+    }
+  }
+  throw new Error(`could not take the lock on the invite store ${dir}`);
+}
 
 /** Makes the folder (mode 700) if needed. */
 export function ensureDir(dir: string): void {
@@ -111,6 +173,7 @@ export interface InviteStore {
 }
 
 export function openInviteStore(dir: string, opts: { env?: Record<string, string | undefined>; createPepper?: boolean } = {}): InviteStore {
+  refuseInsideRepo(dir);
   const path = join(dir, "invites.json");
   let cached: StoreFile = { version: 1, invites: [] };
   let stamp = "";
@@ -183,6 +246,8 @@ export function openInviteStore(dir: string, opts: { env?: Record<string, string
         revokedAt: null,
       };
       write({ version: 1, invites: [...f.invites, invite] });
+      // G1 review m6: the ledger starts with the first code, so a server that later finds codes but no ledger refuses.
+      if (!existsSync(join(dir, "spend.json"))) writePrivate(join(dir, "spend.json"), EMPTY_LEDGER_TEXT);
       stamp = ""; // read again next time
       return { code, invite };
     },
