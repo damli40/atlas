@@ -2,7 +2,7 @@
 // Nothing here calls a model or spends money.
 
 import { describe, expect, it } from "vitest";
-import { buildPlan, estimateCost, latestCommittedDryRun, runLive, scoreBet, tally, rates, BUDGET_CAP_USD, WONDER_MODEL, type LiveDeps, type PlannedPrompt } from "../../bench/models/run.ts";
+import { buildPlan, e3Builder, estimateCost, latestCommittedDryRun, runLive, scoreBet, tally, rates, BUDGET_CAP_USD, WONDER_MODEL, type LiveDeps, type PlannedPrompt } from "../../bench/models/run.ts";
 import { describeCall } from "../../src/gate.ts";
 import { SPARK_MODEL, SPARK_OPEN_MODEL } from "../../src/claimants.ts";
 import { validateBetOnlyOutput } from "../../server/meta/roles/claimant-bets.ts";
@@ -69,8 +69,17 @@ describe("bench M prompt freeze reads the COMMITTED dry run", () => {
     const d = latestCommittedDryRun();
     expect(d?.file).toMatch(/^bench\/models\/dry-run\/.+\.json$/);
     expect(Object.keys(d!.prompts).length).toBe(90);
-    // The current plan (B1 builder: E3 is not on this branch) matches it, prompt for prompt.
-    for (const p of plan) expect(d!.prompts[p.testId], p.testId).toBe(p.promptSha256);
+    expect(d!.builder).toBe("e3");
+  });
+
+  it("E3 is on the branch: the plan built with E3's text matches the newest committed dry run, prompt for prompt", async () => {
+    const e3 = await e3Builder();
+    expect(e3?.name).toBe("e3");
+    const { plan: e3plan } = buildPlan(undefined, e3!);
+    const d = latestCommittedDryRun()!;
+    for (const p of e3plan) expect(d.prompts[p.testId], p.testId).toBe(p.promptSha256);
+    expect(e3plan[0]!.messages[1]!.content).toContain("How to bet:");
+    expect(e3plan[0]!.messages[1]!.content).not.toMatch(/in USD/);
   });
 });
 

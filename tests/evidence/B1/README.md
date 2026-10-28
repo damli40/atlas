@@ -4,7 +4,133 @@ Date: 2026-10-27/28 (WAT) · no model call ($0) · Node 25.8.1, CPython 3.14.7, 
 Updated 2026-10-28 after the adversarial review of B1 (sections marked "After the review"). The earlier sections are
 kept as written; where the review changed what they mean, the new section says so.
 
-## Where to look first
+## Where to look first (updated after R1, main `233e297`)
+
+- **Approved wording is the next section, and replaces the earlier one** (kept further down, marked superseded).
+- **Bench T2, the 22 cases the review used to break Atlas: 15 FALSE FACTS before, 0 after** (R1 runners,
+  registered result `bench/truth-2/results/2026-10-28-2.md`): 11 correct facts, **7 correct (labelled)**, 4 correct
+  can't-checks, 0 over-refusals, 0 wrong reasons. 75 fields compared.
+  - **The 7 "labelled" answers count as correct only under T2 amendment 1** (`bench/truth-2/AMENDMENT-1.md`,
+    committed alone before the run). They are values Atlas measured under its own pins or calling order (seed
+    20260101, UTC / en-US or C, its simulated clock, its nextTick order) and labelled with a conditions line. Under
+    the rule as first registered, the same run counts **7 FALSE FACTS**. Both numbers belong in any claim.
+  - The amendment text was written by the R1 batch, the batch that built the fixes, and extended by me (E1-E5).
+- **Bench T, the original 88, re-run on the R1 runners: still 0 FALSE FACTS** (`bench/truth/results/2026-10-28-2.md`):
+  69 correct facts, 18 correct can't-checks, **1 over-refusal**. In t19a, Atlas now withholds the call count because an
+  unref'd AbortSignal timer was left after the call returned. 304 fields compared, 303 correct.
+  - Conditions: 8 of the 70 fact tests carry a conditions line (clock ×7, timed-work ×4, unref-timer ×1); 62 read
+    "None of the conditions Atlas checks for".
+  - Some conditions are noise the R1 evidence already logs. "timed-work" appears on the token bucket, the polling
+    tests and the throttle, which read the clock twice at one moment. "hash-seed" appears on every function of a
+    Python file that builds a set anywhere.
+- **Bench M was NOT run live.** The new dry run, built with E3's paste-screen text and G1's 4,000-token cap,
+  estimates **$4.63 central, $9.00 high** for Muse Spark + Muse Spark Open. **$9.00 is above the $8 hard stop
+  (D44)**, so per the instruction I stopped. No model was called; there are no match rates.
+- The order test still passes after merging main twice: 35 tests, now also (l), amendments never edited.
+
+## Approved wording (after R1; the only approved sentences for the README, the result page and the film)
+
+Long form, for the README or the result page:
+
+> "Before running Atlas, we wrote down 110 test calls and the answers they should give. The first 88 came first.
+> Then an adversarial review session wrote 22 harder cases specifically to break Atlas, and on those Atlas first
+> reported 15 false facts. All 110 were written by AI sessions working on Atlas, not by outside users. After the
+> runner was fixed, one run on one laptop on 28 October 2026 gave these results:
+> - On the 22 harder cases: no false facts. 11 were plain facts, and 4 were 'can't check'. The other 7 were values
+>   that depend on Atlas's own pinned clock, random seed, time zone or calling order; each was shown with a label
+>   saying so, and our rules count a labelled value as honest. Without that rule, those 7 would count as false.
+> - On the original 88: none of the 70 checkable answers was wrong, though Atlas withheld one it could have given. It
+>   said 'can't check' on all 18 traps.
+>
+> That shows Atlas keeps its stated rules on these cases. It does not show that Atlas can never report a false fact."
+
+Short form, for the film, only with the qualifier on screen:
+
+> "110 checks written before running, 22 of them by a reviewer trying to break it. After the fix: 0 wrong, and 7
+> answers carry a label saying they depend on Atlas's own clock, seed or time zone. Our tests, one run."
+
+Never say "Atlas's false-fact count: 0" without "on these tests". Never drop "labelled" from the 7: under the rule
+first registered they are false facts.
+
+## Bench T2: before → after (registered results `2026-10-28` and `2026-10-28-2`)
+
+| Test | Before (main, pre-R1) | After (R1, amendment 1) | Conditions after |
+|---|---|---|---|
+| h01a | FALSE FACT | correct (labelled) | clock, timed-work |
+| h01b | correct can't-check | correct can't-check | none |
+| h02a | FALSE FACT | correct can't-check | unref-timer |
+| h02b | FALSE FACT | correct can't-check | unref-timer |
+| h03a | FALSE FACT | correct can't-check | timer-order |
+| h03b | FALSE FACT | correct (labelled) | tick-order |
+| h04a | FALSE FACT | correct (labelled) | clock, timed-work, time-zone-or-locale |
+| h04b | FALSE FACT | correct (labelled) | randomness |
+| h04c | FALSE FACT | correct (labelled) | randomness |
+| h05a | correct fact | correct fact | none |
+| h05b | correct fact | correct fact | clock |
+| q01a | FALSE FACT | correct (labelled) | hash-seed |
+| q01b | correct fact | correct fact | hash-seed |
+| q01c | FALSE FACT | correct fact | hash-seed |
+| q01d | correct fact | correct fact | hash-seed |
+| q02a | correct fact | correct fact | clock |
+| q02b | correct fact | correct fact | none |
+| q02c | FALSE FACT | correct (labelled) | clock, timed-work |
+| h06a | FALSE FACT | correct fact | none |
+| h06b | FALSE FACT | correct fact | none |
+| h06c | FALSE FACT | correct fact | none |
+| h06d | FALSE FACT | correct fact | none |
+| **Totals** | 15 FALSE, 6 fact, 1 can't-check (81 fields) | 0 FALSE, 11 fact, 7 labelled, 4 can't-check (75 fields) | |
+
+The number of fields compared falls from 81 to 75. When a test's whole outcome is now "can't check" (h02a/b, h03a),
+its fields are no longer compared.
+
+## Bench T, first → second result (original 88)
+
+| | 2026-10-28 (pre-R1) | 2026-10-28-2 (R1 runners) |
+|---|---|---|
+| correct fact | 70 | 69 |
+| FALSE FACT | 0 | 0 |
+| correct can't-check | 18 | 18 |
+| over-refusal | 0 | 1 (t19a calls:work withheld, unref'd timer left) |
+| fields compared | 304 (304 correct) | 304 (303 correct, 1 not measured) |
+| conditions recorded | no (pre-R1) | yes: 8 fact tests carry one |
+
+## Bench M after E3 and G1
+
+- Dry run 3 (`bench/models/dry-run/2026-10-28-3.json`, `builder: "e3"`): 90 prompts of 2,677-4,895 characters
+  (mean 3,476; E3's text is longer). The prompts are E3's `pastedBetContext` inside
+  `buildBetOnlyMessages(..., seenInstruction: null)`.
+- The live run passes G1's caps (4,000 tokens, retry 8,000), the same as the product.
+- Estimate:
+
+  | Model | Central | High |
+  |---|---|---|
+  | muse-spark-1.3 (price unpublished; upper bound at Wonder's price) | $3.79 | $7.39 |
+  | meta-models/muse-spark-open-1026 | $0.84 | $1.61 |
+  | **Total** | **$4.63** | **$9.00** |
+
+- Not run: the high estimate is above the $8 hard stop (D44), as instructed. The $8 stop is enforced in code: the
+  run stops before the next model call. A real run would very likely cost near the central figure. The high figure
+  assumes 3,000 completion tokens per call and 5% retries. Spark's real price may be lower than the assumed one.
+  Running anyway is Dami's call.
+
+## After R1: commands and counts
+
+```
+npx tsx bench/truth/run.ts --bench truth-2   # 17.6 s
+npx tsx bench/truth/run.ts                   # 32.5 s
+npx tsx bench/models/run.ts --dry-run
+npx vitest run --maxWorkers=4
+```
+
+Full suite after merging main `233e297`: 116 files (114 passed, 2 skipped), **1,795 passed, 35 skipped**, twice
+(`full-suite-after-r1.txt`). tsc clean. The bench tests include the order test (35 tests) and the bench M test
+checking that the prompts equal the committed E3 dry run.
+
+---
+
+## Superseded (kept as written): wording and findings before R1
+
+## Where to look first (before R1)
 
 - **Approved wording (the only approved sentences for the README, the result page and the film) is the next
   section.** "Atlas's false-fact count: 0" on its own is NOT approved: it is untrue as a general statement.
@@ -22,7 +148,7 @@ kept as written; where the review changed what they mean, the new section says s
 - **Bench M estimate went up** once the 32,000-token reasoning retry is counted: $6.28 for Muse Spark + Muse Spark
   Open (high $13.24), $11.43 with Wonder. Above the $3-6 target; with the $8 cap a high-cost run stops partway.
 
-## Approved wording (after the review)
+## Approved wording after the review (SUPERSEDED by the section at the top)
 
 Long form, for the README or the result page. The **last clause stays until the runner fixes land AND bench T2's
 "after" run has 0 false facts**:
