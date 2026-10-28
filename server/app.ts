@@ -82,6 +82,7 @@ import { judge } from "../src/judge";
 import { canonicalJson, verifySeal } from "../src/seal";
 import { bodyLimit } from "hono/body-limit";
 import { createModelBudget, type ModelBudget } from "./meta/budget";
+import { principalClientKey } from "./access/context";
 import { cleanRecord, type RefusalWriter } from "./proofs/refusals";
 import { checkAnswer, createBetStore, humanBetBody, humanBetsBody, MAX_BETS, MAX_EXPERIMENTS, modelSlotsOf, modelSlotView, modelSlotViews, newExperimentId, newRound, publicBet, sealedAfter, sealHumanBet, type BetStore, type ModelSlot, type Round } from "./bets";
 import type { ChatArgs, ChatResult } from "./meta/client";
@@ -506,7 +507,9 @@ export function createApp(opts: AppOptions = {}) {
   const pastedOwners = new Map<string, string>();
   const trustProxy = opts.trustProxy ?? trustProxyFromEnv();
   const proxyHops = trustedHopsFromEnv(); // E3 review r2 M4: read once; an invalid value throws here, not per request
-  const clientOf = (c: Context) => clientIpOf(c, trustProxy, proxyHops);
+  // G1: with an invite code, the per-address limits count by the code (server/access/context.ts), so a new address or a
+  // new X-Forwarded-For hop gives nothing extra; without one, by the client address as before.
+  const clientOf = (c: Context) => principalClientKey() ?? clientIpOf(c, trustProxy, proxyHops);
   const modelRoundsByIp = createHourlyLimit(opts.perClientModelLimits?.modelRoundsPerHour ?? envCount(process.env.ATLAS_MODEL_ROUNDS_PER_IP_PER_HOUR, DEFAULT_MODEL_ROUNDS_PER_IP_PER_HOUR), "model rounds");
   const investigationsByIp = createHourlyLimit(opts.perClientModelLimits?.investigationsPerHour ?? envCount(process.env.ATLAS_INVESTIGATIONS_PER_IP_PER_HOUR, DEFAULT_INVESTIGATIONS_PER_IP_PER_HOUR), "investigations");
   const proofStore = opts.proofs ?? createProofStore({ publish: false });
