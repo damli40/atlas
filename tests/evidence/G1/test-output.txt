@@ -1,0 +1,33 @@
+
+ RUN  v5.0.5 <repo>
+
+ ✓ tests/unit/g1-invites.test.ts > G1 gate: every spending route refuses without a code, and nothing is spent > covers every route the app registers: each is open (read only) or in the spending table 4ms
+ ✓ tests/unit/g1-invites.test.ts > G1 gate: every spending route refuses without a code, and nothing is spent > no code: 401 with the plain message on every spending route (also HEAD, an unknown route and a made-up code); not one model call, sandbox or fork 321ms
+ ✓ tests/unit/g1-invites.test.ts > G1 gate: every spending route refuses without a code, and nothing is spent > the read-only routes stay open without a code: health, claimants, languages, a public proof card, the invite page 146ms
+ ✓ tests/unit/g1-invites.test.ts > G1 gate: every spending route refuses without a code, and nothing is spent > ATLAS_REQUIRE_INVITE: only '1' turns it on; a typo stops the server instead of meaning 'off' 0ms
+ ✓ tests/unit/g1-invites.test.ts > G1 gate: every spending route refuses without a code, and nothing is spent > required but no code set up: the server refuses to start (no pepper; then no active code) 1ms
+ ✓ tests/unit/g1-invites.test.ts > G1 invite page and cookie > POST /invite sets an HttpOnly, SameSite=Strict cookie; the cookie then opens the spending routes; forget clears it 3ms
+ ✓ tests/unit/g1-invites.test.ts > G1 invite page and cookie > a wrong code: 401 and no cookie; after 30 wrong tries from one address, 429 2ms
+ ✓ tests/unit/g1-invites.test.ts > G1 per-code budgets (D34) > a whole pasted round on a $3 dev code: spends are reserved, settled from the reported usage, and logged by label, never by code 144ms
+ ✓ tests/unit/g1-invites.test.ts > G1 per-code budgets (D34) > a code past its daily budget is refused BEFORE the call: 'not asked: your invite's daily budget is used up'; the person's own bet and run still work at $0 142ms
+ ✓ tests/unit/g1-invites.test.ts > G1 per-code budgets (D34) > on Modal, a used-up code's run is not started either: 'the run did not finish' with the budget reason, nothing judged 4ms
+ ✓ tests/unit/g1-invites.test.ts > G1 per-code budgets (D34) > Modal sandbox cost: the worst case is reserved first (Modal's own lifetime limit at the capped rate) and the measured seconds are settled 283ms
+ ✓ tests/unit/g1-invites.test.ts > G1 per-code budgets (D34) > the owner reserve: with $79.50 of the $100 ceiling spent, dev codes are refused and the owner's code is not 3ms
+ ✓ tests/unit/g1-invites.test.ts > G1 per-code budgets (D34) > the owner reserve holds against many dev codes at once: devs together never pass ceiling minus reserve 45ms
+ ✓ tests/unit/g1-invites.test.ts > G1 per-code budgets (D34) > race: 20 requests at once on one $3 code can't overshoot; the 'at once' limit holds too 91ms
+ ✓ tests/unit/g1-invites.test.ts > G1 per-code budgets (D34) > a lifetime total (--total-usd) is a hard stop too 1ms
+ ✓ tests/unit/g1-invites.test.ts > G1 counters survive a restart (the old daily caps lived in memory) > per code per day, the global totals and Modal's daily sandbox counters are read back from disk 2ms
+ ✓ tests/unit/g1-invites.test.ts > G1 counters survive a restart (the old daily caps lived in memory) > a spend still open when the server stopped is counted at its worst case after the restart 1ms
+ ✓ tests/unit/g1-invites.test.ts > G1 identity is the code, not the address > new IPv6 /64s and X-Forwarded-For hops give a code nothing extra; without invites the old per-address rule still applies 7ms
+ ✓ tests/unit/g1-invites.test.ts > G1 a revoked code stops immediately > revoked with the tool (another process's store) while the server runs: the next request is 401, and a spend it had queued is refused 2ms
+ ✓ tests/unit/g1-invites.test.ts > G1 Baseten (Muse Spark Open) spend is counted > a Spark Open bet through the real client: Baseten's reported usage reaches the model budget, the code's ledger and the spend log 3ms
+ ✓ tests/unit/g1-invites.test.ts > G1 EVM fork runs are counted per code per day > a dev code's 3rd fork run of the day is refused (429) before any fork; the owner's is not 11ms
+ ✓ tests/unit/g1-invites.test.ts > G1 tools/invites.ts > create shows the code once and stores only its fingerprint; list never prints a fingerprint or a code; usage sums the log by label 2ms
+ ✓ tests/unit/g1-invites.test.ts > G1 tools/invites.ts > a pepper or store file others can read is refused 0ms
+ ✓ tests/unit/g1-invites.test.ts > G1 the ledger refuses a spend with no code when invites are required (defence behind the gate) > a sandbox or a model call outside any invite is refused; the server's own warm-up is allowed 46ms
+
+ Test Files  1 passed (1)
+      Tests  24 passed (24)
+   Start at  08:47:50
+   Duration  1.67s (tests 80%, import 16%, transform 4%)
+
