@@ -51,7 +51,7 @@ async function openRound(tools: ReturnType<typeof createTools>) {
   expect(read.isError).toBeUndefined();
   const props = await tools.proposeTests({ path: "retry.ts", function: "retryWithBackoff" });
   expect(props.isError).toBeUndefined();
-  const firstAllowed = /\[(\w+)\] allowed/.exec(props.text)![1]!;
+  const firstAllowed = /\[([\w-]+)\] allowed/.exec(props.text)![1]!;
   const start = await tools.startRound({ path: "retry.ts", proposal_id: firstAllowed });
   expect(start.isError).toBeUndefined();
   const id = /Round (\S+) is open/.exec(start.text)![1]!;
