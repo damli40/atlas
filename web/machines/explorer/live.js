@@ -46,7 +46,7 @@ function show(id) {
     return;
   }
   const drawn = box.joins.filter((j) => j.drawn).length;
-  readout.textContent = `${box.name} · ${drawn} ${drawn === 1 ? "line" : "lines"}`;
+  readout.textContent = `${box.name} · ${drawn} ${drawn === 1 ? "join" : "joins"} drawn`;
   card.append(el("p", "Part · lines confirmed", { class: "ex-card-label" }), el("h3", box.name), el("p", `Name by ${box.by}`, { class: "ex-by" }));
   const quote = el("div", null, { class: "ex-quote" });
   quote.append(el("p", `${box.purposeBy} says what this part is for:`, { class: "ex-quote-by" }), el("blockquote", box.purpose));
@@ -63,7 +63,7 @@ function show(id) {
     const li = el("li");
     const btn = el("button", j.otherName, { class: "ex-join-btn", type: "button" });
     if (byId.has(j.other)) btn.addEventListener("click", () => { touched = true; show(j.other); });
-    li.append(el("span", `${j.kind} ${j.dir === "out" ? "→" : "←"} `), btn, el("span", " "), el("span", j.drawn ? (j.status === "code-only" ? "line with tag collars" : j.typeOnly ? "braided line" : "steel line") : "no line", { class: "ex-status", "data-s": j.status }), el("span", ` ${j.words}${j.codeEdges ? ` (${j.codeEdges} code ${j.codeEdges === 1 ? "link" : "links"})` : ""}.`, { class: "ex-muted" }));
+    li.append(el("span", `${j.kind} ${j.arrow} `), btn, el("span", " "), el("span", j.lineWord, { class: "ex-status", "data-s": j.status }), el("span", ` ${j.words}${j.codeEdges ? ` (${j.codeEdges} code ${j.codeEdges === 1 ? "link" : "links"})` : ""}.`, { class: "ex-muted" }));
     if (j.note) li.append(el("span", ` Plain code's note: ${j.note}.`, { class: "ex-muted" }));
     jl.append(li);
   }
@@ -103,6 +103,10 @@ stage.addEventListener("keydown", (e) => {
   }
 });
 
+// Review B1: the tour stops for good as soon as the reader points at or focuses anything in the figure, the card or
+// the lists, and it never runs while the pointer is inside the card.
+const wrap = root.closest(".ex-wrap") ?? root;
+for (const ev of ["pointerenter", "pointerdown", "focusin", "keydown", "wheel", "touchstart"]) wrap.addEventListener(ev, () => { touched = true; }, { passive: true });
 let visible = false;
 if ("IntersectionObserver" in window) new IntersectionObserver((entries) => { visible = Boolean(entries.at(-1)?.isIntersecting); }).observe(stage);
 if (!still) {

@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 import * as k from "../iso/iso-kit.mjs";
 import { buildFigure, auditFigure } from "./figure.mjs";
 import { plural } from "../../../src/words.ts";
-import { explorerModel, authorOf, chalkText, joinWords, spanText, CHALK_WORDS, NO_LINK_WORDS } from "./model.ts";
+import { explorerModel, arrowOf, authorOf, chalkText, joinWords, lineWord, spanText, CHALK_WORDS, NO_LINK_WORDS } from "./model.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const FIXTURE = resolve(HERE, "../../../tests/fixtures/outline/atlas-server-meta-058ab2a.outline.json");
@@ -34,7 +34,7 @@ export function buildExplorer(view, { theme = "dark" } = {}) {
 }
 
 function cardData(M) {
-  const names = Object.fromEntries(M.boxes.map((b) => [b.id, b.name.text]));
+  const names = M.partNames;
   return {
     model: M.model,
     boxes: M.boxes.map((b) => ({
@@ -45,7 +45,7 @@ function cardData(M) {
       purpose: b.purpose.text,
       spans: b.spans.map(spanText),
       lines: b.lines,
-      joins: b.joins.map((j) => ({ ...j, words: joinWords(j), otherName: names[j.other] ?? j.other })),
+      joins: b.joins.map((j) => ({ ...j, words: joinWords(j), arrow: arrowOf(j.dir), lineWord: lineWord(j), otherName: names[j.other] ?? j.other })),
       bets: b.bets,
     })),
     source: M.source,
@@ -56,12 +56,11 @@ function cardData(M) {
 function captionOf(M) {
   const codeOnly = M.lines.filter((l) => l.status === "code-only").length;
   const typeOnly = M.lines.filter((l) => l.typeOnly).length;
-  return `Drawn only from Atlas's checked outline of ${M.source}${M.commit ? ` at commit ${M.commit.slice(0, 7)}` : ""} (${plural(M.files.length, "file")}). Muse Wonder (${M.model}) proposed the parts and joins and wrote every name and purpose; plain code checked them against the files. A box stands for a part whose lines plain code confirmed; it is as tall as the lines it covers (7 units plus 1 per 45 lines), and its plate shows Wonder's name for it. A steel line is a join plain code found: thick for calls, thin for imports and uses, braided for type-only imports (${typeOnly}, no link at run time); two tag collars mark the ${codeOnly} that Wonder did not name. "Lines confirmed" means the lines exist where Wonder said; it does not mean Wonder's sentence about a part is true.`;
+  return `Drawn only from Atlas's checked outline of ${M.source}${M.commit ? ` at commit ${M.commit.slice(0, 7)}` : ""} (${plural(M.files.length, "file")}). Muse Wonder (${M.model}) proposed the parts and wrote every name and purpose; plain code checked them against the files and found the joins (${codeOnly} of them Wonder did not name). A box stands for a part whose lines plain code confirmed; it grows taller with the lines it covers (7 units plus 1 per 45 lines), and its plate shows Wonder's name for it. A steel line is a join plain code found: thick for calls, thin for imports and uses, braided for type-only imports (${typeOnly}, no link at run time); two tag collars mark the ${codeOnly} that Wonder did not name. "Lines confirmed" means the lines exist where Wonder said; it does not mean Wonder's sentence about a part is true.`;
 }
 
 function listsHtml(M) {
-  const names = new Map(M.boxes.map((b) => [b.id, b.name.text]));
-  const nameOf = (id) => names.get(id) ?? id;
+  const nameOf = (id) => M.partNames[id] ?? id;
   const chalk = M.chalk
     .map((c) => `<li class="ex-chalk" data-chalk="${esc(c.id)}"><span class="ex-chalk-tag">${esc(nameOf(c.from))} → ${esc(nameOf(c.to))} · ${esc(c.kind)}</span> <span class="ex-chalk-words">${esc(chalkText(c))}</span></li>`)
     .join("");
@@ -69,6 +68,7 @@ function listsHtml(M) {
   return (
     `<section class="ex-side" aria-label="joins not drawn"><h2>Not drawn as lines</h2><p class="ex-muted">Joins only Muse Wonder (${esc(M.model)}) states, with the parts named in its words. A chalk tag is not a connection.</p><ul class="ex-chalks">${chalk || `<li class="ex-muted">None: plain code found every join Wonder named.</li>`}</ul>` +
     (unconf ? `<h2>Parts not confirmed (not drawn)</h2><ul>${unconf}</ul>` : "") +
+    (M.notDrawn.length ? `<h2>Joins found but not drawn</h2><ul>${M.notDrawn.map((n) => `<li>${esc(nameOf(n.from))} → ${esc(nameOf(n.to))}: ${esc(n.why)}</li>`).join("")}</ul>` : "") +
     (M.notInAnyPart.length ? `<h2>Files in no part</h2><p class="ex-muted">${M.notInAnyPart.map(esc).join(", ")}: an empty tray each.</p>` : "") +
     (M.skipped.length ? `<h2>Files Atlas did not read</h2><ul>${M.skipped.map((s) => `<li>${esc(s.path)}: ${esc(s.reason)}</li>`).join("")}</ul>` : "") +
     `</section>`
@@ -83,7 +83,7 @@ function page(M, fig, theme) {
     fig: "Fig X2",
     title: `${M.source}${M.commit ? ` @ ${M.commit.slice(0, 7)}` : ""}`,
     hint: "hover a box · Tab, then ← → · Esc",
-    readout: `${plural(M.boxes.length, "part")} · ${plural(M.lines.length, "line")}`,
+    readout: `${plural(M.boxes.length, "part")} · ${plural(M.lines.length, "join")} drawn`,
     keys: [
       { mark: "raised", label: "A box: a part whose lines plain code confirmed. Taller box = more lines" },
       { mark: "edge", label: `A steel line: plain code found an import, call or use (${M.lines.length - codeOnly} that Wonder named too)` },

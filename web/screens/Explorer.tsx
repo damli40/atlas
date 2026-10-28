@@ -8,7 +8,8 @@
 // hand-off, from the job's own outline file, and never kept by this page.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Api, OutlineJob } from "../api";
+import { ApiError, type Api, type OutlineJob, type OutlineRequest } from "../api";
+import { ErrorNotice } from "./ErrorNotice";
 import { ExplorerMachine } from "../machines/explorer/ExplorerMachine";
 import { explorerModel, type BetChoice, type Box } from "../machines/explorer/model";
 import type { OutlineView } from "../machines/explorer/outline-data";
@@ -31,6 +32,8 @@ const STEPS: { status: OutlineJob["status"]; words: string }[] = [
   { status: "checking", words: "Plain code checks every part and join against the files" },
 ];
 const POLL_MS = 1000;
+/** Review M4: a job the server no longer holds (30-minute expiry, or dropped for a newer one). */
+export const EXPIRED_NOTE = "This outline expired (outlines are kept 30 minutes). Run it again.";
 export const SAVED_NOTE = "This is the saved outline of Atlas's own server/meta (no model call). It holds no code on this server, so betting needs a live outline: start one above.";
 
 async function readFiles(list: FileList): Promise<{ path: string; text: string }[]> {
@@ -56,6 +59,8 @@ export function ExplorerFlow({ api, onBet, saved }: { api: Api; onBet: (h: BetHa
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [betBusy, setBetBusy] = useState<string | null>(null);
+  const [expired, setExpired] = useState(false);
+  const lastRequest = useRef<OutlineRequest | null>(null);
   const live = useRef(true);
   useEffect(() => {
     live.current = true;
@@ -74,20 +79,29 @@ export function ExplorerFlow({ api, onBet, saved }: { api: Api; onBet: (h: BetHa
         setJob(next);
         if (next.status === "done") setView(await api.outline(next.jobId));
       } catch (e) {
-        if (live.current) setError((e as Error).message);
+        if (!live.current) return;
+        if (e instanceof ApiError && e.status === 404) setExpired(true);
+        else setError((e as Error).message);
       }
     }, POLL_MS);
     return () => clearTimeout(t);
   }, [job, api]);
 
-  const start = async (useFiles: boolean) => {
+  const start = async (useFiles: boolean | "again") => {
     setBusy(true);
     setError(null);
     setView(null);
     setIsSaved(false);
     setJob(null);
+    setExpired(false);
     try {
-      const req = useFiles && files ? { files: await readFiles(files) } : { repo: repo.trim(), ...(ref.trim() ? { ref: ref.trim() } : {}), ...(subfolder.trim() ? { subfolder: subfolder.trim() } : {}) };
+      const req: OutlineRequest =
+        useFiles === "again" && lastRequest.current
+          ? lastRequest.current
+          : useFiles === true && files
+            ? { files: await readFiles(files) }
+            : { repo: repo.trim(), ...(ref.trim() ? { ref: ref.trim() } : {}), ...(subfolder.trim() ? { subfolder: subfolder.trim() } : {}) };
+      lastRequest.current = req;
       const j = await api.startOutline(req);
       setJob(j);
       if (j.status === "done") setView(await api.outline(j.jobId));
@@ -121,7 +135,8 @@ export function ExplorerFlow({ api, onBet, saved }: { api: Api; onBet: (h: BetHa
       const where = view.source.kind === "github" ? `${view.source.subfolder ? `${view.source.subfolder}/` : ""}${c.path} in ${view.source.repo} at ${view.source.commit.slice(0, 7)}` : `${c.path} (uploaded)`;
       onBet({ code: f.text, language: c.language, exportName: c.name, from: where, nonce: Date.now() });
     } catch (e) {
-      setError(`The hand-off could not read the file: ${(e as Error).message}`);
+      if (e instanceof ApiError && e.status === 404) setExpired(true);
+      else setError(`The hand-off could not read the file: ${(e as Error).message}`);
     } finally {
       if (live.current) setBetBusy(null);
     }
@@ -176,16 +191,20 @@ export function ExplorerFlow({ api, onBet, saved }: { api: Api; onBet: (h: BetHa
             </li>
           </ol>
         ) : null}
-        {error ? (
-          <p className="notice" role="alert">
-            {error}
+        {error ? <ErrorNotice message={error} /> : null}
+        {expired ? (
+          <p className="notice" role="alert" data-testid="outline-expired">
+            {EXPIRED_NOTE}{" "}
+            <button type="button" onClick={() => start("again")} disabled={busy || !lastRequest.current} data-testid="outline-again">
+              Run it again
+            </button>
           </p>
         ) : null}
       </section>
       {model ? (
         <section aria-label="explorer" data-testid="explorer">
           {isSaved ? <p className="muted">{SAVED_NOTE}</p> : null}
-          <ExplorerMachine model={model} {...(isSaved ? { betUnavailable: SAVED_NOTE } : { onBet: bet })} betBusy={betBusy} />
+          <ExplorerMachine model={model} {...(isSaved ? { betUnavailable: SAVED_NOTE } : expired ? { betUnavailable: EXPIRED_NOTE } : { onBet: bet })} betBusy={betBusy} />
         </section>
       ) : null}
     </>

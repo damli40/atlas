@@ -26,5 +26,5 @@ export function randomModel(seedIn: number): ExplorerModel {
     seen.add(`${a.id}>${b.id}`);
     lines.push({ id: `j${i}`, from: a.id, to: b.id, kind: rnd() < 0.6 ? "calls" : "imports", status: rnd() < 0.8 ? "confirmed" : "code-only", codeEdges: 1, typeOnly: rnd() < 0.1 });
   }
-  return { notShown: null, model: "test", boxes, lines, chalk: [], unconfirmed: [], notDrawn: [], decks: decksOf(files, boxes), files, notInAnyPart: [], source: "random", rootFolder: "./", commit: null, codeSha256: "0".repeat(64), skipped: [] };
+  return { notShown: null, model: "test", partNames: Object.fromEntries(boxes.map((b) => [b.id, b.name.text])), boxes, lines, chalk: [], unconfirmed: [], notDrawn: [], decks: decksOf(files, boxes), files, notInAnyPart: [], source: "random", rootFolder: "./", commit: null, codeSha256: "0".repeat(64), skipped: [] };
 }

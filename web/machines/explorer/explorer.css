@@ -46,7 +46,7 @@
 @media (max-width:480px){.ex .ex-card,.ex .ex-side{padding:12px}}
 .ex.ex-page{display:grid;grid-template-columns:minmax(0,1fr);gap:0 22px;align-items:start}
 .ex-wrap{container-type:inline-size}
-@container (min-width:1080px){.ex.ex-page{grid-template-columns:minmax(0,2.6fr) minmax(300px,1fr)}.ex.ex-page .ex-aside>section:first-child{margin-top:0}}
+@container (min-width:1080px){.ex.ex-page{grid-template-columns:minmax(0,3fr) minmax(300px,1fr)}.ex.ex-page .ex-aside>section:first-child{margin-top:0}}
 .ex .ex-commit{font-family:var(--anatomy-mono);font-size:12px;word-break:break-all}
 .ex .iso-face-text{font-weight:600}
 /* the explorer screen in the app (outside the figure's .ex scope) */
@@ -66,4 +66,5 @@
 .ex .ex-bet-btn:disabled{opacity:.5;cursor:not-allowed}
 .ex .ex-bet-btn:focus-visible{outline:2px solid var(--anatomy-strong);outline-offset:2px}
 .ex .ex-note{display:block;font-size:12.5px}
-@media (min-width:1200px){.shell.explore main{max-width:1560px}.shell.explore.with-strip{grid-template-columns:minmax(0,1fr) minmax(0,26vw)}.shell.explore.with-strip .logstrip-lines{font-size:16px}}
+/* Review M1: in explore mode the figure gets the width; the agent log moves under it (full width, shorter) */
+@media (min-width:1200px){.shell.explore main{max-width:1880px}.shell.explore.with-strip{display:block}.shell.explore.with-strip .logstrip{position:static;height:auto;max-width:1880px;margin:0 auto 48px;padding:0 16px}.shell.explore.with-strip .logstrip-lines{max-height:40vh;font-size:16px}}

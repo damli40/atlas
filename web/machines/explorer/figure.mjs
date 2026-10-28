@@ -35,10 +35,19 @@ const GAP_OUT = 10;
 const ROW_PITCH = 44;
 const DECK_GAP = 14;
 const EMPTY_W = 12;
-const ROW_TARGET = 92;
-const NAME_SIZE = 2.8;
-/** A box is as wide as its name plate needs (22–52 units); its HEIGHT is the lines it covers. */
-export const widthOf = (name) => Math.min(52, Math.max(22, Math.ceil(String(name).length * NAME_SIZE * 0.64) + 8));
+const ROW_TARGET = 150;
+const NAME_SIZE = 4.4;
+const FOLDER_SIZE = 3.6;
+/** Review B4: counted router steps before the figure gives up and the page shows the lists only. */
+export const ROUTER_BUDGET = 2_000_000;
+export const MAX_DRAWN_LINES = 90;
+export const MAX_DRAWN_PARTS = 40;
+/** More stacked heights than this and the lines tower over the boxes: listed instead. */
+export const MAX_LEVELS = 24;
+/** The figure would take too long or be too dense to read: the page lists the parts and joins instead. */
+export class TooManyToDraw extends Error {}
+/** A box is as wide as its name plate needs (24–64 units); its HEIGHT is the lines it covers. */
+export const widthOf = (name) => Math.min(64, Math.max(24, Math.ceil(String(name).length * NAME_SIZE * 0.64) + 8));
 /** 7 units plus 1 per 45 lines: a 36-line part stands 7.8 tall, a 571-line part 19.7. */
 export const heightOf = (lines) => 7 + lines / 45;
 const BASE_H = 8;
@@ -90,10 +99,10 @@ export function fitName(text, width, size = NAME_SIZE) {
  */
 export function buildFigure(M) {
   if (M.notShown !== null) throw new Error(M.notShown);
+  // Review B4: past these sizes the drawing is neither readable nor quick; the page lists everything instead.
+  if (M.lines.length > MAX_DRAWN_LINES || M.boxes.length > MAX_DRAWN_PARTS)
+    throw new TooManyToDraw(`${M.lines.length} joins between ${M.boxes.length} parts are too many to draw clearly (the machine draws at most ${MAX_DRAWN_LINES} joins and ${MAX_DRAWN_PARTS} parts)`);
   const boxOf = new Map(M.boxes.map((b) => [b.id, b]));
-  const hOf = new Map(M.boxes.map((b) => [b.id, heightOf(b.lines)]));
-  const TOP = Z_BOX + Math.max(...hOf.values());
-  const TIER0 = TOP + FIT.base + FIT.body + 11;
 
   // ---- layout: decks side by side (wrapping), rows inside a deck, slots left to right ----
   const deckLayouts = M.decks.map((deck) => {
@@ -124,7 +133,8 @@ export function buildFigure(M) {
     } else lines2.push({ items: [l], w: l.w, d: l.d });
   }
   const totalD = lines2.reduce((a, ln) => a + ln.d, 0) + DECK_GAP * (lines2.length - 1);
-  const place = new Map();
+  const place = new Map(); // box id -> its primary segment (the one its lines land on)
+  const segments = []; // every drawn box: one per part, or one per folder for a part spanning folders (review B3)
   const trays = [];
   const decks = [];
   let yCursor = -totalD / 2;
@@ -142,14 +152,15 @@ export function buildFigure(M) {
           if (i > a) x += s.gapBefore;
           if (s.slot.kind === "box") {
             const box = boxOf.get(s.slot.id);
+            const segLines = s.slot.slices.reduce((n, sl) => n + sl.lines, 0) || 1;
             const slices = [];
             let sx = x;
             for (const sl of s.slot.slices) {
-              const sw = (s.w * sl.lines) / box.lines;
+              const sw = (s.w * sl.lines) / segLines;
               slices.push({ path: sl.path, x0: sx, x1: sx + sw });
               sx += sw;
             }
-            place.set(box.id, { plan: { x, y: y - BOX_D / 2, w: s.w, d: BOX_D, r: 1.6 }, slices });
+            segments.push({ boxId: box.id, plan: { x, y: y - BOX_D / 2, w: s.w, d: BOX_D, r: 1.6 }, slices, lines: segLines, segment: s.slot.segment ?? null });
             for (const sl of slices) {
               const last = runs[runs.length - 1];
               if (last && last.path === sl.path) last.x1 = sl.x1;
@@ -170,6 +181,16 @@ export function buildFigure(M) {
     }
     yCursor += ln.d + DECK_GAP;
   }
+  for (const box of M.boxes) {
+    const mine = segments.filter((g) => g.boxId === box.id);
+    const primary = mine.reduce((a, g) => (g.lines > a.lines ? g : a), mine[0]);
+    for (const g of mine) g.primary = g === primary;
+    place.set(box.id, primary);
+  }
+  for (const g of segments) g.h = heightOf(g.lines);
+  const hOf = new Map(M.boxes.map((b) => [b.id, place.get(b.id).h]));
+  const TOP = Z_BOX + Math.max(...segments.map((g) => g.h));
+  const TIER0 = TOP + FIT.base + FIT.body + 11;
   const minX = Math.min(...decks.map((d) => d.plan.x));
   const maxX = Math.max(...decks.map((d) => d.plan.x + d.plan.w));
   const minY = Math.min(...decks.map((d) => d.plan.y));
@@ -314,51 +335,73 @@ export function buildFigure(M) {
     return out.filter((plan) => legOk(plan) && facingOf(plan[0], plan[1]) >= FACE_MIN && facingOf(plan[plan.length - 2], plan[plan.length - 1]) >= FACE_MIN);
   };
   const ownEnd = (l, e) => Math.hypot(e[0] - l.a[0], e[1] - l.a[1]) < 0.1 || Math.hypot(e[0] - l.b[0], e[1] - l.b[1]) < 0.1;
-  const crowdOf = (l, plan) => L.reduce((n, o) => n + (o === l ? 0 : [o.a, o.b].filter((e) => !ownEnd(l, e) && polyDist(e, plan) < l.r + o.r + 1.4).length), 0);
   const planLength = (plan) => plan.reduce((a, q, i) => (i ? a + Math.hypot(q[0] - plan[i - 1][0], q[1] - plan[i - 1][1]) : 0), 0);
+  // Review B4: the router's work is counted, so a huge outline ends as "too many joins to draw" instead of a frozen tab.
+  let work = 0;
+  const spend = (n) => {
+    work += n;
+    if (work > ROUTER_BUDGET) throw new TooManyToDraw(`${M.lines.length} joins between ${M.boxes.length} parts are too many to draw clearly`);
+  };
+  // For every line and every candidate route: the lines whose fittings that route passes over (computed once).
   for (const l of L) {
-    l.options = candidatesOf(l)
-      .map((plan) => ({ plan, crowd: crowdOf(l, plan), length: planLength(plan) }))
+    const plans = candidatesOf(l);
+    if (plans.length === 0) throw new Error(`no route for ${l.id} keeps its bends facing the viewer`);
+    l.options = plans
+      .map((plan) => {
+        spend(L.length);
+        const over = new Set();
+        let crowd = 0;
+        L.forEach((o, j) => {
+          if (o === l) return;
+          for (const e of [o.a, o.b]) if (!ownEnd(l, e) && polyDist(e, plan) < l.r + o.r + 1.4) {
+            over.add(j);
+            crowd++;
+          }
+        });
+        return { plan, over, crowd, length: planLength(plan) };
+      })
       .sort((x, y) => x.crowd - y.crowd || x.length - y.length);
-    if (l.options.length === 0) throw new Error(`no route for ${l.id} keeps its bends facing the viewer`);
     l.choice = 0;
     l.plan = l.options[0].plan;
   }
   const NEAR = 4.4;
   // above[i] has j: line i passes over line j's fitting, so it must run higher than line j.
-  const aboveOf = () =>
-    L.map((li, i) => new Set(L.map((lj, j) => j).filter((j) => j !== i && [L[j].a, L[j].b].some((e) => !ownEnd(li, e) && polyDist(e, li.plan) < li.r + L[j].r + 1.4))));
+  const aboveOf = () => L.map((l) => l.options[l.choice].over);
+  const lengths = L.map((l) => 0);
   const topo = (above) => {
+    spend(L.length * 4);
     const indeg = L.map((_, i) => above[i].size);
     const below = L.map(() => []);
     L.forEach((_, i) => above[i].forEach((j) => below[j].push(i)));
+    L.forEach((l, i) => (lengths[i] = l.options[l.choice].length));
     const ready = L.map((_, i) => i).filter((i) => indeg[i] === 0);
     const order = [];
     while (ready.length) {
-      ready.sort((x, y) => planLength(L[x].plan) - planLength(L[y].plan));
-      const i = ready.shift();
+      let bi = 0;
+      for (let q = 1; q < ready.length; q++) if (lengths[ready[q]] < lengths[ready[bi]]) bi = q;
+      const i = ready.splice(bi, 1)[0];
       order.push(i);
       for (const up of below[i]) if (--indeg[up] === 0) ready.push(up);
     }
     return order;
   };
-  // Break every cycle by moving one of its lines to its next candidate route; give up only when none is left.
+  // Break every cycle by moving one of its lines to another candidate route; give up only when none helps.
   let above = aboveOf();
   let order = topo(above);
-  for (let guard = 0; order.length !== L.length && guard < 400; guard++) {
-    const stuck = L.map((_, i) => i).filter((i) => !order.includes(i));
+  for (let guard = 0; order.length !== L.length && guard < 4 * L.length; guard++) {
+    const placed = new Set(order);
+    const stuck = L.map((_, i) => i).filter((i) => !placed.has(i));
     let best = null;
     for (const i of stuck) {
       const l = L[i];
+      const keep = l.choice;
       for (let c = 0; c < l.options.length; c++) {
-        if (c === l.choice) continue;
-        const keep = l.plan;
-        l.plan = l.options[c].plan;
-        const tryAbove = aboveOf();
-        const left = L.length - topo(tryAbove).length;
-        l.plan = keep;
+        if (c === keep) continue;
+        l.choice = c;
+        const left = L.length - topo(aboveOf()).length;
         if (!best || left < best.left || (left === best.left && l.options[c].length < best.length)) best = { i, c, left, length: l.options[c].length };
       }
+      l.choice = keep;
     }
     if (!best || best.left >= stuck.length) break;
     L[best.i].choice = best.c;
@@ -367,217 +410,243 @@ export function buildFigure(M) {
     order = topo(above);
   }
   if (order.length !== L.length) throw new Error(`the lines cannot be stacked without one passing through another (${L.filter((_, i) => !order.includes(i)).map((l) => l.id).join(", ")})`);
-  const level = L.map(() => 0);
-  const assigned = new Set();
-  for (const i of order) {
-    let lv = Math.max(0, ...[...above[i]].map((j) => level[j] + 1));
-    const clash = (v) => [...assigned].some((j) => level[j] === v && polyPoly(L[i].plan, L[j].plan) < NEAR);
-    while (clash(lv)) lv++;
-    level[i] = lv;
-    assigned.add(i);
+  // Lines whose plans come close in plan view may not share a height: one crossing table, computed once.
+  const crossing = L.map(() => []);
+  for (let i = 0; i < L.length; i++) {
+    spend(L.length);
+    for (let j = i + 1; j < L.length; j++) if (polyPoly(L[i].plan, L[j].plan) < NEAR) {
+      crossing[i].push(j);
+      crossing[j].push(i);
+    }
   }
+  // Each line's height: above every line whose fitting it passes over, and apart from every line it comes close to.
+  // `floor` lifts a line (review minor 6: a line whose bend lands on another line on screen is lifted and drawn again).
+  const floor = L.map(() => 0);
+  const level = L.map(() => -1);
+  const assignLevels = () => {
+    level.fill(-1);
+    for (const i of order) {
+      let lv = Math.max(floor[i], ...[...above[i]].map((j) => level[j] + 1));
+      const taken = new Set(crossing[i].map((j) => level[j]).filter((v) => v >= 0));
+      while (taken.has(lv)) lv++;
+      level[i] = lv;
+    }
+    if (Math.max(0, ...level) + 1 > MAX_LEVELS) throw new TooManyToDraw(`${M.lines.length} joins would need ${Math.max(...level) + 1} stacked heights to draw without one passing through another; that is too many to read`);
+  };
+  if (typeof process !== "undefined" && process.env?.X2_WORK) console.log(`router work ${work}`);
 
-  // ---- camera ----
-  const tops = L.flatMap((l, i) => l.plan.map((e) => [e[0], e[1], TIER0 + level[i] * TIER_STEP + l.r + 1]));
-  const P = k.fitProjection([...k.boxCorners(BASE, -BASE_H - FOOT_H, 0), ...tops], W, H, { pad: 10, azimuth: AZIMUTH, elevation: ELEVATION });
-  const at = (p) => k.iso(p, P);
-  const S = (paths, style) => k.solidSvg(paths, style);
-  const Ln = (d, style) => k.lineSvg(d, style);
-  const Dots = (points, style) => k.dotsSvg(points, style);
-  const path3 = (points, closed = false) => k.pathOf(points.map(at), closed);
-  const R = A.recorder(P);
-  const put = (name, ref, svg, shapes = [], { bias = 0, attrs = "" } = {}) => R.put({ name, at: ref, bias, svg, shapes, piece: "skid", attrs });
+  const drawOnce = () => {
 
-  // ---- base plate on feet (static, ground) ----
-  const back = [];
-  back.push(`<path class="iso-halo" d="${k.haloOf(BASE, -BASE_H - FOOT_H, BASE_H, P)}"/>`);
-  const byDepth = (pts) => [...pts].sort((a, b) => k.depthOf([a[0], a[1], 0], P) - k.depthOf([b[0], b[1], 0], P));
-  for (const [x, y] of byDepth(k.corners(BASE, 16))) {
-    back.push(S(k.cylinder(x, y, 7, -BASE_H - FOOT_H, 1.6, P, 28), { tone: "lo" }));
-    back.push(S(k.cylinder(x, y, 5.4, -BASE_H - FOOT_H + 1.6, FOOT_H - 1.6, P, 28), { tone: "mid" }));
-  }
-  back.push(S(k.slabOf(BASE, -BASE_H, BASE_H, P, 8, 1.6), { tone: "mid", inner: Ln(k.sideSeam(BASE, -3, P, 8), { tone: "faint" }) }));
-  back.push(Ln(k.planOutline(k.insetPlan(BASE, 5), 0, P), { tone: "lo" }));
-  const baseScrews = k.corners(BASE, 9);
-  back.push(Ln(baseScrews.map(([x, y]) => k.ring(x, y, 2.2, 0, P, 16)).join(""), { tone: "lo" }));
-  back.push(Dots(baseScrews.map(([x, y]) => at([x, y, 0])), { size: 0.5 }));
-  R.solid(A.slab(BASE, -BASE_H, BASE_H, { name: "stand.plate", ground: true }, 8));
-  const STRIP = { x: BASE.x + 16, y: BASE.y + BASE.d - 11, w: Math.max(40, BASE.w - 70), d: 6, r: 1 };
-  back.push(S(k.slabOf(STRIP, 0, 0.6, P, 3), { tone: "lo", crease: "none" }));
-  {
-    const perTick = 0.065 * 50; // 50 lines of code at the boxes' scale (widthOf)
-    const t = k.topTicks(STRIP.x + 3, STRIP.x + STRIP.w - 3, perTick, 5, STRIP.y, 0.6, [1.8, 3.4], P);
-    back.push(Ln(t.minor, { tone: "lo" }), Ln(t.major, { tone: "mid" }));
-  }
-  const LABEL = { x: BASE.x + BASE.w - 40, y: BASE.y + BASE.d - 16, w: 28, d: 11, r: 1.2 };
-  back.push(S(k.slabOf(LABEL, 0, 0.8, P, 3), { tone: "lo", crease: "none" }));
-  back.push(Ln(k.planOutline(k.insetPlan(LABEL, 1.4), 0.8, P, 3), { tone: "faint" }));
-  back.push(Ln([18, 12, 15].map((w, i) => k.lineOnTop([LABEL.x + 4, LABEL.y + 2.8 + i * 2.7], [LABEL.x + 4 + w, LABEL.y + 2.8 + i * 2.7], 0.8, P)).join(""), { tone: "lo", free: true }));
-  back.push(Dots([at([LABEL.x + LABEL.w - 2.6, LABEL.y + 2.4, 0.8]), at([LABEL.x + LABEL.w - 2.6, LABEL.y + LABEL.d - 2.4, 0.8])], { size: 0.45 }));
+    // ---- camera ----
+    const tops = L.flatMap((l, i) => l.plan.map((e) => [e[0], e[1], TIER0 + level[i] * TIER_STEP + l.r + 1]));
+    const P = k.fitProjection([...k.boxCorners(BASE, -BASE_H - FOOT_H, 0), ...tops], W, H, { pad: 10, azimuth: AZIMUTH, elevation: ELEVATION });
+    const at = (p) => k.iso(p, P);
+    const S = (paths, style) => k.solidSvg(paths, style);
+    const Ln = (d, style) => k.lineSvg(d, style);
+    const Dots = (points, style) => k.dotsSvg(points, style);
+    const path3 = (points, closed = false) => k.pathOf(points.map(at), closed);
+    const R = A.recorder(P);
+    const put = (name, ref, svg, shapes = [], { bias = 0, attrs = "" } = {}) => R.put({ name, at: ref, bias, svg, shapes, piece: "skid", attrs });
 
-  // ---- decks: one per folder, a folder plate engraved with its name on the front edge ----
-  for (const deck of decks) {
-    const p = deck.plan;
-    const shape = R.solid(A.slab(p, 0, DECK_H, { name: `deck.${deck.folder}` }, 4));
-    const screws = k.corners(p, 2.4);
-    const fy = p.y + p.d;
-    const label = deck.folder === "" ? (M.rootFolder ?? "./") : deck.folder;
-    const tw = Math.min(p.w - 10, label.length * 2.2 * 0.64 + 4);
-    const tag = { x: p.x + 5, y: fy - 4.2, w: tw, d: 3.4, r: 0.6 };
-    const text = k.faceTextSvg(k.topMatrix([tag.x + 2, tag.y + 2.55], DECK_H + 0.4, P, "x"), fitName(label, tw - 3, 2.2), { size: 2.2, tone: "hi" });
-    put(
-      `deck.${deck.folder}`,
-      [p.x + p.w / 2, p.y + p.d / 2, DECK_H / 2],
-      S(k.slabOf(p, 0, DECK_H, P, 4, 0.4), { tone: "lo", inner: Ln(k.sideSeam(p, DECK_H / 2, P, 4), { tone: "faint" }) }) +
-        Dots(screws.map(([x, y]) => at([x, y, DECK_H])), { size: 0.45, tone: "mid" }) +
-        S(k.slabOf(tag, DECK_H, 0.4, P, 2), { tone: "mid", crease: "none" }) +
-        text,
-      [shape],
-      { attrs: ` data-folder="${esc(deck.folder)}"` },
-    );
-  }
+    // ---- base plate on feet (static, ground) ----
+    const back = [];
+    back.push(`<path class="iso-halo" d="${k.haloOf(BASE, -BASE_H - FOOT_H, BASE_H, P)}"/>`);
+    const byDepth = (pts) => [...pts].sort((a, b) => k.depthOf([a[0], a[1], 0], P) - k.depthOf([b[0], b[1], 0], P));
+    for (const [x, y] of byDepth(k.corners(BASE, 16))) {
+      back.push(S(k.cylinder(x, y, 7, -BASE_H - FOOT_H, 1.6, P, 28), { tone: "lo" }));
+      back.push(S(k.cylinder(x, y, 5.4, -BASE_H - FOOT_H + 1.6, FOOT_H - 1.6, P, 28), { tone: "mid" }));
+    }
+    back.push(S(k.slabOf(BASE, -BASE_H, BASE_H, P, 8, 1.6), { tone: "mid", inner: Ln(k.sideSeam(BASE, -3, P, 8), { tone: "faint" }) }));
+    back.push(Ln(k.planOutline(k.insetPlan(BASE, 5), 0, P), { tone: "lo" }));
+    const baseScrews = k.corners(BASE, 9);
+    back.push(Ln(baseScrews.map(([x, y]) => k.ring(x, y, 2.2, 0, P, 16)).join(""), { tone: "lo" }));
+    back.push(Dots(baseScrews.map(([x, y]) => at([x, y, 0])), { size: 0.5 }));
+    R.solid(A.slab(BASE, -BASE_H, BASE_H, { name: "stand.plate", ground: true }, 8));
+    // Review minor 1: the ruler strip is gone. Box width no longer measures lines (height does), so a ruler would claim
+    // a scale the drawing does not use, and its long ticks floated on large figures.
+    const LABEL = { x: BASE.x + BASE.w - 40, y: BASE.y + BASE.d - 16, w: 28, d: 11, r: 1.2 };
+    back.push(S(k.slabOf(LABEL, 0, 0.8, P, 3), { tone: "lo", crease: "none" }));
+    back.push(Ln(k.planOutline(k.insetPlan(LABEL, 1.4), 0.8, P, 3), { tone: "faint" }));
+    back.push(Ln([18, 12, 15].map((w, i) => k.lineOnTop([LABEL.x + 4, LABEL.y + 2.8 + i * 2.7], [LABEL.x + 4 + w, LABEL.y + 2.8 + i * 2.7], 0.8, P)).join(""), { tone: "lo", free: true }));
+    back.push(Dots([at([LABEL.x + LABEL.w - 2.6, LABEL.y + 2.4, 0.8]), at([LABEL.x + LABEL.w - 2.6, LABEL.y + LABEL.d - 2.4, 0.8])], { size: 0.45 }));
 
-  // ---- trays: one per file ----
-  for (const tray of trays) {
-    const p = tray.plan;
-    const shape = R.solid(A.slab(p, Z_TRAY, TRAY_H, { name: `tray.${tray.path}` }, 3));
-    const screws = [];
-    if (!tray.joinedLeft) screws.push([p.x + 1.6, p.y + 1.6], [p.x + 1.6, p.y + p.d - 1.6]);
-    if (!tray.joinedRight) screws.push([p.x + p.w - 1.6, p.y + 1.6], [p.x + p.w - 1.6, p.y + p.d - 1.6]);
-    const fy = p.y + p.d;
-    const tw = Math.min(10, p.w - 6);
-    const tx = p.x + 3;
-    const tag = path3([[tx, fy, Z_TRAY + 0.5], [tx + tw, fy, Z_TRAY + 0.5], [tx + tw, fy, Z_TRAY + 1.9], [tx, fy, Z_TRAY + 1.9]], true);
-    const tagRule = path3([[tx + 1, fy, Z_TRAY + 1.2], [tx + tw * 0.75, fy, Z_TRAY + 1.2]]);
-    const tagSvg = `<path class="iso-fill ex-plate" d="${tag}"/>` + Ln(tag, { tone: "lo" }) + Ln(tagRule, { tone: "lo", free: true });
-    const groove = tray.empty ? Ln(k.planOutline(k.insetPlan(p, 2.6), Z_TRAY + TRAY_H, P, 3), { tone: "faint" }) : "";
-    put(
-      `tray.${tray.path}`,
-      [p.x + p.w / 2, p.y + p.d / 2, Z_TRAY + TRAY_H / 2],
-      S(k.slabOf(p, Z_TRAY, TRAY_H, P, 3, 0.4), { tone: tray.empty ? "lo" : "mid", inner: Ln(k.sideSeam(p, Z_TRAY + TRAY_H / 2, P, 3), { tone: "faint" }) }) +
-        groove +
-        Dots(screws.map(([x, y]) => at([x, y, Z_TRAY + TRAY_H])), { size: 0.45, tone: "mid" }) +
-        tagSvg,
-      [shape],
-      { attrs: ` data-file="${esc(tray.path)}"` },
-    );
-  }
+    // ---- decks: one per folder, a folder plate engraved with its name on the front edge ----
+    for (const deck of decks) {
+      const p = deck.plan;
+      const shape = R.solid(A.slab(p, 0, DECK_H, { name: `deck.${deck.folder}` }, 4));
+      const screws = k.corners(p, 2.4);
+      const fy = p.y + p.d;
+      const label = deck.folder === "" ? (M.rootFolder ?? "./") : deck.folder;
+      const tw = Math.min(p.w - 10, label.length * FOLDER_SIZE * 0.64 + 4);
+      const tag = { x: p.x + 5, y: fy - 6.2, w: tw, d: 5.4, r: 0.8 };
+      const text = k.faceTextSvg(k.topMatrix([tag.x + 2, tag.y + 4.0], DECK_H + 0.4, P, "x"), fitName(label, tw - 3, FOLDER_SIZE), { size: FOLDER_SIZE, tone: "hi" });
+      put(
+        `deck.${deck.folder}`,
+        [p.x + p.w / 2, p.y + p.d / 2, DECK_H / 2],
+        S(k.slabOf(p, 0, DECK_H, P, 4, 0.4), { tone: "lo", inner: Ln(k.sideSeam(p, DECK_H / 2, P, 4), { tone: "faint" }) }) +
+          Dots(screws.map(([x, y]) => at([x, y, DECK_H])), { size: 0.45, tone: "mid" }) +
+          S(k.slabOf(tag, DECK_H, 0.4, P, 2), { tone: "mid", crease: "none" }) +
+          text,
+        [shape],
+        { attrs: ` data-folder="${esc(deck.folder)}"` },
+      );
+    }
 
-  // ---- boxes, each with one engraved name plate on its front face ----
-  const names = {};
-  for (const box of M.boxes) {
-    const { plan, slices } = place.get(box.id);
-    const z0 = Z_BOX;
-    const BH = hOf.get(box.id);
-    const shape = R.solid(A.slab(plan, z0, BH, { name: `box.${box.id}` }, 4));
-    const lid = k.insetPlan(plan, 1.6);
-    const screws = k.corners(plan, 2.2);
-    const front = plan.y + plan.d;
-    const seams = slices
-      .slice(1)
-      .map((sl) => path3([[sl.x0, front, z0], [sl.x0, front, z0 + BH]]))
-      .join("");
-    // the name plate: a recessed outline on the front face, the name engraved in it, fitted to its width
-    const px0 = plan.x + 2.2;
-    const pw = plan.w - 4.4;
-    const pz1 = z0 + BH - 1.6;
-    const pz0 = pz1 - 4.2;
-    const plate = path3([[px0, front, pz0], [px0 + pw, front, pz0], [px0 + pw, front, pz1], [px0, front, pz1]], true);
-    const shown = fitName(box.name.text, pw - 2.4);
-    names[box.id] = shown;
-    const nameText = k.faceTextSvg(k.sideMatrix([px0 + 1.2, front], pz1 - 1.05, P, "left"), shown, { size: NAME_SIZE, tone: "hi" });
-    const lamp = at([plan.x + 3.2, plan.y + plan.d - 3.2, z0 + BH]);
-    const xr = plan.x + plan.w;
-    const vents = [0, 1, 2].map((v) => {
-      const y0 = plan.y + 3 + v * 2.4;
-      return path3([[xr, y0, z0 + 2], [xr, y0 + 1.1, z0 + 2], [xr, y0 + 1.1, z0 + BH - 2], [xr, y0, z0 + BH - 2]], true);
+    // ---- trays: one per file ----
+    for (const tray of trays) {
+      const p = tray.plan;
+      const shape = R.solid(A.slab(p, Z_TRAY, TRAY_H, { name: `tray.${tray.path}` }, 3));
+      const screws = [];
+      if (!tray.joinedLeft) screws.push([p.x + 1.6, p.y + 1.6], [p.x + 1.6, p.y + p.d - 1.6]);
+      if (!tray.joinedRight) screws.push([p.x + p.w - 1.6, p.y + 1.6], [p.x + p.w - 1.6, p.y + p.d - 1.6]);
+      const fy = p.y + p.d;
+      const tw = Math.min(10, p.w - 6);
+      const tx = p.x + 3;
+      const tag = path3([[tx, fy, Z_TRAY + 0.5], [tx + tw, fy, Z_TRAY + 0.5], [tx + tw, fy, Z_TRAY + 1.9], [tx, fy, Z_TRAY + 1.9]], true);
+      const tagRule = path3([[tx + 1, fy, Z_TRAY + 1.2], [tx + tw * 0.75, fy, Z_TRAY + 1.2]]);
+      const tagSvg = `<path class="iso-fill ex-plate" d="${tag}"/>` + Ln(tag, { tone: "lo" }) + Ln(tagRule, { tone: "lo", free: true });
+      const groove = tray.empty ? Ln(k.planOutline(k.insetPlan(p, 2.6), Z_TRAY + TRAY_H, P, 3), { tone: "faint" }) : "";
+      put(
+        `tray.${tray.path}`,
+        [p.x + p.w / 2, p.y + p.d / 2, Z_TRAY + TRAY_H / 2],
+        S(k.slabOf(p, Z_TRAY, TRAY_H, P, 3, 0.4), { tone: tray.empty ? "lo" : "mid", inner: Ln(k.sideSeam(p, Z_TRAY + TRAY_H / 2, P, 3), { tone: "faint" }) }) +
+          groove +
+          Dots(screws.map(([x, y]) => at([x, y, Z_TRAY + TRAY_H])), { size: 0.45, tone: "mid" }) +
+          tagSvg,
+        [shape],
+        { attrs: ` data-file="${esc(tray.path)}"` },
+      );
+    }
+
+    // ---- boxes, each with one engraved name plate on its front face ----
+    const names = {};
+    for (const seg of segments) {
+      const box = boxOf.get(seg.boxId);
+      const { plan, slices } = seg;
+      const z0 = Z_BOX;
+      const BH = seg.h;
+      const solidName = seg.primary ? `box.${box.id}` : `seg.${box.id}.${seg.segment.index}`;
+      const shape = R.solid(A.slab(plan, z0, BH, { name: solidName }, 4));
+      const lid = k.insetPlan(plan, 1.6);
+      const screws = k.corners(plan, 2.2);
+      const front = plan.y + plan.d;
+      const seams = slices
+        .slice(1)
+        .map((sl) => path3([[sl.x0, front, z0], [sl.x0, front, z0 + BH]]))
+        .join("");
+      // the name plate: a recessed outline on the front face, the name engraved in it, fitted to its width
+      const px0 = plan.x + 2.2;
+      const pw = plan.w - 4.4;
+      const pz1 = z0 + BH - 1.3;
+      const pz0 = pz1 - 5.3;
+      const plate = path3([[px0, front, pz0], [px0 + pw, front, pz0], [px0 + pw, front, pz1], [px0, front, pz1]], true);
+      const shown = fitName(seg.segment ? `${seg.segment.index}/${seg.segment.of} ${box.name.text}` : box.name.text, pw - 2.4);
+      if (seg.primary) names[box.id] = shown;
+      const nameText = k.faceTextSvg(k.sideMatrix([px0 + 1.2, front], pz1 - 1.0 - NAME_SIZE * 0.72, P, "left"), shown, { size: NAME_SIZE, tone: "hi" });
+      const lamp = at([plan.x + 3.2, plan.y + plan.d - 3.2, z0 + BH]);
+      const xr = plan.x + plan.w;
+      const vents = [0, 1, 2].map((v) => {
+        const y0 = plan.y + 3 + v * 2.4;
+        return path3([[xr, y0, z0 + 2], [xr, y0 + 1.1, z0 + 2], [xr, y0 + 1.1, z0 + BH - 2], [xr, y0, z0 + BH - 2]], true);
+      });
+      const svg =
+        S(k.slabOf(plan, z0, BH, P, 4, 0.6), { tone: "hi", inner: Ln(k.sideSeam(plan, z0 + 1.6, P, 4), { tone: "faint" }) + (seams ? Ln(seams, { tone: "faint" }) : "") }) +
+        Ln(k.planOutline(lid, z0 + BH, P, 4), { tone: "faint" }) +
+        Dots(screws.map(([x, y]) => at([x, y, z0 + BH])), { size: 0.45, tone: "mid" }) +
+        `<path class="iso-fill ex-plate" d="${plate}"/>` +
+        Ln(plate, { tone: "lo" }) +
+        `<g class="ex-name">${nameText}</g>` +
+        Ln(vents.join(""), { tone: "lo" }) +
+        `<g class="ex-lamp">${Dots([lamp], { size: 0.8, tone: "hi" })}</g>`;
+      put(solidName, [plan.x + plan.w / 2, plan.y + plan.d / 2, z0 + BH / 2], svg, [shape], { attrs: ` data-of="${esc(box.id)}"` });
+      const yc = plan.y + plan.d / 2 + 3;
+      const parts = [
+        { name: "handle.foot", plan: { x: xr, y: yc - 5.5, w: 1.6, d: 1.6, r: 0.4 } },
+        { name: "handle.foot", plan: { x: xr, y: yc + 3.9, w: 1.6, d: 1.6, r: 0.4 } },
+        { name: "handle.bar", plan: { x: xr + 1.6, y: yc - 5.5, w: 1.2, d: 11, r: 0.5 } },
+      ];
+      const hz = z0 + BH / 2 - 1.2;
+      const shapes = parts.map((q) => R.solid(A.slab(q.plan, hz, 2.4, { name: `${solidName}.${q.name}` }, 2)));
+      put(`${solidName}.handle`, [xr + 1.4, yc, hz + 1.2], parts.map((q) => S(k.slabOf(q.plan, hz, 2.4, P, 2), { tone: "mid" })).join(""), shapes, { attrs: ` data-of="${esc(box.id)}"` });
+    }
+
+    // ---- fittings and steel lines ----
+    L.forEach((l, i) => {
+      const r = l.r;
+      const bodyR = Math.max(r * 1.75, 1.2);
+      const baseR = bodyR * 1.32;
+      const h = TIER0 + level[i] * TIER_STEP;
+      const lidZ = (boxId) => Z_BOX + hOf.get(boxId);
+      for (const [end, boxId] of [[l.a, l.from], [l.b, l.to]]) {
+        const F = G.frameAlong([end[0], end[1], lidZ(boxId)], [0, 0, 1]);
+        const shapes = [R.solid(A.disc(F, 0, FIT.base, baseR, { name: `fit.${l.id}.base` })), R.solid(A.disc(F, FIT.base, FIT.base + FIT.body, bodyR, { name: `fit.${l.id}.body` }))];
+        const svg = S(G.disc(0, FIT.base, baseR, F, P, { steps: 6 }), { tone: "mid" }) + S(G.disc(FIT.base, FIT.base + FIT.body, bodyR, F, P, { steps: 24 }), { tone: "mid" });
+        put(`fit.${l.id}.${boxId}`, [end[0], end[1], lidZ(boxId) + 1.5], svg, shapes, { attrs: ` data-of="${esc(boxId)}" data-line="${esc(l.id)}"` });
+      }
+      const pts = [[l.a[0], l.a[1], lidZ(l.from) + FIT.base + FIT.body], ...l.plan.map(([x, y]) => [x, y, h]), [l.b[0], l.b[1], lidZ(l.to) + FIT.base + FIT.body]];
+      const route = G.fillet(pts, l.plan.length > 2 ? 6.5 : Math.max(4.5, r * 4), 12, { P, tube: r });
+      const total = G.pathLength(route);
+      const collars = [
+        { s0: 0, s1: NUT, r: bodyR, kind: "nut" },
+        { s0: total - NUT, s1: total, r: bodyR, kind: "nut" },
+      ];
+      if (l.status === "code-only") for (const s of [total / 2 - 7, total / 2 + 7]) collars.push({ s0: s - 0.9, s1: s + 0.9, r: Math.max(r * 2.1, 1.4), kind: "tag" });
+      const gaps = collars.map((c) => [c.s0, c.s1]);
+      R.route(`line.${l.id}`, route, r, { gaps, rims: [bodyR, bodyR], piece: "skid" });
+      const attrs = ` data-line="${esc(l.id)}" data-ends="${esc(l.from)} ${esc(l.to)}"`;
+      const rings = l.typeOnly ? { rings: { pitch: 1.6, twist: 0.8, cross: true, fade: [0.1, 0.55] } } : {};
+      tubePieces(route, r, P, { maxLength: 14, spacing: Math.max(0.6, Math.min(1.6, r)), gaps, ...rings }).forEach((piece, index) =>
+        put(`line.${l.id}:${index}`, piece.mid, tubeSvg(piece, { tone: "mid" }), [A.tube(piece.points, piece.radii)], { bias: 0.05, attrs }),
+      );
+      for (const c of collars) {
+        const sm = (c.s0 + c.s1) / 2;
+        const tangent = G.tangentAlong(route, sm);
+        const centre = pointAlong(route, sm);
+        const F = G.frameAlong(centre, tangent);
+        const half = (c.s1 - c.s0) / 2;
+        const shape = R.solid(A.disc(F, -half, half, c.r, { name: `line.${l.id}.${c.kind}`, owner: `line.${l.id}` }));
+        const svg = S(G.disc(-half, half, c.r, F, P, { steps: c.kind === "nut" ? 6 : 24, bevel: 0.15 }), { tone: c.kind === "tag" ? "hi" : "mid" });
+        put(`line.${l.id}.${c.kind}`, centre, c.kind === "tag" ? `<g class="ex-tag">${svg}</g>` : svg, [shape], { bias: 0.1, attrs });
+      }
     });
-    const svg =
-      S(k.slabOf(plan, z0, BH, P, 4, 0.6), { tone: "hi", inner: Ln(k.sideSeam(plan, z0 + 1.6, P, 4), { tone: "faint" }) + (seams ? Ln(seams, { tone: "faint" }) : "") }) +
-      Ln(k.planOutline(lid, z0 + BH, P, 4), { tone: "faint" }) +
-      Dots(screws.map(([x, y]) => at([x, y, z0 + BH])), { size: 0.45, tone: "mid" }) +
-      `<path class="iso-fill ex-plate" d="${plate}"/>` +
-      Ln(plate, { tone: "lo" }) +
-      `<g class="ex-name">${nameText}</g>` +
-      Ln(vents.join(""), { tone: "lo" }) +
-      `<g class="ex-lamp">${Dots([lamp], { size: 0.8, tone: "hi" })}</g>`;
-    put(`box.${box.id}`, [plan.x + plan.w / 2, plan.y + plan.d / 2, z0 + BH / 2], svg, [shape], { attrs: ` data-of="${esc(box.id)}"` });
-    const yc = plan.y + plan.d / 2 + 3;
-    const parts = [
-      { name: "handle.foot", plan: { x: xr, y: yc - 5.5, w: 1.6, d: 1.6, r: 0.4 } },
-      { name: "handle.foot", plan: { x: xr, y: yc + 3.9, w: 1.6, d: 1.6, r: 0.4 } },
-      { name: "handle.bar", plan: { x: xr + 1.6, y: yc - 5.5, w: 1.2, d: 11, r: 0.5 } },
-    ];
-    const hz = z0 + BH / 2 - 1.2;
-    const shapes = parts.map((q) => R.solid(A.slab(q.plan, hz, 2.4, { name: `box.${box.id}.${q.name}` }, 2)));
-    put(`box.${box.id}.handle`, [xr + 1.4, yc, hz + 1.2], parts.map((q) => S(k.slabOf(q.plan, hz, 2.4, P, 2), { tone: "mid" })).join(""), shapes, { attrs: ` data-of="${esc(box.id)}"` });
-  }
 
-  // ---- fittings and steel lines ----
-  L.forEach((l, i) => {
-    const r = l.r;
-    const bodyR = Math.max(r * 1.75, 1.2);
-    const baseR = bodyR * 1.32;
-    const h = TIER0 + level[i] * TIER_STEP;
-    const lidZ = (boxId) => Z_BOX + hOf.get(boxId);
-    for (const [end, boxId] of [[l.a, l.from], [l.b, l.to]]) {
-      const F = G.frameAlong([end[0], end[1], lidZ(boxId)], [0, 0, 1]);
-      const shapes = [R.solid(A.disc(F, 0, FIT.base, baseR, { name: `fit.${l.id}.base` })), R.solid(A.disc(F, FIT.base, FIT.base + FIT.body, bodyR, { name: `fit.${l.id}.body` }))];
-      const svg = S(G.disc(0, FIT.base, baseR, F, P, { steps: 6 }), { tone: "mid" }) + S(G.disc(FIT.base, FIT.base + FIT.body, bodyR, F, P, { steps: 24 }), { tone: "mid" });
-      put(`fit.${l.id}.${boxId}`, [end[0], end[1], lidZ(boxId) + 1.5], svg, shapes, { attrs: ` data-of="${esc(boxId)}" data-line="${esc(l.id)}"` });
-    }
-    const pts = [[l.a[0], l.a[1], lidZ(l.from) + FIT.base + FIT.body], ...l.plan.map(([x, y]) => [x, y, h]), [l.b[0], l.b[1], lidZ(l.to) + FIT.base + FIT.body]];
-    const route = G.fillet(pts, l.plan.length > 2 ? 6.5 : Math.max(4.5, r * 4), 12, { P, tube: r });
-    const total = G.pathLength(route);
-    const collars = [
-      { s0: 0, s1: NUT, r: bodyR, kind: "nut" },
-      { s0: total - NUT, s1: total, r: bodyR, kind: "nut" },
-    ];
-    if (l.status === "code-only") for (const s of [total / 2 - 7, total / 2 + 7]) collars.push({ s0: s - 0.9, s1: s + 0.9, r: Math.max(r * 2.1, 1.4), kind: "tag" });
-    const gaps = collars.map((c) => [c.s0, c.s1]);
-    R.route(`line.${l.id}`, route, r, { gaps, rims: [bodyR, bodyR], piece: "skid" });
-    const attrs = ` data-line="${esc(l.id)}" data-ends="${esc(l.from)} ${esc(l.to)}"`;
-    const rings = l.typeOnly ? { rings: { pitch: 1.6, twist: 0.8, cross: true, fade: [0.1, 0.55] } } : {};
-    tubePieces(route, r, P, { maxLength: 14, spacing: Math.max(0.6, Math.min(1.6, r)), gaps, ...rings }).forEach((piece, index) =>
-      put(`line.${l.id}:${index}`, piece.mid, tubeSvg(piece, { tone: "mid" }), [A.tube(piece.points, piece.radii)], { bias: 0.05, attrs }),
-    );
-    for (const c of collars) {
-      const sm = (c.s0 + c.s1) / 2;
-      const tangent = G.tangentAlong(route, sm);
-      const centre = pointAlong(route, sm);
-      const F = G.frameAlong(centre, tangent);
-      const half = (c.s1 - c.s0) / 2;
-      const shape = R.solid(A.disc(F, -half, half, c.r, { name: `line.${l.id}.${c.kind}`, owner: `line.${l.id}` }));
-      const svg = S(G.disc(-half, half, c.r, F, P, { steps: c.kind === "nut" ? 6 : 24, bevel: 0.15 }), { tone: c.kind === "tag" ? "hi" : "mid" });
-      put(`line.${l.id}.${c.kind}`, centre, c.kind === "tag" ? `<g class="ex-tag">${svg}</g>` : svg, [shape], { bias: 0.1, attrs });
-    }
-  });
+    return { R, P, back, names };
+  };
+  let drawn;
+  for (let attempt = 0; ; attempt++) {
+    assignLevels();
+    drawn = drawOnce();
+    if (attempt >= 3) break;
+    const crowd = A.crowding(drawn.R.routes, drawn.P, { links: A.linksOf(drawn.R.tubes, A.mountsOf(drawn.R.tubes, drawn.R.solids)), items: drawn.R.items, rods: A.slenderOf(drawn.R.solids) });
+    const lift = new Set(crowd.map((c) => String(c.a)).filter((n) => n.startsWith("line.")).map((n) => n.slice(5).replace(/\.(nut|tag)$/, "")));
+    const idx = L.map((l, i) => (lift.has(l.id) ? i : -1)).filter((i) => i >= 0);
+    if (idx.length === 0) break;
+    for (const i of idx) floor[i] = level[i] + 1;
+  }
+  const { R, P, back, names } = drawn;
 
   A.settle(R, P);
   R.items.sort((a, b) => a.key - b.key);
   const groups = R.items.map((item) => `<g class="it" data-name="${esc(item.name)}"${item.attrs ?? ""}>${item.svg}</g>`);
   // hit targets over everything, back to front, so the nearer box takes the pointer where silhouettes overlap
+  // One hit target per part: a part spanning folders is one path with a piece over each of its boxes.
+  const depthOfSeg = (g) => k.depthOf([g.plan.x + g.plan.w / 2, g.plan.y + g.plan.d / 2, 0], P);
   const hits = [...M.boxes]
-    .sort((a, b) => {
-      const ca = place.get(a.id).plan;
-      const cb = place.get(b.id).plan;
-      return k.depthOf([ca.x + ca.w / 2, ca.y + ca.d / 2, 0], P) - k.depthOf([cb.x + cb.w / 2, cb.y + cb.d / 2, 0], P);
-    })
-    .map((box) => {
-      const { plan } = place.get(box.id);
-      const paths = k.slabOf(plan, Z_BOX, hOf.get(box.id) + FIT.base + FIT.body, P, 4);
-      return `<path class="ex-hit" data-hit="${esc(box.id)}" d="${paths.fill}"/>`;
-    })
+    .sort((a, b) => depthOfSeg(place.get(a.id)) - depthOfSeg(place.get(b.id)))
+    .map((box) => `<path class="ex-hit" data-hit="${esc(box.id)}" d="${segments.filter((g) => g.boxId === box.id).map((g) => k.slabOf(g.plan, Z_BOX, g.h + FIT.base + FIT.body, P, 4).fill).join("")}"/>`)
     .join("");
   const codeOnly = M.lines.filter((l) => l.status === "code-only").length;
-  const label = `An instrument skid on a base plate: ${decks.length} folder ${decks.length === 1 ? "deck" : "decks"}, ${trays.length} file trays and ${M.boxes.length} instrument boxes, one per part plain code confirmed, each as tall as the lines it covers and with its name on a plate. ${M.lines.length} bent steel lines join box lids where plain code found an import, call or use between two parts; ${codeOnly} of them carry two tag collars because plain code found them and Wonder did not name them.`;
+  const fileCount = new Set(trays.map((t) => t.path)).size;
+  const spanning = M.boxes.filter((b) => segments.filter((g) => g.boxId === b.id).length > 1).length;
+  const n = (count, one, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
+  const label = `An instrument skid on a base plate: ${n(decks.length, "folder deck")}, trays for ${n(fileCount, "file")}, and ${n(M.boxes.length, "part")} whose lines plain code confirmed, drawn as ${n(segments.length, "instrument box", "instrument boxes")}${spanning ? ` (${n(spanning, "part")} spanning folders get one box per folder)` : ""}; a box grows taller with the lines it covers and carries its name on a plate. ${n(M.lines.length, "bent steel line")} join box lids where plain code found an import, call or use between two parts; ${codeOnly} of them carry two tag collars because plain code found them and Wonder did not name them.`;
   const svg = k.figureSvg({ width: W, height: H, label, body: [...back, `<g class="ex-skid">${groups.join("")}</g>`, `<g class="ex-hits">${hits}</g>`] });
   return {
     svg,
     R,
     P,
     names,
-    stats: { solids: R.solids.length, items: R.items.length, lines: M.lines.length, runs: R.tubes.length, trays: trays.length, decks: decks.length, levels: Math.max(0, ...level) + 1 },
+    stats: { solids: R.solids.length, items: R.items.length, lines: M.lines.length, runs: R.tubes.length, trays: trays.length, files: fileCount, decks: decks.length, boxes: segments.length, levels: Math.max(0, ...level) + 1 },
   };
 }
 
