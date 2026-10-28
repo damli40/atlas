@@ -104,16 +104,23 @@ describe("B1: the result channel cannot be forged by the code under test", () =>
 });
 
 describe("B2: AbortSignal.timeout runs on the virtual clock", () => {
-  it("the reviewer's input 1: a call woken by AbortSignal.timeout(20) returns at 20 virtual ms (was: never settled)", async () => {
-    const r = await runPasted(`export async function f(){ await new Promise(r => AbortSignal.timeout(20).addEventListener('abort', r)); return 'woke'; }`);
+  it("the reviewer's input 1: a call woken by AbortSignal.timeout(20) returns at 20 virtual ms when something keeps the process alive (was: never settled)", async () => {
+    // R1 (B1 review MINOR 3): AbortSignal.timeout's timer is unref'd, as in Node. Kept alive by a ref'd timer, it wakes at 20 ms.
+    const r = await runPasted(`export async function f(){ const keep = setTimeout(() => {}, 1000); await new Promise(r => AbortSignal.timeout(20).addEventListener('abort', r)); clearTimeout(keep); return 'woke'; }`);
     expect(r.result.measured).toMatchObject({ outcome: "returned", returnedJson: '"woke"', virtualMs: 20 });
+  });
+  it("R1: AbortSignal.timeout alone (nothing keeps the process alive): how the call ends is can't check, with the unref reason", async () => {
+    const r = await runPasted(`export async function f(){ await new Promise(r => AbortSignal.timeout(20).addEventListener('abort', r)); return 'woke'; }`);
+    expect(r.result.measured.outcome).toBeUndefined();
+    expect(r.result.notMeasured.outcome).toMatch(/unref'd timer/);
+    expect(r.conditions?.map((c) => c.kind)).toContain("unref-timer");
   });
   it("the reviewer's input 2: the race with setTimeout(1000) is won by the abort at 5 ms, as in real Node", async () => {
     const r = await runPasted(`export async function f(){ return await Promise.race([new Promise(r=>AbortSignal.timeout(5).addEventListener('abort',()=>r('abort'))), new Promise(r=>setTimeout(()=>r('timer'),1000))]); }`);
     expect(r.result.measured).toMatchObject({ outcome: "returned", returnedJson: '"abort"', virtualMs: 5 });
   });
   it("the abort reason is Node's TimeoutError; AbortSignal.any follows it; bad delays throw as in Node", async () => {
-    const r = await runPasted(`export async function f(){ const s = AbortSignal.any([AbortSignal.timeout(30)]); await new Promise(r => s.addEventListener('abort', r)); let bad = "no throw"; try { AbortSignal.timeout(-1); } catch (e) { bad = e.code; } return [s.reason.name, s.reason.message, bad]; }`);
+    const r = await runPasted(`export async function f(){ const keep = setTimeout(() => {}, 1000); const s = AbortSignal.any([AbortSignal.timeout(30)]); await new Promise(r => s.addEventListener('abort', r)); clearTimeout(keep); let bad = "no throw"; try { AbortSignal.timeout(-1); } catch (e) { bad = e.code; } return [s.reason.name, s.reason.message, bad]; }`);
     expect(r.result.measured).toMatchObject({ outcome: "returned", virtualMs: 30, returnedJson: '["TimeoutError","The operation was aborted due to timeout","ERR_OUT_OF_RANGE"]' });
   });
   it("an AbortSignal.timeout made while the file loads is a load-time timer: whole run can't check", async () => {
@@ -133,7 +140,8 @@ describe("the sweep: every way a promise can wake without Atlas's clock", () => 
   });
   const works: [string, string, string][] = [
     ["queueMicrotask chains (drained before every timer)", `export async function f(){ let n = 0; await new Promise(r => { const step = () => (++n < 100 ? queueMicrotask(step) : r()); queueMicrotask(step); }); return n; }`, "100"],
-    ["process.nextTick", `export async function f(){ return await new Promise(r => process.nextTick(() => r("tick"))); }`, '"tick"'],
+    // R1: from a timer callback (a nextTick in the call's synchronous part races promise callbacks: can't check, see r1 tests).
+    ["process.nextTick", `export async function f(){ await new Promise(r => setTimeout(r, 1)); return await new Promise(r => process.nextTick(() => r("tick"))); }`, '"tick"'],
     ["Blob.text (native read, waited for)", `export async function f(){ return await new Blob(["abc"]).text(); }`, '"abc"'],
     ["ReadableStream (microtasks)", `export async function f(){ const s = new ReadableStream({ start(c){ c.enqueue("a"); c.enqueue("b"); c.close(); } }); let out = ""; for await (const x of s) out += x; return out; }`, '"ab"'],
     ["Response.json (stream over a Blob)", `export async function f(){ return await new Response('{"a":1}').json(); }`, '{"a":1}'],
