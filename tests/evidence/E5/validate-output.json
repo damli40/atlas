@@ -15,12 +15,12 @@
           "event": "PreToolUse",
           "matcher": null,
           "command": [
-            "node",
-            "hooks/remind-before-edit.mjs"
+            "sh",
+            "hooks/remind-before-edit.sh"
           ],
           "shell_command": null,
-          "source_path": "<repo>/plugins/muse-atlas/hooks/remind-before-edit.mjs",
-          "source_relative_path": "hooks/remind-before-edit.mjs",
+          "source_path": "<repo>/plugins/muse-atlas/hooks/remind-before-edit.sh",
+          "source_relative_path": "hooks/remind-before-edit.sh",
           "timeout_ms": 2000,
           "async": false,
           "compatibility_name": null
@@ -81,12 +81,12 @@
         "event": "PreToolUse",
         "matcher": null,
         "command": [
-          "node",
-          "hooks/remind-before-edit.mjs"
+          "sh",
+          "hooks/remind-before-edit.sh"
         ],
         "shell_command": null,
-        "source_path": "<repo>/plugins/muse-atlas/hooks/remind-before-edit.mjs",
-        "source_relative_path": "hooks/remind-before-edit.mjs",
+        "source_path": "<repo>/plugins/muse-atlas/hooks/remind-before-edit.sh",
+        "source_relative_path": "hooks/remind-before-edit.sh",
         "timeout_ms": 2000,
         "async": false,
         "compatibility_name": null

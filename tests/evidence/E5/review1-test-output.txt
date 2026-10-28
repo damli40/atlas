@@ -1,0 +1,44 @@
+
+ RUN  v5.0.5 <repo>
+
+ ✓ tests/unit/e5-review1.test.ts > B1: redirects are never followed (real fetch) > a cross-host 307 and a same-host 302: refused with a plain reason; zero requests and no invite reach the target 24ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 config: where the plugin may send the invite > https anywhere; plain http only to this machine; no credentials or query in the address 1ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 config: where the plugin may send the invite > reads ATLAS_URL / ATLAS_INVITE; refuses a malformed invite; says how to set up when nothing is set 1ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 config: where the plugin may send the invite > a config.json in Muse's plugin data folder works, but only when other users cannot read it 1ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 bets come from the person's typed words, read by plain code > reads options by their word, numbers with their own unit, JSON (None/null = null), and skip / no bet 1ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 bets come from the person's typed words, read by plain code > refuses words it would have to interpret, so nothing is guessed (review M4, m1, m7) 0ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 tools against the real Atlas server (models mocked) > a whole round: read → Wonder's tests → round → the person's typed bet → run → verdicts and proof link 602ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 tools against the real Atlas server (models mocked) > a typed answer plain code cannot read seals nothing, and says to ask the person again 3ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 tools against the real Atlas server (models mocked) > a file that is not JS/TS/Python, outside the workspace, or over 64 KB is refused and NOTHING is sent 1ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 tools against the real Atlas server (models mocked) > a file with an import: the whole-run can't-check reason is shown plainly and no model is asked 1ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 tools against the real Atlas server (models mocked) > unknown function, and a step out of order, get plain reasons 1ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 invite codes and budgets (G1's real gate and ledger) > no invite: 401 becomes a plain 'how to get a code' answer; nothing is spent 3ms
+ ✓ tests/unit/e5-review1.test.ts > M1: one deadline for the whole answer, a size cap, and ping while a tool waits > a server that sends headers and then trickles the body is cut off at the deadline 805ms
+ ✓ tests/unit/e5-review1.test.ts > M1: one deadline for the whole answer, a size cap, and ping while a tool waits > an answer over the cap is not read into memory 3ms
+ ✓ tests/unit/e5-review1.test.ts > M1: one deadline for the whole answer, a size cap, and ping while a tool waits > over stdio, ping and tools/list are answered while a tool call hangs 157ms
+ ✓ tests/unit/e5-review1.test.ts > M2: the file is checked again before every later step > read → the file is edited → propose, start, seal and run are all refused until it is read again 26ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 invite codes and budgets (G1's real gate and ledger) > with a dev invite: the round works, the invite rides only in its header and never appears in an answer 507ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 invite codes and budgets (G1's real gate and ledger) > budget used up: Muse Wonder is not asked, and the answer says it is the invite's budget 3ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 invite codes and budgets (G1's real gate and ledger) > a wrong invite and an unreachable server: plain answers, the invite never echoed 2ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 the MCP server (stdio, JSON-RPC) > initialize, tools/list, and a tool call when not set up answers with the set-up reason 0ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 the MCP server (stdio, JSON-RPC) > the seal tool's description forbids inventing a bet, and its schema takes only typed words 0ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 the MCP server (stdio, JSON-RPC) > a handler that throws becomes that tool's error answer 0ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 the MCP server (stdio, JSON-RPC) > the real program over stdio: only JSON-RPC on stdout, an unreachable server reported plainly, no invite printed 156ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 the plugin package > manifest: native, portable ids, every referenced file exists, invite only by ${VAR} 0ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 the plugin package > the MCP server's only network call is fetch to the configured Atlas address 0ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 the plugin package > the /atlas command walks the flow and keeps the rules 0ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 the plugin package > the reminder hook is off by default, and when turned on only reminds (never blocks) 142ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 the plugin package > Muse Code's own validator accepts the plugin with zero diagnostics (muse plugins validate --json) 38ms
+ ✓ tests/unit/e5-review1.test.ts > M2: the file is checked again before every later step > the run line names the version that ran 563ms
+ ✓ tests/unit/e5-review1.test.ts > M3: text from the file, the server or a model is framed as data > every answer says it is data; the bettor block has a random per-round tag the file cannot forge 4ms
+ ✓ tests/unit/e5-review1.test.ts > M3: text from the file, the server or a model is framed as data > a seal under 2 s after the questions were shown is refused; after 2 s it goes through 2ms
+ ✓ tests/unit/e5-review1.test.ts > M3: text from the file, the server or a model is framed as data > export names and server sentences cannot start a new line; hidden characters are shown as escapes 1ms
+ ✓ tests/unit/e5-review1.test.ts > m3, m5, m6 > m3: an answer Atlas would not send is refused plainly, never turned into a confident reason 0ms
+ ✓ tests/unit/e5-review1.test.ts > m3, m5, m6 > m5: Muse working in the home folder is refused, and nothing is sent 0ms
+ ✓ tests/unit/e5-review1.test.ts > m3, m5, m6 > m6: a literal ${ATLAS_URL} left unfilled counts as unset, so config.json still works 1ms
+
+ Test Files  2 passed (2)
+      Tests  35 passed (35)
+   Start at  14:06:06
+   Duration  2.13s (tests 78%, import 18%, transform 5%)
+

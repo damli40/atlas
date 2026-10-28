@@ -1,4 +1,9 @@
-# muse plugins hook test, flag file ON
+# Review round 1: the hook is now 'sh hooks/remind-before-edit.sh' with no status line.
+# Muse 1.4.14 native hooks have no tool filter: the manifest field 'matcher' gives the diagnostic
+# "hook capability field `matcher` is a Claude/Codex hook field; TBH plugin hooks key on `event`", so the off path is made cheap instead.
+# fixture:
+{"event":"PreToolUse","stdin":{"hook_event_name":"PreToolUse","tool_name":"edit_file","tool_input":{"path":"retry.ts"}}}
+# flag file off
 {
   "decision": {
     "should_block": false,
@@ -15,40 +20,10 @@
       "run_id": "plugin:atlas:remind-before-edit:1",
       "hook_key": "plugin:atlas:remind-before-edit",
       "event": "pre_tool_use",
-      "status_message": "Atlas: checking whether to remind you about /atlas",
-      "system_message": "Atlas: after this edit you can type /atlas retry.ts to bet on what it will do before you accept it.",
-      "status": "completed",
-      "duration_ms": 116,
-      "exit_code": 0,
-      "effects": [],
-      "stdout": "{\"systemMessage\":\"Atlas: after this edit you can type /atlas retry.ts to bet on what it will do before you accept it.\"}\n",
-      "stderr": "",
-      "error": null
-    }
-  ],
-  "records": 2
-}
-# flag file OFF (the default)
-{
-  "decision": {
-    "should_block": false,
-    "block_reason": null,
-    "additional_contexts": [],
-    "updated_input": null,
-    "permission_decision": null,
-    "feedback_message": null,
-    "should_stop": false,
-    "stop_reason": null
-  },
-  "terminals": [
-    {
-      "run_id": "plugin:atlas:remind-before-edit:1",
-      "hook_key": "plugin:atlas:remind-before-edit",
-      "event": "pre_tool_use",
-      "status_message": "Atlas: checking whether to remind you about /atlas",
+      "status_message": null,
       "system_message": null,
       "status": "completed",
-      "duration_ms": 109,
+      "duration_ms": 3,
       "exit_code": 0,
       "effects": [],
       "stdout": "",
@@ -58,5 +33,44 @@
   ],
   "records": 2
 }
-# fixture
-{"event":"PreToolUse","stdin":{"hook_event_name":"PreToolUse","tool_name":"edit_file","tool_input":{"path":"retry.ts"}}}
+# flag file on
+{
+  "decision": {
+    "should_block": false,
+    "block_reason": null,
+    "additional_contexts": [],
+    "updated_input": null,
+    "permission_decision": null,
+    "feedback_message": null,
+    "should_stop": false,
+    "stop_reason": null
+  },
+  "terminals": [
+    {
+      "run_id": "plugin:atlas:remind-before-edit:1",
+      "hook_key": "plugin:atlas:remind-before-edit",
+      "event": "pre_tool_use",
+      "status_message": null,
+      "system_message": "Atlas: after this edit you can type /atlas retry.ts to bet on what it will do before you accept it.",
+      "status": "completed",
+      "duration_ms": 51,
+      "exit_code": 0,
+      "effects": [],
+      "stdout": "{\"systemMessage\":\"Atlas: after this edit you can type /atlas retry.ts to bet on what it will do before you accept it.\"}\n",
+      "stderr": "",
+      "error": null
+    }
+  ],
+  "records": 2
+}
+# to switch the hook off entirely: muse plugins reject atlas:hook:remind-before-edit
+{
+  "decision": "reject",
+  "runtime_capabilities": [
+    {
+      "stable_id": "plugin:atlas:hook:remind-before-edit",
+      "trusted_definition_hash": "sha256:994b4c05462bb4152f9fb31349a2a9af1d5b1fb89c9b46599370731bffbfbc64",
+      "enabled": false
+    }
+  ]
+}
