@@ -1,0 +1,74 @@
+
+ RUN  v5.0.5 <repo>
+
+ ✓ tests/unit/g1-review1.test.ts > B1: a call that was sent and reported no usage is counted at its worst case > the review's attack (timeouts on a 60k prompt, 200 tries) stops at about $3 for one $3 code 151ms
+ ✓ tests/unit/g1-review1.test.ts > B1: a call that was sent and reported no usage is counted at its worst case > per outcome: a 200 with usage is its real cost; a 4xx is $0; a 5xx, a non-JSON body or a 200 without usage is the worst case; not sent is $0 201ms
+ ✓ tests/unit/g1-review2.test.ts > B6: sessions (the bet store) > a dev code holds at most 20 sessions: its 21st drops its OWN oldest, even one with sealed bets; another code's sessions stay 38ms
+ ✓ tests/unit/g1-review2.test.ts > B6: sessions (the bet store) > protection is bounded: 30 minutes from the oldest unrun sealed bet, and using the session does not extend it 2ms
+ ✓ tests/unit/g1-review2.test.ts > B6: sessions (the bet store) > through the server: devs fill every dev session slot with protected rounds; the owner's new round still opens 291ms
+ ✓ tests/unit/g1-review1.test.ts > B1: a call that was sent and reported no usage is counted at its worst case > a call that THROWS (after it may have been sent) is counted at its worst case, never $0 5ms
+ ✓ tests/unit/g1-review1.test.ts > B1: a call that was sent and reported no usage is counted at its worst case > M1: a killed muse exec (costUnknown) is counted at its computed hold, which grows with the workspace and the steps 4ms
+ ✓ tests/unit/g1-review1.test.ts > B4: prompt tokens are counted as UTF-8 bytes (an upper bound) > CJK and emoji count by bytes, so their hold is up to 3-4x the old character count 0ms
+ ✓ tests/unit/g1-review1.test.ts > B2: calls per hour and experiments per session have per-code shares; the owner has its own > a dev uses up its share of calls (and the devs' shared counter); the owner's call and experiment still go through 74ms
+ ✓ tests/unit/g1-review1.test.ts > B2: calls per hour and experiments per session have per-code shares; the owner has its own > a dev who sends the owner's session id uses up only its own experiment count 137ms
+ ✓ tests/unit/g1-review2.test.ts > B7: GitHub reads have shares, failures are remembered, the finale's PR stays cached > a dev's 11th uncached PR read in the hour is refused (429) with nothing fetched; devs together stop at 25; the owner's read still goes through 199ms
+ ✓ tests/unit/g1-invites.test.ts > G1 gate: every spending route refuses without a code, and nothing is spent > covers every route the app registers: each is open (read only) or in the spending table 15ms
+ ✓ tests/unit/g1-review2.test.ts > B7: GitHub reads have shares, failures are remembered, the finale's PR stays cached > a missing PR asked for 20 times reads GitHub once (the failure is remembered for 60 s) 8ms
+ ✓ tests/unit/g1-review2.test.ts > B7: GitHub reads have shares, failures are remembered, the finale's PR stays cached > the Moonwell PR is never pushed out of the cache: after 30 other PRs, asking again reads nothing 59ms
+ ✓ tests/unit/g1-review2.test.ts > B7: GitHub reads have shares, failures are remembered, the finale's PR stays cached > outline jobs on a GitHub repo take a GitHub read from the same share 2ms
+ ✓ tests/unit/g1-review2.test.ts > B8: the 'ran out of room' retry is held as its own worst case > two Spark bets at once on a code with exactly two holds left: the ledger stays at or under $3.00 32ms
+ ✓ tests/unit/g1-review1.test.ts > B3: Modal's daily caps have per-dev shares and an owner slice; sandboxes at once are capped for devs > a dev uses up its own daily seconds; the owner's sandbox still starts (the review's 720-run attack) 89ms
+ ✓ tests/unit/g1-review1.test.ts > B3: Modal's daily caps have per-dev shares and an owner slice; sandboxes at once are capped for devs > devs together stop at 80% of Modal's daily caps; the owner (and the warm-up) can use the rest 93ms
+ ✓ tests/unit/g1-review2.test.ts > B8: the 'ran out of room' retry is held as its own worst case > when the retry's hold is refused, the retry is not sent and the first try is booked at its real cost 73ms
+ ✓ tests/unit/g1-review2.test.ts > M7: bet calls use 4,000 output tokens (retry 8,000), which covers every real bet answer on file > the live usage log's claimant calls all fit in 4,000 output tokens 1ms
+ ✓ tests/unit/g1-review2.test.ts > M7: bet calls use 4,000 output tokens (retry 8,000), which covers every real bet answer on file > a 60 KB pasted bet holds about $0.32 for its first try (was $1.21) 0ms
+ ✓ tests/unit/g1-review2.test.ts > B9: the store lock after a stop > a lock left with this process's own pid (a restart that got the same pid) is taken over 73ms
+ ✓ tests/unit/g1-review1.test.ts > B3: Modal's daily caps have per-dev shares and an owner slice; sandboxes at once are capped for devs > devs together hold at most 3 sandboxes at once; the owner's 4th still starts 4ms
+ ✓ tests/unit/g1-review1.test.ts > B3: Modal's daily caps have per-dev shares and an owner slice; sandboxes at once are capped for devs > restart: the per-dev share and the devs' slice are read back from disk 4ms
+ ✓ tests/unit/g1-review1.test.ts > M3: the EVM gates (runs, replays) and the sandbox gate give the owner its own slots > devs use up the shared hourly runs and the at-once slot; the owner still gets a run 6ms
+ ✓ tests/unit/g1-review1.test.ts > M3: the EVM gates (runs, replays) and the sandbox gate give the owner its own slots > the sandbox gate too: devs hold the shared at-once slots; the owner's sandbox start still gets one 2ms
+ ✓ tests/unit/g1-review1.test.ts > M2: outline jobs running at once: one per dev code, and the last slot is the owner's > a dev's second running job is refused; devs fill 3 of 4 slots; the owner's job still starts 153ms
+ ✓ tests/unit/g1-review2.test.ts > B9: the store lock after a stop > a pid now used by an unrelated process (start time differs) is stale; a live server with the right start time is not 266ms
+ ✓ tests/unit/g1-review1.test.ts > B5 and m3: a request signed only by the cookie must come from Atlas's own page > cookie-only POSTs and GET /replay are refused cross-site; same-origin (or the configured Origin) passes; the header path is unchanged 17ms
+ ✓ tests/unit/g1-review1.test.ts > B5 and m3: a request signed only by the cookie must come from Atlas's own page > spending POSTs must be JSON: a text/plain or form body is refused before the app (415), even same-origin 28ms
+ ✓ tests/unit/g1-review1.test.ts > B5 and m3: a request signed only by the cookie must come from Atlas's own page > sign-in and sign-out from another site are refused (403) 6ms
+ ✓ tests/unit/g1-review1.test.ts > M5: one server process per store > a second lock on the same store is refused while the first holder lives; a lock left by a dead process is taken over 120ms
+ ✓ tests/unit/g1-review1.test.ts > minors > m6: codes but no spend.json: the ledger refuses to open; ledger-init (on purpose) makes an empty one 5ms
+ ✓ tests/unit/g1-review1.test.ts > minors > m5: a store folder inside the repo is refused (server and tool) 1ms
+ ✓ tests/unit/g1-review1.test.ts > minors > m2: a chain-facts read counts as one EVM run of the invite; success cached, a failure cached 60 s 5ms
+ ✓ tests/unit/g1-review1.test.ts > minors > m4: with an https public origin the cookie is Secure 3ms
+ ✓ tests/unit/g1-review2.test.ts > B9: the store lock after a stop > SIGTERM and SIGINT remove the lock (a server child process, started and stopped by this test) 1091ms
+ ✓ tests/unit/g1-review2.test.ts > M6: pastes > a dev code holds at most 10 paste sessions (its 11th drops its own oldest); the owner's paste lives in the owner's app and survives any dev flood 55ms
+ ✓ tests/unit/g1-review2.test.ts > Sweep: the owner's app copy keeps every in-memory capacity apart > a dev's session, paste and run are invisible to the owner and the reverse (two app instances) 10ms
+ ✓ tests/unit/g1-review2.test.ts > Sweep: the owner's app copy keeps every in-memory capacity apart > live-log streams: no code gets 401; a dev holds at most 4 at once (the 5th is 429); the owner's stream still opens 33ms
+ ✓ tests/unit/g1-review2.test.ts > minors > m12: a replay opened by typing the URL (Sec-Fetch-Site: none) passes the gate with the cookie; a link from another site does not 6ms
+ ✓ tests/unit/g1-review2.test.ts > minors > m9: one dev code holds at most 2 sandboxes at once, so another dev still gets one 7ms
+ ✓ tests/unit/g1-invites.test.ts > G1 gate: every spending route refuses without a code, and nothing is spent > no code: 401 with the plain message on every spending route (also HEAD, an unknown route and a made-up code); not one model call, sandbox or fork 2382ms
+ ✓ tests/unit/g1-invites.test.ts > G1 gate: every spending route refuses without a code, and nothing is spent > the read-only routes stay open without a code: health, claimants, languages, a public proof card, the invite page 858ms
+ ✓ tests/unit/g1-invites.test.ts > G1 gate: every spending route refuses without a code, and nothing is spent > ATLAS_REQUIRE_INVITE: only '1' turns it on; a typo stops the server instead of meaning 'off' 1ms
+ ✓ tests/unit/g1-invites.test.ts > G1 gate: every spending route refuses without a code, and nothing is spent > required but no code set up: the server refuses to start (no pepper; then no active code) 59ms
+ ✓ tests/unit/g1-invites.test.ts > G1 invite page and cookie > POST /invite sets an HttpOnly, SameSite=Strict cookie; the cookie then opens the spending routes; forget clears it 8ms
+ ✓ tests/unit/g1-invites.test.ts > G1 invite page and cookie > a wrong code: 401 and no cookie; after 30 wrong tries from one address, wrong codes get 429, and a correct code still works (review M4) 6ms
+ ✓ tests/unit/g1-invites.test.ts > G1 per-code budgets (D34) > a whole pasted round on a $3 dev code: spends are reserved, settled from the reported usage, and logged by label, never by code 799ms
+ ✓ tests/unit/g1-invites.test.ts > G1 per-code budgets (D34) > a code past its daily budget is refused BEFORE the call: 'not asked: your invite's daily budget is used up'; the person's own bet and run still work at $0 577ms
+ ✓ tests/unit/g1-invites.test.ts > G1 per-code budgets (D34) > on Modal, a used-up code's run is not started either: 'the run did not finish' with the budget reason, nothing judged 12ms
+ ✓ tests/unit/g1-invites.test.ts > G1 per-code budgets (D34) > Modal sandbox cost: the worst case is reserved first (Modal's own lifetime limit at the capped rate) and the measured seconds are settled 1271ms
+ ✓ tests/unit/g1-invites.test.ts > G1 per-code budgets (D34) > the owner reserve: with $79.90 of the $100 ceiling spent, dev codes are refused and the owner's code is not 11ms
+ ✓ tests/unit/g1-invites.test.ts > G1 per-code budgets (D34) > the owner reserve holds against many dev codes at once: devs together never pass ceiling minus reserve 62ms
+ ✓ tests/unit/g1-invites.test.ts > G1 per-code budgets (D34) > race: 10 requests at once on one $3 code can't overshoot; the 'at once' limit holds too 108ms
+ ✓ tests/unit/g1-invites.test.ts > G1 per-code budgets (D34) > a lifetime total (--total-usd) is a hard stop too 3ms
+ ✓ tests/unit/g1-invites.test.ts > G1 counters survive a restart (the old daily caps lived in memory) > per code per day, the global totals and Modal's daily sandbox counters are read back from disk 5ms
+ ✓ tests/unit/g1-invites.test.ts > G1 counters survive a restart (the old daily caps lived in memory) > a spend still open when the server stopped is counted at its worst case after the restart 5ms
+ ✓ tests/unit/g1-invites.test.ts > G1 identity is the code, not the address > new IPv6 /64s and X-Forwarded-For hops give a code nothing extra; without invites the old per-address rule still applies 21ms
+ ✓ tests/unit/g1-invites.test.ts > G1 a revoked code stops immediately > revoked with the tool (another process's store) while the server runs: the next request is 401, and a spend it had queued is refused 5ms
+ ✓ tests/unit/g1-invites.test.ts > G1 Baseten (Muse Spark Open) spend is counted > a Spark Open bet through the real client: Baseten's reported usage reaches the model budget, the code's ledger and the spend log 8ms
+ ✓ tests/unit/g1-invites.test.ts > G1 EVM fork runs are counted per code per day > a dev code's 3rd fork run of the day is refused (429) before any fork; the owner's is not 26ms
+ ✓ tests/unit/g1-invites.test.ts > G1 tools/invites.ts > create shows the code once and stores only its fingerprint; list never prints a fingerprint or a code; usage sums the log by label 5ms
+ ✓ tests/unit/g1-invites.test.ts > G1 tools/invites.ts > a pepper or store file others can read is refused 2ms
+ ✓ tests/unit/g1-invites.test.ts > G1 the ledger refuses a spend with no code when invites are required (defence behind the gate) > a sandbox or a model call outside any invite is refused; the server's own warm-up is allowed 123ms
+
+ Test Files  3 passed (3)
+      Tests  65 passed (65)
+   Start at  10:07:56
+   Duration  9.04s (tests 59%, import 31%, transform 9%)
+

@@ -97,3 +97,11 @@ export function laterCall(ping: () => unknown): string {
   setTimeout(() => ping(), 500);
   return "now";
 }
+
+/**
+ * R1 (D42): the pins. Math.random and crypto.randomUUID draw from Atlas's seeded generator (seed 20260101 in the
+ * control), the time zone is UTC and the locale is en-US. Known answer in CALL_CONTROL_CASES (C10-pins).
+ */
+export function pinned(): unknown {
+  return { r: Math.random(), u: crypto.randomUUID(), h: new Date(0).getHours(), tz: Intl.DateTimeFormat().resolvedOptions().timeZone, n: (1234.5).toLocaleString() };
+}

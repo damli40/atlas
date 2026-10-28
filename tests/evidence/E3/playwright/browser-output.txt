@@ -1,0 +1,76 @@
+=== the example round at 1920 px (light)
+PASS overlap paste-1920: 728 px wide, 17 text boxes, 0 overlapping pairs, 0 outside
+PASS overlap pick-1920: 728 px wide, 3 text boxes, 0 overlapping pairs, 0 outside
+PASS overlap proposals-1920: 728 px wide, 23 text boxes, 0 overlapping pairs, 0 outside
+proposal 1: Atlas calls retryWithBackoff(fetchIt, 3, 100). fetchIt (async) throws TimeoutError ("slow") on call 1, then returns {"ok":true} on call 2; every later call returns {"ok":true} too. Allowed by Atlas's gate Use this test Edit it first The test as JSON
+proposal 2: Refused by Atlas's gate, so it will never run: args[0].calls[0] never_settle needs an async stand-in: a plain function cannot leave its caller waiting The test as JSON
+PASS the refused proposal is shown as refused
+PASS the refused proposal has no button to run it
+PASS Muse Wonder's claim is not on screen before the bets are sealed
+PASS the bet screen's 'what every bettor sees' holds the plain-code call and no claim
+PASS Muse Wonder's claim is still hidden after the person's seal (1920)
+PASS overlap bet-1920: 728 px wide, 47 text boxes, 0 overlapping pairs, 0 outside
+PASS overlap run-1920: 728 px wide, 34 text boxes, 0 overlapping pairs, 0 outside
+PASS overlap verdict-1920: 728 px wide, 198 text boxes, 0 overlapping pairs, 0 outside
+run facts: What the run measured Run vVEbMYoU8- · known-case check matched first · local sandbox field the code outcome returned virtualMs 100 returnedType object no bet compares this field yet, so a bet on it is can't check returnedJson {"ok":true} calls:fetchIt 2 thrownName can't check: the call returned, so nothing was thrown thrownMessage can't check: the call returned, so nothing was thrown
+timeline readout: returned at 100 ms: {"ok":true}
+verdicts: question You Muse Spark 1.3 (muse-spark-1.3) observed What does retryWithBackoff do? returned · matched returned · matched returned judged by src/judge.ts If retryWithBackoff returns, what value does it return, as JSON? {"ok":true} · matched {"ok":true} · matched {"ok":true} judged by src/judge.ts How many times does retryWithBackoff call fetchIt? 3 · didn't match 2 · matched 2 judged by src/judge.ts How long until retryWithBackoff returns or throws, in ms of Atlas's virtual clock? - 100 ms (±10%) · matched 100 judged by src/judge.ts
+PASS your outcome bet: matched
+PASS your call-count bet: didn't match
+PASS the page re-hashed the JSON bet and it is the answer you typed
+PASS axe round-1920: 0 violations  (47 rules passed)
+PASS reduced motion round-1920: 0 running animations
+proof card replay: replayed: same result ✓
+PASS overlap proof-card-1920: 1600 px wide, 146 text boxes, 0 overlapping pairs, 0 outside
+PASS axe proof-card-1920: 0 violations  (40 rules passed)
+=== the example round at 390 px (dark)
+PASS overlap paste-390: 358 px wide, 27 text boxes, 0 overlapping pairs, 0 outside
+PASS overlap pick-390: 358 px wide, 3 text boxes, 0 overlapping pairs, 0 outside
+PASS overlap proposals-390: 358 px wide, 33 text boxes, 0 overlapping pairs, 0 outside
+PASS Muse Wonder's claim is still hidden after the person's seal (390)
+PASS overlap bet-390: 358 px wide, 60 text boxes, 0 overlapping pairs, 0 outside
+PASS overlap run-390: 358 px wide, 49 text boxes, 0 overlapping pairs, 0 outside
+PASS overlap verdict-390: 358 px wide, 242 text boxes, 0 overlapping pairs, 0 outside
+PASS axe round-390: 0 violations  (47 rules passed)
+PASS reduced motion round-390: 0 running animations
+PASS 390px round: scrollWidth 390 vs 390
+PASS overlap proof-card-390: 358 px wide, 182 text boxes, 0 overlapping pairs, 0 outside
+PASS axe proof-card-390: 0 violations  (40 rules passed)
+PASS 390px proof-card: scrollWidth 390 vs 390
+=== a test written by the person
+PASS axe own-test-form: 0 violations  (33 rules passed)
+own test, timeline readout: never settled (still waiting at 100 ms, with nothing left to wake it)
+PASS own test: never_settled bet matched
+PASS overlap own-test-run-1920: 728 px wide, 38 text boxes, 0 overlapping pairs, 0 outside
+own test refused: gate: rejected (args[0].calls[0] never_settle needs an async stand-in: a plain function cannot leave its caller waiting); nothing will run
+PASS a refused own test gives no Run button
+PASS axe own-test-refused: 0 violations  (37 rules passed)
+=== can't check: the code imports a package
+early can't check: Can't check: the code needs axios; Atlas runs one pasted file on its own, with no packages or other modules. You can still run it: the run will say "can't check" with this reason.
+run can't check: Can't check: the code needs axios; Atlas runs one pasted file on its own, with no packages or other modules.
+PASS can't check reason shown plainly (1920)
+PASS the timeline draws nothing on a can't-check run (1920)
+PASS the bet is can't check, never 'threw' (1920)
+PASS overlap cant-check-run-1920: 728 px wide, 10 text boxes, 0 overlapping pairs, 0 outside
+PASS axe cant-check-1920: 0 violations  (45 rules passed)
+PASS can't check reason shown plainly (390)
+PASS the timeline draws nothing on a can't-check run (390)
+PASS the bet is can't check, never 'threw' (390)
+PASS overlap cant-check-run-390: 358 px wide, 15 text boxes, 0 overlapping pairs, 0 outside
+PASS axe cant-check-390: 0 violations  (45 rules passed)
+PASS 390px cant-check: scrollWidth 390 vs 390
+=== a Python round
+PASS Python is offered, not "coming" (1920)
+python read: Atlas reads it as Python (a Python `def` or `from … import` on line 1). 2 lines · fingerprint ba1a531f581d…
+PASS the bettor text says Python (1920)
+PASS Python add(1, 2): the bet 3 matched (1920)
+python facts: What the run measured Run ZEHTvtAIRv · known-case check matched first · local sandbox field the code outcome returned returnedJson 3 returnedType number no bet compares this field yet, so a bet on it is can't check virtualMs 0 thrownMessage can't check: the call returned, so nothing was thrown thrownName can't check: the call returned, so nothing was thrown
+PASS overlap python-run-1920: 728 px wide, 32 text boxes, 0 overlapping pairs, 0 outside
+PASS axe python-1920: 0 violations  (46 rules passed)
+PASS Python is offered, not "coming" (390)
+PASS the bettor text says Python (390)
+PASS Python add(1, 2): the bet 3 matched (390)
+PASS overlap python-run-390: 358 px wide, 46 text boxes, 0 overlapping pairs, 0 outside
+PASS axe python-390: 0 violations  (46 rules passed)
+PASS 390px python: scrollWidth 390 vs 390
+PASS page errors: 0

@@ -1,0 +1,31 @@
+
+ RUN  v5.0.5 <repo>
+
+ ✓ tests/unit/paste-review1.test.tsx > B1 (D19): the bettor text never cuts a value; it equals everything the person sees about the test > a value longer than 60 characters reaches every model in full, and the page's JSON view is in the text byte for byte 32ms
+ ✓ tests/unit/paste-review1.test.tsx > B2 (D18/D19): the claim opens only after every bet is frozen, then its proposals are closed > the review's sequence A: seal one bet, ask for the claim (refused), seal more (fine), run, then the claim; no bet after 280ms
+ ✓ tests/unit/paste-review1.test.tsx > B2 (D18/D19): the claim opens only after every bet is frozen, then its proposals are closed > the review's sequence B: once the claim was read, the set is closed: no new round, no edited test, no bet on an open round from it 274ms
+ ✓ tests/unit/paste-review1.test.tsx > B3 / M5: bounded bet text and prompts; one text per test, shared by its rounds > a file of more than 2,000 lines is refused before it is kept or counted 0ms
+ ✓ tests/unit/paste-review1.test.tsx > B3 / M5: bounded bet text and prompts; one text per test, shared by its rounds > 50 rounds of the same test on a 2,000-line file keep ONE bet-screen text, and every round's text is the same 13ms
+ ✓ tests/unit/paste-review1.test.tsx > B3 / M5: bounded bet text and prompts; one text per test, shared by its rounds > a call carrying pasted code is refused, unsent, when its prompt is too long or it could cost too much 1ms
+ ✓ tests/unit/paste-review1.test.tsx > B4: a run with tens of thousands of calls keeps a bounded trace, exact counts and a file that verifies > 60,000 calls: the trace is cut at the cap with the reason; calls:f is exact; the proof verifies; the timeline is not drawn 3661ms
+ ✓ tests/unit/paste-review1.test.tsx > B5: sandbox starts are capped, and pasted replays belong to their session > a pasted round's replay: 403 for another session and for no session; 200 for its own 412ms
+ ✓ tests/unit/paste-review1.test.tsx > B5: sandbox starts are capped, and pasted replays belong to their session > parallel runs past the concurrency cap are refused with 429 (fixture code too) 230ms
+ ✓ tests/unit/paste-review1.test.tsx > M1: a re-paste with another language replaces the language > TypeScript pasted as JavaScript, then again as TypeScript: the round runs as TypeScript 259ms
+ ✓ tests/unit/paste-review1.test.tsx > M2: the models read only the person's instruction, never Moonwell's > outside the bettor text the prompt holds only answer-format lines; no 'USD'; the instruction is the paste one, inside the text 1ms
+ ✓ tests/unit/paste-review1.test.tsx > M3: the real server's wiring asks Muse Wonder for tests > serverOptions (what server/index.ts builds) wires the proposer; ATLAS_PROPOSER=off turns it off 1ms
+ ✓ tests/unit/paste-review1.test.tsx > M4: the source is the owning session's, and the sentence on screen is true > GET /proofs: the owner gets the source; another session or none gets the card without it 274ms
+ ✓ tests/unit/paste-review1.test.tsx > M4: the source is the owning session's, and the sentence on screen is true > the privacy sentence names every place the code goes 0ms
+ ✓ tests/unit/paste-review1.test.tsx > M6: behind a proxy, the per-address paste limit counts the hop the proxy added > a new first X-Forwarded-For hop each time does not get past the limit 1ms
+ ✓ tests/unit/paste-review1.test.tsx > minors > a __proto__ key in Wonder's test is refused with the reason, not dropped 1ms
+ ✓ tests/unit/paste-review1.test.tsx > minors > hidden characters show as escapes in a gate reason and in Wonder's sentence 284ms
+ ✓ tests/unit/paste-review1.test.tsx > minors > a 422 never echoes the pasted source 1ms
+ ✓ tests/unit/paste-review1.test.tsx > minors > Muse Wonder is not asked about a file that is already can't check 1ms
+ ✓ tests/unit/paste-review1.test.tsx > minors > POST /paste takes JSON only (415 for text/plain) 0ms
+ ✓ tests/unit/paste-review1.test.tsx > minors > an oversize paste does not use up the quota 1ms
+ ✓ tests/unit/paste-review1.test.tsx > minors > an edited Wonder test names both writers (D10), on the experiment and in the bettor text 1ms
+
+ Test Files  1 passed (1)
+      Tests  22 passed (22)
+   Start at  22:23:06
+   Duration  6.12s (tests 95%, import 4%, transform 1%)
+

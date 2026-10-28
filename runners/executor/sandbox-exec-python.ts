@@ -12,9 +12,12 @@
 //   Not allowed: any network, any file write, reading anything else (the home folder, ~/.config, /etc,
 //   /private/tmp), even reading file names or sizes elsewhere (no metadata reads), sysctl, and IPC lookups.
 //   Each denial is proven by a test in tests/unit/py-sandbox.test.ts.
-// - Python runs as `python -I -S -B`: isolated mode (no PYTHON* environment variables, no user site folder, the
-//   script's folder is not put on the import path), no `site` (no third-party packages at all), no .pyc writes.
-// - The environment is empty. The child never sees this process's API keys or RPC URLs.
+// - Python runs as `python -s -P -S -B`: no user site folder, the script's folder is not put on the import path, no
+//   `site` (no third-party packages at all), no .pyc writes. R1 (D42): this was `-I` (isolated mode), which also
+//   ignores every PYTHON* environment variable, including PYTHONHASHSEED, the only way to fix the seed Python orders
+//   sets of text by. So the flags are -I's parts minus -E, and the environment Atlas passes is the guard instead.
+// - The environment holds only what Atlas pins (PYTHON_PINNED_ENV: PYTHONHASHSEED and TZ, values checked). The
+//   child never sees this process's API keys or RPC URLs.
 // - A hard wall-clock limit: the process is killed (SIGKILL) when it runs out (`timedOut: true`).
 //
 // Which Python: the first of PYTHON_CANDIDATES that reports version 3.12 or newer, in that fixed order (so the
@@ -34,6 +37,33 @@ export const PYTHON_CANDIDATES = ["/opt/homebrew/bin/python3", "/usr/local/bin/p
 /** The oldest Python the harness supports (sys._getframemodulename, asyncio's Runner, PEP 578 hooks). */
 export const PYTHON_MIN: readonly [number, number] = [3, 12];
 const MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
+
+/** R1 (D42): the interpreter flags, shared with the Modal executor: -I's parts minus -E (see the top of this file). */
+export const PYTHON_FLAGS = ["-s", "-P", "-S", "-B"] as const;
+
+/**
+ * R1 (D42): the only environment variables a Python sandbox may get, each with the values Atlas accepts: the string-
+ * hash seed (a whole number 1..4294967295; 0 would switch hashing back to random) and the time zone (UTC only).
+ */
+export const PYTHON_PINNED_ENV: Readonly<Record<string, RegExp>> = {
+  PYTHONHASHSEED: /^[1-9]\d{0,9}$/,
+  TZ: /^UTC$/,
+  // R1 review round 2 (m2): the C locale on every executor. Without these, Linux "coerces" C to C.UTF-8 and macOS's
+  // sandbox cannot, so the two disagreed. Python then runs in its UTF-8 mode in both (PEP 540).
+  LC_ALL: /^C$/,
+  PYTHONCOERCECLOCALE: /^0$/,
+};
+
+/** The env a Python run may have: only PYTHON_PINNED_ENV keys with accepted values. Throws otherwise. */
+export function pythonEnv(env: Record<string, string> | undefined): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(env ?? {})) {
+    const ok = Object.prototype.hasOwnProperty.call(PYTHON_PINNED_ENV, k) && PYTHON_PINNED_ENV[k]!.test(v) && (k !== "PYTHONHASHSEED" || Number(v) <= 4_294_967_295);
+    if (!ok) throw new Error(`Python runs with an empty environment apart from Atlas's pins (${Object.keys(PYTHON_PINNED_ENV).join(", ")}); refused "${k.slice(0, 40)}"`);
+    out[k] = v;
+  }
+  return out;
+}
 
 export interface PythonRuntime {
   /** The binary that is executed inside the sandbox (a real path). */
@@ -120,9 +150,9 @@ export const pythonSandboxExecutor: Executor = {
   async exec(req: ExecRequest): Promise<ExecResult> {
     if (req.cmd[0] !== "python3") throw new Error(`the Python executor runs only "python3" commands; got "${req.cmd[0] ?? ""}"`);
     const scripts = req.cmd.slice(1);
-    if (scripts.length === 0 || scripts.some((a) => a.startsWith("-"))) throw new Error("the Python executor takes a script name only, no interpreter flags (it sets -I -S -B itself)");
+    if (scripts.length === 0 || scripts.some((a) => a.startsWith("-"))) throw new Error(`the Python executor takes a script name only, no interpreter flags (it sets ${PYTHON_FLAGS.join(" ")} itself)`);
     if (req.allowNetwork !== false) throw new Error("the Python executor never allows network");
-    if (req.env && Object.keys(req.env).length > 0) throw new Error("the Python executor runs with an empty environment");
+    const env = pythonEnv(req.env);
     if (!(req.wallClockMs > 0)) throw new Error("wallClockMs must be a positive number");
     const refused = pythonRefusal();
     if (refused) throw new Error(refused);
@@ -141,9 +171,9 @@ export const pythonSandboxExecutor: Executor = {
       writeFileSync(profile, pythonSandboxProfile({ interpreter: py.interpreter, prefix: py.prefix, workdir: dir }));
       return await new Promise<ExecResult>((resolve, reject) => {
         const started = performance.now();
-        const child = spawn(SANDBOX_EXEC, ["-f", profile, py.interpreter, "-I", "-S", "-B", ...scripts], {
+        const child = spawn(SANDBOX_EXEC, ["-f", profile, py.interpreter, ...PYTHON_FLAGS, ...scripts], {
           cwd: dir,
-          env: {},
+          env,
           stdio: [req.stdin !== undefined ? "pipe" : "ignore", "pipe", "pipe"],
         });
         if (req.stdin !== undefined && child.stdin) {

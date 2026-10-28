@@ -47,6 +47,8 @@ export interface ProofCardModel {
   controlPassed: boolean;
   /** Plain lines about the known-case check, read from the run. */
   controls: string[];
+  /** R1 (D42): the run with its recorded pins and conditions, for the "conditions" line (absent before R1). */
+  conditionsRun?: Pick<Run, "conditions" | "seed" | "timeZone" | "locale"> & { result: Pick<Run["result"], "notMeasured"> };
   /** src/trust.ts: when not null, nothing from the run is shown as fact; the card shows this instead. */
   notShownAsFact: string | null;
   captions: string[];
@@ -114,7 +116,13 @@ export function proofCardModel(file: AtlasFile): ProofCardModel {
   const where =
     run.runner === "evm"
       ? `Base (chain ${run.chainId ?? file.chainId ?? "?"}), fork block ${run.forkBlock ?? file.forkBlock ?? "?"}`
-      : `seed ${run.seed ?? file.seed ?? "?"} (same seed = same run)`;
+      : exp.params.shape === "call-function" && run.seed !== undefined && run.seed !== "none"
+        ? // R1 (D42): the seed every random source drew from, and the pinned time zone and locale.
+          `seed ${run.seed} · time zone ${run.timeZone ?? "?"} · locale ${run.locale ?? "?"} (same seed = same run); the virtual clock starts at 2026-01-01T00:00:00Z`
+        : exp.params.shape === "call-function"
+        ? // E3 (files from before R1): the run's seed field says "none"; nothing was seeded then.
+          "no seed: this run is from before Atlas seeded randomness (code that uses Math.random or crypto was not seeded, so its replay can differ); the virtual clock starts at 2026-01-01T00:00:00Z"
+        : `seed ${run.seed ?? file.seed ?? "?"} (same seed = same run)`;
   const bets: CardBet[] = file.bets.map((b) => {
     const v = file.verdicts.find((x) => x.betId === b.id);
     let holds = false;
@@ -148,6 +156,7 @@ export function proofCardModel(file: AtlasFile): ProofCardModel {
     attempts: (file.attempts ?? []).map((a) => `attempt ${a.attempt} did not finish (${a.stoppedAt}): ${a.reason}`),
     controlPassed: run.controlPassed === true,
     controls: controlLines(run),
+    ...(run.conditions !== undefined ? { conditionsRun: { conditions: run.conditions, result: { notMeasured: run.result.notMeasured }, ...(run.seed ? { seed: run.seed } : {}), ...(run.timeZone ? { timeZone: run.timeZone } : {}), ...(run.locale ? { locale: run.locale } : {}) } } : {}),
     notShownAsFact: notShownAsFact(run),
     captions: [...file.captions],
     bets,

@@ -1,0 +1,328 @@
+[
+ {
+  "label": "sync",
+  "n": 2497,
+  "status": 200,
+  "traceLen": 5000,
+  "ends": [
+   "returned"
+  ],
+  "outcome": "returned",
+  "notMeasured": {
+   "thrownMessage": "the call returned, so nothing was thrown",
+   "thrownName": "the call returned, so nothing was thrown"
+  },
+  "callsF": 2497,
+  "callsG": 1,
+  "verdicts": [
+   "matched",
+   "matched"
+  ],
+  "proofVerifies": true,
+  "replay": 200,
+  "timeline": {
+   "notShown": null,
+   "detail": "f: 2,497 calls (2497 returned) · g: 1 call (1 returned)",
+   "readout": "returned at 0 ms: 2498",
+   "traceCut": null
+  }
+ },
+ {
+  "label": "sync",
+  "n": 2498,
+  "status": 200,
+  "traceLen": 5002,
+  "ends": [
+   "returned"
+  ],
+  "outcome": "returned",
+  "notMeasured": {
+   "thrownMessage": "the call returned, so nothing was thrown",
+   "thrownName": "the call returned, so nothing was thrown"
+  },
+  "callsF": 2498,
+  "callsG": 1,
+  "verdicts": [
+   "matched",
+   "matched"
+  ],
+  "proofVerifies": true,
+  "replay": 200,
+  "timeline": {
+   "notShown": null,
+   "detail": "f: 2,498 calls (2498 returned) · g: 1 call (1 returned)",
+   "readout": "returned at 0 ms: 2499",
+   "traceCut": null
+  }
+ },
+ {
+  "label": "sync",
+  "n": 2499,
+  "status": 200,
+  "traceLen": 5003,
+  "cut": {
+   "droppedCalls": {
+    "g": 1
+   },
+   "eventsNotKept": 2,
+   "kept": 5001
+  },
+  "ends": [
+   "returned"
+  ],
+  "outcome": "returned",
+  "notMeasured": {
+   "thrownMessage": "the call returned, so nothing was thrown",
+   "thrownName": "the call returned, so nothing was thrown"
+  },
+  "callsF": 2499,
+  "callsG": 1,
+  "verdicts": [
+   "matched",
+   "matched"
+  ],
+  "proofVerifies": true,
+  "replay": 200,
+  "timeline": {
+   "notShown": null,
+   "detail": "f: 2,499 calls · g: 1 call",
+   "readout": "returned at 0 ms: 2500",
+   "traceCut": "the run made more events than Atlas keeps (5,001 kept, 2 more counted but not kept), so not every call has its own moment on record; the counts are still exact"
+  }
+ },
+ {
+  "label": "sync",
+  "n": 2500,
+  "status": 200,
+  "traceLen": 5003,
+  "cut": {
+   "droppedCalls": {
+    "f": 1,
+    "g": 1
+   },
+   "eventsNotKept": 4,
+   "kept": 5001
+  },
+  "ends": [
+   "returned"
+  ],
+  "outcome": "returned",
+  "notMeasured": {
+   "thrownMessage": "the call returned, so nothing was thrown",
+   "thrownName": "the call returned, so nothing was thrown"
+  },
+  "callsF": 2500,
+  "callsG": 1,
+  "verdicts": [
+   "matched",
+   "matched"
+  ],
+  "proofVerifies": true,
+  "replay": 200,
+  "timeline": {
+   "notShown": null,
+   "detail": "f: 2,500 calls · g: 1 call",
+   "readout": "returned at 0 ms: 2501",
+   "traceCut": "the run made more events than Atlas keeps (5,001 kept, 4 more counted but not kept), so not every call has its own moment on record; the counts are still exact"
+  }
+ },
+ {
+  "label": "sync",
+  "n": 3000,
+  "status": 200,
+  "traceLen": 5003,
+  "cut": {
+   "droppedCalls": {
+    "f": 501,
+    "g": 1
+   },
+   "eventsNotKept": 1004,
+   "kept": 5001
+  },
+  "ends": [
+   "returned"
+  ],
+  "outcome": "returned",
+  "notMeasured": {
+   "thrownMessage": "the call returned, so nothing was thrown",
+   "thrownName": "the call returned, so nothing was thrown"
+  },
+  "callsF": 3000,
+  "callsG": 1,
+  "verdicts": [
+   "matched",
+   "matched"
+  ],
+  "proofVerifies": true,
+  "replay": 200,
+  "timeline": {
+   "notShown": null,
+   "detail": "f: 3,000 calls · g: 1 call",
+   "readout": "returned at 0 ms: 3001",
+   "traceCut": "the run made more events than Atlas keeps (5,001 kept, 1,004 more counted but not kept), so not every call has its own moment on record; the counts are still exact"
+  }
+ },
+ {
+  "label": "async",
+  "n": 2497,
+  "status": 200,
+  "traceLen": 5000,
+  "ends": [
+   "returned"
+  ],
+  "outcome": "returned",
+  "notMeasured": {
+   "thrownMessage": "the call returned, so nothing was thrown",
+   "thrownName": "the call returned, so nothing was thrown"
+  },
+  "callsF": 2497,
+  "callsG": 1,
+  "verdicts": [
+   "matched",
+   "matched"
+  ],
+  "proofVerifies": true,
+  "replay": 200,
+  "timeline": {
+   "notShown": null,
+   "detail": "f: 2,497 calls (2497 returned) · g: 1 call (1 returned)",
+   "readout": "returned at 5 ms: 2498",
+   "traceCut": null
+  }
+ },
+ {
+  "label": "async",
+  "n": 2498,
+  "status": 200,
+  "traceLen": 5002,
+  "ends": [
+   "returned"
+  ],
+  "outcome": "returned",
+  "notMeasured": {
+   "thrownMessage": "the call returned, so nothing was thrown",
+   "thrownName": "the call returned, so nothing was thrown"
+  },
+  "callsF": 2498,
+  "callsG": 1,
+  "verdicts": [
+   "matched",
+   "matched"
+  ],
+  "proofVerifies": true,
+  "replay": 200,
+  "timeline": {
+   "notShown": null,
+   "detail": "f: 2,498 calls (2498 returned) · g: 1 call (1 returned)",
+   "readout": "returned at 5 ms: 2499",
+   "traceCut": null
+  }
+ },
+ {
+  "label": "async",
+  "n": 2499,
+  "status": 200,
+  "traceLen": 5003,
+  "cut": {
+   "droppedCalls": {
+    "g": 1
+   },
+   "eventsNotKept": 2,
+   "kept": 5001
+  },
+  "ends": [
+   "returned"
+  ],
+  "outcome": "returned",
+  "notMeasured": {
+   "thrownMessage": "the call returned, so nothing was thrown",
+   "thrownName": "the call returned, so nothing was thrown"
+  },
+  "callsF": 2499,
+  "callsG": 1,
+  "verdicts": [
+   "matched",
+   "matched"
+  ],
+  "proofVerifies": true,
+  "replay": 200,
+  "timeline": {
+   "notShown": null,
+   "detail": "f: 2,499 calls · g: 1 call",
+   "readout": "returned at 5 ms: 2500",
+   "traceCut": "the run made more events than Atlas keeps (5,001 kept, 2 more counted but not kept), so not every call has its own moment on record; the counts are still exact"
+  }
+ },
+ {
+  "label": "async",
+  "n": 2500,
+  "status": 200,
+  "traceLen": 5003,
+  "cut": {
+   "droppedCalls": {
+    "f": 1,
+    "g": 1
+   },
+   "eventsNotKept": 4,
+   "kept": 5001
+  },
+  "ends": [
+   "returned"
+  ],
+  "outcome": "returned",
+  "notMeasured": {
+   "thrownMessage": "the call returned, so nothing was thrown",
+   "thrownName": "the call returned, so nothing was thrown"
+  },
+  "callsF": 2500,
+  "callsG": 1,
+  "verdicts": [
+   "matched",
+   "matched"
+  ],
+  "proofVerifies": true,
+  "replay": 200,
+  "timeline": {
+   "notShown": null,
+   "detail": "f: 2,500 calls · g: 1 call",
+   "readout": "returned at 5 ms: 2501",
+   "traceCut": "the run made more events than Atlas keeps (5,001 kept, 4 more counted but not kept), so not every call has its own moment on record; the counts are still exact"
+  }
+ },
+ {
+  "label": "async",
+  "n": 3000,
+  "status": 200,
+  "traceLen": 5003,
+  "cut": {
+   "droppedCalls": {
+    "f": 501,
+    "g": 1
+   },
+   "eventsNotKept": 1004,
+   "kept": 5001
+  },
+  "ends": [
+   "returned"
+  ],
+  "outcome": "returned",
+  "notMeasured": {
+   "thrownMessage": "the call returned, so nothing was thrown",
+   "thrownName": "the call returned, so nothing was thrown"
+  },
+  "callsF": 3000,
+  "callsG": 1,
+  "verdicts": [
+   "matched",
+   "matched"
+  ],
+  "proofVerifies": true,
+  "replay": 200,
+  "timeline": {
+   "notShown": null,
+   "detail": "f: 3,000 calls · g: 1 call",
+   "readout": "returned at 5 ms: 3001",
+   "traceCut": "the run made more events than Atlas keeps (5,001 kept, 1,004 more counted but not kept), so not every call has its own moment on record; the counts are still exact"
+  }
+ }
+]

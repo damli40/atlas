@@ -13,6 +13,12 @@ export interface Executor {
    * Node version, or the Modal backend and image. Part of the key a passed control is reused under.
    */
   fingerprint?: string;
+  /**
+   * R1 (D43) after G1: the executor local Python runs go through (macOS sandbox-exec), when this executor wraps it,
+   * for example with the spend ledger. pythonExecutorFor uses it, so local Python sandboxes (and the double run's
+   * second one) are counted like every other sandbox.
+   */
+  python?: Executor;
   /** Run a command in an isolated working dir with the given files, no network unless allowNetwork, hard wall-clock limit. */
   exec(req: {
     files: Record<string, string>;          // path → contents

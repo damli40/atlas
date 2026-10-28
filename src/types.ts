@@ -2,6 +2,8 @@
 // All on-chain numbers are decimal strings of integers (bigint-safe), never JS numbers.
 
 import type { FalseAlarmRow, PassRuleLine } from "./falsealarm";
+import type { OutlineSection } from "./outline/types";
+import type { RunCondition } from "./conditions";
 export type TargetKind = "ts-fixture" | "github-pr" | "pasted";
 export interface Target {
   kind: TargetKind;
@@ -58,6 +60,11 @@ export interface Bet {
   sealedHash: string;
   /** Model bets only: what the model said; shown in the model panel. Sealed with the bet when present. */
   rationale?: string;
+  /**
+   * Added E3 review r2 (M2): the round repeats a test already run in this session, so the person may know its result.
+   * Sealed with the bet. A track record (X3) can leave these bets out.
+   */
+  repeat?: true;
 }
 
 /** A plain JSON value (what a fake RPC call may resolve with). */
@@ -114,7 +121,13 @@ export interface Experiment {
   target: Target;
   runner: "ts" | "evm";
   params: ExperimentShape;
-  proposedBy: { role: "claimant" | "adversary" | "human"; model?: string };
+  /** Added E3: "investigator" = Muse Wonder proposed this call-function test for pasted code. */
+  proposedBy: {
+    role: "claimant" | "adversary" | "human" | "investigator";
+    model?: string;
+    /** Added E3 review (D10): a person's test edited from a model's proposal names that model and proposal too. */
+    editedFrom?: { model: string; proposalId: string };
+  };
   /** Set by src/gate.ts. A rejected experiment is kept (and shown in the log strip) but never run. */
   gate: { allowed: true } | { allowed: false; reason: string };
 }
@@ -142,7 +155,18 @@ export interface Run {
   codeSha256: string;
   forkBlock?: number;        // evm
   chainId?: number;          // evm, 8453
-  seed?: string;             // ts: seeds the fake RPC's error choice; same seed = same run
+  seed?: string;             // ts: seeds the fake RPC's error choice; call-function (R1): seeds all the code's randomness; same seed = same run
+  /** R1 (D42): the time zone a call-function run was pinned to ("UTC"). Absent on older files and other runs. */
+  timeZone?: string;
+  /** R1 (D42): the locale a call-function run was pinned to ("en-US" for JavaScript, "C" for Python). */
+  locale?: string;
+  /** R1 (D42): what the result depends on that is Atlas's, not the code's (src/conditions.ts). The "conditions" line. */
+  conditions?: RunCondition[];
+  /**
+   * R1 review round 1: the second, identical run of a pasted test (fresh sandbox, same seed and pins). A field it
+   * measured differently is not reported in `result`; verify rechecks this against it (src/conditions.ts).
+   */
+  twin?: { trace: TraceEvent[]; result: RunResult };
   startedAt: string; finishedAt: string;
   trace: TraceEvent[];
   result: RunResult;
@@ -247,5 +271,10 @@ export interface AtlasFile {
   attempts?: RunAttempt[];
   /** Text a replayer must show: pre-existing labels, "replayed on a fork", "mechanism, not an incident". */
   captions: string[];
+  /**
+   * Added X1: the code explorer's outline (source files + hashes, code map, Wonder's outline, plain code's verified
+   * outline, usage). Verify rebuilds the code map and the verification from the stored files, without any model.
+   */
+  outline?: OutlineSection;
   createdAt: string;
 }

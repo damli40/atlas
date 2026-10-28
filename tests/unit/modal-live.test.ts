@@ -141,10 +141,10 @@ describe.skipIf(!LIVE)("E4 live: the Modal executor on real Modal Sandboxes", ()
     expect(raw.stdout).not.toMatch(/OK/);
   }, 300_000);
 
-  it("attack: env holds no secrets (pasted code, and a raw command through the executor, see an empty env)", async () => {
-    const r = await onModal("attack: env from pasted code", experiment(`export function f(){ return Object.keys(process.env); }`, { exportName: "f" }));
-    // Either the harness refuses process.env, or the env is empty; it must never hold a name.
-    if (r.result.notMeasured.wholeRun === undefined) expect(r.result.measured.returnedJson).toBe("[]");
+  it("attack: env holds no secrets (pasted code sees exactly Atlas's pins; a raw command through the executor sees an empty env)", async () => {
+    const r = await onModal("attack: env from pasted code", experiment(`export function f(){ return Object.keys(process.env).sort(); }`, { exportName: "f" }));
+    // R1 review M4: either the harness refuses process.env, or the env is EXACTLY Atlas's pins (TZ, LC_ALL).
+    if (r.result.notMeasured.wholeRun === undefined) expect(r.result.measured.returnedJson).toBe('["LC_ALL","TZ"]');
     label = "attack: env through the executor";
     const direct = await modal.exec({ files: { "e.mjs": "console.log(JSON.stringify({ env: process.env, uid: process.getuid() }))" }, cmd: ["node", "e.mjs"], wallClockMs: 10_000, allowNetwork: false });
     expect(direct.exitCode).toBe(0);

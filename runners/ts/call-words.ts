@@ -54,3 +54,27 @@ export const UNCAUGHT_REASON = (what: string) =>
 
 export const missingExportReason = (name: string) => `the code has no export named "${name}"`;
 export const notAFunctionReason = (name: string, type: string) => `"${name}" is exported but is not a function (it is ${type})`;
+
+// ---- R1 (D42): results that depend on something outside the code ----
+// Shared by the JavaScript harness and (through request.json) the Python harness, so the same cause gets the
+// same words in both languages.
+
+/** Callbacks whose order real Node leaves open (a 0 ms timer and setImmediate; process.nextTick and promises). */
+export const TIMER_ORDER_REASON =
+  "the code queued callbacks whose order Node leaves open (a 0 ms timer next to setImmediate, or process.nextTick next to promise callbacks, whose order depends on how the call is started), so the order Atlas ran them in is Atlas's choice, not a fact about the code";
+
+/** The call waits only on unref'd timers: a plain Node script would exit first; a program that stays up would not. */
+export const UNREF_REASON =
+  "the call was waiting only on an unref'd timer, which does not keep a Node process alive: called from a plain script the process would exit before the timer fires, called inside a program that stays up it fires; that depends on the caller, not on the code";
+
+/** The call settled; only unref'd timers were left (whether they run depends on the caller). */
+export const UNREF_AFTER_SETTLE_REASON =
+  "only unref'd timers were left after the call settled, and they do not keep a Node process alive, so whether they ever run depends on the caller, not on the code";
+
+/** Randomness Atlas cannot pin to its seed (crypto.subtle key generation and randomized signatures). */
+export const UNSEEDED_RANDOM_REASON = (what: string) =>
+  `the code used ${what}, whose randomness Atlas cannot pin to its seed, so values made from it change on every run`;
+
+/** The sandbox did not have the time zone, locale or seed Atlas pins. */
+export const PIN_FAILED_REASON = (what: string) =>
+  `Atlas could not pin ${what} in this sandbox, so results that depend on it would be this machine's, not Atlas's pinned ones`;

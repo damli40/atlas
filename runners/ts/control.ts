@@ -372,7 +372,7 @@ export async function runExperiment(
 
 /** E4: where pasted Python runs, given the executor JavaScript runs on: Modal for Modal, sandbox-exec otherwise. */
 export function pythonExecutorFor(executor: Executor): Executor {
-  return executor.kind === "modal" ? executor : pythonSandboxExecutor;
+  return executor.kind === "modal" ? executor : (executor.python ?? pythonSandboxExecutor);
 }
 
 /**

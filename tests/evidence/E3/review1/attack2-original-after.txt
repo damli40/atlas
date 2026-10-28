@@ -1,0 +1,8 @@
+<scratch>
+  const t = { ref: p.json.target.ref, codeSha256: p.json.target.codeSha256 };
+                                 ^
+
+TypeError: Cannot read properties of undefined (reading 'ref')
+    at <anonymous> (<scratch>
+
+Node.js v25.8.1

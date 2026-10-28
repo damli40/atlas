@@ -1,0 +1,770 @@
+{
+  "ranAt": "2026-10-28T07:15:24.930Z",
+  "seconds": 24,
+  "source": {
+    "kind": "github",
+    "repo": "damli40/atlas",
+    "requestedRef": "058ab2a29634dc0b8c092fe7816a6fd57ce9b74c",
+    "commit": "058ab2a29634dc0b8c092fe7816a6fd57ce9b74c",
+    "subfolder": "server/meta"
+  },
+  "codeSha256": "ee866a205bfc450f0e175a821942728d2968116952cc5a98d53c7e8a04d55d06",
+  "files": [
+    {
+      "path": "budget.ts",
+      "language": "ts",
+      "bytes": 6746,
+      "sha256": "a400e80f374546101fb87eda8da6d0bfb7a6c16c907e133f3a4c0faf149183fb"
+    },
+    {
+      "path": "client.ts",
+      "language": "ts",
+      "bytes": 18266,
+      "sha256": "d705d1ee88b56be9d1cc569b128356ed3c2de8dd3cc1da5ba503a31b690e41f3"
+    },
+    {
+      "path": "pasted-guard.ts",
+      "language": "ts",
+      "bytes": 4301,
+      "sha256": "5aaf6abf4e0e15eecc6ef52b0a8e2c9cfabbdf25419f83efbefb92ed152af26a"
+    },
+    {
+      "path": "redact-secret.ts",
+      "language": "ts",
+      "bytes": 1495,
+      "sha256": "f8554f06b4aa8b811f35eebccd94107c4374d5eb84b8a054ea3325e1b355b349"
+    },
+    {
+      "path": "roles/adversary.ts",
+      "language": "ts",
+      "bytes": 17588,
+      "sha256": "ed8ff604bc0e433574cc680f0a83403f5ff03078f9600ae96a6a7eaf2ca9f7ea"
+    },
+    {
+      "path": "roles/claimant-bets.ts",
+      "language": "ts",
+      "bytes": 13215,
+      "sha256": "9a75ffa7650ee9b4ebc74afbffd6b25da633c5d0b40f1aff457a86edeb977f67"
+    },
+    {
+      "path": "roles/claimant.ts",
+      "language": "ts",
+      "bytes": 20026,
+      "sha256": "7bf32d67d383c73537fb726bca69206c528caadcd2f7b7bdfe0a5b7d77bf9034"
+    },
+    {
+      "path": "roles/fixer.ts",
+      "language": "ts",
+      "bytes": 33330,
+      "sha256": "67d5744c26affbbded06e05b425d8c093f152b71321069eea68d9838a000ba0f"
+    },
+    {
+      "path": "roles/fixture-finding.ts",
+      "language": "ts",
+      "bytes": 3900,
+      "sha256": "b94ba3247aa2d458268193b4ab74037d2d1d1044ae5ef3acba65567d0156f2d3"
+    },
+    {
+      "path": "roles/investigator.ts",
+      "language": "ts",
+      "bytes": 18759,
+      "sha256": "19af58c6f42576a7ee53ed5f852a74e5ac2c3ec83e4096905819e4f31585e4c9"
+    },
+    {
+      "path": "roles/outliner.ts",
+      "language": "ts",
+      "bytes": 12445,
+      "sha256": "e786fc4aebbd2b3da228540024ff691a11b032f573ef5996e2647b032beefa57"
+    },
+    {
+      "path": "roles/proposer.ts",
+      "language": "ts",
+      "bytes": 9845,
+      "sha256": "8982bf12195368311523e02f8b923ff3393d6e203c4d2d92cfac916ec79f8239"
+    },
+    {
+      "path": "schemas.ts",
+      "language": "ts",
+      "bytes": 3298,
+      "sha256": "4d2e8337d0015ea9cab61491ea453458c1462c64386984abceafd86cad486fbc"
+    }
+  ],
+  "skipped": [],
+  "codeMap": {
+    "files": 13,
+    "edges": 169,
+    "callEdges": 109,
+    "externals": [
+      "nanoid",
+      "node:child_process",
+      "node:fs",
+      "node:os",
+      "node:path",
+      "node:url",
+      "zod"
+    ],
+    "unresolved": [
+      "client.ts:25 ../../src/types",
+      "client.ts:26 ../../src/claimants",
+      "client.ts:27 ../../src/cost",
+      "roles/adversary.ts:24 ../../../src/gate",
+      "roles/adversary.ts:25 ../../../src/experiment-name",
+      "roles/adversary.ts:26 ../../../src/types",
+      "roles/adversary.ts:29 ../../proofs/refusals",
+      "roles/adversary.ts:30 ../../log/agentlog",
+      "roles/claimant-bets.ts:25 ../../../src/gate",
+      "roles/claimant-bets.ts:26 ../../../src/seal",
+      "roles/claimant-bets.ts:27 ../../../src/types",
+      "roles/claimant-bets.ts:30 ../../log/agentlog",
+      "roles/claimant-bets.ts:31 ../../log/agentlog",
+      "roles/claimant-bets.ts:33 ../../../src/words",
+      "roles/claimant-bets.ts:34 ../../../src/chain-facts",
+      "roles/claimant-bets.ts:40 ../../../src/claimants",
+      "roles/claimant.ts:18 ../../../src/gate",
+      "roles/claimant.ts:19 ../../../src/seal",
+      "roles/claimant.ts:20 ../../../src/types",
+      "roles/claimant.ts:23 ../../proofs/refusals",
+      "roles/claimant.ts:24 ../../log/agentlog",
+      "roles/claimant.ts:26 ../../../src/words",
+      "roles/fixer.ts:39 ../../../src/diff",
+      "roles/fixer.ts:40 ../../../src/types",
+      "roles/fixer.ts:41 ../../../src/claimants",
+      "roles/fixer.ts:43 ../../../runners/change",
+      "roles/fixer.ts:44 ../../../runners/scratch",
+      "roles/fixer.ts:46 ../../../runners/evm/redact",
+      "roles/fixer.ts:47 ../../log/agentlog",
+      "roles/fixer.ts:49 ../../../runners/ts/harness",
+      "roles/fixer.ts:50 ../../../src/words",
+      "roles/fixer.ts:61 ../../../src/change",
+      "roles/fixer.ts:142 ../../../src/change",
+      "roles/fixture-finding.ts:17 ../../../src/types",
+      "roles/investigator.ts:18 ../../../src/types",
+      "roles/investigator.ts:20 ../../log/agentlog",
+      "roles/investigator.ts:21 ../../log/agentlog",
+      "roles/investigator.ts:22 ../../targets/github",
+      "roles/investigator.ts:24 ../../../src/words",
+      "roles/investigator.ts:185 ../../../src/outline/quote",
+      "roles/investigator.ts:186 ../../../src/outline/quote",
+      "roles/outliner.ts:18 ../../log/agentlog",
+      "roles/outliner.ts:19 ../../log/agentlog",
+      "roles/outliner.ts:22 ../../../src/outline/codemap",
+      "roles/outliner.ts:23 ../../../src/outline/verify",
+      "roles/outliner.ts:24 ../../../src/outline/types",
+      "roles/outliner.ts:25 ../../../src/words",
+      "roles/proposer.ts:19 ../../../src/gate",
+      "roles/proposer.ts:20 ../../../src/types",
+      "roles/proposer.ts:23 ../../log/agentlog",
+      "roles/proposer.ts:24 ../../log/agentlog",
+      "roles/proposer.ts:26 ../../../src/words",
+      "roles/proposer.ts:27 ../../paste-keys",
+      "roles/proposer.ts:28 ../../../src/paste-words",
+      "roles/proposer.ts:29 ../../../src/paste-context"
+    ],
+    "parseNotes": []
+  },
+  "wonder": {
+    "model": "muse-wonder-1.0",
+    "attempts": [
+      {
+        "attempt": 1,
+        "finishReason": "stop",
+        "usage": {
+          "promptTokens": 58526,
+          "completionTokens": 4958,
+          "reasoningTokens": 2186,
+          "usd": 0.333264
+        }
+      }
+    ]
+  },
+  "counts": {
+    "confirmedParts": 12,
+    "unconfirmedParts": 0,
+    "confirmedJoins": 18,
+    "modelOnlyJoins": 0,
+    "codeOnlyJoins": 6
+  },
+  "parts": [
+    {
+      "id": "model-client",
+      "status": "confirmed",
+      "name": "Meta model client",
+      "purposeByModel": "Sends chat requests to Meta or Baseten, handles retries and response-format fallback, prices usage, and logs every billed call.",
+      "files": [
+        "client.ts"
+      ],
+      "ranges": [
+        "client.ts:1-364 (whole file)"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "network",
+          "known": true
+        },
+        {
+          "label": "auth",
+          "known": true
+        },
+        {
+          "label": "config",
+          "known": true
+        },
+        {
+          "label": "logging",
+          "known": true
+        },
+        {
+          "label": "error-handling",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "secret-redaction",
+      "status": "confirmed",
+      "name": "Secret redaction",
+      "purposeByModel": "Removes a whole secret or any sufficiently long piece of it from text before that text is kept or shown.",
+      "files": [
+        "redact-secret.ts"
+      ],
+      "ranges": [
+        "redact-secret.ts:1-36 (whole file)"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "auth",
+          "known": true
+        },
+        {
+          "label": "parsing",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "budget",
+      "status": "confirmed",
+      "name": "Model-call budget",
+      "purposeByModel": "Limits model use by hourly calls, experiments per session, and total spend, including reservations for concurrent calls.",
+      "files": [
+        "budget.ts"
+      ],
+      "ranges": [
+        "budget.ts:1-148 (whole file)"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "state",
+          "known": true
+        },
+        {
+          "label": "config",
+          "known": true
+        },
+        {
+          "label": "file-io",
+          "known": true
+        },
+        {
+          "label": "validation",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "code-guard",
+      "status": "confirmed",
+      "name": "Code-carrying call guard",
+      "purposeByModel": "Refuses contributor or otherwise disallowed models and enforces prompt-size and estimated-cost limits before code is sent.",
+      "files": [
+        "pasted-guard.ts"
+      ],
+      "ranges": [
+        "pasted-guard.ts:1-73 (whole file)"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "auth",
+          "known": true
+        },
+        {
+          "label": "validation",
+          "known": true
+        },
+        {
+          "label": "config",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "schemas",
+      "status": "confirmed",
+      "name": "Model answer schemas",
+      "purposeByModel": "Defines the strict zod shapes for model-returned bets, experiments, adversary proposals, and proposer tests.",
+      "files": [
+        "schemas.ts"
+      ],
+      "ranges": [
+        "schemas.ts:1-70 (whole file)"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "parsing",
+          "known": true
+        },
+        {
+          "label": "validation",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "claimant-core",
+      "status": "confirmed",
+      "name": "Claimant and fixture finding",
+      "purposeByModel": "Builds the Claimant prompt, validates its experiment and bets against plain-code questions, seals accepted bets, and supplies the hand-written fixture finding.",
+      "files": [
+        "roles/claimant.ts",
+        "roles/fixture-finding.ts"
+      ],
+      "ranges": [
+        "roles/claimant.ts:1-401 (whole file)",
+        "roles/fixture-finding.ts:1-70 (whole file)"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "validation",
+          "known": true
+        },
+        {
+          "label": "parsing",
+          "known": true
+        },
+        {
+          "label": "logging",
+          "known": true
+        },
+        {
+          "label": "error-handling",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "bet-only-claimant",
+      "status": "confirmed",
+      "name": "Bet-only Claimant",
+      "purposeByModel": "Asks the model to bet on an already chosen experiment, validates one bet per question, and seals the accepted bets.",
+      "files": [
+        "roles/claimant-bets.ts"
+      ],
+      "ranges": [
+        "roles/claimant-bets.ts:1-246 (whole file)"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "validation",
+          "known": true
+        },
+        {
+          "label": "parsing",
+          "known": true
+        },
+        {
+          "label": "logging",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "investigator",
+      "status": "confirmed",
+      "name": "Investigator role",
+      "purposeByModel": "Asks a model to propose up to three code findings, verifies each quoted place with plain code, and falls back to another model when needed.",
+      "files": [
+        "roles/investigator.ts"
+      ],
+      "ranges": [
+        "roles/investigator.ts:1-378 (whole file)"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "validation",
+          "known": true
+        },
+        {
+          "label": "parsing",
+          "known": true
+        },
+        {
+          "label": "logging",
+          "known": true
+        },
+        {
+          "label": "error-handling",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "adversary",
+      "status": "confirmed",
+      "name": "Adversary role",
+      "purposeByModel": "Asks a model for one additional experiment after a run, then applies schema, gate, question, and repeat checks before accepting it.",
+      "files": [
+        "roles/adversary.ts"
+      ],
+      "ranges": [
+        "roles/adversary.ts:1-339 (whole file)"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "validation",
+          "known": true
+        },
+        {
+          "label": "parsing",
+          "known": true
+        },
+        {
+          "label": "logging",
+          "known": true
+        },
+        {
+          "label": "error-handling",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "proposer",
+      "status": "confirmed",
+      "name": "Pasted-code proposer",
+      "purposeByModel": "Asks Muse Wonder to propose tests for a selected function in pasted code and keeps gate-allowed and gate-refused proposals separate.",
+      "files": [
+        "roles/proposer.ts"
+      ],
+      "ranges": [
+        "roles/proposer.ts:1-178 (whole file)"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "validation",
+          "known": true
+        },
+        {
+          "label": "parsing",
+          "known": true
+        },
+        {
+          "label": "logging",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "outliner",
+      "status": "confirmed",
+      "name": "Outliner role",
+      "purposeByModel": "Asks Muse Wonder to propose a codebase outline from files and a plain-code map, subject to code-model, prompt, and cost guards.",
+      "files": [
+        "roles/outliner.ts"
+      ],
+      "ranges": [
+        "roles/outliner.ts:1-185 (whole file)"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "validation",
+          "known": true
+        },
+        {
+          "label": "parsing",
+          "known": true
+        },
+        {
+          "label": "logging",
+          "known": true
+        },
+        {
+          "label": "config",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "fixer",
+      "status": "confirmed",
+      "name": "Fixer and Muse Code sandbox",
+      "purposeByModel": "Runs Muse Code headlessly in a restricted scratch workspace or falls back to chat, then keeps only a plain-code-checked unified diff.",
+      "files": [
+        "roles/fixer.ts"
+      ],
+      "ranges": [
+        "roles/fixer.ts:1-571 (whole file)"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "cli",
+          "known": true
+        },
+        {
+          "label": "file-io",
+          "known": true
+        },
+        {
+          "label": "auth",
+          "known": true
+        },
+        {
+          "label": "validation",
+          "known": true
+        },
+        {
+          "label": "logging",
+          "known": true
+        },
+        {
+          "label": "error-handling",
+          "known": true
+        }
+      ]
+    }
+  ],
+  "splitFiles": [],
+  "joins": [
+    {
+      "id": "wonder:0",
+      "from": "model-client",
+      "to": "secret-redaction",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 2,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:1",
+      "from": "budget",
+      "to": "code-guard",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 2,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:2",
+      "from": "budget",
+      "to": "model-client",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "typeOnly": true,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:3",
+      "from": "code-guard",
+      "to": "model-client",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 6,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:4",
+      "from": "claimant-core",
+      "to": "model-client",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 2,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:5",
+      "from": "claimant-core",
+      "to": "schemas",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 3,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:6",
+      "from": "bet-only-claimant",
+      "to": "claimant-core",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 11,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:7",
+      "from": "bet-only-claimant",
+      "to": "schemas",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 3,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:8",
+      "from": "investigator",
+      "to": "claimant-core",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 8,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:9",
+      "from": "adversary",
+      "to": "claimant-core",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 9,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:10",
+      "from": "adversary",
+      "to": "schemas",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 3,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:11",
+      "from": "proposer",
+      "to": "claimant-core",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 8,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:12",
+      "from": "proposer",
+      "to": "schemas",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 3,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:13",
+      "from": "outliner",
+      "to": "code-guard",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 3,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:14",
+      "from": "outliner",
+      "to": "investigator",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 3,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:15",
+      "from": "fixer",
+      "to": "model-client",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 8,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:16",
+      "from": "fixer",
+      "to": "secret-redaction",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 2,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:17",
+      "from": "fixer",
+      "to": "claimant-core",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 5,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "code:bet-only-claimant->model-client",
+      "from": "bet-only-claimant",
+      "to": "model-client",
+      "kind": "imports",
+      "status": "code-only",
+      "codeEdges": 2
+    },
+    {
+      "id": "code:investigator->model-client",
+      "from": "investigator",
+      "to": "model-client",
+      "kind": "imports",
+      "status": "code-only",
+      "codeEdges": 2
+    },
+    {
+      "id": "code:adversary->model-client",
+      "from": "adversary",
+      "to": "model-client",
+      "kind": "imports",
+      "status": "code-only",
+      "codeEdges": 2
+    },
+    {
+      "id": "code:proposer->model-client",
+      "from": "proposer",
+      "to": "model-client",
+      "kind": "imports",
+      "status": "code-only",
+      "codeEdges": 2
+    },
+    {
+      "id": "code:outliner->model-client",
+      "from": "outliner",
+      "to": "model-client",
+      "kind": "imports",
+      "status": "code-only",
+      "codeEdges": 1,
+      "typeOnly": true
+    },
+    {
+      "id": "code:outliner->claimant-core",
+      "from": "outliner",
+      "to": "claimant-core",
+      "kind": "calls",
+      "status": "code-only",
+      "codeEdges": 6
+    }
+  ],
+  "notInAnyPart": [],
+  "usage": {
+    "promptTokens": 58526,
+    "completionTokens": 4958,
+    "reasoningTokens": 2186,
+    "usd": 0.333264
+  },
+  "verifyOutlineFile": "ok"
+}

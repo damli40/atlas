@@ -16,6 +16,7 @@ import { localExecutor } from "../../runners/executor/local.ts";
 import { MODAL_FINGERPRINT, cleanModalText, createModalExecutor, sdkBackend, type SandboxSpec } from "../../runners/executor/modal.ts";
 import { executorFromEnv } from "../../runners/executor/select.ts";
 import { warmUp } from "../../runners/executor/warm.ts";
+import { pyControlFor } from "../../runners/py/py-runner.ts";
 import type { ExecRequest, Executor } from "../../runners/runner.ts";
 import { CALL_CONTROL_REUSE_MS, callControlFor, callControlKey, forgetReusableControls, runCallExperiment, runInSandbox } from "../../runners/ts/call-runner.ts";
 import { controlLines } from "../../web/screens/proofcard-model.ts";
@@ -282,25 +283,32 @@ describe("D31: a passed control is reused for up to 10 minutes, under the measur
 });
 
 describe("D32: Modal is warmed once at server start, without blocking or stopping it", () => {
-  it("warm-up runs the control in one sandbox, logs it, and the first run then reuses it", async () => {
+  it("warm-up runs the JS/TS and (E3) the Python control, one sandbox each, logs both, and the first runs then reuse them", async () => {
     const b = emulatingBackend();
     const ex = createModalExecutor({ backend: b, log: () => {} });
     const lines: string[] = [];
     await warmUp(ex, (l) => lines.push(l));
-    expect(lines).toEqual([expect.stringMatching(/^Modal warm-up: Modal is reachable; the known-case check passed in a sandbox in \d+ ms and is reused for 10 minutes$/)]);
-    expect(b.rec.specs).toHaveLength(1);
+    expect(lines.sort()).toEqual([
+      expect.stringMatching(/^Modal warm-up \(JavaScript\/TypeScript\): Modal is reachable; the known-case check passed in a sandbox in \d+ ms and is reused for 10 minutes$/),
+      expect.stringMatching(/^Modal warm-up \(Python\): /),
+    ]);
+    expect(b.rec.specs).toHaveLength(2);
     await callControlFor({ executor: ex });
-    expect(b.rec.specs).toHaveLength(1);
+    await pyControlFor({ executor: ex });
+    expect(b.rec.specs).toHaveLength(2);
   });
 
   it("a failed warm-up is one log line and the promise still resolves; the local executor is never warmed", async () => {
     const lines: string[] = [];
     const ex = createModalExecutor({ backend: scriptedBackend({ createError: "UNAVAILABLE: down" }), log: () => {} });
     await expect(warmUp(ex, (l) => lines.push(l))).resolves.toBeUndefined();
-    expect(lines).toEqual([expect.stringMatching(/^Modal warm-up failed \(the server keeps running; each run will try Modal again\): .*UNAVAILABLE: down/)]);
+    expect(lines).toEqual([
+      expect.stringMatching(/^Modal warm-up \(JavaScript\/TypeScript\) failed \(the server keeps running; each run will try Modal again\): .*UNAVAILABLE: down/),
+      expect.stringMatching(/^Modal warm-up \(Python\) failed \(the server keeps running; each run will try Modal again\): .*UNAVAILABLE: down/),
+    ]);
     const spy = vi.spyOn(localExecutor, "exec");
     await warmUp(localExecutor, (l) => lines.push(l));
     expect(spy).not.toHaveBeenCalled();
-    expect(lines).toHaveLength(1);
+    expect(lines).toHaveLength(2);
   });
 });

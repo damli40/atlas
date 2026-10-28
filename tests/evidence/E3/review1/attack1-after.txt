@@ -1,0 +1,150 @@
+{
+  "proposals": [
+    {
+      "allowed": true,
+      "says": "Atlas calls echo(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAASECRET_T…, f). f returns \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxHIDDEN_RETURN_VALU… on call 1; every later call returns \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxHIDDEN_RETURN_VALU… too."
+    },
+    {
+      "allowed": false
+    }
+  ],
+  "d19_truncation": {
+    "pageParamsHasSecretTail": true,
+    "seenHasSecretTail": true,
+    "sparkPromptHasSecretTail": true,
+    "pageParamsHasHiddenReturn": true,
+    "sparkPromptHasHiddenReturn": true,
+    "whatWillRunLine": "What will run: Atlas calls echo(\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAASECRET_T…, f). f returns \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxHIDDEN_RETURN_VALU… on call 1; every later call returns \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxHIDDEN_RETURN_VALU… too."
+  },
+  "claim_reuse": {
+    "claimAfterSealE1": 409,
+    "claimTextOk": false,
+    "e2Status": 422,
+    "e2ClaimBeforeSealStatus": 400,
+    "note": "person already holds the claim (from e1) while e2's bets are open; models of e2 never get it"
+  },
+  "sameProposalTwice": 200,
+  "sessionB": {
+    "experiments": 400,
+    "proposals": 400,
+    "claim": 404,
+    "bets": 400,
+    "runs": 404
+  },
+  "run": {
+    "status": 200,
+    "outcome": "returned",
+    "controlPassed": true,
+    "runHasSource": false,
+    "proofRunId": "1cn1ehOre9"
+  },
+  "proofFromB": {
+    "status": 200,
+    "holdsSource": false
+  },
+  "proofNoSession": 200,
+  "replay8Concurrent": {
+    "statuses": [
+      403,
+      403,
+      403,
+      403,
+      403,
+      403,
+      403,
+      403
+    ],
+    "ms": 1
+  },
+  "replayResponseHoldsSource": false,
+  "hostile1": {
+    "status": 200,
+    "ok": false,
+    "reason": "no usable answer (the gate refused every proposed test)",
+    "props": [
+      {
+        "allowed": false,
+        "reason": "\"call-function\" has no field \"__proto__x\"; its fields are exportName, args, watchLimitMs"
+      },
+      {
+        "allowed": false,
+        "reason": "it has a key named \"__proto__\", which Atlas refuses (it would change how the test is read)"
+      },
+      {
+        "allowed": false,
+        "reason": "args[0].value must be plain JSON (text, numbers, true/false, null, lists, objects)"
+      },
+      {
+        "allowed": false,
+        "reason": "\"call-function\" has no field \"__proto__x\"; its fields are exportName, args, watchLimitMs"
+      },
+      {
+        "allowed": false,
+        "reason": "it has a key named \"__proto__\", which Atlas refuses (it would change how the test is read)"
+      },
+      {
+        "allowed": false,
+        "reason": "args[0].value must be plain JSON (text, numbers, true/false, null, lists, objects)"
+      }
+    ]
+  },
+  "hostile2": {
+    "status": 200,
+    "ok": false,
+    "props": [
+      {
+        "allowed": false,
+        "reason": "it calls retry, not the function you picked (echo)"
+      },
+      {
+        "allowed": false,
+        "reason": "the pasted code does not export \"constructor\"; it exports echo, retry"
+      },
+      {
+        "allowed": false,
+        "reason": "shape \"retry-scenario\" cannot run on this target; allowed here: call-function"
+      },
+      {
+        "allowed": false,
+        "reason": "it calls retry, not the function you picked (echo)"
+      },
+      {
+        "allowed": false,
+        "reason": "the pasted code does not export \"constructor\"; it exports echo, retry"
+      },
+      {
+        "allowed": false,
+        "reason": "shape \"retry-scenario\" cannot run on this target; allowed here: call-function"
+      }
+    ]
+  },
+  "hostile3": {
+    "status": 200,
+    "ok": false,
+    "reason": "no usable answer (the answer does not match the schema (answer: unrecognized keys))"
+  },
+  "hugeArray": {
+    "status": 200,
+    "ok": false,
+    "reason": "no usable answer (the answer does not match the schema (experiments: too big))"
+  },
+  "inputs": {
+    "textPlain": 415,
+    "noCT": 415,
+    "arrayBody": 400,
+    "nullBody": 400,
+    "extraKey": 400,
+    "pyLang": {
+      "s": 200,
+      "runnable": false,
+      "reason": "Python runs are coming: this server has no Python runner yet. JavaScript and TypeScript run now."
+    },
+    "pyProposals": 400,
+    "exactly64k": 200,
+    "over64k": 413,
+    "multibyte64k": 413,
+    "lonelySurrogate": 200,
+    "trailingSlash": 404,
+    "bigBodyOtherRoute": 413
+  }
+}

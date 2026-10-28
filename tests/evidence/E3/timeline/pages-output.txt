@@ -1,0 +1,8 @@
+wrote 7 cases × 2 themes + held moments + control-failed to <repo>/tests/evidence/E3/timeline
+throws-then-returns: control matched; outcome returned; virtualMs 100
+always-throws: control matched; outcome threw; virtualMs 700
+never-answers: control matched; outcome never_settled; virtualMs -
+late-answer: control matched; outcome returned; virtualMs 250
+still-running: control matched; outcome still_running_at_watch_limit; virtualMs -
+no-wait: control matched; outcome returned; virtualMs 0
+two-stand-ins: control matched; outcome returned; virtualMs 120

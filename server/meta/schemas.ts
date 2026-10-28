@@ -9,6 +9,8 @@ export const betAnswerSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("integer"), value: z.number() }),
   z.strictObject({ kind: z.literal("number"), value: z.number(), tolerancePct: z.number(), unit: z.string().min(1).max(20) }),
   z.strictObject({ kind: z.literal("enum"), value: z.string().min(1).max(100), options: z.array(z.string().max(100)).min(1).max(20) }),
+  // E3: a JSON bet (returnedJson). Its value is checked by plain code (depth, plain JSON, size) where it is used.
+  z.strictObject({ kind: z.literal("json"), value: z.unknown() }),
   // A declined bet must say why in words: "unknown: <why>". Blank or only spaces is refused.
   z.strictObject({ kind: z.literal("declined"), reason: z.string().trim().min(1).max(500).regex(/\w/, "a declined bet needs a reason in words") }),
 ]);
@@ -44,6 +46,16 @@ export const claimantBetsOnlySchema = z.strictObject({
 export const adversaryOutputSchema = z.strictObject({
   experiment: z.record(z.string(), z.unknown()),
   why: z.string().trim().min(1).max(600),
+});
+
+/**
+ * E3: Muse Wonder's answer in the paste flow: up to 3 call-function experiments for the chosen export (each checked
+ * by the gate, not here; a refused one is kept and shown) and one short claim sentence (model panel only, never in
+ * any bettor's prompt, never a verdict).
+ */
+export const proposerOutputSchema = z.strictObject({
+  claim: z.string().trim().min(1).max(400),
+  experiments: z.array(z.record(z.string(), z.unknown())).min(1).max(3),
 });
 
 export type ClaimantOutput = z.infer<typeof claimantOutputSchema>;

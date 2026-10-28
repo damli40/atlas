@@ -52,10 +52,18 @@ describe("the Python sandbox profile", () => {
 });
 
 describe.skipIf(!py)("the Python executor (real sandbox-exec)", () => {
-  it("runs Python 3.12+ in isolated mode with an empty environment", async () => {
-    const r = await run("import sys, os\nprint(sys.version_info[:2] >= (3, 12), sys.flags.isolated, sys.flags.no_site, dict(os.environ))");
+  it("runs Python 3.12+ with no user site, no site, no script folder on the path, and an empty environment", async () => {
+    // R1 (D42): -s -P -S -B instead of -I, so a pinned PYTHONHASHSEED is honoured; the env is only what Atlas passes.
+    const r = await run("import sys, os\nprint(sys.version_info[:2] >= (3, 12), sys.flags.no_user_site, sys.flags.no_site, sys.flags.safe_path, {k: v for k, v in os.environ.items() if k not in ('__CF_USER_TEXT_ENCODING', 'LC_CTYPE')})");
     expect(r.exitCode).toBe(0);
-    expect(r.stdout.trim()).toBe("True 1 1 {}");
+    expect(r.stdout.trim()).toBe("True 1 1 True {}");
+  });
+  it("R1: passes Atlas's pins (PYTHONHASHSEED, TZ=UTC) and nothing else", async () => {
+    const r = await pythonSandboxExecutor.exec({ files: { "x.py": "import os, sys, time\nprint(os.environ.get('PYTHONHASHSEED'), os.environ.get('TZ'), sys.flags.hash_randomization, time.tzname[0])" }, cmd: ["python3", "x.py"], env: { PYTHONHASHSEED: "20260101", TZ: "UTC" }, wallClockMs: 10_000, allowNetwork: false });
+    expect(r.stdout.trim()).toBe("20260101 UTC 1 UTC");
+    const base = { files: {}, wallClockMs: 1000, allowNetwork: false as const, cmd: ["python3", "x.py"] };
+    await expect(pythonSandboxExecutor.exec({ ...base, env: { PYTHONHASHSEED: "0" } })).rejects.toThrow(/empty environment/);
+    await expect(pythonSandboxExecutor.exec({ ...base, env: { TZ: "Africa/Lagos" } })).rejects.toThrow(/empty environment/);
   });
 
   it("refuses commands it cannot keep in the sandbox", async () => {

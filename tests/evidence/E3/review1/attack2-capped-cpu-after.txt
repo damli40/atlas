@@ -1,0 +1,2 @@
+{"memory":{"mode":"newlines","sessions":2,"rejected429":0,"experiments":100,"seenContextChars":81472,"heapGrowthMB":3.8,"perExperimentKB":38.5}}
+{"memory":{"mode":"newlines","sessions":2,"rejected429":0,"experiments":100,"seenContextChars":81472,"heapGrowthMB":3.8,"perExperimentKB":38.5},"cpuRun":{"status":200,"ms":6735,"outcome":"returned","runId":"8pM3HMWs3Q"},"cpuReplaysNoSession":403,"cpuReplays":{"n":24,"statuses":[200,429],"wallMs":6767,"peakWorkerProcesses":2}}

@@ -158,7 +158,7 @@ export function emulatingBackend(): ModalBackend & { rec: Recorded } {
             }
             while (cmd[i] !== NODE_BIN && cmd[i] !== PYTHON_BIN) i++;
             if (cmd[i] === PYTHON_BIN) {
-              // Hosted Python: this Mac's python3 with the same flags (-I -S -B), no sandbox-exec (the container's job).
+              // Hosted Python: this Mac's python3 with the same flags (-s -P -S -B), no sandbox-exec (the container's job).
               const py = findPython();
               if (!py) throw new Error("emulatingBackend: no python3 on this machine");
               file = py.foundAs;

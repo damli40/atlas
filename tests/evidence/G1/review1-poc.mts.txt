@@ -1,0 +1,156 @@
+// G1 adversarial PoCs. All models mocked (fake fetch); no network; store in scratch.
+import { mkdtempSync, writeFileSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+const { Hono } = await import("<repo>/node_modules/hono/dist/index.js");
+const R = "<repo>";
+const { openInviteStore } = await import(`${R}/server/access/store.ts`);
+const { openLedger, modalWorstCaseUsd, MODAL_USD_PER_SECOND_AT_CAPS } = await import(`${R}/server/access/ledger.ts`);
+const { createModelBudget } = await import(`${R}/server/meta/budget.ts`);
+const { createMetaClient } = await import(`${R}/server/meta/client.ts`);
+const { runAs } = await import(`${R}/server/access/context.ts`);
+const { withInviteGate, INVITE_HEADER, INVITE_COOKIE } = await import(`${R}/server/access/gate.ts`);
+const { meteredExecutor } = await import(`${R}/server/access/metered.ts`);
+
+const SCR = "<scratch>/g1r";
+const ENV = { ATLAS_INVITE_PEPPER: "poc-pepper-".padEnd(48, "z") };
+const fresh = () => mkdtempSync(join(SCR, "store-"));
+const out: string[] = []; const keepAlive = setInterval(() => {}, 1000);
+const say = (s: string) => { out.push(s); console.log(s); };
+
+function setup(o: { callsPerHour?: number; modalSecondsPerDay?: number; modalStartsPerDay?: number } = {}) {
+  const dir = fresh();
+  const store = openInviteStore(dir, { env: ENV });
+  const dev = store.create({ label: "dev-ada" });
+  const owner = store.create({ label: "dami", role: "owner" });
+  let budget: any;
+  const ledger = openLedger({ dir, store, requireInvite: true, ceilingUsd: 100, ownerReserveUsd: 20, modelSpentUsd: () => budget.spentUsd(), modalSecondsPerDay: o.modalSecondsPerDay ?? 7200, modalStartsPerDay: o.modalStartsPerDay ?? 2000 });
+  budget = createModelBudget({ spendCeilingUsd: 100, guard: ledger, callsPerHour: o.callsPerHour ?? 60, experimentsPerSession: 10 });
+  const asDev = <T,>(f: () => T) => runAs({ kind: "invite", id: dev.invite.id, label: "dev-ada", role: "dev", route: "POST /experiments" }, f);
+  const asOwner = <T,>(f: () => T) => runAs({ kind: "invite", id: owner.invite.id, label: "dami", role: "owner", route: "POST /experiments" }, f);
+  return { dir, store, ledger, budget, dev, owner, asDev, asOwner };
+}
+
+// ── PoC 1: a call that times out is billed by the provider but settled at $0, and the dev can repeat it forever ──
+{
+  const s = setup({ callsPerHour: 100000 });
+  let sent = 0;
+  // The provider receives the request (and would bill it), but answers after the client's timeout.
+  const fetchImpl = (async (_u: string, init: any) => {
+    sent++;
+    return await new Promise<Response>((_res, rej) => {
+      init.signal.addEventListener("abort", () => rej(Object.assign(new Error("The operation was aborted due to timeout"), { name: "TimeoutError" })));
+    });
+  }) as unknown as typeof fetch;
+  const client = createMetaClient({ apiKey: "fake-key-for-poc-0000", timeoutMs: 20, fetchImpl, usagePath: join(s.dir, "usage.jsonl") });
+  const chat = s.budget.wrap(client.chat);
+  const prompt = "x".repeat(60_000); // ~60k-token pasted prompt: $0.24 input alone at $4/M
+  let refused = 0;
+  for (let i = 0; i < 200; i++) {
+    const r = await s.asDev(() => chat({ role: "claimant", model: "muse-spark-1.3", messages: [{ role: "user", content: prompt }] }));
+    if (!r.ok && /budget|limit/.test(r.reason)) refused++;
+  }
+  const t = s.ledger.today(s.dev.invite.id);
+  // Lower bound of what the provider billed: input tokens only (no output), at Spark's $4/M.
+  const billedLow = sent * (60_000 * 4) / 1e6;
+  say(`PoC1 timeout: ${sent} requests reached the provider for one $3 dev code; refused for budget: ${refused}; ledger today spent=$${t.spentUsd.toFixed(2)} held=$${t.heldUsd.toFixed(2)}; budget.spentUsd()=$${s.budget.spentUsd().toFixed(2)}; provider bill (input only, lower bound) ~$${billedLow.toFixed(2)}`);
+}
+
+// ── PoC 2: one dev code uses up the GLOBAL calls-per-hour; the owner is then refused ──
+{
+  const s = setup({ callsPerHour: 60 });
+  const chat = s.budget.wrap(async () => ({ ok: true, content: "{}", finishReason: "stop", usage: { promptTokens: 500, completionTokens: 200, usd: 0.003 } }));
+  let ok = 0;
+  for (let i = 0; i < 60; i++) {
+    const r = await s.asDev(() => chat({ role: "claimant", model: "muse-spark-open", messages: [{ role: "user", content: "hi" }] }));
+    if (r.ok) ok++;
+  }
+  const o = await s.asOwner(() => chat({ role: "claimant", model: "muse-spark-1.3", messages: [{ role: "user", content: "owner filming" }] }));
+  const exp = s.asOwner(() => s.budget.startExperiment("owner-session"));
+  say(`PoC2 calls/hour: dev made ${ok} calls costing $${s.ledger.today(s.dev.invite.id).spentUsd.toFixed(2)}; owner call -> ok=${o.ok} reason=${o.ok ? "" : o.reason}; owner startExperiment -> ${JSON.stringify(exp)}`);
+}
+
+// ── PoC 3: one dev code uses up Modal's GLOBAL daily sandbox-seconds; the owner's sandbox is then refused ──
+{
+  const s = setup({});
+  const fake = { kind: "modal", fingerprint: "poc", exec: async () => { await new Promise((r) => setTimeout(r, 1)); return { code: 0, stdout: "", stderr: "", timedOut: false } as any; } } as any;
+  // Emulate measured seconds directly through the ledger (same calls meteredExecutor makes), 10 s runs.
+  let n = 0;
+  for (;;) {
+    const h = s.asDev(() => s.ledger.reserve({ kind: "sandbox", usd: modalWorstCaseUsd(10_000), what: "modal sandbox", modal: true }));
+    if (!h.ok) { say(`PoC3 Modal: dev refused after ${n} runs: ${h.reason}`); break; }
+    h.settle(10 * MODAL_USD_PER_SECOND_AT_CAPS, { seconds: 10 });
+    n++;
+    if (n > 5000) break;
+  }
+  const devSpent = s.ledger.today(s.dev.invite.id).spentUsd;
+  const ex = meteredExecutor(fake, s.ledger);
+  let ownerErr = "";
+  try { await s.asOwner(() => ex.exec({ wallClockMs: 10_000 } as any)); } catch (e) { ownerErr = (e as Error).message; }
+  say(`PoC3 Modal: dev spent $${devSpent.toFixed(2)} of $3 on ${n} sandboxes; owner's sandbox -> ${ownerErr || "ran"}`);
+}
+
+// ── PoC 4: corrupt / partial spend.json ──
+{
+  const s = setup({});
+  writeFileSync(join(s.dir, "spend.json"), "{\"version\":1,", { mode: 0o600 });
+  let a = "";
+  try { openLedger({ dir: s.dir, store: s.store, requireInvite: true, ceilingUsd: 100, modelSpentUsd: () => 0 }); a = "opened"; } catch (e) { a = `throws: ${(e as Error).message.slice(0, 80)}`; }
+  writeFileSync(join(s.dir, "spend.json"), "{\"version\":1}", { mode: 0o600 });
+  let b = "";
+  try { const l = openLedger({ dir: s.dir, store: s.store, requireInvite: true, ceilingUsd: 100, modelSpentUsd: () => 0 }); b = "opened"; } catch (e) { b = `throws: ${(e as Error).message.slice(0, 80)}`; }
+  writeFileSync(join(s.dir, "spend.json"), JSON.stringify({ version: 1, days: {}, totals: { global: { usd: 0, modelUsd: 0, sandboxUsd: 0 }, codes: {} }, pending: {} , extra: 1}).replace('"days":{}', '"days":{"2026-10-28":{"global":{},"codes":{}}}'), { mode: 0o600 });
+  let c = "";
+  try {
+    const l = openLedger({ dir: s.dir, store: s.store, requireInvite: true, ceilingUsd: 100, modelSpentUsd: () => 0, now: () => Date.parse("2026-10-28T12:00:00Z") });
+    const h = s.asDev(() => l.reserve({ kind: "model", usd: 2.9, what: "x" }));
+    c = `opened; dev reserve $2.90 on a day whose code record is missing fields -> ok=${h.ok}`;
+    if (h.ok) { h.settle(2.9); const h2 = s.asDev(() => l.reserve({ kind: "model", usd: 2.9, what: "x" })); c += `; second $2.90 -> ok=${h2.ok}`; }
+  } catch (e) { c = `throws: ${(e as Error).message.slice(0, 80)}`; }
+  say(`PoC4 corrupt spend.json: truncated JSON -> ${a}; {"version":1} -> ${b}; global day {} -> ${c}`);
+}
+
+// ── PoC 5: gate path tricks + CSRF-shaped request (text/plain body, cookie only, no custom header) ──
+{
+  const s = setup({});
+  const reached: string[] = [];
+  const inner = new Hono();
+  inner.all("*", (c) => { reached.push(`${c.req.method} ${c.req.path}`); return c.json({ ok: true, who: (globalThis as any).x }); });
+  const app = withInviteGate(inner, { store: s.store, require: true, ledger: s.ledger, secureCookie: false });
+  const tries: [string, string][] = [["HEAD", "/health"], ["GET", "/health/"], ["GET", "/HEALTH"], ["OPTIONS", "/experiments"], ["GET", "/proofs/x/../../replay/x"], ["GET", "/events/%2E%2E%2Freplay%2Fx"], ["GET", "/outline/jobs/a/parts/b"], ["POST", "/invite/../experiments"], ["GET", "//replay/x"], ["GET", "/proofs/x?y=/replay"]];
+  const res: string[] = [];
+  for (const [m, p] of tries) {
+    const r = await app.request(p, { method: m });
+    res.push(`${m} ${p} -> ${r.status}`);
+  }
+  // A cross-site form/no-cors POST carries only the cookie and a text/plain body.
+  const r = await app.request("/experiments", { method: "POST", headers: { cookie: `${INVITE_COOKIE}=${s.dev.code}`, "content-type": "text/plain" }, body: "{}" });
+  res.push(`POST /experiments cookie-only text/plain -> ${r.status} (reaches app: ${reached.includes("POST /experiments")})`);
+  // Wrong header + right cookie
+  const r2 = await app.request("/experiments", { method: "POST", headers: { [INVITE_HEADER]: "atlas_" + "A".repeat(32), cookie: `${INVITE_COOKIE}=${s.dev.code}` } });
+  res.push(`bad header + good cookie -> ${r2.status}`);
+  // Failed-try lockout of POST /invite for everyone behind one address (no trusted proxy)
+  for (let i = 0; i < 30; i++) await app.request("/invite", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code: "atlas_" + "B".repeat(32) }) });
+  const r3 = await app.request("/invite", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code: s.owner.code }) });
+  res.push(`after 30 bad codes from a stranger, owner's correct POST /invite -> ${r3.status}`);
+  say(`PoC5 gate: ${res.join(" | ")}; reached inner: ${JSON.stringify(reached)}`);
+}
+
+// ── PoC 6: UTC midnight: holds from yesterday don't count today ──
+{
+  let t = Date.parse("2026-10-28T23:59:50Z");
+  const dir = fresh();
+  const store = openInviteStore(dir, { env: ENV });
+  const dev = store.create({ label: "dev-ada" });
+  const ledger = openLedger({ dir, store, requireInvite: true, ceilingUsd: 100, modelSpentUsd: () => 0, now: () => t });
+  const as = <T,>(f: () => T) => runAs({ kind: "invite", id: dev.invite.id, label: "dev-ada", role: "dev", route: "x" }, f);
+  const a = as(() => ledger.reserve({ kind: "model", usd: 1.45, what: "a" }));
+  const b = as(() => ledger.reserve({ kind: "model", usd: 1.45, what: "b" }));
+  t = Date.parse("2026-10-29T00:00:05Z");
+  const c = as(() => ledger.reserve({ kind: "model", usd: 1.45, what: "c" }));
+  const d = as(() => ledger.reserve({ kind: "model", usd: 1.45, what: "d" }));
+  [a, b, c, d].forEach((h: any) => h.ok && h.settle(1.45));
+  say(`PoC6 midnight: 4 x $1.45 within 15 s across 00:00 UTC -> ${[a, b, c, d].map((h: any) => h.ok).join(",")}; $${(4 * 1.45).toFixed(2)} in 15 s on one $3/day code (by design per UTC day, but no rolling window)`);
+}
+
+writeFileSync(join(SCR, "poc-output.txt"), out.join("\n") + "\n");
+clearInterval(keepAlive);

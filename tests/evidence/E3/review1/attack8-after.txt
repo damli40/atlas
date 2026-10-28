@@ -1,0 +1,1 @@
+{"bad":422,"badEchoesSource":false,"run":200,"whole":"the code needs axios; Atlas runs one pasted file on its own, with no packages or other modules","verdicts":["cant_check"],"filesWritten":[],"refusalRecords":0,"proofPublished":false}

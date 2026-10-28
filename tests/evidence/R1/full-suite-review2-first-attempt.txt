@@ -1,0 +1,12 @@
+== run 1
+     × every oracle bet matched; the off bet didn't match; the unmeasured bet can't be checked; under 5 s 5188ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/unit/day-gate.test.ts > D01-08 day gate: six known cases end to end > every oracle bet matched; the off bet didn't match; the unmeasured bet can't be checked; under 5 s
+ Test Files  1 failed | 97 passed | 2 skipped (100)
+      Tests  1 failed | 1313 passed | 36 skipped (1350)
+== run 2
+ Test Files  98 passed | 2 skipped (100)
+      Tests  1314 passed | 36 skipped (1350)
+== run 3
+ Test Files  98 passed | 2 skipped (100)
+      Tests  1314 passed | 36 skipped (1350)

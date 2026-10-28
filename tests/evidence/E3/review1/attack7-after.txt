@@ -1,0 +1,1 @@
+{"firstSeal":200,"claim":409,"laterSealSameRound":200,"humanBetsNow":["calls:fetchIt","outcome","returnedJson"]}

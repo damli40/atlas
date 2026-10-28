@@ -16,7 +16,7 @@
 
 import { nanoid } from "nanoid";
 import { gate, questionsFor, renderAllowList, renderQuestions, type GateContext, type Question } from "../../../src/gate";
-import { sealBet } from "../../../src/seal";
+import { jsonBetValueProblem, sealBet } from "../../../src/seal";
 import type { AgentEvent, Bet, BetAnswer, Experiment, ExperimentShape, Finding, Target } from "../../../src/types";
 import { chat as realChat, type ChatArgs, type ChatMessage, type ChatResult, type Usage } from "../client";
 import { claimantOutputSchema, zodReason, type ClaimantBetOut } from "../schemas";
@@ -203,6 +203,12 @@ function checkAnswer(q: Question, a: BetAnswer): AnswerProblem | undefined {
       if (a.unit !== q.unit) return { full: `${on} must have unit "${q.unit}"; got "${a.unit}"`, safe: `${on}: the unit is not "${q.unit}"` };
       if (a.tolerancePct !== q.tolerancePct) return { full: `${on} must have tolerancePct ${q.tolerancePct}; got ${a.tolerancePct}`, safe: `${on}: the tolerance is not ${q.tolerancePct}%` };
       return undefined;
+    case "json": {
+      // E3: the same plain-code check a person's JSON bet gets (server/bets.ts): depth first, plain JSON, size.
+      const why = jsonBetValueProblem(a.value);
+      if (why) return { full: `${on} needs a JSON value Atlas can compare: ${why}`, safe: `${on}: the value is not a JSON value Atlas can compare` };
+      return undefined;
+    }
     case "enum": {
       const opts = q.options ?? [];
       if (a.options.length !== opts.length || a.options.some((o, i) => o !== opts[i])) {

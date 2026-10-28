@@ -67,7 +67,7 @@ describe.skipIf(!HAVE_PYTHON)("the Python call-function control", () => {
   it("passes on the shipped reference file, every case matched", () => {
     expect(control.controlPassed, JSON.stringify(control.result.notMeasured)).toBe(true);
     expect(control.experimentId).toBe(PY_CALL_CONTROL_ID);
-    expect(PY_CALL_CONTROL_CASES.length).toBe(13);
+    expect(PY_CALL_CONTROL_CASES.length).toBe(14); // R1: + P14-pins
     expect(control.result.measured["C3-async-stand-in.virtualMs"]).toBe(1950);
     expect(control.result.measured["P11-nested-asyncio-run.virtualMs"]).toBe(750);
     const last = control.trace.at(-1)!;
@@ -574,9 +574,9 @@ describe.skipIf(!HAVE_PYTHON)("poisoned returned objects cannot make Atlas sign 
 
   it("a poisoned value nested in a plain dict, and a poisoned key, make the whole value not JSON", async () => {
     const a = await runPy("class F(float):\n    pass\n\ndef f():\n    return {'ok': [1, F(2.0)]}\n", { exportName: "f" });
-    // As in the JavaScript harness, the type named is the part that is not JSON (classifyReturned).
-    expect(a.result.measured.returnedType).toBe("object (F)");
-    expect(a.result.notMeasured.returnedJson).toMatch(/not a plain object/);
+    // R1 (B1 review B-1): the type is the RETURNED value's own (a dict); the item inside is named in the reason.
+    expect(a.result.measured.returnedType).toBe("object");
+    expect(a.result.notMeasured.returnedJson).toMatch(/at \.ok\[1\], object \(F\).*not a plain object/);
     const b = await runPy("class K(str):\n    def __eq__(self, o):\n        return True\n    __hash__ = str.__hash__\n\ndef f():\n    return {K('a'): 1}\n", { exportName: "f" });
     expect(b.result.notMeasured.returnedJson).toMatch(/key that is not text/);
   });

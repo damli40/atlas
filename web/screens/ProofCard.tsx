@@ -16,6 +16,10 @@ import { BettorCounts } from "./Claimant";
 import { bettorNames, changeProposer, orderModelBettors } from "../../src/claimants";
 import { AFTER_LABEL, BEFORE_LABEL, CHANGE_CAPTION, theoryCaptions } from "../../src/change";
 import { targetName } from "../../src/target-name";
+import { shortQuestionFor, LANGUAGE_NAME } from "../../src/paste-context";
+import { CallTimeline } from "../machines/calltimeline/CallTimeline";
+import { PASTE_WORDS } from "../../src/paste-words";
+import { ConditionsLine } from "./Conditions";
 
 /** S6: the pre-existing label, from the file when it carries one. */
 const preExistingLabel = (file: AtlasFile) =>
@@ -94,6 +98,11 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
     }
   };
   const words = replay.kind === "done" ? replayWords(replay.answer) : null;
+  // E3: a pasted round is named by the function it called, and its questions drop the call description.
+  const exp0 = file.experiments[0];
+  const call = exp0?.params.shape === "call-function" ? exp0.params : undefined;
+  const title = call && file.target.kind === "pasted" ? `${call.exportName} · pasted ${file.target.language ? LANGUAGE_NAME[file.target.language] : "code"}` : targetName(card.target);
+  const caption = (q: string) => shortQuestionFor(q, exp0?.params);
   const fp = (h: string) => `${h.slice(0, 12)}…${h.slice(-6)}`;
 
   return (
@@ -101,12 +110,18 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
       <header className="pc-head">
         <div>
           <p className="pc-kicker">Atlas · proof card</p>
-          <h1 className="pc-title">{targetName(card.target)}</h1>
+          <h1 className="pc-title">{title}</h1>
           {card.target.kind === "ts-fixture" && (
             // S6 (day-6 review): mandatory label, this code was written before the hackathon (PRE-EXISTING.md).
             <span className="label" data-testid="pc-pre-existing">
               {preExistingLabel(file)}
             </span>
+          )}
+          {file.bets.some((b) => b.repeat) && (
+            // E3 review r2 M2: a repeat of a test already run in the session; its bets are sealed with repeat: true.
+            <p className="pc-level" data-testid="pc-repeat">
+              A repeat of a test already run in this session: its bets are marked as a repeat.
+            </p>
           )}
           {card.level && (
             <p className="pc-level" data-testid="pc-level">
@@ -126,7 +141,7 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
             {card.notShownAsFact}
           </p>
         ) : (
-          <Scoreboard verdicts={file.verdicts} bets={file.bets} names={names} still who={false} size={240} />
+          <Scoreboard verdicts={file.verdicts} bets={file.bets} names={names} still who={false} size={240} caption={caption} />
         )}
         <ul className="pc-bettors" data-testid="pc-bettors" aria-label="who bet and how it came out">
           {lines.map((l) => (
@@ -170,6 +185,13 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
 
       {file.change && file.replay && <ProofChange file={file} said={Object.fromEntries(card.bets.map((b) => [b.betId, b.said]))} />}
 
+      {call && file.runs[0] && (
+        // E3: the call timeline, drawn from the file's own run (the same component as the round's screen).
+        <section className="pc-machine" aria-label="call timeline" data-testid="pc-call-timeline">
+          <CallTimeline run={file.runs[0]} still />
+        </section>
+      )}
+
       <section className="pc-facts" aria-label="what ran">
         <dl>
           <dt>target</dt>
@@ -181,8 +203,16 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
           <dd className="pc-mono" title={card.target.codeSha256}>
             sha256 {fp(card.target.codeSha256)}
           </dd>
-          <dt>{card.where.startsWith("seed") ? "seed" : "fork"}</dt>
+          <dt>{card.where.startsWith("seed") ? "seed" : card.where.startsWith("no seed") ? "clock" : "fork"}</dt>
           <dd data-testid="pc-where">{card.where}</dd>
+          {card.conditionsRun && (
+            <>
+              <dt>conditions</dt>
+              <dd data-testid="pc-conditions">
+                <ConditionsLine run={card.conditionsRun} />
+              </dd>
+            </>
+          )}
           <dt>control</dt>
           <dd data-testid="pc-controls">
             {card.controlPassed ? "passed: " : ""}
@@ -246,8 +276,9 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
         {words && (
           <span className={`pc-replay${words.same ? " pc-same" : ""}`} data-testid="pc-replay">
             {words.text}
+            {!words.same && call ? ` (${PASTE_WORDS.replayDiffers})` : ""}
             {replay.kind === "done" && replay.answer.replayForkBlock !== undefined ? ` · same fork block ${replay.answer.replayForkBlock}` : ""}
-            {replay.kind === "done" && replay.answer.replaySeed !== undefined ? ` · same seed ${replay.answer.replaySeed}` : ""}
+            {replay.kind === "done" && replay.answer.replaySeed !== undefined && replay.answer.replaySeed !== "none" ? ` · same seed ${replay.answer.replaySeed}` : ""}
           </span>
         )}
         {replay.kind === "failed" && (

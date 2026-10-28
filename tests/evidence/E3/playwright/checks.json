@@ -1,0 +1,233 @@
+{
+  "axe": {
+    "round-1920": {
+      "violations": [],
+      "passes": 47
+    },
+    "proof-card-1920": {
+      "violations": [],
+      "passes": 40
+    },
+    "round-390": {
+      "violations": [],
+      "passes": 47
+    },
+    "proof-card-390": {
+      "violations": [],
+      "passes": 40
+    },
+    "own-test-form": {
+      "violations": [],
+      "passes": 33
+    },
+    "own-test-refused": {
+      "violations": [],
+      "passes": 37
+    },
+    "cant-check-1920": {
+      "violations": [],
+      "passes": 45
+    },
+    "cant-check-390": {
+      "violations": [],
+      "passes": 45
+    },
+    "python-1920": {
+      "violations": [],
+      "passes": 46
+    },
+    "python-390": {
+      "violations": [],
+      "passes": 46
+    }
+  },
+  "overflow": {
+    "round": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "noScroll": true,
+      "wide": []
+    },
+    "proof-card": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "noScroll": true,
+      "wide": []
+    },
+    "cant-check": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "noScroll": true,
+      "wide": []
+    },
+    "python": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "noScroll": true,
+      "wide": []
+    }
+  },
+  "motion": {
+    "round-1920": {
+      "running": 0
+    },
+    "round-390": {
+      "running": 0
+    }
+  },
+  "overlap": {
+    "paste-1920": {
+      "textBoxes": 17,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "width": 728
+    },
+    "pick-1920": {
+      "textBoxes": 3,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "width": 728
+    },
+    "proposals-1920": {
+      "textBoxes": 23,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "width": 728
+    },
+    "bet-1920": {
+      "textBoxes": 47,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "width": 728
+    },
+    "run-1920": {
+      "textBoxes": 34,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "width": 728
+    },
+    "verdict-1920": {
+      "textBoxes": 198,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "width": 728
+    },
+    "proof-card-1920": {
+      "textBoxes": 146,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "width": 1600
+    },
+    "paste-390": {
+      "textBoxes": 27,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "width": 358
+    },
+    "pick-390": {
+      "textBoxes": 3,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "width": 358
+    },
+    "proposals-390": {
+      "textBoxes": 33,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "width": 358
+    },
+    "bet-390": {
+      "textBoxes": 60,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "width": 358
+    },
+    "run-390": {
+      "textBoxes": 49,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "width": 358
+    },
+    "verdict-390": {
+      "textBoxes": 242,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "width": 358
+    },
+    "proof-card-390": {
+      "textBoxes": 182,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "width": 358
+    },
+    "own-test-run-1920": {
+      "textBoxes": 38,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "width": 728
+    },
+    "cant-check-run-1920": {
+      "textBoxes": 10,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "width": 728
+    },
+    "cant-check-run-390": {
+      "textBoxes": 15,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "width": 358
+    },
+    "python-run-1920": {
+      "textBoxes": 32,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "width": 728
+    },
+    "python-run-390": {
+      "textBoxes": 46,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "width": 358
+    }
+  },
+  "errors": []
+}

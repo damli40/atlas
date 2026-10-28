@@ -1,0 +1,256 @@
+[
+ {
+  "n": 0,
+  "status": 200,
+  "traceLen": 3,
+  "events": "start,returned,call_checks",
+  "last": "call_checks",
+  "callsF": 0,
+  "callsG": 0,
+  "virtualMs": 0,
+  "outcome": "returned",
+  "verdict": "matched",
+  "proofVerifies": true,
+  "replay": 200
+ },
+ {
+  "n": 22,
+  "status": 200,
+  "traceLen": 49,
+  "events": "start,stand_in_call,stand_in_returns,returned,call_checks",
+  "last": "call_checks",
+  "callsF": 22,
+  "callsG": 1,
+  "virtualMs": 5,
+  "outcome": "returned",
+  "verdict": "matched",
+  "proofVerifies": true,
+  "replay": 200
+ },
+ {
+  "n": 23,
+  "status": 200,
+  "traceLen": 51,
+  "events": "start,stand_in_call,stand_in_returns,returned,call_checks",
+  "last": "call_checks",
+  "callsF": 23,
+  "callsG": 1,
+  "virtualMs": 5,
+  "outcome": "returned",
+  "verdict": "matched",
+  "proofVerifies": true,
+  "replay": 200
+ },
+ {
+  "n": 400,
+  "status": 200,
+  "traceLen": 805,
+  "events": "start,stand_in_call,stand_in_returns,returned,call_checks",
+  "last": "call_checks",
+  "callsF": 400,
+  "callsG": 1,
+  "virtualMs": 5,
+  "outcome": "returned",
+  "verdict": "matched",
+  "proofVerifies": true,
+  "replay": 200
+ },
+ {
+  "n": 490,
+  "status": 200,
+  "traceLen": 985,
+  "events": "start,stand_in_call,stand_in_returns,returned,call_checks",
+  "last": "call_checks",
+  "callsF": 490,
+  "callsG": 1,
+  "virtualMs": 5,
+  "outcome": "returned",
+  "verdict": "matched",
+  "proofVerifies": true,
+  "replay": 200
+ },
+ {
+  "n": 495,
+  "status": 200,
+  "traceLen": 995,
+  "events": "start,stand_in_call,stand_in_returns,returned,call_checks",
+  "last": "call_checks",
+  "callsF": 495,
+  "callsG": 1,
+  "virtualMs": 5,
+  "outcome": "returned",
+  "verdict": "matched",
+  "proofVerifies": true,
+  "replay": 200
+ },
+ {
+  "n": 496,
+  "status": 200,
+  "traceLen": 997,
+  "events": "start,stand_in_call,stand_in_returns,returned,call_checks",
+  "last": "call_checks",
+  "callsF": 496,
+  "callsG": 1,
+  "virtualMs": 5,
+  "outcome": "returned",
+  "verdict": "matched",
+  "proofVerifies": true,
+  "replay": 200
+ },
+ {
+  "n": 497,
+  "status": 200,
+  "traceLen": 999,
+  "events": "start,stand_in_call,stand_in_returns,returned,call_checks",
+  "last": "call_checks",
+  "callsF": 497,
+  "callsG": 1,
+  "virtualMs": 5,
+  "outcome": "returned",
+  "verdict": "matched",
+  "proofVerifies": true,
+  "replay": 200
+ },
+ {
+  "n": 498,
+  "status": 200,
+  "traceLen": 1001,
+  "events": "start,stand_in_call,stand_in_returns,returned,call_checks",
+  "last": "call_checks",
+  "callsF": 498,
+  "callsG": 1,
+  "virtualMs": 5,
+  "outcome": "returned",
+  "verdict": "matched",
+  "proofVerifies": true,
+  "replay": 200
+ },
+ {
+  "n": 499,
+  "status": 200,
+  "traceLen": 1003,
+  "events": "start,stand_in_call,stand_in_returns,returned,trace_cut,call_checks",
+  "last": "call_checks",
+  "cut": {
+   "kept": 1001,
+   "dropped": 1,
+   "droppedCalls": {}
+  },
+  "callsF": 499,
+  "callsG": 1,
+  "virtualMs": 5,
+  "outcome": "returned",
+  "verdict": "matched",
+  "proofVerifies": true,
+  "replay": 200
+ },
+ {
+  "n": 500,
+  "status": 200,
+  "traceLen": 1003,
+  "events": "start,stand_in_call,stand_in_returns,returned,trace_cut,call_checks",
+  "last": "call_checks",
+  "cut": {
+   "kept": 1001,
+   "dropped": 3,
+   "droppedCalls": {
+    "g": 1
+   }
+  },
+  "callsF": 500,
+  "callsG": 1,
+  "virtualMs": 5,
+  "outcome": "returned",
+  "verdict": "matched",
+  "proofVerifies": true,
+  "replay": 200
+ },
+ {
+  "n": 997,
+  "status": 200,
+  "traceLen": 1003,
+  "events": "start,stand_in_call,stand_in_returns,returned,trace_cut,call_checks",
+  "last": "call_checks",
+  "cut": {
+   "kept": 1001,
+   "dropped": 997,
+   "droppedCalls": {
+    "f": 497,
+    "g": 1
+   }
+  },
+  "callsF": 997,
+  "callsG": 1,
+  "virtualMs": 5,
+  "outcome": "returned",
+  "verdict": "matched",
+  "proofVerifies": true,
+  "replay": 200
+ },
+ {
+  "n": 998,
+  "status": 200,
+  "traceLen": 1003,
+  "events": "start,stand_in_call,stand_in_returns,returned,trace_cut,call_checks",
+  "last": "call_checks",
+  "cut": {
+   "kept": 1001,
+   "dropped": 999,
+   "droppedCalls": {
+    "f": 498,
+    "g": 1
+   }
+  },
+  "callsF": 998,
+  "callsG": 1,
+  "virtualMs": 5,
+  "outcome": "returned",
+  "verdict": "matched",
+  "proofVerifies": true,
+  "replay": 200
+ },
+ {
+  "n": 999,
+  "status": 200,
+  "traceLen": 1003,
+  "events": "start,stand_in_call,stand_in_returns,returned,trace_cut,call_checks",
+  "last": "call_checks",
+  "cut": {
+   "kept": 1001,
+   "dropped": 1001,
+   "droppedCalls": {
+    "f": 499,
+    "g": 1
+   }
+  },
+  "callsF": 999,
+  "callsG": 1,
+  "virtualMs": 5,
+  "outcome": "returned",
+  "verdict": "matched",
+  "proofVerifies": true,
+  "replay": 200
+ },
+ {
+  "n": 1000,
+  "status": 200,
+  "traceLen": 1003,
+  "events": "start,stand_in_call,stand_in_returns,returned,trace_cut,call_checks",
+  "last": "call_checks",
+  "cut": {
+   "kept": 1001,
+   "dropped": 1003,
+   "droppedCalls": {
+    "f": 500,
+    "g": 1
+   }
+  },
+  "callsF": 1000,
+  "callsG": 1,
+  "virtualMs": 5,
+  "outcome": "returned",
+  "verdict": "matched",
+  "proofVerifies": true,
+  "replay": 200
+ }
+]

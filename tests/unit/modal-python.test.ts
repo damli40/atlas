@@ -28,7 +28,7 @@ const pyExperiment = (source: string, params: Partial<Call> & { exportName: stri
 beforeEach(() => forgetReusableControls());
 
 describe("the Python command in the container", () => {
-  it("env -i, nobody with no new privileges, then python3 -I -S -B and the script: the macOS executor's flags", () => {
+  it("env -i, nobody with no new privileges, then python3 -s -P -S -B and the script: the macOS executor's flags", () => {
     expect(containerCommand({ files: {}, cmd: ["python3", "boot.py"], wallClockMs: 1000, allowNetwork: false })).toEqual([
       "/usr/bin/env",
       "-i",
@@ -38,7 +38,8 @@ describe("the Python command in the container", () => {
       "--clear-groups",
       "--no-new-privs",
       PYTHON_BIN,
-      "-I",
+      "-s",
+      "-P",
       "-S",
       "-B",
       "boot.py",
@@ -84,7 +85,7 @@ describe.skipIf(!HAS_PY)("end to end through the real Python harness (Modal plum
     expect(run.controlRunId).toBe(ctl.run.id);
     expect(run.result.measured).toMatchObject({ outcome: "returned", returnedJson: "5" });
     expect(run.trace.at(-1)?.data).toMatchObject({ language: "py", controlFinishedAt: ctl.run.finishedAt, runtime: { executor: "modal" } });
-    expect(b.rec.cmds.some((c) => c.includes(PYTHON_BIN) && c.includes("-I") && c.includes("boot.py"))).toBe(true);
+    expect(b.rec.cmds.some((c) => c.includes(PYTHON_BIN) && c.includes("-P") && c.includes("PYTHONHASHSEED=20260101") && c.includes("TZ=UTC") && c.includes("boot.py"))).toBe(true);
   });
 
   it("a Python control made locally is refused for a Modal run", async () => {

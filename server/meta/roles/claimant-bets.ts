@@ -33,6 +33,10 @@ import { CLAIMANT_MODEL, COST_UNKNOWN, NO_USAGE, SYSTEM_PREAMBLE, addUsage, zodS
 import { plural } from "../../../src/words";
 import { BET_INSTRUCTION } from "../../../src/chain-facts";
 
+/** G1 review M7: the output room of one bet call, and of its one "ran out of room" retry. */
+export const BET_MAX_TOKENS = 4_000;
+export const BET_RETRY_MAX_TOKENS = 8_000;
+
 /**
  * How the screen names the model: its product name AND its id (D10: model names stay visible).
  * D07-01: the list lives in src/claimants.ts so the page and the server use the same words.
@@ -59,6 +63,14 @@ export interface BetOnlyInput {
    * and field list sections, so Spark gets exactly what the person sees on screen before betting.
    */
   seenContext?: string;
+  /**
+   * E3 review M2: the bet instruction added after `seenContext`. Default: the Moonwell one (BET_INSTRUCTION, "in USD").
+   * null: none, because the seen text already holds its round's own instruction (pasted code: PASTE_BET_INSTRUCTION),
+   * so the model reads exactly the words the person reads.
+   */
+  seenInstruction?: string | null;
+  /** E3 review r2 M2: the round repeats a test already run in the session; every bet is sealed with repeat: true. */
+  repeat?: true;
 }
 
 export interface BetOnlyDeps {
@@ -84,7 +96,7 @@ export type BetOnlyResult =
 export const SEEN_CONTEXT_HEADING = "WHAT THE PERSON SEES BEFORE BETTING (you get exactly this; the person sees the same text on screen)";
 
 export function buildBetOnlyMessages(input: BetOnlyInput): ChatMessage[] {
-  if (input.seenContext !== undefined) return buildSeenContextMessages(input.seenContext, input.questions);
+  if (input.seenContext !== undefined) return buildSeenContextMessages(input.seenContext, input.questions, input.seenInstruction === undefined ? BET_INSTRUCTION : input.seenInstruction);
   const f = input.finding;
   const lineCount = input.fileText.split("\n").length;
   const range = contextRangeFor(input);
@@ -131,7 +143,7 @@ export function buildBetOnlyMessages(input: BetOnlyInput): ChatMessage[] {
  * D22: the bet instruction is BET_INSTRUCTION (also in the seen text, so the person reads the same words), the
  * same for every model: a best estimate, declining only when no estimate can be formed, with the reason.
  */
-function buildSeenContextMessages(seen: string, questions: readonly Question[]): ChatMessage[] {
+function buildSeenContextMessages(seen: string, questions: readonly Question[], instruction: string | null): ChatMessage[] {
   const user = [
     SEEN_CONTEXT_HEADING,
     seen,
@@ -142,7 +154,7 @@ function buildSeenContextMessages(seen: string, questions: readonly Question[]):
     "TASK",
     "Bet on what this experiment's run will measure:",
     "exactly one bet per question, using the answer JSON shown for it.",
-    BET_INSTRUCTION,
+    ...(instruction !== null ? [instruction] : []),
     'To decline, bet {"kind":"declined","reason":"unknown: <why>"}.',
     "",
     "Return only this JSON object:",
@@ -197,7 +209,9 @@ export async function runClaimantBets(input: BetOnlyInput, deps: BetOnlyDeps = {
   let lastError = "";
   let lastSafe = "";
   for (let attempt = 0; attempt < 2; attempt++) {
-    const res = await chat({ role: "claimant", model, messages: [...messages], json: true });
+    // G1 review M7: bets are small JSON answers (at most 2,297 output tokens in all 49 live claimant calls in
+    // tests/evidence/usage/usage.jsonl), so 4,000 output tokens with one retry at 8,000 keeps the worst-case hold small.
+    const res = await chat({ role: "claimant", model, messages: [...messages], json: true, maxTokens: BET_MAX_TOKENS, retryMaxTokens: BET_RETRY_MAX_TOKENS });
     usage = addUsage(usage, res.usage);
     if (!res.ok) {
       attempts.push({ content: null, error: res.reason, ...(res.usage ? { usage: res.usage } : {}) });
@@ -209,7 +223,7 @@ export async function runClaimantBets(input: BetOnlyInput, deps: BetOnlyDeps = {
       const sealedAt = now();
       const bets = v.bets.map(({ question, out }) =>
         sealBet(
-          { experimentId: exp.id, who: `model:${model}`, question: question.text, measures: question.measures, answer: out.answer as BetAnswer, rationale: out.rationale },
+          { experimentId: exp.id, who: `model:${model}`, question: question.text, measures: question.measures, answer: out.answer as BetAnswer, rationale: out.rationale, ...(input.repeat ? { repeat: true as const } : {}) },
           sealedAt,
         ),
       );
@@ -225,4 +239,14 @@ export async function runClaimantBets(input: BetOnlyInput, deps: BetOnlyDeps = {
     messages.push({ role: "assistant", content: res.content }, { role: "user", content: repairMessage(v.error) });
   }
   return fail(lastSafe, undefined, lastError);
+}
+
+/**
+ * E3 review r2 M3: the one size limit. A pasted round's bettor text may be at most this long, so that the prompt each
+ * betting model gets (the text plus the fixed part around it: heading, questions, answer format) fits the
+ * pasted-code prompt cap exactly. Computed from the real prompt builder, so the two can never disagree.
+ */
+export function pastedSeenCap(questions: readonly Question[], promptCap: number): number {
+  const overhead = buildSeenContextMessages("", questions, null).reduce((n, m) => n + m.content.length, 0);
+  return promptCap - overhead;
 }

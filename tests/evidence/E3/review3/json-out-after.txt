@@ -1,0 +1,24 @@
+{"lang":"py","body":"return {'b': 1, 'a': 2}","raw":"{\"b\":1,\"a\":2}","returned":"{\"a\":2,\"b\":1}","slot":"sealed","betValue":"{\"b\":1,\"a\":2}","seal":true,"verdict":"matched"}
+{"lang":"py","body":"return -0.0","raw":"-0","returned":"0","slot":"sealed","betValue":"0","seal":true,"verdict":"matched"}
+{"lang":"py","body":"return -0.0","raw":"0","returned":"0","slot":"sealed","betValue":"0","seal":true,"verdict":"matched"}
+{"lang":"py","body":"return 0","raw":"-0.0","returned":"0","slot":"sealed","betValue":"0","seal":true,"verdict":"matched"}
+{"lang":"py","body":"return 1.0","raw":"1","returned":"1","slot":"sealed","betValue":"1","seal":true,"verdict":"matched"}
+{"lang":"py","body":"return 1","raw":"1.0","returned":"1","slot":"sealed","betValue":"1","seal":true,"verdict":"matched"}
+{"lang":"py","body":"return 1e20","raw":"100000000000000000000","returned":"100000000000000000000","slot":"no_usable_answer","slotReason":"bet on \"returnedJson\": the value is not a JSON value Atlas can compare","betValue":null,"seal":null}
+{"lang":"py","body":"return 1e21","raw":"1e21","returned":"1e+21","slot":"no_usable_answer","slotReason":"bet on \"returnedJson\": the value is not a JSON value Atlas can compare","betValue":null,"seal":null}
+{"lang":"py","body":"return 1e-7","raw":"0.0000001","returned":"1e-7","slot":"sealed","betValue":"1e-7","seal":true,"verdict":"matched"}
+{"lang":"py","body":"return 5e-324","raw":"5e-324","returned":"5e-324","slot":"sealed","betValue":"5e-324","seal":true,"verdict":"matched"}
+{"lang":"py","body":"return 0.1 + 0.2","raw":"0.30000000000000004","returned":"0.30000000000000004","slot":"sealed","betValue":"0.30000000000000004","seal":true,"verdict":"matched"}
+{"lang":"py","body":"return 123456789.123456789","raw":"123456789.12345679","returned":"123456789.12345679","slot":"sealed","betValue":"123456789.12345679","seal":true,"verdict":"matched"}
+{"lang":"py","body":"return 'é'","raw":"\"\\u00e9\"","returned":"\"é\"","slot":"sealed","betValue":"\"é\"","seal":true,"verdict":"matched"}
+{"lang":"py","body":"return 'é'","raw":"\"\\u00E9\"","returned":"\"é\"","slot":"sealed","betValue":"\"é\"","seal":true,"verdict":"matched"}
+{"lang":"py","body":"return '\\u2028x\\x7f'","raw":"\"\\u2028x\\u007f\"","returned":"\" x\"","slot":"sealed","betValue":"\" x\"","seal":true,"verdict":"matched"}
+{"lang":"py","body":"return '\\ud800'","raw":"\"\\ud800\"","returned":"\"\\ud800\"","slot":"sealed","betValue":"\"\\ud800\"","seal":true,"verdict":"matched"}
+{"lang":"py","body":"return {'\\uff01': 1, '\\U0001F600': 2}","raw":"{\"\\uff01\":1,\"\\ud83d\\ude00\":2}","returned":"{\"😀\":2,\"！\":1}","slot":"sealed","betValue":"{\"！\":1,\"😀\":2}","seal":true,"verdict":"matched"}
+{"lang":"py","body":"return 2**53","raw":"9007199254740993","returned":"9007199254740992","slot":"no_usable_answer","slotReason":"bet on \"returnedJson\": the value is not a JSON value Atlas can compare","betValue":null,"seal":null}
+{"lang":"py","body":"return [1, 2.50, True, None]","raw":"[1,2.5,true,null]","returned":"[1,2.5,true,null]","slot":"sealed","betValue":"[1,2.5,true,null]","seal":true,"verdict":"matched"}
+{"lang":"js","body":"return {b: 1, a: 2}","raw":"{\"a\":2,\"b\":1}","returned":"{\"a\":2,\"b\":1}","slot":"sealed","betValue":"{\"a\":2,\"b\":1}","seal":true,"verdict":"matched"}
+{"lang":"js","body":"return -0","raw":"-0","returned":"0","slot":"sealed","betValue":"0","seal":true,"verdict":"matched"}
+{"lang":"js","body":"return 1e21","raw":"1E+21","returned":"1e+21","slot":"no_usable_answer","slotReason":"bet on \"returnedJson\": the value is not a JSON value Atlas can compare","betValue":null,"seal":null}
+{"lang":"js","body":"return '\\u00e9'","raw":"\"é\"","returned":"\"é\"","slot":"sealed","betValue":"\"é\"","seal":true,"verdict":"matched"}
+{"lang":"js","body":"return {'\\uff01': 1, '\\u{1F600}': 2}","raw":"{\"\\uff01\":1,\"\\ud83d\\ude00\":2}","returned":"{\"😀\":2,\"！\":1}","slot":"sealed","betValue":"{\"！\":1,\"😀\":2}","seal":true,"verdict":"matched"}

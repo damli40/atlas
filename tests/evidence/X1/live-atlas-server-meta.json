@@ -1,0 +1,602 @@
+{
+  "ranAt": "2026-10-27T21:29:21.421Z",
+  "seconds": 23,
+  "source": {
+    "kind": "github",
+    "repo": "damli40/atlas",
+    "requestedRef": "5f28a6c8a25607b7a055899c462d72797c960854",
+    "commit": "5f28a6c8a25607b7a055899c462d72797c960854",
+    "subfolder": "server/meta"
+  },
+  "codeSha256": "87daeae267325b03b886ac893f8e0478170af96f718e8009e2fe37613cb77061",
+  "files": [
+    {
+      "path": "budget.ts",
+      "language": "ts",
+      "bytes": 5898,
+      "sha256": "41274486308015ca5e4812ebf4a32ec4f1f3878912fca2df9f50f533ba7fb91b"
+    },
+    {
+      "path": "client.ts",
+      "language": "ts",
+      "bytes": 18136,
+      "sha256": "afd6a761ab3be463a882e402153ef0070b7ffff2b3435a477a7b8615ceb8058a"
+    },
+    {
+      "path": "redact-secret.ts",
+      "language": "ts",
+      "bytes": 1495,
+      "sha256": "f8554f06b4aa8b811f35eebccd94107c4374d5eb84b8a054ea3325e1b355b349"
+    },
+    {
+      "path": "roles/adversary.ts",
+      "language": "ts",
+      "bytes": 17588,
+      "sha256": "ed8ff604bc0e433574cc680f0a83403f5ff03078f9600ae96a6a7eaf2ca9f7ea"
+    },
+    {
+      "path": "roles/claimant-bets.ts",
+      "language": "ts",
+      "bytes": 11971,
+      "sha256": "73106e817530c3b29f09d87820ffa67228d670376ec2df95450ee8e49d8cef02"
+    },
+    {
+      "path": "roles/claimant.ts",
+      "language": "ts",
+      "bytes": 19645,
+      "sha256": "bed621e71685f653d6dad1b6010e58ec06bc03a02986246e819b5a1dd6053543"
+    },
+    {
+      "path": "roles/fixer.ts",
+      "language": "ts",
+      "bytes": 33330,
+      "sha256": "67d5744c26affbbded06e05b425d8c093f152b71321069eea68d9838a000ba0f"
+    },
+    {
+      "path": "roles/fixture-finding.ts",
+      "language": "ts",
+      "bytes": 3900,
+      "sha256": "b94ba3247aa2d458268193b4ab74037d2d1d1044ae5ef3acba65567d0156f2d3"
+    },
+    {
+      "path": "roles/investigator.ts",
+      "language": "ts",
+      "bytes": 19859,
+      "sha256": "f4d51a68674aef787af665079c297ecc27baeeb2026a51bb2f2187d4501d2b34"
+    },
+    {
+      "path": "schemas.ts",
+      "language": "ts",
+      "bytes": 2658,
+      "sha256": "ebf3b90dfca33fe786d3a844412ab17732ef36280deb7b394bacd889d5ad7d2b"
+    }
+  ],
+  "skipped": [],
+  "codeMap": {
+    "files": 10,
+    "edges": 57,
+    "callEdges": 41,
+    "externals": [
+      "nanoid",
+      "node:child_process",
+      "node:fs",
+      "node:os",
+      "node:path",
+      "node:url",
+      "zod"
+    ],
+    "unresolved": [
+      "client.ts:25 ../../src/types",
+      "client.ts:26 ../../src/claimants",
+      "client.ts:27 ../../src/cost",
+      "roles/adversary.ts:24 ../../../src/gate",
+      "roles/adversary.ts:25 ../../../src/experiment-name",
+      "roles/adversary.ts:26 ../../../src/types",
+      "roles/adversary.ts:29 ../../proofs/refusals",
+      "roles/adversary.ts:30 ../../log/agentlog",
+      "roles/claimant-bets.ts:25 ../../../src/gate",
+      "roles/claimant-bets.ts:26 ../../../src/seal",
+      "roles/claimant-bets.ts:27 ../../../src/types",
+      "roles/claimant-bets.ts:30 ../../log/agentlog",
+      "roles/claimant-bets.ts:31 ../../log/agentlog",
+      "roles/claimant-bets.ts:33 ../../../src/words",
+      "roles/claimant-bets.ts:34 ../../../src/chain-facts",
+      "roles/claimant-bets.ts:40 ../../../src/claimants",
+      "roles/claimant.ts:18 ../../../src/gate",
+      "roles/claimant.ts:19 ../../../src/seal",
+      "roles/claimant.ts:20 ../../../src/types",
+      "roles/claimant.ts:23 ../../proofs/refusals",
+      "roles/claimant.ts:24 ../../log/agentlog",
+      "roles/claimant.ts:26 ../../../src/words",
+      "roles/fixer.ts:39 ../../../src/diff",
+      "roles/fixer.ts:40 ../../../src/types",
+      "roles/fixer.ts:41 ../../../src/claimants",
+      "roles/fixer.ts:43 ../../../runners/change",
+      "roles/fixer.ts:44 ../../../runners/scratch",
+      "roles/fixer.ts:46 ../../../runners/evm/redact",
+      "roles/fixer.ts:47 ../../log/agentlog",
+      "roles/fixer.ts:49 ../../../runners/ts/harness",
+      "roles/fixer.ts:50 ../../../src/words",
+      "roles/fixer.ts:61 ../../../src/change",
+      "roles/fixer.ts:142 ../../../src/change",
+      "roles/fixture-finding.ts:17 ../../../src/types",
+      "roles/investigator.ts:18 ../../../src/types",
+      "roles/investigator.ts:20 ../../log/agentlog",
+      "roles/investigator.ts:21 ../../log/agentlog",
+      "roles/investigator.ts:22 ../../targets/github",
+      "roles/investigator.ts:24 ../../../src/words"
+    ],
+    "parseNotes": []
+  },
+  "wonder": {
+    "model": "muse-wonder-1.0",
+    "attempts": [
+      {
+        "attempt": 1,
+        "finishReason": "stop",
+        "usage": {
+          "promptTokens": 46087,
+          "completionTokens": 4158,
+          "reasoningTokens": 1752,
+          "usd": 0.267508
+        }
+      }
+    ]
+  },
+  "counts": {
+    "confirmedParts": 10,
+    "unconfirmedParts": 0,
+    "confirmedJoins": 17,
+    "modelOnlyJoins": 0,
+    "codeOnlyJoins": 0
+  },
+  "parts": [
+    {
+      "id": "budget",
+      "status": "confirmed",
+      "name": "Model-call budget",
+      "purposeByModel": "Limits model calls by hourly count, experiments per session, and total spend, adding reported usage costs.",
+      "files": [
+        "budget.ts"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "config",
+          "known": true
+        },
+        {
+          "label": "state",
+          "known": true
+        },
+        {
+          "label": "error-handling",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "meta-client",
+      "status": "confirmed",
+      "name": "Meta and Baseten client",
+      "purposeByModel": "Sends chat requests to the provider selected by model id, retries length failures, prices usage, and logs usage without leaking keys.",
+      "files": [
+        "client.ts"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "network",
+          "known": true
+        },
+        {
+          "label": "retry",
+          "known": true
+        },
+        {
+          "label": "file-io",
+          "known": true
+        },
+        {
+          "label": "auth",
+          "known": true
+        },
+        {
+          "label": "parsing",
+          "known": true
+        },
+        {
+          "label": "logging",
+          "known": true
+        },
+        {
+          "label": "config",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "redact-secret",
+      "status": "confirmed",
+      "name": "Secret redaction",
+      "purposeByModel": "Removes a whole secret or any matching piece of at least twelve characters from text.",
+      "files": [
+        "redact-secret.ts"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "auth",
+          "known": true
+        },
+        {
+          "label": "parsing",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "schemas",
+      "status": "confirmed",
+      "name": "Model answer schemas",
+      "purposeByModel": "Defines the zod shapes for bet answers, Claimant answers, bet-only answers, and Adversary answers.",
+      "files": [
+        "schemas.ts"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "validation",
+          "known": true
+        },
+        {
+          "label": "parsing",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "claimant",
+      "status": "confirmed",
+      "name": "Claimant and shared role helpers",
+      "purposeByModel": "Proposes a gate-checked experiment and sealed bets, and provides shared prompt, usage, repair, and bet-validation helpers for other roles.",
+      "files": [
+        "roles/claimant.ts"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "validation",
+          "known": true
+        },
+        {
+          "label": "parsing",
+          "known": true
+        },
+        {
+          "label": "logging",
+          "known": true
+        },
+        {
+          "label": "retry",
+          "known": true
+        },
+        {
+          "label": "events",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "fixture-finding",
+      "status": "confirmed",
+      "name": "Fixture finding",
+      "purposeByModel": "Defines the hand-written retry finding and verifies its quoted snippet and context range against the fixture file.",
+      "files": [
+        "roles/fixture-finding.ts"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "validation",
+          "known": true
+        },
+        {
+          "label": "parsing",
+          "known": true
+        },
+        {
+          "label": "config",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "claimant-bets",
+      "status": "confirmed",
+      "name": "Claimant bet-only mode",
+      "purposeByModel": "Asks the model to bet on an already chosen and gate-allowed experiment, validates the bets, and seals them.",
+      "files": [
+        "roles/claimant-bets.ts"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "validation",
+          "known": true
+        },
+        {
+          "label": "parsing",
+          "known": true
+        },
+        {
+          "label": "logging",
+          "known": true
+        },
+        {
+          "label": "retry",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "adversary",
+      "status": "confirmed",
+      "name": "Adversary role",
+      "purposeByModel": "Proposes one new gate-checked, judgeable, not previously run experiment from the last run and records gate refusals.",
+      "files": [
+        "roles/adversary.ts"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "validation",
+          "known": true
+        },
+        {
+          "label": "parsing",
+          "known": true
+        },
+        {
+          "label": "logging",
+          "known": true
+        },
+        {
+          "label": "retry",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "investigator",
+      "status": "confirmed",
+      "name": "Investigator role",
+      "purposeByModel": "Asks a model for up to three findings, verifies each against target files with plain code, repairs once, and falls back to another model when allowed.",
+      "files": [
+        "roles/investigator.ts"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "validation",
+          "known": true
+        },
+        {
+          "label": "parsing",
+          "known": true
+        },
+        {
+          "label": "logging",
+          "known": true
+        },
+        {
+          "label": "retry",
+          "known": true
+        }
+      ]
+    },
+    {
+      "id": "fixer",
+      "status": "confirmed",
+      "name": "Fixer and Muse Code sandbox",
+      "purposeByModel": "Runs Muse Code headlessly in a sandboxed scratch workspace or a chat fallback, checks reported model ids, scrubs answers, and accepts only plain-code-checked diffs.",
+      "files": [
+        "roles/fixer.ts"
+      ],
+      "reasons": [],
+      "patterns": [
+        {
+          "label": "cli",
+          "known": true
+        },
+        {
+          "label": "network",
+          "known": true
+        },
+        {
+          "label": "file-io",
+          "known": true
+        },
+        {
+          "label": "validation",
+          "known": true
+        },
+        {
+          "label": "logging",
+          "known": true
+        },
+        {
+          "label": "timer",
+          "known": true
+        },
+        {
+          "label": "auth",
+          "known": true
+        }
+      ]
+    }
+  ],
+  "joins": [
+    {
+      "id": "wonder:0",
+      "from": "budget",
+      "to": "meta-client",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:1",
+      "from": "meta-client",
+      "to": "redact-secret",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:2",
+      "from": "meta-client",
+      "to": "redact-secret",
+      "kind": "calls",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:3",
+      "from": "claimant",
+      "to": "meta-client",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:4",
+      "from": "claimant",
+      "to": "schemas",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:5",
+      "from": "claimant",
+      "to": "fixture-finding",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:6",
+      "from": "claimant-bets",
+      "to": "meta-client",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:7",
+      "from": "claimant-bets",
+      "to": "schemas",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:8",
+      "from": "claimant-bets",
+      "to": "claimant",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:9",
+      "from": "adversary",
+      "to": "meta-client",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:10",
+      "from": "adversary",
+      "to": "schemas",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:11",
+      "from": "adversary",
+      "to": "claimant",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:12",
+      "from": "investigator",
+      "to": "meta-client",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:13",
+      "from": "investigator",
+      "to": "claimant",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:14",
+      "from": "fixer",
+      "to": "redact-secret",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:15",
+      "from": "fixer",
+      "to": "meta-client",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "wonderEvidenceMatches": true
+    },
+    {
+      "id": "wonder:16",
+      "from": "fixer",
+      "to": "claimant",
+      "kind": "imports",
+      "status": "confirmed",
+      "codeEdges": 1,
+      "wonderEvidenceMatches": true
+    }
+  ],
+  "notInAnyPart": [],
+  "usage": {
+    "promptTokens": 46087,
+    "completionTokens": 4158,
+    "reasoningTokens": 1752,
+    "usd": 0.267508
+  },
+  "verifyOutlineFile": "ok"
+}

@@ -26,8 +26,9 @@ import { MODAL_IMAGE } from "../executor/modal.ts";
 import { findPython, pythonSandboxExecutor } from "../executor/sandbox-exec-python.ts";
 import type { ExecRuntime, Executor } from "../runner.ts";
 import { CALL_DEFAULT_WATCH_LIMIT_MS, type CallRunRequest, type CallWorkerResponse } from "../ts/call-harness.ts";
-import { CALL_SEED, compareCallCase, parseCallWorkerOutput, reuseControl, toWire, type CallControlCase } from "../ts/call-runner.ts";
-import { ACCESS_REASON, PROCESS_REASON, REAL_TIME_REASON } from "../ts/call-words.ts";
+import { CALL_SEED, compareCallCase, parseCallWorkerOutput, reuseControl, toWire, twinRun, type CallControlCase } from "../ts/call-runner.ts";
+import { ACCESS_REASON, PIN_FAILED_REASON, PROCESS_REASON, REAL_TIME_REASON } from "../ts/call-words.ts";
+import { CALL_PINNED_LOCALE, CALL_PINNED_TIME_ZONE, conditionsFromTrace, isCallSeed, pinnedFor } from "../../src/conditions.ts";
 import {
   PY_INTERNALS_REASON,
   PY_NAMED_AT_RUN_TIME,
@@ -83,11 +84,22 @@ export function pyWords(): Record<string, string> {
     loadFailed: pyLoadFailedReason(W),
     missingFunction: pyMissingFunctionReason("{name}"),
     notAFunction: pyNotAFunctionReason("{name}", "{type}"),
+    // R1 (D42)
+    pinFailed: PIN_FAILED_REASON(W),
   };
 }
 
 export interface PyWorkerRequest {
   runs: CallRunRequest[];
+  /** R1 (D42): the seed (Python's random, uuid, secrets, os.urandom and PYTHONHASHSEED). Default CALL_SEED. */
+  seed?: string;
+  /** R1 review round 1: 1 for the second of the two identical runs (it starts with a different heap layout). */
+  variant?: 0 | 1;
+}
+
+/** R1 (D42): the environment of a Python run: the string-hash seed and the time zone, nothing else. */
+export function pyRunEnv(seed: string): Record<string, string> {
+  return { LC_ALL: "C", PYTHONCOERCECLOCALE: "0", PYTHONHASHSEED: seed, TZ: CALL_PINNED_TIME_ZONE };
 }
 
 export type PyAnswer = (
@@ -129,10 +141,11 @@ async function pySandboxAnswer(executor: Executor, code: string, request: PyWork
   const files: Record<string, string> = {};
   for (const f of SANDBOX_FILES) files[f] = own(f);
   files["target.py"] = code;
-  files["request.json"] = JSON.stringify({ words: pyWords(), runs: request.runs });
+  const seed = request.seed ?? CALL_SEED;
+  files["request.json"] = JSON.stringify({ words: pyWords(), runs: request.runs, seed, variant: request.variant ?? 0, pins: { timeZone: CALL_PINNED_TIME_ZONE, locale: CALL_PINNED_LOCALE.py } });
   let res: Awaited<ReturnType<Executor["exec"]>>;
   try {
-    res = await executor.exec({ files, cmd: ["python3", "boot.py"], stdin: `${key}\n`, wallClockMs, allowNetwork: false });
+    res = await executor.exec({ files, cmd: ["python3", "boot.py"], stdin: `${key}\n`, env: pyRunEnv(seed), wallClockMs, allowNetwork: false });
   } catch (e) {
     return { answer: { ok: false, reason: `the sandbox could not start: ${(e as Error).message}`, kind: "notStarted" } };
   }
@@ -262,6 +275,13 @@ export const PY_CALL_CONTROL_CASES: readonly CallControlCase[] = [
     measured: { outcome: "returned", returnedJson: "[0.30000000000000004,1e+21,5e-7,0,100,9007199254740992]" },
     notMeasured: [],
   },
+  {
+    // R1 (D42): the seed reaches random, uuid and secrets; the sandbox is in UTC with the C locale.
+    id: "P14-pins",
+    params: { shape: "call-function", exportName: "pinned", args: [] },
+    measured: { outcome: "returned", virtualMs: 0, returnedJson: '[0.044717192733188416,"11b1dcf5","761a3fc9",0,"UTC"]' },
+    notMeasured: [],
+  },
 ];
 
 export interface PyControlOutcome {
@@ -314,6 +334,8 @@ export async function runPyCallControl(opts: { executor?: Executor; wallClockMs?
     executor: executor.kind,
     codeSha256: sha256(source),
     seed: CALL_SEED,
+    timeZone: CALL_PINNED_TIME_ZONE,
+    locale: CALL_PINNED_LOCALE.py,
     startedAt,
     finishedAt: new Date().toISOString(),
     trace,
@@ -336,7 +358,8 @@ export function pythonVersionFor(executor: Executor): string {
  * reference file and its known answers, the executor kind and fingerprint, and the Python version.
  */
 export function pyControlKey(executor: Executor): string {
-  return sha256(JSON.stringify(["py", pyHarnessSha256(), sha256(pyReferenceSource()), PY_CALL_CONTROL_CASES, executor.kind, executor.fingerprint ?? "(no fingerprint)", pythonVersionFor(executor)]));
+  // R1: the seed and the pinned environment are part of what the control checks.
+  return sha256(JSON.stringify(["py", pyHarnessSha256(), sha256(pyReferenceSource()), PY_CALL_CONTROL_CASES, executor.kind, executor.fingerprint ?? "(no fingerprint)", pythonVersionFor(executor), CALL_SEED, pyRunEnv(CALL_SEED), CALL_PINNED_LOCALE.py]));
 }
 
 /** D31: the Python control to rely on, reused for up to 10 minutes when it passed (see reuseControl). */
@@ -360,31 +383,42 @@ export function pastedPySource(target: Target): string {
  * Runs one Python call-function experiment, given a control Run made by runPyCallControl. The run counts only
  * when that control passed. Whole-run reasons go to notMeasured.wholeRun.
  */
-export async function runPyCallExperiment(exp: Experiment, ctl: Run, opts: { executor?: Executor; wallClockMs?: number; replayOf?: Run["replayOf"] } = {}): Promise<Run> {
+export async function runPyCallExperiment(exp: Experiment, ctl: Run, opts: { executor?: Executor; wallClockMs?: number; replayOf?: Run["replayOf"]; seed?: string } = {}): Promise<Run> {
   if (!exp.gate.allowed) throw new Error(`experiment ${exp.id} was rejected by the gate: ${exp.gate.reason}`);
   if (exp.params.shape !== "call-function") throw new Error(`runPyCallExperiment runs "call-function" only; got "${exp.params.shape}"`);
   if (ctl.experimentId !== PY_CALL_CONTROL_ID) throw new Error(`the control run ${ctl.id} is not a Python call-function control`);
   const source = pastedPySource(exp.target);
   const executor = opts.executor ?? pythonSandboxExecutor;
+  // R1 (D42): a replay passes the original run's seed, so it reproduces exactly. Older files say "none": the default.
+  const seed = opts.seed !== undefined && isCallSeed(opts.seed) ? opts.seed : CALL_SEED;
   if (ctl.executor !== executor.kind) throw new Error(`the control run ${ctl.id} ran on ${ctl.executor}, not on ${executor.kind}`);
   const startedAt = new Date().toISOString();
   let result: Run["result"];
   let trace: TraceEvent[] = [];
   let python: PythonInfo | undefined;
   let runtime: ExecRuntime | undefined;
+  let twin: Run["twin"];
   const refused = staticRefusalPy(source);
   if (refused) {
     result = { measured: {}, notMeasured: { wholeRun: refused } };
     trace.push({ t: 0, event: "refused_before_running", data: { reason: refused } });
   } else {
-    const res = await runInPySandbox(executor, source, { runs: [runRequest(exp.id, exp.params)] }, opts.wallClockMs ?? DEFAULT_WALL_CLOCK_MS);
+    const res = await runInPySandbox(executor, source, { runs: [runRequest(exp.id, exp.params)], seed }, opts.wallClockMs ?? DEFAULT_WALL_CLOCK_MS);
     if (!res.ok && res.kind === "notStarted") throw new Error(res.reason);
     python = res.python;
     runtime = res.runtime;
     const out = res.ok ? res.runs.find((r) => r.id === exp.id) : undefined;
     if (out) {
-      result = out.result;
-      trace = [...out.trace];
+      // R1 review round 1 (B1, B2): the same test again, in a fresh sandbox, with the same seed and pins.
+      const done = await twinRun(out, async () => {
+        const again = await runInPySandbox(executor, source, { runs: [runRequest(exp.id, exp.params as CallShape)], seed, variant: 1 }, opts.wallClockMs ?? DEFAULT_WALL_CLOCK_MS);
+        if (!again.ok) return { reason: again.reason };
+        const o = again.runs.find((r) => r.id === exp.id);
+        return o ? { out: o } : { reason: "the sandbox returned no result for this experiment" };
+      });
+      result = done.result;
+      trace = done.trace;
+      twin = done.twin;
     } else {
       const why = res.ok ? "the sandbox returned no result for this experiment" : res.reason;
       result = { measured: {}, notMeasured: { wholeRun: why } };
@@ -416,7 +450,12 @@ export async function runPyCallExperiment(exp: Experiment, ctl: Run, opts: { exe
     runner: "ts",
     executor: executor.kind,
     codeSha256: exp.target.codeSha256,
-    seed: CALL_SEED,
+    seed,
+    timeZone: CALL_PINNED_TIME_ZONE,
+    locale: CALL_PINNED_LOCALE.py,
+    // R1 (D42): the conditions the sandbox noticed, in Atlas's words (verify rechecks them against the trace).
+    conditions: conditionsFromTrace(trace, pinnedFor("py", seed)),
+    ...(twin ? { twin } : {}),
     startedAt,
     finishedAt: new Date().toISOString(),
     trace,

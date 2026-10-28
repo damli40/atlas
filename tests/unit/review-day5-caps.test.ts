@@ -18,7 +18,7 @@ import { liveRunFor, PR } from "../tools/review-fixtures";
 
 function evmServer(opts: { trustProxy?: boolean } = {}) {
   const app = createApp({ fetchPr: async () => PR, evmRun: async (exp) => liveRunFor(exp), runGate: createRunGate(), proofs: createProofStore({ publish: false }), trustProxy: opts.trustProxy ?? true });
-  const headers = (session: string, ip?: string) => ({ "content-type": "application/json", "x-atlas-session": session, ...(ip ? { "x-forwarded-for": `${ip}, 10.0.0.1` } : {}) });
+  const headers = (session: string, ip?: string) => ({ "content-type": "application/json", "x-atlas-session": session, ...(ip ? { "x-forwarded-for": `10.0.0.1, ${ip}` } : {}) });
   const ready = async (session: string, ip?: string) => {
     const post = async (path: string, body: unknown) => (await app.request(path, { method: "POST", headers: headers(session, ip), body: JSON.stringify(body) })).json() as Promise<any>;
     const t = await post("/targets", { kind: "github-pr", ref: PR.target.ref });

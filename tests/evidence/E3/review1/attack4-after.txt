@@ -1,0 +1,29 @@
+{
+ "N": 60000,
+ "runs": [
+  {
+   "status": 200,
+   "responseMB": 0.1,
+   "ms": 3953,
+   "outcome": "returned",
+   "calls": 60000,
+   "traceLen": 1003
+  },
+  {
+   "status": 200,
+   "responseMB": 0.1,
+   "ms": 3984,
+   "outcome": "returned",
+   "calls": 60000,
+   "traceLen": 1003
+  },
+  {
+   "status": 200,
+   "responseMB": 0,
+   "ms": 10016,
+   "whole": "the code ran past Atlas's 10000 ms limit of REAL time (it may loop without ever handing control back), so Atlas stopped it",
+   "traceLen": 2
+  }
+ ],
+ "heapGrowthMB": 2.3
+}

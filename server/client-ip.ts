@@ -5,8 +5,11 @@
 // counted per client address, which a client cannot change as freely.
 // - By default the address is the TCP socket's remote address (what the server actually sees).
 // - Behind a proxy (Modal, Fly, a load balancer) every request comes from the proxy, so with
-//   ATLAS_TRUST_PROXY=1 the address is the FIRST hop in X-Forwarded-For instead. Only turn that on behind
-//   a proxy that sets the header itself; otherwise a client could write any address there.
+//   ATLAS_TRUST_PROXY=1 the address is read from X-Forwarded-For instead. E3 review M6: a proxy APPENDS the
+//   address it saw, so only the RIGHT-MOST hop was written by the proxy; anything to its left came from the
+//   client and can be anything (sending a new first hop each time let 70 of 70 pastes through a 60-an-hour cap).
+//   ATLAS_TRUST_PROXY_HOPS (default 1) says how many proxies in a row append: the client is that many hops from
+//   the right. Only turn this on behind a proxy that appends the header itself.
 // - IPv6 addresses are grouped by their /64 (one home or one server usually holds a whole /64), and
 //   "::ffff:1.2.3.4" is read as 1.2.3.4.
 // - When neither is available (an in-process test request), every such request shares one key, "unknown".
@@ -46,10 +49,29 @@ export function clientKey(raw: string | undefined | null): string | null {
 }
 
 /** The key the caps count this request under. */
-export function clientIpOf(c: Context, trustProxy: boolean): string {
+/**
+ * How many proxies in a row append to X-Forwarded-For: ATLAS_TRUST_PROXY_HOPS, a whole number 1–10; unset means 1.
+ * E3 review r2 M4: any other value THROWS (the server refuses to start), because a wrong count silently counts the
+ * wrong address: too many brings back the client-written hop, too few makes every visitor share the proxy's key.
+ */
+export function trustedHopsFromEnv(env: Record<string, string | undefined> = process.env): number {
+  const raw = env.ATLAS_TRUST_PROXY_HOPS;
+  if (raw === undefined) return 1;
+  if (!/^(?:[1-9]|10)$/.test(raw.trim())) throw new Error(`ATLAS_TRUST_PROXY_HOPS must be a whole number from 1 to 10 (how many proxies in a row append to X-Forwarded-For); got ${JSON.stringify(raw.slice(0, 20))}`);
+  return Number(raw.trim());
+}
+
+/** The rule the per-address caps use, in plain words (printed at startup). */
+export function describeClientRule(trustProxy: boolean, hops: number): string {
+  return trustProxy
+    ? `the ${hops === 1 ? "right-most" : `${hops}th from the right`} address in X-Forwarded-For (ATLAS_TRUST_PROXY=1, ATLAS_TRUST_PROXY_HOPS=${hops}); a request without it falls back to the socket address`
+    : "the socket's remote address (ATLAS_TRUST_PROXY is not 1)";
+}
+
+export function clientIpOf(c: Context, trustProxy: boolean, hops: number = trustedHopsFromEnv()): string {
   if (trustProxy) {
-    const first = c.req.header("x-forwarded-for")?.split(",")[0];
-    const key = clientKey(first);
+    const all = (c.req.header("x-forwarded-for") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+    const key = clientKey(all[all.length - hops]);
     if (key) return key;
   }
   try {

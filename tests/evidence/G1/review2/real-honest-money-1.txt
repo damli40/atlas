@@ -1,0 +1,1 @@
+{"who":"dev1","pasteBytes":1440,"rounds":60,"seconds":32,"spentUsd":2.8691250000000004,"heldUsd":0,"perRoundUsd":0.0478,"stop":"proposals: the model call failed: your invite's daily budget is used up (spend limit reached: $2.87 spent and $0.00 held for spends running, of $3.00 today; this one could cost up to $0.34); it resets at 00:00 UTC"}

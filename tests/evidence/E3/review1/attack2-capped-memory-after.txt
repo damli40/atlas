@@ -1,0 +1,9 @@
+{"memory":{"mode":"newlines","sessions":60,"rejected429":0,"experiments":200,"seenContextChars":81472,"heapGrowthMB":12.6,"perExperimentKB":62.8}}
+<scratch>
+  const t = { ref: p.json.target.ref, codeSha256: p.json.target.codeSha256 };
+                                 ^
+
+TypeError: Cannot read properties of undefined (reading 'ref')
+    at <anonymous> (<scratch>
+
+Node.js v25.8.1

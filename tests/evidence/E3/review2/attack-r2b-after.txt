@@ -1,0 +1,54 @@
+{
+  "questions": [
+    "outcome",
+    "returnedJson",
+    "virtualMs"
+  ],
+  "sealed": 200,
+  "run1": {
+    "status": 200,
+    "returned": "3"
+  },
+  "claimDuringRun": {
+    "status": 200,
+    "claim": "People expect X; the code does CLAIM_TOKEN_42."
+  },
+  "lateBetDuringRun": {
+    "status": 409,
+    "err": "Muse Wonder's sentence about this round's tests was shown at 2026-10-27T23:01:31.591Z, so no more bets can be sealed on it, so this bet was not sealed"
+  },
+  "claimAfter": {
+    "status": 200,
+    "claim": "People expect X; the code does CLAIM_TOKEN_42."
+  },
+  "copiedAsOwnTest": 200,
+  "copiedWrittenBy": "Test written by: you (the person).",
+  "modelsAskedOnCopy": 4,
+  "modelsGotClaim": false,
+  "modelsGotEarlierResult": false,
+  "personBetOnCopy": {
+    "status": 200
+  },
+  "copiedVerdicts": [
+    {
+      "who": "human",
+      "m": "returnedJson",
+      "o": "matched"
+    },
+    {
+      "who": "human",
+      "m": "outcome",
+      "o": "matched"
+    }
+  ],
+  "sameProposalRound2": {
+    "bet": 409,
+    "betErr": "Muse Wonder's sentence about this round's tests was shown at 2026-10-27T23:01:31.591Z, so no more bets can be sealed on it, so this bet was not sealed",
+    "run": 409,
+    "runErr": "place at least one bet first: a run only happens after bets are sealed"
+  },
+  "editedFromAfterClaim": {
+    "status": 409,
+    "err": "Muse Wonder's sentence about these tests was shown at 2026-10-27T23:01:31.591Z, so they are closed: no new round can come from them"
+  }
+}

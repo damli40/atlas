@@ -268,6 +268,7 @@ describe("end to end through the real call-worker (Modal plumbing emulated on th
     expect(ok.executor).toBe("modal");
     expect(ok.result.measured).toMatchObject({ outcome: "returned", returnedJson: "5" });
     expect(ok.trace.at(-1)?.data?.runtime).toMatchObject({ executor: "modal", sandboxId: "sb-emulated-1" });
+    expect(ok.twin?.result.measured).toMatchObject({ outcome: "returned", returnedJson: "5" }); // R1: the second run, sandbox 2
 
     const forged = await runCallExperiment(
       experiment(`export function f(){ console.log("ATLAS_RESULT " + "0".repeat(64) + " " + JSON.stringify({ runs: [] })); return 1; }`, { exportName: "f" }),
@@ -276,7 +277,7 @@ describe("end to end through the real call-worker (Modal plumbing emulated on th
     );
     expect(forged.result.notMeasured.wholeRun).toMatch(/tampering/);
     expect(forged.result.measured).toEqual({});
-    expect(b.rec.terminated).toEqual(["sb-emulated-0", "sb-emulated-1", "sb-emulated-2"]);
+    expect(b.rec.terminated).toEqual(["sb-emulated-0", "sb-emulated-1", "sb-emulated-2", "sb-emulated-3"]);
   });
 });
 

@@ -1,0 +1,78 @@
+ ✓ tests/unit/no-local-paths.test.ts > public repo hygiene > the patterns catch each form seen in this repo, and pass the redacted forms 2ms
+ ✓ tests/unit/no-local-paths.test.ts > public repo hygiene > no tracked text file contains a local home-folder path 155ms
+ ✓ tests/unit/day-gate.test.ts > D01-08 day gate: six known cases end to end > the hard-coded bets and experiments are the oracle table's rows 2ms
+ ✓ tests/unit/r1-facts.test.ts > the controls pass with the pins (C10-pins, P14-pins) > JavaScript 1ms
+ ✓ tests/unit/r1-facts.test.ts > the controls pass with the pins (C10-pins, P14-pins) > Python 0ms
+ ✓ tests/unit/r1-facts.test.ts > bench T2, the 13 JavaScript tests and 9 Python tests: what Atlas reports now > h01a timeWork (CPU work timed with Date.now / performance.now): not reported, clock reason (was: dateMs 0, a FALSE FACT) 295ms
+ ✓ tests/unit/r1-conditions-ui.test.tsx > the conditions line > the proof card shows the pins and each condition in Atlas's words 220ms
+ ✓ tests/unit/r1-conditions-ui.test.tsx > the conditions line > a run with no conditions says None, so the absence is stated too 205ms
+ ✓ tests/unit/r1-conditions-ui.test.tsx > the conditions line > the verdict screen shows the same line above the scoreboard 222ms
+ ✓ tests/unit/day-gate.test.ts > D01-08 day gate: six known cases end to end > every oracle bet matched; the off bet didn't match; the unmeasured bet can't be checked; under 5 s 1051ms
+ ✓ tests/unit/day-gate.test.ts > D01-08 HTTP refusals (routes as of D02-04) > POST /targets: bad body or a path outside tests/fixtures → 400 with a reason 1ms
+ ✓ tests/unit/day-gate.test.ts > D01-08 HTTP refusals (routes as of D02-04) > POST /experiments: unknown target or wrong runner → 400 1ms
+ ✓ tests/unit/day-gate.test.ts > D01-08 HTTP refusals (routes as of D02-04) > POST /experiments: misspelt, out-of-bounds or unknown-shape params → 422 from the gate, returned with its reason; no bets, never run 2ms
+ ✓ tests/unit/day-gate.test.ts > D01-08 HTTP refusals (routes as of D02-04) > POST /runs: the old body (client-sealed bets) is refused with 400; nothing runs 1ms
+ ✓ tests/unit/r1-conditions-ui.test.tsx > the conditions line > an old file (seed none, no conditions) shows no conditions line and the old seed wording 219ms
+ ✓ tests/unit/r1-facts.test.ts > bench T2, the 13 JavaScript tests and 9 Python tests: what Atlas reports now > h01b spinWait (busy-wait on Date.now): whole-run can't check, real-time reason (unchanged) 10007ms
+ ✓ tests/unit/r1-facts.test.ts > bench T2, the 13 JavaScript tests and 9 Python tests: what Atlas reports now > h02 unrefWait (waits only on an unref'd timer): not reported, process-lifetime reason (was: returned / threw at 100 ms) 138ms
+ ✓ tests/unit/r1-facts.test.ts > bench T2, the 13 JavaScript tests and 9 Python tests: what Atlas reports now > h02 abortOnly (waits only on an unref'd timer): not reported, process-lifetime reason (was: returned / threw at 100 ms) 148ms
+ ✓ tests/unit/r1-facts.test.ts > bench T2, the 13 JavaScript tests and 9 Python tests: what Atlas reports now > h03 immediateVsTimeout (an order Node leaves open): not reported, scheduling reason (was: one order as a fact) 149ms
+ ✓ tests/unit/r1-facts.test.ts > bench T2, the 13 JavaScript tests and 9 Python tests: what Atlas reports now > h03 tickVsPromise (an order Node leaves open): not reported, scheduling reason (was: one order as a fact) 143ms
+ ✓ tests/unit/r1-facts.test.ts > bench T2, the 13 JavaScript tests and 9 Python tests: what Atlas reports now > h04a localHour: the pinned UTC answer, labelled time-zone-or-locale (was: the Mac's Africa/Lagos, unlabelled) 135ms
+ ✓ tests/unit/r1-facts.test.ts > bench T2, the 13 JavaScript tests and 9 Python tests: what Atlas reports now > h04b coin (Math.random): the seed's answer, labelled randomness, the same every run (was: heads, then tails) 292ms
+ ✓ tests/unit/r1-facts.test.ts > bench T2, the 13 JavaScript tests and 9 Python tests: what Atlas reports now > h04c uuidPrefix (crypto.randomUUID): the seed's answer, labelled randomness, the same every run 287ms
+ ✓ tests/unit/r1-facts.test.ts > bench T2, the 13 JavaScript tests and 9 Python tests: what Atlas reports now > h05a ticks (setInterval 0 ms cleared after 3): 3 at 3 ms, cb x3 (correct before and after) 137ms
+ ✓ tests/unit/r1-facts.test.ts > bench T2, the 13 JavaScript tests and 9 Python tests: what Atlas reports now > h05b refreshed (timer.refresh): 160 at 160 ms, labelled clock (correct before and after) 135ms
+ ✓ tests/unit/r1-facts.test.ts > bench T2, the 13 JavaScript tests and 9 Python tests: what Atlas reports now > h06 bigInList: returnedType array, the reason names the BigInt inside (was: the inner item's type) 147ms
+ ✓ tests/unit/r1-facts.test.ts > bench T2, the 13 JavaScript tests and 9 Python tests: what Atlas reports now > h06 nanInList: returnedType array, the reason names the NaN inside (was: the inner item's type) 135ms
+ ✓ tests/unit/r1-facts.test.ts > bench T2, the 13 JavaScript tests and 9 Python tests: what Atlas reports now > h06 undefinedInObject: returnedType object, the reason names the undefined inside (was: the inner item's type) 139ms
+ ✓ tests/unit/r1-facts.test.ts > bench T2, the 13 JavaScript tests and 9 Python tests: what Atlas reports now > h06 dateInObject: returnedType object, the reason names the Date inside (was: the inner item's type) 154ms
+ ✓ tests/unit/r1-facts.test.ts > bench T2, the 13 JavaScript tests and 9 Python tests: what Atlas reports now > Python > q01a fruit_list (list of a set of text): the hash seed's order, labelled hash-seed, the same every run (was: a different order per run) 162ms
+ ✓ tests/unit/r1-facts.test.ts > bench T2, the 13 JavaScript tests and 9 Python tests: what Atlas reports now > Python > q01b int_keys: object, not JSON because of a key (correct before and after) 82ms
+ ✓ tests/unit/r1-facts.test.ts > bench T2, the 13 JavaScript tests and 9 Python tests: what Atlas reports now > Python > q01c tuple_inside: returnedType array, the reason names the tuple inside (was: tuple, a FALSE FACT) 80ms
+ ✓ tests/unit/r1-facts.test.ts > bench T2, the 13 JavaScript tests and 9 Python tests: what Atlas reports now > Python > q01d float_two: 2 (correct before and after) 81ms
+ ✓ tests/unit/r1-facts.test.ts > bench T2, the 13 JavaScript tests and 9 Python tests: what Atlas reports now > Python > q02a block_then_await: ['v', 500] at 500 ms, fetch x1, labelled clock (correct before and after) 81ms
+ ✓ tests/unit/r1-facts.test.ts > bench T2, the 13 JavaScript tests and 9 Python tests: what Atlas reports now > Python > q02b deadline: 'timed out' at 100 ms, fetch x1 (correct before and after) 80ms
+ ✓ tests/unit/r1-facts.test.ts > bench T2, the 13 JavaScript tests and 9 Python tests: what Atlas reports now > Python > q02c cpu_elapsed (perf_counter around CPU work): not reported, clock reason (was: false, a FALSE FACT) 148ms
+ ✓ tests/unit/r1-facts.test.ts > seeding: same seed, same run; the seed is recorded and replays use it > two runs of Math.random / getRandomValues / randomUUID code give identical measurements 283ms
+ ✓ tests/unit/r1-facts.test.ts > seeding: same seed, same run; the seed is recorded and replays use it > another seed gives other values, recorded on the run; replaying with that seed reproduces it exactly 429ms
+ ✓ tests/unit/r1-facts.test.ts > seeding: same seed, same run; the seed is recorded and replays use it > a seed Atlas does not use (none, 0, text) falls back to the default seed 404ms
+ ✓ tests/unit/r1-facts.test.ts > seeding: same seed, same run; the seed is recorded and replays use it > an invalid seed in the worker request is refused by the worker, not run unseeded 127ms
+ ✓ tests/unit/r1-facts.test.ts > seeding: same seed, same run; the seed is recorded and replays use it > Python: random, uuid4, secrets, os.urandom and Random() are the same on every run, and differ with another seed 254ms
+ ✓ tests/unit/r1-facts.test.ts > conditions are detected for each kind, and only the undecided kinds hide how the call ended > JavaScript: no clock, no randomness: no conditions (the line says None) 150ms
+ ✓ tests/unit/r1-facts.test.ts > conditions are detected for each kind, and only the undecided kinds hide how the call ended > JavaScript: clock (Date.now) 140ms
+ ✓ tests/unit/r1-facts.test.ts > conditions are detected for each kind, and only the undecided kinds hide how the call ended > JavaScript: clock (new Date() with no argument, performance.now, process.hrtime) 144ms
+ ✓ tests/unit/r1-facts.test.ts > conditions are detected for each kind, and only the undecided kinds hide how the call ended > JavaScript: a deadline loop reading the clock between waits is NOT timed work 154ms
+ ✓ tests/unit/r1-facts.test.ts > conditions are detected for each kind, and only the undecided kinds hide how the call ended > JavaScript: clock-during-work 219ms
+ ✓ tests/unit/r1-facts.test.ts > conditions are detected for each kind, and only the undecided kinds hide how the call ended > JavaScript: randomness (Math.random) 145ms
+ ✓ tests/unit/r1-facts.test.ts > conditions are detected for each kind, and only the undecided kinds hide how the call ended > JavaScript: unseeded randomness (crypto.subtle.generateKey) 143ms
+ ✓ tests/unit/r1-facts.test.ts > conditions are detected for each kind, and only the undecided kinds hide how the call ended > JavaScript: time zone (getHours) 152ms
+ ✓ tests/unit/r1-facts.test.ts > conditions are detected for each kind, and only the undecided kinds hide how the call ended > JavaScript: locale (toLocaleString, Intl.NumberFormat, localeCompare) 157ms
+ ✓ tests/unit/r1-facts.test.ts > conditions are detected for each kind, and only the undecided kinds hide how the call ended > JavaScript: UTC getters and toISOString read no zone 150ms
+ ✓ tests/unit/r1-facts.test.ts > conditions are detected for each kind, and only the undecided kinds hide how the call ended > JavaScript: timer order (setImmediate next to setTimeout 0) 159ms
+ ✓ tests/unit/r1-facts.test.ts > conditions are detected for each kind, and only the undecided kinds hide how the call ended > JavaScript: timer order (process.nextTick in the call's synchronous part) 158ms
+ ✓ tests/unit/r1-facts.test.ts > conditions are detected for each kind, and only the undecided kinds hide how the call ended > JavaScript: console.log in the synchronous part is not a timer race 157ms
+ ✓ tests/unit/r1-facts.test.ts > conditions are detected for each kind, and only the undecided kinds hide how the call ended > JavaScript: setImmediate alone is not a race 152ms
+ ✓ tests/unit/r1-facts.test.ts > conditions are detected for each kind, and only the undecided kinds hide how the call ended > JavaScript: unref-timer (a call waiting only on an unref'd timer) 153ms
+ ✓ tests/unit/r1-facts.test.ts > conditions are detected for each kind, and only the undecided kinds hide how the call ended > JavaScript: an unref'd timer next to a ref'd one is measured, and hasRef tells the truth 162ms
+ ✓ tests/unit/r1-facts.test.ts > conditions are detected for each kind, and only the undecided kinds hide how the call ended > Python: no conditions 91ms
+ ✓ tests/unit/r1-facts.test.ts > conditions are detected for each kind, and only the undecided kinds hide how the call ended > Python: clock (time.time) 92ms
+ ✓ tests/unit/r1-facts.test.ts > conditions are detected for each kind, and only the undecided kinds hide how the call ended > Python: clock (datetime.now with a time zone) 88ms
+ ✓ tests/unit/r1-facts.test.ts > conditions are detected for each kind, and only the undecided kinds hide how the call ended > Python: time zone (time.localtime, datetime.now() naive) 93ms
+ ✓ tests/unit/r1-facts.test.ts > conditions are detected for each kind, and only the undecided kinds hide how the call ended > Python: randomness (random.choice) 85ms
+ ✓ tests/unit/r1-facts.test.ts > conditions are detected for each kind, and only the undecided kinds hide how the call ended > Python: a seeded Random(5) is the code's own choice: no condition 88ms
+ ✓ tests/unit/r1-facts.test.ts > conditions are detected for each kind, and only the undecided kinds hide how the call ended > Python: hash-seed (a set comprehension) 82ms
+ ✓ tests/unit/r1-facts.test.ts > conditions are detected for each kind, and only the undecided kinds hide how the call ended > Python: clock-during-work (perf_counter around a loop) 127ms
+ ✓ tests/unit/r1-facts.test.ts > conditions are detected for each kind, and only the undecided kinds hide how the call ended > every condition sentence is plain code's, from src/paste-words.ts; the clock one is D42's 141ms
+ ✓ tests/unit/r1-facts.test.ts > the pins are checked inside the sandbox before the code exists > a sandbox started in another time zone is whole-run can't check, never this machine's hours 134ms
+ ✓ tests/unit/r1-facts.test.ts > the pins are checked inside the sandbox before the code exists > the JavaScript sandbox gets TZ=UTC and a pinned locale, nothing else 0ms
+ ✓ tests/unit/r1-facts.test.ts > the pins are checked inside the sandbox before the code exists > a Python sandbox without the pinned hash seed is whole-run can't check 81ms
+ ✓ tests/unit/r1-facts.test.ts > proof files record the seed, time zone, locale and conditions, and verify checks them > a run with conditions verifies; editing the conditions, the time zone, the locale or the seed is caught 145ms
+ ✓ tests/unit/r1-facts.test.ts > proof files record the seed, time zone, locale and conditions, and verify checks them > an undecided run that claims an outcome is caught 210ms
+ ✓ tests/unit/r1-facts.test.ts > proof files record the seed, time zone, locale and conditions, and verify checks them > a file from before R1 (seed none, no pins, no conditions) still verifies; one that mixes them does not 142ms
+ ✓ tests/unit/r1-facts.test.ts > proof files record the seed, time zone, locale and conditions, and verify checks them > a Python run verifies with locale C and its hash-seed condition 87ms
+ ✓ tests/unit/r1-facts.test.ts > D31: the reused-control fingerprints follow the harness files > the JavaScript harness hash is the SHA-256 of the files the sandbox runs, read from disk now 1ms
+ ✓ tests/unit/r1-facts.test.ts > D31: the reused-control fingerprints follow the harness files > the Python harness hash is the SHA-256 of boot.py, harness.py and exposed.py, read from disk now 1ms
+ ✓ tests/unit/r1-facts.test.ts > the paste screen's words (src/paste-words.ts) > no longer says Atlas does not seed randomness; the intro names Python; the conditions words are there 0ms
+ Test Files  4 passed (4)
+      Tests  76 passed (76)

@@ -72,7 +72,8 @@ export function priceFor(model: string): { price: Price; verified: boolean } {
 }
 
 export type Usage = NonNullable<AgentEvent["usage"]>;
-export type ChatRole = AgentEvent["role"];
+/** X1 review minor 8: "outliner" (Muse Wonder outlining a codebase) is logged in usage.jsonl under its own name. */
+export type ChatRole = AgentEvent["role"] | "outliner";
 
 export interface ChatMessage { role: "system" | "user" | "assistant"; content: string }
 
@@ -84,13 +85,33 @@ export interface ChatArgs {
   /** Ask for a JSON object (response_format json_object). The caller must still schema-check the content. */
   json?: boolean;
   maxTokens?: number;
+  /** G1 review M7: max_tokens for the one "ran out of room" retry (default RETRY_MAX_TOKENS, 32,000). */
+  retryMaxTokens?: number;
+  /**
+   * G1 review B8: asked before the "ran out of room" retry is sent (the retry sends the whole prompt again, so it is held
+   * as its own worst case). When it answers not ok, the retry is not sent and the call ends with that reason.
+   */
+  beforeRetry?: () => { ok: true } | { ok: false; reason: string };
   reasoningEffort?: "none" | "minimal" | "low" | "medium" | "high";
   temperature?: number;
 }
 
 export type ChatResult =
   | { ok: true; content: string; finishReason: string; usage: Usage; warning?: string }
-  | { ok: false; reason: string; usage?: Usage; warning?: string; /** Final review M7: refused before any request was sent (no key, refused model id). */ notSent?: true };
+  | {
+      ok: false;
+      reason: string;
+      usage?: Usage;
+      warning?: string;
+      /** Final review M7: refused before any request was sent (no key, refused model id). */
+      notSent?: true;
+      /**
+       * G1 review B1: a request WAS sent (or may have been) and no usage came back for it: a timeout, a network error
+       * mid-call, a body that was not JSON, a 200 with no usage block. The provider may still bill it, so the budget
+       * counts the call at its worst case. Not set for an HTTP error status (the provider answered and refused).
+       */
+      costUnknown?: true;
+    };
 
 export interface ClientOptions {
   /** Defaults to process.env.META_API_KEY, then ~/.config/meta-model-api/env. */
@@ -254,8 +275,8 @@ export function createMetaClient(opts: ClientOptions = {}) {
   }
 
   type Attempt =
-    | { kind: "ok"; content: string; finishReason: string; usage?: Usage; warning?: string }
-    | { kind: "fail"; reason: string; status?: number; body?: string; usage?: Usage; warning?: string };
+    | { kind: "ok"; content: string; finishReason: string; usage?: Usage; warning?: string; costUnknown?: true }
+    | { kind: "fail"; reason: string; status?: number; body?: string; usage?: Usage; warning?: string; costUnknown?: true };
 
   async function once(args: ChatArgs, key: string, maxTokens: number, withFormat: boolean): Promise<Attempt> {
     const provider = providerFor(args.model);
@@ -281,27 +302,30 @@ export function createMetaClient(opts: ClientOptions = {}) {
     } catch (err) {
       const e = err as Error;
       const what = e?.name === "TimeoutError" ? `timed out after ${timeoutMs} ms` : `network error (${e?.name ?? "unknown"}: ${e?.message ?? ""})`;
-      return { kind: "fail", reason: scrub(what, key) };
+      return { kind: "fail", reason: scrub(what, key), costUnknown: true }; // G1 review B1: it may have been sent and billed
     }
 
     const text = await res.text().catch(() => "");
     if (!res.ok) {
       let message = text;
       try { message = JSON.parse(text)?.error?.message ?? text; } catch { /* keep raw text */ }
-      return { kind: "fail", status: res.status, body: scrub(text, key), reason: scrub(`HTTP ${res.status}: ${String(message).slice(0, 300)}`, key) };
+      // G1 review B1: a 5xx or a 408 can come after the provider already worked on the prompt (a gateway timeout), so its
+      // cost is unknown; any other 4xx is a refusal before any work.
+      const unknown = res.status >= 500 || res.status === 408;
+      return { kind: "fail", status: res.status, body: scrub(text, key), reason: scrub(`HTTP ${res.status}: ${String(message).slice(0, 300)}`, key), ...(unknown ? { costUnknown: true as const } : {}) };
     }
 
     let json: { choices?: { message?: { content?: string | null }; finish_reason?: string }[]; usage?: RawUsage };
-    try { json = JSON.parse(text); } catch { return { kind: "fail", reason: "response was not JSON" }; }
+    try { json = JSON.parse(text); } catch { return { kind: "fail", reason: "response was not JSON", costUnknown: true }; }
     // Usage first: a 200 that carries usage was billed, whatever else is wrong with it.
     const choice = json.choices?.[0];
     const finishReason = choice ? choice.finish_reason ?? "unknown" : "no_choices";
     const counted = toUsage(args.model, json.usage);
     const usage = counted?.usage;
     const warning = counted ? logUsage(args.role, args.model, counted.usage, finishReason, counted.cachedTokens) : undefined;
-    const extra = { ...(usage ? { usage } : {}), ...(warning ? { warning } : {}) };
+    const extra = { ...(usage ? { usage } : {}), ...(warning ? { warning } : {}), ...(usage ? {} : { costUnknown: true as const }) };
     if (!choice) return { kind: "fail", reason: "response had no choices", ...extra };
-    return { kind: "ok", content: choice.message?.content ?? "", finishReason, ...extra };
+    return { kind: "ok", content: choice.message?.content ?? "", finishReason, ...(usage ? { usage } : {}), ...(warning ? { warning } : {}), ...(usage ? {} : { costUnknown: true as const }) };
   }
 
   async function chat(args: ChatArgs): Promise<ChatResult> {
@@ -320,8 +344,9 @@ export function createMetaClient(opts: ClientOptions = {}) {
     let maxTokens = args.maxTokens ?? DEFAULT_MAX_TOKENS;
     let total: Usage | undefined;
     let lengthRetried = false;
+    let unknown = false; // G1 review B1: some attempt was sent and reported no usage
     const warnings: string[] = [];
-    const tail = () => ({ ...(total ? { usage: total } : {}), ...(warnings.length ? { warning: warnings.join("; ") } : {}) });
+    const tail = () => ({ ...(total ? { usage: total } : {}), ...(warnings.length ? { warning: warnings.join("; ") } : {}), ...(unknown ? { costUnknown: true as const } : {}) });
 
     for (;;) {
       const withFormat = !!args.json && !responseFormatRejected.has(provider);
@@ -333,19 +358,22 @@ export function createMetaClient(opts: ClientOptions = {}) {
         a = await once(args, key, maxTokens, false);
       }
       total = addUsage(total, a.usage);
+      if (a.costUnknown) unknown = true;
       if (a.warning) warnings.push(a.warning);
       if (a.kind === "fail") return { ok: false, reason: a.reason, ...tail() };
 
       const empty = a.content.trim() === "";
 
       if (empty && a.finishReason === "length" && !lengthRetried) {
+        const may = args.beforeRetry?.() ?? { ok: true as const };
+        if (!may.ok) return { ok: false, reason: `the model ran out of room and was not asked again (${may.reason})`, ...tail() };
         lengthRetried = true;
-        maxTokens = RETRY_MAX_TOKENS;
+        maxTokens = args.retryMaxTokens ?? RETRY_MAX_TOKENS;
         continue;
       }
       if (empty) {
         const why = lengthRetried
-          ? `no content after retry at max_tokens ${RETRY_MAX_TOKENS} (finish_reason ${a.finishReason})`
+          ? `no content after retry at max_tokens ${maxTokens} (finish_reason ${a.finishReason})`
           : `empty content (finish_reason ${a.finishReason})`;
         return { ok: false, reason: why, ...tail() };
       }

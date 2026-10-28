@@ -1,0 +1,25 @@
+paste: 200 {"chosen":"ts","guessed":"ts","why":"a type annotation on a parameter on line 2","chosenBy":"plain code"} [ 'retryWithBackoff' ]
+proposals status: 200 {"ok":true,"model":"muse-wonder-1.0","display":"Muse Wonder 1.0 (muse-wonder-1.0)","setId":"ps_XWqVNUlmpV","proposals":[{"id":"8xxfhec0RN","attempt":1,"params":{"shape":"call-function","exportName":"retryWithBackoff","args":[{"kind":"stand-in","name":"fetchIt","async":true,"calls":[{"do":"throw","errorName":"Error","message":"boom"}],"then":"repeat_last"},{"kind":"json","value":3},{"kind":"json","
+proposals: true  [
+  'allowed: Atlas calls retryWithBackoff(fetchIt, 3, 100). fetchIt (async) throws Error ("boom") on call 1; every later call throws Error ("boom") too.',
+  'allowed: Atlas calls retryWithBackoff(fetchIt, 0, 100). fetchIt (async) returns 42 on call 1; every later call returns 42 too.',
+  'allowed: Atlas calls retryWithBackoff(fetchIt, 1, 100). fetchIt (async) throws Error ("only failure") on call 1; every later call throws Error ("only failure") too.'
+]
+experiment: 200 uTgqafQGli [ 'outcome', 'returnedJson', 'virtualMs', 'calls:fetchIt' ]
+person's bet sealed: 200
+model slots: [
+  'Muse Spark 1.3 (muse-spark-1.3): sealed, 4 sealed',
+  'Muse Spark Open (meta-models/muse-spark-open-1026) · via Baseten: sealed, 4 sealed'
+]
+run: 200 {"outcome":"threw","virtualMs":700,"thrownType":"Error","thrownName":"Error","thrownMessage":"boom","calls:fetchIt":3} control true
+  human outcome: {"kind":"enum","value":"returned","options":["returned","threw","never_settled","still_running_at_watch_limit"]} → not_matched
+  model:meta-models/muse-spark-open-1026 outcome: {"kind":"enum","value":"threw","options":["returned","threw","never_settled","still_running_at_watch_limit"]} → matched
+  model:meta-models/muse-spark-open-1026 returnedJson: {"kind":"json","value":null} → cant_check
+  model:meta-models/muse-spark-open-1026 virtualMs: {"kind":"number","value":700,"tolerancePct":10,"unit":"ms"} → matched
+  model:meta-models/muse-spark-open-1026 calls:fetchIt: {"kind":"integer","value":3} → matched
+  model:muse-spark-1.3 outcome: {"kind":"enum","value":"threw","options":["returned","threw","never_settled","still_running_at_watch_limit"]} → matched
+  model:muse-spark-1.3 returnedJson: {"kind":"declined","reason":"unknown: function throws so there is no return value to estimate"} → cant_check
+  model:muse-spark-1.3 virtualMs: {"kind":"number","value":700,"tolerancePct":10,"unit":"ms"} → matched
+  model:muse-spark-1.3 calls:fetchIt: {"kind":"integer","value":3} → matched
+proof verifies: true replay: {"measuredEqual":true,"sameOutcomes":true}
+calls: 3; total $0.0471 (muse-wonder-1.0 investigator 739+853 $0.0200; meta-models/muse-spark-open-1026 claimant 1174+582 $0.0039; muse-spark-1.3 claimant 1041+951 $0.0232 (price unverified, upper bound))

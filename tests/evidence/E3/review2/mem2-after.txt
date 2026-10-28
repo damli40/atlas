@@ -1,0 +1,1 @@
+{"srcBytes":63971,"lines":2000,"seenLen":79958,"N":400,"st":{"200":400},"stats":{"blocks":1,"contexts":400,"sessions":9,"retainedBytes":575739},"heapGrowthMB":6.3,"perRoundKB":16}

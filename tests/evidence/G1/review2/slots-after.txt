@@ -1,0 +1,4 @@
+S1 bet store: dev made 500 sessions with a sealed human bet in 0.2 s, dev spent $0.66; owner's POST /experiments in a new session -> 400 "unknown target: register it with POST /targets first (same ref and codeSha256), or paste it in this session (POST /paste)"
+S2 GitHub: owner's first PR read -> 200; dev sent 80 POST /targets (no 429), 11 GitHub reads made in all; owner's PR read afterwards -> 200 ""
+S3 control (before any dev paste): owner's experiment on its own paste -> 200 ""
+S3 paste LRU: 4 dev codes made 200 pastes (0 refused, 50 each, within 60/h); owner's experiment on its own paste -> 200 ""

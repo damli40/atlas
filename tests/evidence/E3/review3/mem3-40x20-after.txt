@@ -1,0 +1,1 @@
+{"sessions":40,"perSession":20,"roundsMade":800,"st":{"paste200":800,"exp200":800},"stats":{"blocks":50,"contexts":500,"sessions":40,"retainedBytes":12601800},"heapGrowthMB":64.6,"perRoundKB":81}
