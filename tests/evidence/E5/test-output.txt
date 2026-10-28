@@ -1,0 +1,32 @@
+
+ RUN  v5.0.5 <repo>
+
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 config: where the plugin may send the invite > https anywhere; plain http only to this machine; no credentials or query in the address 3ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 config: where the plugin may send the invite > reads ATLAS_URL / ATLAS_INVITE; refuses a malformed invite; says how to set up when nothing is set 2ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 config: where the plugin may send the invite > a config.json in Muse's plugin data folder works, but only when other users cannot read it 2ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 bets come from the person's typed words, read by plain code > reads options by name or number, numbers with their unit, JSON, and skip 1ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 bets come from the person's typed words, read by plain code > refuses words it would have to interpret, so nothing is guessed 1ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 tools against the real Atlas server (models mocked) > a whole round: read → Wonder's tests → round → the person's typed bet → run → verdicts and proof link 931ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 tools against the real Atlas server (models mocked) > a typed answer plain code cannot read seals nothing, and says to ask the person again 6ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 tools against the real Atlas server (models mocked) > a file that is not JS/TS/Python, outside the workspace, or over 64 KB is refused and NOTHING is sent 3ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 tools against the real Atlas server (models mocked) > a file with an import: the whole-run can't-check reason is shown plainly and no model is asked 3ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 tools against the real Atlas server (models mocked) > unknown function, and a step out of order, get plain reasons 3ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 invite codes and budgets (G1's real gate and ledger) > no invite: 401 becomes a plain 'how to get a code' answer; nothing is spent 7ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 invite codes and budgets (G1's real gate and ledger) > with a dev invite: the round works, the invite rides only in its header and never appears in an answer 701ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 invite codes and budgets (G1's real gate and ledger) > budget used up: Muse Wonder is not asked, and the answer says it is the invite's budget 8ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 invite codes and budgets (G1's real gate and ledger) > a wrong invite and an unreachable server: plain answers, the invite never echoed 6ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 the MCP server (stdio, JSON-RPC) > initialize, tools/list, and a tool call when not set up answers with the set-up reason 1ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 the MCP server (stdio, JSON-RPC) > the seal tool's description forbids inventing a bet, and its schema takes only typed words 0ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 the MCP server (stdio, JSON-RPC) > a handler that throws becomes that tool's error answer 1ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 the MCP server (stdio, JSON-RPC) > the real program over stdio: only JSON-RPC on stdout, an unreachable server reported plainly, no invite printed 292ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 the plugin package > manifest: native, portable ids, every referenced file exists, invite only by ${VAR} 1ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 the plugin package > the MCP server's only network call is fetch to the configured Atlas address 1ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 the plugin package > the /atlas command walks the flow and keeps the rules 1ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 the plugin package > the reminder hook is off by default, and when turned on only reminds (never blocks) 390ms
+ ✓ tests/unit/e5-muse-plugin.test.ts > E5 the plugin package > Muse Code's own validator accepts the plugin with zero diagnostics (muse plugins validate --json) 69ms
+
+ Test Files  1 passed (1)
+      Tests  23 passed (23)
+   Start at  13:36:58
+   Duration  3.52s (tests 73%, import 20%, transform 7%)
+

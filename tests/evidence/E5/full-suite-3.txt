@@ -1,0 +1,13 @@
+$ vitest run
+
+ RUN  v5.0.5 <repo>
+
+
+ Test Files  106 passed | 2 skipped (108)
+      Tests  1421 passed | 35 skipped (1456)
+   Start at  13:35:34
+   Duration  81.17s (tests 76%, import 23%)
+
+    Isolate  108 workers spawned · ~229ms startup each (spawn + environment, per file)
+             at least ~4.72s faster with isolate: false — reuses workers across files instead of one per file
+

@@ -1,0 +1,121 @@
+{
+  "valid": true,
+  "source_path": "plugins/muse-atlas",
+  "plugin": {
+    "id": "atlas",
+    "display_name": "Atlas",
+    "version": "0.1.0",
+    "description": "Bet on what Muse Code's own edit will do before you accept it: Atlas runs the code and shows whose bet matched.",
+    "manifest_family": "native",
+    "capabilities": {
+      "skills": [],
+      "hooks": [
+        {
+          "id": "remind-before-edit",
+          "event": "PreToolUse",
+          "matcher": null,
+          "command": [
+            "node",
+            "hooks/remind-before-edit.mjs"
+          ],
+          "shell_command": null,
+          "source_path": "<repo>/plugins/muse-atlas/hooks/remind-before-edit.mjs",
+          "source_relative_path": "hooks/remind-before-edit.mjs",
+          "timeout_ms": 2000,
+          "async": false,
+          "compatibility_name": null
+        }
+      ],
+      "mcp_servers": [
+        {
+          "id": "atlas",
+          "transport": "stdio",
+          "command": [
+            "node",
+            "--experimental-strip-types",
+            "--no-warnings",
+            "mcp/main.ts"
+          ],
+          "url": null,
+          "source_path": "<repo>/plugins/muse-atlas/mcp/main.ts",
+          "source_relative_path": "mcp/main.ts"
+        }
+      ],
+      "commands": [
+        {
+          "id": "atlas",
+          "path": "commands/atlas.md",
+          "source_path": "<repo>/plugins/muse-atlas/commands/atlas.md",
+          "enabled_default": true
+        }
+      ],
+      "reminders": [],
+      "session_providers": []
+    },
+    "compatibility": {
+      "summary": "full",
+      "declarations": [
+        {
+          "id": "hook:remind-before-edit",
+          "kind": "hook",
+          "classification": "supported"
+        },
+        {
+          "id": "mcp:atlas",
+          "kind": "mcp",
+          "classification": "supported"
+        },
+        {
+          "id": "command:atlas",
+          "kind": "command",
+          "classification": "supported"
+        }
+      ]
+    }
+  },
+  "capabilities": {
+    "skills": [],
+    "hooks": [
+      {
+        "id": "remind-before-edit",
+        "event": "PreToolUse",
+        "matcher": null,
+        "command": [
+          "node",
+          "hooks/remind-before-edit.mjs"
+        ],
+        "shell_command": null,
+        "source_path": "<repo>/plugins/muse-atlas/hooks/remind-before-edit.mjs",
+        "source_relative_path": "hooks/remind-before-edit.mjs",
+        "timeout_ms": 2000,
+        "async": false,
+        "compatibility_name": null
+      }
+    ],
+    "mcp_servers": [
+      {
+        "id": "atlas",
+        "transport": "stdio",
+        "command": [
+          "node",
+          "--experimental-strip-types",
+          "--no-warnings",
+          "mcp/main.ts"
+        ],
+        "url": null,
+        "source_path": "<repo>/plugins/muse-atlas/mcp/main.ts",
+        "source_relative_path": "mcp/main.ts"
+      }
+    ],
+    "commands": [
+      {
+        "id": "atlas",
+        "path": "commands/atlas.md",
+        "source_path": "<repo>/plugins/muse-atlas/commands/atlas.md",
+        "enabled_default": true
+      }
+    ],
+    "reminders": []
+  },
+  "diagnostics": []
+}

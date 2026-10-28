@@ -1,0 +1,2 @@
+{"ts":"2026-10-28T12:27:33.870Z","role":"investigator","provider":"meta","model":"muse-wonder-1.0","promptTokens":743,"completionTokens":1065,"reasoningTokens":730,"usd":0.024272,"finishReason":"stop","priceVerified":true}
+{"ts":"2026-10-28T12:28:30.052Z","role":"claimant","provider":"meta","model":"muse-spark-1.3","promptTokens":1098,"completionTokens":1137,"reasoningTokens":893,"usd":0.027132,"finishReason":"stop","priceVerified":false}

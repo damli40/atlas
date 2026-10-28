@@ -1,0 +1,62 @@
+# muse plugins hook test, flag file ON
+{
+  "decision": {
+    "should_block": false,
+    "block_reason": null,
+    "additional_contexts": [],
+    "updated_input": null,
+    "permission_decision": null,
+    "feedback_message": null,
+    "should_stop": false,
+    "stop_reason": null
+  },
+  "terminals": [
+    {
+      "run_id": "plugin:atlas:remind-before-edit:1",
+      "hook_key": "plugin:atlas:remind-before-edit",
+      "event": "pre_tool_use",
+      "status_message": "Atlas: checking whether to remind you about /atlas",
+      "system_message": "Atlas: after this edit you can type /atlas retry.ts to bet on what it will do before you accept it.",
+      "status": "completed",
+      "duration_ms": 116,
+      "exit_code": 0,
+      "effects": [],
+      "stdout": "{\"systemMessage\":\"Atlas: after this edit you can type /atlas retry.ts to bet on what it will do before you accept it.\"}\n",
+      "stderr": "",
+      "error": null
+    }
+  ],
+  "records": 2
+}
+# flag file OFF (the default)
+{
+  "decision": {
+    "should_block": false,
+    "block_reason": null,
+    "additional_contexts": [],
+    "updated_input": null,
+    "permission_decision": null,
+    "feedback_message": null,
+    "should_stop": false,
+    "stop_reason": null
+  },
+  "terminals": [
+    {
+      "run_id": "plugin:atlas:remind-before-edit:1",
+      "hook_key": "plugin:atlas:remind-before-edit",
+      "event": "pre_tool_use",
+      "status_message": "Atlas: checking whether to remind you about /atlas",
+      "system_message": null,
+      "status": "completed",
+      "duration_ms": 109,
+      "exit_code": 0,
+      "effects": [],
+      "stdout": "",
+      "stderr": "",
+      "error": null
+    }
+  ],
+  "records": 2
+}
+# fixture
+{"event":"PreToolUse","stdin":{"hook_event_name":"PreToolUse","tool_name":"edit_file","tool_input":{"path":"retry.ts"}}}
