@@ -150,21 +150,80 @@ account-level limits too:
 
 ## Known limits (logged, not fixed)
 
-1. **`muse exec` has no worst case Atlas can compute.** Muse Code runs several steps inside its own CLI, so the
-   guard holds a fixed $1.50 and settles with what `muse exec` reports. A run that really costs more than $1.50
-   could take a code over its daily budget by the difference. Chat calls are exact upper bounds.
+1. **`muse exec`'s worst case is an assumption.** (Changed in review round 1: it was a fixed $1.50.) The hold is now
+   steps × (workspace and prompt bytes + 32,000 tokens in, 16,000 out) at Spark's price, about $3.17 for 6 steps on
+   20 KB. That is a guess about muse's insides, not a measurement. A killed run is counted at this hold.
 2. **The worst case is pessimistic.** A Muse Spark bet holds about $1.00 while it runs and usually costs about $0.02,
    so a $3 code can have about 3 Spark calls in flight at once, and stops asking when less than $0.96 is left even if
    the next call would have been cheap.
 3. **Calls per hour and experiments per session** (the old S5 limits) are still in memory and reset on restart. The
-   money limits do not.
-4. **One server process per store.** The ledger file is written by one process; two servers sharing one folder could
-   each allow a spend the other already held. The hosted setup is one process.
+   money limits do not. (Since review round 1 they are counted per code, and the owner has its own.)
+4. **One server process per store, one container only.** (Review round 1: now enforced on one disk by a lock file.)
+   Two containers on two disks (an autoscaled Modal endpoint with a copied volume) would still each keep their own
+   ledger. Host on exactly one process.
 5. **Modal spend counts toward the same ceiling as model spend.** It is a different account, but counting it is the
    safe side; it is about $0.0002 a run.
-6. **A spend that throws** (the network dropped after the API billed it) is settled at $0 because Atlas cannot see the
-   bill, the same rule as before G1. The account-level limits above are the backstop.
+6. **(Fixed in review round 1; it was wrong.)** I wrote that a call that throws is "settled at $0, the same rule as
+   before G1". The review showed a dev can cause that on purpose (timeouts) and spend without limit. Such calls are
+   now counted at their worst case.
 7. **The web page does not yet link to `/invite` or explain a 401** (the X2 batch owns `web/`). Today the page shows
    the server's error text, which says where to enter the code.
-8. **POST /experiments reads chain facts over RPC** (once per fork block, cached) for any code; it is not counted per
-   code.
+8. **(Fixed in review round 1.)** The chain-facts read now counts as one EVM run of the invite, and a failed read is
+   cached for 60 s.
+9. **Midnight UTC.** Budgets are per UTC day, so across 00:00 UTC one code can spend up to $3 before and $3 after
+   within a minute (review m1). Logged, not changed: D34 says "$3/day".
+10. **A normal timeout now costs the person.** Since a timed-out call is counted at its worst case (about $1 for a
+   Spark bet), a slow Meta day uses up a $3 code after about 3 timeouts. That is the price of the B1 fix.
+
+## Review round 1 (the "drain the credits or block Dami" review): 5 blockers, 5 majors, 7 minors
+
+The review (`review1-poc.mts.txt`; output before: [review1-poc-before.txt](review1-poc-before.txt), after:
+[review1-poc-after.txt](review1-poc-after.txt)) found two real ways in: a dev could spend without limit by making
+calls time out, and a dev could lock Dami out for hours at a cost of cents. All fixed; tests in
+`tests/unit/g1-review1.test.ts` (22 tests; 4 of them fail when the B1 and session fixes are taken out again).
+
+**Worst case per dev code per UTC day, now:** $3.00 of model and sandbox spend (chat calls are exact upper bounds:
+prompt bytes + full output room), plus at most $3 more across the midnight boundary (m1), plus whatever `muse exec`
+costs above its assumed hold (limit 1). On the review's attack the code stopped at **$2.40 recorded, 2 requests sent**
+(it was $0.00 recorded and 200 sent). Before: no limit (about $90-550 a day by the review's estimate).
+
+| Finding | What was wrong | Fix | Test |
+|---|---|---|---|
+| **B1** | A timed-out call was recorded at $0 and its hold released; a dev could repeat it all day | A call sent but with no reported usage (timeout, network error, 5xx/408, non-JSON body, 200 without usage, a throw) is counted at its full hold, in the code's ledger AND the global ceiling. Only a call proven not sent is $0; a 4xx is $0 | "the review's attack ... stops at about $3", "per outcome", "a call that THROWS" |
+| **B2** | One global "60 calls an hour" counter; a dev used it up for $0.18 and Dami was refused | Calls an hour per spender: each dev code a quarter (15), devs together the 60, the owner its own 60. Experiments per session counted per spender AND session (a dev sending Dami's session id uses only its own) | "a dev uses up its share of calls ...", "a dev who sends the owner's session id" |
+| **B3** | Modal's daily starts and seconds were global; a dev used them up for $0.33 | Per dev code: 150 starts and 900 sandbox-seconds a day; devs together 80% of the caps; the owner and the warm-up may use the rest; devs together hold at most 3 sandboxes at once (the executor runs 4). The Modal executor's own in-memory daily cap is lifted in `server/index.ts`; the ledger's on-disk caps rule | "a dev uses up its own daily seconds (the review's 720-run attack)", "devs together stop at 80%", "devs together hold at most 3", "restart" |
+| **B4** | Prompts counted in UTF-16 characters; CJK and emoji undercount | Prompt tokens counted as UTF-8 bytes (`promptTokensUpperBound`), a true upper bound, in every hold and in the $2 / $2.50 per-call cost caps. The investigator's and outliner's token estimates still use characters, but only for "low/medium" effort and the outline size cap; the money bound is the byte-based guard | "CJK and emoji count by bytes" |
+| **B5** | A cookie-only `text/plain` POST reached the app; only SameSite=Strict stood in the way, which fails on a shared parent domain like `*.modal.run` | A cookie-signed POST, or a cookie-signed `GET /replay`, must carry `Sec-Fetch-Site: same-origin` or an `Origin` equal to `ATLAS_PUBLIC_ORIGIN`, else 403. Every spending POST must be `application/json` (else 415). The server refuses to start with invites required and no `ATLAS_PUBLIC_ORIGIN` | "cookie-only POSTs and GET /replay are refused cross-site", "spending POSTs must be JSON", "required but no code set up" |
+| **M1** | A killed `muse exec` recorded $0; $1.50 was not a real bound | A killed or failed run is counted at its hold; the hold is computed from the workspace size and the step limit (an assumption, limit 1); the fixer's chat fallback holds its exact worst case | "a killed muse exec ..." |
+| **M2** | 4 outline slots for the whole server, the owner not exempt | One running job per dev code; devs together leave the last slot for the owner | "a dev's second running job is refused ... the owner's job still starts" |
+| **M3** | EVM run and replay gates and the sandbox gate were shared; one held replay slot blocked Dami | The owner's code goes through its own copy of each gate | "devs use up the shared hourly runs ...", "the sandbox gate too" |
+| **M4** | 30 bad codes from anyone locked every new sign-in for an hour | The code is checked first; only failures are limited (30 per address, 300 overall, an hour); a correct code is never refused | "a wrong code ... a correct code still works" |
+| **M5** | Two processes on one store multiply every budget | `server.lock` with the pid: a second server on the same store refuses to start; a lock left by a dead process is taken over. Docs: one container only | "a second lock on the same store is refused" |
+| m1 | Midnight UTC doubles a burst | Logged (limit 9) | |
+| m2 | Chain-facts reads not counted; failures retried every time | Counted as an EVM run of the invite; failure cached 60 s | "a chain-facts read counts as one EVM run" |
+| m3 | Cross-site sign-in and sign-out | Same own-page check on POST /invite and /invite/forget | "sign-in and sign-out from another site are refused" |
+| m4 | Secure cookie flag only "auto" | Always Secure when `ATLAS_PUBLIC_ORIGIN` is https | "with an https public origin the cookie is Secure" |
+| m5 | `!/tools/` published the whole folder; the store could sit in the repo | Only `tools/invites.ts` is public; `pepper`, `invites.json`, `spend.json`, `spend-log.jsonl`, `server.lock` ignored anywhere; server and tool refuse a store inside the repo | "a store folder inside the repo is refused" |
+| m6 | A deleted `spend.json` silently restarted every counter | The tool writes `spend.json` with the first code; the server refuses codes without a ledger; `tools/invites.ts ledger-init` makes one only on purpose | "codes but no spend.json" |
+| m7 | Split host: the cookie never reaches the API | Now a rule: one origin for the page and the API (below) | |
+
+**PoC5 after:** "the owner's correct POST /invite → 403" is the new own-page rule (the script sends no
+`Sec-Fetch-Site`), not the lockout. A browser on Atlas's page sends `Sec-Fetch-Site: same-origin`; the M4 test shows a
+correct code passes after 30 failures.
+
+**Changed on the host (adds to "How to turn it on"):**
+- `ATLAS_PUBLIC_ORIGIN=https://<the one origin>`: required with `ATLAS_REQUIRE_INVITE=1`. **Serve the page and the API
+  from this one origin** (the API under a path such as `/api`), never from two hosts, and never on a shared parent
+  domain that is not on the Public Suffix List, such as `*.modal.run`: another tenant there counts as the "same site".
+  Use your own domain, or a host whose domains are on the list.
+- **Run exactly one server process** (on Modal: one container, `min_containers=1`, `max_containers=1`). The lock file
+  stops a second process on the same disk, not one on another disk.
+
+Full suite 3 times after review round 1: [review1-full-suite-1.txt](review1-full-suite-1.txt),
+[-2](review1-full-suite-2.txt), [-3](review1-full-suite-3.txt): 1,379 passed, 35 skipped each time.
+`tsc --noEmit`: [review1-tsc-output.txt](review1-tsc-output.txt), exit 0. Tests: [review1-test-output.txt](review1-test-output.txt). $0.
+
+**Not done / unsure:** the server's wiring of the lifted Modal executor caps, the owner gates and the chain-facts meter
+is in `server/index.ts`, which no test starts (the same pieces are tested one by one). I did not re-check the reviewer's
+one extra skipped test (1,356 / 36 on their machine). The review's dollar figures for the old attack are its own
+estimates; I did not measure what Meta bills for an abandoned request.
