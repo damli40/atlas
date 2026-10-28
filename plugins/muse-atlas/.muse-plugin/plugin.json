@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "name": "atlas",
+  "displayName": "Atlas",
+  "version": "0.1.0",
+  "description": "Bet on what Muse Code's own edit will do before you accept it: Atlas runs the code and shows whose bet matched.",
+  "compat": {
+    "source": "native",
+    "manifestDir": ".muse-plugin"
+  },
+  "capabilities": {
+    "skills": [],
+    "commands": [
+      { "id": "atlas", "path": "commands/atlas.md", "enabledDefault": true }
+    ],
+    "hooks": [
+      {
+        "id": "remind-before-edit",
+        "event": "PreToolUse",
+        "command": ["node", "hooks/remind-before-edit.mjs"],
+        "timeoutMs": 2000,
+        "statusMessage": "Atlas: checking whether to remind you about /atlas"
+      }
+    ],
+    "mcpServers": [
+      {
+        "id": "atlas",
+        "transport": "stdio",
+        "command": ["node", "--experimental-strip-types", "--no-warnings", "mcp/main.ts"],
+        "env": {
+          "ATLAS_URL": "${ATLAS_URL}",
+          "ATLAS_INVITE": "${ATLAS_INVITE}",
+          "ATLAS_WEB_URL": "${ATLAS_WEB_URL}",
+          "ATLAS_CLAIMANT": "${ATLAS_CLAIMANT}"
+        }
+      }
+    ],
+    "reminders": []
+  }
+}

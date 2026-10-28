@@ -27,6 +27,8 @@
 !/tests/
 !/public/
 !/proofs/
+# E5: the Muse Code plugin (no codes or secrets in it; the invite comes from ATLAS_INVITE at run time)
+!/plugins/
 # G1: the operator's invite-code tool (no codes or secrets live in it; they live in ~/.config/atlas/)
 !/tools/
 /tools/*
