@@ -8,7 +8,7 @@
 // hand-off, from the job's own outline file, and never kept by this page.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ApiError, type Api, type OutlineJob, type OutlineRequest } from "../api";
+import { ApiError, type Api, type LabelsAnswer, type OutlineJob, type OutlineRequest } from "../api";
 import { ErrorNotice } from "./ErrorNotice";
 import { ExplorerMachine } from "../machines/explorer/ExplorerMachine";
 import { explorerModel, type BetChoice, type Box } from "../machines/explorer/model";
@@ -57,7 +57,7 @@ export function parseRepoInput(input: string): { repo: string; ref: string; subf
   return { repo: owner && name ? `${owner}/${name}` : t, ref: "", subfolder: rest.join("/") };
 }
 
-export function ExplorerFlow({ api, onBet, saved, initialRepo, initialFiles }: { api: Api; onBet: (h: BetHandoff) => void; saved?: () => Promise<OutlineView>; initialRepo?: string; initialFiles?: FileList }) {
+export function ExplorerFlow({ api, onBet, saved, initialRepo, initialFiles, visible = true }: { api: Api; onBet: (h: BetHandoff) => void; saved?: () => Promise<OutlineView>; initialRepo?: string; initialFiles?: FileList; /** X3: the screen is shown (labels are read again when it is). */ visible?: boolean }) {
   const first = initialRepo ? parseRepoInput(initialRepo) : null;
   const [repo, setRepo] = useState(first?.repo ?? "damli40/atlas");
   const [subfolder, setSubfolder] = useState(first ? first.subfolder : "server/meta");
@@ -113,6 +113,7 @@ export function ExplorerFlow({ api, onBet, saved, initialRepo, initialFiles }: {
     setBusy(true);
     setError(null);
     setView(null);
+    setLabels(null);
     setIsSaved(false);
     setJob(null);
     setExpired(false);
@@ -146,6 +147,21 @@ export function ExplorerFlow({ api, onBet, saved, initialRepo, initialFiles }: {
   };
 
   const model = useMemo(() => (view ? explorerModel(view) : null), [view]);
+
+  // X3 (D28): plain code's common-failure labels per part, read when the outline arrives and each time the screen is
+  // shown again (a round run from "Bet on this part" can turn a label into "reproduced").
+  const [labels, setLabels] = useState<Record<string, LabelsAnswer> | null>(null);
+  useEffect(() => {
+    if (!view || isSaved || !visible) return;
+    let on = true;
+    api.outlineLabels(view.jobId).then(
+      (a) => on && setLabels(a.parts),
+      () => on && setLabels(null),
+    );
+    return () => {
+      on = false;
+    };
+  }, [api, view, isSaved, visible]);
 
   const bet = async (c: BetChoice, _box: Box) => {
     if (!view || isSaved) return;
@@ -226,7 +242,7 @@ export function ExplorerFlow({ api, onBet, saved, initialRepo, initialFiles }: {
       {model ? (
         <section aria-label="explorer" data-testid="explorer">
           {isSaved ? <p className="muted">{SAVED_NOTE}</p> : null}
-          <ExplorerMachine model={model} {...(isSaved ? { betUnavailable: SAVED_NOTE } : expired ? { betUnavailable: EXPIRED_NOTE } : { onBet: bet })} betBusy={betBusy} />
+          <ExplorerMachine model={model} {...(isSaved ? { betUnavailable: SAVED_NOTE } : expired ? { betUnavailable: EXPIRED_NOTE } : { onBet: bet })} betBusy={betBusy} labels={isSaved ? null : labels} />
         </section>
       ) : null}
     </>

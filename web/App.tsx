@@ -226,12 +226,14 @@ function Rounds({ api: given, initial = "fixture", embedded = false }: { api?: A
             <MoonwellFlow api={prApi} onRoundOpen={reportPrOpen} />
           ) : mode === "paste" ? (
             <PasteFlow api={pasteApi} onRoundOpen={reportPasteOpen} handoff={handoff} onHandoffUsed={() => setHandoff(null)} />
-          ) : mode === "explore" ? (
-            <ExplorerFlow api={pasteApi} onBet={betFromExplorer} saved={savedOutline} />
-          ) : (
+          ) : mode === "explore" ? null : (
             <ScaleScreen api={scaleApi} />
           )}
         </WhyDroppedContext.Provider>
+        {/* X3: the explorer stays mounted while another screen is shown, so its outline (and labels) survive a bet. */}
+        <div hidden={mode !== "explore"}>
+          <ExplorerFlow api={pasteApi} onBet={betFromExplorer} saved={savedOutline} visible={mode === "explore"} />
+        </div>
       </main>
       <LiveLogStrip key={mode} api={apiOf(mode)} dropped={mode === "scale" || mode === "explore" ? null : dropped[mode]} open={stripOpen} onToggle={() => setStripOpen((o) => !o)} />
     </div>

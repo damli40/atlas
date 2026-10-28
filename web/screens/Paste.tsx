@@ -27,6 +27,9 @@ import { TestForm, emptyForm, formFromParams, type TestFormState } from "./TestF
 import { PASTE_EXAMPLE } from "../paste-example";
 import type { BetHandoff } from "./Explorer";
 import { ErrorNotice } from "./ErrorNotice";
+import { TrackRecordPanel } from "./TrackRecord";
+import { FailureLabels, FL_WORDS } from "./FailureLabels";
+import type { PasteLabelsAnswer } from "../api";
 
 type LangChoice = "auto" | "js" | "ts" | "py";
 
@@ -120,6 +123,30 @@ export function PasteFlow({ api, onRoundOpen, handoff = null, onHandoffUsed }: {
   }, [handoff?.nonce]);
   const locked = exp !== null;
   const target = pasted?.runnable ? pasted.target : null;
+
+  // X3 (D28): the picked function's common-failure labels, read again after every run (a run can reproduce one).
+  const [labels, setLabels] = useState<PasteLabelsAnswer | null>(null);
+  const [labelsError, setLabelsError] = useState<string | null>(null);
+  const labelKey = target && exportName ? `${target.codeSha256}:${exportName}:${result?.run.id ?? ""}` : null;
+  useEffect(() => {
+    if (!target || !exportName) {
+      setLabels(null);
+      return;
+    }
+    let live = true;
+    api.pasteLabels(target, exportName).then(
+      (a) => {
+        if (!live) return;
+        setLabels(a);
+        setLabelsError(null);
+      },
+      (e: Error) => live && setLabelsError(e.message),
+    );
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [labelKey, api]);
 
   const read = () =>
     step(async () => {
@@ -239,6 +266,7 @@ export function PasteFlow({ api, onRoundOpen, handoff = null, onHandoffUsed }: {
   const runnableLang = (l: "js" | "ts" | "py") => languages?.find((x) => x.language === l)?.runnable ?? true;
   return (
     <>
+      <TrackRecordPanel api={api} refreshKey={result?.run.id ?? 0} />
       <section className="card" aria-label="paste">
         <h2>{W.heading}</h2>
         <p className="muted small">{W.intro}</p>
@@ -318,6 +346,14 @@ export function PasteFlow({ api, onRoundOpen, handoff = null, onHandoffUsed }: {
               ))}
             </fieldset>
           )}
+        </section>
+      )}
+
+      {target && exportName && (labels || labelsError) && (
+        <section className="card" aria-label={FL_WORDS.heading} data-testid="paste-failure-labels">
+          <h2>{FL_WORDS.heading}</h2>
+          <p className="small">{`For ${exportName}.`}</p>
+          {labels ? <FailureLabels answer={labels} idPrefix="paste" /> : <p className="muted small">{`The labels could not be read: ${labelsError}`}</p>}
         </section>
       )}
 
@@ -472,6 +508,11 @@ function Proposals({ p, locked, busy, onUse, onEdit, claim }: { p: ProposalsAnsw
         {p.usage ? ` · ${p.usage.promptTokens.toLocaleString("en-US")} + ${p.usage.completionTokens.toLocaleString("en-US")} tokens, $${p.usage.usd.toFixed(4)}` : ""}
       </p>
       {!p.ok && p.reason && <p className="notice">{`${p.display}: ${p.reason}`}</p>}
+      {p.aimedAt ? (
+        <p className="muted small" data-testid="wonder-aimed">
+          {`${p.display} was told only this about your earlier rounds (plain code's counts from your track record, no code): ${p.aimedAt}`}
+        </p>
+      ) : null}
       <ol className="proposals">
         {p.proposals.map((x, i) => (
           <li key={x.id} data-testid={`proposal-${i}`} data-allowed={x.gate.allowed ? "yes" : "no"}>

@@ -174,3 +174,20 @@ fieldset { min-width: 0; }
   /* E3 (seen in the 390 px dark run): white text on the light dark-mode accent was below 4.5:1. */
   button.primary, .switch button.on { color: #10131c; }
 }
+
+/* X3 (D27): the track record panel. */
+.track-lines { margin: 8px 0; padding-left: 20px; }
+.track-lines li { margin: 4px 0; }
+
+/* X3 (D28): common-failure labels. Each label has its own colour AND its own word, so colour is never the only sign. */
+.fl-list { list-style: none; padding: 0; margin: 8px 0; }
+.fl-item { border-top: 1px solid var(--line); padding: 10px 0; }
+.fl-item p { margin: 4px 0; overflow-wrap: anywhere; }
+.fl-head { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+.fl-badge { border-radius: 6px; padding: 1px 8px; font-size: 13px; font-weight: 600; border: 1px solid currentColor; white-space: nowrap; }
+.fl-common { color: var(--muted); }
+.fl-found { color: var(--not-matched); }
+.fl-reproduced { color: var(--matched); }
+.fl-inconclusive { color: var(--cant); }
+.fl-lines { margin: 6px 0; max-height: 18em; overflow: auto; font-size: 12px; }
+.fl-lines:target { outline: 2px solid var(--accent); }

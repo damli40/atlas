@@ -20,6 +20,7 @@ import { shortQuestionFor, LANGUAGE_NAME } from "../../src/paste-context";
 import { CallTimeline } from "../machines/calltimeline/CallTimeline";
 import { PASTE_WORDS } from "../../src/paste-words";
 import { ConditionsLine } from "./Conditions";
+import { RecordBefore } from "./TrackRecord";
 
 /** S6: the pre-existing label, from the file when it carries one. */
 const preExistingLabel = (file: AtlasFile) =>
@@ -53,7 +54,11 @@ export function ProofCardPage({ api, runId }: { api: Api; runId: string }) {
   return (
     <main className="proof-page">
       {file ? (
-        <ProofCard file={file} api={api} />
+        <div className="proof-stack">
+          <ProofCard file={file} api={api} />
+          {/* X3 (D27): only for the person whose round this was (the server answers null for anyone else). */}
+          <RecordBefore api={api} runId={runId} />
+        </div>
       ) : error ? (
         <p className="notice" role="alert">
           {error}

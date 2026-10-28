@@ -15,6 +15,18 @@ import type { AdversaryAnswer } from "../server/app";
 import type { OutlineAtlasFile } from "../src/outline/types";
 import type { FileOutline } from "../src/file-outline";
 import type { OutlineView } from "./machines/explorer/outline-data";
+import type { TrackRecord } from "../src/track-record";
+import type { LabelsAnswer } from "../src/failure-labels";
+
+export type { TrackRecord, LabelsAnswer };
+/** X3: what GET /track-record answers. `before` only when asked for (null: that round is not in this record). */
+export interface TrackAnswer {
+  person: "invite" | "browser" | "session";
+  record: TrackRecord;
+  before?: TrackRecord | null;
+}
+/** X3: labels for a pasted function (POST /paste/labels). */
+export type PasteLabelsAnswer = LabelsAnswer & { exportName: string };
 
 export type { ModelSlotView, SealedOnly, FalseAlarmRow, ChangeAnswer, AdversaryAnswer };
 
@@ -67,6 +79,8 @@ export interface RunAnswer {
   proof?: ProofInfo;
   /** D04-04, Level 2 only: one row per market the proposal touches. */
   falseAlarm?: FalseAlarmRow[];
+  /** X3 (D27): the person's track record before and after this round (or why it could not be saved). */
+  track?: { person: TrackAnswer["person"]; before: TrackRecord; after: TrackRecord } | { error: string };
 }
 
 export type HumanAnswer = { kind: "integer"; value: number } | { kind: "enum"; value: string } | { kind: "number"; value: number } | { kind: "json"; value: unknown } | { kind: "quiz"; choice: string } | { kind: "declined"; reason: string };
@@ -106,6 +120,8 @@ export interface ProposalsAnswer {
   proposals: ShownProposal[];
   claimHeld?: boolean;
   usage?: { promptTokens: number; completionTokens: number; usd: number } | null;
+  /** X3: the weak-spot summary Muse Wonder was given (plain code's counts), or null. */
+  aimedAt?: string | null;
 }
 
 /** X1/X2: an outline job's status (GET /outline/jobs/:id). */
@@ -124,6 +140,32 @@ export interface OutlineJob {
 export type OutlineRequest = { repo: string; ref?: string; subfolder?: string } | { files: { path: string; text: string }[] };
 
 const SESSION_HEADER = "x-atlas-session";
+/** X3: names "this browser" for the track record when there is no invite code (server/app.ts BROWSER_HEADER). */
+const BROWSER_HEADER = "x-atlas-browser";
+const BROWSER_KEY = "atlas-browser-id";
+
+/**
+ * X3 (D27): one random id per browser, kept in localStorage, so a local track record follows this browser across tabs
+ * and page loads. Not a secret and not a login: on a hosted server the invite code names the person instead. Without
+ * storage (a private window) it lives as long as the page.
+ */
+let pageBrowserId: string | null = null;
+export function browserId(): string {
+  if (pageBrowserId) return pageBrowserId;
+  try {
+    const s = globalThis.localStorage?.getItem(BROWSER_KEY) ?? null;
+    if (s && /^[A-Za-z0-9_-]{16,64}$/.test(s)) return (pageBrowserId = s);
+  } catch {
+    // no storage
+  }
+  pageBrowserId = `b${newSessionId()}${newSessionId()}`;
+  try {
+    globalThis.localStorage?.setItem(BROWSER_KEY, pageBrowserId);
+  } catch {
+    // no storage: this page only
+  }
+  return pageBrowserId;
+}
 
 /** A session id made by the page (12 letters and digits), used only when the server has not handed one back yet. */
 function newSessionId(): string {
@@ -201,7 +243,7 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
   /** D07-01: who places the model's bets on the next experiment (the x-atlas-claimant header). */
   let claimant: ClaimantMode = DEFAULT_CLAIMANT_MODE;
   async function post<T>(path: string, body: unknown): Promise<T> {
-    const headers: Record<string, string> = { "content-type": "application/json" };
+    const headers: Record<string, string> = { "content-type": "application/json", [BROWSER_HEADER]: browserId() };
     if (session) headers[SESSION_HEADER] = session;
     if (claimant !== DEFAULT_CLAIMANT_MODE) headers[CLAIMANT_HEADER] = claimant;
     const res = await fetchFn(`${base}${path}`, { method: "POST", headers, body: JSON.stringify(body) });
@@ -225,7 +267,7 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
       session = newSessionId();
       opts.onSession?.(session);
     }
-    const res = await fetchFn(`${base}${path}`, { method: "GET", headers: { [SESSION_HEADER]: session } });
+    const res = await fetchFn(`${base}${path}`, { method: "GET", headers: { [SESSION_HEADER]: session, [BROWSER_HEADER]: browserId() } });
     let json: (T & { error?: string }) | undefined;
     try {
       json = (await res.json()) as T & { error?: string };
@@ -294,6 +336,12 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
     outline: (jobId: string) => get<OutlineView>(`/outline/jobs/${encodeURIComponent(jobId)}/outline`),
     /** X2: the outline-only .atlas.json, which holds the files' text (the "Bet on this part" hand-off reads one file from it). */
     outlineAtlas: (jobId: string) => get<OutlineAtlasFile>(`/outline/jobs/${encodeURIComponent(jobId)}/atlas`),
+    /** X3 (D27): this person's track record; with `before`, also their record before that round. */
+    trackRecord: (before?: string) => get<TrackAnswer>(`/track-record${before ? `?before=${encodeURIComponent(before)}` : ""}`),
+    /** X3 (D28): common-failure labels for one pasted function (plain code). */
+    pasteLabels: (target: Pick<Target, "ref" | "codeSha256">, exportName: string) => post<PasteLabelsAnswer>("/paste/labels", { target: { ref: target.ref, codeSha256: target.codeSha256 }, exportName }),
+    /** X3 (D28): common-failure labels for every confirmed part of an outline job (plain code). */
+    outlineLabels: (jobId: string) => get<{ parts: Record<string, LabelsAnswer>; note?: string }>(`/outline/jobs/${encodeURIComponent(jobId)}/labels`),
     /** D06-01: Muse Code proposes a change toward the bets; the same experiment re-runs; the same bets are judged. */
     change: (runId: string) => post<ChangeAnswer>("/changes", { runId }),
     /** D07-02: "what else?": the Adversary proposes one more experiment; Atlas runs it with no click. */

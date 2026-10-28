@@ -10,6 +10,8 @@ import type { FigureReply } from "./figure.worker";
 import { arrowOf, authorOf, chalkText, joinWords, lineWord, spanText, type BetChoice, type Box, type ExplorerModel } from "./model";
 import { applyPick } from "./pick";
 import { plural } from "../../../src/words";
+import type { LabelsAnswer } from "../../../src/failure-labels";
+import { FailureLabels, FL_WORDS } from "../../screens/FailureLabels";
 
 const DARK = "(prefers-color-scheme: dark)";
 function useDark(): boolean {
@@ -36,9 +38,11 @@ export interface ExplorerMachineProps {
   theme?: "light" | "dark";
   /** Evidence pages: pick this part at start and hold still. */
   initialPick?: string | null;
+  /** X3 (D28): plain code's common-failure labels per part id (GET /outline/jobs/:id/labels). Absent: not shown. */
+  labels?: Record<string, LabelsAnswer> | null;
 }
 
-export function ExplorerMachine({ model, onBet, betUnavailable, betBusy = null, theme, initialPick = null }: ExplorerMachineProps) {
+export function ExplorerMachine({ model, onBet, betUnavailable, betBusy = null, theme, initialPick = null, labels = null }: ExplorerMachineProps) {
   const dark = useDark();
   const shown = theme ?? (dark ? "dark" : "light");
   const built = useBuiltFigure(model);
@@ -128,7 +132,7 @@ export function ExplorerMachine({ model, onBet, betUnavailable, betBusy = null, 
         )}
       </div>
       <div className="ex-aside">
-        <PartCard model={model} box={box} onPick={(id) => setPicked(id)} {...(onBet ? { onBet } : {})} {...(betUnavailable ? { betUnavailable } : {})} betBusy={betBusy} />
+        <PartCard model={model} box={box} onPick={(id) => setPicked(id)} {...(onBet ? { onBet } : {})} {...(betUnavailable ? { betUnavailable } : {})} betBusy={betBusy} labels={box && labels ? (labels[box.id] ?? null) : null} />
         <Lists model={model} />
       </div>
     </div>
@@ -136,7 +140,7 @@ export function ExplorerMachine({ model, onBet, betUnavailable, betBusy = null, 
   );
 }
 
-function PartCard({ model, box, onPick, onBet, betUnavailable, betBusy }: { model: ExplorerModel; box: Box | null; onPick: (id: string) => void; onBet?: (c: BetChoice, b: Box) => void; betUnavailable?: string; betBusy: string | null }) {
+function PartCard({ model, box, onPick, onBet, betUnavailable, betBusy, labels }: { model: ExplorerModel; box: Box | null; onPick: (id: string) => void; onBet?: (c: BetChoice, b: Box) => void; betUnavailable?: string; betBusy: string | null; labels: LabelsAnswer | null }) {
   if (!box)
     return (
       <section className="ex-card" aria-label="part" data-testid="part-card">
@@ -203,6 +207,12 @@ function PartCard({ model, box, onPick, onBet, betUnavailable, betBusy }: { mode
           {betBusy ? <p className="ex-muted" role="status">{betBusy}</p> : null}
         </>
       )}
+      {labels ? (
+        <>
+          <p className="ex-card-label">{FL_WORDS.heading}</p>
+          <FailureLabels answer={labels} idPrefix={`part-${box.id}`} showPath compact />
+        </>
+      ) : null}
     </section>
   );
 }
