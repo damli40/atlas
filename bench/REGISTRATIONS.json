@@ -1,0 +1,20 @@
+{
+  "truth": {
+    "registrationSha256": "c6e18f47eb15036352cd56607e03d9e0c5adcffbf0d70dadf335f712c39040ed",
+    "files": 50,
+    "registeredInCommitWhenWritten": "cbbe579097983f96601db16dfb71c5633d535118",
+    "note": "the commit SHA is informational (a rebase changes it); the content hash is what is checked"
+  },
+  "models": {
+    "registrationSha256": "564112e4fc6e0a3d70ce6eca1fd0f69aa50fb3c4735d65f62627721bf0fcb2d0",
+    "files": 33,
+    "registeredInCommitWhenWritten": "df7f2df8079418bc09b218aa2d955c65fa49e24b",
+    "note": "the commit SHA is informational (a rebase changes it); the content hash is what is checked"
+  },
+  "truth-2": {
+    "registrationSha256": "c6bbdc0be07a3c6ecd71bf3d4d619bfb382cc02fadb6eec028055d44f9e5cb27",
+    "files": 10,
+    "registeredInCommitWhenWritten": "0bd3922",
+    "note": "the commit SHA is informational (a rebase changes it); the content hash is what is checked"
+  }
+}

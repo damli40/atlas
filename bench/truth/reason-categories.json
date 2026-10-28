@@ -1,0 +1,80 @@
+{
+  "amendment": "bench/truth/AMENDMENT-2026-10-28.md",
+  "categories": {
+    "real-time": [
+      "limit of REAL time",
+      "finishes in real time"
+    ],
+    "race": [
+      "background work .* while a timer"
+    ],
+    "network-or-files": [
+      "tried to use the network/files"
+    ],
+    "package": [
+      "^the code needs "
+    ],
+    "stdlib-not-loaded": [
+      "does not load into its Python sandbox"
+    ],
+    "codegen": [
+      "run code made from text"
+    ],
+    "process": [
+      "end or control the process"
+    ],
+    "syntax": [
+      "could not run the code as written"
+    ],
+    "uncaught": [
+      "failed with nobody catching it"
+    ],
+    "threads": [
+      "\\bthreads?\\b",
+      "thread pool"
+    ],
+    "clock": [
+      "clock",
+      "cpu time",
+      "elapsed"
+    ],
+    "randomness": [
+      "random",
+      "seed"
+    ],
+    "scheduling": [
+      "order",
+      "schedul"
+    ],
+    "host": [
+      "time ?zone",
+      "host",
+      "machine"
+    ],
+    "process-lifetime": [
+      "unref",
+      "keeps? the process alive",
+      "process would (exit|end|stop)"
+    ]
+  },
+  "traps": {
+    "t17b": "real-time",
+    "t18b": "race",
+    "t20a": "network-or-files",
+    "t20b": "network-or-files",
+    "t21a": "package",
+    "t22a": "package",
+    "t23a": "codegen",
+    "t23b": "codegen",
+    "t24a": "process",
+    "t25a": "syntax",
+    "t26a": "syntax",
+    "t29a": "uncaught",
+    "p11b": "process",
+    "p13a": "stdlib-not-loaded",
+    "p14a": "network-or-files",
+    "p15a": "threads",
+    "p16a": "stdlib-not-loaded",
+    "p17a": "package"
+  }
+}

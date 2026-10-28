@@ -1,0 +1,5040 @@
+{
+  "meta": {
+    "bench": "truth",
+    "date": "2026-10-28",
+    "startedAt": "2026-10-27T22:59:12.036Z",
+    "wallSeconds": 66.3,
+    "executor": "local (Node --permission for JS/TS; macOS sandbox-exec for Python)",
+    "node": "v25.8.1",
+    "python": "3.14.7",
+    "platform": "darwin arm64",
+    "commit": "2cae832e62fb7d554e180263b073c5e47c8babdc",
+    "dirty": false,
+    "corpusSha256": "32edb1d0a0f3160bdefb1802a485b712d23af968e4c1cfe6141a21f2f9fd3a40",
+    "filesInCorpus": 48,
+    "testsInCorpus": 88,
+    "testsRun": 88,
+    "factTests": 70,
+    "trapTests": 18,
+    "partial": false,
+    "costUsd": 0,
+    "sources": {
+      "cases/t01-csv-line.js": "7dd3d0982e6972e760a968c45baafd2ca320e5b1b6434e68e15f5b53e6574024",
+      "cases/t02-format-duration.ts": "51f63222cddbb876a64a07fffe59809913934e17148c95b38490130b3492f7d1",
+      "cases/t03-retry-backoff.js": "4ce5afa77a1f5b00ff9c3278652e0cca8406c5c6b2862d376b76883757bbda3a",
+      "cases/t04-debounce.js": "0bac4312d78be5c99ebf5424c450c899bdda4ace7ec55433c7a085a77c1623c5",
+      "cases/t05-token-bucket.ts": "df1a4c7bea8c9ab25ec555a249304229e15163e2e72a66826836f10b90664e15",
+      "cases/t06-split-bill.js": "94492121216ff0eb0fbbe4c2bfa495ad6b6deb78c8d8b756cbcaff107995354e",
+      "cases/t07-float-money.js": "55b56eac9c0921d51b84320ae47d73f38e39abb54359570535e0a1bc9d13eff8",
+      "cases/t08-query-string.ts": "5ecef410d1610d7dadb43906f507a863fbcb765b9f175adeae742196e63e85ac",
+      "cases/t09-lru-cache.ts": "32fa51d5ed90c4b17db9ad8c99393d624504abf953a491888dca406297ea0ad1",
+      "cases/t10-slugify.js": "5672fa984c360fb0e4decb8d4133c95bd49afcd7e5eff754864570ecdc9b2042",
+      "cases/t11-text-lengths.ts": "830bee85cbd13c1d4306a78dc9dc61208d6df15e83ac1344caeaddcd284aef00",
+      "cases/t12-non-error-throws.js": "f407cea2e8561e628459f3c7956da8c1c06c00adb9e166a79645d293dbc471fe",
+      "cases/t13-odd-numbers.js": "17f70a7d9b32a4dc76981f8043ea5e88280f17a445383d947f018450623fe1ca",
+      "cases/t14-big-deep-cyclic.js": "240a6800ab9b35830cc96979fb1f561ae98f896be4af39e898bb67165247ec8b",
+      "cases/t15-clock-and-polling.js": "8d95e46f33976cef08a736edf87efbe91818bae84d2884da626c676bc7ba9d1a",
+      "cases/t16-never-settles.js": "a056724b70be5c982e3ade4590ded2141841ec8f9e78f519419f18d0aeb2a43e",
+      "cases/t17-still-running.js": "6ca75bbf8538b528411659ba5bedb373859d2df326676f79cedf0c0ab83779f4",
+      "cases/t18-background-hash.js": "7b85a7b979a376ec1add36d0a762b8a375069bace613e67c724c5342cc4ccd72",
+      "cases/t19-abort-deadline.js": "479e52f789e36e10a8c4df2188cd46cd05e5847596996a7e89265c197f05aae3",
+      "cases/t20-fetch.js": "e27591fb4d5ef940e2a3fe9bdbbc9997d94175eb1aa2f2eb4d6af5afff59f03e",
+      "cases/t21-fs-import.ts": "f8de614f815d66783299200a962b85b84c8395fa533a1ab1fb0efe996b3ff5b0",
+      "cases/t22-package-import.js": "d77d0cf245cec6aa2e40d82393ae058b3aeae52c422c8486418ed2742c70089f",
+      "cases/t23-code-from-text.js": "5ca7cc9af962b027a50a17fa4fd6ee89ad1b0dc5cd0db24e57530ab961f508b1",
+      "cases/t24-process-exit.js": "eaf134dceed32d9f7db3c90e643af02009ef0017ef5fd5c113539f936ebcc5b4",
+      "cases/t25-ts-enum.ts": "6ecabefd79838b9ad1e71609e24ab25deca8d10d6c0a2379570d51e6822aa3f2",
+      "cases/t26-ts-parameter-property.ts": "f2c00914a4b590674cf91d73c0b48c53d68ddc41027048fb19c2dc44cf8802eb",
+      "cases/t27-lookalike-words.ts": "73c454ee49a4d2b317fa00d12151e9700a941c8a2047d42e7804448f8828be8a",
+      "cases/t28-settle-all.js": "8332f4ad6c26285ae8b4dfeb4f46414f03f3b8f4753b14efbe9beee89f21a59e",
+      "cases/t29-unhandled-rejection.js": "c5120db07eae93defaaf390dc59a33adec703658d59e225b4a0b2d08cb9c9605",
+      "cases/t30-event-loop-order.js": "03936f96b2a344bbc18de5b1d6bb0aeefe2b5e2c3a5b9ece094efef05711e52c",
+      "cases/p01-parse-duration.py": "4693c45e157c964f8980ee79ac0bbdebc5e727860b7b076314a3633db1a9156d",
+      "cases/p02-decimal-money.py": "d773068b9c769baa0f136362404a61ef1ef318aaf39a3ab37a5ea2a41715894d",
+      "cases/p03-dataclass-enum.py": "5b99b6fbb57643cca45627cc9410ad681a87a50afb49585bda21aad12ad5067f",
+      "cases/p04-async-retry.py": "36874e5dc04dd7ad45a5f905e82ee85e43714387c1f18777dd48cb6235bdc9bb",
+      "cases/p05-throttle.py": "00f8e837b23ce2f27589673dd88cb685a652684e0bbe74aa06ac4de077447289",
+      "cases/p06-async-debounce.py": "d5129ae7d0cdcaa08d1d0e2a9175553af6dda651f8af9ee8ab3d6b2e083519ef",
+      "cases/p07-never-and-forever.py": "5096b07b561e5ace5f9d5d4505e98dba6824b5d123ab2871b691ba3cf5a44ef1",
+      "cases/p08-gather.py": "176c97ec891f2f8919d2b34e89e0f84d9bad2b39eb11e3450dceb95724d2b755",
+      "cases/p09-unicode-text.py": "0e654a51363fd86c96452e9ac28f9ac7c5bc35062928565f5d33123917de68c3",
+      "cases/p10-odd-numbers.py": "2a00bd5eb93169fc63ef1e9f463fd6f5967ff2c4cbc570734ded22b716fe8eb9",
+      "cases/p11-exit.py": "045b0e78e0c563985fcc9d795e26c3fcf1617fac1159f0d4ba406b469ed402e0",
+      "cases/p12-run-length.py": "2f3d3d22405cdbda28f749bb00d648a3c54bc310aff9d06e12b5aafaa75b7e1f",
+      "cases/p13-network.py": "be4c94f7c05d215d214261919615ea71a2dab2d186892e1628fe7ca4c8c159b9",
+      "cases/p14-read-file.py": "e1a0fffdd71bb28b14c02784a47f33e3369d983d32e8835d02c7603066f3420f",
+      "cases/p15-threads.py": "53cd6243215e66a5d22ba1236374c29894676d8d48ca0b24f86d22bea5ffe5e4",
+      "cases/p16-stdlib-not-loaded.py": "895b1f766d538d10f2fc5125a102ba377225e681966971e206ab24245331fc3d",
+      "cases/p17-package.py": "4dd52ead876a9d9eadd76bad89303f7f9b60a1efbbe543fcb93cbb45651a1e5f",
+      "cases/p18-raise-builtin.py": "bd776692447b7a59121fd86424fcade44b69c25d878b60996eddd9b2f8f518d4"
+    }
+  },
+  "counts": {
+    "correct fact": 70,
+    "correct can't-check": 18
+  },
+  "byLanguage": {
+    "js": {
+      "correct fact": 44,
+      "correct can't-check": 12
+    },
+    "py": {
+      "correct fact": 26,
+      "correct can't-check": 6
+    }
+  },
+  "tests": [
+    {
+      "id": "t01a",
+      "functionId": "t01",
+      "file": "cases/t01-csv-line.js",
+      "language": "js",
+      "category": "ordinary: parser",
+      "exportName": "parseCsvLine",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": [
+          "x",
+          "y, z",
+          "say \"hi\"",
+          ""
+        ],
+        "returnedType": "array",
+        "virtualMs": 0
+      },
+      "why": "Quoted commas stay inside a field, a doubled quote is one quote, and the trailing comma leaves an empty last field. No waits: 0 ms.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "[\"x\",\"y, z\",\"say \\\"hi\\\"\",\"\"]",
+          "measured": "[\"x\",\"y, z\",\"say \\\"hi\\\"\",\"\"]",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "array",
+          "measured": "array",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "array",
+        "returnedJson": "[\"x\",\"y, z\",\"say \\\"hi\\\"\",\"\"]"
+      },
+      "notMeasured": {
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "runId": "h7babXgy8b",
+      "controlRunId": "cw7x973gkT",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 833
+    },
+    {
+      "id": "t01b",
+      "functionId": "t01",
+      "file": "cases/t01-csv-line.js",
+      "language": "js",
+      "category": "ordinary: parser",
+      "exportName": "parseCsvLine",
+      "expected": {
+        "outcome": "threw",
+        "thrownName": "SyntaxError",
+        "thrownType": "Error",
+        "virtualMs": 0,
+        "thrownMessage": "unclosed quote"
+      },
+      "why": "The quote never closes, so the loop ends with inQuotes true and the function throws its own SyntaxError.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "threw",
+          "measured": "threw",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownName",
+          "expected": "SyntaxError",
+          "measured": "SyntaxError",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownType",
+          "expected": "Error",
+          "measured": "Error",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownMessage",
+          "expected": "unclosed quote",
+          "measured": "unclosed quote",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "threw",
+        "virtualMs": 0,
+        "thrownType": "Error",
+        "thrownName": "SyntaxError",
+        "thrownMessage": "unclosed quote"
+      },
+      "notMeasured": {
+        "returnedJson": "the call threw, so it returned nothing",
+        "returnedType": "the call threw, so it returned nothing"
+      },
+      "runId": "dDTEiFmOle",
+      "controlRunId": "ZjkzGUsrCA",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 722
+    },
+    {
+      "id": "t02a",
+      "functionId": "t02",
+      "file": "cases/t02-format-duration.ts",
+      "language": "ts",
+      "category": "ordinary: formatter",
+      "exportName": "formatDuration",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": "1h 2m 3s",
+        "returnedType": "string",
+        "virtualMs": 0
+      },
+      "why": "3723999 ms floors to 3723 s = 1 h, 2 min, 3 s.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "\"1h 2m 3s\"",
+          "measured": "\"1h 2m 3s\"",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "string",
+          "measured": "string",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "string",
+        "returnedJson": "\"1h 2m 3s\""
+      },
+      "notMeasured": {
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "runId": "u1fZncg6Ex",
+      "controlRunId": "QkOspIVcG9",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 668
+    },
+    {
+      "id": "t02b",
+      "functionId": "t02",
+      "file": "cases/t02-format-duration.ts",
+      "language": "ts",
+      "category": "ordinary: formatter",
+      "exportName": "formatDuration",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": "0s",
+        "returnedType": "string",
+        "virtualMs": 0
+      },
+      "why": "999 ms floors to 0 s; with no other parts the function still writes 0s.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "\"0s\"",
+          "measured": "\"0s\"",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "string",
+          "measured": "string",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "string",
+        "returnedJson": "\"0s\""
+      },
+      "notMeasured": {
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "runId": "4jFObJ0af0",
+      "controlRunId": "g5ANl--96Q",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 719
+    },
+    {
+      "id": "t02c",
+      "functionId": "t02",
+      "file": "cases/t02-format-duration.ts",
+      "language": "ts",
+      "category": "ordinary: formatter",
+      "exportName": "formatDuration",
+      "expected": {
+        "outcome": "threw",
+        "thrownName": "RangeError",
+        "thrownType": "Error",
+        "virtualMs": 0,
+        "thrownMessage": "bad duration: -5"
+      },
+      "why": "A negative input throws RangeError with the number in the message.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "threw",
+          "measured": "threw",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownName",
+          "expected": "RangeError",
+          "measured": "RangeError",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownType",
+          "expected": "Error",
+          "measured": "Error",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownMessage",
+          "expected": "bad duration: -5",
+          "measured": "bad duration: -5",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "threw",
+        "virtualMs": 0,
+        "thrownType": "Error",
+        "thrownName": "RangeError",
+        "thrownMessage": "bad duration: -5"
+      },
+      "notMeasured": {
+        "returnedJson": "the call threw, so it returned nothing",
+        "returnedType": "the call threw, so it returned nothing"
+      },
+      "runId": "motnKQ2EBE",
+      "controlRunId": "NagyQwDiZ1",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 717
+    },
+    {
+      "id": "t03a",
+      "functionId": "t03",
+      "file": "cases/t03-retry-backoff.js",
+      "language": "js",
+      "category": "ordinary: retry/backoff, virtual time",
+      "exportName": "retryWithBackoff",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": "ok",
+        "returnedType": "string",
+        "virtualMs": 300,
+        "calls": {
+          "op": 3
+        }
+      },
+      "why": "Fails at 0 ms, waits 100; fails at 100 ms, waits 200; the third call at 300 ms returns ok.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "\"ok\"",
+          "measured": "\"ok\"",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "string",
+          "measured": "string",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 300,
+          "measured": 300,
+          "verdict": "correct"
+        },
+        {
+          "field": "calls:op",
+          "expected": 3,
+          "measured": 3,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 300,
+        "returnedType": "string",
+        "returnedJson": "\"ok\"",
+        "calls:op": 3
+      },
+      "notMeasured": {
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "runId": "EprFyFEwV3",
+      "controlRunId": "4Ao-SGJeHk",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 988
+    },
+    {
+      "id": "t03b",
+      "functionId": "t03",
+      "file": "cases/t03-retry-backoff.js",
+      "language": "js",
+      "category": "ordinary: retry/backoff, virtual time",
+      "exportName": "retryWithBackoff",
+      "expected": {
+        "outcome": "threw",
+        "thrownName": "NetworkError",
+        "thrownType": "Error",
+        "virtualMs": 300,
+        "thrownMessage": "down",
+        "calls": {
+          "op": 3
+        }
+      },
+      "why": "Every call fails. Attempts at 0, 100 and 300 ms; the third failure is re-thrown at 300 ms.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "threw",
+          "measured": "threw",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownName",
+          "expected": "NetworkError",
+          "measured": "NetworkError",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownType",
+          "expected": "Error",
+          "measured": "Error",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownMessage",
+          "expected": "down",
+          "measured": "down",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 300,
+          "measured": 300,
+          "verdict": "correct"
+        },
+        {
+          "field": "calls:op",
+          "expected": 3,
+          "measured": 3,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "threw",
+        "virtualMs": 300,
+        "thrownType": "Error",
+        "thrownName": "NetworkError",
+        "thrownMessage": "down",
+        "calls:op": 3
+      },
+      "notMeasured": {
+        "returnedJson": "the call threw, so it returned nothing",
+        "returnedType": "the call threw, so it returned nothing"
+      },
+      "runId": "_AxBzAm3p1",
+      "controlRunId": "ADKvXRTT1u",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 669
+    },
+    {
+      "id": "t04a",
+      "functionId": "t04",
+      "file": "cases/t04-debounce.js",
+      "language": "js",
+      "category": "ordinary: debounce, timers after settle",
+      "exportName": "typeThenWait",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": "done",
+        "returnedType": "string",
+        "virtualMs": 600,
+        "calls": {
+          "onSearch": 1
+        }
+      },
+      "why": "Calls at 0, 50 and 100 ms each restart the 200 ms timer, so onSearch runs once at 300 ms. The function returns after 50 + 50 + 500 ms.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "\"done\"",
+          "measured": "\"done\"",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "string",
+          "measured": "string",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 600,
+          "measured": 600,
+          "verdict": "correct"
+        },
+        {
+          "field": "calls:onSearch",
+          "expected": 1,
+          "measured": 1,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 600,
+        "returnedType": "string",
+        "returnedJson": "\"done\"",
+        "calls:onSearch": 1
+      },
+      "notMeasured": {
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "runId": "Ovql1RinAN",
+      "controlRunId": "20NvmK3Wb2",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 651
+    },
+    {
+      "id": "t04b",
+      "functionId": "t04",
+      "file": "cases/t04-debounce.js",
+      "language": "js",
+      "category": "ordinary: debounce, timers after settle",
+      "exportName": "fireAndReturn",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": "queued",
+        "returnedType": "string",
+        "virtualMs": 0,
+        "calls": {
+          "onSearch": 1
+        }
+      },
+      "why": "Returns at once; the debounced call still fires 200 ms later, inside the 30 s watch limit, so the final count is 1.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "\"queued\"",
+          "measured": "\"queued\"",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "string",
+          "measured": "string",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        },
+        {
+          "field": "calls:onSearch",
+          "expected": 1,
+          "measured": 1,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "string",
+        "returnedJson": "\"queued\"",
+        "calls:onSearch": 1
+      },
+      "notMeasured": {
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "runId": "8Lg-8W3m9S",
+      "controlRunId": "ahb4TCycLv",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 610
+    },
+    {
+      "id": "t05a",
+      "functionId": "t05",
+      "file": "cases/t05-token-bucket.ts",
+      "language": "ts",
+      "category": "ordinary: rate limiter on Date.now",
+      "exportName": "sendBurst",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": [
+          0,
+          0,
+          500,
+          1000,
+          1500
+        ],
+        "returnedType": "array",
+        "virtualMs": 1500,
+        "calls": {
+          "send": 5
+        }
+      },
+      "why": "Two tokens go at 0 ms; then one token every 500 ms, so the next three go at 500, 1000 and 1500 ms.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "[0,0,500,1000,1500]",
+          "measured": "[0,0,500,1000,1500]",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "array",
+          "measured": "array",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 1500,
+          "measured": 1500,
+          "verdict": "correct"
+        },
+        {
+          "field": "calls:send",
+          "expected": 5,
+          "measured": 5,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 1500,
+        "returnedType": "array",
+        "returnedJson": "[0,0,500,1000,1500]",
+        "calls:send": 5
+      },
+      "notMeasured": {
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "runId": "amPFOK60Xk",
+      "controlRunId": "aSctowqBdg",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 599
+    },
+    {
+      "id": "t06a",
+      "functionId": "t06",
+      "file": "cases/t06-split-bill.js",
+      "language": "js",
+      "category": "ordinary: money in integer cents",
+      "exportName": "splitBill",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": [
+          334,
+          333,
+          333
+        ],
+        "returnedType": "array",
+        "virtualMs": 0
+      },
+      "why": "1000 / 3 = 333 rest 1; the first person gets the extra cent.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "[334,333,333]",
+          "measured": "[334,333,333]",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "array",
+          "measured": "array",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "array",
+        "returnedJson": "[334,333,333]"
+      },
+      "notMeasured": {
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "runId": "ofH8MT_xfT",
+      "controlRunId": "qTAoLsKl1h",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 634
+    },
+    {
+      "id": "t06b",
+      "functionId": "t06",
+      "file": "cases/t06-split-bill.js",
+      "language": "js",
+      "category": "ordinary: money in integer cents",
+      "exportName": "splitBill",
+      "expected": {
+        "outcome": "threw",
+        "thrownName": "TypeError",
+        "thrownType": "Error",
+        "virtualMs": 0,
+        "thrownMessage": "whole cents and a positive head count"
+      },
+      "why": "10.5 is not an integer.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "threw",
+          "measured": "threw",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownName",
+          "expected": "TypeError",
+          "measured": "TypeError",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownType",
+          "expected": "Error",
+          "measured": "Error",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownMessage",
+          "expected": "whole cents and a positive head count",
+          "measured": "whole cents and a positive head count",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "threw",
+        "virtualMs": 0,
+        "thrownType": "Error",
+        "thrownName": "TypeError",
+        "thrownMessage": "whole cents and a positive head count"
+      },
+      "notMeasured": {
+        "returnedJson": "the call threw, so it returned nothing",
+        "returnedType": "the call threw, so it returned nothing"
+      },
+      "runId": "I7FtjuRkd5",
+      "controlRunId": "RKd9b03apb",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 636
+    },
+    {
+      "id": "t07a",
+      "functionId": "t07",
+      "file": "cases/t07-float-money.js",
+      "language": "js",
+      "category": "ordinary: money in binary floats",
+      "exportName": "roundTo2",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": 1,
+        "returnedType": "number",
+        "virtualMs": 0
+      },
+      "why": "1.005 * 100 is 100.49999999999999 in binary floating point, so Math.round gives 100 and the result is 1.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "1",
+          "measured": "1",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "number",
+          "measured": "number",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "number",
+        "returnedJson": "1"
+      },
+      "notMeasured": {
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "runId": "TCcr-bE5Yf",
+      "controlRunId": "KFe3MlbaJB",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 639
+    },
+    {
+      "id": "t07b",
+      "functionId": "t07",
+      "file": "cases/t07-float-money.js",
+      "language": "js",
+      "category": "ordinary: money in binary floats",
+      "exportName": "addPrices",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": {
+          "raw": 0.30000000000000004,
+          "fixed": "0.30"
+        },
+        "returnedType": "object",
+        "virtualMs": 0
+      },
+      "why": "0.1 + 0.2 is 0.30000000000000004; toFixed(2) is 0.30.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "{\"fixed\":\"0.30\",\"raw\":0.30000000000000004}",
+          "measured": "{\"fixed\":\"0.30\",\"raw\":0.30000000000000004}",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "object",
+          "measured": "object",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "object",
+        "returnedJson": "{\"fixed\":\"0.30\",\"raw\":0.30000000000000004}"
+      },
+      "notMeasured": {
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "runId": "oy463_UgR1",
+      "controlRunId": "oHhRKKpNPD",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 645
+    },
+    {
+      "id": "t08a",
+      "functionId": "t08",
+      "file": "cases/t08-query-string.ts",
+      "language": "ts",
+      "category": "ordinary: parser",
+      "exportName": "parseQuery",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": {
+          "tag": [
+            "a",
+            "b"
+          ],
+          "q": "hello world",
+          "flag": ""
+        },
+        "returnedType": "object",
+        "virtualMs": 0
+      },
+      "why": "A repeated key becomes a list, + becomes a space, a key with no = gets an empty string.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "{\"flag\":\"\",\"q\":\"hello world\",\"tag\":[\"a\",\"b\"]}",
+          "measured": "{\"flag\":\"\",\"q\":\"hello world\",\"tag\":[\"a\",\"b\"]}",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "object",
+          "measured": "object",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "object",
+        "returnedJson": "{\"flag\":\"\",\"q\":\"hello world\",\"tag\":[\"a\",\"b\"]}"
+      },
+      "notMeasured": {
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "runId": "nKIgvU1Vvm",
+      "controlRunId": "KlaFV5HXCa",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 643
+    },
+    {
+      "id": "t08b",
+      "functionId": "t08",
+      "file": "cases/t08-query-string.ts",
+      "language": "ts",
+      "category": "ordinary: parser",
+      "exportName": "parseQuery",
+      "expected": {
+        "outcome": "threw",
+        "thrownName": "URIError",
+        "thrownType": "Error",
+        "virtualMs": 0
+      },
+      "why": "decodeURIComponent throws URIError on a truncated escape (the message text is the engine's own, so only the name is checked).",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "threw",
+          "measured": "threw",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownName",
+          "expected": "URIError",
+          "measured": "URIError",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownType",
+          "expected": "Error",
+          "measured": "Error",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "threw",
+        "virtualMs": 0,
+        "thrownType": "Error",
+        "thrownName": "URIError",
+        "thrownMessage": "URI malformed"
+      },
+      "notMeasured": {
+        "returnedJson": "the call threw, so it returned nothing",
+        "returnedType": "the call threw, so it returned nothing"
+      },
+      "runId": "1ouTptszzH",
+      "controlRunId": "sVNGF-eO9n",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 748
+    },
+    {
+      "id": "t09a",
+      "functionId": "t09",
+      "file": "cases/t09-lru-cache.ts",
+      "language": "ts",
+      "category": "ordinary: class with Map",
+      "exportName": "lruAfterTouch",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": {
+          "keys": [
+            "a",
+            "c"
+          ],
+          "b": null
+        },
+        "returnedType": "object",
+        "virtualMs": 0
+      },
+      "why": "Reading a makes b the oldest, so adding c evicts b.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "{\"b\":null,\"keys\":[\"a\",\"c\"]}",
+          "measured": "{\"b\":null,\"keys\":[\"a\",\"c\"]}",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "object",
+          "measured": "object",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "object",
+        "returnedJson": "{\"b\":null,\"keys\":[\"a\",\"c\"]}"
+      },
+      "notMeasured": {
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "runId": "12aXB-ck4a",
+      "controlRunId": "KIjAz7jhEU",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 766
+    },
+    {
+      "id": "t09b",
+      "functionId": "t09",
+      "file": "cases/t09-lru-cache.ts",
+      "language": "ts",
+      "category": "ordinary: class with Map",
+      "exportName": "lruInstance",
+      "expected": {
+        "outcome": "returned",
+        "returnedNotJson": {
+          "type": "object (Lru)",
+          "reasonMentions": "own class"
+        },
+        "virtualMs": 0
+      },
+      "why": "A class instance is not plain JSON; its type is reported with the class name.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": null,
+          "measured": null,
+          "verdict": "correct",
+          "notMeasured": "the returned value is not stored as plain JSON: it is not a plain object (it has its own class)"
+        },
+        {
+          "field": "returnedType",
+          "expected": "object (Lru)",
+          "measured": "object (Lru)",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "object (Lru)"
+      },
+      "notMeasured": {
+        "returnedJson": "the returned value is not stored as plain JSON: it is not a plain object (it has its own class)",
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "runId": "uuh527bIvZ",
+      "controlRunId": "m55lJvYmcB",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 489
+    },
+    {
+      "id": "t10a",
+      "functionId": "t10",
+      "file": "cases/t10-slugify.js",
+      "language": "js",
+      "category": "unicode",
+      "exportName": "slugify",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": "creme-brulee-10-facons",
+        "returnedType": "string",
+        "virtualMs": 0
+      },
+      "why": "NFKD splits each accent off its letter; the accents are removed; runs of other characters become one dash; edge dashes are cut.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "\"creme-brulee-10-facons\"",
+          "measured": "\"creme-brulee-10-facons\"",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "string",
+          "measured": "string",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "string",
+        "returnedJson": "\"creme-brulee-10-facons\""
+      },
+      "notMeasured": {
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "runId": "88ZiC4wUJq",
+      "controlRunId": "YEw5a_fIX7",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 637
+    },
+    {
+      "id": "t10b",
+      "functionId": "t10",
+      "file": "cases/t10-slugify.js",
+      "language": "js",
+      "category": "unicode",
+      "exportName": "slugify",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": "",
+        "returnedType": "string",
+        "virtualMs": 0
+      },
+      "why": "Emoji are not a-z or 0-9, so they become one dash, which is then cut: the empty string.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "\"\"",
+          "measured": "\"\"",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "string",
+          "measured": "string",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "string",
+        "returnedJson": "\"\""
+      },
+      "notMeasured": {
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "runId": "nc9xyUvi-K",
+      "controlRunId": "cEW1louqE2",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 658
+    },
+    {
+      "id": "t11a",
+      "functionId": "t11",
+      "file": "cases/t11-text-lengths.ts",
+      "language": "ts",
+      "category": "unicode",
+      "exportName": "lengths",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": {
+          "utf16": 4,
+          "codePoints": 3,
+          "bytes": 7
+        },
+        "returnedType": "object",
+        "virtualMs": 0
+      },
+      "why": "a (1 unit, 1 byte), thumbs-up (2 UTF-16 units, 4 bytes), e-acute as one code point (1 unit, 2 bytes).",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "{\"bytes\":7,\"codePoints\":3,\"utf16\":4}",
+          "measured": "{\"bytes\":7,\"codePoints\":3,\"utf16\":4}",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "object",
+          "measured": "object",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "object",
+        "returnedJson": "{\"bytes\":7,\"codePoints\":3,\"utf16\":4}"
+      },
+      "notMeasured": {
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "runId": "7IEr56r9Em",
+      "controlRunId": "RaLtHHsjk_",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 726
+    },
+    {
+      "id": "t12a",
+      "functionId": "t12",
+      "file": "cases/t12-non-error-throws.js",
+      "language": "js",
+      "category": "throws of non-Errors",
+      "exportName": "throwString",
+      "expected": {
+        "outcome": "threw",
+        "thrownName": null,
+        "thrownType": "string",
+        "virtualMs": 0,
+        "thrownMessage": null
+      },
+      "why": "A thrown string has no name or message; its type is string.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "threw",
+          "measured": "threw",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownName",
+          "expected": null,
+          "measured": null,
+          "verdict": "correct",
+          "notMeasured": "the code threw a string (\"failed with 7\"), not an Error, so it has no name"
+        },
+        {
+          "field": "thrownType",
+          "expected": "string",
+          "measured": "string",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownMessage",
+          "expected": null,
+          "measured": null,
+          "verdict": "correct",
+          "notMeasured": "the code threw a string (\"failed with 7\"), not an Error, so it has no message"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "threw",
+        "virtualMs": 0,
+        "thrownType": "string"
+      },
+      "notMeasured": {
+        "thrownName": "the code threw a string (\"failed with 7\"), not an Error, so it has no name",
+        "thrownMessage": "the code threw a string (\"failed with 7\"), not an Error, so it has no message",
+        "returnedJson": "the call threw, so it returned nothing",
+        "returnedType": "the call threw, so it returned nothing"
+      },
+      "runId": "euRYK9aWUf",
+      "controlRunId": "kcd2O5jbO-",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 699
+    },
+    {
+      "id": "t12b",
+      "functionId": "t12",
+      "file": "cases/t12-non-error-throws.js",
+      "language": "js",
+      "category": "throws of non-Errors",
+      "exportName": "throwObject",
+      "expected": {
+        "outcome": "threw",
+        "thrownName": null,
+        "thrownType": "object",
+        "virtualMs": 0,
+        "thrownMessage": null
+      },
+      "why": "A thrown plain object has no name or message property.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "threw",
+          "measured": "threw",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownName",
+          "expected": null,
+          "measured": null,
+          "verdict": "correct",
+          "notMeasured": "the thrown value's name is missing"
+        },
+        {
+          "field": "thrownType",
+          "expected": "object",
+          "measured": "object",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownMessage",
+          "expected": null,
+          "measured": null,
+          "verdict": "correct",
+          "notMeasured": "the thrown value's message is missing"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "threw",
+        "virtualMs": 0,
+        "thrownType": "object"
+      },
+      "notMeasured": {
+        "thrownName": "the thrown value's name is missing",
+        "thrownMessage": "the thrown value's message is missing",
+        "returnedJson": "the call threw, so it returned nothing",
+        "returnedType": "the call threw, so it returned nothing"
+      },
+      "runId": "jbhCH9vO-7",
+      "controlRunId": "xGT4sObONw",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 779
+    },
+    {
+      "id": "t12c",
+      "functionId": "t12",
+      "file": "cases/t12-non-error-throws.js",
+      "language": "js",
+      "category": "throws of non-Errors",
+      "exportName": "rejectNull",
+      "expected": {
+        "outcome": "threw",
+        "thrownName": null,
+        "thrownType": "null",
+        "virtualMs": 0,
+        "thrownMessage": null
+      },
+      "why": "An async function that throws null rejects with null, after one microtask (0 ms).",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "threw",
+          "measured": "threw",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownName",
+          "expected": null,
+          "measured": null,
+          "verdict": "correct",
+          "notMeasured": "the code threw null, not an Error, so it has no name"
+        },
+        {
+          "field": "thrownType",
+          "expected": "null",
+          "measured": "null",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownMessage",
+          "expected": null,
+          "measured": null,
+          "verdict": "correct",
+          "notMeasured": "the code threw null, not an Error, so it has no message"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "threw",
+        "virtualMs": 0,
+        "thrownType": "null"
+      },
+      "notMeasured": {
+        "thrownName": "the code threw null, not an Error, so it has no name",
+        "thrownMessage": "the code threw null, not an Error, so it has no message",
+        "returnedJson": "the call threw, so it returned nothing",
+        "returnedType": "the call threw, so it returned nothing"
+      },
+      "runId": "_tD2h8u46S",
+      "controlRunId": "WNyvtA2tcX",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 905
+    },
+    {
+      "id": "t13a",
+      "functionId": "t13",
+      "file": "cases/t13-odd-numbers.js",
+      "language": "js",
+      "category": "NaN / -0 / bigint",
+      "exportName": "nanResult",
+      "expected": {
+        "outcome": "returned",
+        "returnedNotJson": {
+          "type": "number (NaN)",
+          "reasonMentions": "NaN"
+        },
+        "virtualMs": 0
+      },
+      "why": "NaN is not a JSON number.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": null,
+          "measured": null,
+          "verdict": "correct",
+          "notMeasured": "the returned value is not stored as plain JSON: it is NaN, which JSON cannot hold"
+        },
+        {
+          "field": "returnedType",
+          "expected": "number (NaN)",
+          "measured": "number (NaN)",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "number (NaN)"
+      },
+      "notMeasured": {
+        "returnedJson": "the returned value is not stored as plain JSON: it is NaN, which JSON cannot hold",
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "runId": "keCoX5-kWZ",
+      "controlRunId": "NCCocFzqw6",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 788
+    },
+    {
+      "id": "t13b",
+      "functionId": "t13",
+      "file": "cases/t13-odd-numbers.js",
+      "language": "js",
+      "category": "NaN / -0 / bigint",
+      "exportName": "negativeZero",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": 0,
+        "returnedType": "number",
+        "virtualMs": 0
+      },
+      "why": "JSON writes -0 as 0 (JSON.stringify(-0) is \"0\"); the returned type is number.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "0",
+          "measured": "0",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "number",
+          "measured": "number",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "number",
+        "returnedJson": "0"
+      },
+      "notMeasured": {
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "runId": "gvDZUqzVb7",
+      "controlRunId": "h8ReTUxjAL",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 798
+    },
+    {
+      "id": "t13c",
+      "functionId": "t13",
+      "file": "cases/t13-odd-numbers.js",
+      "language": "js",
+      "category": "NaN / -0 / bigint",
+      "exportName": "bigTotal",
+      "expected": {
+        "outcome": "returned",
+        "returnedNotJson": {
+          "type": "bigint",
+          "reasonMentions": "BigInt"
+        },
+        "virtualMs": 0
+      },
+      "why": "A BigInt is not JSON.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": null,
+          "measured": null,
+          "verdict": "correct",
+          "notMeasured": "the returned value is not stored as plain JSON: it is a BigInt, which JSON cannot hold"
+        },
+        {
+          "field": "returnedType",
+          "expected": "bigint",
+          "measured": "bigint",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "bigint"
+      },
+      "notMeasured": {
+        "returnedJson": "the returned value is not stored as plain JSON: it is a BigInt, which JSON cannot hold",
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "runId": "TgcrWQeour",
+      "controlRunId": "6Jofnze8v_",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 877
+    },
+    {
+      "id": "t14a",
+      "functionId": "t14",
+      "file": "cases/t14-big-deep-cyclic.js",
+      "language": "js",
+      "category": "huge / deep / cyclic returns",
+      "exportName": "bigList",
+      "expected": {
+        "outcome": "returned",
+        "returnedNotJson": {
+          "type": "array",
+          "reasonMentions": "2048"
+        },
+        "virtualMs": 0
+      },
+      "why": "0..999 written as JSON is 3,891 characters, over the 2,048-character limit.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": null,
+          "measured": null,
+          "verdict": "correct",
+          "notMeasured": "the returned value is not stored as plain JSON: it is 3891 characters as JSON; Atlas stores at most 2048"
+        },
+        {
+          "field": "returnedType",
+          "expected": "array",
+          "measured": "array",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "array"
+      },
+      "notMeasured": {
+        "returnedJson": "the returned value is not stored as plain JSON: it is 3891 characters as JSON; Atlas stores at most 2048",
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "runId": "aSNSkyPupU",
+      "controlRunId": "UcTM-7N85x",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 792
+    },
+    {
+      "id": "t14b",
+      "functionId": "t14",
+      "file": "cases/t14-big-deep-cyclic.js",
+      "language": "js",
+      "category": "huge / deep / cyclic returns",
+      "exportName": "nested",
+      "expected": {
+        "outcome": "returned",
+        "returnedNotJson": {
+          "type": "object",
+          "reasonMentions": "deeper than 100"
+        },
+        "virtualMs": 0
+      },
+      "why": "150 nested objects is past the 100-level limit.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": null,
+          "measured": null,
+          "verdict": "correct",
+          "notMeasured": "the returned value is not stored as plain JSON: it is nested deeper than 100 levels"
+        },
+        {
+          "field": "returnedType",
+          "expected": "object",
+          "measured": "object",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "object"
+      },
+      "notMeasured": {
+        "returnedJson": "the returned value is not stored as plain JSON: it is nested deeper than 100 levels",
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "runId": "UugxrEmYvp",
+      "controlRunId": "wbO2HliCxV",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 821
+    },
+    {
+      "id": "t14c",
+      "functionId": "t14",
+      "file": "cases/t14-big-deep-cyclic.js",
+      "language": "js",
+      "category": "huge / deep / cyclic returns",
+      "exportName": "selfRef",
+      "expected": {
+        "outcome": "returned",
+        "returnedNotJson": {
+          "type": "object",
+          "reasonMentions": "cycle"
+        },
+        "virtualMs": 0
+      },
+      "why": "The object contains itself.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": null,
+          "measured": null,
+          "verdict": "correct",
+          "notMeasured": "the returned value is not stored as plain JSON: it contains a cycle (an object inside itself)"
+        },
+        {
+          "field": "returnedType",
+          "expected": "object",
+          "measured": "object",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "object"
+      },
+      "notMeasured": {
+        "returnedJson": "the returned value is not stored as plain JSON: it contains a cycle (an object inside itself)",
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "runId": "6vXAjmitB8",
+      "controlRunId": "LrTiSOwHWz",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 936
+    },
+    {
+      "id": "t15a",
+      "functionId": "t15",
+      "file": "cases/t15-clock-and-polling.js",
+      "language": "js",
+      "category": "timing on the virtual clock",
+      "exportName": "zeroDelay",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": 1,
+        "returnedType": "number",
+        "virtualMs": 1
+      },
+      "why": "Node runs setTimeout(fn, 0) after 1 ms (a delay below 1 becomes 1), so Date.now() is the start plus 1.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "1",
+          "measured": "1",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "number",
+          "measured": "number",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 1,
+          "measured": 1,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 1,
+        "returnedType": "number",
+        "returnedJson": "1"
+      },
+      "notMeasured": {
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "runId": "-1QR40anCD",
+      "controlRunId": "pNRLMROekD",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 800
+    },
+    {
+      "id": "t15b",
+      "functionId": "t15",
+      "file": "cases/t15-clock-and-polling.js",
+      "language": "js",
+      "category": "timing on the virtual clock",
+      "exportName": "pollUntil",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": {
+          "ok": false,
+          "tries": 4
+        },
+        "returnedType": "object",
+        "virtualMs": 1000,
+        "calls": {
+          "check": 4
+        }
+      },
+      "why": "Checks at 0, 250, 500 and 750 ms all say false; at 1000 ms the deadline is reached and the loop ends.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "{\"ok\":false,\"tries\":4}",
+          "measured": "{\"ok\":false,\"tries\":4}",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "object",
+          "measured": "object",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 1000,
+          "measured": 1000,
+          "verdict": "correct"
+        },
+        {
+          "field": "calls:check",
+          "expected": 4,
+          "measured": 4,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 1000,
+        "returnedType": "object",
+        "returnedJson": "{\"ok\":false,\"tries\":4}",
+        "calls:check": 4
+      },
+      "notMeasured": {
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "runId": "oyujwcvEp5",
+      "controlRunId": "XhSm8puqvt",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 764
+    },
+    {
+      "id": "t15c",
+      "functionId": "t15",
+      "file": "cases/t15-clock-and-polling.js",
+      "language": "js",
+      "category": "timing on the virtual clock",
+      "exportName": "pollUntil",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": {
+          "ok": true,
+          "tries": 2
+        },
+        "returnedType": "object",
+        "virtualMs": 450,
+        "calls": {
+          "check": 2
+        }
+      },
+      "why": "First check answers false at 100 ms, sleep 250 to 350 ms, second check answers true at 450 ms.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "{\"ok\":true,\"tries\":2}",
+          "measured": "{\"ok\":true,\"tries\":2}",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "object",
+          "measured": "object",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 450,
+          "measured": 450,
+          "verdict": "correct"
+        },
+        {
+          "field": "calls:check",
+          "expected": 2,
+          "measured": 2,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 450,
+        "returnedType": "object",
+        "returnedJson": "{\"ok\":true,\"tries\":2}",
+        "calls:check": 2
+      },
+      "notMeasured": {
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "runId": "rmUU6sjFGt",
+      "controlRunId": "xfycYtLpH1",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 864
+    },
+    {
+      "id": "t15d",
+      "functionId": "t15",
+      "file": "cases/t15-clock-and-polling.js",
+      "language": "js",
+      "category": "timing on the virtual clock",
+      "exportName": "isoLater",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": "2026-01-01T00:00:01.500Z",
+        "returnedType": "string",
+        "virtualMs": 1500
+      },
+      "why": "Atlas's clock starts at 2026-01-01T00:00:00Z; after 1500 ms the date reads 1.5 s later.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "\"2026-01-01T00:00:01.500Z\"",
+          "measured": "\"2026-01-01T00:00:01.500Z\"",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "string",
+          "measured": "string",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 1500,
+          "measured": 1500,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 1500,
+        "returnedType": "string",
+        "returnedJson": "\"2026-01-01T00:00:01.500Z\""
+      },
+      "notMeasured": {
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "runId": "T85gpNCsTf",
+      "controlRunId": "tY-oDkm67p",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 773
+    },
+    {
+      "id": "t16a",
+      "functionId": "t16",
+      "file": "cases/t16-never-settles.js",
+      "language": "js",
+      "category": "never settles",
+      "exportName": "waitForEvent",
+      "expected": {
+        "outcome": "never_settled",
+        "virtualMs": null,
+        "calls": {
+          "subscribe": 1
+        }
+      },
+      "why": "subscribe never calls resolve, and nothing else is pending.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "never_settled",
+          "measured": "never_settled",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": null,
+          "measured": null,
+          "verdict": "correct",
+          "notMeasured": "the call never settled: it was still waiting with nothing left that could wake it, so it has no settle time"
+        },
+        {
+          "field": "calls:subscribe",
+          "expected": 1,
+          "measured": 1,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "never_settled",
+        "calls:subscribe": 1
+      },
+      "notMeasured": {
+        "returnedJson": "the call never settled: it was still waiting with nothing left that could wake it",
+        "returnedType": "the call never settled: it was still waiting with nothing left that could wake it",
+        "thrownName": "the call never settled: it was still waiting with nothing left that could wake it",
+        "thrownMessage": "the call never settled: it was still waiting with nothing left that could wake it",
+        "virtualMs": "the call never settled: it was still waiting with nothing left that could wake it, so it has no settle time"
+      },
+      "runId": "FA2yZu6Gsc",
+      "controlRunId": "S2gzyDp-nc",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 729
+    },
+    {
+      "id": "t16b",
+      "functionId": "t16",
+      "file": "cases/t16-never-settles.js",
+      "language": "js",
+      "category": "never settles",
+      "exportName": "loadOnce",
+      "expected": {
+        "outcome": "never_settled",
+        "virtualMs": null,
+        "calls": {
+          "load": 1
+        }
+      },
+      "why": "load never answers.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "never_settled",
+          "measured": "never_settled",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": null,
+          "measured": null,
+          "verdict": "correct",
+          "notMeasured": "the call never settled: it was still waiting with nothing left that could wake it, so it has no settle time"
+        },
+        {
+          "field": "calls:load",
+          "expected": 1,
+          "measured": 1,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "never_settled",
+        "calls:load": 1
+      },
+      "notMeasured": {
+        "returnedJson": "the call never settled: it was still waiting with nothing left that could wake it",
+        "returnedType": "the call never settled: it was still waiting with nothing left that could wake it",
+        "thrownName": "the call never settled: it was still waiting with nothing left that could wake it",
+        "thrownMessage": "the call never settled: it was still waiting with nothing left that could wake it",
+        "virtualMs": "the call never settled: it was still waiting with nothing left that could wake it, so it has no settle time"
+      },
+      "runId": "25H_1HUI1H",
+      "controlRunId": "AgG5A3-ufu",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 788
+    },
+    {
+      "id": "t17a",
+      "functionId": "t17",
+      "file": "cases/t17-still-running.js",
+      "language": "js",
+      "category": "still running / real-time trap",
+      "exportName": "heartbeat",
+      "expected": {
+        "outcome": "still_running_at_watch_limit",
+        "virtualMs": null,
+        "calls": {
+          "ping": null
+        }
+      },
+      "why": "The loop pings every 1000 ms forever; at the 5,500 ms watch limit it is still running, so no settle time and no final count.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "still_running_at_watch_limit",
+          "measured": "still_running_at_watch_limit",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": null,
+          "measured": null,
+          "verdict": "correct",
+          "notMeasured": "the call was still running when Atlas's watch limit (5500 ms of virtual time, Atlas's limit, not the code's) ran out"
+        },
+        {
+          "field": "calls:ping",
+          "expected": null,
+          "measured": null,
+          "verdict": "correct",
+          "notMeasured": "the call was still running when Atlas's watch limit (5500 ms of virtual time, Atlas's limit, not the code's) ran out, so the final count was not seen; the count so far was 6"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "still_running_at_watch_limit"
+      },
+      "notMeasured": {
+        "returnedJson": "the call was still running when Atlas's watch limit (5500 ms of virtual time, Atlas's limit, not the code's) ran out",
+        "returnedType": "the call was still running when Atlas's watch limit (5500 ms of virtual time, Atlas's limit, not the code's) ran out",
+        "thrownName": "the call was still running when Atlas's watch limit (5500 ms of virtual time, Atlas's limit, not the code's) ran out",
+        "thrownMessage": "the call was still running when Atlas's watch limit (5500 ms of virtual time, Atlas's limit, not the code's) ran out",
+        "virtualMs": "the call was still running when Atlas's watch limit (5500 ms of virtual time, Atlas's limit, not the code's) ran out",
+        "calls:ping": "the call was still running when Atlas's watch limit (5500 ms of virtual time, Atlas's limit, not the code's) ran out, so the final count was not seen; the count so far was 6"
+      },
+      "runId": "r2dXGSpB4w",
+      "controlRunId": "-Joz2D065c",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 850
+    },
+    {
+      "id": "t17b",
+      "functionId": "t17",
+      "file": "cases/t17-still-running.js",
+      "language": "js",
+      "category": "still running / real-time trap",
+      "exportName": "spinForever",
+      "expected": {
+        "cantCheck": true,
+        "because": "A synchronous endless loop never hands control back; only a real-time limit can stop it, so how it ends is not a measurable fact."
+      },
+      "why": "Endless synchronous loop.",
+      "fields": [],
+      "notes": [],
+      "classification": "correct can't-check",
+      "cantCheckReason": "the code ran past Atlas's 10000 ms limit of REAL time (it may loop without ever handing control back), so Atlas stopped it",
+      "measured": {},
+      "notMeasured": {
+        "wholeRun": "the code ran past Atlas's 10000 ms limit of REAL time (it may loop without ever handing control back), so Atlas stopped it"
+      },
+      "runId": "WijyaswXXW",
+      "controlRunId": "DdGBJq8_AQ",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 10455
+    },
+    {
+      "id": "t18a",
+      "functionId": "t18",
+      "file": "cases/t18-background-hash.js",
+      "language": "js",
+      "category": "background work (crypto.subtle)",
+      "exportName": "sha256Hex",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+        "returnedType": "string",
+        "virtualMs": 0
+      },
+      "why": "The SHA-256 of abc is the standard test vector. Hashing takes real time but no virtual time.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "\"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad\"",
+          "measured": "\"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad\"",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "string",
+          "measured": "string",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "string",
+        "returnedJson": "\"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad\""
+      },
+      "notMeasured": {
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "runId": "2clAPmxdwd",
+      "controlRunId": "r5iJTMen_l",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 717
+    },
+    {
+      "id": "t18b",
+      "functionId": "t18",
+      "file": "cases/t18-background-hash.js",
+      "language": "js",
+      "category": "background work (crypto.subtle)",
+      "exportName": "hashOrTimeout",
+      "expected": {
+        "cantCheck": true,
+        "because": "Which of the background hash and the 10 ms timer wins depends on real speed, not on the code; Atlas must not guess."
+      },
+      "why": "Background work raced against a timer.",
+      "fields": [],
+      "notes": [],
+      "classification": "correct can't-check",
+      "cantCheckReason": "the code ran background work (HASHREQUEST) while a timer was also waiting, so which finished first depends on real speed, not on the code; Atlas did not guess, so how the call ends was not seen",
+      "measured": {},
+      "notMeasured": {
+        "outcome": "the code ran background work (HASHREQUEST) while a timer was also waiting, so which finished first depends on real speed, not on the code; Atlas did not guess, so how the call ends was not seen",
+        "returnedJson": "the code ran background work (HASHREQUEST) while a timer was also waiting, so which finished first depends on real speed, not on the code; Atlas did not guess, so how the call ends was not seen",
+        "returnedType": "the code ran background work (HASHREQUEST) while a timer was also waiting, so which finished first depends on real speed, not on the code; Atlas did not guess, so how the call ends was not seen",
+        "thrownName": "the code ran background work (HASHREQUEST) while a timer was also waiting, so which finished first depends on real speed, not on the code; Atlas did not guess, so how the call ends was not seen",
+        "thrownMessage": "the code ran background work (HASHREQUEST) while a timer was also waiting, so which finished first depends on real speed, not on the code; Atlas did not guess, so how the call ends was not seen",
+        "virtualMs": "the code ran background work (HASHREQUEST) while a timer was also waiting, so which finished first depends on real speed, not on the code; Atlas did not guess, so how the call ends was not seen"
+      },
+      "runId": "XDnm-YHO0l",
+      "controlRunId": "L1XlwPcmVD",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 733
+    },
+    {
+      "id": "t19a",
+      "functionId": "t19",
+      "file": "cases/t19-abort-deadline.js",
+      "language": "js",
+      "category": "background timer (AbortSignal.timeout)",
+      "exportName": "withDeadline",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": "done",
+        "returnedType": "string",
+        "virtualMs": 30,
+        "calls": {
+          "work": 1
+        }
+      },
+      "why": "work answers at 30 ms, before the 100 ms deadline.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "\"done\"",
+          "measured": "\"done\"",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "string",
+          "measured": "string",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 30,
+          "measured": 30,
+          "verdict": "correct"
+        },
+        {
+          "field": "calls:work",
+          "expected": 1,
+          "measured": 1,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 30,
+        "returnedType": "string",
+        "returnedJson": "\"done\"",
+        "calls:work": 1
+      },
+      "notMeasured": {
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "runId": "gq4xH1edq6",
+      "controlRunId": "ljzPkwR1kJ",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 822
+    },
+    {
+      "id": "t19b",
+      "functionId": "t19",
+      "file": "cases/t19-abort-deadline.js",
+      "language": "js",
+      "category": "background timer (AbortSignal.timeout)",
+      "exportName": "withDeadline",
+      "expected": {
+        "outcome": "threw",
+        "thrownName": "TimeoutError",
+        "thrownType": "Error",
+        "virtualMs": 100,
+        "thrownMessage": "The operation was aborted due to timeout",
+        "calls": {
+          "work": 1
+        }
+      },
+      "why": "The signal aborts at 100 ms with Node's TimeoutError, before work answers at 500 ms.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "threw",
+          "measured": "threw",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownName",
+          "expected": "TimeoutError",
+          "measured": "TimeoutError",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownType",
+          "expected": "Error",
+          "measured": "Error",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownMessage",
+          "expected": "The operation was aborted due to timeout",
+          "measured": "The operation was aborted due to timeout",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 100,
+          "measured": 100,
+          "verdict": "correct"
+        },
+        {
+          "field": "calls:work",
+          "expected": 1,
+          "measured": 1,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "threw",
+        "virtualMs": 100,
+        "thrownType": "Error",
+        "thrownName": "TimeoutError",
+        "thrownMessage": "The operation was aborted due to timeout",
+        "calls:work": 1
+      },
+      "notMeasured": {
+        "returnedJson": "the call threw, so it returned nothing",
+        "returnedType": "the call threw, so it returned nothing"
+      },
+      "runId": "ZTk3ReXWWk",
+      "controlRunId": "qWQVWyqJ2e",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 770
+    },
+    {
+      "id": "t20a",
+      "functionId": "t20",
+      "file": "cases/t20-fetch.js",
+      "language": "js",
+      "category": "trap: network",
+      "exportName": "getPrice",
+      "expected": {
+        "cantCheck": true,
+        "because": "The code uses the network."
+      },
+      "why": "fetch.",
+      "fields": [],
+      "notes": [],
+      "classification": "correct can't-check",
+      "cantCheckReason": "the code tried to use the network/files (fetch), which Atlas does not allow",
+      "measured": {},
+      "notMeasured": {
+        "wholeRun": "the code tried to use the network/files (fetch), which Atlas does not allow"
+      },
+      "runId": "iklQkvx0HM",
+      "controlRunId": "TvQljS2J8T",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 838
+    },
+    {
+      "id": "t20b",
+      "functionId": "t20",
+      "file": "cases/t20-fetch.js",
+      "language": "js",
+      "category": "trap: network",
+      "exportName": "getPriceOrOffline",
+      "expected": {
+        "cantCheck": true,
+        "because": "The code uses the network and catches the failure; offline is what the sandbox caused, not what the code does."
+      },
+      "why": "fetch, caught.",
+      "fields": [],
+      "notes": [],
+      "classification": "correct can't-check",
+      "cantCheckReason": "the code tried to use the network/files (fetch), which Atlas does not allow",
+      "measured": {},
+      "notMeasured": {
+        "wholeRun": "the code tried to use the network/files (fetch), which Atlas does not allow"
+      },
+      "runId": "WbDrOWkhSS",
+      "controlRunId": "gw0QAF2q-4",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 932
+    },
+    {
+      "id": "t21a",
+      "functionId": "t21",
+      "file": "cases/t21-fs-import.ts",
+      "language": "ts",
+      "category": "trap: files / built-in module import",
+      "exportName": "readConfig",
+      "expected": {
+        "cantCheck": true,
+        "because": "The code imports node:fs and reads a file."
+      },
+      "why": "Import of a built-in module.",
+      "fields": [],
+      "notes": [],
+      "classification": "correct can't-check",
+      "cantCheckReason": "the code needs Node's built-in module fs; Atlas runs one pasted file on its own, with no packages or other modules",
+      "measured": {},
+      "notMeasured": {
+        "wholeRun": "the code needs Node's built-in module fs; Atlas runs one pasted file on its own, with no packages or other modules"
+      },
+      "runId": "R3mLyNh8PN",
+      "controlRunId": "nVJMROkPiT",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 449
+    },
+    {
+      "id": "t22a",
+      "functionId": "t22",
+      "file": "cases/t22-package-import.js",
+      "language": "js",
+      "category": "trap: package import",
+      "exportName": "pairs",
+      "expected": {
+        "cantCheck": true,
+        "because": "The code needs the lodash package."
+      },
+      "why": "Package import.",
+      "fields": [],
+      "notes": [],
+      "classification": "correct can't-check",
+      "cantCheckReason": "the code needs lodash/chunk.js; Atlas runs one pasted file on its own, with no packages or other modules",
+      "measured": {},
+      "notMeasured": {
+        "wholeRun": "the code needs lodash/chunk.js; Atlas runs one pasted file on its own, with no packages or other modules"
+      },
+      "runId": "4SCWDqGmFG",
+      "controlRunId": "dWQVCq-O_G",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 411
+    },
+    {
+      "id": "t23a",
+      "functionId": "t23",
+      "file": "cases/t23-code-from-text.js",
+      "language": "js",
+      "category": "trap: eval",
+      "exportName": "calc",
+      "expected": {
+        "cantCheck": true,
+        "because": "The code runs text as code (eval)."
+      },
+      "why": "eval.",
+      "fields": [],
+      "notes": [],
+      "classification": "correct can't-check",
+      "cantCheckReason": "the code tried to run code made from text (eval), which Atlas does not allow",
+      "measured": {},
+      "notMeasured": {
+        "wholeRun": "the code tried to run code made from text (eval), which Atlas does not allow"
+      },
+      "runId": "tY_xn9ElRc",
+      "controlRunId": "MDjOVVECQp",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 824
+    },
+    {
+      "id": "t23b",
+      "functionId": "t23",
+      "file": "cases/t23-code-from-text.js",
+      "language": "js",
+      "category": "trap: eval",
+      "exportName": "makeAdder",
+      "expected": {
+        "cantCheck": true,
+        "because": "The code runs text as code (new Function)."
+      },
+      "why": "new Function.",
+      "fields": [],
+      "notes": [],
+      "classification": "correct can't-check",
+      "cantCheckReason": "the code tried to run code made from text (new Function), which Atlas does not allow",
+      "measured": {},
+      "notMeasured": {
+        "wholeRun": "the code tried to run code made from text (new Function), which Atlas does not allow"
+      },
+      "runId": "DEvN-Pic9s",
+      "controlRunId": "8GRpGd50rd",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 750
+    },
+    {
+      "id": "t24a",
+      "functionId": "t24",
+      "file": "cases/t24-process-exit.js",
+      "language": "js",
+      "category": "trap: process.exit",
+      "exportName": "bail",
+      "expected": {
+        "cantCheck": true,
+        "because": "The code ends the process."
+      },
+      "why": "process.exit.",
+      "fields": [],
+      "notes": [],
+      "classification": "correct can't-check",
+      "cantCheckReason": "the code tried to end or control the process (process.exit), which Atlas does not allow",
+      "measured": {},
+      "notMeasured": {
+        "wholeRun": "the code tried to end or control the process (process.exit), which Atlas does not allow"
+      },
+      "runId": "xjp3mCtgjG",
+      "controlRunId": "kdACQfqC3r",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 702
+    },
+    {
+      "id": "t25a",
+      "functionId": "t25",
+      "file": "cases/t25-ts-enum.ts",
+      "language": "ts",
+      "category": "trap: TypeScript syntax Node cannot strip",
+      "exportName": "levelName",
+      "expected": {
+        "cantCheck": true,
+        "because": "Node's type stripping cannot run a TypeScript enum."
+      },
+      "why": "enum.",
+      "fields": [],
+      "notes": [],
+      "classification": "correct can't-check",
+      "cantCheckReason": "Node could not run the code as written: SyntaxError [ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX]: TypeScript enum is not supported in strip-only mode",
+      "measured": {},
+      "notMeasured": {
+        "wholeRun": "Node could not run the code as written: SyntaxError [ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX]: TypeScript enum is not supported in strip-only mode"
+      },
+      "runId": "giHZJyUOgh",
+      "controlRunId": "vgwJgDrM2I",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 729
+    },
+    {
+      "id": "t26a",
+      "functionId": "t26",
+      "file": "cases/t26-ts-parameter-property.ts",
+      "language": "ts",
+      "category": "trap: TypeScript syntax Node cannot strip",
+      "exportName": "convert",
+      "expected": {
+        "cantCheck": true,
+        "because": "Node's type stripping cannot run a TypeScript parameter property."
+      },
+      "why": "parameter property.",
+      "fields": [],
+      "notes": [],
+      "classification": "correct can't-check",
+      "cantCheckReason": "Node could not run the code as written: SyntaxError [ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX]: TypeScript parameter property is not supported in strip-only mode",
+      "measured": {},
+      "notMeasured": {
+        "wholeRun": "Node could not run the code as written: SyntaxError [ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX]: TypeScript parameter property is not supported in strip-only mode"
+      },
+      "runId": "FgVCzeU2Oi",
+      "controlRunId": "hs40FYFhQu",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 765
+    },
+    {
+      "id": "t27a",
+      "functionId": "t27",
+      "file": "cases/t27-lookalike-words.ts",
+      "language": "ts",
+      "category": "over-refusal bait: trap words in comments, strings and a type-only import",
+      "exportName": "describe",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": "x: 36",
+        "returnedType": "string",
+        "virtualMs": 0
+      },
+      "why": "fetch, require and import appear only in a comment, a string and an import type line, which loads nothing. The note string is 36 characters.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "\"x: 36\"",
+          "measured": "\"x: 36\"",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "string",
+          "measured": "string",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "string",
+        "returnedJson": "\"x: 36\""
+      },
+      "notMeasured": {
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "runId": "7Eve5RfjBH",
+      "controlRunId": "6FSWrvpDcC",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 785
+    },
+    {
+      "id": "t28a",
+      "functionId": "t28",
+      "file": "cases/t28-settle-all.js",
+      "language": "js",
+      "category": "ordinary: concurrency with stand-in errors",
+      "exportName": "loadAllSettled",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": [
+          "A",
+          "error: missing 2",
+          "C"
+        ],
+        "returnedType": "array",
+        "virtualMs": 300,
+        "calls": {
+          "load": 3
+        }
+      },
+      "why": "All three calls start at 0 ms; allSettled waits for the slowest (300 ms) and keeps the error as text.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "[\"A\",\"error: missing 2\",\"C\"]",
+          "measured": "[\"A\",\"error: missing 2\",\"C\"]",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "array",
+          "measured": "array",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 300,
+          "measured": 300,
+          "verdict": "correct"
+        },
+        {
+          "field": "calls:load",
+          "expected": 3,
+          "measured": 3,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 300,
+        "returnedType": "array",
+        "returnedJson": "[\"A\",\"error: missing 2\",\"C\"]",
+        "calls:load": 3
+      },
+      "notMeasured": {
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "runId": "nrvRuwSIJc",
+      "controlRunId": "03Z9rDjx-m",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 769
+    },
+    {
+      "id": "t28b",
+      "functionId": "t28",
+      "file": "cases/t28-settle-all.js",
+      "language": "js",
+      "category": "ordinary: concurrency with stand-in errors",
+      "exportName": "loadAll",
+      "expected": {
+        "outcome": "threw",
+        "thrownName": "NotFound",
+        "thrownType": "Error",
+        "virtualMs": 0,
+        "thrownMessage": "missing 2",
+        "calls": {
+          "load": 3
+        }
+      },
+      "why": "Promise.all rejects as soon as call 2 fails, at 0 ms; all three calls were already made.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "threw",
+          "measured": "threw",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownName",
+          "expected": "NotFound",
+          "measured": "NotFound",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownType",
+          "expected": "Error",
+          "measured": "Error",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownMessage",
+          "expected": "missing 2",
+          "measured": "missing 2",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        },
+        {
+          "field": "calls:load",
+          "expected": 3,
+          "measured": 3,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "threw",
+        "virtualMs": 0,
+        "thrownType": "Error",
+        "thrownName": "NotFound",
+        "thrownMessage": "missing 2",
+        "calls:load": 3
+      },
+      "notMeasured": {
+        "returnedJson": "the call threw, so it returned nothing",
+        "returnedType": "the call threw, so it returned nothing"
+      },
+      "runId": "QH8EHJy6dG",
+      "controlRunId": "9EgKVWxnOB",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 756
+    },
+    {
+      "id": "t29a",
+      "functionId": "t29",
+      "file": "cases/t29-unhandled-rejection.js",
+      "language": "js",
+      "category": "trap: failure nobody catches",
+      "exportName": "fireAndForget",
+      "expected": {
+        "cantCheck": true,
+        "because": "The save fails with nobody handling it; a real Node process stops on an unhandled rejection, so the returned 'sent' would not be what a real run shows."
+      },
+      "why": "Unhandled rejection.",
+      "fields": [],
+      "notes": [],
+      "classification": "correct can't-check",
+      "cantCheckReason": "something the code started failed with nobody catching it (a promise rejected with SaveError: disk full); a real Node process stops there, so Atlas does not report how the call ended",
+      "measured": {},
+      "notMeasured": {
+        "wholeRun": "something the code started failed with nobody catching it (a promise rejected with SaveError: disk full); a real Node process stops there, so Atlas does not report how the call ended"
+      },
+      "runId": "h7IYByEH67",
+      "controlRunId": "5rD0AoqfpZ",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 869
+    },
+    {
+      "id": "t30a",
+      "functionId": "t30",
+      "file": "cases/t30-event-loop-order.js",
+      "language": "js",
+      "category": "timing: event-loop order",
+      "exportName": "order",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": [
+          "sync",
+          "microtask",
+          "queueMicrotask",
+          "timeout"
+        ],
+        "returnedType": "array",
+        "virtualMs": 5
+      },
+      "why": "Synchronous code first, then microtasks in the order queued, then the 0 ms (really 1 ms) timer, then the 5 ms wait ends.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "[\"sync\",\"microtask\",\"queueMicrotask\",\"timeout\"]",
+          "measured": "[\"sync\",\"microtask\",\"queueMicrotask\",\"timeout\"]",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "array",
+          "measured": "array",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 5,
+          "measured": 5,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 5,
+        "returnedType": "array",
+        "returnedJson": "[\"sync\",\"microtask\",\"queueMicrotask\",\"timeout\"]"
+      },
+      "notMeasured": {
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "runId": "JXnwchNAcM",
+      "controlRunId": "4A2pGuxJVh",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 848
+    },
+    {
+      "id": "p01a",
+      "functionId": "p01",
+      "file": "cases/p01-parse-duration.py",
+      "language": "py",
+      "category": "ordinary: parser",
+      "exportName": "parse_duration",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": 5415,
+        "returnedType": "number",
+        "virtualMs": 0
+      },
+      "why": "3600 + 30*60 + 15.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "5415",
+          "measured": "5415",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "number",
+          "measured": "number",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "returnedJson": "5415",
+        "returnedType": "number",
+        "virtualMs": 0
+      },
+      "notMeasured": {
+        "thrownMessage": "the call returned, so nothing was thrown",
+        "thrownName": "the call returned, so nothing was thrown"
+      },
+      "runId": "R9-NEYLV25",
+      "controlRunId": "EyI7lg7pHO",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 481
+    },
+    {
+      "id": "p01b",
+      "functionId": "p01",
+      "file": "cases/p01-parse-duration.py",
+      "language": "py",
+      "category": "ordinary: parser",
+      "exportName": "parse_duration",
+      "expected": {
+        "outcome": "threw",
+        "thrownName": "ValueError",
+        "thrownType": "Error",
+        "virtualMs": 0,
+        "thrownMessage": "not a duration: '90x'"
+      },
+      "why": "x is not a unit; the message uses repr, so the text is quoted.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "threw",
+          "measured": "threw",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownName",
+          "expected": "ValueError",
+          "measured": "ValueError",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownType",
+          "expected": "Error",
+          "measured": "Error",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownMessage",
+          "expected": "not a duration: '90x'",
+          "measured": "not a duration: '90x'",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "threw",
+        "thrownMessage": "not a duration: '90x'",
+        "thrownName": "ValueError",
+        "thrownType": "Error",
+        "virtualMs": 0
+      },
+      "notMeasured": {
+        "returnedJson": "the call threw, so it returned nothing",
+        "returnedType": "the call threw, so it returned nothing"
+      },
+      "runId": "V4Pm4cdv27",
+      "controlRunId": "Rv-hBM1hjA",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 478
+    },
+    {
+      "id": "p02a",
+      "functionId": "p02",
+      "file": "cases/p02-decimal-money.py",
+      "language": "py",
+      "category": "ordinary: money with Decimal",
+      "exportName": "invoice_total",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": {
+          "subtotal": "60.17",
+          "tax": "4.51",
+          "total": "64.68"
+        },
+        "returnedType": "object",
+        "virtualMs": 0
+      },
+      "why": "59.97 + 0.2 = 60.17; 60.17 * 0.075 = 4.51275, rounded half up to 4.51; total 64.68.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "{\"subtotal\":\"60.17\",\"tax\":\"4.51\",\"total\":\"64.68\"}",
+          "measured": "{\"subtotal\":\"60.17\",\"tax\":\"4.51\",\"total\":\"64.68\"}",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "object",
+          "measured": "object",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "returnedJson": "{\"subtotal\":\"60.17\",\"tax\":\"4.51\",\"total\":\"64.68\"}",
+        "returnedType": "object",
+        "virtualMs": 0
+      },
+      "notMeasured": {
+        "thrownMessage": "the call returned, so nothing was thrown",
+        "thrownName": "the call returned, so nothing was thrown"
+      },
+      "runId": "zIZZ55eaal",
+      "controlRunId": "IS2l6-3rLv",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 469
+    },
+    {
+      "id": "p02b",
+      "functionId": "p02",
+      "file": "cases/p02-decimal-money.py",
+      "language": "py",
+      "category": "ordinary: money with Decimal",
+      "exportName": "round_cents_both",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": [
+          "2.67",
+          "2.66"
+        ],
+        "returnedType": "array",
+        "virtualMs": 0
+      },
+      "why": "Half up rounds 2.665 to 2.67; half even (banker's) rounds to the even cent, 2.66.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "[\"2.67\",\"2.66\"]",
+          "measured": "[\"2.67\",\"2.66\"]",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "array",
+          "measured": "array",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "returnedJson": "[\"2.67\",\"2.66\"]",
+        "returnedType": "array",
+        "virtualMs": 0
+      },
+      "notMeasured": {
+        "thrownMessage": "the call returned, so nothing was thrown",
+        "thrownName": "the call returned, so nothing was thrown"
+      },
+      "runId": "Gb1CfPZcGg",
+      "controlRunId": "JeNpV7Y44j",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 480
+    },
+    {
+      "id": "p02c",
+      "functionId": "p02",
+      "file": "cases/p02-decimal-money.py",
+      "language": "py",
+      "category": "ordinary: money with Decimal",
+      "exportName": "raw_decimal",
+      "expected": {
+        "outcome": "returned",
+        "returnedNotJson": {
+          "type": "object (Decimal)",
+          "reasonMentions": "own class"
+        },
+        "virtualMs": 0
+      },
+      "why": "A Decimal is not plain JSON.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": null,
+          "measured": null,
+          "verdict": "correct",
+          "notMeasured": "the returned value is not stored as plain JSON: it is not a plain object (it has its own class)"
+        },
+        {
+          "field": "returnedType",
+          "expected": "object (Decimal)",
+          "measured": "object (Decimal)",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "returnedType": "object (Decimal)",
+        "virtualMs": 0
+      },
+      "notMeasured": {
+        "returnedJson": "the returned value is not stored as plain JSON: it is not a plain object (it has its own class)",
+        "thrownMessage": "the call returned, so nothing was thrown",
+        "thrownName": "the call returned, so nothing was thrown"
+      },
+      "runId": "4HnouZFQOV",
+      "controlRunId": "nZK4zvp9mY",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 446
+    },
+    {
+      "id": "p03a",
+      "functionId": "p03",
+      "file": "cases/p03-dataclass-enum.py",
+      "language": "py",
+      "category": "ordinary: dataclass + enum",
+      "exportName": "close_ticket",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": {
+          "id": 7,
+          "title": "Fix login",
+          "status": "closed",
+          "tags": [
+            "done"
+          ]
+        },
+        "returnedType": "object",
+        "virtualMs": 0
+      },
+      "why": "asdict gives a plain dict; status is replaced by the enum's value.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "{\"id\":7,\"status\":\"closed\",\"tags\":[\"done\"],\"title\":\"Fix login\"}",
+          "measured": "{\"id\":7,\"status\":\"closed\",\"tags\":[\"done\"],\"title\":\"Fix login\"}",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "object",
+          "measured": "object",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "returnedJson": "{\"id\":7,\"status\":\"closed\",\"tags\":[\"done\"],\"title\":\"Fix login\"}",
+        "returnedType": "object",
+        "virtualMs": 0
+      },
+      "notMeasured": {
+        "thrownMessage": "the call returned, so nothing was thrown",
+        "thrownName": "the call returned, so nothing was thrown"
+      },
+      "runId": "ORMOVyshqJ",
+      "controlRunId": "I9x0A6kc29",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 431
+    },
+    {
+      "id": "p03b",
+      "functionId": "p03",
+      "file": "cases/p03-dataclass-enum.py",
+      "language": "py",
+      "category": "ordinary: dataclass + enum",
+      "exportName": "ticket_object",
+      "expected": {
+        "outcome": "returned",
+        "returnedNotJson": {
+          "type": "object (Ticket)",
+          "reasonMentions": "own class"
+        },
+        "virtualMs": 0
+      },
+      "why": "A dataclass instance is not plain JSON.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": null,
+          "measured": null,
+          "verdict": "correct",
+          "notMeasured": "the returned value is not stored as plain JSON: it is not a plain object (it has its own class)"
+        },
+        {
+          "field": "returnedType",
+          "expected": "object (Ticket)",
+          "measured": "object (Ticket)",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "returnedType": "object (Ticket)",
+        "virtualMs": 0
+      },
+      "notMeasured": {
+        "returnedJson": "the returned value is not stored as plain JSON: it is not a plain object (it has its own class)",
+        "thrownMessage": "the call returned, so nothing was thrown",
+        "thrownName": "the call returned, so nothing was thrown"
+      },
+      "runId": "6xbqwtkdHc",
+      "controlRunId": "QO1l-mEigV",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 421
+    },
+    {
+      "id": "p03c",
+      "functionId": "p03",
+      "file": "cases/p03-dataclass-enum.py",
+      "language": "py",
+      "category": "ordinary: dataclass + enum",
+      "exportName": "status_of",
+      "expected": {
+        "outcome": "threw",
+        "thrownName": "KeyError",
+        "thrownType": "Error",
+        "virtualMs": 0,
+        "thrownMessage": "'PENDING'"
+      },
+      "why": "Enum lookup by an unknown name raises KeyError; str() of a KeyError is the key's repr, with quotes.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "threw",
+          "measured": "threw",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownName",
+          "expected": "KeyError",
+          "measured": "KeyError",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownType",
+          "expected": "Error",
+          "measured": "Error",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownMessage",
+          "expected": "'PENDING'",
+          "measured": "'PENDING'",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "threw",
+        "thrownMessage": "'PENDING'",
+        "thrownName": "KeyError",
+        "thrownType": "Error",
+        "virtualMs": 0
+      },
+      "notMeasured": {
+        "returnedJson": "the call threw, so it returned nothing",
+        "returnedType": "the call threw, so it returned nothing"
+      },
+      "runId": "YubJjI2UNv",
+      "controlRunId": "aS3lclE3G9",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 425
+    },
+    {
+      "id": "p04a",
+      "functionId": "p04",
+      "file": "cases/p04-async-retry.py",
+      "language": "py",
+      "category": "ordinary: async retry/backoff",
+      "exportName": "fetch_with_retry",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": {
+          "ok": true
+        },
+        "returnedType": "object",
+        "virtualMs": 350,
+        "calls": {
+          "fetch": 3
+        }
+      },
+      "why": "Fails at 0, sleeps 0.1 s; fails at 100 ms, sleeps 0.2 s; third call at 300 ms answers 50 ms later.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "{\"ok\":true}",
+          "measured": "{\"ok\":true}",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "object",
+          "measured": "object",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 350,
+          "measured": 350,
+          "verdict": "correct"
+        },
+        {
+          "field": "calls:fetch",
+          "expected": 3,
+          "measured": 3,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "calls:fetch": 3,
+        "outcome": "returned",
+        "returnedJson": "{\"ok\":true}",
+        "returnedType": "object",
+        "virtualMs": 350
+      },
+      "notMeasured": {
+        "thrownMessage": "the call returned, so nothing was thrown",
+        "thrownName": "the call returned, so nothing was thrown"
+      },
+      "runId": "VpjZd5zAU9",
+      "controlRunId": "kH-ex84LvE",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 392
+    },
+    {
+      "id": "p04b",
+      "functionId": "p04",
+      "file": "cases/p04-async-retry.py",
+      "language": "py",
+      "category": "ordinary: async retry/backoff",
+      "exportName": "fetch_with_retry",
+      "expected": {
+        "outcome": "threw",
+        "thrownName": "TimeoutError",
+        "thrownType": "Error",
+        "virtualMs": 0,
+        "thrownMessage": "slow",
+        "calls": {
+          "fetch": 1
+        }
+      },
+      "why": "TimeoutError is not a ConnectionError, so it is not retried.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "threw",
+          "measured": "threw",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownName",
+          "expected": "TimeoutError",
+          "measured": "TimeoutError",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownType",
+          "expected": "Error",
+          "measured": "Error",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownMessage",
+          "expected": "slow",
+          "measured": "slow",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        },
+        {
+          "field": "calls:fetch",
+          "expected": 1,
+          "measured": 1,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "calls:fetch": 1,
+        "outcome": "threw",
+        "thrownMessage": "slow",
+        "thrownName": "TimeoutError",
+        "thrownType": "Error",
+        "virtualMs": 0
+      },
+      "notMeasured": {
+        "returnedJson": "the call threw, so it returned nothing",
+        "returnedType": "the call threw, so it returned nothing"
+      },
+      "runId": "DlB5X1XdF8",
+      "controlRunId": "G-Ksp-RYh9",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 416
+    },
+    {
+      "id": "p05a",
+      "functionId": "p05",
+      "file": "cases/p05-throttle.py",
+      "language": "py",
+      "category": "timing: blocking sleep and monotonic on the virtual clock",
+      "exportName": "throttled_calls",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": [
+          0,
+          250,
+          500,
+          750
+        ],
+        "returnedType": "array",
+        "virtualMs": 750,
+        "calls": {
+          "send": 4
+        }
+      },
+      "why": "4 a second is one every 250 ms, starting at 0.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "[0,250,500,750]",
+          "measured": "[0,250,500,750]",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "array",
+          "measured": "array",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 750,
+          "measured": 750,
+          "verdict": "correct"
+        },
+        {
+          "field": "calls:send",
+          "expected": 4,
+          "measured": 4,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "calls:send": 4,
+        "outcome": "returned",
+        "returnedJson": "[0,250,500,750]",
+        "returnedType": "array",
+        "virtualMs": 750
+      },
+      "notMeasured": {
+        "thrownMessage": "the call returned, so nothing was thrown",
+        "thrownName": "the call returned, so nothing was thrown"
+      },
+      "runId": "FyMv3g5jXy",
+      "controlRunId": "i8VJNg1UiI",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 438
+    },
+    {
+      "id": "p05b",
+      "functionId": "p05",
+      "file": "cases/p05-throttle.py",
+      "language": "py",
+      "category": "timing: blocking sleep and monotonic on the virtual clock",
+      "exportName": "now_epoch",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": 1767225600,
+        "returnedType": "number",
+        "virtualMs": 0
+      },
+      "why": "time.time() at the start of Atlas's clock: 2026-01-01T00:00:00Z is 1767225600; JSON writes 1767225600.0 as 1767225600.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "1767225600",
+          "measured": "1767225600",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "number",
+          "measured": "number",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "returnedJson": "1767225600",
+        "returnedType": "number",
+        "virtualMs": 0
+      },
+      "notMeasured": {
+        "thrownMessage": "the call returned, so nothing was thrown",
+        "thrownName": "the call returned, so nothing was thrown"
+      },
+      "runId": "WCwWgf_WBu",
+      "controlRunId": "eWhigq6ERl",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 467
+    },
+    {
+      "id": "p06a",
+      "functionId": "p06",
+      "file": "cases/p06-async-debounce.py",
+      "language": "py",
+      "category": "ordinary: debounce on asyncio",
+      "exportName": "type_then_wait",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": "done",
+        "returnedType": "string",
+        "virtualMs": 600,
+        "calls": {
+          "on_search": 1
+        }
+      },
+      "why": "Calls at 0, 50 and 100 ms each cancel the pending task; only the last fires, at 300 ms. Returns at 600 ms.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "\"done\"",
+          "measured": "\"done\"",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "string",
+          "measured": "string",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 600,
+          "measured": 600,
+          "verdict": "correct"
+        },
+        {
+          "field": "calls:on_search",
+          "expected": 1,
+          "measured": 1,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "calls:on_search": 1,
+        "outcome": "returned",
+        "returnedJson": "\"done\"",
+        "returnedType": "string",
+        "virtualMs": 600
+      },
+      "notMeasured": {
+        "thrownMessage": "the call returned, so nothing was thrown",
+        "thrownName": "the call returned, so nothing was thrown"
+      },
+      "runId": "vJU2WgrV3P",
+      "controlRunId": "GVyDCQsbUG",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 480
+    },
+    {
+      "id": "p07a",
+      "functionId": "p07",
+      "file": "cases/p07-never-and-forever.py",
+      "language": "py",
+      "category": "never settles / still running",
+      "exportName": "wait_for_signal",
+      "expected": {
+        "outcome": "never_settled",
+        "virtualMs": null,
+        "calls": {
+          "register": 1
+        }
+      },
+      "why": "Nothing ever resolves the future.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "never_settled",
+          "measured": "never_settled",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": null,
+          "measured": null,
+          "verdict": "correct",
+          "notMeasured": "the call never settled: it was still waiting with nothing left that could wake it, so it has no settle time"
+        },
+        {
+          "field": "calls:register",
+          "expected": 1,
+          "measured": 1,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "calls:register": 1,
+        "outcome": "never_settled"
+      },
+      "notMeasured": {
+        "returnedJson": "the call never settled: it was still waiting with nothing left that could wake it",
+        "returnedType": "the call never settled: it was still waiting with nothing left that could wake it",
+        "thrownMessage": "the call never settled: it was still waiting with nothing left that could wake it",
+        "thrownName": "the call never settled: it was still waiting with nothing left that could wake it",
+        "virtualMs": "the call never settled: it was still waiting with nothing left that could wake it, so it has no settle time"
+      },
+      "runId": "eADT-EMnR7",
+      "controlRunId": "2pOBNpVrFX",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 419
+    },
+    {
+      "id": "p07b",
+      "functionId": "p07",
+      "file": "cases/p07-never-and-forever.py",
+      "language": "py",
+      "category": "never settles / still running",
+      "exportName": "poll_forever",
+      "expected": {
+        "outcome": "still_running_at_watch_limit",
+        "virtualMs": null,
+        "calls": {
+          "check": null
+        }
+      },
+      "why": "Polls every 2 s forever; still running at the 7,000 ms limit.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "still_running_at_watch_limit",
+          "measured": "still_running_at_watch_limit",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": null,
+          "measured": null,
+          "verdict": "correct",
+          "notMeasured": "the call was still running when Atlas's watch limit (7000 ms of virtual time, Atlas's limit, not the code's) ran out"
+        },
+        {
+          "field": "calls:check",
+          "expected": null,
+          "measured": null,
+          "verdict": "correct",
+          "notMeasured": "the call was still running when Atlas's watch limit (7000 ms of virtual time, Atlas's limit, not the code's) ran out, so the final count was not seen; the count so far was 4"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "still_running_at_watch_limit"
+      },
+      "notMeasured": {
+        "calls:check": "the call was still running when Atlas's watch limit (7000 ms of virtual time, Atlas's limit, not the code's) ran out, so the final count was not seen; the count so far was 4",
+        "returnedJson": "the call was still running when Atlas's watch limit (7000 ms of virtual time, Atlas's limit, not the code's) ran out",
+        "returnedType": "the call was still running when Atlas's watch limit (7000 ms of virtual time, Atlas's limit, not the code's) ran out",
+        "thrownMessage": "the call was still running when Atlas's watch limit (7000 ms of virtual time, Atlas's limit, not the code's) ran out",
+        "thrownName": "the call was still running when Atlas's watch limit (7000 ms of virtual time, Atlas's limit, not the code's) ran out",
+        "virtualMs": "the call was still running when Atlas's watch limit (7000 ms of virtual time, Atlas's limit, not the code's) ran out"
+      },
+      "runId": "Sn6ND9Ho1_",
+      "controlRunId": "wDn06WVoS9",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 476
+    },
+    {
+      "id": "p08a",
+      "functionId": "p08",
+      "file": "cases/p08-gather.py",
+      "language": "py",
+      "category": "ordinary: asyncio.gather with a failing call",
+      "exportName": "load_all",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": [
+          "A",
+          "error: missing 2",
+          "C"
+        ],
+        "returnedType": "array",
+        "virtualMs": 300,
+        "calls": {
+          "load": 3
+        }
+      },
+      "why": "All three start at 0 ms; gather waits for the slowest (300 ms) and returns the error as a value.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "[\"A\",\"error: missing 2\",\"C\"]",
+          "measured": "[\"A\",\"error: missing 2\",\"C\"]",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "array",
+          "measured": "array",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 300,
+          "measured": 300,
+          "verdict": "correct"
+        },
+        {
+          "field": "calls:load",
+          "expected": 3,
+          "measured": 3,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "calls:load": 3,
+        "outcome": "returned",
+        "returnedJson": "[\"A\",\"error: missing 2\",\"C\"]",
+        "returnedType": "array",
+        "virtualMs": 300
+      },
+      "notMeasured": {
+        "thrownMessage": "the call returned, so nothing was thrown",
+        "thrownName": "the call returned, so nothing was thrown"
+      },
+      "runId": "uWCYauo0d8",
+      "controlRunId": "BaYUk1atCr",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 486
+    },
+    {
+      "id": "p08b",
+      "functionId": "p08",
+      "file": "cases/p08-gather.py",
+      "language": "py",
+      "category": "ordinary: asyncio.gather with a failing call",
+      "exportName": "yield_once",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": "after",
+        "returnedType": "string",
+        "virtualMs": 0
+      },
+      "why": "asyncio.sleep(0) yields once without moving the clock.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "\"after\"",
+          "measured": "\"after\"",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "string",
+          "measured": "string",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "returnedJson": "\"after\"",
+        "returnedType": "string",
+        "virtualMs": 0
+      },
+      "notMeasured": {
+        "thrownMessage": "the call returned, so nothing was thrown",
+        "thrownName": "the call returned, so nothing was thrown"
+      },
+      "runId": "o1UkyXNPf8",
+      "controlRunId": "uYhFZWsn7Z",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 480
+    },
+    {
+      "id": "p09a",
+      "functionId": "p09",
+      "file": "cases/p09-unicode-text.py",
+      "language": "py",
+      "category": "unicode / tuple",
+      "exportName": "text_facts",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": {
+          "len": 4,
+          "nfc_len": 3,
+          "upper": "ÉSS👍",
+          "utf8_bytes": 9
+        },
+        "returnedType": "object",
+        "virtualMs": 0
+      },
+      "why": "e + combining accent + sharp s + thumbs-up is 4 code points; NFC joins e and the accent (3); sharp s upper-cases to SS; UTF-8 bytes 1 + 2 + 2 + 4.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "{\"len\":4,\"nfc_len\":3,\"upper\":\"ÉSS👍\",\"utf8_bytes\":9}",
+          "measured": "{\"len\":4,\"nfc_len\":3,\"upper\":\"ÉSS👍\",\"utf8_bytes\":9}",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "object",
+          "measured": "object",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "returnedJson": "{\"len\":4,\"nfc_len\":3,\"upper\":\"ÉSS👍\",\"utf8_bytes\":9}",
+        "returnedType": "object",
+        "virtualMs": 0
+      },
+      "notMeasured": {
+        "thrownMessage": "the call returned, so nothing was thrown",
+        "thrownName": "the call returned, so nothing was thrown"
+      },
+      "runId": "LnCs2hyL6F",
+      "controlRunId": "gYSck81eoM",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 471
+    },
+    {
+      "id": "p09b",
+      "functionId": "p09",
+      "file": "cases/p09-unicode-text.py",
+      "language": "py",
+      "category": "unicode / tuple",
+      "exportName": "pair",
+      "expected": {
+        "outcome": "returned",
+        "returnedNotJson": {
+          "type": "tuple",
+          "reasonMentions": "tuple"
+        },
+        "virtualMs": 0
+      },
+      "why": "A tuple is not stored as JSON (only lists are).",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": null,
+          "measured": null,
+          "verdict": "correct",
+          "notMeasured": "the returned value is not stored as plain JSON: it is a tuple, which Atlas does not store as JSON (only lists are)"
+        },
+        {
+          "field": "returnedType",
+          "expected": "tuple",
+          "measured": "tuple",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "returnedType": "tuple",
+        "virtualMs": 0
+      },
+      "notMeasured": {
+        "returnedJson": "the returned value is not stored as plain JSON: it is a tuple, which Atlas does not store as JSON (only lists are)",
+        "thrownMessage": "the call returned, so nothing was thrown",
+        "thrownName": "the call returned, so nothing was thrown"
+      },
+      "runId": "dwfXqfXg3A",
+      "controlRunId": "c8d-wp4q81",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 417
+    },
+    {
+      "id": "p10a",
+      "functionId": "p10",
+      "file": "cases/p10-odd-numbers.py",
+      "language": "py",
+      "category": "NaN / big int / -0",
+      "exportName": "nan_value",
+      "expected": {
+        "outcome": "returned",
+        "returnedNotJson": {
+          "type": "number (NaN)",
+          "reasonMentions": "NaN"
+        },
+        "virtualMs": 0
+      },
+      "why": "NaN is not a JSON number.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": null,
+          "measured": null,
+          "verdict": "correct",
+          "notMeasured": "the returned value is not stored as plain JSON: it is NaN, which JSON cannot hold"
+        },
+        {
+          "field": "returnedType",
+          "expected": "number (NaN)",
+          "measured": "number (NaN)",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "returnedType": "number (NaN)",
+        "virtualMs": 0
+      },
+      "notMeasured": {
+        "returnedJson": "the returned value is not stored as plain JSON: it is NaN, which JSON cannot hold",
+        "thrownMessage": "the call returned, so nothing was thrown",
+        "thrownName": "the call returned, so nothing was thrown"
+      },
+      "runId": "uIWrg965Rg",
+      "controlRunId": "wryVaUttSa",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 613
+    },
+    {
+      "id": "p10b",
+      "functionId": "p10",
+      "file": "cases/p10-odd-numbers.py",
+      "language": "py",
+      "category": "NaN / big int / -0",
+      "exportName": "huge_int",
+      "expected": {
+        "outcome": "returned",
+        "returnedNotJson": {
+          "type": "number (an integer beyond 2^53)",
+          "reasonMentions": "2^53"
+        },
+        "virtualMs": 0
+      },
+      "why": "2**64 cannot be held exactly by a JSON (JavaScript) number.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": null,
+          "measured": null,
+          "verdict": "correct",
+          "notMeasured": "the returned value is not stored as plain JSON: it is an integer beyond 2^53, which Atlas's JSON numbers (JavaScript numbers) cannot hold exactly"
+        },
+        {
+          "field": "returnedType",
+          "expected": "number (an integer beyond 2^53)",
+          "measured": "number (an integer beyond 2^53)",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "returnedType": "number (an integer beyond 2^53)",
+        "virtualMs": 0
+      },
+      "notMeasured": {
+        "returnedJson": "the returned value is not stored as plain JSON: it is an integer beyond 2^53, which Atlas's JSON numbers (JavaScript numbers) cannot hold exactly",
+        "thrownMessage": "the call returned, so nothing was thrown",
+        "thrownName": "the call returned, so nothing was thrown"
+      },
+      "runId": "vnxRYmy9cL",
+      "controlRunId": "Ix5qhqxo18",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 548
+    },
+    {
+      "id": "p10c",
+      "functionId": "p10",
+      "file": "cases/p10-odd-numbers.py",
+      "language": "py",
+      "category": "NaN / big int / -0",
+      "exportName": "neg_zero",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": 0,
+        "returnedType": "number",
+        "virtualMs": 0
+      },
+      "why": "-0.0 is written as 0 in JSON, as JavaScript writes it.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "0",
+          "measured": "0",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "number",
+          "measured": "number",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "returnedJson": "0",
+        "returnedType": "number",
+        "virtualMs": 0
+      },
+      "notMeasured": {
+        "thrownMessage": "the call returned, so nothing was thrown",
+        "thrownName": "the call returned, so nothing was thrown"
+      },
+      "runId": "q0XdwqbCbq",
+      "controlRunId": "lQgrOhVLBo",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 461
+    },
+    {
+      "id": "p11a",
+      "functionId": "p11",
+      "file": "cases/p11-exit.py",
+      "language": "py",
+      "category": "process exit: caught (fact) and escaping (trap)",
+      "exportName": "safe_main",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": "exit 2",
+        "returnedType": "string",
+        "virtualMs": 0
+      },
+      "why": "SystemExit is an ordinary exception the code catches; e.code is 2.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "\"exit 2\"",
+          "measured": "\"exit 2\"",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "string",
+          "measured": "string",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "returnedJson": "\"exit 2\"",
+        "returnedType": "string",
+        "virtualMs": 0
+      },
+      "notMeasured": {
+        "thrownMessage": "the call returned, so nothing was thrown",
+        "thrownName": "the call returned, so nothing was thrown"
+      },
+      "runId": "E_BDiewqay",
+      "controlRunId": "nwaNJRiDzv",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 473
+    },
+    {
+      "id": "p11b",
+      "functionId": "p11",
+      "file": "cases/p11-exit.py",
+      "language": "py",
+      "category": "process exit: caught (fact) and escaping (trap)",
+      "exportName": "hard_exit",
+      "expected": {
+        "cantCheck": true,
+        "because": "SystemExit escapes the call: a real run would end the process."
+      },
+      "why": "sys.exit escapes.",
+      "fields": [],
+      "notes": [],
+      "classification": "correct can't-check",
+      "cantCheckReason": "the code tried to end or control the process (SystemExit), which Atlas does not allow",
+      "measured": {},
+      "notMeasured": {
+        "wholeRun": "the code tried to end or control the process (SystemExit), which Atlas does not allow"
+      },
+      "runId": "8bK9rl3l2J",
+      "controlRunId": "FofbmbpEu0",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 507
+    },
+    {
+      "id": "p12a",
+      "functionId": "p12",
+      "file": "cases/p12-run-length.py",
+      "language": "py",
+      "category": "ordinary: itertools",
+      "exportName": "run_length",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": [
+          [
+            "a",
+            3
+          ],
+          [
+            "b",
+            1
+          ],
+          [
+            "c",
+            2
+          ],
+          [
+            "d",
+            2
+          ]
+        ],
+        "returnedType": "array",
+        "virtualMs": 0
+      },
+      "why": "Runs of equal characters.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "[[\"a\",3],[\"b\",1],[\"c\",2],[\"d\",2]]",
+          "measured": "[[\"a\",3],[\"b\",1],[\"c\",2],[\"d\",2]]",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "array",
+          "measured": "array",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "returnedJson": "[[\"a\",3],[\"b\",1],[\"c\",2],[\"d\",2]]",
+        "returnedType": "array",
+        "virtualMs": 0
+      },
+      "notMeasured": {
+        "thrownMessage": "the call returned, so nothing was thrown",
+        "thrownName": "the call returned, so nothing was thrown"
+      },
+      "runId": "wAvge8UbSf",
+      "controlRunId": "30jlbbFdsr",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 552
+    },
+    {
+      "id": "p13a",
+      "functionId": "p13",
+      "file": "cases/p13-network.py",
+      "language": "py",
+      "category": "trap: network (urllib.request)",
+      "exportName": "fetch_text",
+      "expected": {
+        "cantCheck": true,
+        "because": "The code uses the network (and urllib.request is not a module Atlas loads)."
+      },
+      "why": "urllib.request.",
+      "fields": [],
+      "notes": [],
+      "classification": "correct can't-check",
+      "cantCheckReason": "the code imports the standard-library module urllib.request, which Atlas does not load into its Python sandbox (it loads a list chosen in advance, before the code runs)",
+      "measured": {},
+      "notMeasured": {
+        "wholeRun": "the code imports the standard-library module urllib.request, which Atlas does not load into its Python sandbox (it loads a list chosen in advance, before the code runs)"
+      },
+      "runId": "RS35iJrfwA",
+      "controlRunId": "4aYSKXnoDI",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 544
+    },
+    {
+      "id": "p14a",
+      "functionId": "p14",
+      "file": "cases/p14-read-file.py",
+      "language": "py",
+      "category": "trap: files, caught by the code",
+      "exportName": "load_config",
+      "expected": {
+        "cantCheck": true,
+        "because": "The code reads a file; the sandbox refuses it and the code catches that, so 'default' would be the sandbox's doing."
+      },
+      "why": "open, caught.",
+      "fields": [],
+      "notes": [],
+      "classification": "correct can't-check",
+      "cantCheckReason": "the code tried to use the network/files (open(/etc/hosts)), which Atlas does not allow",
+      "measured": {},
+      "notMeasured": {
+        "wholeRun": "the code tried to use the network/files (open(/etc/hosts)), which Atlas does not allow"
+      },
+      "runId": "JlPAB5r027",
+      "controlRunId": "gboBNP9vnY",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 513
+    },
+    {
+      "id": "p15a",
+      "functionId": "p15",
+      "file": "cases/p15-threads.py",
+      "language": "py",
+      "category": "trap: threads",
+      "exportName": "parallel_sum",
+      "expected": {
+        "cantCheck": true,
+        "because": "The code starts threads."
+      },
+      "why": "threading.Thread.",
+      "fields": [],
+      "notes": [],
+      "classification": "correct can't-check",
+      "cantCheckReason": "the code waits on threads (_thread.start_joinable_thread), which finishes in real time that Atlas's virtual clock does not control",
+      "measured": {},
+      "notMeasured": {
+        "wholeRun": "the code waits on threads (_thread.start_joinable_thread), which finishes in real time that Atlas's virtual clock does not control"
+      },
+      "runId": "ZS0FdloO7K",
+      "controlRunId": "L3xmBQcB-6",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 516
+    },
+    {
+      "id": "p16a",
+      "functionId": "p16",
+      "file": "cases/p16-stdlib-not-loaded.py",
+      "language": "py",
+      "category": "trap: standard-library module outside the preload list",
+      "exportName": "count_rows",
+      "expected": {
+        "cantCheck": true,
+        "because": "sqlite3 is not in the list of modules Atlas loads into its Python sandbox."
+      },
+      "why": "sqlite3.",
+      "fields": [],
+      "notes": [],
+      "classification": "correct can't-check",
+      "cantCheckReason": "the code imports the standard-library module sqlite3, which Atlas does not load into its Python sandbox (it loads a list chosen in advance, before the code runs)",
+      "measured": {},
+      "notMeasured": {
+        "wholeRun": "the code imports the standard-library module sqlite3, which Atlas does not load into its Python sandbox (it loads a list chosen in advance, before the code runs)"
+      },
+      "runId": "RLi7-kaGjl",
+      "controlRunId": "HCHKuqem4u",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 536
+    },
+    {
+      "id": "p17a",
+      "functionId": "p17",
+      "file": "cases/p17-package.py",
+      "language": "py",
+      "category": "trap: package import",
+      "exportName": "mean",
+      "expected": {
+        "cantCheck": true,
+        "because": "The code needs numpy."
+      },
+      "why": "numpy.",
+      "fields": [],
+      "notes": [],
+      "classification": "correct can't-check",
+      "cantCheckReason": "the code needs numpy; Atlas runs one pasted file on its own, with no packages or other modules",
+      "measured": {},
+      "notMeasured": {
+        "wholeRun": "the code needs numpy; Atlas runs one pasted file on its own, with no packages or other modules"
+      },
+      "runId": "i49I38K5yX",
+      "controlRunId": "nHYgRdM3le",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 275
+    },
+    {
+      "id": "p18a",
+      "functionId": "p18",
+      "file": "cases/p18-raise-builtin.py",
+      "language": "py",
+      "category": "over-refusal bait: the code's own PermissionError",
+      "exportName": "check_role",
+      "expected": {
+        "outcome": "threw",
+        "thrownName": "PermissionError",
+        "thrownType": "Error",
+        "virtualMs": 0,
+        "thrownMessage": "role guest may not delete"
+      },
+      "why": "The code raises PermissionError itself; no file or network is touched, so it is an ordinary fact.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "threw",
+          "measured": "threw",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownName",
+          "expected": "PermissionError",
+          "measured": "PermissionError",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownType",
+          "expected": "Error",
+          "measured": "Error",
+          "verdict": "correct"
+        },
+        {
+          "field": "thrownMessage",
+          "expected": "role guest may not delete",
+          "measured": "role guest may not delete",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "threw",
+        "thrownMessage": "role guest may not delete",
+        "thrownName": "PermissionError",
+        "thrownType": "Error",
+        "virtualMs": 0
+      },
+      "notMeasured": {
+        "returnedJson": "the call threw, so it returned nothing",
+        "returnedType": "the call threw, so it returned nothing"
+      },
+      "runId": "VWNrnBGx5h",
+      "controlRunId": "UCV7Zxxw6H",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 453
+    },
+    {
+      "id": "p18b",
+      "functionId": "p18",
+      "file": "cases/p18-raise-builtin.py",
+      "language": "py",
+      "category": "over-refusal bait: the code's own PermissionError",
+      "exportName": "check_role",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": "deleted",
+        "returnedType": "string",
+        "virtualMs": 0
+      },
+      "why": "admin passes the check.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "\"deleted\"",
+          "measured": "\"deleted\"",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "string",
+          "measured": "string",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "returnedJson": "\"deleted\"",
+        "returnedType": "string",
+        "virtualMs": 0
+      },
+      "notMeasured": {
+        "thrownMessage": "the call returned, so nothing was thrown",
+        "thrownName": "the call returned, so nothing was thrown"
+      },
+      "runId": "5FFzEzyuYK",
+      "controlRunId": "3IVb0mSWDW",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 391
+    }
+  ]
+}

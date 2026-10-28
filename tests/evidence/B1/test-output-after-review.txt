@@ -1,0 +1,274 @@
+
+ RUN  v5.0.5 <repo>
+
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > has about 40 functions in JS/TS and Python, each with 1 to 3 tests per export, ids unique 2ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t01a: the gate allows it and the expectation is well formed 3ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t01b: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t02a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t02b: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t02c: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t03a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t03b: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t04a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t04b: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t05a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t06a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t06b: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t07a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t07b: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t08a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t08b: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t09a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t09b: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t10a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t10b: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t11a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t12a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t12b: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t12c: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t13a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t13b: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t13c: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t14a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t14b: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t14c: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t15a: the gate allows it and the expectation is well formed 1ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t15b: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t15c: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t15d: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t16a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t16b: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t17a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t17b: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t18a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t18b: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t19a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t19b: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t20a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t20b: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t21a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t22a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t23a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t23b: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t24a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t25a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t26a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t27a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t28a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t28b: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t29a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > t30a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > p01a: the gate allows it and the expectation is well formed 1ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > p01b: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > p02a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > p02b: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > p02c: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > p03a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > p03b: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > p03c: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > p04a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > p04b: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > p05a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > p05b: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > p06a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > p07a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > p07b: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > p08a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > p08b: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > p09a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > p09b: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > p10a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > p10b: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > p10c: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > p11a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > p11b: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > p12a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > p13a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > p14a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > p15a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > p16a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > p17a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > p18a: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth corpus (hand-written expected facts) > p18b: the gate allows it and the expectation is well formed 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth-2 corpus (the found failures, expectations written before any run) > h01a: the gate allows it; every category it names is registered 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth-2 corpus (the found failures, expectations written before any run) > h01b: the gate allows it; every category it names is registered 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth-2 corpus (the found failures, expectations written before any run) > h02a: the gate allows it; every category it names is registered 1ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth-2 corpus (the found failures, expectations written before any run) > h02b: the gate allows it; every category it names is registered 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth-2 corpus (the found failures, expectations written before any run) > h03a: the gate allows it; every category it names is registered 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth-2 corpus (the found failures, expectations written before any run) > h03b: the gate allows it; every category it names is registered 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth-2 corpus (the found failures, expectations written before any run) > h04a: the gate allows it; every category it names is registered 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth-2 corpus (the found failures, expectations written before any run) > h04b: the gate allows it; every category it names is registered 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth-2 corpus (the found failures, expectations written before any run) > h04c: the gate allows it; every category it names is registered 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth-2 corpus (the found failures, expectations written before any run) > h05a: the gate allows it; every category it names is registered 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth-2 corpus (the found failures, expectations written before any run) > h05b: the gate allows it; every category it names is registered 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth-2 corpus (the found failures, expectations written before any run) > q01a: the gate allows it; every category it names is registered 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth-2 corpus (the found failures, expectations written before any run) > q01b: the gate allows it; every category it names is registered 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth-2 corpus (the found failures, expectations written before any run) > q01c: the gate allows it; every category it names is registered 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth-2 corpus (the found failures, expectations written before any run) > q01d: the gate allows it; every category it names is registered 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth-2 corpus (the found failures, expectations written before any run) > q02a: the gate allows it; every category it names is registered 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth-2 corpus (the found failures, expectations written before any run) > q02b: the gate allows it; every category it names is registered 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth-2 corpus (the found failures, expectations written before any run) > q02c: the gate allows it; every category it names is registered 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth-2 corpus (the found failures, expectations written before any run) > h06a: the gate allows it; every category it names is registered 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth-2 corpus (the found failures, expectations written before any run) > h06b: the gate allows it; every category it names is registered 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth-2 corpus (the found failures, expectations written before any run) > h06c: the gate allows it; every category it names is registered 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/truth-2 corpus (the found failures, expectations written before any run) > h06d: the gate allows it; every category it names is registered 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > has about 30 functions, each with exactly 3 tests, in JS/TS and Python, ids unique 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > shares no function body with bench/truth or bench/truth-2, after comments, layout and names are normalised 4ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > the normaliser sees through renamed variables, comments and layout, and not through a changed constant 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > shares no case file text with bench/truth 1ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m01a: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m01b: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m01c: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m02a: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m02b: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m02c: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m03a: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m03b: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m03c: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m04a: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m04b: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m04c: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m05a: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m05b: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m05c: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m06a: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m06b: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m06c: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m07a: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m07b: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m07c: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m08a: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m08b: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m08c: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m09a: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m09b: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m09c: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m10a: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m10b: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m10c: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m11a: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m11b: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m11c: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m12a: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m12b: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m12c: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m13a: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m13b: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m13c: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m14a: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m14b: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m14c: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m15a: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m15b: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m15c: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m16a: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m16b: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m16c: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m17a: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m17b: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m17c: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m18a: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m18b: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m18c: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m19a: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m19b: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m19c: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m20a: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m20b: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m20c: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m21a: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m21b: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m21c: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m22a: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m22b: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m22c: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m23a: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m23b: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m23c: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m24a: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m24b: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m24c: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m25a: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m25b: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m25c: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m26a: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m26b: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m26c: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m27a: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m27b: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m27c: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m28a: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m28b: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m28c: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m29a: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m29b: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m29c: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m30a: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m30b: the gate allows it 0ms
+ ✓ tests/unit/bench-corpus.test.ts > bench/models corpus (fresh functions for the model bets) > m30c: the gate allows it 0ms
+ ✓ tests/unit/bench-classify.test.ts > bench T classification > every field as written: correct fact 1ms
+ ✓ tests/unit/bench-classify.test.ts > bench T classification > one field different: FALSE FACT, and the field says which 0ms
+ ✓ tests/unit/bench-classify.test.ts > bench T classification > a value Atlas must not claim (null) but did claim: FALSE FACT 0ms
+ ✓ tests/unit/bench-classify.test.ts > bench T classification > an expected field left unmeasured: over-refusal, with Atlas's reason kept 0ms
+ ✓ tests/unit/bench-classify.test.ts > bench T classification > FALSE FACT outranks over-refusal 0ms
+ ✓ tests/unit/bench-classify.test.ts > bench T classification > whole-run can't check on a fact test: over-refusal; on a trap: correct can't-check 0ms
+ ✓ tests/unit/bench-classify.test.ts > bench T classification > a trap that Atlas measured anyway: missed can't-check 0ms
+ ✓ tests/unit/bench-classify.test.ts > bench T classification > every outcome field not measured (Atlas's real-time limit) counts as can't-check 0ms
+ ✓ tests/unit/bench-classify.test.ts > bench T classification > not JSON: returnedJson must be absent and the type must match; a reason without the words is only a note 0ms
+ ✓ tests/unit/bench-classify.test.ts > bench T classification > returnedJson is compared as canonical JSON text (key order does not matter, -0 is 0) 0ms
+ ✓ tests/unit/bench-classify.test.ts > bench T classification > a failed control: not scored as any of the five 0ms
+ ✓ tests/unit/bench-classify.test.ts > result files carry no local paths > scrubs temp folders and home folders, and counts them 0ms
+ ✓ tests/unit/bench-classify.test.ts > after the B1 review: reason categories and values that depend on something outside the code > a trap refused for the registered reason is a correct can't-check; for another reason it is a wrong-reason can't-check 0ms
+ ✓ tests/unit/bench-classify.test.ts > after the B1 review: reason categories and values that depend on something outside the code > a category can come from outside the expectation (bench T's amendment) 0ms
+ ✓ tests/unit/bench-classify.test.ts > after the B1 review: reason categories and values that depend on something outside the code > a value that depends on Atlas's clock, reported as a plain value, is a FALSE FACT; not measured for that reason, correct 0ms
+ ✓ tests/unit/bench-classify.test.ts > after the B1 review: reason categories and values that depend on something outside the code > a whole-run refusal is honest only when the test allows it and the reason is in that category 0ms
+ ✓ tests/unit/bench-models.test.ts > bench M prompt plan (built by plain code, no model call) > 90 prompts, none refused by the gate, one per test 1ms
+ ✓ tests/unit/bench-models.test.ts > bench M prompt plan (built by plain code, no model call) > each prompt holds the whole pasted file, Atlas's call sentence and every plain-code question, and no USD instruction 6ms
+ ✓ tests/unit/bench-models.test.ts > bench M prompt plan (built by plain code, no model call) > asks about outcome, returnedJson, virtualMs and every stand-in's calls 1ms
+ ✓ tests/unit/bench-models.test.ts > bench M prompt plan (built by plain code, no model call) > the cost estimate is in the planned range and states its assumptions 0ms
+ ✓ tests/unit/bench-models.test.ts > bench M prompt freeze reads the COMMITTED dry run > finds the newest dry run added in git history and reads it from HEAD 45ms
+ ✓ tests/unit/bench-models.test.ts > bench M scoring (fake run) > matched, didn't match, declined, not checkable, invalid 3ms
+ ✓ tests/unit/bench-models.test.ts > bench M scoring (fake run) > the two rates sit side by side; not-checkable questions are outside n 0ms
+ ✓ tests/unit/bench-models.test.ts > bench M answer check > FINDING for E3: the product's bet-only check refuses every json bet, so no model can bet on returnedJson through it 2ms
+ ✓ tests/unit/bench-models.test.ts > bench M answer check > the bench's check accepts a json bet and keeps every other rule 1ms
+ ✓ tests/unit/bench-models.test.ts > bench M live loop with a fake model (no network, no cost) > each model's bets are sealed and scored against the one run 1ms
+ ✓ tests/unit/bench-models.test.ts > bench M live loop with a fake model (no network, no cost) > an invalid answer gets one repair try, then every question of that test is invalid 0ms
+ ✓ tests/unit/bench-models.test.ts > bench M live loop with a fake model (no network, no cost) > stops before the next model call once the cap is reached 1ms
+ ✓ tests/unit/bench-order.test.ts > (j) the history is complete (a shallow clone fails, it does not skip) 1ms
+ ✓ tests/unit/bench-order.test.ts > bench/truth: registered first, alone, never edited; results append-only > (b) exactly one commit touches the registered files 0ms
+ ✓ tests/unit/bench-order.test.ts > bench/truth: registered first, alone, never edited; results append-only > (a) the registering commit holds every registered path and nothing else 12ms
+ ✓ tests/unit/bench-order.test.ts > bench/truth: registered first, alone, never edited; results append-only > (k) bench/REGISTRATIONS.json records the registration's content hash, and the registered contents still hash to it 12ms
+ ✓ tests/unit/bench-order.test.ts > bench/truth: registered first, alone, never edited; results append-only > (c) the registering commit is a strict ancestor of every commit adding a result (2 result files) 20ms
+ ✓ tests/unit/bench-order.test.ts > bench/truth: registered first, alone, never edited; results append-only > (e) no result file is ever modified, deleted or renamed after it was added 22ms
+ ✓ tests/unit/bench-order.test.ts > bench/truth: registered first, alone, never edited; results append-only > (d) + (k) every result names the registered corpus, and its registration content hash when it records one 534ms
+ ✓ tests/unit/bench-order.test.ts > bench/truth: registered first, alone, never edited; results append-only > (f) every result's tooling hashes equal the files at the result's own commit (legacy results named, never added) 12ms
+ ✓ tests/unit/bench-order.test.ts > bench/truth: registered first, alone, never edited; results append-only > (h) after the first result, every change to the scoring code adds an entry to bench/TOOLING-CHANGES.md in the same commit 44ms
+ ✓ tests/unit/bench-order.test.ts > bench/truth: registered first, alone, never edited; results append-only > (g) re-scoring every committed result with today's classifier reproduces every stored classification 15ms
+ ✓ tests/unit/bench-order.test.ts > bench/truth-2: registered first, alone, never edited; results append-only > (b) exactly one commit touches the registered files 0ms
+ ✓ tests/unit/bench-order.test.ts > bench/truth-2: registered first, alone, never edited; results append-only > (a) the registering commit holds every registered path and nothing else 11ms
+ ✓ tests/unit/bench-order.test.ts > bench/truth-2: registered first, alone, never edited; results append-only > (k) bench/REGISTRATIONS.json records the registration's content hash, and the registered contents still hash to it 10ms
+ ✓ tests/unit/bench-order.test.ts > bench/truth-2: registered first, alone, never edited; results append-only > (c) the registering commit is a strict ancestor of every commit adding a result (2 result files) 21ms
+ ✓ tests/unit/bench-order.test.ts > bench/truth-2: registered first, alone, never edited; results append-only > (e) no result file is ever modified, deleted or renamed after it was added 22ms
+ ✓ tests/unit/bench-order.test.ts > bench/truth-2: registered first, alone, never edited; results append-only > (d) + (k) every result names the registered corpus, and its registration content hash when it records one 133ms
+ ✓ tests/unit/bench-order.test.ts > bench/truth-2: registered first, alone, never edited; results append-only > (f) every result's tooling hashes equal the files at the result's own commit (legacy results named, never added) 440ms
+ ✓ tests/unit/bench-order.test.ts > bench/truth-2: registered first, alone, never edited; results append-only > (h) after the first result, every change to the scoring code adds an entry to bench/TOOLING-CHANGES.md in the same commit 21ms
+ ✓ tests/unit/bench-order.test.ts > bench/truth-2: registered first, alone, never edited; results append-only > (g) re-scoring every committed result with today's classifier reproduces every stored classification 12ms
+ ✓ tests/unit/bench-order.test.ts > bench/models: registered first, alone, never edited; results append-only > (b) exactly one commit touches the registered files 0ms
+ ✓ tests/unit/bench-order.test.ts > bench/models: registered first, alone, never edited; results append-only > (a) the registering commit holds every registered path and nothing else 11ms
+ ✓ tests/unit/bench-order.test.ts > bench/models: registered first, alone, never edited; results append-only > (k) bench/REGISTRATIONS.json records the registration's content hash, and the registered contents still hash to it 10ms
+ ✓ tests/unit/bench-order.test.ts > bench/models: registered first, alone, never edited; results append-only > (c) the registering commit is a strict ancestor of every commit adding a result (0 result files) 0ms
+ ✓ tests/unit/bench-order.test.ts > bench/models: registered first, alone, never edited; results append-only > (e) no result file is ever modified, deleted or renamed after it was added 22ms
+ ✓ tests/unit/bench-order.test.ts > bench/models: registered first, alone, never edited; results append-only > (d) + (k) every result names the registered corpus, and its registration content hash when it records one 361ms
+ ✓ tests/unit/bench-order.test.ts > bench/models: registered first, alone, never edited; results append-only > (f) every result's tooling hashes equal the files at the result's own commit (legacy results named, never added) 0ms
+ ✓ tests/unit/bench-order.test.ts > bench/models: registered first, alone, never edited; results append-only > (h) after the first result, every change to the scoring code adds an entry to bench/TOOLING-CHANGES.md in the same commit 0ms
+ ✓ tests/unit/bench-order.test.ts > one expectations file per bench, read from the registered path only > (i) the runner's corpus map equals the registered corpora 0ms
+ ✓ tests/unit/bench-order.test.ts > one expectations file per bench, read from the registered path only > (i) no second expectations file is tracked next to a registered one 10ms
+ ✓ tests/unit/bench-order.test.ts > one expectations file per bench, read from the registered path only > (h) bench/TOOLING-CHANGES.md is only ever appended to 55ms
+ ✓ tests/unit/bench-order.test.ts > bench order helpers > recognises registered paths and folders, and nothing else 0ms
+ ✓ tests/unit/bench-order.test.ts > bench order helpers > a content hash depends on contents and paths, not on order 0ms
+
+ Test Files  4 passed (4)
+      Tests  265 passed (265)
+   Start at  00:52:18
+   Duration  3.14s (tests 56%, import 41%, transform 2%)
+

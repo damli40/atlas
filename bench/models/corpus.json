@@ -1,0 +1,2095 @@
+{
+  "bench": "models",
+  "title": "Do models know what code does? 30 fresh functions x 3 tests, no expected answers (the run decides)",
+  "writtenAt": "2026-10-28",
+  "rule": "bench/models/PASS-RULE.md",
+  "functions": [
+    {
+      "id": "m01",
+      "file": "cases/m01-score-tiers.js",
+      "language": "js",
+      "category": "boundaries",
+      "tests": [
+        {
+          "id": "m01a",
+          "exportName": "tierCounts",
+          "args": [
+            {
+              "kind": "json",
+              "value": [
+                90,
+                75,
+                76,
+                100
+              ]
+            }
+          ]
+        },
+        {
+          "id": "m01b",
+          "exportName": "tierCounts",
+          "args": [
+            {
+              "kind": "json",
+              "value": []
+            }
+          ]
+        },
+        {
+          "id": "m01c",
+          "exportName": "tierCounts",
+          "args": [
+            {
+              "kind": "json",
+              "value": [
+                89.99,
+                75.0001,
+                "95"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m02",
+      "file": "cases/m02-compact-ranges.js",
+      "language": "js",
+      "category": "sorting",
+      "tests": [
+        {
+          "id": "m02a",
+          "exportName": "compactRanges",
+          "args": [
+            {
+              "kind": "json",
+              "value": [
+                3,
+                1,
+                2
+              ]
+            }
+          ]
+        },
+        {
+          "id": "m02b",
+          "exportName": "compactRanges",
+          "args": [
+            {
+              "kind": "json",
+              "value": [
+                10,
+                9,
+                1,
+                2
+              ]
+            }
+          ]
+        },
+        {
+          "id": "m02c",
+          "exportName": "compactRanges",
+          "args": [
+            {
+              "kind": "json",
+              "value": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m03",
+      "file": "cases/m03-budget-retry.ts",
+      "language": "ts",
+      "category": "retry/backoff timing",
+      "tests": [
+        {
+          "id": "m03a",
+          "exportName": "retryWithinBudget",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "call",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "throw",
+                  "errorName": "Error",
+                  "message": "busy"
+                },
+                {
+                  "do": "throw",
+                  "errorName": "Error",
+                  "message": "busy"
+                },
+                {
+                  "do": "return",
+                  "value": "ok"
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 1000
+            }
+          ]
+        },
+        {
+          "id": "m03b",
+          "exportName": "retryWithinBudget",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "call",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "throw",
+                  "errorName": "Error",
+                  "message": "busy"
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 1000
+            }
+          ]
+        },
+        {
+          "id": "m03c",
+          "exportName": "retryWithinBudget",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "call",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "throw",
+                  "errorName": "Error",
+                  "message": "busy"
+                },
+                {
+                  "do": "return",
+                  "value": "late",
+                  "afterMs": 900
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 100
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m04",
+      "file": "cases/m04-step-race.js",
+      "language": "js",
+      "category": "race against a timer",
+      "tests": [
+        {
+          "id": "m04a",
+          "exportName": "runStepsWithLimit",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "step",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": null,
+                  "afterMs": 300
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 3
+            }
+          ]
+        },
+        {
+          "id": "m04b",
+          "exportName": "runStepsWithLimit",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "step",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": null,
+                  "afterMs": 300
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "id": "m04c",
+          "exportName": "runStepsWithLimit",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "step",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": null,
+                  "afterMs": 100
+                },
+                {
+                  "do": "never_settle"
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m05",
+      "file": "cases/m05-shared-fetch.ts",
+      "language": "ts",
+      "category": "caching and concurrency",
+      "tests": [
+        {
+          "id": "m05a",
+          "exportName": "readThreeTimes",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "fetcher",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": {
+                    "name": "Ada"
+                  },
+                  "afterMs": 40
+                },
+                {
+                  "do": "return",
+                  "value": {
+                    "name": "Ada v2"
+                  },
+                  "afterMs": 40
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 30
+            }
+          ]
+        },
+        {
+          "id": "m05b",
+          "exportName": "readThreeTimes",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "fetcher",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": {
+                    "name": "Ada"
+                  },
+                  "afterMs": 40
+                },
+                {
+                  "do": "return",
+                  "value": {
+                    "name": "Ada v2"
+                  },
+                  "afterMs": 40
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 70
+            }
+          ]
+        },
+        {
+          "id": "m05c",
+          "exportName": "readThreeTimes",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "fetcher",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "throw",
+                  "errorName": "Error",
+                  "message": "down"
+                },
+                {
+                  "do": "return",
+                  "value": {
+                    "name": "Ada"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 10
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m06",
+      "file": "cases/m06-version-compare.js",
+      "language": "js",
+      "category": "parser",
+      "tests": [
+        {
+          "id": "m06a",
+          "exportName": "compareVersions",
+          "args": [
+            {
+              "kind": "json",
+              "value": "1.10.0"
+            },
+            {
+              "kind": "json",
+              "value": "1.9.3"
+            }
+          ]
+        },
+        {
+          "id": "m06b",
+          "exportName": "compareVersions",
+          "args": [
+            {
+              "kind": "json",
+              "value": "2.0.0-rc.1"
+            },
+            {
+              "kind": "json",
+              "value": "2.0.0"
+            }
+          ]
+        },
+        {
+          "id": "m06c",
+          "exportName": "compareVersions",
+          "args": [
+            {
+              "kind": "json",
+              "value": "1.2"
+            },
+            {
+              "kind": "json",
+              "value": "1.2.0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m07",
+      "file": "cases/m07-wrap-text.ts",
+      "language": "ts",
+      "category": "formatter",
+      "tests": [
+        {
+          "id": "m07a",
+          "exportName": "wrap",
+          "args": [
+            {
+              "kind": "json",
+              "value": "the quick brown fox jumps"
+            },
+            {
+              "kind": "json",
+              "value": 10
+            }
+          ]
+        },
+        {
+          "id": "m07b",
+          "exportName": "wrap",
+          "args": [
+            {
+              "kind": "json",
+              "value": "a supercalifragilistic word"
+            },
+            {
+              "kind": "json",
+              "value": 8
+            }
+          ]
+        },
+        {
+          "id": "m07c",
+          "exportName": "wrap",
+          "args": [
+            {
+              "kind": "json",
+              "value": "   "
+            },
+            {
+              "kind": "json",
+              "value": 5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m08",
+      "file": "cases/m08-to-cents.js",
+      "language": "js",
+      "category": "money parsing",
+      "tests": [
+        {
+          "id": "m08a",
+          "exportName": "toCents",
+          "args": [
+            {
+              "kind": "json",
+              "value": "$1,234.5"
+            }
+          ]
+        },
+        {
+          "id": "m08b",
+          "exportName": "toCents",
+          "args": [
+            {
+              "kind": "json",
+              "value": "-3.10"
+            }
+          ]
+        },
+        {
+          "id": "m08c",
+          "exportName": "toCents",
+          "args": [
+            {
+              "kind": "json",
+              "value": "12.999"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m09",
+      "file": "cases/m09-business-day.ts",
+      "language": "ts",
+      "category": "dates",
+      "tests": [
+        {
+          "id": "m09a",
+          "exportName": "nextBusinessDay",
+          "args": [
+            {
+              "kind": "json",
+              "value": "2026-01-02"
+            }
+          ]
+        },
+        {
+          "id": "m09b",
+          "exportName": "nextBusinessDay",
+          "args": [
+            {
+              "kind": "json",
+              "value": "2026-02-27"
+            }
+          ]
+        },
+        {
+          "id": "m09c",
+          "exportName": "nextBusinessDay",
+          "args": [
+            {
+              "kind": "json",
+              "value": "2026-13-01"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m10",
+      "file": "cases/m10-breaker.js",
+      "language": "js",
+      "category": "circuit breaker timing",
+      "tests": [
+        {
+          "id": "m10a",
+          "exportName": "fiveTries",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "call",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "throw",
+                  "errorName": "Error",
+                  "message": "e1"
+                },
+                {
+                  "do": "throw",
+                  "errorName": "Error",
+                  "message": "e2"
+                },
+                {
+                  "do": "return",
+                  "value": "fine"
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 400
+            }
+          ]
+        },
+        {
+          "id": "m10b",
+          "exportName": "fiveTries",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "call",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "throw",
+                  "errorName": "Error",
+                  "message": "e1"
+                },
+                {
+                  "do": "return",
+                  "value": "fine"
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 400
+            }
+          ]
+        },
+        {
+          "id": "m10c",
+          "exportName": "fiveTries",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "call",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "throw",
+                  "errorName": "Error",
+                  "message": "e1"
+                },
+                {
+                  "do": "throw",
+                  "errorName": "Error",
+                  "message": "e2"
+                },
+                {
+                  "do": "return",
+                  "value": "fine",
+                  "afterMs": 50
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 100
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m11",
+      "file": "cases/m11-chunked-sum.js",
+      "language": "js",
+      "category": "yielding with zero-delay timers",
+      "tests": [
+        {
+          "id": "m11a",
+          "exportName": "chunkedSum",
+          "args": [
+            {
+              "kind": "json",
+              "value": [
+                1,
+                2,
+                3,
+                4,
+                5
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "id": "m11b",
+          "exportName": "chunkedSum",
+          "args": [
+            {
+              "kind": "json",
+              "value": []
+            },
+            {
+              "kind": "json",
+              "value": 3
+            }
+          ]
+        },
+        {
+          "id": "m11c",
+          "exportName": "chunkedSum",
+          "args": [
+            {
+              "kind": "json",
+              "value": [
+                0.1,
+                0.2,
+                0.3
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m12",
+      "file": "cases/m12-dedupe.ts",
+      "language": "ts",
+      "category": "collections",
+      "tests": [
+        {
+          "id": "m12a",
+          "exportName": "dedupeBy",
+          "args": [
+            {
+              "kind": "json",
+              "value": [
+                {
+                  "id": 1,
+                  "v": "a"
+                },
+                {
+                  "id": 2,
+                  "v": "b"
+                },
+                {
+                  "id": 1,
+                  "v": "c"
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": "id"
+            }
+          ]
+        },
+        {
+          "id": "m12b",
+          "exportName": "dedupeBy",
+          "args": [
+            {
+              "kind": "json",
+              "value": [
+                {
+                  "id": 1
+                },
+                {
+                  "other": 2
+                },
+                {
+                  "other": 3
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": "id"
+            }
+          ]
+        },
+        {
+          "id": "m12c",
+          "exportName": "dedupeBy",
+          "args": [
+            {
+              "kind": "json",
+              "value": [
+                {
+                  "id": "1"
+                },
+                {
+                  "id": 1
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": "id"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m13",
+      "file": "cases/m13-flatten-keys.js",
+      "language": "js",
+      "category": "recursion",
+      "tests": [
+        {
+          "id": "m13a",
+          "exportName": "flattenKeys",
+          "args": [
+            {
+              "kind": "json",
+              "value": {
+                "a": {
+                  "b": 1,
+                  "c": [
+                    true,
+                    null
+                  ]
+                },
+                "d": "x"
+              }
+            }
+          ]
+        },
+        {
+          "id": "m13b",
+          "exportName": "flattenKeys",
+          "args": [
+            {
+              "kind": "json",
+              "value": {
+                "a": {},
+                "b": null
+              }
+            }
+          ]
+        },
+        {
+          "id": "m13c",
+          "exportName": "flattenKeys",
+          "args": [
+            {
+              "kind": "json",
+              "value": {
+                "x.y": {
+                  "z": 1
+                },
+                "x": {
+                  "y.z": 2
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m14",
+      "file": "cases/m14-job-pool.ts",
+      "language": "ts",
+      "category": "concurrency limit",
+      "tests": [
+        {
+          "id": "m14a",
+          "exportName": "runPool",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "job",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": null,
+                  "afterMs": 300
+                },
+                {
+                  "do": "return",
+                  "value": null,
+                  "afterMs": 100
+                },
+                {
+                  "do": "return",
+                  "value": null,
+                  "afterMs": 100
+                },
+                {
+                  "do": "return",
+                  "value": null,
+                  "afterMs": 100
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": [
+                1,
+                2,
+                3,
+                4
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "id": "m14b",
+          "exportName": "runPool",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "job",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": null,
+                  "afterMs": 300
+                },
+                {
+                  "do": "return",
+                  "value": null,
+                  "afterMs": 100
+                },
+                {
+                  "do": "return",
+                  "value": null,
+                  "afterMs": 100
+                },
+                {
+                  "do": "return",
+                  "value": null,
+                  "afterMs": 100
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": [
+                1,
+                2,
+                3,
+                4
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "id": "m14c",
+          "exportName": "runPool",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "job",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": null,
+                  "afterMs": 100
+                },
+                {
+                  "do": "throw",
+                  "errorName": "Error",
+                  "message": "job failed"
+                },
+                {
+                  "do": "return",
+                  "value": null,
+                  "afterMs": 100
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": [
+                1,
+                2,
+                3
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m15",
+      "file": "cases/m15-safe-json.js",
+      "language": "js",
+      "category": "parser",
+      "tests": [
+        {
+          "id": "m15a",
+          "exportName": "safeParse",
+          "args": [
+            {
+              "kind": "json",
+              "value": "[1, 2,]"
+            }
+          ]
+        },
+        {
+          "id": "m15b",
+          "exportName": "safeParse",
+          "args": [
+            {
+              "kind": "json",
+              "value": " null "
+            }
+          ]
+        },
+        {
+          "id": "m15c",
+          "exportName": "safeParse",
+          "args": [
+            {
+              "kind": "json",
+              "value": "{\"a\": 1, \"a\": 2}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m16",
+      "file": "cases/m16-session-timer.js",
+      "language": "js",
+      "category": "virtual clock arithmetic",
+      "tests": [
+        {
+          "id": "m16a",
+          "exportName": "timedSession",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "login",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": "ada",
+                  "afterMs": 120
+                }
+              ]
+            },
+            {
+              "kind": "stand-in",
+              "name": "logout",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": null,
+                  "afterMs": 30
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "m16b",
+          "exportName": "timedSession",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "login",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": "ada"
+                }
+              ]
+            },
+            {
+              "kind": "stand-in",
+              "name": "logout",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "throw",
+                  "errorName": "Error",
+                  "message": "already out"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "m16c",
+          "exportName": "timedSession",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "login",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "never_settle"
+                }
+              ]
+            },
+            {
+              "kind": "stand-in",
+              "name": "logout",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": null
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m17",
+      "file": "cases/m17-percentile.ts",
+      "language": "ts",
+      "category": "math edge cases",
+      "tests": [
+        {
+          "id": "m17a",
+          "exportName": "percentile",
+          "args": [
+            {
+              "kind": "json",
+              "value": [
+                5,
+                1,
+                9,
+                3
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 50
+            }
+          ]
+        },
+        {
+          "id": "m17b",
+          "exportName": "percentile",
+          "args": [
+            {
+              "kind": "json",
+              "value": [
+                10,
+                2,
+                33
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "id": "m17c",
+          "exportName": "percentile",
+          "args": [
+            {
+              "kind": "json",
+              "value": []
+            },
+            {
+              "kind": "json",
+              "value": 90
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m18",
+      "file": "cases/m18-throttle-leading.js",
+      "language": "js",
+      "category": "throttle timing",
+      "tests": [
+        {
+          "id": "m18a",
+          "exportName": "clicks",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "onClick",
+              "async": false,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": null
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 100
+            },
+            {
+              "kind": "json",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "id": "m18b",
+          "exportName": "clicks",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "onClick",
+              "async": false,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": null
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 250
+            },
+            {
+              "kind": "json",
+              "value": 3
+            }
+          ]
+        },
+        {
+          "id": "m18c",
+          "exportName": "clicks",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "onClick",
+              "async": false,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": null
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 0
+            },
+            {
+              "kind": "json",
+              "value": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m19",
+      "file": "cases/m19-parse-kv.py",
+      "language": "py",
+      "category": "parser",
+      "tests": [
+        {
+          "id": "m19a",
+          "exportName": "parse_kv",
+          "args": [
+            {
+              "kind": "json",
+              "value": "a=1; b = two ;c"
+            }
+          ]
+        },
+        {
+          "id": "m19b",
+          "exportName": "parse_kv",
+          "args": [
+            {
+              "kind": "json",
+              "value": "x=007;y=-1;x=2"
+            }
+          ]
+        },
+        {
+          "id": "m19c",
+          "exportName": "parse_kv",
+          "args": [
+            {
+              "kind": "json",
+              "value": ";;"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m20",
+      "file": "cases/m20-merge-intervals.py",
+      "language": "py",
+      "category": "boundaries",
+      "tests": [
+        {
+          "id": "m20a",
+          "exportName": "merge_intervals",
+          "args": [
+            {
+              "kind": "json",
+              "value": [
+                [
+                  1,
+                  3
+                ],
+                [
+                  3,
+                  5
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "id": "m20b",
+          "exportName": "merge_intervals",
+          "args": [
+            {
+              "kind": "json",
+              "value": [
+                [
+                  5,
+                  8
+                ],
+                [
+                  1,
+                  4
+                ],
+                [
+                  2,
+                  3
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "id": "m20c",
+          "exportName": "merge_intervals",
+          "args": [
+            {
+              "kind": "json",
+              "value": [
+                [
+                  1,
+                  2,
+                  3
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m21",
+      "file": "cases/m21-first-ok.py",
+      "language": "py",
+      "category": "timeouts on asyncio",
+      "tests": [
+        {
+          "id": "m21a",
+          "exportName": "first_ok",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "primary",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": 1,
+                  "afterMs": 100
+                }
+              ]
+            },
+            {
+              "kind": "stand-in",
+              "name": "backup",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": 2
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "m21b",
+          "exportName": "first_ok",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "primary",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": 1,
+                  "afterMs": 500
+                }
+              ]
+            },
+            {
+              "kind": "stand-in",
+              "name": "backup",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": 2,
+                  "afterMs": 50
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "m21c",
+          "exportName": "first_ok",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "primary",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "throw",
+                  "errorName": "ConnectionError",
+                  "message": "refused"
+                }
+              ]
+            },
+            {
+              "kind": "stand-in",
+              "name": "backup",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "never_settle"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m22",
+      "file": "cases/m22-loan.py",
+      "language": "py",
+      "category": "money with Decimal",
+      "tests": [
+        {
+          "id": "m22a",
+          "exportName": "schedule",
+          "args": [
+            {
+              "kind": "json",
+              "value": 1000
+            },
+            {
+              "kind": "json",
+              "value": 0
+            },
+            {
+              "kind": "json",
+              "value": 3
+            }
+          ]
+        },
+        {
+          "id": "m22b",
+          "exportName": "schedule",
+          "args": [
+            {
+              "kind": "json",
+              "value": 1200
+            },
+            {
+              "kind": "json",
+              "value": 12
+            },
+            {
+              "kind": "json",
+              "value": 12
+            }
+          ]
+        },
+        {
+          "id": "m22c",
+          "exportName": "schedule",
+          "args": [
+            {
+              "kind": "json",
+              "value": 100
+            },
+            {
+              "kind": "json",
+              "value": 6
+            },
+            {
+              "kind": "json",
+              "value": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m23",
+      "file": "cases/m23-bounded-gather.py",
+      "language": "py",
+      "category": "concurrency limit on asyncio",
+      "tests": [
+        {
+          "id": "m23a",
+          "exportName": "fetch_all",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "fetch",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": "a",
+                  "afterMs": 300
+                },
+                {
+                  "do": "return",
+                  "value": "b",
+                  "afterMs": 100
+                },
+                {
+                  "do": "return",
+                  "value": "c",
+                  "afterMs": 100
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": [
+                1,
+                2,
+                3
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "id": "m23b",
+          "exportName": "fetch_all",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "fetch",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": "a",
+                  "afterMs": 300
+                },
+                {
+                  "do": "return",
+                  "value": "b",
+                  "afterMs": 100
+                },
+                {
+                  "do": "return",
+                  "value": "c",
+                  "afterMs": 100
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": [
+                1,
+                2,
+                3
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 3
+            }
+          ]
+        },
+        {
+          "id": "m23c",
+          "exportName": "fetch_all",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "fetch",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": "a",
+                  "afterMs": 100
+                },
+                {
+                  "do": "throw",
+                  "errorName": "KeyError",
+                  "message": "b"
+                },
+                {
+                  "do": "return",
+                  "value": "c",
+                  "afterMs": 100
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": [
+                1,
+                2,
+                3
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m24",
+      "file": "cases/m24-roman.py",
+      "language": "py",
+      "category": "converter",
+      "tests": [
+        {
+          "id": "m24a",
+          "exportName": "to_roman",
+          "args": [
+            {
+              "kind": "json",
+              "value": 1994
+            }
+          ]
+        },
+        {
+          "id": "m24b",
+          "exportName": "to_roman",
+          "args": [
+            {
+              "kind": "json",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "id": "m24c",
+          "exportName": "to_roman",
+          "args": [
+            {
+              "kind": "json",
+              "value": 4000
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m25",
+      "file": "cases/m25-word-freq.py",
+      "language": "py",
+      "category": "text",
+      "tests": [
+        {
+          "id": "m25a",
+          "exportName": "top_words",
+          "args": [
+            {
+              "kind": "json",
+              "value": "It's the end. The END, it's near!"
+            },
+            {
+              "kind": "json",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "id": "m25b",
+          "exportName": "top_words",
+          "args": [
+            {
+              "kind": "json",
+              "value": "b a b a c"
+            },
+            {
+              "kind": "json",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "id": "m25c",
+          "exportName": "top_words",
+          "args": [
+            {
+              "kind": "json",
+              "value": "123 456"
+            },
+            {
+              "kind": "json",
+              "value": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m26",
+      "file": "cases/m26-retry-sync.py",
+      "language": "py",
+      "category": "blocking retry timing",
+      "tests": [
+        {
+          "id": "m26a",
+          "exportName": "call_with_retries",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "op",
+              "async": false,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "throw",
+                  "errorName": "ValueError",
+                  "message": "bad"
+                },
+                {
+                  "do": "return",
+                  "value": "ok"
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 3
+            }
+          ]
+        },
+        {
+          "id": "m26b",
+          "exportName": "call_with_retries",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "op",
+              "async": false,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "throw",
+                  "errorName": "ValueError",
+                  "message": "bad"
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 3
+            }
+          ]
+        },
+        {
+          "id": "m26c",
+          "exportName": "call_with_retries",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "op",
+              "async": false,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "throw",
+                  "errorName": "TypeError",
+                  "message": "wrong type"
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m27",
+      "file": "cases/m27-watchdog.py",
+      "language": "py",
+      "category": "timeouts on asyncio",
+      "tests": [
+        {
+          "id": "m27a",
+          "exportName": "count_beats",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "beat",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": null,
+                  "afterMs": 400
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 3
+            }
+          ]
+        },
+        {
+          "id": "m27b",
+          "exportName": "count_beats",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "beat",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": null,
+                  "afterMs": 400
+                },
+                {
+                  "do": "never_settle"
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 3
+            }
+          ]
+        },
+        {
+          "id": "m27c",
+          "exportName": "count_beats",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "beat",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": null,
+                  "afterMs": 999
+                },
+                {
+                  "do": "return",
+                  "value": null,
+                  "afterMs": 1001
+                }
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m28",
+      "file": "cases/m28-phone.py",
+      "language": "py",
+      "category": "parser",
+      "tests": [
+        {
+          "id": "m28a",
+          "exportName": "normalize_phone",
+          "args": [
+            {
+              "kind": "json",
+              "value": "(555) 010-9999"
+            }
+          ]
+        },
+        {
+          "id": "m28b",
+          "exportName": "normalize_phone",
+          "args": [
+            {
+              "kind": "json",
+              "value": "+44 20 7946 0958"
+            }
+          ]
+        },
+        {
+          "id": "m28c",
+          "exportName": "normalize_phone",
+          "args": [
+            {
+              "kind": "json",
+              "value": "1-555-010-99999"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m29",
+      "file": "cases/m29-inventory.py",
+      "language": "py",
+      "category": "exceptions",
+      "tests": [
+        {
+          "id": "m29a",
+          "exportName": "apply_orders",
+          "args": [
+            {
+              "kind": "json",
+              "value": {
+                "pen": 3,
+                "ink": 1
+              }
+            },
+            {
+              "kind": "json",
+              "value": [
+                [
+                  "pen",
+                  2
+                ],
+                [
+                  "ink",
+                  1
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "id": "m29b",
+          "exportName": "apply_orders",
+          "args": [
+            {
+              "kind": "json",
+              "value": {
+                "pen": 3
+              }
+            },
+            {
+              "kind": "json",
+              "value": [
+                [
+                  "pen",
+                  2
+                ],
+                [
+                  "pen",
+                  2
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "id": "m29c",
+          "exportName": "apply_orders",
+          "args": [
+            {
+              "kind": "json",
+              "value": {}
+            },
+            {
+              "kind": "json",
+              "value": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m30",
+      "file": "cases/m30-thresholds.py",
+      "language": "py",
+      "category": "boundaries",
+      "tests": [
+        {
+          "id": "m30a",
+          "exportName": "band",
+          "args": [
+            {
+              "kind": "json",
+              "value": [
+                10,
+                20,
+                20,
+                30
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 20
+            }
+          ]
+        },
+        {
+          "id": "m30b",
+          "exportName": "band",
+          "args": [
+            {
+              "kind": "json",
+              "value": [
+                10,
+                20,
+                30
+              ]
+            },
+            {
+              "kind": "json",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "id": "m30c",
+          "exportName": "band",
+          "args": [
+            {
+              "kind": "json",
+              "value": []
+            },
+            {
+              "kind": "json",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+
+ RUN  v5.0.5 <repo>
+
+
+ Test Files  114 passed | 2 skipped (116)
+      Tests  1795 passed | 35 skipped (1830)
+   Start at  13:24:58
+   Duration  76.66s (tests 83%, import 16%, transform 1%)
+
+
+===== run 2 =====
+
+ RUN  v5.0.5 <repo>
+
+
+ Test Files  114 passed | 2 skipped (116)
+      Tests  1795 passed | 35 skipped (1830)
+   Start at  13:26:21
+   Duration  119.23s (tests 87%, import 13%)
+

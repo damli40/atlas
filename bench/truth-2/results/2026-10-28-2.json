@@ -1,0 +1,1742 @@
+{
+  "meta": {
+    "bench": "truth-2",
+    "date": "2026-10-28",
+    "startedAt": "2026-10-28T12:21:48.678Z",
+    "wallSeconds": 17.6,
+    "executor": "local (Node --permission for JS/TS; macOS sandbox-exec for Python)",
+    "node": "v25.8.1",
+    "python": "3.14.7",
+    "platform": "darwin arm64",
+    "commit": "a5dcb45e0f03fbf59587c3859990784df62ba322",
+    "dirty": false,
+    "corpusSha256": "acc033bb728a5576a6e6d8b22dfd5b44097ddb83f8ce6e16f6a24147fe4bb972",
+    "filesInCorpus": 8,
+    "testsInCorpus": 22,
+    "testsRun": 22,
+    "factTests": 21,
+    "trapTests": 1,
+    "partial": false,
+    "costUsd": 0,
+    "sources": {
+      "cases/h01-cpu-elapsed.js": "57586a607e3dd42dc2237470fac5531c883e3214c9142f91f7263110976daa3d",
+      "cases/h02-unref.js": "3ecf8919fedbc959dd80ee2ebed804336961b583bd58806d552d9ca04eb10963",
+      "cases/h03-order.js": "978fdebb5030bb27402e77644f7b2a16cad71f8750a60388082aa571e316545f",
+      "cases/h04-env.js": "76265747e8d5d3c677329e74e352b8ea2746982bf52c1371238750c8f2e85559",
+      "cases/h05-interval.js": "798a590add375ed07ae1eb1f3f5c154b371d3229aa081e09a5ee1b03ad7e6376",
+      "cases/p01-set-order.py": "cbf51263732611162cc279db6b8a3f310606d90ddeb453db4a6580407033ca43",
+      "cases/p02-timing.py": "c39e328a690d38ad1f6bfb441cde5f6e3c984cef21d97b040ba9ca854dde6dd2",
+      "cases/h06-inner-type.js": "e34900f436ff22c8c817f5c946b7e5a0020a9f7cdf95a2e0c28bce98c9a0f7d6"
+    },
+    "corpusPath": "bench/truth-2/expected.json",
+    "registrationSha256": "c6bbdc0be07a3c6ecd71bf3d4d619bfb382cc02fadb6eec028055d44f9e5cb27",
+    "tooling": {
+      "bench/lib/corpus.ts": "b22357e94614d8e3d22fed69d9dede9a8e7ff39ef5e7a20b8b5ed8983fced63f",
+      "bench/lib/registration.ts": "826dc5e8f1d614a2168f0e63442fd04b6f71f7e182ea3db9179f3300cec98e4f",
+      "bench/truth/classify.ts": "28ceef11133f5e9d4684ebe0c9281dd11b9f4258fbe2e61f8afbc76fd81f5669",
+      "bench/truth/run.ts": "27633b8b78b1995126139ab34b37378c80db937040ecb9d2749f892f3692def8",
+      "runners/change.ts": "96408956558baea9e410cb791a46baafc176db8fbde0652fa31b615b0deba0a7",
+      "runners/evm/anvil.ts": "75cd4604975705b34a121d8a6ce87183dbbac08dd14c9eb1a83625bcfcdf584e",
+      "runners/evm/apply.ts": "5d7c1a320bfa2a02fca2164c8b4dbe3325a64ab4080c8a9d010391d349f1d535",
+      "runners/evm/chain-facts.ts": "dcefb9fec20a99996b57d332e6bd04e43edb71989daa27a194e02d22e26e8627",
+      "runners/evm/control.ts": "30da73c9d9c5692c916c37c18a9c95af87ab32f4fbe60be6afcf5dcbc06b8f4b",
+      "runners/evm/level2.ts": "d928430ec7fe2561a35e1d45f34338d667c3885f775cc3a7f57b824def2d7ca3",
+      "runners/evm/moonwell-base.ts": "65d058c034b5b258002ab5cbcd6e1645819a24ccdaa640d074c5efb7a67c027b",
+      "runners/evm/reads.ts": "8f5a241d753aaacf9109c3e57392f5bb9e0a65bcc47f99230564bb2a4e7c66cc",
+      "runners/evm/redact.ts": "b28d9f25db2c55c566d26dd28265142e00bab40a672f2ba3a4088a9ddfb063c7",
+      "runners/evm/runner.ts": "6e2eeb8c88df101d095aea4d7e04a1e904aa6e25c7ac35401555a337244751e5",
+      "runners/executor/local.ts": "45f769fe5b9f79650c53ccaa2e00c9af0260a19a1f6a94bd5675c57d85c0fe3c",
+      "runners/executor/modal.ts": "77b4aec5af7dd2c323e775d213ae1f42bcd7609b18948fdd99d318fa61f33a0b",
+      "runners/executor/sandbox-exec-python.ts": "30f64c564a70b00d67b9802ddecbf6ccb344aaae24176349030f9f3abb90abc7",
+      "runners/executor/select.ts": "39e18bb7cb012ba09e2d89768673e0682df334e8da8d2cf46fcb9b57a788c42f",
+      "runners/executor/warm.ts": "695ea85bb9a458aa75cbabb3c331ed7d7942fb6553f665aa9da8c88242545d69",
+      "runners/pasted-registry.ts": "283c2b372f39dce86736aaa41bac75c9993296fe2022fb5b7ab4b1ab510e9855",
+      "runners/py/boot.py": "73e5750c429f2d3fbcca3d4003be0f0d83fe0e7205d4420f220419e068320f72",
+      "runners/py/exposed.py": "8ed186fad24d9fe6849a182fe9a9f0d4f9a451a4d648e79fd31b70c219c06f2e",
+      "runners/py/harness.py": "9d22c9378165e93c7400a43eb78e5db72bdea0f0d863145f12ed812248da6468",
+      "runners/py/py-runner.ts": "d14ee5dcdb508a3fe9622a4121b298a690abcccf47cea9af032ce233597ff62b",
+      "runners/py/py-words.ts": "570ac7051a33b036b7f470aee3fb57da11f8531ff9e898b52bd45e951a4a60f1",
+      "runners/py/reference.py": "196641fda4c757157fed40cd6b9b9cb03e26c09f8172e0515beb8f84da5e3d48",
+      "runners/runner.ts": "bb90223bec072badd61b8db314fe5e64e518720c179a1a22a34140df2234600a",
+      "runners/scratch.ts": "50e5cd043f0f1a4ae20b3382ee64f0c4104d98f48843e831fea76b82e58b6909",
+      "runners/ts/call-harness.ts": "dd4a9f4fcd4e5a40932ca991d39317d798c5a6495dc5aace1d481a9bcb82d763",
+      "runners/ts/call-reference.ts": "3f5252cbfa26af3dc514112f80e3e342420605be7e8f31960a3a7a1905162097",
+      "runners/ts/call-runner.ts": "a431f9df82219b194eeb2d5da4e2e0a77a996b4c554d2955618b4f56f930cdcd",
+      "runners/ts/call-words.ts": "aa806c066dff3c84b2996293a3b8f565f8318c9a7fe3c0cd6841f0d139ee4365",
+      "runners/ts/call-worker.ts": "be7c8ed38283c9f6e7259769f08bbae4dfcac2658de22369e9d224306d73ffa5",
+      "runners/ts/control.ts": "f943f42e651fe08685850098f47feab4107072efaba58ff887ef9ebcf1ec28fa",
+      "runners/ts/harness.ts": "268725991b73a8f93a59abf8b776f915fc2a047d094d75cd6b59acc6586d552e",
+      "runners/ts/primordials.ts": "d36659c46c3db264c41c63942bc7db8b8f76cee525dd2a35da135a5fa45dd4a5",
+      "runners/ts/shapes.ts": "d409f7d0e0ba4e09bebde5af8f9e3b8ec63ca2fc1944fc031d55e8a15f206aa4",
+      "runners/ts/worker.ts": "dc45452f36436d1fe387d40970663ae856c2567d3590b07555ee542c169db1e8",
+      "src/gate.ts": "5772159d44a7cefa2180355bb0cec055f5e245e39d53ea9d2c5fe4b101555e81",
+      "src/pasted-code.ts": "05bc45b45f17cfbadacfdcdda96bbd52d05ede62f607c256f6a1a0010344a51c",
+      "src/pasted-python.ts": "d593630184c94aa4433ffc5ee08e569f88b9e4bdaa6f9f1e8f04e3074b8776d3",
+      "src/seal.ts": "22e9a13fa6c3d7baa9a8c83177a6c8170049bd6742d801dc4c827dd4e55285b1",
+      "src/types.ts": "51f7718734a32550fb7348cfee4d3da1da4a6f84701f34f3c820e2f3aa61e990"
+    },
+    "reasonCategories": {
+      "categories": {
+        "real-time": [
+          "limit of REAL time",
+          "finishes in real time"
+        ],
+        "race": [
+          "background work .* while a timer"
+        ],
+        "network-or-files": [
+          "tried to use the network/files"
+        ],
+        "package": [
+          "^the code needs "
+        ],
+        "stdlib-not-loaded": [
+          "does not load into its Python sandbox"
+        ],
+        "codegen": [
+          "run code made from text"
+        ],
+        "process": [
+          "end or control the process"
+        ],
+        "syntax": [
+          "could not run the code as written"
+        ],
+        "uncaught": [
+          "failed with nobody catching it"
+        ],
+        "threads": [
+          "\\bthreads?\\b",
+          "thread pool"
+        ],
+        "clock": [
+          "clock",
+          "cpu time",
+          "elapsed"
+        ],
+        "randomness": [
+          "random",
+          "seed"
+        ],
+        "scheduling": [
+          "order",
+          "schedul"
+        ],
+        "host": [
+          "time ?zone",
+          "host",
+          "machine"
+        ],
+        "process-lifetime": [
+          "unref",
+          "keeps? the process alive",
+          "process would (exit|end|stop)"
+        ]
+      },
+      "perTest": {}
+    },
+    "fieldsCompared": 75,
+    "amendments": {
+      "bench/truth-2/AMENDMENT-1.md": "67d1463e6d1ea3e2efe16cca78787a89993cb77d789e1b174b5e5067f8ee30c6"
+    },
+    "labelsInForce": true,
+    "factTestsWithConditions": 15,
+    "factTestsWithNoCondition": 6,
+    "doubleRunRefusals": 0,
+    "conditionKinds": {
+      "clock": 5,
+      "timed-work": 3,
+      "unref-timer": 2,
+      "timer-order": 1,
+      "tick-order": 1,
+      "time-zone-or-locale": 1,
+      "randomness": 2,
+      "hash-seed": 4
+    },
+    "fieldVerdicts": {
+      "correct": 68,
+      "correct (labelled)": 7
+    }
+  },
+  "counts": {
+    "correct (labelled)": 7,
+    "correct can't-check": 4,
+    "correct fact": 11
+  },
+  "byLanguage": {
+    "js": {
+      "correct (labelled)": 5,
+      "correct can't-check": 4,
+      "correct fact": 6
+    },
+    "py": {
+      "correct (labelled)": 2,
+      "correct fact": 5
+    }
+  },
+  "tests": [
+    {
+      "id": "h01a",
+      "functionId": "h01",
+      "file": "cases/h01-cpu-elapsed.js",
+      "language": "js",
+      "category": "cpu timing",
+      "exportName": "timeWork",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": {
+          "dependsOn": "clock"
+        },
+        "virtualMs": 0,
+        "wholeRunCantCheckOk": "clock",
+        "returnedType": "object"
+      },
+      "why": "The function times CPU work with Date.now() and performance.now(). A real run measures about 100 ms; Atlas's clock does not move during CPU work, so the returned numbers are about Atlas's clock, not the code. Honest: the returned value is not reported as a plain fact (or the whole run is can't-check for that reason). The call does return an object at virtual time 0.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": {
+            "dependsOn": "clock"
+          },
+          "measured": "{\"dateMs\":0,\"perfMsOver1\":false,\"x\":4095}",
+          "verdict": "correct (labelled)",
+          "label": "timed-work"
+        },
+        {
+          "field": "returnedType",
+          "expected": "object",
+          "measured": "object",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct (labelled)",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "object",
+        "returnedJson": "{\"dateMs\":0,\"perfMsOver1\":false,\"x\":4095}"
+      },
+      "notMeasured": {
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "conditions": [
+        {
+          "kind": "clock",
+          "says": "This code read the clock. Atlas's clock is simulated (it starts at 2026-01-01T00:00:00Z and moves only while the code waits), so time-based values are Atlas's, not your machine's."
+        },
+        {
+          "kind": "timed-work",
+          "says": "This code timed its own work: it read the clock more than once at the same moment of Atlas's simulated clock, which moves only while the code waits. Elapsed times read 0 ms here and don't reflect your machine."
+        }
+      ],
+      "seed": "20260101",
+      "timeZone": "UTC",
+      "locale": "en-US",
+      "twinMeasured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "object",
+        "returnedJson": "{\"dateMs\":0,\"perfMsOver1\":false,\"x\":4095}"
+      },
+      "runId": "VSTU-W-Thy",
+      "controlRunId": "vK406p_sEl",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 712
+    },
+    {
+      "id": "h01b",
+      "functionId": "h01",
+      "file": "cases/h01-cpu-elapsed.js",
+      "language": "js",
+      "category": "cpu timing",
+      "exportName": "spinWait",
+      "expected": {
+        "cantCheck": true,
+        "because": "A busy-wait on Date.now() never ends on a clock that only moves when the code is idle; a real run returns 'waited' after 50 ms. Atlas cannot run it honestly.",
+        "reasonCategory": [
+          "clock",
+          "real-time"
+        ]
+      },
+      "why": "Busy-wait. Can't check (safe), with a clock or real-time reason.",
+      "fields": [],
+      "notes": [],
+      "classification": "correct can't-check",
+      "cantCheckReason": "the code ran past Atlas's 10000 ms limit of REAL time (it may loop without ever handing control back), so Atlas stopped it",
+      "measured": {},
+      "notMeasured": {
+        "wholeRun": "the code ran past Atlas's 10000 ms limit of REAL time (it may loop without ever handing control back), so Atlas stopped it"
+      },
+      "conditions": [],
+      "seed": "20260101",
+      "timeZone": "UTC",
+      "locale": "en-US",
+      "runId": "UUB6PIY8tH",
+      "controlRunId": "vK406p_sEl",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 10010
+    },
+    {
+      "id": "h02a",
+      "functionId": "h02",
+      "file": "cases/h02-unref.js",
+      "language": "js",
+      "category": "unref",
+      "exportName": "unrefWait",
+      "expected": {
+        "outcome": {
+          "dependsOn": "process-lifetime"
+        },
+        "wholeRunCantCheckOk": "process-lifetime"
+      },
+      "why": "The wait is on an unref'd timer. Awaited inside a process that something else keeps alive, it returns 'done' at 100 ms; called from a plain script, the process exits first and the call never ends. Which one is true depends on the caller, not the code. Honest: how the call ends is not reported as a plain fact. (The review rated this one minor: context-dependent.)",
+      "fields": [],
+      "notes": [],
+      "classification": "correct can't-check",
+      "cantCheckReason": "the call was waiting only on an unref'd timer, which does not keep a Node process alive: called from a plain script the process would exit before the timer fires, called inside a program that stays up it fires; that depends on the caller, not on the code, so how the call ends was not seen",
+      "measured": {},
+      "notMeasured": {
+        "outcome": "the call was waiting only on an unref'd timer, which does not keep a Node process alive: called from a plain script the process would exit before the timer fires, called inside a program that stays up it fires; that depends on the caller, not on the code, so how the call ends was not seen",
+        "returnedJson": "the call was waiting only on an unref'd timer, which does not keep a Node process alive: called from a plain script the process would exit before the timer fires, called inside a program that stays up it fires; that depends on the caller, not on the code, so how the call ends was not seen",
+        "returnedType": "the call was waiting only on an unref'd timer, which does not keep a Node process alive: called from a plain script the process would exit before the timer fires, called inside a program that stays up it fires; that depends on the caller, not on the code, so how the call ends was not seen",
+        "thrownName": "the call was waiting only on an unref'd timer, which does not keep a Node process alive: called from a plain script the process would exit before the timer fires, called inside a program that stays up it fires; that depends on the caller, not on the code, so how the call ends was not seen",
+        "thrownMessage": "the call was waiting only on an unref'd timer, which does not keep a Node process alive: called from a plain script the process would exit before the timer fires, called inside a program that stays up it fires; that depends on the caller, not on the code, so how the call ends was not seen",
+        "virtualMs": "the call was waiting only on an unref'd timer, which does not keep a Node process alive: called from a plain script the process would exit before the timer fires, called inside a program that stays up it fires; that depends on the caller, not on the code, so how the call ends was not seen"
+      },
+      "conditions": [
+        {
+          "kind": "unref-timer",
+          "says": "This code waited on an unref'd timer, which does not keep a Node process alive. Whether it fires depends on what else keeps the process running, so Atlas did not report what depends on it."
+        }
+      ],
+      "seed": "20260101",
+      "timeZone": "UTC",
+      "locale": "en-US",
+      "twinMeasured": {},
+      "runId": "KdAT6TrZM6",
+      "controlRunId": "vK406p_sEl",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 368
+    },
+    {
+      "id": "h02b",
+      "functionId": "h02",
+      "file": "cases/h02-unref.js",
+      "language": "js",
+      "category": "unref",
+      "exportName": "abortOnly",
+      "expected": {
+        "outcome": {
+          "dependsOn": "process-lifetime"
+        },
+        "wholeRunCantCheckOk": "process-lifetime"
+      },
+      "why": "AbortSignal.timeout's timer is unref'd in Node too; same as h02a.",
+      "fields": [],
+      "notes": [],
+      "classification": "correct can't-check",
+      "cantCheckReason": "the call was waiting only on an unref'd timer, which does not keep a Node process alive: called from a plain script the process would exit before the timer fires, called inside a program that stays up it fires; that depends on the caller, not on the code, so how the call ends was not seen",
+      "measured": {},
+      "notMeasured": {
+        "outcome": "the call was waiting only on an unref'd timer, which does not keep a Node process alive: called from a plain script the process would exit before the timer fires, called inside a program that stays up it fires; that depends on the caller, not on the code, so how the call ends was not seen",
+        "returnedJson": "the call was waiting only on an unref'd timer, which does not keep a Node process alive: called from a plain script the process would exit before the timer fires, called inside a program that stays up it fires; that depends on the caller, not on the code, so how the call ends was not seen",
+        "returnedType": "the call was waiting only on an unref'd timer, which does not keep a Node process alive: called from a plain script the process would exit before the timer fires, called inside a program that stays up it fires; that depends on the caller, not on the code, so how the call ends was not seen",
+        "thrownName": "the call was waiting only on an unref'd timer, which does not keep a Node process alive: called from a plain script the process would exit before the timer fires, called inside a program that stays up it fires; that depends on the caller, not on the code, so how the call ends was not seen",
+        "thrownMessage": "the call was waiting only on an unref'd timer, which does not keep a Node process alive: called from a plain script the process would exit before the timer fires, called inside a program that stays up it fires; that depends on the caller, not on the code, so how the call ends was not seen",
+        "virtualMs": "the call was waiting only on an unref'd timer, which does not keep a Node process alive: called from a plain script the process would exit before the timer fires, called inside a program that stays up it fires; that depends on the caller, not on the code, so how the call ends was not seen"
+      },
+      "conditions": [
+        {
+          "kind": "unref-timer",
+          "says": "This code waited on an unref'd timer, which does not keep a Node process alive. Whether it fires depends on what else keeps the process running, so Atlas did not report what depends on it."
+        }
+      ],
+      "seed": "20260101",
+      "timeZone": "UTC",
+      "locale": "en-US",
+      "twinMeasured": {},
+      "runId": "7cAwomvx4G",
+      "controlRunId": "vK406p_sEl",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 296
+    },
+    {
+      "id": "h03a",
+      "functionId": "h03",
+      "file": "cases/h03-order.js",
+      "language": "js",
+      "category": "order",
+      "exportName": "immediateVsTimeout",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": {
+          "dependsOn": "scheduling"
+        },
+        "virtualMs": 5,
+        "wholeRunCantCheckOk": "scheduling",
+        "returnedType": "array"
+      },
+      "why": "A 0 ms timer and a setImmediate queued together run in either order in real Node (26 of 30 vs 4 of 30 in the review). Honest: the returned order is not reported as a plain fact.",
+      "fields": [],
+      "notes": [],
+      "classification": "correct can't-check",
+      "cantCheckReason": "the code queued callbacks whose order Node leaves open (a 0 ms timer next to setImmediate, or process.nextTick next to promise callbacks, whose order depends on how the call is started), so the order Atlas ran them in is Atlas's choice, not a fact about the code, so how the call ends was not seen",
+      "measured": {},
+      "notMeasured": {
+        "outcome": "the code queued callbacks whose order Node leaves open (a 0 ms timer next to setImmediate, or process.nextTick next to promise callbacks, whose order depends on how the call is started), so the order Atlas ran them in is Atlas's choice, not a fact about the code, so how the call ends was not seen",
+        "returnedJson": "the code queued callbacks whose order Node leaves open (a 0 ms timer next to setImmediate, or process.nextTick next to promise callbacks, whose order depends on how the call is started), so the order Atlas ran them in is Atlas's choice, not a fact about the code, so how the call ends was not seen",
+        "returnedType": "the code queued callbacks whose order Node leaves open (a 0 ms timer next to setImmediate, or process.nextTick next to promise callbacks, whose order depends on how the call is started), so the order Atlas ran them in is Atlas's choice, not a fact about the code, so how the call ends was not seen",
+        "thrownName": "the code queued callbacks whose order Node leaves open (a 0 ms timer next to setImmediate, or process.nextTick next to promise callbacks, whose order depends on how the call is started), so the order Atlas ran them in is Atlas's choice, not a fact about the code, so how the call ends was not seen",
+        "thrownMessage": "the code queued callbacks whose order Node leaves open (a 0 ms timer next to setImmediate, or process.nextTick next to promise callbacks, whose order depends on how the call is started), so the order Atlas ran them in is Atlas's choice, not a fact about the code, so how the call ends was not seen",
+        "virtualMs": "the code queued callbacks whose order Node leaves open (a 0 ms timer next to setImmediate, or process.nextTick next to promise callbacks, whose order depends on how the call is started), so the order Atlas ran them in is Atlas's choice, not a fact about the code, so how the call ends was not seen"
+      },
+      "conditions": [
+        {
+          "kind": "timer-order",
+          "says": "This code queued callbacks whose order Node leaves open (a 0 ms timer next to setImmediate, or process.nextTick next to promise callbacks). The order Atlas ran them in is Atlas's choice, so Atlas did not report how the call ended."
+        }
+      ],
+      "seed": "20260101",
+      "timeZone": "UTC",
+      "locale": "en-US",
+      "twinMeasured": {},
+      "runId": "coIb9yRZNa",
+      "controlRunId": "vK406p_sEl",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 288
+    },
+    {
+      "id": "h03b",
+      "functionId": "h03",
+      "file": "cases/h03-order.js",
+      "language": "js",
+      "category": "order",
+      "exportName": "tickVsPromise",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": {
+          "dependsOn": "scheduling"
+        },
+        "virtualMs": 1,
+        "wholeRunCantCheckOk": "scheduling",
+        "returnedType": "array"
+      },
+      "why": "process.nextTick vs a promise callback: the order depends on how the caller starts the call (inside a promise callback or directly). Honest: the order is not a plain fact about the code.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": {
+            "dependsOn": "scheduling"
+          },
+          "measured": "[\"promise\",\"nextTick\"]",
+          "verdict": "correct (labelled)",
+          "label": "tick-order"
+        },
+        {
+          "field": "returnedType",
+          "expected": "array",
+          "measured": "array",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 1,
+          "measured": 1,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct (labelled)",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 1,
+        "returnedType": "array",
+        "returnedJson": "[\"promise\",\"nextTick\"]"
+      },
+      "notMeasured": {
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "conditions": [
+        {
+          "kind": "tick-order",
+          "says": "This code used process.nextTick next to promise callbacks. Their order depends on how the function is called; Atlas calls it from a plain async function (promise callbacks first), as an ES module would."
+        }
+      ],
+      "seed": "20260101",
+      "timeZone": "UTC",
+      "locale": "en-US",
+      "twinMeasured": {
+        "outcome": "returned",
+        "virtualMs": 1,
+        "returnedType": "array",
+        "returnedJson": "[\"promise\",\"nextTick\"]"
+      },
+      "runId": "4qKmGm3DKH",
+      "controlRunId": "vK406p_sEl",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 371
+    },
+    {
+      "id": "h04a",
+      "functionId": "h04",
+      "file": "cases/h04-env.js",
+      "language": "js",
+      "category": "env",
+      "exportName": "localHour",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": {
+          "dependsOn": "host"
+        },
+        "virtualMs": 0,
+        "wholeRunCantCheckOk": "host",
+        "returnedType": "object"
+      },
+      "why": "The local hour, offset and time-zone name depend on the machine (and reveal its location). Honest: not a plain fact, or the run pins a time zone and says so (see PASS-RULE).",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": {
+            "dependsOn": "host"
+          },
+          "measured": "{\"hour\":0,\"offset\":0,\"tz\":\"UTC\"}",
+          "verdict": "correct (labelled)",
+          "label": "time-zone-or-locale"
+        },
+        {
+          "field": "returnedType",
+          "expected": "object",
+          "measured": "object",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct (labelled)",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "object",
+        "returnedJson": "{\"hour\":0,\"offset\":0,\"tz\":\"UTC\"}"
+      },
+      "notMeasured": {
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "conditions": [
+        {
+          "kind": "clock",
+          "says": "This code read the clock. Atlas's clock is simulated (it starts at 2026-01-01T00:00:00Z and moves only while the code waits), so time-based values are Atlas's, not your machine's."
+        },
+        {
+          "kind": "timed-work",
+          "says": "This code timed its own work: it read the clock more than once at the same moment of Atlas's simulated clock, which moves only while the code waits. Elapsed times read 0 ms here and don't reflect your machine."
+        },
+        {
+          "kind": "time-zone-or-locale",
+          "says": "This code read the time zone or the locale (local hours, toLocaleString, Intl, Python's localtime, ...). Atlas runs every call in time zone UTC with locale en-US, so local times and formats are UTC / en-US ones, not your machine's."
+        }
+      ],
+      "seed": "20260101",
+      "timeZone": "UTC",
+      "locale": "en-US",
+      "twinMeasured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "object",
+        "returnedJson": "{\"hour\":0,\"offset\":0,\"tz\":\"UTC\"}"
+      },
+      "runId": "uJptEvoo15",
+      "controlRunId": "vK406p_sEl",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 359
+    },
+    {
+      "id": "h04b",
+      "functionId": "h04",
+      "file": "cases/h04-env.js",
+      "language": "js",
+      "category": "env",
+      "exportName": "coin",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": {
+          "dependsOn": "randomness"
+        },
+        "virtualMs": 0,
+        "wholeRunCantCheckOk": "randomness",
+        "returnedType": "string"
+      },
+      "why": "Math.random(): heads or tails at random. Not a fact about the code.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": {
+            "dependsOn": "randomness"
+          },
+          "measured": "\"tails\"",
+          "verdict": "correct (labelled)",
+          "label": "randomness"
+        },
+        {
+          "field": "returnedType",
+          "expected": "string",
+          "measured": "string",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct (labelled)",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "string",
+        "returnedJson": "\"tails\""
+      },
+      "notMeasured": {
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "conditions": [
+        {
+          "kind": "randomness",
+          "says": "This code used randomness (Math.random, crypto random values, Python's random, uuid or secrets). Atlas pins it to seed 20260101, so the random values are the ones that seed gives, the same on every Atlas run, not the ones your machine would give."
+        }
+      ],
+      "seed": "20260101",
+      "timeZone": "UTC",
+      "locale": "en-US",
+      "twinMeasured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "string",
+        "returnedJson": "\"tails\""
+      },
+      "runId": "YIaO4jcbtR",
+      "controlRunId": "vK406p_sEl",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 307
+    },
+    {
+      "id": "h04c",
+      "functionId": "h04",
+      "file": "cases/h04-env.js",
+      "language": "js",
+      "category": "env",
+      "exportName": "uuidPrefix",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": {
+          "dependsOn": "randomness"
+        },
+        "virtualMs": 0,
+        "wholeRunCantCheckOk": "randomness",
+        "returnedType": "string"
+      },
+      "why": "crypto.randomUUID(): random. Not a fact about the code.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": {
+            "dependsOn": "randomness"
+          },
+          "measured": "\"b6cb50a1\"",
+          "verdict": "correct (labelled)",
+          "label": "randomness"
+        },
+        {
+          "field": "returnedType",
+          "expected": "string",
+          "measured": "string",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct (labelled)",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "string",
+        "returnedJson": "\"b6cb50a1\""
+      },
+      "notMeasured": {
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "conditions": [
+        {
+          "kind": "randomness",
+          "says": "This code used randomness (Math.random, crypto random values, Python's random, uuid or secrets). Atlas pins it to seed 20260101, so the random values are the ones that seed gives, the same on every Atlas run, not the ones your machine would give."
+        }
+      ],
+      "seed": "20260101",
+      "timeZone": "UTC",
+      "locale": "en-US",
+      "twinMeasured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "string",
+        "returnedJson": "\"b6cb50a1\""
+      },
+      "runId": "-77gIGfCZS",
+      "controlRunId": "vK406p_sEl",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 366
+    },
+    {
+      "id": "h05a",
+      "functionId": "h05",
+      "file": "cases/h05-interval.js",
+      "language": "js",
+      "category": "interval",
+      "exportName": "ticks",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": 3,
+        "returnedType": "number",
+        "virtualMs": 3,
+        "calls": {
+          "cb": 3
+        }
+      },
+      "why": "setInterval 0 ms (really 1 ms) cleared after 3 ticks: returns 3 at 3 ms; cb called 3 times. Real Node agrees (review step 3).",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "3",
+          "measured": "3",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "number",
+          "measured": "number",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 3,
+          "measured": 3,
+          "verdict": "correct"
+        },
+        {
+          "field": "calls:cb",
+          "expected": 3,
+          "measured": 3,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 3,
+        "returnedType": "number",
+        "returnedJson": "3",
+        "calls:cb": 3
+      },
+      "notMeasured": {
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "conditions": [],
+      "seed": "20260101",
+      "timeZone": "UTC",
+      "locale": "en-US",
+      "twinMeasured": {
+        "outcome": "returned",
+        "virtualMs": 3,
+        "returnedType": "number",
+        "returnedJson": "3",
+        "calls:cb": 3
+      },
+      "runId": "V1uc25n2F-",
+      "controlRunId": "vK406p_sEl",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 386
+    },
+    {
+      "id": "h05b",
+      "functionId": "h05",
+      "file": "cases/h05-interval.js",
+      "language": "js",
+      "category": "interval",
+      "exportName": "refreshed",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": 160,
+        "returnedType": "number",
+        "virtualMs": 160
+      },
+      "why": "timer.refresh() at 60 ms restarts the 100 ms timer, which fires at 160 ms. Real Node agrees.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "160",
+          "measured": "160",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "number",
+          "measured": "number",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 160,
+          "measured": 160,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 160,
+        "returnedType": "number",
+        "returnedJson": "160"
+      },
+      "notMeasured": {
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "conditions": [
+        {
+          "kind": "clock",
+          "says": "This code read the clock. Atlas's clock is simulated (it starts at 2026-01-01T00:00:00Z and moves only while the code waits), so time-based values are Atlas's, not your machine's."
+        }
+      ],
+      "seed": "20260101",
+      "timeZone": "UTC",
+      "locale": "en-US",
+      "twinMeasured": {
+        "outcome": "returned",
+        "virtualMs": 160,
+        "returnedType": "number",
+        "returnedJson": "160"
+      },
+      "runId": "R-6H7WVUHy",
+      "controlRunId": "vK406p_sEl",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 414
+    },
+    {
+      "id": "q01a",
+      "functionId": "q01",
+      "file": "cases/p01-set-order.py",
+      "language": "py",
+      "category": "py values",
+      "exportName": "fruit_list",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": {
+          "dependsOn": "randomness"
+        },
+        "virtualMs": 0,
+        "wholeRunCantCheckOk": "randomness",
+        "returnedType": "array"
+      },
+      "why": "list() of a set of strings: its order depends on Python's hash seed, random per process. Honest: not a plain fact (or run under a fixed seed and say so).",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": {
+            "dependsOn": "randomness"
+          },
+          "measured": "[\"cherry\",\"date\",\"banana\",\"grape\",\"fig\",\"elder\",\"apple\"]",
+          "verdict": "correct (labelled)",
+          "label": "hash-seed"
+        },
+        {
+          "field": "returnedType",
+          "expected": "array",
+          "measured": "array",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct (labelled)",
+      "measured": {
+        "outcome": "returned",
+        "returnedJson": "[\"cherry\",\"date\",\"banana\",\"grape\",\"fig\",\"elder\",\"apple\"]",
+        "returnedType": "array",
+        "virtualMs": 0
+      },
+      "notMeasured": {
+        "thrownMessage": "the call returned, so nothing was thrown",
+        "thrownName": "the call returned, so nothing was thrown"
+      },
+      "conditions": [
+        {
+          "kind": "hash-seed",
+          "says": "This code builds a set or calls hash(). Python orders a set of text or bytes by a hash seed that changes every time Python starts; Atlas pins that seed to 20260101, so such an order is Atlas's pinned one, not your machine's. A set of objects without a hash of their own is ordered by memory addresses instead, which Atlas does not pin."
+        }
+      ],
+      "seed": "20260101",
+      "timeZone": "UTC",
+      "locale": "C",
+      "twinMeasured": {
+        "outcome": "returned",
+        "returnedJson": "[\"cherry\",\"date\",\"banana\",\"grape\",\"fig\",\"elder\",\"apple\"]",
+        "returnedType": "array",
+        "virtualMs": 0
+      },
+      "runId": "lV8xFPq-C3",
+      "controlRunId": "1T4NCKknrr",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 366
+    },
+    {
+      "id": "q01b",
+      "functionId": "q01",
+      "file": "cases/p01-set-order.py",
+      "language": "py",
+      "category": "py values",
+      "exportName": "int_keys",
+      "expected": {
+        "outcome": "returned",
+        "returnedNotJson": {
+          "type": "object",
+          "reasonMentions": "key"
+        },
+        "virtualMs": 0
+      },
+      "why": "{1: 'a', True: 'b', '1': 'c'} is {1: 'b', '1': 'c'} in Python (1 and True are the same key); a non-text key is not JSON. Its type is object.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": null,
+          "measured": null,
+          "verdict": "correct",
+          "notMeasured": "the returned value is not stored as plain JSON: it has a key that is not text, which JSON would change"
+        },
+        {
+          "field": "returnedType",
+          "expected": "object",
+          "measured": "object",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "returnedType": "object",
+        "virtualMs": 0
+      },
+      "notMeasured": {
+        "returnedJson": "the returned value is not stored as plain JSON: it has a key that is not text, which JSON would change",
+        "thrownMessage": "the call returned, so nothing was thrown",
+        "thrownName": "the call returned, so nothing was thrown"
+      },
+      "conditions": [
+        {
+          "kind": "hash-seed",
+          "says": "This code builds a set or calls hash(). Python orders a set of text or bytes by a hash seed that changes every time Python starts; Atlas pins that seed to 20260101, so such an order is Atlas's pinned one, not your machine's. A set of objects without a hash of their own is ordered by memory addresses instead, which Atlas does not pin."
+        }
+      ],
+      "seed": "20260101",
+      "timeZone": "UTC",
+      "locale": "C",
+      "twinMeasured": {
+        "outcome": "returned",
+        "returnedType": "object",
+        "virtualMs": 0
+      },
+      "runId": "nkYr094iXV",
+      "controlRunId": "1T4NCKknrr",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 248
+    },
+    {
+      "id": "q01c",
+      "functionId": "q01",
+      "file": "cases/p01-set-order.py",
+      "language": "py",
+      "category": "py values",
+      "exportName": "tuple_inside",
+      "expected": {
+        "outcome": "returned",
+        "returnedNotJson": {
+          "type": "array",
+          "reasonMentions": "tuple"
+        },
+        "virtualMs": 0
+      },
+      "why": "A list holding a tuple. The returned value is a list (type array); it is not JSON because of the tuple inside. Atlas currently reports the inner item's type (review B-1).",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": null,
+          "measured": null,
+          "verdict": "correct",
+          "notMeasured": "the returned value is not stored as plain JSON: an item inside it (at [0], tuple) is not plain JSON: it is a tuple, which Atlas does not store as JSON (only lists are)"
+        },
+        {
+          "field": "returnedType",
+          "expected": "array",
+          "measured": "array",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "returnedType": "array",
+        "virtualMs": 0
+      },
+      "notMeasured": {
+        "returnedJson": "the returned value is not stored as plain JSON: an item inside it (at [0], tuple) is not plain JSON: it is a tuple, which Atlas does not store as JSON (only lists are)",
+        "thrownMessage": "the call returned, so nothing was thrown",
+        "thrownName": "the call returned, so nothing was thrown"
+      },
+      "conditions": [
+        {
+          "kind": "hash-seed",
+          "says": "This code builds a set or calls hash(). Python orders a set of text or bytes by a hash seed that changes every time Python starts; Atlas pins that seed to 20260101, so such an order is Atlas's pinned one, not your machine's. A set of objects without a hash of their own is ordered by memory addresses instead, which Atlas does not pin."
+        }
+      ],
+      "seed": "20260101",
+      "timeZone": "UTC",
+      "locale": "C",
+      "twinMeasured": {
+        "outcome": "returned",
+        "returnedType": "array",
+        "virtualMs": 0
+      },
+      "runId": "j-sa_hhiex",
+      "controlRunId": "1T4NCKknrr",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 240
+    },
+    {
+      "id": "q01d",
+      "functionId": "q01",
+      "file": "cases/p01-set-order.py",
+      "language": "py",
+      "category": "py values",
+      "exportName": "float_two",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": 2,
+        "returnedType": "number",
+        "virtualMs": 0
+      },
+      "why": "2.0 is written 2 under Atlas's stated JSON rule (JavaScript number forms); a convention, stated in the pass rule.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "2",
+          "measured": "2",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "number",
+          "measured": "number",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "returnedJson": "2",
+        "returnedType": "number",
+        "virtualMs": 0
+      },
+      "notMeasured": {
+        "thrownMessage": "the call returned, so nothing was thrown",
+        "thrownName": "the call returned, so nothing was thrown"
+      },
+      "conditions": [
+        {
+          "kind": "hash-seed",
+          "says": "This code builds a set or calls hash(). Python orders a set of text or bytes by a hash seed that changes every time Python starts; Atlas pins that seed to 20260101, so such an order is Atlas's pinned one, not your machine's. A set of objects without a hash of their own is ordered by memory addresses instead, which Atlas does not pin."
+        }
+      ],
+      "seed": "20260101",
+      "timeZone": "UTC",
+      "locale": "C",
+      "twinMeasured": {
+        "outcome": "returned",
+        "returnedJson": "2",
+        "returnedType": "number",
+        "virtualMs": 0
+      },
+      "runId": "_o2wX1oetQ",
+      "controlRunId": "1T4NCKknrr",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 243
+    },
+    {
+      "id": "q02a",
+      "functionId": "q02",
+      "file": "cases/p02-timing.py",
+      "language": "py",
+      "category": "py timing",
+      "exportName": "block_then_await",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": [
+          "v",
+          500
+        ],
+        "returnedType": "array",
+        "virtualMs": 500,
+        "calls": {
+          "fetch": 1
+        }
+      },
+      "why": "The task's fetch answers at 100 ms, but time.sleep(0.5) blocks the loop until 500 ms; then the task is already done. Returns ['v', 500] at 500 ms. Real Python agrees.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "[\"v\",500]",
+          "measured": "[\"v\",500]",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "array",
+          "measured": "array",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 500,
+          "measured": 500,
+          "verdict": "correct"
+        },
+        {
+          "field": "calls:fetch",
+          "expected": 1,
+          "measured": 1,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "calls:fetch": 1,
+        "outcome": "returned",
+        "returnedJson": "[\"v\",500]",
+        "returnedType": "array",
+        "virtualMs": 500
+      },
+      "notMeasured": {
+        "thrownMessage": "the call returned, so nothing was thrown",
+        "thrownName": "the call returned, so nothing was thrown"
+      },
+      "conditions": [
+        {
+          "kind": "clock",
+          "says": "This code read the clock. Atlas's clock is simulated (it starts at 2026-01-01T00:00:00Z and moves only while the code waits), so time-based values are Atlas's, not your machine's."
+        }
+      ],
+      "seed": "20260101",
+      "timeZone": "UTC",
+      "locale": "C",
+      "twinMeasured": {
+        "calls:fetch": 1,
+        "outcome": "returned",
+        "returnedJson": "[\"v\",500]",
+        "returnedType": "array",
+        "virtualMs": 500
+      },
+      "runId": "TSxWuVSuMN",
+      "controlRunId": "1T4NCKknrr",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 243
+    },
+    {
+      "id": "q02b",
+      "functionId": "q02",
+      "file": "cases/p02-timing.py",
+      "language": "py",
+      "category": "py timing",
+      "exportName": "deadline",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": "timed out",
+        "returnedType": "string",
+        "virtualMs": 100,
+        "calls": {
+          "fetch": 1
+        }
+      },
+      "why": "wait_for with 0.1 s against a 0.5 s answer: TimeoutError at 100 ms, caught. Real Python agrees.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": "\"timed out\"",
+          "measured": "\"timed out\"",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedType",
+          "expected": "string",
+          "measured": "string",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 100,
+          "measured": 100,
+          "verdict": "correct"
+        },
+        {
+          "field": "calls:fetch",
+          "expected": 1,
+          "measured": 1,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "calls:fetch": 1,
+        "outcome": "returned",
+        "returnedJson": "\"timed out\"",
+        "returnedType": "string",
+        "virtualMs": 100
+      },
+      "notMeasured": {
+        "thrownMessage": "the call returned, so nothing was thrown",
+        "thrownName": "the call returned, so nothing was thrown"
+      },
+      "conditions": [],
+      "seed": "20260101",
+      "timeZone": "UTC",
+      "locale": "C",
+      "twinMeasured": {
+        "calls:fetch": 1,
+        "outcome": "returned",
+        "returnedJson": "\"timed out\"",
+        "returnedType": "string",
+        "virtualMs": 100
+      },
+      "runId": "5TFxhaqQK8",
+      "controlRunId": "1T4NCKknrr",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 236
+    },
+    {
+      "id": "q02c",
+      "functionId": "q02",
+      "file": "cases/p02-timing.py",
+      "language": "py",
+      "category": "py timing",
+      "exportName": "cpu_elapsed",
+      "expected": {
+        "outcome": "returned",
+        "returnedJson": {
+          "dependsOn": "clock"
+        },
+        "virtualMs": 0,
+        "wholeRunCantCheckOk": "clock",
+        "returnedType": "boolean"
+      },
+      "why": "perf_counter around CPU work: a real run takes more than 1 ms; Atlas's clock does not move during CPU work. Honest: not a plain fact.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": {
+            "dependsOn": "clock"
+          },
+          "measured": "false",
+          "verdict": "correct (labelled)",
+          "label": "timed-work"
+        },
+        {
+          "field": "returnedType",
+          "expected": "boolean",
+          "measured": "boolean",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct (labelled)",
+      "measured": {
+        "outcome": "returned",
+        "returnedJson": "false",
+        "returnedType": "boolean",
+        "virtualMs": 0
+      },
+      "notMeasured": {
+        "thrownMessage": "the call returned, so nothing was thrown",
+        "thrownName": "the call returned, so nothing was thrown"
+      },
+      "conditions": [
+        {
+          "kind": "clock",
+          "says": "This code read the clock. Atlas's clock is simulated (it starts at 2026-01-01T00:00:00Z and moves only while the code waits), so time-based values are Atlas's, not your machine's."
+        },
+        {
+          "kind": "timed-work",
+          "says": "This code timed its own work: it read the clock more than once at the same moment of Atlas's simulated clock, which moves only while the code waits. Elapsed times read 0 ms here and don't reflect your machine."
+        }
+      ],
+      "seed": "20260101",
+      "timeZone": "UTC",
+      "locale": "C",
+      "twinMeasured": {
+        "outcome": "returned",
+        "returnedJson": "false",
+        "returnedType": "boolean",
+        "virtualMs": 0
+      },
+      "runId": "OLXi9GoSm8",
+      "controlRunId": "1T4NCKknrr",
+      "controlPassed": true,
+      "executor": "local",
+      "pythonVersion": "3.14.7",
+      "realMs": 463
+    },
+    {
+      "id": "h06a",
+      "functionId": "h06",
+      "file": "cases/h06-inner-type.js",
+      "language": "js",
+      "category": "inner type",
+      "exportName": "bigInList",
+      "expected": {
+        "outcome": "returned",
+        "returnedNotJson": {
+          "type": "array",
+          "reasonMentions": "BigInt"
+        },
+        "virtualMs": 0
+      },
+      "why": "[1n]: an array (not JSON because of the BigInt inside). Atlas currently reports 'bigint' (review B-1).",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": null,
+          "measured": null,
+          "verdict": "correct",
+          "notMeasured": "the returned value is not stored as plain JSON: an item inside it (at [0], bigint) is not plain JSON: it is a BigInt, which JSON cannot hold"
+        },
+        {
+          "field": "returnedType",
+          "expected": "array",
+          "measured": "array",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "array"
+      },
+      "notMeasured": {
+        "returnedJson": "the returned value is not stored as plain JSON: an item inside it (at [0], bigint) is not plain JSON: it is a BigInt, which JSON cannot hold",
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "conditions": [],
+      "seed": "20260101",
+      "timeZone": "UTC",
+      "locale": "en-US",
+      "twinMeasured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "array"
+      },
+      "runId": "QbBAZ_gkVY",
+      "controlRunId": "vK406p_sEl",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 439
+    },
+    {
+      "id": "h06b",
+      "functionId": "h06",
+      "file": "cases/h06-inner-type.js",
+      "language": "js",
+      "category": "inner type",
+      "exportName": "nanInList",
+      "expected": {
+        "outcome": "returned",
+        "returnedNotJson": {
+          "type": "array",
+          "reasonMentions": "NaN"
+        },
+        "virtualMs": 0
+      },
+      "why": "[1, NaN]: an array. Atlas currently reports 'number (NaN)'.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": null,
+          "measured": null,
+          "verdict": "correct",
+          "notMeasured": "the returned value is not stored as plain JSON: an item inside it (at [1], number (NaN)) is not plain JSON: it is NaN, which JSON cannot hold"
+        },
+        {
+          "field": "returnedType",
+          "expected": "array",
+          "measured": "array",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "array"
+      },
+      "notMeasured": {
+        "returnedJson": "the returned value is not stored as plain JSON: an item inside it (at [1], number (NaN)) is not plain JSON: it is NaN, which JSON cannot hold",
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "conditions": [],
+      "seed": "20260101",
+      "timeZone": "UTC",
+      "locale": "en-US",
+      "twinMeasured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "array"
+      },
+      "runId": "AJzuECPmgJ",
+      "controlRunId": "vK406p_sEl",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 435
+    },
+    {
+      "id": "h06c",
+      "functionId": "h06",
+      "file": "cases/h06-inner-type.js",
+      "language": "js",
+      "category": "inner type",
+      "exportName": "undefinedInObject",
+      "expected": {
+        "outcome": "returned",
+        "returnedNotJson": {
+          "type": "object",
+          "reasonMentions": "undefined"
+        },
+        "virtualMs": 0
+      },
+      "why": "{ a: undefined }: an object. Atlas currently reports 'undefined'.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": null,
+          "measured": null,
+          "verdict": "correct",
+          "notMeasured": "the returned value is not stored as plain JSON: an item inside it (at .a, undefined) is not plain JSON: it is undefined, which JSON cannot hold"
+        },
+        {
+          "field": "returnedType",
+          "expected": "object",
+          "measured": "object",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "object"
+      },
+      "notMeasured": {
+        "returnedJson": "the returned value is not stored as plain JSON: an item inside it (at .a, undefined) is not plain JSON: it is undefined, which JSON cannot hold",
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "conditions": [],
+      "seed": "20260101",
+      "timeZone": "UTC",
+      "locale": "en-US",
+      "twinMeasured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "object"
+      },
+      "runId": "02lUiUkuZ_",
+      "controlRunId": "vK406p_sEl",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 426
+    },
+    {
+      "id": "h06d",
+      "functionId": "h06",
+      "file": "cases/h06-inner-type.js",
+      "language": "js",
+      "category": "inner type",
+      "exportName": "dateInObject",
+      "expected": {
+        "outcome": "returned",
+        "returnedNotJson": {
+          "type": "object",
+          "reasonMentions": "Date"
+        },
+        "virtualMs": 0
+      },
+      "why": "{ when: Date }: a plain object holding a Date. Atlas currently reports 'object (Date)'.",
+      "fields": [
+        {
+          "field": "outcome",
+          "expected": "returned",
+          "measured": "returned",
+          "verdict": "correct"
+        },
+        {
+          "field": "returnedJson",
+          "expected": null,
+          "measured": null,
+          "verdict": "correct",
+          "notMeasured": "the returned value is not stored as plain JSON: an item inside it (at .when, object (Date)) is not plain JSON: it is not a plain object (it has its own class)"
+        },
+        {
+          "field": "returnedType",
+          "expected": "object",
+          "measured": "object",
+          "verdict": "correct"
+        },
+        {
+          "field": "virtualMs",
+          "expected": 0,
+          "measured": 0,
+          "verdict": "correct"
+        }
+      ],
+      "notes": [],
+      "classification": "correct fact",
+      "measured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "object"
+      },
+      "notMeasured": {
+        "returnedJson": "the returned value is not stored as plain JSON: an item inside it (at .when, object (Date)) is not plain JSON: it is not a plain object (it has its own class)",
+        "thrownName": "the call returned, so nothing was thrown",
+        "thrownMessage": "the call returned, so nothing was thrown"
+      },
+      "conditions": [],
+      "seed": "20260101",
+      "timeZone": "UTC",
+      "locale": "en-US",
+      "twinMeasured": {
+        "outcome": "returned",
+        "virtualMs": 0,
+        "returnedType": "object"
+      },
+      "runId": "yCNxpNDLcv",
+      "controlRunId": "vK406p_sEl",
+      "controlPassed": true,
+      "executor": "local",
+      "realMs": 420
+    }
+  ]
+}

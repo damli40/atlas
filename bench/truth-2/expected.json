@@ -1,0 +1,485 @@
+{
+  "bench": "truth-2",
+  "title": "Bench T2: the failures found by the B1 review, with what an honest Atlas should report, written before any T2 run",
+  "writtenAt": "2026-10-28",
+  "rule": "bench/truth-2/PASS-RULE.md",
+  "source": "the B1 adversarial review's harder cases (scratch b1r/hard), copied unchanged",
+  "reasonCategories": {
+    "real-time": [
+      "limit of REAL time",
+      "finishes in real time"
+    ],
+    "race": [
+      "background work .* while a timer"
+    ],
+    "network-or-files": [
+      "tried to use the network/files"
+    ],
+    "package": [
+      "^the code needs "
+    ],
+    "stdlib-not-loaded": [
+      "does not load into its Python sandbox"
+    ],
+    "codegen": [
+      "run code made from text"
+    ],
+    "process": [
+      "end or control the process"
+    ],
+    "syntax": [
+      "could not run the code as written"
+    ],
+    "uncaught": [
+      "failed with nobody catching it"
+    ],
+    "threads": [
+      "\\bthreads?\\b",
+      "thread pool"
+    ],
+    "clock": [
+      "clock",
+      "cpu time",
+      "elapsed"
+    ],
+    "randomness": [
+      "random",
+      "seed"
+    ],
+    "scheduling": [
+      "order",
+      "schedul"
+    ],
+    "host": [
+      "time ?zone",
+      "host",
+      "machine"
+    ],
+    "process-lifetime": [
+      "unref",
+      "keeps? the process alive",
+      "process would (exit|end|stop)"
+    ]
+  },
+  "functions": [
+    {
+      "id": "h01",
+      "file": "cases/h01-cpu-elapsed.js",
+      "language": "js",
+      "category": "cpu timing",
+      "tests": [
+        {
+          "id": "h01a",
+          "exportName": "timeWork",
+          "args": [],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": {
+              "dependsOn": "clock"
+            },
+            "virtualMs": 0,
+            "wholeRunCantCheckOk": "clock",
+            "returnedType": "object"
+          },
+          "why": "The function times CPU work with Date.now() and performance.now(). A real run measures about 100 ms; Atlas's clock does not move during CPU work, so the returned numbers are about Atlas's clock, not the code. Honest: the returned value is not reported as a plain fact (or the whole run is can't-check for that reason). The call does return an object at virtual time 0."
+        },
+        {
+          "id": "h01b",
+          "exportName": "spinWait",
+          "args": [],
+          "expect": {
+            "cantCheck": true,
+            "because": "A busy-wait on Date.now() never ends on a clock that only moves when the code is idle; a real run returns 'waited' after 50 ms. Atlas cannot run it honestly.",
+            "reasonCategory": [
+              "clock",
+              "real-time"
+            ]
+          },
+          "why": "Busy-wait. Can't check (safe), with a clock or real-time reason."
+        }
+      ]
+    },
+    {
+      "id": "h02",
+      "file": "cases/h02-unref.js",
+      "language": "js",
+      "category": "unref",
+      "tests": [
+        {
+          "id": "h02a",
+          "exportName": "unrefWait",
+          "args": [],
+          "expect": {
+            "outcome": {
+              "dependsOn": "process-lifetime"
+            },
+            "wholeRunCantCheckOk": "process-lifetime"
+          },
+          "why": "The wait is on an unref'd timer. Awaited inside a process that something else keeps alive, it returns 'done' at 100 ms; called from a plain script, the process exits first and the call never ends. Which one is true depends on the caller, not the code. Honest: how the call ends is not reported as a plain fact. (The review rated this one minor: context-dependent.)"
+        },
+        {
+          "id": "h02b",
+          "exportName": "abortOnly",
+          "args": [],
+          "expect": {
+            "outcome": {
+              "dependsOn": "process-lifetime"
+            },
+            "wholeRunCantCheckOk": "process-lifetime"
+          },
+          "why": "AbortSignal.timeout's timer is unref'd in Node too; same as h02a."
+        }
+      ]
+    },
+    {
+      "id": "h03",
+      "file": "cases/h03-order.js",
+      "language": "js",
+      "category": "order",
+      "tests": [
+        {
+          "id": "h03a",
+          "exportName": "immediateVsTimeout",
+          "args": [],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": {
+              "dependsOn": "scheduling"
+            },
+            "virtualMs": 5,
+            "wholeRunCantCheckOk": "scheduling",
+            "returnedType": "array"
+          },
+          "why": "A 0 ms timer and a setImmediate queued together run in either order in real Node (26 of 30 vs 4 of 30 in the review). Honest: the returned order is not reported as a plain fact."
+        },
+        {
+          "id": "h03b",
+          "exportName": "tickVsPromise",
+          "args": [],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": {
+              "dependsOn": "scheduling"
+            },
+            "virtualMs": 1,
+            "wholeRunCantCheckOk": "scheduling",
+            "returnedType": "array"
+          },
+          "why": "process.nextTick vs a promise callback: the order depends on how the caller starts the call (inside a promise callback or directly). Honest: the order is not a plain fact about the code."
+        }
+      ]
+    },
+    {
+      "id": "h04",
+      "file": "cases/h04-env.js",
+      "language": "js",
+      "category": "env",
+      "tests": [
+        {
+          "id": "h04a",
+          "exportName": "localHour",
+          "args": [],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": {
+              "dependsOn": "host"
+            },
+            "virtualMs": 0,
+            "wholeRunCantCheckOk": "host",
+            "returnedType": "object"
+          },
+          "why": "The local hour, offset and time-zone name depend on the machine (and reveal its location). Honest: not a plain fact, or the run pins a time zone and says so (see PASS-RULE)."
+        },
+        {
+          "id": "h04b",
+          "exportName": "coin",
+          "args": [],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": {
+              "dependsOn": "randomness"
+            },
+            "virtualMs": 0,
+            "wholeRunCantCheckOk": "randomness",
+            "returnedType": "string"
+          },
+          "why": "Math.random(): heads or tails at random. Not a fact about the code."
+        },
+        {
+          "id": "h04c",
+          "exportName": "uuidPrefix",
+          "args": [],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": {
+              "dependsOn": "randomness"
+            },
+            "virtualMs": 0,
+            "wholeRunCantCheckOk": "randomness",
+            "returnedType": "string"
+          },
+          "why": "crypto.randomUUID(): random. Not a fact about the code."
+        }
+      ]
+    },
+    {
+      "id": "h05",
+      "file": "cases/h05-interval.js",
+      "language": "js",
+      "category": "interval",
+      "tests": [
+        {
+          "id": "h05a",
+          "exportName": "ticks",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "cb",
+              "async": false,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": null
+                }
+              ]
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": 3,
+            "returnedType": "number",
+            "virtualMs": 3,
+            "calls": {
+              "cb": 3
+            }
+          },
+          "why": "setInterval 0 ms (really 1 ms) cleared after 3 ticks: returns 3 at 3 ms; cb called 3 times. Real Node agrees (review step 3)."
+        },
+        {
+          "id": "h05b",
+          "exportName": "refreshed",
+          "args": [],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": 160,
+            "returnedType": "number",
+            "virtualMs": 160
+          },
+          "why": "timer.refresh() at 60 ms restarts the 100 ms timer, which fires at 160 ms. Real Node agrees."
+        }
+      ]
+    },
+    {
+      "id": "q01",
+      "file": "cases/p01-set-order.py",
+      "language": "py",
+      "category": "py values",
+      "tests": [
+        {
+          "id": "q01a",
+          "exportName": "fruit_list",
+          "args": [],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": {
+              "dependsOn": "randomness"
+            },
+            "virtualMs": 0,
+            "wholeRunCantCheckOk": "randomness",
+            "returnedType": "array"
+          },
+          "why": "list() of a set of strings: its order depends on Python's hash seed, random per process. Honest: not a plain fact (or run under a fixed seed and say so)."
+        },
+        {
+          "id": "q01b",
+          "exportName": "int_keys",
+          "args": [],
+          "expect": {
+            "outcome": "returned",
+            "returnedNotJson": {
+              "type": "object",
+              "reasonMentions": "key"
+            },
+            "virtualMs": 0
+          },
+          "why": "{1: 'a', True: 'b', '1': 'c'} is {1: 'b', '1': 'c'} in Python (1 and True are the same key); a non-text key is not JSON. Its type is object."
+        },
+        {
+          "id": "q01c",
+          "exportName": "tuple_inside",
+          "args": [],
+          "expect": {
+            "outcome": "returned",
+            "returnedNotJson": {
+              "type": "array",
+              "reasonMentions": "tuple"
+            },
+            "virtualMs": 0
+          },
+          "why": "A list holding a tuple. The returned value is a list (type array); it is not JSON because of the tuple inside. Atlas currently reports the inner item's type (review B-1)."
+        },
+        {
+          "id": "q01d",
+          "exportName": "float_two",
+          "args": [],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": 2,
+            "returnedType": "number",
+            "virtualMs": 0
+          },
+          "why": "2.0 is written 2 under Atlas's stated JSON rule (JavaScript number forms); a convention, stated in the pass rule."
+        }
+      ]
+    },
+    {
+      "id": "q02",
+      "file": "cases/p02-timing.py",
+      "language": "py",
+      "category": "py timing",
+      "tests": [
+        {
+          "id": "q02a",
+          "exportName": "block_then_await",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "fetch",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": "v",
+                  "afterMs": 100
+                }
+              ]
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": [
+              "v",
+              500
+            ],
+            "returnedType": "array",
+            "virtualMs": 500,
+            "calls": {
+              "fetch": 1
+            }
+          },
+          "why": "The task's fetch answers at 100 ms, but time.sleep(0.5) blocks the loop until 500 ms; then the task is already done. Returns ['v', 500] at 500 ms. Real Python agrees."
+        },
+        {
+          "id": "q02b",
+          "exportName": "deadline",
+          "args": [
+            {
+              "kind": "stand-in",
+              "name": "fetch",
+              "async": true,
+              "then": "repeat_last",
+              "calls": [
+                {
+                  "do": "return",
+                  "value": "v",
+                  "afterMs": 500
+                }
+              ]
+            }
+          ],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": "timed out",
+            "returnedType": "string",
+            "virtualMs": 100,
+            "calls": {
+              "fetch": 1
+            }
+          },
+          "why": "wait_for with 0.1 s against a 0.5 s answer: TimeoutError at 100 ms, caught. Real Python agrees."
+        },
+        {
+          "id": "q02c",
+          "exportName": "cpu_elapsed",
+          "args": [],
+          "expect": {
+            "outcome": "returned",
+            "returnedJson": {
+              "dependsOn": "clock"
+            },
+            "virtualMs": 0,
+            "wholeRunCantCheckOk": "clock",
+            "returnedType": "boolean"
+          },
+          "why": "perf_counter around CPU work: a real run takes more than 1 ms; Atlas's clock does not move during CPU work. Honest: not a plain fact."
+        }
+      ]
+    },
+    {
+      "id": "h06",
+      "file": "cases/h06-inner-type.js",
+      "language": "js",
+      "category": "inner type",
+      "tests": [
+        {
+          "id": "h06a",
+          "exportName": "bigInList",
+          "args": [],
+          "expect": {
+            "outcome": "returned",
+            "returnedNotJson": {
+              "type": "array",
+              "reasonMentions": "BigInt"
+            },
+            "virtualMs": 0
+          },
+          "why": "[1n]: an array (not JSON because of the BigInt inside). Atlas currently reports 'bigint' (review B-1)."
+        },
+        {
+          "id": "h06b",
+          "exportName": "nanInList",
+          "args": [],
+          "expect": {
+            "outcome": "returned",
+            "returnedNotJson": {
+              "type": "array",
+              "reasonMentions": "NaN"
+            },
+            "virtualMs": 0
+          },
+          "why": "[1, NaN]: an array. Atlas currently reports 'number (NaN)'."
+        },
+        {
+          "id": "h06c",
+          "exportName": "undefinedInObject",
+          "args": [],
+          "expect": {
+            "outcome": "returned",
+            "returnedNotJson": {
+              "type": "object",
+              "reasonMentions": "undefined"
+            },
+            "virtualMs": 0
+          },
+          "why": "{ a: undefined }: an object. Atlas currently reports 'undefined'."
+        },
+        {
+          "id": "h06d",
+          "exportName": "dateInObject",
+          "args": [],
+          "expect": {
+            "outcome": "returned",
+            "returnedNotJson": {
+              "type": "object",
+              "reasonMentions": "Date"
+            },
+            "virtualMs": 0
+          },
+          "why": "{ when: Date }: a plain object holding a Date. Atlas currently reports 'object (Date)'."
+        }
+      ]
+    }
+  ]
+}

@@ -14,5 +14,6 @@
     "types": ["node"],
     "resolveJsonModule": true
   },
-  "include": ["src", "server", "web", "runners", "tests", "tools", "plugins", "vite.config.ts"]
+  "include": ["src", "server", "web", "runners", "tests", "tools", "plugins", "bench", "vite.config.ts"],
+  "exclude": ["bench/truth/cases", "bench/truth-2/cases", "bench/models/cases"]
 }

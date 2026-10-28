@@ -1,0 +1,25 @@
+
+ RUN  v5.0.5 <repo>
+
+
+ Test Files  91 passed (91)
+      Tests  1272 passed | 19 skipped (1291)
+   Start at  00:11:38
+   Duration  70.48s (tests 87%, import 12%)
+
+    Isolate  91 workers spawned · ~197ms startup each (spawn + environment, per file)
+             at least ~4.29s faster with isolate: false — reuses workers across files instead of one per file
+
+===== run 2 (same commit) =====
+
+ RUN  v5.0.5 <repo>
+
+
+ Test Files  91 passed (91)
+      Tests  1272 passed | 19 skipped (1291)
+   Start at  00:14:38
+   Duration  106.04s (tests 79%, import 21%)
+
+    Isolate  91 workers spawned · ~390ms startup each (spawn + environment, per file)
+             at least ~8.48s faster with isolate: false — reuses workers across files instead of one per file
+

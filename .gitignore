@@ -33,6 +33,8 @@
 !/tools/
 /tools/*
 !/tools/invites.ts
+# B1 (D35): the two benchmarks, their pre-registered pass rules, corpora and results
+!/bench/
 !/.github/
 # the pre-commit secret scan (tests/tools/secret-scan.mjs); public on purpose
 !/.githooks/
