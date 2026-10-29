@@ -1,0 +1,4 @@
+example at rest: 37 solids, 32 items, 3 lines · audit passed
+example, mocked test: 56 solids, 52 items, 4 lines · audit passed
+example, live test: 56 solids, 52 items, 4 lines · audit passed
+retry fixture at rest: 7 solids, 4 items, 0 lines · audit passed

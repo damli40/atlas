@@ -176,14 +176,14 @@ async function round(theme, { shots = true, reduced = false } = {}) {
   const page = await newPage(1920, 1080, theme, reduced);
   await page.goto(URL0);
   await page.waitForSelector('[data-testid="u1-code"]');
-  if (shots) await page.screenshot({ path: `${outDir}/film-entry-1920-${theme}.png` });
+  if (shots) await page.screenshot({ path: `${outDir}/${LIVE ? "live" : "film"}-entry-1920-${theme}.png` });
   if (!reduced) await axe(page, `entry ${theme}`);
   clicks = 0;
   await pasteExample(page);
   await page.waitForSelector(".u1-svg svg", { timeout: T });
   await page.waitForTimeout(700);
   await beforeBet(page, `rest ${theme}`);
-  if (shots) await page.screenshot({ path: `${outDir}/film-rest-1920-${theme}.png` });
+  if (shots) await page.screenshot({ path: `${outDir}/${LIVE ? "live" : "film"}-rest-1920-${theme}.png` });
   if (!reduced) {
     await axe(page, `rest ${theme}`);
     await overlap(page, `rest ${theme}`, '[data-testid="bench-stage"]');
@@ -193,8 +193,17 @@ async function round(theme, { shots = true, reduced = false } = {}) {
   await page.waitForSelector("[data-lamp]", { timeout: T });
   await page.waitForTimeout(900);
   await beforeBet(page, `bet open ${theme}`);
-  for (const a of answers) await click(page, a);
-  if (shots) await page.screenshot({ path: `${outDir}/film-bet-1920-${theme}.png` });
+  if (LIVE) {
+    results.liveTest = await page.textContent('[data-testid="u1-test"]');
+    results.liveSeen = await page.textContent(".u1-seen pre");
+    // Wonder's live test may name its stand-ins differently: tap the first option of the first three questions.
+    const groups = await page.locator(".u1-opts").count();
+    for (let i = 0; i < Math.min(3, groups); i++) {
+      clicks++;
+      await page.locator(".u1-opts").nth(i).locator(".u1-opt").first().click();
+    }
+  } else for (const a of answers) await click(page, a);
+  if (shots) await page.screenshot({ path: `${outDir}/${LIVE ? "live" : "film"}-bet-1920-${theme}.png` });
   if (!reduced) {
     await axe(page, `bet open ${theme}`);
     await overlap(page, `bet open ${theme}`, '[data-testid="u1-pop"]');
@@ -207,13 +216,13 @@ async function round(theme, { shots = true, reduced = false } = {}) {
   if (!reduced) {
     await page.waitForSelector("[data-lamp][data-on]", { timeout: T });
     await page.waitForTimeout(150);
-    if (shots) await page.screenshot({ path: `${outDir}/film-mid-1920-${theme}.png` });
+    if (shots) await page.screenshot({ path: `${outDir}/${LIVE ? "live" : "film"}-mid-1920-${theme}.png` });
   }
   await page.waitForSelector('[data-phase="marked"]', { timeout: T });
   results.clicks[`new ${theme}${reduced ? " reduced" : ""}`] = clicks;
   check(clicks <= 5, `clicks from paste to the marked drawing (${theme}${reduced ? ", reduced motion" : ""}): ${clicks}`);
   await page.waitForTimeout(500);
-  if (shots) await page.screenshot({ path: `${outDir}/film-marked-1920-${theme}.png` });
+  if (shots) await page.screenshot({ path: `${outDir}/${LIVE ? "live" : "film"}-marked-1920-${theme}.png` });
   if (!reduced) {
     await axe(page, `marked ${theme}`);
     await overlap(page, `marked ${theme}`, '[data-testid="bench-stage"]');
@@ -227,6 +236,9 @@ async function round(theme, { shots = true, reduced = false } = {}) {
   const proofHref = await page.getAttribute('[data-testid="u1-proof"]', "href").catch(() => null);
   const marks = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="mark-"]')].filter((e) => e.getAttribute("data-testid") !== "mark-list").map((e) => e.textContent.replace(/\s+/g, " ").trim()));
   say(`marks (${theme}): ${marks.join(" | ")}`);
+  if (LIVE) {
+    results.live = { marks, test: await page.textContent('[data-testid="u1-test"]').catch(() => null), claim: await page.textContent('[data-testid="u1-claim"]').catch(() => null), proof: await page.getAttribute('[data-testid="u1-proof"]', "href").catch(() => null) };
+  }
   check(marks.length >= 3, `marked: ${marks.length} questions marked on the drawing`);
   check(Boolean(proofHref), `proof card link: ${proofHref}`);
   await page.context().close();
@@ -299,10 +311,11 @@ async function before() {
 }
 
 try {
-  for (const theme of ["light", "dark"]) if (ONLY === "all" || ONLY === "film") await round(theme);
-  if (ONLY === "all" || ONLY === "reduced") for (const theme of ["light", "dark"]) await round(theme, { shots: theme === "light", reduced: true });
-  if (ONLY === "all" || ONLY === "phone") for (const theme of ["light", "dark"]) await phone(theme);
-  if (ONLY === "all" || ONLY === "before") await before();
+  if (LIVE) await round("light"); // one live round (real models, real spend)
+  else for (const theme of ["light", "dark"]) if (ONLY === "all" || ONLY === "film") await round(theme);
+  if (!LIVE && (ONLY === "all" || ONLY === "reduced")) for (const theme of ["light", "dark"]) await round(theme, { shots: theme === "light", reduced: true });
+  if (!LIVE && (ONLY === "all" || ONLY === "phone")) for (const theme of ["light", "dark"]) await phone(theme);
+  if (!LIVE && (ONLY === "all" || ONLY === "before")) await before();
 } catch (e) {
   check(false, `the click-through stopped: ${e.message.split("\n")[0]}`);
 }

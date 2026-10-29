@@ -1,0 +1,10 @@
+== dark
+line ends: 0 of 14 ends on 25 lines float
+line ends: 0 of 117 ends on 44 lines float
+line ends: 0 of 117 ends on 44 lines float
+line ends: 0 of 117 ends on 44 lines float
+== light
+line ends: 0 of 14 ends on 25 lines float
+line ends: 0 of 117 ends on 44 lines float
+line ends: 0 of 117 ends on 44 lines float
+line ends: 0 of 117 ends on 44 lines float
