@@ -109,7 +109,7 @@ import { falseAlarmFromRun } from "../runners/evm/level2";
 import { redactRpc, scrubDeep } from "../runners/evm/redact";
 import { RunDidNotFinish, runFailureReason } from "./run-failure";
 import { createHourlyLimit, createReplayGate, createRunGate, createSandboxGate, type ReplayGate } from "./replay-limits";
-import { clientIpOf, trustProxyFromEnv, trustedHopsFromEnv } from "./client-ip";
+import { clientIpHeaderFromEnv, clientIpOf, trustProxyFromEnv, trustedHopsFromEnv } from "./client-ip";
 import { buildAtlasFile, callRunAgreesWithItsTrace, resultDiff, sameJson, timingRuleOf, verifyAtlasFile, withChange } from "../src/atlasfile";
 import { ASKED_FIELD, createProofStore, EVM_GATE_CONTEXT, MOONWELL_PR_REF, evmTargetRefusal, extraCaptionsFor, forkBlockFor, humanFinding, recordedFindings, type ProofStore } from "./evm-round";
 import { control as runTsControl, readFixture, runExperiment, tsRunner } from "../runners/ts/control";
@@ -559,7 +559,8 @@ export function createApp(opts: AppOptions = {}) {
   const proxyHops = trustedHopsFromEnv(); // E3 review r2 M4: read once; an invalid value throws here, not per request
   // G1: with an invite code, the per-address limits count by the code (server/access/context.ts), so a new address or a
   // new X-Forwarded-For hop gives nothing extra; without one, by the client address as before.
-  const clientOf = (c: Context) => principalClientKey() ?? clientIpOf(c, trustProxy, proxyHops);
+  const proxyIpHeader = clientIpHeaderFromEnv(); // H1: Fly-Client-IP on Fly.io; an invalid setting throws here too
+  const clientOf = (c: Context) => principalClientKey() ?? clientIpOf(c, trustProxy, proxyHops, proxyIpHeader);
   const modelRoundsByIp = createHourlyLimit(opts.perClientModelLimits?.modelRoundsPerHour ?? envCount(process.env.ATLAS_MODEL_ROUNDS_PER_IP_PER_HOUR, DEFAULT_MODEL_ROUNDS_PER_IP_PER_HOUR), "model rounds");
   const investigationsByIp = createHourlyLimit(opts.perClientModelLimits?.investigationsPerHour ?? envCount(process.env.ATLAS_INVESTIGATIONS_PER_IP_PER_HOUR, DEFAULT_INVESTIGATIONS_PER_IP_PER_HOUR), "investigations");
   const proofStore = opts.proofs ?? createProofStore({ publish: false });

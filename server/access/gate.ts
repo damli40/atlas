@@ -15,7 +15,7 @@
 
 import { Hono, type Context } from "hono";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
-import { clientIpOf, trustProxyFromEnv, trustedHopsFromEnv } from "../client-ip";
+import { clientIpHeaderFromEnv, clientIpOf, trustProxyFromEnv, trustedHopsFromEnv } from "../client-ip";
 import { createHourlyLimit } from "../replay-limits";
 import { runAs, type Principal } from "./context";
 import type { Ledger } from "./ledger";
@@ -96,6 +96,7 @@ export function withInviteGate(inner: InnerApp, o: GateOptions): Hono {
   const outer = new Hono();
   const trustProxy = o.trustProxy ?? trustProxyFromEnv();
   const hops = trustedHopsFromEnv();
+  const ipHeader = clientIpHeaderFromEnv(); // H1: Fly-Client-IP on Fly.io
   // G1 review M4: only FAILED tries are limited, per address and across the server; a correct code is never refused.
   const failedByIp = createHourlyLimit(30, "invite code tries");
   const failedAll = createHourlyLimit(300, "invite code tries");
@@ -141,7 +142,7 @@ export function withInviteGate(inner: InnerApp, o: GateOptions): Hono {
   outer.post("/invite", async (c) => {
     // G1 review m3: signing in is only from Atlas's own page (a cross-site form cannot plant a code in a browser).
     if (!fromOwnPage(c)) return c.json({ error: CROSS_SITE }, 403);
-    const ip = clientIpOf(c, trustProxy, hops);
+    const ip = clientIpOf(c, trustProxy, hops, ipHeader);
     const json = (c.req.header("content-type") ?? "").includes("application/json");
     let code = "";
     try {

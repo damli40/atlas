@@ -10,6 +10,11 @@
 //   client and can be anything (sending a new first hop each time let 70 of 70 pastes through a 60-an-hour cap).
 //   ATLAS_TRUST_PROXY_HOPS (default 1) says how many proxies in a row append: the client is that many hops from
 //   the right. Only turn this on behind a proxy that appends the header itself.
+// - H1 (Fly.io): Fly's proxy puts the APP's own address right-most in X-Forwarded-For, not the visitor's, and sets the
+//   visitor's address in its own one-value header, Fly-Client-IP (docs.fly.io/networking/request-headers). With
+//   ATLAS_CLIENT_IP_HEADER=fly-client-ip (only together with ATLAS_TRUST_PROXY=1) that header is read instead of
+//   X-Forwarded-For. A request without it falls back to the socket address (every such request then shares the
+//   proxy's key: stricter, never looser).
 // - IPv6 addresses are grouped by their /64 (one home or one server usually holds a whole /64), and
 //   "::ffff:1.2.3.4" is read as 1.2.3.4.
 // - When neither is available (an in-process test request), every such request shares one key, "unknown".
@@ -61,15 +66,38 @@ export function trustedHopsFromEnv(env: Record<string, string | undefined> = pro
   return Number(raw.trim());
 }
 
+/**
+ * H1: a one-value header the proxy in front sets to the visitor's address (Fly.io: Fly-Client-IP), read instead of
+ * X-Forwarded-For. ATLAS_CLIENT_IP_HEADER, lower-cased; unset means none. It THROWS (the server refuses to start) when
+ * it is set without ATLAS_TRUST_PROXY=1 (it would be ignored, so the operator's intent would silently not hold), or is
+ * not a plain header name.
+ */
+export function clientIpHeaderFromEnv(env: Record<string, string | undefined> = process.env): string | undefined {
+  const raw = env.ATLAS_CLIENT_IP_HEADER;
+  if (raw === undefined) return undefined;
+  const name = raw.trim().toLowerCase();
+  if (!/^[a-z0-9-]{1,64}$/.test(name)) throw new Error(`ATLAS_CLIENT_IP_HEADER must be a header name such as fly-client-ip; got ${JSON.stringify(raw.slice(0, 40))}`);
+  if (name === "x-forwarded-for") throw new Error("ATLAS_CLIENT_IP_HEADER=x-forwarded-for is not a one-value header; leave ATLAS_CLIENT_IP_HEADER unset and use ATLAS_TRUST_PROXY_HOPS instead");
+  if (!trustProxyFromEnv(env)) throw new Error("ATLAS_CLIENT_IP_HEADER is set but ATLAS_TRUST_PROXY is not 1; set both (behind a proxy that sets the header) or neither");
+  return name;
+}
+
 /** The rule the per-address caps use, in plain words (printed at startup). */
-export function describeClientRule(trustProxy: boolean, hops: number): string {
+export function describeClientRule(trustProxy: boolean, hops: number, header?: string): string {
+  if (trustProxy && header) return `the ${header} header set by the proxy in front (ATLAS_TRUST_PROXY=1, ATLAS_CLIENT_IP_HEADER=${header}); a request without it falls back to the socket address`;
   return trustProxy
     ? `the ${hops === 1 ? "right-most" : `${hops}th from the right`} address in X-Forwarded-For (ATLAS_TRUST_PROXY=1, ATLAS_TRUST_PROXY_HOPS=${hops}); a request without it falls back to the socket address`
     : "the socket's remote address (ATLAS_TRUST_PROXY is not 1)";
 }
 
-export function clientIpOf(c: Context, trustProxy: boolean, hops: number = trustedHopsFromEnv()): string {
-  if (trustProxy) {
+export function clientIpOf(c: Context, trustProxy: boolean, hops: number = trustedHopsFromEnv(), header?: string): string {
+  if (trustProxy && header) {
+    // Only the proxy's own header; X-Forwarded-For is not read at all in this mode (its right-most entry on Fly is the app).
+    // Should a visitor send the header too and the proxy add (not replace) its own, Node joins the two with ", " and the
+    // proxy's is the LAST one, so the last value is read.
+    const key = clientKey(c.req.header(header)?.split(",").pop());
+    if (key) return key;
+  } else if (trustProxy) {
     const all = (c.req.header("x-forwarded-for") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
     const key = clientKey(all[all.length - hops]);
     if (key) return key;
