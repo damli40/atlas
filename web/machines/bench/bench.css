@@ -217,3 +217,22 @@
 .u1-claimfacts ul{margin:0;padding-left:16px;display:grid;gap:4px;font-size:12.5px;overflow-wrap:anywhere}
 .u1-claimfacts p{margin:0 0 4px}
 @media (max-width:640px){.u1-claimfacts-cols{grid-template-columns:1fr}}
+/* U3 item 4: the quiz fits a 1366×768 screen: a wider, taller pop-up, tighter options, the test sentence clamped to
+   three lines (with "show the whole test"), the typed value on one row, and the seal bar pinned to the bottom. */
+.u1-pop{width:min(580px,calc(100vw - 32px));max-height:calc(100vh - 128px);padding:14px 16px 0}
+@media (min-width:701px){.u1-root[data-side] .u1-pan{right:min(600px,44%)}}
+.u1-test-clamp{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.u1-pop .u1-test{font-size:13.5px;line-height:1.45}
+.u1-testrow{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:2px 0 0}
+.u1-quiz{margin:10px 0;gap:10px}
+.u1-pop .u1-q{margin:0 0 4px;font-size:13.5px}
+.u1-opts{gap:5px}
+/* (.u1-shell button/input set font: inherit, which outranks a single class: these rules use two) */
+.u1-pop .u1-opt{padding:3px 10px;font-size:12.5px;line-height:1.35}
+.u1-typed{grid-template-columns:auto minmax(0,1fr);align-items:center;gap:4px 8px;margin-top:6px}
+.u1-typed .u1-sub{grid-column:1 / -1}
+.u1-typed .u1-typed-in{padding:4px 8px;font:12.5px/1.4 var(--anatomy-mono,ui-monospace,"SF Mono",Menlo,Consolas,monospace)}
+.u1-sealbar{position:sticky;bottom:0;display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 -16px;padding:10px 16px 12px;background:var(--anatomy-card);border-top:1px solid var(--anatomy-faint);z-index:1}
+.u1-sealbar .u1-sub{margin:0;font-size:12px}
+.u1-pop > :last-child:not(.u1-sealbar){margin-bottom:14px}
+.u1-typed .u1-sub:empty{display:none}

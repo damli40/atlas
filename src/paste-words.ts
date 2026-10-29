@@ -226,8 +226,10 @@ export const BET_WORDS = {
   pickFor: (fn: string) => `Pick a test for ${fn}`,
   /** U3 item 4: the folded conditions (the same facts are in the bettor text; this only folds them on screen). */
   howRuns: "How Atlas runs it",
+  testWhole: "show the whole test",
+  testShort: "show less",
   /** U3 item 4: the typed returned value, next to the options. */
-  typedLabel: "Or type the exact value",
+  typedLabel: "Or type the exact value it returns",
   typedHint: (py: boolean) => (py ? 'Write it as Python or JSON, e.g. "pro", 42, True, None, [1, 2]. Matched only when it is exactly the returned value.' : 'Write it as JSON, e.g. "pro", 42, true, null, [1, 2]. Matched only when it is exactly the returned value.'),
   typedBad: (py: boolean) => (py ? "That is not a value Atlas can read. Use quotes for text (\"pro\"), and True, False or None." : "That is not JSON. Use double quotes for text (\"pro\"), and true, false or null."),
   typedReads: (shown: string) => `Atlas reads it as ${shown}.`,

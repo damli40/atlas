@@ -80,6 +80,90 @@ function useFigure(model: BenchModel): Built {
   return built;
 }
 
+/**
+ * U3 item 7: result labels (run chips, pinned answers, failure labels) never sit on a cable, a box or an engraved
+ * label. Each label is tried at its anchor, then at growing distances around it, and takes the first spot where none
+ * of its area touches a cable (points sampled along every cable), a box (the box's own outline), the drawing's text or
+ * a label already placed. Measured on screen, so it holds at any zoom. Returns how many labels found no free spot.
+ */
+export function placeLabels(root: HTMLElement, scale: number): number {
+  const svg = root.querySelector<SVGSVGElement>(".u1-svg svg");
+  if (!svg) return 0;
+  const stage = root.getBoundingClientRect();
+  const pts: { x: number; y: number }[] = [];
+  for (const p of svg.querySelectorAll<SVGGeometryElement>("[data-line] path, path[data-line]")) {
+    let len = 0;
+    try {
+      len = p.getTotalLength();
+    } catch {
+      continue;
+    }
+    const m = p.getScreenCTM();
+    if (!m) continue;
+    for (let d = 0; d <= len; d += 3) {
+      const q = p.getPointAtLength(d);
+      const sp = new DOMPoint(q.x, q.y).matrixTransform(m);
+      pts.push({ x: sp.x, y: sp.y });
+    }
+  }
+  const hits = [...svg.querySelectorAll<SVGGeometryElement>("[data-hit]")].map((h) => ({ h, inv: h.getScreenCTM()?.inverse() ?? null }));
+  const texts = [...svg.querySelectorAll("text")].map((t) => t.getBoundingClientRect()).filter((b) => b.width > 1);
+  // Panels over the stage (the judged answers, the bet pop-up, a part's card, the buttons) hide what is under them.
+  for (const panel of document.querySelectorAll(".u1-marks, .u1-pop, .u1-card, .u1-actions, .u1-zoom, .u1-bet")) {
+    const b = panel.getBoundingClientRect();
+    if (b.width > 1) texts.push(b);
+  }
+  const placed: { left: number; right: number; top: number; bottom: number }[] = [];
+  const meet = (a: { left: number; right: number; top: number; bottom: number }, b: { left: number; right: number; top: number; bottom: number }, pad = 2) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > -pad && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > -pad;
+  const clear = (r: { left: number; right: number; top: number; bottom: number }) => {
+    if (r.left < stage.left + 4 || r.right > stage.right - 4 || r.top < stage.top + 40 || r.bottom > stage.bottom - 60) return false;
+    if (placed.some((p) => meet(p, r, 4))) return false;
+    if (texts.some((t) => meet(t, r))) return false;
+    for (const q of pts) if (q.x > r.left - 3 && q.x < r.right + 3 && q.y > r.top - 3 && q.y < r.bottom + 3) return false;
+    for (let y = r.top; y <= r.bottom; y += 5)
+      for (let x = r.left; x <= r.right; x += 6)
+        for (const { h, inv } of hits) {
+          if (!inv) continue;
+          const u = new DOMPoint(x, y).matrixTransform(inv);
+          try {
+            if (h.isPointInFill(u)) return false;
+          } catch {
+            /* a shape the browser cannot test is not an obstacle */
+          }
+        }
+    return true;
+  };
+  let stuck = 0;
+  const els = [...root.querySelectorAll<HTMLElement>(".u1-chip[data-run], .u1-pins, .u1-chip-label")].filter((e) => e.offsetParent !== null);
+  for (const el of els) {
+    // The CSS `translate` property moves the label on top of its own CSS transform (which centres it on its anchor).
+    el.style.translate = "";
+    const b = el.getBoundingClientRect();
+    let best: [number, number] | null = null;
+    outer: for (let ring = 0; ring <= 18; ring++) {
+      const dist = ring * 14;
+      const steps = ring === 0 ? 1 : 16;
+      for (let i = 0; i < steps; i++) {
+        const a = (i / steps) * Math.PI * 2;
+        const dx = Math.round(Math.cos(a) * dist * 1.6);
+        const dy = Math.round(-Math.sin(a) * dist);
+        if (clear({ left: b.left + dx, right: b.right + dx, top: b.top + dy, bottom: b.bottom + dy })) {
+          best = [dx, dy];
+          break outer;
+        }
+      }
+    }
+    if (!best) {
+      stuck++;
+      best = [0, 0];
+    }
+    el.style.translate = best[0] || best[1] ? `${best[0] / scale}px ${best[1] / scale}px` : "";
+    placed.push({ left: b.left + best[0], right: b.right + best[0], top: b.top + best[1], bottom: b.bottom + best[1] });
+  }
+  root.setAttribute("data-labels-stuck", String(stuck));
+  return stuck;
+}
+
 /** Run data for the drawing. Passed only after the bets are sealed and the run answered. */
 export interface After {
   /** Changes on every play (so "Play again" restarts). */
@@ -117,6 +201,8 @@ export interface BenchStageProps {
   footnote?: ReactNode;
   /** U3 item 7: called when a replay reaches its end state (the page then offers "Play the run again"). */
   onPlayed?: () => void;
+  /** U3 item 5: words ABOVE the judged answers (a "Test this claim" round's sentence beside the facts). */
+  headnote?: ReactNode;
 }
 
 /** U2: about how long the steps of one replay take together (ms of real time), before the intro and the end. */
@@ -130,7 +216,7 @@ export function roundUp(ms: number): number {
   return 10 * p;
 }
 
-export function BenchStage({ model, theme, after = null, onTestFunction, title, children, extraMarks = [], side = false, footnote = null, onPlayed }: BenchStageProps) {
+export function BenchStage({ model, theme, after = null, onTestFunction, title, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null }: BenchStageProps) {
   const playedRef = useRef(onPlayed);
   playedRef.current = onPlayed;
   const dark = useDarkScheme();
@@ -296,6 +382,13 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [after?.token, svgReady, still]);
+
+  // U3 item 7: after any label changes (a chip, the marks, a zoom), move labels off cables and boxes.
+  useLayoutEffect(() => {
+    if (!rootRef.current || !svgReady) return;
+    placeLabels(rootRef.current, view.s);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chips, marksOn, clockMs, anchors, view.s, view.x, view.y, extraMarks, svgReady, side, after?.token, dialScale]);
 
   // ---- pan and zoom ----
   const drag = useRef<{ x: number; y: number; vx: number; vy: number; moved: boolean; pointers: Map<number, { x: number; y: number }>; pinch: number | null } | null>(null);
@@ -474,7 +567,7 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
           Fit
         </button>
       </div>
-      {after && marksOn && <MarkList marks={after.marks} focus={focusMark} onFocus={setFocusMark} footnote={footnote} />}
+      {after && marksOn && <MarkList marks={after.marks} focus={focusMark} onFocus={setFocusMark} footnote={footnote} headnote={headnote} />}
       {children}
     </div>
   );
@@ -540,13 +633,14 @@ export function sharedReason(marks: readonly Mark[]): string | null {
   return all[0]!.slice("can't check: ".length);
 }
 
-function MarkList({ marks, focus, onFocus, footnote }: { marks: readonly Mark[]; focus: string | null; onFocus: (m: string | null) => void; footnote: ReactNode }) {
+function MarkList({ marks, focus, onFocus, footnote, headnote }: { marks: readonly Mark[]; focus: string | null; onFocus: (m: string | null) => void; footnote: ReactNode; headnote: ReactNode }) {
   const same = sharedReason(marks);
   return (
     <section className="u1-marks" aria-label="How each answer was judged" data-testid="mark-list">
       <p className="u1-headline" data-testid="u1-headline">
         {headlineOf(marks)}
       </p>
+      {headnote}
       {same && (
         <p className="u1-samewhy" data-testid="u1-same-reason">
           {RESULT_WORDS.sameReason(same)}

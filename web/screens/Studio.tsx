@@ -107,6 +107,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const [exp, setExp] = useState<ExperimentAnswer | null>(null);
   const [picked, setPicked] = useState<Record<string, string>>({});
   const [typed, setTyped] = useState<Record<string, string>>({});
+  const [wholeTest, setWholeTest] = useState(false);
   const [sealed, setSealed] = useState<ShownBet[]>([]);
   const [result, setResult] = useState<RunAnswer | null>(null);
   const [claim, setClaim] = useState<string | null>(null);
@@ -487,10 +488,9 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           title={title}
           side={open}
           onPlayed={() => setPlayed((n) => n + 1)}
+          headnote={claimRound && after ? <ClaimFacts sentence={claimRound.sentence} marks={after.marks} /> : null}
           footnote={
-            claimRound && after ? (
-              <ClaimFacts sentence={claimRound.sentence} marks={after.marks} />
-            ) : claim || nextTries.length ? (
+            claimRound ? null : claim || nextTries.length ? (
               <>
                 {claim && (
                   <div className="u1-claim" data-testid="u1-claim">
@@ -604,14 +604,19 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                       {RESULT_WORDS.testingSentence(claimRound.sentence)}
                     </p>
                   )}
-                  <p className="u1-test" data-testid="u1-test">
+                  <p className={`u1-test${wholeTest ? "" : " u1-test-clamp"}`} data-testid="u1-test">
                     <span className="u1-k">{BET_WORDS.testIs}</span> {chosenSays ?? exp.experiment.params.shape}
                   </p>
-                  {sealed.length === 0 && (
-                    <button type="button" className="u1-link" onClick={() => setChanging(true)} data-testid="u1-change">
-                      change test
+                  <div className="u1-testrow">
+                    <button type="button" className="u1-link" aria-expanded={wholeTest} onClick={() => setWholeTest((w) => !w)} data-testid="u1-whole-test">
+                      {wholeTest ? BET_WORDS.testShort : BET_WORDS.testWhole}
                     </button>
-                  )}
+                    {sealed.length === 0 && (
+                      <button type="button" className="u1-link" onClick={() => setChanging(true)} data-testid="u1-change">
+                        change test
+                      </button>
+                    )}
+                  </div>
                   <ol className="u1-quiz">
                     {exp.questions.map((q) => (
                       <li key={q.measures}>
@@ -668,12 +673,12 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                     }}
                   />
                   {sealed.length === 0 ? (
-                    <>
+                    <div className="u1-sealbar">
                       <button type="button" className="u1-btn u1-primary" onClick={seal} disabled={busy !== null} data-testid="u1-seal">
                         {BET_WORDS.seal}
                       </button>
                       <p className="u1-sub">{BET_WORDS.untapped}</p>
-                    </>
+                    </div>
                   ) : (
                     <p className="u1-status" role="status" data-testid="u1-sealed">
                       {`Sealed ${plural(sealed.length, "answer")}. ${busy ?? (models.thinking ? "Waiting for the AIs to seal theirs…" : "")}`}
@@ -798,9 +803,9 @@ function TypedValue({ id, value, language, disabled, onChange }: { id: string; v
   return (
     <div className="u1-typed">
       <label htmlFor={id}>{BET_WORDS.typedLabel}</label>
-      <input id={id} className="u1-typed-in" value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} spellCheck={false} autoComplete="off" aria-describedby={`${id}-hint`} data-testid={id} />
+      <input id={id} className="u1-typed-in" value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} spellCheck={false} autoComplete="off" placeholder={py ? 'e.g. "pro", 42, True, None' : 'e.g. "pro", 42, true, null'} aria-describedby={`${id}-hint`} data-testid={id} />
       <p className="u1-sub" id={`${id}-hint`} aria-live="polite">
-        {t === "" ? BET_WORDS.typedHint(py) : read ? BET_WORDS.typedReads(literal(read.value, language)) : BET_WORDS.typedBad(py)}
+        {t === "" ? "" : read ? BET_WORDS.typedReads(literal(read.value, language)) : BET_WORDS.typedBad(py)}
       </p>
     </div>
   );
