@@ -5,8 +5,8 @@ import { createApp, type AppOptions } from "./app";
 import { createShareLimit, DEFAULT_GITHUB_SHARES } from "./access/shares";
 import { serverOptions, switchesFromEnv } from "./wiring";
 import { removeSandboxLeftovers } from "./sandbox-leftovers";
-import { describeClientRule, trustProxyFromEnv, trustedHopsFromEnv } from "./client-ip";
-import { createMetaClient, DEFAULT_USAGE_PATH, loadBasetenKey } from "./meta/client";
+import { clientIpHeaderFromEnv, describeClientRule, trustProxyFromEnv, trustedHopsFromEnv } from "./client-ip";
+import { createMetaClient, DEFAULT_USAGE_PATH, loadApiKey, loadBasetenKey } from "./meta/client";
 import { createModelBudget, DEFAULT_CALLS_PER_HOUR, DEFAULT_EXPERIMENTS_PER_SESSION, DEFAULT_SPEND_CEILING_USD, envNumber, readUsageTotal } from "./meta/budget";
 import { fileRefusalWriter } from "./proofs/refusals";
 import { createProofStore } from "./evm-round";
@@ -25,12 +25,30 @@ import { createReplayGate, createRunGate, createSandboxGate } from "./replay-lim
 import { createChainFactsReader } from "../runners/evm/chain-facts";
 import type { ModelBudget } from "./meta/budget";
 import { fileURLToPath } from "node:url";
+import { existsSync } from "node:fs";
+import { DIST_DIR, executorProblem, hostedFromEnv, hostedProblems, hostedSummary, isMountPoint, servePage } from "./hosting";
+import { osSandbox } from "./meta/roles/fixer";
 
 const port = Number(process.env.PORT ?? 8787);
+
+// H1 (D52): checks before anything opens a store or a port. On any machine without macOS sandbox-exec every pasted run
+// must go to Modal; on the hosted server (ATLAS_HOSTED=1) every host rule must hold. One line per problem, then stop.
+const hosted = hostedFromEnv();
+{
+  const facts = { platform: process.platform, sandboxExec: osSandbox() !== null, isMountPoint, exists: existsSync };
+  const problems = [executorProblem(process.env, facts), ...(hosted ? hostedProblems(process.env, facts) : [])].filter((p): p is string => p !== null);
+  if (problems.length > 0) {
+    for (const p of problems) console.error(`refusing to start: ${p}`);
+    process.exit(1);
+  }
+}
+// H1: the built page is served by this server (one origin) when hosted, or locally with ATLAS_SERVE_PAGE=1.
+const servesPage = hosted || process.env.ATLAS_SERVE_PAGE === "1";
 
 // E3 review r2 M4: a wrong proxy-hop setting stops the server here (it throws), instead of quietly counting the
 // wrong address. The rule in use is printed below.
 const hops = trustedHopsFromEnv();
+const ipHeader = clientIpHeaderFromEnv();
 // E3 review r2 M1: sandbox folders left by a run that was cut short (a server that died mid-run) are deleted.
 const leftovers = removeSandboxLeftovers();
 
@@ -122,10 +140,17 @@ const appOptions: AppOptions = {
 // once at startup and keeps it, so the finale never depends on GitHub later.
 const inner = createApp(appOptions);
 const ownerInner = access.require ? createApp({ ...appOptions, warmMoonwellPr: true }) : undefined;
-const app = withInviteGate(inner, { store: access.store, require: access.require, ledger: access.ledger, secureCookie: access.secureCookie, ...(access.publicOrigin ? { publicOrigin: access.publicOrigin } : {}), ...(ownerInner ? { ownerInner } : {}) });
+const gated = withInviteGate(inner, { store: access.store, require: access.require, ledger: access.ledger, secureCookie: access.secureCookie, ...(access.publicOrigin ? { publicOrigin: access.publicOrigin } : {}), ...(ownerInner ? { ownerInner } : {}) });
+// H1: one origin. The gate (and the app behind it) answers under /api, the built page everywhere else.
+const app = servesPage ? servePage(gated) : gated;
 for (const note of access.notes) console.log(note);
 
-console.log(`client address for the per-address caps: ${describeClientRule(trustProxyFromEnv(), hops)}`);
+console.log(`client address for the per-address caps: ${describeClientRule(trustProxyFromEnv(), hops, ipHeader)}`);
+if (servesPage) console.log(`page: the built page from ${DIST_DIR} at /, the API under /api (one origin)${existsSync(DIST_DIR) ? "" : " (dist/ is missing: run vite build)"}`);
+if (hosted) {
+  const active = access.store.list().filter((i) => !i.revokedAt);
+  console.log(hostedSummary({ env: process.env, activeCodes: active.length, ownerCodes: active.filter((i) => i.role === "owner").length, clientRule: describeClientRule(trustProxyFromEnv(), hops, ipHeader), museExec: osSandbox() !== null, metaKey: loadApiKey() !== undefined, basetenKey: sparkOpen.available }));
+}
 if (leftovers > 0) console.log(`deleted ${leftovers} leftover sandbox folder(s) from runs that were cut short`);
 
 // Final review S3: which .env keys were read (names only, never values), and plain notes about this machine.
