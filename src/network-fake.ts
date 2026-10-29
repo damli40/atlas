@@ -99,7 +99,7 @@ export interface NetworkUse {
 }
 
 /** Removes comments and string contents (keeps line breaks), so a word in a string or comment is not read as code. */
-function codeOnly(src: string, language: "js" | "ts" | "py"): string {
+export function codeOnly(src: string, language: "js" | "ts" | "py"): string {
   let out = "";
   let i = 0;
   const py = language === "py";

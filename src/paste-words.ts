@@ -228,7 +228,22 @@ export const STAGE_WORDS = {
   testCalls: "This is the function the test calls.",
   willTest: "Atlas tests this function when you bet.",
   fakeNetwork: (name: string) => `Atlas installs this in place of ${name}; the real network stays blocked. Scripted by the test:`,
+  /** U3: the card of a part that calls itself. */
+  selfCalls: (lines: readonly number[]) => `Calls itself (${lineList(lines)}): it runs again from the top, for example to retry.`,
+  /** U3: the card of a part whose own lines call a device. */
+  callsDevice: (name: string, network: boolean, lines: readonly number[]) => (network ? `Calls ${name} (${lineList(lines)}); in this test that is Atlas's fake network.` : `Calls ${name} (${lineList(lines)}), the stand-in Atlas passes in.`),
+  wrappedBy: (by: readonly string[]) => `Wrapped by ${by.join(", ")} (the @ line above it): every call to it runs ${by.length === 1 ? "that wrapper" : "those wrappers"} first.`,
+  wraps: (what: readonly string[]) => `A wrapper (decorator): it wraps ${what.join(", ")}.`,
+  /** U3: the card of a device: who calls it. */
+  deviceCalledBy: (by: readonly { part: string; lines: readonly number[] }[]) => `Called by ${by.map((b) => `${b.part} (${lineList(b.lines)})`).join(" and ")}. The cable on the drawing joins it to ${by.length === 1 ? "that function" : "those functions"} only.`,
 } as const;
+
+/** "line 4", "lines 4 and 9", "lines 4, 9 and 12". */
+export function lineList(lines: readonly number[]): string {
+  const l = [...lines];
+  if (l.length === 1) return `line ${l[0]}`;
+  return `lines ${l.slice(0, -1).join(", ")} and ${l[l.length - 1]}`;
+}
 
 export const RESULT_WORDS = {
   /** "You matched 2 of 3 checkable answers. Muse Spark 1.3 matched 3, Muse Spark Open 2." */

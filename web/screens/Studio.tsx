@@ -117,8 +117,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const marks = useMemo(() => (test ? timeOptions(test).flatMap((o) => (o.match.kind === "ms" && o.match.min > 0 ? [o.match.min] : o.match.kind === "ms" && o.match.max ? [o.match.max] : [])) : []), [test]);
   const fullMs = useMemo(() => dialFullMs(marks), [marks]);
   const model = useMemo(
-    () => (pasted?.outline ? benchModel({ fileName: FILE_NAME[pasted.target.language ?? "ts"], outline: pasted.outline, test: test ? test : null, dial: { marks: [...new Set(marks)], fullMs } }) : null),
-    [pasted, test, marks, fullMs],
+    () => (pasted?.outline ? benchModel({ fileName: FILE_NAME[pasted.target.language ?? "ts"], outline: pasted.outline, test: test ? test : null, dial: { marks: [...new Set(marks)], fullMs }, source: readText, language: pasted.target.language ?? pasted.language.chosen }) : null),
+    [pasted, test, marks, fullMs, readText],
   );
   // Mark the function under test even before a test exists (it is lit on the drawing).
   const shownModel = useMemo(() => (model && !model.tested && fn ? { ...model, tested: fn } : model), [model, fn]);
@@ -309,7 +309,9 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     // D47: run data only after the bets are sealed, and only the run of THIS round's test (review M1).
     if (!result || !exp || !test || sealed.length === 0 || result.run.experimentId !== exp.experiment.id) return null;
     const tested = model?.tested ?? null;
-    return { token: plays, script: playScript(result.run, test, tested, waitingParts(readText, pasted?.outline)), marks: marksOf(exp.questions, result.bets, result.verdicts, result.run, tested), dialFullMs: fullMs };
+    const callers = Object.fromEntries(Object.entries(model?.parts ?? {}).flatMap(([id, p]) => (p.kind === "device" ? [[id, (p.calledBy ?? []).map((c) => c.part)]] : [])));
+    const wiring = pasted?.outline ? { outline: pasted.outline, callers } : undefined;
+    return { token: plays, script: playScript(result.run, test, tested, waitingParts(readText, pasted?.outline), wiring), marks: marksOf(exp.questions, result.bets, result.verdicts, result.run, tested), dialFullMs: fullMs };
   }, [result, exp, test, sealed, plays, model, fullMs, readText, pasted]);
 
   // U2 (D53, "Test this claim"): Muse Wonder writes tests aimed at its own sentence (shown only after this run, D18);

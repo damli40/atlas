@@ -18,6 +18,49 @@ import { modelDisplay } from "../../../src/claimants";
 import { CLOCK_ID, deviceId, type CallTest } from "./model";
 import { networkStepFor, networkStepWords } from "../../../src/network-fake";
 import { watchLimitOf } from "../../../src/judge";
+import { certainPath } from "../../../src/call-sites";
+import type { FileOutline } from "../../../src/file-outline";
+
+/**
+ * U3: what plain code knows about who calls what, for lighting the call path during the replay: the file's joins and,
+ * per device id, the parts whose own lines call it (model.ts). Without it, only the function under test lights.
+ */
+export interface Wiring {
+  outline: Pick<FileOutline, "joins">;
+  callers: Record<string, string[]>;
+}
+
+/** The parts and joins certainly running when `device` is called during a call of `tested`, and what is not certain. */
+export function callPath(wiring: Wiring | undefined, tested: string | null, device: string | null): { parts: string[]; lines: string[]; unsure: string | null } {
+  if (!tested) return { parts: [], lines: [], unsure: null };
+  const wrappers = (wiring?.outline.joins ?? []).filter((j) => j.kind === "wraps" && j.from === tested).map((j) => j.to);
+  const base = [tested, ...wrappers];
+  if (!device || !wiring) return { parts: base, lines: [], unsure: null };
+  const callers = wiring.callers[device] ?? [];
+  if (callers.length === 0) return { parts: base, lines: [], unsure: "plain code found no line that calls it directly" };
+  if (callers.length > 1) {
+    // The trace says THAT the device was called, not from which part: only what every route shares is lit.
+    const routes = callers.map((c) => certainPath(wiring.outline, tested, c)?.parts ?? [tested]);
+    const common = routes[0]!.filter((p) => routes.every((r) => r.includes(p)));
+    return { parts: [...new Set([...base, ...common])], lines: [], unsure: `plain code can't tell whether ${callers.slice(0, -1).join(", ")} or ${callers[callers.length - 1]} made this call` };
+  }
+  const caller = callers[0]!;
+  const path = certainPath(wiring.outline, tested, caller);
+  if (!path) return { parts: [...new Set([...base, caller])], lines: [`${caller}=>${device}`], unsure: null };
+  return { parts: [...new Set([...base, ...path.parts])], lines: [...path.joins, `${caller}=>${device}`], unsure: null };
+}
+
+/** U3: the parts certainly waiting when the clock jumps: the chain from the tested function to the deepest waiting part. */
+export function waitPath(wiring: Wiring | undefined, tested: string | null, waitParts: readonly string[]): string[] {
+  if (!tested) return [...waitParts];
+  if (waitParts.length === 0) return [tested];
+  if (!wiring) return [...new Set([tested, ...waitParts])];
+  for (const w of waitParts) {
+    const p = certainPath(wiring.outline, tested, w);
+    if (p && waitParts.every((x) => p.parts.includes(x) || x === tested)) return p.parts;
+  }
+  return [tested];
+}
 
 export interface PlayStep {
   /** Virtual ms of the step. */
@@ -77,7 +120,7 @@ export const MAX_PLAY_STEPS = 40;
  * light when the clock jumps. Every step comes from the run's own trace; the test gives only the words of a scripted
  * answer.
  */
-export function playScript(run: Run, test: CallTest, tested: string | null, waitParts: readonly string[] = []): Script {
+export function playScript(run: Run, test: CallTest, tested: string | null, waitParts: readonly string[] = [], wiring?: Wiring): Script {
   const tl = timelineModel(run);
   const empty: Script = { notShown: tl.notShown, steps: [], totals: {}, dialEndMs: null, ending: null };
   if (tl.notShown !== null) return empty;
@@ -102,7 +145,10 @@ export function playScript(run: Run, test: CallTest, tested: string | null, wait
         const step = scripted ? (c.n <= scripted.calls.length ? scripted.calls[c.n - 1] : scripted.then === "repeat_last" ? scripted.calls[scripted.calls.length - 1] : undefined) : undefined;
         said = stepText(step);
       }
-      calls.push({ at: c.t, kind: "call", device: id, line: tested ? `${tested}=>${id}` : null, parts: tested ? [tested] : [], call: c.n, words: `${lane.name} call ${c.n}: ${short(said).length < said.length ? said.slice(0, 60) : said}` });
+      // U3: every part certainly on the call's path lights, and only the cables the code has; what plain code cannot
+      // tell (which of two callers made it) is said, not guessed.
+      const path = callPath(wiring, tested, id);
+      calls.push({ at: c.t, kind: "call", device: id, line: path.lines.length ? path.lines.join("\n") : null, parts: path.parts, call: c.n, words: `${lane.name} call ${c.n}: ${short(said).length < said.length ? said.slice(0, 60) : said}${path.unsure ? ` (${path.unsure})` : ""}` });
     }
     const n = Number(measured[`calls:${lane.name}`]);
     totals[id] = `${n.toLocaleString("en-US")} ${n === 1 ? "call" : "calls"}`;
@@ -126,8 +172,11 @@ export function playScript(run: Run, test: CallTest, tested: string | null, wait
     .map((t) => {
       const dev = answeredBy.get(t);
       return dev
-        ? { at: t, kind: "wait" as const, device: dev.device, line: tested ? `${tested}=>${dev.device}` : null, parts: [], call: 0, words: dev.words }
-        : { at: t, kind: "wait" as const, device: null, line: null, parts: waitParts.length ? [...waitParts] : tested ? [tested] : [], call: 0, words: `waits until ${t.toLocaleString("en-US")} ms` };
+        ? (() => {
+            const path = callPath(wiring, tested, dev.device);
+            return { at: t, kind: "wait" as const, device: dev.device, line: path.lines.length ? path.lines.join("\n") : null, parts: path.parts, call: 0, words: dev.words };
+          })()
+        : { at: t, kind: "wait" as const, device: null, line: null, parts: waitPath(wiring, tested, waitParts), call: 0, words: `waits until ${t.toLocaleString("en-US")} ms` };
     });
   const room = Math.max(0, MAX_PLAY_STEPS - calls.length);
   if (waits.length > room) {

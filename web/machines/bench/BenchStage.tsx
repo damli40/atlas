@@ -181,9 +181,10 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
     const el = svgHost.current?.querySelector(`[data-lamp="${attr(id)}"]`);
     if (el) el.toggleAttribute("data-on", on);
   };
-  const lineLit = (id: string | null, on: boolean) => {
-    if (!id) return;
-    for (const el of svgHost.current?.querySelectorAll(`[data-line="${attr(id)}"]`) ?? []) el.classList.toggle("u1-live", on);
+  const lineLit = (ids: string | null, on: boolean) => {
+    if (!ids) return;
+    // U3: a step may light several cables (the whole certain call path), one id per line.
+    for (const id of ids.split("\n")) for (const el of svgHost.current?.querySelectorAll(`[data-line="${attr(id)}"]`) ?? []) el.classList.toggle("u1-live", on);
   };
 
   // The run, played on the drawing. Without `after`: the rest state (lamps off, needle at 0, no chips, no marks).
@@ -246,14 +247,17 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
     const stepMs = Math.round(Math.min(2400, Math.max(260, PLAY_TOTAL_MS / Math.max(1, steps.length))));
     const START = 300;
     // Step 0: Atlas calls the function (it lights; the clock reads 0 ms).
+    // U3: a decorator's wrapper runs whenever the decorated function is called, so it lights with it.
+    const testedPart = model.tested ? model.parts[model.tested] : undefined;
+    const entry = model.tested ? [model.tested, ...(testedPart?.kind === "code" ? (testedPart.wrappedBy ?? []) : [])] : [];
     later(START, () => {
       if (model.tested) {
-        partsLit([model.tested], true);
+        partsLit(entry, true);
         setChips({ [model.tested]: `Atlas calls ${model.tested}` });
       }
       setClockMs(0);
     });
-    later(START + INTRO_MS - 120, () => model.tested && partsLit([model.tested], false));
+    later(START + INTRO_MS - 120, () => model.tested && partsLit(entry, false));
     steps.forEach((s, i) => {
       const t0 = START + INTRO_MS + i * stepMs;
       later(t0, () => {
@@ -585,6 +589,14 @@ function PartCard({ id, part, tested, hasTest, python, pinned, onTest, onClose, 
           <p className="u1-sub">{`${part.part.kind === "class" ? "class" : "function"} · ${lineSpan(part.part.lineStart, part.part.lineEnd)}${part.part.exported ? (python ? " · top-level (Atlas can call it)" : " · exported (Atlas can call it)") : ""}`}</p>
           {part.part.signature && <code className="u1-sig">{part.part.signature}</code>}
           <p>{part.callsTo.length ? `Calls ${part.callsTo.join(", ")}.` : "Calls no other part of this file."} {part.calledBy.length ? `Called by ${part.calledBy.join(", ")}.` : ""}</p>
+          {part.selfCalls?.length ? <p data-testid="card-self">{STAGE_WORDS.selfCalls(part.selfCalls)}</p> : null}
+          {part.devices?.map((d) => (
+            <p key={d.name} data-testid={`card-calls-${d.name}`}>
+              {STAGE_WORDS.callsDevice(d.name, d.network, d.lines)}
+            </p>
+          ))}
+          {part.wrappedBy?.length ? <p>{STAGE_WORDS.wrappedBy(part.wrappedBy)}</p> : null}
+          {part.wraps?.length ? <p>{STAGE_WORDS.wraps(part.wraps)}</p> : null}
           {tested === id ? <p className="u1-sub">{hasTest ? STAGE_WORDS.testCalls : STAGE_WORDS.willTest}</p> : part.part.exported && part.part.kind === "function" && onTest && canChange ? (
             <button type="button" className="u1-btn" onClick={() => onTest(id)} data-testid={`test-fn-${id}`}>
               Test this function
@@ -601,6 +613,7 @@ function PartCard({ id, part, tested, hasTest, python, pinned, onTest, onClose, 
             ))}
           </ol>
           <p className="u1-sub">{`After that, ${part.then}.`}</p>
+          {part.calledBy?.length ? <p data-testid="card-called-by">{STAGE_WORDS.deviceCalledBy(part.calledBy)}</p> : part.noCable ? <p data-testid="card-no-cable">{part.noCable}</p> : null}
         </>
       ) : (
         <>

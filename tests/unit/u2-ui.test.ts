@@ -35,8 +35,9 @@ describe("U2 the replay script", () => {
     expect(s.steps.filter((x) => x.kind === "call").map((x) => x.words)).toEqual(["fetch call 1: answers 503 with {}", "fetch call 2: never answers; the code gave up (AbortError)", "fetch call 3: answers 200 with {\"ok\":1}"]);
     // the abort at 5,263 ms ended fetch's call (the device lights); the code's own sleep ends at 5,500 ms (its part lights)
     expect(s.steps.filter((x) => x.kind === "wait")).toEqual([
-      expect.objectContaining({ at: 5263, device: "stand-in fetch", parts: [], words: "fetch call ends at 5,263 ms (AbortError)" }),
-      expect.objectContaining({ at: 5500, device: null, parts: ["sleep"], words: "waits until 5,500 ms" }),
+      // U3: the function under test is certainly running during both, so it lights too (the certain call path).
+      expect.objectContaining({ at: 5263, device: "stand-in fetch", parts: ["fetchWithRetry"], words: "fetch call ends at 5,263 ms (AbortError)" }),
+      expect.objectContaining({ at: 5500, device: null, parts: ["fetchWithRetry", "sleep"], words: "waits until 5,500 ms" }),
     ]);
     expect(s.steps[s.steps.length - 1]).toMatchObject({ kind: "end", words: expect.stringMatching(/^returned at 5,710 ms/) });
     expect(s.totals["stand-in fetch"]).toBe("3 calls");
@@ -114,7 +115,14 @@ describe("U2 words", () => {
       ...Object.values(BET_WORDS).map((v) => (typeof v === "function" ? (v as (...a: unknown[]) => string)("x" as never, 1 as never) : v)),
       BET_WORDS.zone("py"),
       BET_WORDS.watch(10000, true),
-      ...Object.values(STAGE_WORDS).map((v) => (typeof v === "function" ? (v as (a: string) => string)("fetch") : v)),
+      STAGE_WORDS.testCalls,
+      STAGE_WORDS.willTest,
+      STAGE_WORDS.fakeNetwork("fetch"),
+      // U3's card words, with their real arguments
+      STAGE_WORDS.selfCalls([7]),
+      STAGE_WORDS.callsDevice("fetch", true, [4]),
+      STAGE_WORDS.wrappedBy(["cached"]),
+      STAGE_WORDS.deviceCalledBy([{ part: "fetchPage", lines: [4] }]),
       ...Object.values(RESULT_WORDS).map((v) => (typeof v === "function" ? (v as (...a: unknown[]) => string)({ matched: 1, checkable: 2 }, []) : v)),
     ].join("\n");
     expect(all).not.toMatch(/\b(right|wrong|correct\w*|score\w*|learn\w*|teach\w*)\b/i);
