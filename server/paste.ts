@@ -49,7 +49,8 @@ export const MAX_PASTE_SESSIONS_PER_CODE = 10;
 /** Pastes one client address may send an hour (sessions are free to make; env ATLAS_PASTES_PER_IP_PER_HOUR). */
 export const DEFAULT_PASTES_PER_IP_PER_HOUR = 60;
 /** Wonder proposal requests one session may make (each is 1–2 paid calls). */
-export const MAX_PROPOSALS_PER_SESSION = 3;
+/** U2: 6 (was 3), so "Bet on another test" and "Test this claim" both stay usable in one session. */
+export const MAX_PROPOSALS_PER_SESSION = 6;
 /**
  * E3 review B3/M5: the most lines a pasted file may have. The bet screen numbers every line, so 64 KB of empty lines
  * became a 645,000-character text per round (1.3 MB of memory each) and a ~200k-token prompt. 2,000 lines keep the
@@ -119,7 +120,9 @@ const pasteBody = z
   })
   .strict();
 const targetRef = z.object({ ref: z.string().min(1).max(200), codeSha256: z.string().regex(/^[0-9a-f]{64}$/) });
-const proposalsBody = z.object({ target: targetRef, exportName: z.string().min(1).max(100) }).strict();
+// U2 (D53, "Test this claim"): `claimOf` names an experiment whose Muse Wonder sentence was already shown (after its run);
+// Wonder is asked for tests that check that sentence. The server looks the sentence up itself: no text from the page.
+const proposalsBody = z.object({ target: targetRef, exportName: z.string().min(1).max(100), claimOf: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/).optional() }).strict();
 const claimBody = z.object({ experimentId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/) }).strict();
 
 const reasonOf = (err: z.ZodError) =>
@@ -375,6 +378,14 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
       if (!opts.proposer || !proposerChat || !deps.budget) return notAsked("this server asks no Meta model for tests");
       // E3 review minor 5: a file plain code already knows is "can't check" costs no model call.
       if (entry.refusal) return notAsked(`every run of this file would be can't check: ${visibleText(entry.refusal)}`);
+      let focusClaim: string | undefined;
+      if (parsed.data.claimOf !== undefined) {
+        const link = experimentSet.get(parsed.data.claimOf);
+        const from = link && link.sessionId === sessionId ? sets.get(sessionId)?.get(link.setId) : undefined;
+        if (!from || from.claim === null || !from.claimShownAt) return c.json({ error: "there is no Muse Wonder sentence shown after a run for that experiment in this session" }, 404);
+        if (from.codeSha256 !== entry.target.codeSha256 || from.exportName !== exp.name) return c.json({ error: "that sentence is about another file or function" }, 400);
+        focusClaim = from.claim;
+      }
       const used = proposalCount.get(sessionId) ?? 0;
       if (used >= MAX_PROPOSALS_PER_SESSION) return notAsked(`call limit reached: this session already asked for tests ${MAX_PROPOSALS_PER_SESSION} times`);
       const byIp = deps.takeModelRound(c);
@@ -390,6 +401,7 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
           exportNames: entry.exports.map((e) => e.name),
           model: proposerModel,
           ...(aimedAt ? { weakSpots: aimedAt } : {}),
+          ...(focusClaim ? { focusClaim } : {}),
         },
         { chat: proposerChat, log: sessionEmitter(deps.agentLog, sessionId) },
       );

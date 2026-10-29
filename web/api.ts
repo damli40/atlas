@@ -323,7 +323,9 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
     /** E3: one pasted file, kept in this session's memory on the server. */
     paste: (code: string, language?: "js" | "ts" | "py") => post<PasteAnswer>("/paste", { code, ...(language ? { language } : {}) }),
     /** E3: Muse Wonder proposes up to 3 tests for one export; the gate checks each. */
-    proposals: (target: Pick<Target, "ref" | "codeSha256">, exportName: string) => post<ProposalsAnswer>("/paste/proposals", { target: { ref: target.ref, codeSha256: target.codeSha256 }, exportName }),
+    // U2 (D53): `claimOf` asks Muse Wonder for tests that check the sentence it wrote about that experiment (after its run).
+    proposals: (target: Pick<Target, "ref" | "codeSha256">, exportName: string, opts: { claimOf?: string } = {}) =>
+      post<ProposalsAnswer>("/paste/proposals", { target: { ref: target.ref, codeSha256: target.codeSha256 }, exportName, ...(opts.claimOf ? { claimOf: opts.claimOf } : {}) }),
     /** E3: a test Muse Wonder proposed, used as proposed. */
     experimentFromProposal: (target: Pick<Target, "ref" | "codeSha256">, proposalId: string, opts: { quiz?: true } = {}) =>
       post<ExperimentAnswer>("/experiments", { target: { ref: target.ref, codeSha256: target.codeSha256 }, proposalId, ...(opts.quiz ? { quiz: true } : {}) }),

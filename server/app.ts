@@ -1032,7 +1032,7 @@ export function createApp(opts: AppOptions = {}) {
     }
     // D04-04: the runner and the gate's allow-list follow the target, never the request.
     const runnerKind = target.kind === "github-pr" ? ("evm" as const) : ("ts" as const);
-    const gateCtx: GateContext = pastedEntry ? { shapes: ["call-function"], exportNames: pastedEntry.exports.map((e) => e.name) } : runnerKind === "evm" ? EVM_GATE_CONTEXT : TS_GATE_CONTEXT;
+    const gateCtx: GateContext = pastedEntry ? { shapes: ["call-function"], exportNames: pastedEntry.exports.map((e) => e.name), ...(pastedEntry.target.language ? { language: pastedEntry.target.language } : {}) } : runnerKind === "evm" ? EVM_GATE_CONTEXT : TS_GATE_CONTEXT;
     if (body.quiz && !pastedEntry) return c.json({ error: "quiz is for pasted code only" }, 400);
     // E3: a test Muse Wonder proposed in this session, used as proposed (an edited one comes as params, from the person).
     if (body.params === undefined && body.proposalId === undefined) return c.json({ error: "body: send params (the experiment) or, for pasted code, proposalId" }, 400);
@@ -1091,7 +1091,7 @@ export function createApp(opts: AppOptions = {}) {
     round.gateContext = gateCtx;
     // U1 (D48): the quiz replaces the free answers with plain code's options; the person and every model get the same ones.
     if (body.quiz && decision.allowed) {
-      round.questions = quizQuestionsFor(experiment.params, gateCtx.exportNames);
+      round.questions = quizQuestionsFor(experiment.params, gateCtx.exportNames, gateCtx.language);
       round.extraQuestions = [];
     }
     if (finding) round.finding = finding;

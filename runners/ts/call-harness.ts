@@ -86,6 +86,7 @@ const RealFunction = Function;
 const ReflectConstruct = Reflect.construct;
 const ERROR_CTORS: Record<string, ErrorConstructor> = { __proto__: null, Error, TypeError, RangeError, SyntaxError, ReferenceError, EvalError, URIError } as unknown as Record<string, ErrorConstructor>;
 const nativeSetTimeout = g.setTimeout as (...a: unknown[]) => unknown;
+const DOMExceptionCtor = g.DOMException as (new (message: string, name: string) => Error) | undefined;
 const MathImul = Math.imul;
 const Uint8ArrayCtor = Uint8Array;
 const TypedArrayProto = ReflectGetPrototypeOf(Uint8Array.prototype) as object;
@@ -112,7 +113,9 @@ const OUTSIDE_WAIT_MS = 2_000;
  * dropped and how many stand-in calls each name lost, so every count stays exact. The endings are always kept.
  */
 export const MAX_TRACE_EVENTS = 1_000;
-const ALWAYS_KEPT: Record<string, true> = { __proto__: null, start: true, returned: true, threw: true, never_settled: true, still_running_at_watch_limit: true, stopped_watching: true, stopped_watching_after_settle: true } as unknown as Record<string, true>;
+/** U2: the most clock moments one run's "clock_moves" event lists (the rest are counted as `more`). */
+const MAX_CLOCK_MOVES = 300;
+const ALWAYS_KEPT: Record<string, true> = { __proto__: null, clock_moves: true, start: true, returned: true, threw: true, never_settled: true, still_running_at_watch_limit: true, stopped_watching: true, stopped_watching_after_settle: true } as unknown as Record<string, true>;
 
 // ---------------------------------------------------------------------------------------------
 // The request (written by runners/ts/call-runner.ts; JSON values travel as text so they arrive as ordinary
@@ -122,11 +125,15 @@ export type WireStep = { do: "return"; json: string; afterMs?: number } | { do: 
 export type WireArg =
   | { kind: "json"; json: string }
   | { kind: "stand-in"; name: string; async: boolean; calls: WireStep[]; then: "repeat_last" | "throw_exhausted" };
+/** U2 (D53): one step of the fake network, as the worker reads it (the body travels as JSON text). */
+export type WireNetStep = { do: "respond"; status: number; json: string; afterMs?: number } | { do: "throw"; errorName: string; message: string } | { do: "never_answer" };
 export interface CallRunRequest {
   id: string;
   exportName: string;
   args: WireArg[];
   watchLimitMs: number;
+  /** U2 (D53): the scripted fake installed as the global `fetch` for this run (the real network stays blocked). */
+  network?: { name: "fetch" | "requests" | "urllib" | "httpx"; calls: WireNetStep[]; then: "repeat_last" | "throw_exhausted" };
 }
 export interface CallWorkerRequest {
   /** "target.ts" or "target.mjs": the file the worker imports. */
@@ -1484,6 +1491,97 @@ export async function runCall(fn: unknown, req: CallRunRequest, opts: CallHarnes
     append(args, standIn);
   }
 
+  // ---- U2 (D53): the fake network, installed as the global fetch for this run only ----
+  // Counted like a stand-in (calls:fetch, the same trace events). A Response-like answer: status, ok, headers,
+  // json() and text() of the scripted body. A call that never answers waits until the code's own AbortSignal aborts it
+  // (fetch has no timeout of its own), as real fetch does.
+  const net = req.network && req.network.name === "fetch" ? req.network : undefined;
+  let fetchBefore: PropertyDescriptor | undefined;
+  if (net) {
+    const name = net.name;
+    const steps = net.calls;
+    counts.set(name, 0);
+    append(standInNames, name);
+    const abortError = (signal: unknown): unknown => {
+      const reason = signal && typeof signal === "object" ? (signal as { reason?: unknown }).reason : undefined;
+      if (reason !== undefined) return reason;
+      return DOMExceptionCtor ? new DOMExceptionCtor("This operation was aborted", "AbortError") : makeError("AbortError", "This operation was aborted");
+    };
+    const response = (status: number, json: string, url: string): Record<string, unknown> => {
+      const text = (() => {
+        const v = JSONParse(json) as unknown;
+        return typeof v === "string" ? v : json;
+      })();
+      const r: Record<string, unknown> = {
+        status,
+        ok: status >= 200 && status <= 299,
+        statusText: "",
+        url,
+        redirected: false,
+        type: "basic",
+        bodyUsed: false,
+        headers: {
+          get: (k: unknown) => (StringCtor(k).toLowerCase() === "content-type" ? "application/json" : null),
+          has: (k: unknown) => StringCtor(k).toLowerCase() === "content-type",
+          forEach: (cb: (v: string, k: string) => void) => cb("application/json", "content-type"),
+        },
+        json: () => promiseResolve(JSONParse(json)),
+        text: () => promiseResolve(text),
+        clone: () => response(status, json, url),
+      };
+      return r;
+    };
+    const fakeFetch = function fetch(this: unknown, input?: unknown, init?: unknown): Promise<unknown> {
+      watch();
+      const n = (counts.get(name) ?? 0) + 1;
+      counts.set(name, n);
+      emit("stand_in_call", { name, n, ...(settledAt !== null ? { afterSettle: true } : {}) });
+      const url = typeof input === "string" ? input : input && typeof input === "object" && typeof (input as { url?: unknown }).url === "string" ? (input as { url: string }).url : StringCtor(input);
+      const signal = init && typeof init === "object" ? (init as { signal?: unknown }).signal : undefined;
+      if (signal && typeof signal === "object" && (signal as { aborted?: unknown }).aborted === true) {
+        emit("stand_in_throws", { name, n, errorName: "AbortError" });
+        return promiseReject(abortError(signal));
+      }
+      const step: WireNetStep | null = n <= steps.length ? steps[n - 1]! : net.then === "repeat_last" ? steps[steps.length - 1]! : null;
+      if (step === null) {
+        emit("stand_in_throws", { name, n, errorName: "AtlasStandInExhausted" });
+        return promiseReject(makeError("AtlasStandInExhausted", `${name} has no step for call ${n} (it has ${steps.length})`));
+      }
+      if (step.do === "throw") {
+        emit("stand_in_throws", { name, n, errorName: step.errorName });
+        const err = step.errorName === "AbortError" || step.errorName === "TimeoutError" ? (DOMExceptionCtor ? new DOMExceptionCtor(step.message, step.errorName) : makeError(step.errorName, step.message)) : makeError(step.errorName, step.message);
+        return promiseReject(err);
+      }
+      return new PromiseCtor<unknown>((resolve, reject) => {
+        let done = false;
+        const onAbort = () => {
+          if (done) return;
+          done = true;
+          emit("stand_in_throws", { name, n, errorName: "AbortError", aborted: true });
+          reject(abortError(signal));
+        };
+        if (signal && typeof signal === "object" && typeof (signal as { addEventListener?: unknown }).addEventListener === "function") {
+          (signal as { addEventListener: (t: string, f: () => void, o: unknown) => void }).addEventListener("abort", onAbort, { once: true });
+        }
+        if (step.do === "never_answer") {
+          emit("stand_in_never_answers", { name, n });
+          return;
+        }
+        const after = step.afterMs ?? 0;
+        const answer = () => {
+          if (done) return;
+          done = true;
+          emit("stand_in_returns", after > 0 ? { name, n, afterMs: after } : { name, n });
+          resolve(response(step.status, step.json, url));
+        };
+        if (after > 0) clock.schedule(clock.now + after, answer, { atlas: true });
+        else answer();
+      });
+    };
+    fetchBefore = ObjectGetOwnPropertyDescriptor(globalThis, "fetch");
+    ObjectDefineProperty(globalThis, "fetch", { __proto__: null, value: fakeFetch, writable: true, enumerable: false, configurable: true } as PropertyDescriptor);
+  }
+
   // ---- the call ----
   type Settled = { kind: "returned"; facts: Classified } | { kind: "threw"; facts: ThrownFacts };
   let settled: Settled | null = null;
@@ -1534,6 +1632,10 @@ export async function runCall(fn: unknown, req: CallRunRequest, opts: CallHarnes
   let limitHit = false;
   let steps = 0;
   let realWaitMs = 0;
+  // U2 (D53): each moment the virtual clock jumped to (a wait ending), for the drawing's replay only. Not a measured
+  // fact: no bet is judged on it.
+  const moves: number[] = [];
+  let movesMore = 0;
   raced = false;
   racedWith = "";
   try {
@@ -1576,12 +1678,21 @@ export async function runCall(fn: unknown, req: CallRunRequest, opts: CallHarnes
         stop = `Atlas's step limit (${maxSteps} timer firings, Atlas's limit, not the code's) ended the run before the code went quiet`;
         break;
       }
+      if (next.at > clock.now) {
+        if (moves.length < MAX_CLOCK_MOVES) append(moves, next.at);
+        else movesMore++;
+      }
       clock.now = next.at;
       clock.take(next);
       next.fire();
     }
   } finally {
     active = previous;
+    // U2: the fake network belongs to this run only; the blocked fetch comes back.
+    if (net) {
+      if (fetchBefore) ObjectDefineProperty(globalThis, "fetch", fetchBefore);
+      else ReflectApply(Reflect.deleteProperty, undefined, [globalThis, "fetch"]);
+    }
   }
   if (raced && stop === null) stop = "the code ran background work while a timer was also waiting, so which finished first depends on real speed, not on the code; Atlas did not guess";
   // R1 (D42): how the call ended depends on something outside the code (timed work on a clock that does not move
@@ -1595,6 +1706,13 @@ export async function runCall(fn: unknown, req: CallRunRequest, opts: CallHarnes
   else if (s === null && settledAt === null) emit(limitHit ? "still_running_at_watch_limit" : stop ? "stopped_watching" : "never_settled", stop ? { reason: stop } : undefined);
   else if (stop || limitHit) emit(unrefStop && s === null ? "stopped_watching" : "stopped_watching_after_settle", { reason: stop ?? `Atlas's watch limit (${watchLimitMs} ms of virtual time) ran out while the code's timers were still running after it settled` });
 
+  if (moves.length > 0) {
+    const ev = record<TraceEvent>();
+    put(ev, "t", clock.now);
+    put(ev, "event", "clock_moves");
+    put(ev, "data", movesMore > 0 ? { at: moves, more: movesMore } : { at: moves });
+    append(trace, ev);
+  }
   if (dropped > 0) {
     const ev = record<TraceEvent>();
     put(ev, "t", clock.now);

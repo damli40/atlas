@@ -111,6 +111,12 @@ export type ExperimentShape =
       args: ArgSpec[];
       /** Atlas's watch limit in VIRTUAL ms. Default 30_000, at most 600_000. */
       watchLimitMs?: number;
+      /**
+       * U2 (D53): a scripted fake for the network library the code calls (global fetch in JS/TS; requests, urllib.request
+       * or httpx in Python), installed in the sandbox in place of that library. The network itself stays blocked. Its
+       * calls are counted like a stand-in's, as `calls:<replaces>`.
+       */
+      network?: NetworkFake;
     }
   // EVM runner
   | { shape: "price-read"; markets: string[] }                                   // read getUnderlyingPrice at the fork block
@@ -132,6 +138,25 @@ export type ArgSpec =
       /** After the last step: do the last step again, or throw (AtlasStandInExhausted). */
       then: "repeat_last" | "throw_exhausted";
     };
+/** U2 (D53): the network library a fake replaces. */
+export type NetworkLibrary = "fetch" | "requests" | "urllib" | "httpx";
+/** U2 (D53): a scripted fake network. Same contract as a stand-in: steps in call order, then repeat_last or throw_exhausted. */
+export interface NetworkFake {
+  replaces: NetworkLibrary;
+  /** 1..50 steps, used in call order. */
+  calls: NetworkStep[];
+  then: "repeat_last" | "throw_exhausted";
+}
+/**
+ * U2 (D53): what the fake network does on one call. "respond": an HTTP answer with this status and this JSON body
+ * (after `afterMs` virtual ms); "throw": a named network error (the library's own class of that name); "never_answer":
+ * no answer at all (only the code's own timeout or abort, if it set one, ends the wait).
+ */
+export type NetworkStep =
+  | { do: "respond"; status: number; body: JsonValue; afterMs?: number }
+  | { do: "throw"; errorName: string; message: string }
+  | { do: "never_answer" };
+
 /** What a stand-in does on one call. afterMs (virtual) and never_settle are for async stand-ins only. */
 export type StandInStep =
   | { do: "return"; value: JsonValue; afterMs?: number }
@@ -278,6 +303,8 @@ export interface RunAttempt {
 export interface AtlasRules {
   timing: "d46";
   conditions: "r2";
+  /** U2 (D53): timing options of a call still running at the watch limit are judged as "more than the limit". */
+  watchLimit?: "u2";
 }
 
 export interface AtlasFile {

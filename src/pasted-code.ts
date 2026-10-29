@@ -484,6 +484,6 @@ export function exportedFunctionsFor(source: string, language: PastedLanguage): 
 }
 
 /** Added E2: staticRefusal for any pasted language (Python: imports outside the standard library). */
-export function staticRefusalFor(source: string, language: PastedLanguage): string | null {
-  return language === "py" ? staticRefusalPy(source) : staticRefusal(source);
+export function staticRefusalFor(source: string, language: PastedLanguage, opts: { fakes?: readonly string[] } = {}): string | null {
+  return language === "py" ? staticRefusalPy(source, opts) : staticRefusal(source);
 }
