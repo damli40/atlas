@@ -664,8 +664,9 @@ export interface LabelledFailure {
   /** The lines the marker matched (found, reproduced, inconclusive). */
   lines?: LineRef[];
   excerpt?: { path: string; line: number; text: string }[];
-  /** "reproduced" / "inconclusive": the run (its proof card is ?proof=<runId>). */
+  /** "reproduced" / "inconclusive": the run, and the page link to its proof card ("?proof=<runId>"). */
   runId?: string;
+  proofLink?: string;
   /** A run that set this up and measured that it did not happen (the label then comes from the code). */
   triedNotShown?: { runId: string; fact: string };
 }
@@ -841,8 +842,8 @@ export function labelFromScan(scan: Scan, runs: readonly RunEvidence[] = [], fun
           newest ??= { runId: e.runId, v };
         }
       }
-      if (reproduced) labels.push({ ...base, ...at, label: "reproduced", why: LABEL_WORDS.reproduced(reproduced.runId, reproduced.fact), tooltip: LABEL_WORDS.tipReproduced, runId: reproduced.runId });
-      else if (newest?.v.is === "inconclusive") labels.push({ ...base, ...at, label: "inconclusive", why: LABEL_WORDS.inconclusive(newest.runId, newest.v.why), tooltip: newest.v.tooltip ?? LABEL_WORDS.tipInconclusive, runId: newest.runId });
+      if (reproduced) labels.push({ ...base, ...at, label: "reproduced", why: LABEL_WORDS.reproduced(reproduced.runId, reproduced.fact), tooltip: LABEL_WORDS.tipReproduced, runId: reproduced.runId, proofLink: `?proof=${encodeURIComponent(reproduced.runId)}` });
+      else if (newest?.v.is === "inconclusive") labels.push({ ...base, ...at, label: "inconclusive", why: LABEL_WORDS.inconclusive(newest.runId, newest.v.why), tooltip: newest.v.tooltip ?? LABEL_WORDS.tipInconclusive, runId: newest.runId, proofLink: `?proof=${encodeURIComponent(newest.runId)}` });
       else labels.push({ ...base, ...at, label: "found in this code", why: LABEL_WORDS.found(f.marker!), tooltip: LABEL_WORDS.tipFound, ...(newest?.v.is === "not shown" ? { triedNotShown: { runId: newest.runId, fact: newest.v.fact } } : {}) });
     }
   }

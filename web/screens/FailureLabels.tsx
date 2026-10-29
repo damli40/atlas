@@ -36,7 +36,7 @@ function Item({ l, idPrefix, showPath }: { l: LabelledFailure; idPrefix: string;
           {l.label}
         </span> <b>{l.name}</b> <span className="muted small">{`(${l.kindName})`}</span>
       </p>
-      <p className="small">{`What can go wrong: ${l.says}`}</p>
+      <p className="small">{`What can fail: ${l.says}`}</p>
       <p className="small">{l.why}</p>
       {l.label !== "common pattern" && l.tooltip !== undefined ? <p className="muted small">{l.tooltip}</p> : null}
       {l.label === "reproduced" && l.runId ? (

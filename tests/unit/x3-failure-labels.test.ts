@@ -76,7 +76,7 @@ describe("X3 review B4: a retry loop repeats the same call", () => {
 describe("X3 review B1–B3: 'reproduced' needs the marker AND the stand-in passed at the marked call", () => {
   it("a never-answers stand-in at the marked call, function never settled → reproduced, naming the stand-in and the line", () => {
     const t = of(withRuns(RETRY_SRC, RETRY_FN, [ev("r1", NEVER, { outcome: "never_settled", "calls:fetchIt": 1 })]).labels, "no-overall-timeout")!;
-    expect(t).toMatchObject({ label: "reproduced", runId: "r1" });
+    expect(t).toMatchObject({ label: "reproduced", runId: "r1", proofLink: "?proof=r1", lines: [{ lineStart: 4, lineEnd: 11 }] });
     expect(t.why).toContain("fetchIt, passed where line 6 calls fetchIt, never answered on its call 1");
   });
 
