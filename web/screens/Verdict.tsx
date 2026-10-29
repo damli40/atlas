@@ -7,6 +7,7 @@
 import { quizChoiceLabel } from "../../src/quiz";
 import { canonicalJson, computeSealHash } from "../../src/seal";
 import type { Bet, Outcome, Verdict } from "../../src/types";
+import { toleranceShort } from "../../src/judge";
 import type { RunAnswer, SealedOnly } from "../api";
 import { ShortHash } from "./Bets";
 import { Scoreboard } from "../machines/scoreboard/Scoreboard";
@@ -66,7 +67,7 @@ export function checkSeals(shown: ShownBefore[], result: RunAnswer): SealCheck[]
 
 export function answerText(b: Bet | undefined): string {
   if (!b) return "-";
-  if (b.answer.kind === "number") return `${b.answer.value} ${b.answer.unit} (±${b.answer.tolerancePct}%)`;
+  if (b.answer.kind === "number") return `${b.answer.value} ${b.answer.unit} (${toleranceShort(b.answer.unit, b.answer.tolerancePct)})`;
   // E3: a JSON answer is shown as the judge compares it (canonical JSON), never as "[object Object]".
   if (b.answer.kind === "json") return canonicalJson(b.answer.value);
   if (b.answer.kind === "quiz") return quizChoiceLabel(b.answer.options, b.answer.choice);

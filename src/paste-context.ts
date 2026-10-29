@@ -17,6 +17,7 @@ import { canonicalJson } from "./seal";
 import { CALL_OUTCOME_OPTIONS } from "./units";
 import { CANT_TELL } from "./quiz";
 import type { Experiment, ExperimentShape } from "./types";
+import { matchRuleWords } from "./judge";
 import { plural } from "./words";
 import { modelDisplay } from "./claimants";
 import { WONDER_MODEL, WONDER_DISPLAY } from "./paste-words";
@@ -58,7 +59,8 @@ export function answerHow(q: Pick<Question, "kind" | "unit" | "options" | "toler
     case "integer":
       return q.unit === "ms" ? "a whole number of ms" : "a whole number";
     case "number":
-      return `a number in ${q.unit}, matched within ${q.tolerancePct ?? 0}% of what the run measures`;
+      // R2 (D46): a timing answer also matches within 1 ms ("within 10% or 1 ms").
+      return `a number in ${q.unit}, matched ${matchRuleWords(q.unit, q.tolerancePct ?? 0)} of what the run measures`;
   }
 }
 

@@ -5,6 +5,7 @@
 
 import { quizChoiceLabel } from "./quiz";
 import type { Bet, Verdict } from "./types";
+import { matchRuleWords } from "./judge";
 import { formatUsd1e18 } from "./units";
 
 /** The caption under every before/after view. Templated by plain code, never a model's words. */
@@ -24,9 +25,10 @@ export const AFTER_LABEL = "After change";
 
 // ── toward: written by plain code from the sealed bets ──────────────────────────────────────────
 
-function answerText(b: Bet): string {
+function answerText(b: Bet, v?: Verdict): string {
   const a = b.answer;
-  if (a.kind === "number") return `${a.value} ${a.unit} (match if within ${a.tolerancePct}% of what the run measures)`;
+  // R2 (D46): the rule the verdict was judged with (none recorded = the rule before D46), so older files keep their text.
+  if (a.kind === "number") return `${a.value} ${a.unit} (match if ${matchRuleWords(a.unit, a.tolerancePct, v?.timingRule ?? null)} of what the run measures)`;
   if (a.kind === "declined") return "declined to guess";
   if (a.kind === "quiz") return quizChoiceLabel(a.options, a.choice);
   return String(a.value);
@@ -48,7 +50,7 @@ export function towardFromBets(bets: readonly Bet[], verdicts: readonly Verdict[
     const v = verdicts.find((x) => x.betId === b.id);
     if (!v || v.outcome !== "not_matched") continue;
     const who = b.who === "human" ? "The person" : (names[b.who] ?? b.who.replace(/^model:/, ""));
-    lines.push(`- ${who} bet on "${b.question}" (${b.measures}): ${answerText(b)}. The run measured: ${observedText(b.measures, v.observed)}.`);
+    lines.push(`- ${who} bet on "${b.question}" (${b.measures}): ${answerText(b, v)}. The run measured: ${observedText(b.measures, v.observed)}.`);
   }
   return lines.length ? lines.join("\n") : null;
 }

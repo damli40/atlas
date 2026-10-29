@@ -210,6 +210,11 @@ export interface Verdict {
   /** Only for cant_check: the plain-code reason (control failed / field not measured / bet declined). */
   reason?: string;
   judgedBy: "src/judge.ts";  // literal; the UI prints it
+  /**
+   * R2 (D46): the timing rule this verdict was judged with, on a matched / not matched number bet in ms: "d46" =
+   * within tolerancePct% OR within 1 ms. Absent = the rule before D46 (tolerancePct% only); verify re-judges with it.
+   */
+  timingRule?: "d46";
 }
 
 export interface Change {

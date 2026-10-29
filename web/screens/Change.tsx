@@ -12,6 +12,7 @@ import { useState } from "react";
 import { AFTER_LABEL, BEFORE_LABEL, CHANGE_CAPTION, theoryCaptions } from "../../src/change";
 import { parseUnifiedDiff } from "../../src/diff";
 import type { Bet, Outcome, Verdict } from "../../src/types";
+import { toleranceShort } from "../../src/judge";
 import type { Api, ChangeAnswer, RunAnswer } from "../api";
 import { useRunnerProgress } from "../progress";
 import { RetryMachine } from "../machines/retry/RetryMachine";
@@ -24,7 +25,7 @@ const SAY: Record<Outcome, string> = { matched: "matched", not_matched: "didn't 
 const asStored: FormatValue = (_m, v) => String(v);
 
 function answerText(b: Bet): string {
-  if (b.answer.kind === "number") return `${b.answer.value} ${b.answer.unit} (±${b.answer.tolerancePct}%)`;
+  if (b.answer.kind === "number") return `${b.answer.value} ${b.answer.unit} (${toleranceShort(b.answer.unit, b.answer.tolerancePct)})`;
   if (b.answer.kind === "quiz") return quizChoiceLabel(b.answer.options, b.answer.choice);
   return b.answer.kind === "declined" ? "declined" : String(b.answer.value);
 }

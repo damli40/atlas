@@ -128,13 +128,15 @@ describe("judge: plain numbers, tolerance relative to the observed value", () =>
     // exactly on the edge: |12000 − 10800| × 100 = 120000 = 10 × 12000
     expect(judge(bet("totalWaitMs", n(10800, 10)), run({ measured: { totalWaitMs: 12000 } })).outcome).toBe("matched");
   });
+  // R2 (D46): these two check the share-of-observed arithmetic alone, so they use the rule before D46 (timingRule null);
+  // under D46 a ms bet also matches within 1 ms (tests/unit/r2-judge-timing.test.ts).
   it("zero tolerance means exact", () => {
-    expect(judge(bet("totalWaitMs", n(12000, 0)), run({ measured: { totalWaitMs: 12000 } })).outcome).toBe("matched");
-    expect(judge(bet("totalWaitMs", n(12001, 0)), run({ measured: { totalWaitMs: 12000 } })).outcome).toBe("not_matched");
+    expect(judge(bet("totalWaitMs", n(12000, 0)), run({ measured: { totalWaitMs: 12000 } }), { timingRule: null }).outcome).toBe("matched");
+    expect(judge(bet("totalWaitMs", n(12001, 0)), run({ measured: { totalWaitMs: 12000 } }), { timingRule: null }).outcome).toBe("not_matched");
   });
   it("no float drift: 0.1 + 0.2 vs 0.3 at 0% is not_matched, at a tiny tolerance matched", () => {
-    expect(judge(bet("totalWaitMs", n(0.1 + 0.2, 0)), run({ measured: { totalWaitMs: 0.3 } })).outcome).toBe("not_matched");
-    expect(judge(bet("totalWaitMs", n(0.1 + 0.2, 0.000001)), run({ measured: { totalWaitMs: 0.3 } })).outcome).toBe("matched");
+    expect(judge(bet("totalWaitMs", n(0.1 + 0.2, 0)), run({ measured: { totalWaitMs: 0.3 } }), { timingRule: null }).outcome).toBe("not_matched");
+    expect(judge(bet("totalWaitMs", n(0.1 + 0.2, 0.000001)), run({ measured: { totalWaitMs: 0.3 } }), { timingRule: null }).outcome).toBe("matched");
   });
   it("negative tolerance → cant_check", () => {
     expect(judge(bet("totalWaitMs", n(1, -5)), run({ measured: { totalWaitMs: 1 } })).outcome).toBe("cant_check");

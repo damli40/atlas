@@ -231,3 +231,41 @@ describe("wording lint: the codebase", () => {
     expect(hits, `banned wording found:\n${hits.join("\n")}`).toEqual([]);
   });
 });
+
+// R2 (D45, D46): two timing sentences may only be written in one place each.
+// - A tolerance in bettor or proof text ("within 10%", "±10%") comes from src/judge.ts matchRuleWords /
+//   toleranceShort, so a timing bet always shows "within 10% or 1 ms" (D46). Moonwell's USD screens and bet context
+//   still write their own "within N%" (USD is not a timing bet; listed below).
+// - R1's "Elapsed times read 0 ms here" (D43) lives only in src/paste-words.ts TIMED_WORK_SAYS_R1, kept so verify
+//   accepts proof files from before R2 (D45 replaced it).
+const TOLERANCE_TEXT = /\b(?:match(?:ed|es)?|[Mm]atched means|if) within\s*$|\bmatch(?:ed|es)? (?:if )?within \d|\(±\s*$|\(±\d/;
+const TOLERANCE_ALLOWED = new Set(["src/judge.ts", "src/bet-context.ts", "web/screens/Moonwell.tsx"]);
+const OLD_TIMED_WORK = /Elapsed times read 0 ms/;
+
+export function findTimingWording(file: string, src: string): string[] {
+  const { literals, code } = extractLiterals(src);
+  const all = file.endsWith(".tsx") ? [...literals, ...jsxText(code)] : literals;
+  const hits: string[] = [];
+  for (const lit of all) {
+    if (TOLERANCE_TEXT.test(lit.text) && !TOLERANCE_ALLOWED.has(file)) hits.push(`${file}:${lit.line}: a tolerance written by hand: ${JSON.stringify(lit.text.trim().slice(0, 80))}`);
+    if (OLD_TIMED_WORK.test(lit.text) && !src.split("\n").slice(Math.max(0, lit.line - 3), lit.line).some((l) => l.includes("TIMED_WORK_SAYS_R1"))) hits.push(`${file}:${lit.line}: R1's timed-work sentence outside TIMED_WORK_SAYS_R1`);
+  }
+  return hits;
+}
+
+describe("wording lint: timing sentences (R2, D45 and D46)", () => {
+  it("the extractor flags a hand-written tolerance and R1's sentence, and allows the shared helpers", () => {
+    expect(findTimingWording("src/x.ts", "const a = `matched within ${t}% of it`;")).toHaveLength(1);
+    expect(findTimingWording("src/x.ts", "const a2 = `(match if within ${t}% of it)`;")).toHaveLength(1);
+    expect(findTimingWording("src/x.ts", 'const a3 = "the model did not answer within 30 s";')).toEqual([]);
+    expect(findTimingWording("src/x.ts", 'const b = "(±10%)";')).toHaveLength(1);
+    expect(findTimingWording("src/x.ts", "const c = `matched ${matchRuleWords(u, t)} of it`;")).toEqual([]);
+    expect(findTimingWording("src/x.ts", 'const d = "Elapsed times read 0 ms here";')).toHaveLength(1);
+    expect(findTimingWording("src/judge.ts", "const e = `within ${t}%`;")).toEqual([]);
+  });
+  it("no string in src/, server/, web/, runners/ writes a tolerance by hand or R1's timed-work sentence", () => {
+    const files = SCAN_DIRS.flatMap((d) => listSourceFiles(join(ROOT, d)));
+    const hits = files.flatMap((f) => findTimingWording(relative(ROOT, f), readFileSync(f, "utf8")));
+    expect(hits, `timing wording found:\n${hits.join("\n")}`).toEqual([]);
+  });
+});

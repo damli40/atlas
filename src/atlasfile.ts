@@ -21,7 +21,7 @@
 // No I/O, no clock (except `createdAt`, passed in), no model.
 
 import { z } from "zod";
-import { judge } from "./judge";
+import { TIMING_RULE_SINCE, isTimingBet, judge } from "./judge";
 import { quizQuestionsFor } from "./quiz";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -192,6 +192,8 @@ const verdictSchema = z
     reference: z.object({ value: z.string(), method: z.string() }).strict().optional(),
     reason: z.string().optional(),
     judgedBy: z.literal("src/judge.ts"),
+    // R2 (D46): the timing rule a verdict was judged with; absent on older files (the rule before D46).
+    timingRule: z.literal("d46").optional(),
   })
   .strict();
 
@@ -618,6 +620,18 @@ export const MAX_FILE_DEPTH = 200;
  * hostile file nested thousands of levels deep is refused before zod walks it, and any other unexpected throw
  * becomes { ok: false } with the reason. Verify RE-JUDGES the stored run with plain code; it does not re-run it.
  */
+/**
+ * R2 (D46): a matched / not matched timing verdict on a run that started on or after TIMING_RULE_SINCE must record the
+ * rule it was judged with (dropping it would re-judge the bet with the old, stricter rule).
+ */
+function timingRuleProblems(b: Bet, v: Verdict, run: Run): string[] {
+  if (!isTimingBet(b) || v.outcome === "cant_check" || v.timingRule !== undefined) return [];
+  if (Date.parse(run.startedAt) >= Date.parse(TIMING_RULE_SINCE)) {
+    return [`the verdict on bet ${b.id} records no timing rule, but its run started after Atlas began judging timing bets within 10% or 1 ms (D46)`];
+  }
+  return [];
+}
+
 export function verifyAtlasFile(raw: unknown): Verification {
   try {
     if (jsonDepth(raw, MAX_FILE_DEPTH) > MAX_FILE_DEPTH) return { ok: false, problems: [`the file nests deeper than ${MAX_FILE_DEPTH} levels, so Atlas does not read it`] };
@@ -703,8 +717,10 @@ function verifyAtlasFileChecked(raw: unknown): Verification {
       }
       if (want === null || canonicalJson(want as JsonValue) !== canonicalJson(b.answer.options as unknown as JsonValue)) say(`bet ${b.id}: its quiz options are not the ones plain code writes for its test`);
     }
-    // Re-judge: the stored verdict must be exactly what plain code gives for this bet and run.
-    const again = judge(b, run);
+    // Re-judge: the stored verdict must be exactly what plain code gives for this bet and run, with the timing rule
+    // the verdict recorded (R2, D46: none recorded = the rule before D46).
+    const again = judge(b, run, { timingRule: v.timingRule ?? null });
+    for (const p of timingRuleProblems(b, v, run)) say(p);
     if (!sameJson(again, v)) say(`the verdict on bet ${b.id} is not what src/judge.ts gives for it (stored ${v.outcome}, judged ${again.outcome})`);
   }
   for (const v of file.verdicts) if (!file.bets.some((b) => b.id === v.betId)) say(`verdict names bet ${v.betId}, which is not in the file`);
@@ -880,7 +896,10 @@ export function changeProblems(file: AtlasFile): string[] {
   for (const b of file.bets) {
     const v = replay.verdicts.find((x) => x.betId === b.id);
     if (!v) out.push(`bet ${b.id} has no verdict on the replay`);
-    else if (!sameJson(judge(b, r), v)) out.push(`the replay verdict on bet ${b.id} is not what src/judge.ts gives`);
+    else {
+      if (!sameJson(judge(b, r, { timingRule: v.timingRule ?? null }), v)) out.push(`the replay verdict on bet ${b.id} is not what src/judge.ts gives`);
+      for (const p of timingRuleProblems(b, v, r)) out.push(`replay: ${p}`);
+    }
     if (!(Date.parse(b.sealedAt) < Date.parse(r.startedAt))) out.push(`bet ${b.id} was not sealed before the replay started`);
   }
   if (replay.verdicts.length !== file.bets.length) out.push("the replay has verdicts for bets the file does not hold");
