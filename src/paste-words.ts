@@ -14,6 +14,8 @@ export const WONDER_MODEL = "muse-wonder-1.0";
 export const WONDER_DISPLAY = "Muse Wonder 1.0 (muse-wonder-1.0)";
 
 export const PASTE_WORDS = {
+  /** U3: what an edited test keeps that the form cannot edit. */
+  formKept: (network: boolean, earlier: number) => `Kept as the test had ${[network ? "its fake network" : "", earlier ? `its ${earlier === 1 ? "earlier call" : `${earlier} earlier calls`} (the form edits the last call)` : ""].filter(Boolean).join(" and ")}; the test's sentence shows them.`,
   modeButton: "Paste your own code",
   heading: "1. Paste one file",
   // R1: Python runs too (E2/E4). A language this server cannot run is labelled "(coming)" in the picker.

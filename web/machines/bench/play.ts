@@ -67,8 +67,11 @@ export function waitPath(wiring: Wiring | undefined, tested: string | null, wait
 export interface PlayStep {
   /** Virtual ms of the step. */
   at: number;
-  /** "call": a stand-in or the network fake was called; "wait": the clock jumped (a wait ended); "end": the call ended. */
-  kind: "call" | "wait" | "end";
+  /**
+   * "call": a stand-in or the network fake was called; "wait": the clock jumped (a wait ended); "end": the call ended;
+   * U3 "turn": in a sequence, Atlas starts call n, or an earlier call ended (display only, never judged).
+   */
+  kind: "call" | "wait" | "end" | "turn";
   /** The device whose lamp lights (a call), or null. */
   device: string | null;
   line: string | null;
@@ -185,7 +188,27 @@ export function playScript(run: Run, test: CallTest, tested: string | null, wait
     const k = Math.ceil(waits.length / Math.max(1, room));
     waits = waits.filter((_, i) => i % k === k - 1 || i === waits.length - 1).slice(-Math.max(1, room));
   }
-  const steps = [...calls, ...waits].sort((a, b) => a.at - b.at || (a.kind === b.kind ? a.call - b.call : a.kind === "wait" ? -1 : 1));
+  // U3: a sequence's own moments: each call starting, and how each earlier call ended (from the run's trace).
+  const turns: PlayStep[] = [];
+  const total = (run.trace ?? []).find((e) => e.event === "start")?.data as { calls?: unknown } | undefined;
+  const nCalls = typeof total?.calls === "number" ? total.calls : 0;
+  if (nCalls > 1) {
+    for (const e of run.trace ?? []) {
+      const d = (e.data ?? {}) as { n?: unknown; exportName?: unknown; type?: unknown; json?: unknown; name?: unknown };
+      if (typeof d.n !== "number") continue;
+      const fn = typeof d.exportName === "string" ? d.exportName : tested;
+      const parts = fn ? callPath(wiring, fn, null).parts : [];
+      if (e.event === "call_start") turns.push({ at: e.t, kind: "turn", device: null, line: null, parts, call: d.n, words: `Atlas makes call ${d.n} of ${nCalls}${fn ? `: ${fn}` : ""}` });
+      else if (e.event === "call_returned") turns.push({ at: e.t, kind: "turn", device: null, line: null, parts: [], call: d.n, words: `call ${d.n} returned${typeof d.json === "string" ? ` ${short(literalOfJsonText(d.json, wiring?.language))}` : ` a ${String(d.type)}`}` });
+      else if (e.event === "call_threw") turns.push({ at: e.t, kind: "turn", device: null, line: null, parts: [], call: d.n, words: `call ${d.n} threw${typeof d.name === "string" ? ` ${visibleText(d.name)}` : ` a ${String(d.type)}`}; Atlas makes the next call` });
+    }
+  }
+  // A clock jump that ends exactly when Atlas starts the next call is Atlas's own wait between calls, not the code's.
+  const startTimes = new Set(turns.filter((t) => t.words.startsWith("Atlas makes") && (test.calls?.[t.call - 1]?.waitMs ?? 0) > 0).map((t) => t.at));
+  for (const t of turns) if (t.words.startsWith("Atlas makes") && (test.calls?.[t.call - 1]?.waitMs ?? 0) > 0) t.words += ` (after Atlas's scripted wait of ${test.calls![t.call - 1]!.waitMs!.toLocaleString("en-US")} ms)`;
+  if (startTimes.size) waits = waits.filter((w) => !(startTimes.has(w.at) && w.device === null));
+  const kindOrder = { turn: 0, wait: 1, call: 2, end: 3 } as const;
+  const steps = [...turns, ...calls, ...waits].sort((a, b) => a.at - b.at || (a.kind === b.kind ? a.call - b.call : kindOrder[a.kind] - kindOrder[b.kind]));
   const outcome = has("outcome") ? measured.outcome : null;
   const atLimit = outcome === "still_running_at_watch_limit" && tl.end?.kind === "still_running";
   const dialEndMs = has("virtualMs") && typeof measured.virtualMs === "number" ? measured.virtualMs : atLimit && tl.end && "t" in tl.end ? tl.end.t : null;

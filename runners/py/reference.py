@@ -141,3 +141,40 @@ def pinned():
     """R1 (D42): the pins. random, uuid and secrets draw from Atlas's seeded generator (seed 20260101 in the
     control), the time zone is UTC and the locale is C."""
     return [random.random(), str(uuid.uuid4())[:8], secrets.token_hex(4), time.localtime(0).tm_hour, time.strftime("%Z", time.localtime(0))]
+
+
+_remembered = {"count": 0, "memo": {}}
+
+
+async def remember(key, load):
+    """U3: a sequence on one loaded module. The 2nd call returned {"cached": "A", "count": 2} at 0 ms of its own
+    time; load was called once over both calls (C11-sequence)."""
+    _remembered["count"] += 1
+    if key in _remembered["memo"]:
+        return {"cached": _remembered["memo"][key], "count": _remembered["count"]}
+    v = await load(key)
+    _remembered["memo"][key] = v
+    return {"loaded": v, "count": _remembered["count"]}
+
+
+_flaky = [0]
+
+
+def flaky_once():
+    """U3: raises on its first call only; the 2nd call returned "ok 2" (C12-sequence-throw)."""
+    _flaky[0] += 1
+    if _flaky[0] == 1:
+        raise ValueError("first")
+    return "ok %d" % _flaky[0]
+
+
+_slow = {}
+
+
+def slow_lookup(k):
+    """U3: a plain (not async) cache with a blocking sleep: the 1st call takes 500 ms, the 2nd 0 ms (C13-sequence-sync)."""
+    if k in _slow:
+        return _slow[k]
+    time.sleep(0.5)
+    _slow[k] = k * 2
+    return _slow[k]

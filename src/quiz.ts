@@ -12,7 +12,7 @@
 //   option holds whatever the run measures. "can't tell" is a declined bet, judged "can't check".
 // - Judging is by membership: the bet matched when the measured value is inside the chosen option. Pure, no I/O.
 
-import { CALL_DEFAULT_WATCH_LIMIT_MS, gate, questionsFor, visibleText, type Question } from "./gate";
+import { CALL_DEFAULT_WATCH_LIMIT_MS, gate, questionsFor, sequenceOf, standInsOf, visibleText, type Question } from "./gate";
 import { canonicalJson } from "./seal";
 import { shortLiteral, type CodeLanguage } from "./literal";
 import { alignDecimals, parseExactDecimal, type ExactDecimal } from "./units";
@@ -69,7 +69,7 @@ export function countOptions(steps: number): QuizOption[] {
  */
 export function timeOptions(params: CallShape): QuizOption[] {
   const waits = [
-    ...params.args.flatMap((a) => (a.kind === "stand-in" ? a.calls.map((c) => (c.do === "return" ? (c.afterMs ?? 0) : 0)) : [])),
+    ...standInsOf(params).flatMap((a) => a.calls.map((c) => (c.do === "return" ? (c.afterMs ?? 0) : 0))),
     // U2 (D53): the fake network's scripted answer delays are scripted waits too.
     ...(params.network?.calls ?? []).map((c) => (c.do === "respond" ? (c.afterMs ?? 0) : 0)),
   ];
@@ -96,11 +96,11 @@ export function valueOptions(params: CallShape, language?: CodeLanguage): QuizOp
     seen.add(key);
     picked.push({ value, label });
   };
-  for (const a of params.args) if (a.kind === "stand-in") for (const c of a.calls) if (c.do === "return") add(c.value, `${shortJson(c.value, language)} (what ${visibleText(a.name)} is scripted to return)`);
+  for (const a of standInsOf(params)) for (const c of a.calls) if (c.do === "return") add(c.value, `${shortJson(c.value, language)} (what ${visibleText(a.name)} is scripted to return)`);
   // U2 (D53): the body of each successful (2xx) answer the fake network is scripted to give.
   for (const c of params.network?.calls ?? []) if (c.do === "respond" && c.status >= 200 && c.status <= 299) add(c.body, `${shortJson(c.body, language)} (the body the fake ${params.network!.replaces} answers with)`);
   params.args.forEach((a, i) => {
-    if (a.kind === "json") add(a.value, `${shortJson(a.value, language)} (the same as argument ${i + 1})`);
+    if (a.kind === "json") add(a.value, `${shortJson(a.value, language)} (the same as argument ${i + 1}${sequenceOf(params) ? " of the last call" : ""})`);
   });
   if (picked.length === 0) return [];
   // Review m5: values cut to the same words get their length and a number, so no two options read alike.
@@ -138,7 +138,7 @@ export function quizQuestionsFor(test: unknown, exportNames?: readonly string[],
   };
   as("outcome", endingOptions(params.watchLimitMs ?? CALL_DEFAULT_WATCH_LIMIT_MS));
   as("returnedJson", valueOptions(params, language));
-  for (const a of params.args) if (a.kind === "stand-in") as(`calls:${a.name}`, countOptions((a as StandIn).calls.length));
+  for (const a of standInsOf(params)) as(`calls:${a.name}`, countOptions((a as StandIn).calls.length));
   if (params.network) as(`calls:${params.network.replaces}`, countOptions(params.network.calls.length));
   as("virtualMs", timeOptions(params));
   return out;

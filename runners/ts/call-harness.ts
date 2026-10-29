@@ -118,7 +118,7 @@ export const MAX_TRACE_EVENTS = 1_000;
 const MAX_CLOCK_MOVES = 300;
 /** U2 review m6: Node's built-in fetch stops waiting for a server's headers after this long (undici headersTimeout). */
 export const NODE_FETCH_GIVES_UP_MS = 300_000;
-const ALWAYS_KEPT: Record<string, true> = { __proto__: null, clock_moves: true, start: true, returned: true, threw: true, never_settled: true, still_running_at_watch_limit: true, stopped_watching: true, stopped_watching_after_settle: true } as unknown as Record<string, true>;
+const ALWAYS_KEPT: Record<string, true> = { __proto__: null, clock_moves: true, start: true, call_start: true, call_returned: true, call_threw: true, returned: true, threw: true, never_settled: true, still_running_at_watch_limit: true, stopped_watching: true, stopped_watching_after_settle: true } as unknown as Record<string, true>;
 
 // ---------------------------------------------------------------------------------------------
 // The request (written by runners/ts/call-runner.ts; JSON values travel as text so they arrive as ordinary
@@ -134,6 +134,12 @@ export interface CallRunRequest {
   id: string;
   exportName: string;
   args: WireArg[];
+  /**
+   * U3: a sequence of calls on the SAME loaded module (2 to 3; the last is exportName/args). Atlas makes each call
+   * after the previous one returns or throws (and after its scripted wait), and measures the LAST call: its ending, its
+   * value and its own time. Stand-in and network counts are totals over every call.
+   */
+  sequence?: { exportName: string; args: WireArg[]; waitMs: number }[];
   watchLimitMs: number;
   /** U2 (D53): the scripted fake installed as the global `fetch` for this run (the real network stays blocked). */
   network?: { name: "fetch" | "requests" | "urllib" | "httpx"; calls: WireNetStep[]; then: "repeat_last" | "throw_exhausted" };
@@ -1381,6 +1387,8 @@ export function classifyThrown(e: unknown): ThrownFacts {
 export interface CallHarnessOptions {
   /** Safety cap on virtual timer firings (stops a zero-delay loop from running forever). */
   maxSteps?: number;
+  /** U3: the function of each call of `req.sequence`, in order (the worker reads them from the module). */
+  sequenceFns?: readonly unknown[];
 }
 
 function makeError(name: string, message: string): Error {
@@ -1434,11 +1442,20 @@ export async function runCall(fn: unknown, req: CallRunRequest, opts: CallHarnes
   let settledAt: number | null = null;
 
   // ---- the arguments ----
+  // U3: a sequence passes each call its own arguments; a stand-in named the same in several calls is ONE stand-in
+  // (one counter, its steps used in order across the calls), as the gate requires them to be identical.
+  const madeStandIns = new Map<string, unknown>();
+  const buildArgs = (list: readonly WireArg[]): unknown[] => {
   const args: unknown[] = [];
-  for (let i = 0; i < req.args.length; i++) {
-    const a = req.args[i]!;
+  for (let i = 0; i < list.length; i++) {
+    const a = list[i]!;
     if (a.kind === "json") {
       append(args, JSONParse(a.json));
+      continue;
+    }
+    const made = madeStandIns.get(a.name);
+    if (made !== undefined) {
+      append(args, made);
       continue;
     }
     const name = a.name;
@@ -1491,8 +1508,14 @@ export async function runCall(fn: unknown, req: CallRunRequest, opts: CallHarnes
       return promiseResolve(value);
     };
     ObjectDefineProperty(standIn, "name", { __proto__: null, value: name, writable: false, enumerable: false, configurable: true } as PropertyDescriptor);
+    madeStandIns.set(name, standIn);
     append(args, standIn);
   }
+  return args;
+  };
+  const seq = req.sequence && req.sequence.length > 1 ? req.sequence : null;
+  const seqArgs: unknown[][] = seq ? seq.map((c) => buildArgs(c.args)) : [];
+  const args: unknown[] = seq ? seqArgs[seqArgs.length - 1]! : buildArgs(req.args);
 
   // ---- U2 (D53): the fake network, installed as the global fetch for this run only ----
   // Counted like a stand-in (calls:fetch, the same trace events). A Response-like answer: status, ok, headers,
@@ -1646,16 +1669,45 @@ export async function runCall(fn: unknown, req: CallRunRequest, opts: CallHarnes
   for (const k of ReflectOwnKeys(loadHostReads)) put(hostReads, k as string, true);
   let unrefStop = false;
   const before = activeResources();
-  emit("start", { exportName: req.exportName, args: req.args.length, watchLimitMs });
-  promiseThen(
-    promiseThen(promiseResolve(undefined), () => {
-      inSyncCall = true; // R1: the function's own synchronous part (process.nextTick here races promise callbacks)
+  emit("start", { exportName: req.exportName, args: req.args.length, watchLimitMs, ...(seq ? { calls: seq.length } : {}) });
+  const callOnce = (f: unknown, a: unknown[]): unknown => {
+    inSyncCall = true; // R1: the function's own synchronous part (process.nextTick here races promise callbacks)
+    try {
+      return ReflectApply(f as (...x: unknown[]) => unknown, undefined, a);
+    } finally {
+      inSyncCall = false;
+    }
+  };
+  // U3: a sequence. Each earlier call runs to its end (returns or throws; a throw is noted and the next call is still
+  // made, as a caller that catches would); then the last call starts, and only it is measured. An earlier call that
+  // never ends leaves the last call unstarted, and nothing about it is reported.
+  let lastStart = 0;
+  let lastStarted = seq === null;
+  const waitVirtual = (ms: number): Promise<void> => new PromiseCtor<void>((resolve) => clock.schedule(clock.now + ms, () => resolve(undefined), { atlas: true }));
+  const sequenceBody = async (): Promise<unknown> => {
+    const fns = opts.sequenceFns ?? [];
+    for (let i = 0; i < seq!.length - 1; i++) {
+      if (seq![i]!.waitMs > 0) await waitVirtual(seq![i]!.waitMs);
+      emit("call_start", { n: i + 1, exportName: seq![i]!.exportName });
       try {
-        return ReflectApply(fn as (...a: unknown[]) => unknown, undefined, args);
-      } finally {
-        inSyncCall = false;
+        const v = await callOnce(fns[i], seqArgs[i]!);
+        const facts = classifyReturned(v);
+        emit("call_returned", "json" in facts ? { n: i + 1, type: facts.type, json: facts.json.length > 200 ? `${facts.json.slice(0, 199)}…` : facts.json } : { n: i + 1, type: facts.type });
+      } catch (e) {
+        if (isAccessDenied(e)) markWholeRun(ACCESS_REASON("the sandbox refused an access"));
+        const facts = classifyThrown(e);
+        emit("call_threw", { n: i + 1, type: facts.type, ...(facts.name !== undefined ? { name: facts.name } : {}) });
       }
-    }),
+    }
+    const last = seq![seq!.length - 1]!;
+    if (last.waitMs > 0) await waitVirtual(last.waitMs);
+    lastStart = clock.now;
+    lastStarted = true;
+    emit("call_start", { n: seq!.length, exportName: last.exportName });
+    return callOnce(fns[seq!.length - 1], args);
+  };
+  promiseThen(
+    promiseThen(promiseResolve(undefined), () => (seq ? sequenceBody() : callOnce(fn, args))),
     (v: unknown) => {
       watch();
       settledAt = clock.now;
@@ -1793,6 +1845,13 @@ export async function runCall(fn: unknown, req: CallRunRequest, opts: CallHarnes
     append(trace, ev);
   }
 
+  if (!lastStarted && !notDecided) {
+    // U3: an earlier call of the sequence never ended, so the last call never started: nothing about it is reported.
+    const why = `call ${seq ? seq.length - 1 : 1} of ${seq ? seq.length : 1} did not finish (${stop ?? (limitHit ? `still running when ${limitWords} ran out` : "it never settled")}), so the last call never started`;
+    for (const k of ["outcome", "returnedJson", "returnedType", "thrownName", "thrownMessage", "virtualMs"]) put(notMeasured, k, why);
+    for (const n of standInNames) put(notMeasured, `calls:${n}`, `${why}; the count so far was ${counts.get(n) ?? 0}`);
+    return plain({ trace, result: { measured, notMeasured } });
+  }
   if (s === null || notDecided) {
     if (stop) {
       for (const k of ["outcome", "returnedJson", "returnedType", "thrownName", "thrownMessage", "virtualMs"]) put(notMeasured, k, `${stop}, so how the call ends was not seen`);
@@ -1813,7 +1872,8 @@ export async function runCall(fn: unknown, req: CallRunRequest, opts: CallHarnes
   }
 
   put(measured, "outcome", s.kind);
-  put(measured, "virtualMs", settledAt!);
+  // U3: in a sequence, the time is the last call's own (from its start until it returned or threw).
+  put(measured, "virtualMs", settledAt! - lastStart);
   if (s.kind === "returned") {
     const f = s.facts;
     put(measured, "returnedType", f.type);

@@ -118,7 +118,8 @@ describe("U2 network fakes: Wonder's proposals", () => {
     expect(v.proposals[1]!.gate).toEqual({ allowed: true });
     const prompt = buildProposerMessages({ source: FETCH_SRC, language: "ts", exportName: "fetchWithRetry", exportNames: ["fetchWithRetry"] })[1]!.content;
     expect(prompt).toMatch(/EVERY experiment must include "network" with a fake for fetch as "fetch"/);
-    expect(prompt).toMatch(/retries, failures, waits and hangs/);
+    // U3: the prompt now asks for edges (the last retry, a limit, a hang, a second call on state).
+    expect(prompt).toMatch(/the exact failure that uses up the last retry/);
     expect(prompt).toMatch(/no negative counts, no zero retries/);
   });
 });

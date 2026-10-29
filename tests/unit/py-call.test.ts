@@ -67,7 +67,7 @@ describe.skipIf(!HAVE_PYTHON)("the Python call-function control", () => {
   it("passes on the shipped reference file, every case matched", () => {
     expect(control.controlPassed, JSON.stringify(control.result.notMeasured)).toBe(true);
     expect(control.experimentId).toBe(PY_CALL_CONTROL_ID);
-    expect(PY_CALL_CONTROL_CASES.length).toBe(14); // R1: + P14-pins
+    expect(PY_CALL_CONTROL_CASES.length).toBe(17); // R1: + P14-pins; U3: + three sequence cases
     expect(control.result.measured["C3-async-stand-in.virtualMs"]).toBe(1950);
     expect(control.result.measured["P11-nested-asyncio-run.virtualMs"]).toBe(750);
     const last = control.trace.at(-1)!;

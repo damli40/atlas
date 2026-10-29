@@ -16,6 +16,7 @@ import { TIMING_TOLERANCE_PCT, matchRuleWords } from "./timing-rule";
 import type { ArgSpec, BetAnswer, ExperimentShape, JsonValue, NetworkLibrary, QuizOption, StandInStep } from "./types";
 import { canonicalJson } from "./seal";
 import { literal, literalProblem, shortLiteral, type CodeLanguage } from "./literal";
+import { plural } from "./words";
 import { LIBRARY_LANGUAGE, LIBRARY_WORDS, NETWORK_ERRORS, NETWORK_LIBRARIES, networkFakeWords } from "./network-fake";
 import { CALL_OUTCOME_OPTIONS, OUTCOME_OPTIONS, SETTLE_FIELD, STAND_IN_CALLS_PREFIX, measuredUnit, type MeasuredUnit } from "./units";
 
@@ -91,6 +92,11 @@ export const BOUNDS = {
   standInNameChars: 40,
   errorNameChars: 60,
   errorMessageChars: 500,
+  // ---- added U3: a sequence of calls on one loaded file ----
+  /** How many calls a sequence may make (the last is the one the questions are about). */
+  sequenceCalls: { min: 2, max: 3 },
+  /** A wait before one call of a sequence, in virtual ms. */
+  sequenceWaitMs: { min: 0, max: 600_000 },
 } as const;
 
 /** Added E1: Atlas's default watch limit for a call-function run (virtual ms), as the any-code spec says. */
@@ -107,7 +113,9 @@ type FieldSpec =
   | { kind: "exportName" }
   | { kind: "callArgs" }
   // Added U2 (D53)
-  | { kind: "network" };
+  | { kind: "network" }
+  // Added U3
+  | { kind: "sequence" };
 
 interface ShapeSpec {
   runner: "ts" | "evm";
@@ -178,12 +186,13 @@ export const SHAPES: Readonly<Record<ShapeName, ShapeSpec>> = {
     runner: "ts",
     does: "calls one exported function of the pasted file once, with plain JSON arguments and stand-in functions Atlas controls",
     required: { exportName: { kind: "exportName" }, args: { kind: "callArgs" } },
-    optional: { watchLimitMs: int(BOUNDS.watchLimitMs), network: { kind: "network" } },
+    optional: { watchLimitMs: int(BOUNDS.watchLimitMs), network: { kind: "network" }, calls: { kind: "sequence" } },
     notes: {
       exportName: "the exported function to call",
       network: `only when the code calls the network: one scripted fake for that library, installed in place of it (the real network stays blocked): {"replaces":"fetch" (JS/TS global fetch) | "requests" | "urllib" (urllib.request) | "httpx","calls":[<1 to ${BOUNDS.standInSteps.max} steps>],"then":"repeat_last"|"throw_exhausted"}; a step is {"do":"respond","status":<100-599>,"body":<JSON>,"afterMs"?:<virtual ms>} or {"do":"throw","errorName":<the library's own network error name: fetch TypeError|AbortError|TimeoutError; requests ConnectionError|Timeout|ConnectTimeout|ReadTimeout|HTTPError|TooManyRedirects|RequestException; urllib URLError|TimeoutError; httpx ConnectError|ConnectTimeout|ReadTimeout|TimeoutException|NetworkError|ReadError|RemoteProtocolError>,"message":<text>} or {"do":"never_answer"} (only the code's own timeout or abort ends that wait)`,
       args: `at most ${BOUNDS.callArgs}; each {"kind":"json","value":<JSON>} or a stand-in function {"kind":"stand-in","name":<identifier>,"async":<true|false>,"calls":[<1 to ${BOUNDS.standInSteps.max} steps>],"then":"repeat_last"|"throw_exhausted"}; a step is {"do":"return","value":<JSON>,"afterMs"?:<virtual ms, async only>} or {"do":"throw","errorName":<identifier>,"message":<text>} or {"do":"never_settle"} (async only)`,
       watchLimitMs: `how long Atlas watches, in virtual ms (default ${CALL_DEFAULT_WATCH_LIMIT_MS})`,
+      calls: `only for code that keeps state between calls (a cache, a counter, a module-level dict): ${BOUNDS.sequenceCalls.min} to ${BOUNDS.sequenceCalls.max} calls on the SAME loaded file, in order, [{"exportName":<name>,"args":[...],"waitMs"?:<virtual ms Atlas waits before this call; not on the first>}, ...]; the LAST entry must be exactly the experiment's exportName and args (the call the questions are about); a stand-in used in several calls must be written the same in each (it is one stand-in, counted over every call)`,
     },
   },
 };
@@ -267,7 +276,32 @@ function checkField(name: string, spec: FieldSpec, value: unknown, ctx: GateCont
       return checkCallArgs(name, value);
     case "network":
       return checkNetwork(name, value, ctx);
+    case "sequence":
+      return checkSequence(name, value, ctx);
   }
+}
+
+/** U3: a sequence of calls, every bound checked (the cross checks with the experiment's own call are in gate()). */
+function checkSequence(name: string, value: unknown, ctx: GateContext): string | undefined {
+  if (!Array.isArray(value)) return `${name} must be a list of calls`;
+  if (value.length < BOUNDS.sequenceCalls.min || value.length > BOUNDS.sequenceCalls.max) return `${name} must hold ${BOUNDS.sequenceCalls.min} to ${BOUNDS.sequenceCalls.max} calls; got ${value.length}`;
+  for (let i = 0; i < value.length; i++) {
+    const c = value[i] as unknown;
+    const at = `${name}[${i}]`;
+    if (!isRecord(c)) return `${at} must be an object with exportName and args`;
+    const extra = Object.keys(c).filter((k) => !["exportName", "args", "waitMs"].includes(k));
+    if (extra.length) return `${at} has no field ${extra.map(show).join(", ")}; its fields are exportName, args, waitMs`;
+    const e = checkField(`${at}.exportName`, { kind: "exportName" }, c.exportName, ctx);
+    if (e) return e;
+    const a = checkCallArgs(`${at}.args`, c.args);
+    if (a) return a;
+    if (c.waitMs !== undefined) {
+      if (i === 0) return `${at}.waitMs: the first call has no wait before it (Atlas makes it at once)`;
+      const w = checkField(`${at}.waitMs`, int(BOUNDS.sequenceWaitMs), c.waitMs, {});
+      if (w) return w;
+    }
+  }
+  return undefined;
 }
 
 /** U2 (D53): a network fake, every bound checked; undefined when it is fine. */
@@ -481,11 +515,44 @@ export function gate(params: unknown, ctx: GateContext = {}): GateDecision {
     for (const c of (params.network as { calls: Record<string, unknown>[] }).calls) chars += c.do === "respond" ? visibleText(canonicalJson(c.body as JsonValue)).length : c.do === "throw" ? visibleText(String(c.errorName)).length + visibleText(String(c.message)).length : 0;
     if (chars > BOUNDS.argsJsonChars) return refuse(`the texts in args and network (JSON values, names and messages, with hidden characters written as escapes) are ${chars} characters; the limit is ${BOUNDS.argsJsonChars}`);
   }
+  if (name === "call-function" && params.calls !== undefined) {
+    // U3: the sequence's last call is the experiment's own call; one stand-in per name across every call; the waits
+    // fit inside the watch limit (else the last call could never start and plain code already knows it); one budget.
+    const calls = params.calls as { exportName: string; args: ArgSpec[]; waitMs?: number }[];
+    const last = calls[calls.length - 1]!;
+    if (last.exportName !== params.exportName || canonicalJson(last.args as unknown as JsonValue) !== canonicalJson(params.args as unknown as JsonValue)) {
+      return refuse("the last entry of calls must be exactly the experiment's own exportName and args (the call the questions are about)");
+    }
+    const byName = new Map<string, string>();
+    for (const c of calls)
+      for (const a of c.args) {
+        if (a.kind !== "stand-in") continue;
+        const text = canonicalJson(a as unknown as JsonValue);
+        const seen = byName.get(a.name);
+        if (seen !== undefined && seen !== text) return refuse(`the stand-in "${a.name}" is written differently in two calls; a stand-in used in several calls is one stand-in, so write it the same in each`);
+        byName.set(a.name, text);
+      }
+    if (isRecord(params.network) && byName.has(String(params.network.replaces))) return refuse(`a stand-in is named "${String(params.network.replaces)}", the same as the network fake; each needs its own name (its call count is measured by name)`);
+    const waits = calls.reduce((t, c) => t + (c.waitMs ?? 0), 0);
+    const limit = typeof params.watchLimitMs === "number" ? params.watchLimitMs : CALL_DEFAULT_WATCH_LIMIT_MS;
+    if (waits >= limit) return refuse(`the waits between calls add up to ${waits} ms, which is not less than Atlas's watch limit (${limit} ms): the last call could never start; set a longer watchLimitMs`);
+    let chars = 0;
+    for (const c of calls)
+      for (const a of c.args) {
+        if (a.kind === "json") chars += visibleText(canonicalJson(a.value)).length;
+        else {
+          chars += visibleText(a.name).length;
+          for (const st of a.calls) chars += st.do === "return" ? visibleText(canonicalJson(st.value)).length : st.do === "throw" ? visibleText(st.errorName).length + visibleText(st.message).length : 0;
+        }
+      }
+    if (chars > BOUNDS.argsJsonChars) return refuse(`the texts in calls (JSON values, names and messages, with hidden characters written as escapes) are ${chars} characters; the limit is ${BOUNDS.argsJsonChars}`);
+  }
   if (name === "call-function") {
     // U3 item 3: every value a bettor reads is written in the code's language; a value that has no literal there that
     // Atlas would pass unchanged is refused, never shown in a form that is not what runs.
     const values: JsonValue[] = [];
-    for (const a of params.args as ArgSpec[]) {
+    const allArgs = [...(params.args as ArgSpec[]), ...(Array.isArray(params.calls) ? (params.calls as { args: ArgSpec[] }[]).flatMap((c) => c.args) : [])];
+    for (const a of allArgs) {
       if (a.kind === "json") values.push(a.value);
       else for (const c of a.calls) if (c.do === "return") values.push(c.value);
     }
@@ -567,26 +634,52 @@ function standInWords(a: Extract<ArgSpec, { kind: "stand-in" }>, language?: Code
   return `${a.name}${a.async ? " (async)" : ""} ${parts.join(", then ")}; ${after}.`;
 }
 
+/** U3: the calls of a sequence (2 or 3), or null for a single call. */
+export function sequenceOf(params: Extract<ExperimentShape, { shape: "call-function" }>): NonNullable<typeof params.calls> | null {
+  return params.calls && params.calls.length > 1 ? params.calls : null;
+}
+
+/** U3: every stand-in of a test, once each (a sequence may pass the same stand-in to several calls). */
+export function standInsOf(params: Extract<ExperimentShape, { shape: "call-function" }>): Extract<ArgSpec, { kind: "stand-in" }>[] {
+  const out: Extract<ArgSpec, { kind: "stand-in" }>[] = [];
+  for (const a of [...(sequenceOf(params) ?? []).flatMap((c) => c.args), ...params.args]) if (a.kind === "stand-in" && !out.some((x) => x.name === a.name)) out.push(a);
+  return out;
+}
+
+/** "2nd", "3rd". */
+export function ordinalWord(n: number): string {
+  const t = n % 100;
+  return `${n}${t >= 11 && t <= 13 ? "th" : n % 10 === 1 ? "st" : n % 10 === 2 ? "nd" : n % 10 === 3 ? "rd" : "th"}`;
+}
+
 /** The sentence every call-function question starts with: what Atlas will call, and what each stand-in does. */
 export function describeCall(params: Extract<ExperimentShape, { shape: "call-function" }>, language?: CodeLanguage, asOf?: "e3"): string {
   if (asOf === "e3") language = undefined;
-  const args = params.args.map((a) => (a.kind === "json" ? shortJson(a.value, language) : a.name)).join(", ");
-  const standIns = params.args.filter((a): a is Extract<ArgSpec, { kind: "stand-in" }> => a.kind === "stand-in").map((a) => standInWords(a, language, asOf));
+  const callText = (exportName: string, list: readonly ArgSpec[]) => `${exportName}(${list.map((a) => (a.kind === "json" ? shortJson(a.value, language) : a.name)).join(", ")})`;
+  const standIns = standInsOf(params).map((a) => standInWords(a, language, asOf));
   const net = params.network ? [networkFakeWords(params.network, (v) => literal(v, language))] : [];
-  return visibleText([`Atlas calls ${params.exportName}(${args}).`, ...standIns, ...net].join(" "));
+  const seq = sequenceOf(params);
+  if (!seq) return visibleText([`Atlas calls ${callText(params.exportName, params.args)}.`, ...standIns, ...net].join(" "));
+  // U3: a sequence, said in order, with what carries over and what the questions are about.
+  const steps = seq.map((c, i) => `${c.waitMs ? `waits ${c.waitMs.toLocaleString("en-US")} ms, then ` : ""}${i === 0 ? "" : "calls "}${callText(c.exportName, c.args)}`);
+  const said = `Atlas calls ${steps.join(", then ")}: ${plural(seq.length, "call")} in a row on the same loaded file, so anything the code keeps between calls (a cache, a counter) carries over. If an earlier call throws, Atlas notes it and still makes the next. The questions are about the ${ordinalWord(seq.length)} (last) call; call counts are totals over all ${plural(seq.length, "call")}.`;
+  return visibleText([said, ...standIns, ...net].join(" "));
 }
 
 /** The questions about one call-function experiment, every text written here. */
 function callFunctionQuestions(params: Extract<ExperimentShape, { shape: "call-function" }>, language?: CodeLanguage, asOf?: "e3"): Question[] {
   const d = describeCall(params, language, asOf);
-  const fn = visibleText(params.exportName);
+  const seq = sequenceOf(params);
+  // U3: in a sequence the questions name the last call, and counts are over every call.
+  const fn = seq ? `the ${ordinalWord(seq.length)} call (${visibleText(params.exportName)})` : visibleText(params.exportName);
   const out: Question[] = [
     q("outcome", `${d} What does ${fn} do?`, "enum", { options: CALL_OUTCOME_OPTIONS }),
     q("returnedJson", `${d} If ${fn} returns, what value does it return, as JSON?`, "json"),
-    q("virtualMs", `${d} How long until ${fn} returns or throws, in ms of Atlas's virtual clock?`, "number", { tolerancePct: VIRTUAL_MS_TOLERANCE_PCT }),
+    q("virtualMs", seq ? `${d} How long does ${fn} take, from its start until it returns or throws, in ms of Atlas's virtual clock?` : `${d} How long until ${fn} returns or throws, in ms of Atlas's virtual clock?`, "number", { tolerancePct: VIRTUAL_MS_TOLERANCE_PCT }),
   ];
-  for (const a of params.args) if (a.kind === "stand-in") out.push(q(`${STAND_IN_CALLS_PREFIX}${a.name}`, `${d} How many times does ${fn} call ${visibleText(a.name)}?`, "integer"));
-  if (params.network) out.push(q(`${STAND_IN_CALLS_PREFIX}${params.network.replaces}`, `${d} How many times does ${fn} call the network (Atlas's fake ${LIBRARY_WORDS[params.network.replaces]})?`, "integer"));
+  const who = seq ? `In all ${plural(seq.length, "call")} together, how many times is` : null;
+  for (const a of standInsOf(params)) out.push(q(`${STAND_IN_CALLS_PREFIX}${a.name}`, who ? `${d} ${who} ${visibleText(a.name)} called?` : `${d} How many times does ${fn} call ${visibleText(a.name)}?`, "integer"));
+  if (params.network) out.push(q(`${STAND_IN_CALLS_PREFIX}${params.network.replaces}`, who ? `${d} ${who} the network (Atlas's fake ${LIBRARY_WORDS[params.network.replaces]}) called?` : `${d} How many times does ${fn} call the network (Atlas's fake ${LIBRARY_WORDS[params.network.replaces]})?`, "integer"));
   return out;
 }
 
@@ -699,6 +792,8 @@ function renderField(name: string, spec: FieldSpec, ctx: GateContext): string {
       return `${name}: list of arguments`;
     case "network":
       return `${name}: optional network fake`;
+    case "sequence":
+      return `${name}: optional list of ${BOUNDS.sequenceCalls.min} to ${BOUNDS.sequenceCalls.max} calls on the same loaded file`;
   }
 }
 

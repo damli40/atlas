@@ -16,7 +16,7 @@ import type { Question } from "../../src/gate";
 import { shortQuestionFor, pinsLineOf } from "../../src/paste-context";
 import { CANT_TELL, timeOptions } from "../../src/quiz";
 import { WONDER_DISPLAY, BET_WORDS, RESULT_WORDS, betterByRole } from "../../src/paste-words";
-import { pickDefaultTest } from "../../src/default-test";
+import { pickDefaultTest, type CodeContext } from "../../src/default-test";
 import { LIBRARY_WORDS } from "../../src/network-fake";
 import { CALL_DEFAULT_WATCH_LIMIT_MS } from "../../src/gate";
 import { ProofCardPage } from "./ProofCard";
@@ -48,9 +48,10 @@ export function defaultFunction(outline: FileOutline | undefined, exports: reado
 }
 
 /** U2 (D53): the plain-code rule's pick among the allowed proposals (src/default-test.ts), or undefined. */
-export function defaultProposal<P extends { gate: { allowed: boolean }; params: unknown }>(proposals: readonly P[]): P | undefined {
+export function defaultProposal<P extends { gate: { allowed: boolean }; params: unknown }>(proposals: readonly P[], code?: CodeContext): P | undefined {
   const allowed = proposals.filter((p) => p.gate.allowed);
-  const i = pickDefaultTest(allowed.map((p) => p.params as CallTest));
+  // U3: the rule prefers a test that hits an edge, read from the file's text (a second call on a cache, the Nth failure).
+  const i = pickDefaultTest(allowed.map((p) => p.params as CallTest), code);
   return i >= 0 ? allowed[i] : undefined;
 }
 
@@ -250,7 +251,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       if (g !== gen.current) return;
       setProposals(p);
       // U2 (D53): the default is the most interesting allowed test by a plain-code rule (src/default-test.ts).
-      const first = defaultProposal(p.proposals);
+      const lang = pasted?.target.language ?? pasted?.language.chosen;
+      const first = defaultProposal(p.proposals, lang ? { source: readText, language: lang } : undefined);
       if (first) await start(() => api.experimentFromProposal(target, first.id, { quiz: true }));
       else setChanging(true);
     } catch (e) {

@@ -105,3 +105,26 @@ export function laterCall(ping: () => unknown): string {
 export function pinned(): unknown {
   return { r: Math.random(), u: crypto.randomUUID(), h: new Date(0).getHours(), tz: Intl.DateTimeFormat().resolvedOptions().timeZone, n: (1234.5).toLocaleString() };
 }
+
+/**
+ * U3: a sequence of calls on one loaded module. The first call loads (the stand-in answers after 500 ms) and keeps the
+ * value; the second call, 100 ms later, finds it. Known answer (C11-sequence): the 2nd call returned
+ * {"cached":"A","count":2} at 0 ms of its own time, and load was called once over both calls.
+ */
+let rememberCount = 0;
+const remembered = new Map<string, unknown>();
+export async function remember(key: string, load: (k: string) => Promise<unknown>): Promise<unknown> {
+  rememberCount++;
+  if (remembered.has(key)) return { cached: remembered.get(key), count: rememberCount };
+  const v = await load(key);
+  remembered.set(key, v);
+  return { loaded: v, count: rememberCount };
+}
+
+/** U3: throws on its first call only. Known answer (C12-sequence-throw): the 2nd call returned "ok 2". */
+let flakyCount = 0;
+export function flakyOnce(): string {
+  flakyCount++;
+  if (flakyCount === 1) throw new Error("first");
+  return `ok ${flakyCount}`;
+}

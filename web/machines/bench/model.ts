@@ -143,11 +143,30 @@ export function benchModel(input: BenchInput): BenchModel {
         code.devices = [...(code.devices ?? []), { name, network, lines: site.lines }];
       }
     };
-    test.args.forEach((s, index) => {
-      if (s.kind !== "stand-in") return;
+    // U3: a sequence passes stand-ins to each of its calls; a stand-in is wired from every call it is passed to.
+    const calls = test.calls && test.calls.length > 1 ? test.calls : [{ exportName: test.exportName, args: test.args }];
+    const uses = new Map<string, { spec: Extract<CallTest["args"][number], { kind: "stand-in" }>; at: { fn: string; index: number }[] }>();
+    for (const c of calls)
+      c.args.forEach((a, index) => {
+        if (a.kind !== "stand-in") return;
+        const u = uses.get(a.name) ?? { spec: a, at: [] };
+        u.at.push({ fn: c.exportName, index });
+        uses.set(a.name, u);
+      });
+    [...uses.values()].forEach(({ spec: s, at }) => {
+      const index = at[0]!.index;
       const id = deviceId(s.name);
       if (parts[id]) return;
-      const sites = tested && input.source !== undefined && input.language ? standInCallSites(input.source, input.language, outline, tested, index) : [];
+      const merged = new Map<string, Set<number>>();
+      if (input.source !== undefined && input.language)
+        for (const u of at)
+          if (outline.parts.some((p) => p.name === u.fn))
+            for (const site of standInCallSites(input.source, input.language, outline, u.fn, u.index)) {
+              const set = merged.get(site.part) ?? new Set<number>();
+              site.lines.forEach((l) => set.add(l));
+              merged.set(site.part, set);
+            }
+      const sites: CallSite[] = [...merged.entries()].map(([part, l]) => ({ part, lines: [...l].sort((a, b) => a - b) }));
       parts[id] = {
         kind: "device",
         name: s.name,
@@ -188,13 +207,13 @@ export function benchModel(input: BenchInput): BenchModel {
     boxes.push(box(CLOCK_ID, "clock", 0, STANDIN_FOLDER, { dial: { marks: dial.marks.map((m) => m / dial.fullMs) } }) as ExplorerModel["boxes"][number]);
     slots.push({ kind: "box", id: CLOCK_ID, slices: [{ path: STANDIN_FOLDER, lines: 0 }] });
     decks.push({ folder: STANDIN_FOLDER, slots });
-    const devs = [...test.args.flatMap((a) => (a.kind === "stand-in" ? [a.name] : [])), ...(test.network ? [`${test.network.replaces} (a fake network)`] : [])];
+    const devs = [...[...uses.keys()], ...(test.network ? [`${test.network.replaces} (a fake network)`] : [])];
     const wiredTo = (name: string) => {
       const d = parts[deviceId(name)];
       const by = d?.kind === "device" ? (d.calledBy ?? []).map((c) => c.part) : [];
       return by.length ? `wired to ${by.join(" and ")}` : "not wired (no line found that calls it)";
     };
-    const devWords = [...test.args.flatMap((a) => (a.kind === "stand-in" ? [`${a.name}, ${wiredTo(a.name)}`] : [])), ...(test.network ? [`${test.network.replaces} (a fake network), ${wiredTo(test.network.replaces)}`] : [])];
+    const devWords = [...[...uses.keys()].map((n) => `${n}, ${wiredTo(n)}`), ...(test.network ? [`${test.network.replaces} (a fake network), ${wiredTo(test.network.replaces)}`] : [])];
     extraLabel = `A second deck holds Atlas's stand-ins for this test: ${devs.length === 0 ? "none" : `${devWords.join("; ")}, each a small device with a signal lamp`}; and a clock whose dial is Atlas's simulated clock, from 0 to ${dial.fullMs.toLocaleString("en-US")} ms.`;
   }
   // Each box's joins, for the pick highlight (applyPick lights the picked box's drawn lines).

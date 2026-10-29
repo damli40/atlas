@@ -845,7 +845,7 @@ def main(key_text):
 
     # E3 review r3 M1: the endings (and the start) are always kept past the cap, as in the JavaScript harness, so a
     # cut trace still says how the call ended and the proof file verifies. Dropped stand-in calls are tallied per name.
-    ALWAYS_KEPT = ("python", "start", "returned", "threw", "never_settled", "still_running_at_watch_limit", "stopped_watching", "stopped_watching_after_settle")
+    ALWAYS_KEPT = ("python", "start", "call_start", "call_returned", "call_threw", "returned", "threw", "never_settled", "still_running_at_watch_limit", "stopped_watching", "stopped_watching_after_settle")
 
     def emit(ctx, event, data=None):
         if len(ctx["trace"]) >= TRACE_MAX and event not in ALWAYS_KEPT:
@@ -946,14 +946,15 @@ def main(key_text):
                 ctx["interfered"] = "the fake network was interrupted from outside"
                 msg = yield ("exhausted", make_error("AtlasStandInBroken", "Atlas's fake network was interrupted"))
 
-    runs = []
-    for r in req["runs"]:
-        ctx = {"trace": [], "settled": False, "clock": 0.0, "interfered": None, "conds": set(), "lastRead": None, "host": set(), "selfSeeded": False, "moves": []}
+    def build_args(arglist, ctx, gens, made):
+        """One call's arguments. U3: a stand-in named the same in several calls of a sequence is ONE stand-in."""
         args = []
-        gens = []
-        for a in r["args"]:
+        for a in arglist:
             if a["kind"] == "json":
                 args.append(_json.loads(a["json"]))
+                continue
+            if a["name"] in made:
+                args.append(made[a["name"]])
                 continue
             steps = []
             for s in a["calls"]:
@@ -966,8 +967,24 @@ def main(key_text):
             is_async = a["async"] is True
             g = standin_gen(a["name"], steps, a["then"], is_async, ctx)
             next(g)
-            args.append((make_async_standin if is_async else make_sync_standin)(a["name"], g.send))
+            fn_made = (make_async_standin if is_async else make_sync_standin)(a["name"], g.send)
+            made[a["name"]] = fn_made
+            args.append(fn_made)
             gens.append((a["name"], g))
+        return args
+
+    runs = []
+    for r in req["runs"]:
+        ctx = {"trace": [], "settled": False, "clock": 0.0, "interfered": None, "conds": set(), "lastRead": None, "host": set(), "selfSeeded": False, "moves": []}
+        gens = []
+        made = {}
+        seq = r.get("sequence")
+        seq_args = None
+        if seq is not None and len(seq) > 1:
+            seq_args = [build_args(c["args"], ctx, gens, made) for c in seq]
+            args = seq_args[-1]
+        else:
+            args = build_args(r["args"], ctx, gens, made)
         net_send = None
         net = r.get("network")
         if net is not None:
@@ -983,7 +1000,7 @@ def main(key_text):
             next(ng)
             net_send = ng.send
             gens.append((net["name"], ng))
-        runs.append({"req": r, "ctx": ctx, "args": args, "gens": gens, "net": net_send})
+        runs.append({"req": r, "ctx": ctx, "args": args, "gens": gens, "net": net_send, "seqArgs": seq_args})
 
     # ---------------------------------------------------------------------------------------------------------
     # 8. Compile and load the code, with the hook armed.
@@ -1258,6 +1275,77 @@ def main(key_text):
             return settle_from_exception(e, ctx)
         return ("returned", task.result())
 
+    get_running_loop = _asyncio.get_running_loop
+
+    def plain_exception(e):
+        """True when an exception is the code's own (a fact), not one of Atlas's signals or a process exit."""
+        t = type(e)
+        if t is WatchLimit or t is NeverWakes or t is AtlasRefused or isinstance(e, AtlasRefused):
+            return False
+        if isinstance(e, (SystemExit, KeyboardInterrupt)):
+            return False
+        return not is_access_denied(e)
+
+    def set_if_pending(fut):
+        if not fut.done():
+            fut.set_result(None)
+
+    async def virtual_wait(secs):
+        loop = get_running_loop()
+        fut = loop.create_future()
+        loop.call_later(secs, set_if_pending, fut)
+        await fut
+
+    def call_plain(f, a):
+        """Calls one function of a sequence as a plain caller would: with no event loop running during its own
+        synchronous part (so code that runs its own loop, e.g. asyncio.run, works as in a single call)."""
+        outer = get_running_loop()
+        set_running_loop(None)
+        try:
+            return f(*a)
+        finally:
+            set_running_loop(outer)
+
+    async def sequence_coro(fns, arglists, seq, ctx):
+        """U3: the calls of a sequence, in order, on the same loaded module. Each earlier call runs to its end; a throw
+        is noted and the next call is still made. Only the last call is measured (its start is noted here)."""
+        for i in range(len(fns) - 1):
+            w = seq[i].get("waitMs", 0) or 0
+            if w:
+                await virtual_wait(w / 1000.0)
+            emit(ctx, "call_start", {"n": i + 1, "exportName": seq[i]["exportName"]})
+            try:
+                v = call_plain(fns[i], arglists[i])
+                if type(v) is CoroType:
+                    v = await v
+            except BaseException as e:
+                if not plain_exception(e):
+                    raise
+                read_clock(ctx)
+                facts = classify_thrown(e)
+                data = {"n": i + 1, "type": facts["type"]}
+                if "name" in facts:
+                    data["name"] = facts["name"]
+                emit(ctx, "call_threw", data)
+            else:
+                read_clock(ctx)
+                facts = classify_returned(v)
+                data = {"n": i + 1, "type": facts["type"]}
+                if "json" in facts:
+                    data["json"] = facts["json"] if len(facts["json"]) <= 200 else facts["json"][:199] + "\u2026"
+                emit(ctx, "call_returned", data)
+        w = seq[-1].get("waitMs", 0) or 0
+        if w:
+            await virtual_wait(w / 1000.0)
+        read_clock(ctx)
+        ctx["lastStart"] = ctx["clock"]
+        ctx["lastStarted"] = True
+        emit(ctx, "call_start", {"n": len(fns), "exportName": seq[-1]["exportName"]})
+        v = call_plain(fns[-1], arglists[-1])
+        if type(v) is CoroType:
+            v = await v
+        return v
+
     def run_one(run):
         r = run["req"]
         ctx = run["ctx"]
@@ -1282,7 +1370,26 @@ def main(key_text):
             t = type_of(fn)
             mark(word("notAFunction", name=clean(name, 100), type=("an " if t[:1] in "aeiou" else "a ") + t))
             return None
-        emit(ctx, "start", {"exportName": name, "args": len(r["args"]), "watchLimitMs": watch_ms})
+        seq = r.get("sequence") if run.get("seqArgs") is not None else None
+        seq_fns = None
+        if seq is not None:
+            # U3: each call of a sequence must name a function of the module, as the single call does.
+            seq_fns = []
+            for c in seq:
+                f = dict.get(moddict, c["exportName"])
+                if f is None and not dict.__contains__(moddict, c["exportName"]):
+                    mark(word("missingFunction", name=clean(c["exportName"], 100)))
+                    return None
+                if not callable(f):
+                    t = type_of(f)
+                    mark(word("notAFunction", name=clean(c["exportName"], 100), type=("an " if t[:1] in "aeiou" else "a ") + t))
+                    return None
+                seq_fns.append(f)
+            ctx["lastStarted"] = False
+        start_data = {"exportName": name, "args": len(r["args"]), "watchLimitMs": watch_ms}
+        if seq is not None:
+            start_data["calls"] = len(seq)
+        emit(ctx, "start", start_data)
 
         settled = None
         stop = None
@@ -1292,7 +1399,7 @@ def main(key_text):
         NET[0] = run["net"]
         current[0] = ctx
         try:
-            value = fn(*run["args"])
+            value = sequence_coro(seq_fns, run["seqArgs"], seq, ctx) if seq_fns is not None else fn(*run["args"])
         except BaseException as e:
             read_clock(ctx)
             ctx["settledAt"] = ctx["clock"]
@@ -1396,6 +1503,15 @@ def main(key_text):
         measured = {}
         not_measured = {}
         limit_words = "Atlas's watch limit (%d ms of virtual time, Atlas's limit, not the code's)" % watch_ms
+        if seq is not None and not ctx.get("lastStarted"):
+            # U3: an earlier call never ended, so the last call never started: nothing about it is reported.
+            how = stop if stop is not None else ("still running when %s ran out" % limit_words if limit else "it never settled")
+            why = "call %d of %d did not finish (%s), so the last call never started" % (len(seq) - 1, len(seq), how)
+            for k in ("outcome", "returnedJson", "returnedType", "thrownName", "thrownMessage", "virtualMs"):
+                not_measured[k] = why
+            for n in names:
+                not_measured["calls:" + n] = "%s; the count so far was %d" % (why, counts[n])
+            return {"id": r["id"], "trace": ctx["trace"], "result": {"measured": measured, "notMeasured": not_measured}}
         if settled is None:
             if stop is not None:
                 for k in ("outcome", "returnedJson", "returnedType", "thrownName", "thrownMessage", "virtualMs"):
@@ -1420,7 +1536,8 @@ def main(key_text):
             return {"id": r["id"], "trace": ctx["trace"], "result": {"measured": measured, "notMeasured": not_measured}}
 
         measured["outcome"] = settled[0]
-        measured["virtualMs"] = ms(ctx["settledAt"])
+        # U3: in a sequence, the time is the last call's own (from its start until it returned or threw).
+        measured["virtualMs"] = ms(ctx["settledAt"] - ctx.get("lastStart", 0.0))
         if settled[0] == "returned":
             measured["returnedType"] = facts["type"]
             if "json" in facts:

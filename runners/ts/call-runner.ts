@@ -93,7 +93,7 @@ export function networkToWire(f: NetworkFake): { name: NetworkFake["replaces"]; 
 }
 
 function runRequest(id: string, p: CallShape): CallRunRequest {
-  return { id, exportName: p.exportName, args: toWire(p.args), watchLimitMs: p.watchLimitMs ?? CALL_DEFAULT_WATCH_LIMIT_MS, ...(p.network ? { network: networkToWire(p.network) } : {}) };
+  return { id, exportName: p.exportName, args: toWire(p.args), watchLimitMs: p.watchLimitMs ?? CALL_DEFAULT_WATCH_LIMIT_MS, ...(p.network ? { network: networkToWire(p.network) } : {}), ...(p.calls && p.calls.length > 1 ? { sequence: p.calls.map((c) => ({ exportName: c.exportName, args: toWire(c.args), waitMs: c.waitMs ?? 0 })) } : {}) };
 }
 
 type CallAnswer = (
@@ -288,6 +288,28 @@ export const CALL_CONTROL_CASES: readonly CallControlCase[] = [
     id: "C9-after-settle",
     params: { shape: "call-function", exportName: "laterCall", args: [{ kind: "stand-in", name: "ping", async: false, then: "repeat_last", calls: [{ do: "return", value: null }] }] },
     measured: { outcome: "returned", virtualMs: 0, returnedJson: '"now"', "calls:ping": 1 },
+    notMeasured: [],
+  },
+  {
+    // U3: a sequence on one loaded module: state carries over, the time is the last call's own, counts are totals.
+    id: "C11-sequence",
+    params: {
+      shape: "call-function",
+      exportName: "remember",
+      args: [json("a"), { kind: "stand-in", name: "load", async: true, then: "repeat_last", calls: [{ do: "return", value: "A", afterMs: 500 }] }],
+      calls: [
+        { exportName: "remember", args: [json("a"), { kind: "stand-in", name: "load", async: true, then: "repeat_last", calls: [{ do: "return", value: "A", afterMs: 500 }] }] },
+        { exportName: "remember", args: [json("a"), { kind: "stand-in", name: "load", async: true, then: "repeat_last", calls: [{ do: "return", value: "A", afterMs: 500 }] }], waitMs: 100 },
+      ],
+    },
+    measured: { outcome: "returned", virtualMs: 0, "calls:load": 1, returnedJson: '{"cached":"A","count":2}' },
+    notMeasured: [],
+  },
+  {
+    // U3: an earlier call that throws is noted and the next call is still made.
+    id: "C12-sequence-throw",
+    params: { shape: "call-function", exportName: "flakyOnce", args: [], calls: [{ exportName: "flakyOnce", args: [] }, { exportName: "flakyOnce", args: [] }] },
+    measured: { outcome: "returned", virtualMs: 0, returnedJson: '"ok 2"' },
     notMeasured: [],
   },
   {

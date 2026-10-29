@@ -175,7 +175,7 @@ async function pySandboxAnswer(executor: Executor, code: string, request: PyWork
 }
 
 function runRequest(id: string, p: CallShape): CallRunRequest {
-  return { id, exportName: p.exportName, args: toWire(p.args), watchLimitMs: p.watchLimitMs ?? CALL_DEFAULT_WATCH_LIMIT_MS, ...(p.network ? { network: networkToWire(p.network) } : {}) };
+  return { id, exportName: p.exportName, args: toWire(p.args), watchLimitMs: p.watchLimitMs ?? CALL_DEFAULT_WATCH_LIMIT_MS, ...(p.network ? { network: networkToWire(p.network) } : {}), ...(p.calls && p.calls.length > 1 ? { sequence: p.calls.map((c) => ({ exportName: c.exportName, args: toWire(c.args), waitMs: c.waitMs ?? 0 })) } : {}) };
 }
 
 // ── the control ──────────────────────────────────────────────────────────────────────────────────
@@ -283,6 +283,35 @@ export const PY_CALL_CONTROL_CASES: readonly CallControlCase[] = [
     id: "P14-pins",
     params: { shape: "call-function", exportName: "pinned", args: [] },
     measured: { outcome: "returned", virtualMs: 0, returnedJson: '[0.044717192733188416,"11b1dcf5","761a3fc9",0,"UTC"]' },
+    notMeasured: [],
+  },
+  {
+    // U3: a sequence on one loaded module: state carries over, the time is the last call's own, counts are totals.
+    id: "C11-sequence",
+    params: {
+      shape: "call-function",
+      exportName: "remember",
+      args: [json("a"), { kind: "stand-in", name: "load", async: true, then: "repeat_last", calls: [{ do: "return", value: "A", afterMs: 500 }] }],
+      calls: [
+        { exportName: "remember", args: [json("a"), { kind: "stand-in", name: "load", async: true, then: "repeat_last", calls: [{ do: "return", value: "A", afterMs: 500 }] }] },
+        { exportName: "remember", args: [json("a"), { kind: "stand-in", name: "load", async: true, then: "repeat_last", calls: [{ do: "return", value: "A", afterMs: 500 }] }], waitMs: 100 },
+      ],
+    },
+    measured: { outcome: "returned", virtualMs: 0, "calls:load": 1, returnedJson: '{"cached":"A","count":2}' },
+    notMeasured: [],
+  },
+  {
+    // U3: an earlier call that raises is noted and the next call is still made.
+    id: "C12-sequence-throw",
+    params: { shape: "call-function", exportName: "flaky_once", args: [], calls: [{ exportName: "flaky_once", args: [] }, { exportName: "flaky_once", args: [] }] },
+    measured: { outcome: "returned", virtualMs: 0, returnedJson: '"ok 2"' },
+    notMeasured: [],
+  },
+  {
+    // U3: a plain (not async) cache with a blocking sleep: the 2nd call's own time is 0 ms.
+    id: "C13-sequence-sync",
+    params: { shape: "call-function", exportName: "slow_lookup", args: [json(3)], calls: [{ exportName: "slow_lookup", args: [json(3)] }, { exportName: "slow_lookup", args: [json(3)] }] },
+    measured: { outcome: "returned", virtualMs: 0, returnedJson: "6" },
     notMeasured: [],
   },
 ];
