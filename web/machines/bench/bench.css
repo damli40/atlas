@@ -73,7 +73,8 @@
 /* chips: what the run did, placed above a part (run data: only after sealing) */
 .u1-chip{position:absolute;transform:translate(-50%,calc(-100% - 6px));white-space:nowrap;max-width:min(320px,70vw);overflow:hidden;text-overflow:ellipsis;padding:3px 9px;border-radius:999px;background:var(--anatomy-card);box-shadow:var(--anatomy-lift);color:var(--anatomy-strong);font:12.5px/1.4 var(--anatomy-mono);pointer-events:none}
 .u1-chip-clock{transform:translate(-50%,calc(-100% - 30px))}
-.u1-chip-label{transform:translate(-50%,calc(-100% - 54px));border:1px dashed var(--anatomy-mid)}
+/* X3 (D50): a failure label sits just under its part's anchor (on the lid), clear of the top bar. */
+.u1-chip-label{transform:translate(-50%,14px);border:1px dashed var(--anatomy-mid);max-width:min(440px,86vw)}
 
 /* pins: each quiz question marked on its part */
 .u1-pins{position:absolute;transform:translate(-50%,8px);display:flex;flex-direction:column;align-items:center;gap:4px}

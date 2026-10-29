@@ -1,0 +1,18 @@
+=== U1 drawing at 1920×1080 (light): labels before betting, in the bettor text, then reproduced
+label marks before any bet: found in this code: no overall timeout, lines 4–11
+PASS D50: the label is drawn on the part before any bet
+PASS before betting: nothing on the stage carries run data
+PASS the label mark is on screen, below the top bar ({"top":153.5546875,"bottom":179.0546875,"left":802.5859375,"right":1198.8828125,"barBottom":43.5,"vw":1920,"vh":1080})
+PASS axe r2 rest with labels: 0 violations  (32 rules passed)
+PASS overlap r2 rest with labels: 1920 px wide, 8 text boxes, 0 overlapping pairs, 0 outside
+PASS D50: 'What every bettor sees' carries the same labels (the models' prompt is this text)
+PASS axe r2 bet open: 0 violations  (38 rules passed)
+PASS overlap r2 bet open: 440 px wide, 52 text boxes, 0 overlapping pairs, 0 outside
+label marks after the never-answers round: reproduced: no overall timeout, lines 4–11
+PASS after a sealed never-answers round: the label on the drawing says reproduced
+PASS the round's proof card link: ?proof=w_XEz2C_LC
+PASS axe r2 marked: 0 violations  (38 rules passed)
+PASS reduced motion r2 marked: 0 running animations
+=== U1 drawing at 390 px (dark): the label before betting
+PASS 390px r2 rest 390: scrollWidth 390 vs 390
+PASS axe r2 rest 390 dark: 0 violations  (32 rules passed)

@@ -399,7 +399,7 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
             {(after ? marksOn : true) &&
               extraMarks.map((x, i) =>
                 anchors[x.anchor] ? (
-                  <span key={`x-${i}`} className="u1-chip u1-chip-label" data-label-mark="" style={at({ x: anchors[x.anchor]!.x, y: anchors[x.anchor]!.y - 22 * (i % 3 + 1) })} data-testid={`label-mark-${i}`}>
+                  <span key={`x-${i}`} className="u1-chip u1-chip-label" data-label-mark="" style={{ ...at(anchors[x.anchor]!), marginTop: `${28 * extraMarks.slice(0, i).filter((y) => y.anchor === x.anchor).length}px` }} data-testid={`label-mark-${i}`}>
                     {x.text}
                   </span>
                 ) : null,
