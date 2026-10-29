@@ -1,7 +1,7 @@
 // U1 (D47): the drawing of one pasted file, before any run. A pure function from plain code's file outline (and, once
 // a test is chosen, the gate-checked test) to the figure model the explorer's drawing code draws (figure.mjs).
 //
-// The object, in one sentence: the file is a tray on a deck of an instrument skid; each function or class is an
+// The object, in one sentence (drawing terms; the screen-reader label is in plain words): the file is a tray on a deck; each function or class is an
 // instrument box standing on it, as tall as its lines; a steel line runs between two boxes where plain code found one
 // calling the other; once a test is chosen, a second deck holds Atlas's stand-ins as small devices, each with a signal
 // lamp, wired to the code boxes whose OWN lines call it (U3: plain code's call sites, src/call-sites.ts; no cable when
@@ -214,7 +214,7 @@ export function benchModel(input: BenchInput): BenchModel {
       return by.length ? `wired to ${by.join(" and ")}` : "not wired (no line found that calls it)";
     };
     const devWords = [...[...uses.keys()].map((n) => `${n}, ${wiredTo(n)}`), ...(test.network ? [`${test.network.replaces} (a fake network), ${wiredTo(test.network.replaces)}`] : [])];
-    extraLabel = `A second deck holds Atlas's stand-ins for this test: ${devs.length === 0 ? "none" : `${devWords.join("; ")}, each a small device with a signal lamp`}; and a clock whose dial is Atlas's simulated clock, from 0 to ${dial.fullMs.toLocaleString("en-US")} ms.`;
+    extraLabel = `Beside the code, the test's stand-ins (fakes Atlas controls): ${devs.length === 0 ? "none" : `${devWords.join("; ")}, each a small box with a lamp that lights when it is called`}; and a clock whose dial is Atlas's simulated clock, from 0 to ${dial.fullMs.toLocaleString("en-US")} ms.`;
   }
   // Each box's joins, for the pick highlight (applyPick lights the picked box's drawn lines).
   for (const b of boxes) {
@@ -222,7 +222,16 @@ export function benchModel(input: BenchInput): BenchModel {
       .filter((l) => l.from === b.id || l.to === b.id)
       .map((l) => ({ id: l.id, other: l.from === b.id ? l.to : l.from, dir: l.from === b.id ? ("out" as const) : ("in" as const), kind: l.kind, status: "confirmed" as const, drawn: true, codeEdges: l.codeEdges, typeOnly: false, noLinkFound: false }));
   }
+  // U3 item 7: what a screen reader says about the drawing, in plain words.
+  const callWords = outline.joins
+    .filter((j) => j.kind === "calls")
+    .map((j) => `${j.from} calls ${j.to}`)
+    .concat(outline.joins.filter((j) => j.kind === "wraps").map((j) => `${j.from} is wrapped by ${j.to}`))
+    .concat((outline.selfCalls ?? []).map((x) => `${x.name} calls itself`));
+  const fns = outline.parts.length;
+  const plainLabel = `A drawing of ${path}: ${fns} ${fns === 1 ? "function or class" : "functions and classes"}, each a box (a taller box has more lines), named on its front${tested ? `; ${tested} is the one Atlas tests` : ""}. ${callWords.length ? `Lines join them: ${callWords.join("; ")}.` : "None of them calls another."}${extraLabel ? ` ${extraLabel}` : ""}`;
   return {
+    plainLabel,
     notShown: boxes.length === 0 ? "plain code found no function or class in this file to draw" : null,
     model: "plain code",
     boxes,

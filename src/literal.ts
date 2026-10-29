@@ -64,3 +64,87 @@ export function literalOfJsonText(json: string, language: CodeLanguage | undefin
     return json;
   }
 }
+
+/**
+ * U3 item 4: a value a person types as their answer. JSON always works; for a Python file Python's own spelling works
+ * too (True / False / None, 'single quotes', a trailing comma), read by a small plain-code parser of literals only
+ * (never evaluated). Null when the text is neither.
+ */
+export function parseTyped(text: string, language: CodeLanguage | undefined): { value: JsonValue } | null {
+  const t = text.trim();
+  if (t === "") return null;
+  try {
+    return { value: JSON.parse(t) as JsonValue };
+  } catch {
+    if (language !== "py") return null;
+  }
+  let i = 0;
+  const ws = () => {
+    while (i < t.length && /\s/.test(t[i]!)) i++;
+  };
+  const fail = (): never => {
+    throw new Error("not a literal");
+  };
+  const value = (depth: number): JsonValue => {
+    if (depth > 20) fail();
+    ws();
+    const c = t[i];
+    if (c === "[" || c === "{") {
+      const close = c === "[" ? "]" : "}";
+      i++;
+      const arr: JsonValue[] = [];
+      const obj: Record<string, JsonValue> = {};
+      ws();
+      while (t[i] !== close) {
+        if (c === "[") arr.push(value(depth + 1));
+        else {
+          const k = value(depth + 1);
+          if (typeof k !== "string" || k === "__proto__") fail();
+          ws();
+          if (t[i] !== ":") fail();
+          i++;
+          obj[k as string] = value(depth + 1);
+        }
+        ws();
+        if (t[i] === ",") {
+          i++;
+          ws();
+        } else if (t[i] !== close) fail();
+      }
+      i++;
+      return c === "[" ? arr : obj;
+    }
+    if (c === '"' || c === "'") {
+      let out = "";
+      i++;
+      while (i < t.length && t[i] !== c) {
+        if (t[i] === "\\") {
+          const n = t[i + 1];
+          const map: Record<string, string> = { n: "\n", t: "\t", r: "\r", "\\": "\\", "'": "'", '"': '"', "0": "\0" };
+          if (n === undefined || !(n in map)) fail();
+          out += map[n!];
+          i += 2;
+          continue;
+        }
+        out += t[i];
+        i++;
+      }
+      if (t[i] !== c) fail();
+      i++;
+      return out;
+    }
+    const m = /^(True|False|None|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/.exec(t.slice(i));
+    if (!m) fail();
+    i += m![0].length;
+    return m![0] === "True" ? true : m![0] === "False" ? false : m![0] === "None" ? null : Number(m![0]);
+  };
+  try {
+    const v = value(0);
+    ws();
+    if (i !== t.length) return null;
+    if (typeof v === "number" && !Number.isFinite(v)) return null;
+    return { value: v };
+  } catch {
+    return null;
+  }
+}

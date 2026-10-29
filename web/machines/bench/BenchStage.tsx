@@ -115,6 +115,8 @@ export interface BenchStageProps {
   side?: boolean;
   /** Words under the judged answers (e.g. Muse Wonder's sentence, shown only after the run). */
   footnote?: ReactNode;
+  /** U3 item 7: called when a replay reaches its end state (the page then offers "Play the run again"). */
+  onPlayed?: () => void;
 }
 
 /** U2: about how long the steps of one replay take together (ms of real time), before the intro and the end. */
@@ -128,7 +130,9 @@ export function roundUp(ms: number): number {
   return 10 * p;
 }
 
-export function BenchStage({ model, theme, after = null, onTestFunction, title, children, extraMarks = [], side = false, footnote = null }: BenchStageProps) {
+export function BenchStage({ model, theme, after = null, onTestFunction, title, children, extraMarks = [], side = false, footnote = null, onPlayed }: BenchStageProps) {
+  const playedRef = useRef(onPlayed);
+  playedRef.current = onPlayed;
   const dark = useDarkScheme();
   const still = useReducedMotion();
   const shown = theme ?? (dark ? "dark" : "light");
@@ -220,6 +224,7 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
         setClockMs(script.dialEndMs);
       }
       setMarksOn(true);
+      playedRef.current?.();
     };
     if (still || script.notShown !== null) {
       endState();
@@ -245,7 +250,8 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
     };
     const steps = script.steps;
     const stepMs = Math.round(Math.min(2400, Math.max(260, PLAY_TOTAL_MS / Math.max(1, steps.length))));
-    const START = 300;
+    // U3 item 7: the first step waits until the pop-up has slid away, so the whole play is seen.
+    const START = 700;
     // Step 0: Atlas calls the function (it lights; the clock reads 0 ms).
     // U3: a decorator's wrapper runs whenever the decorated function is called, so it lights with it.
     const testedPart = model.tested ? model.parts[model.tested] : undefined;

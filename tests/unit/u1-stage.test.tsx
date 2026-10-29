@@ -74,7 +74,12 @@ describe("U1 drawing-first screen", () => {
     const o = fileOutline(U1_EXAMPLE, "ts");
     expect(defaultFunction(o, [{ name: "fetchWithRetry" }, { name: "getPrice" }])).toBe("fetchWithRetry");
     const qs = quizQuestionsFor(U1_TEST);
-    expect(answersToSend(qs, { outcome: "a", virtualMs: "can't tell" }).map((a) => a.answer.kind)).toEqual(["quiz", "declined", "declined", "declined"]);
+    const sent = answersToSend(qs, { outcome: "a", virtualMs: "can't tell" });
+    expect(sent.ok && sent.answers.map((a) => a.answer.kind)).toEqual(["quiz", "declined", "declined", "declined"]);
+    // U3: a typed returned value is a json answer; one that does not read is refused before sealing.
+    const typed = answersToSend(qs, { returnedJson: "a" }, { returnedJson: '{"ok": true}' });
+    expect(typed.ok && typed.answers.find((a) => a.measures === "returnedJson")!.answer).toEqual({ kind: "json", value: { ok: true } });
+    expect(answersToSend(qs, {}, { returnedJson: "{nope" })).toEqual({ ok: false, measures: "returnedJson" });
   });
 
   it("before sealing the stage draws structure only; after sealing the run plays and the quiz is marked", async () => {

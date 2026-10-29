@@ -224,10 +224,26 @@ export const BET_WORDS = {
   seen: "What every bettor sees (you and both AIs get exactly this text)",
   leftOut: (n: number) => `${n} ${n === 1 ? "test" : "tests"} Atlas couldn't run ${n === 1 ? "was" : "were"} left out.`,
   pickFor: (fn: string) => `Pick a test for ${fn}`,
+  /** U3 item 4: the folded conditions (the same facts are in the bettor text; this only folds them on screen). */
+  howRuns: "How Atlas runs it",
+  /** U3 item 4: the typed returned value, next to the options. */
+  typedLabel: "Or type the exact value",
+  typedHint: (py: boolean) => (py ? 'Write it as Python or JSON, e.g. "pro", 42, True, None, [1, 2]. Matched only when it is exactly the returned value.' : 'Write it as JSON, e.g. "pro", 42, true, null, [1, 2]. Matched only when it is exactly the returned value.'),
+  typedBad: (py: boolean) => (py ? "That is not a value Atlas can read. Use quotes for text (\"pro\"), and True, False or None." : "That is not JSON. Use double quotes for text (\"pro\"), and true, false or null."),
+  typedReads: (shown: string) => `Atlas reads it as ${shown}.`,
+  /** U3 item 6: while Muse Wonder writes tests. */
+  waitHead: (fn: string, seconds: number) => `Muse Wonder 1.0 (Meta) is writing tests for ${fn}: ${seconds} s so far (it usually takes 10 to 60 s).`,
+  waitAsking: "Step 1 of 3: Muse Wonder reads your file and writes up to 3 tests aimed at its edges.",
+  waitChecked: (allowed: number, all: number) => `Step 2 of 3: plain code's gate checked ${all} ${all === 1 ? "test" : "tests"}: ${allowed} can run. Step 3 of 3: getting the questions ready.`,
+  waitExplore: "The drawing stays live meanwhile: hover or click any part.",
+  writeOwnNow: "Write my own test instead",
 } as const;
 
 export const STAGE_WORDS = {
   testCalls: "This is the function the test calls.",
+  /** U3 item 7: the replay button: "again" only after the first play has ended. */
+  playing: "Playing the run…",
+  playAgain: "Play the run again",
   willTest: "Atlas tests this function when you bet.",
   fakeNetwork: (name: string) => `Atlas installs this in place of ${name}; the real network stays blocked. Scripted by the test:`,
   /** U3: the card of a part that calls itself. */
@@ -264,6 +280,12 @@ export const RESULT_WORDS = {
   seeAbove: "can't check (the reason is above)",
   testClaim: "Test this claim",
   testClaimBusy: `${WONDER_ROLE}, is writing a test for this sentence…`,
+  /** U3 item 5: the sentence a "Test this claim" round tests, and its result beside the measured facts. */
+  testingSentence: (s: string) => `This test checks Muse Wonder's sentence: “${s}”`,
+  claimFactsHeading: "What the run shows about this claim: you decide",
+  claimSaid: "Muse Wonder 1.0 said, before the first run:",
+  claimMeasured: "What this run measured (plain code):",
+  claimYouDecide: "Atlas does not say whether the sentence holds. Neither an AI nor plain code may decide that; compare the two yourself.",
   nextTry: "Next things to try, found in this code:",
   proofTitle: "Proof card",
   closeProof: "Close the proof card",

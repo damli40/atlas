@@ -49,11 +49,11 @@ export function testJson(params: unknown): string {
 }
 
 /** How a question is answered, in the words the bet screen shows next to it. */
-export function answerHow(q: Pick<Question, "kind" | "unit" | "options" | "tolerancePct" | "quiz">): string {
+export function answerHow(q: Pick<Question, "kind" | "unit" | "options" | "tolerancePct" | "quiz" | "allowsTyped">): string {
   switch (q.kind) {
     case "quiz":
       // U1 (D48): the options exactly as the quiz shows them, so every bettor reads the same choices (D19).
-      return `pick one: ${(q.quiz ?? []).map((o) => `(${o.id}) ${o.label}`).join("; ")}; or ${CANT_TELL}`;
+      return `pick one: ${(q.quiz ?? []).map((o) => `(${o.id}) ${o.label}`).join("; ")}; or ${CANT_TELL}${q.allowsTyped ? "; or type the exact value you expect, as JSON (matched only when it is exactly the returned value)" : ""}`;
     case "enum":
       return `one of ${(q.options ?? CALL_OUTCOME_OPTIONS).join(", ")}`;
     case "json":

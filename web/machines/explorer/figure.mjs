@@ -677,10 +677,14 @@ export function buildFigure(M) {
   const fileCount = new Set(trays.map((t) => t.path)).size;
   const spanning = M.boxes.filter((b) => segments.filter((g) => g.boxId === b.id).length > 1).length;
   const n = (count, one, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
-  const label = `An instrument skid on a base plate: ${n(decks.length, "folder deck")}, trays for ${n(fileCount, "file")}, and ${n(M.boxes.length, "part")} whose lines plain code confirmed, drawn as ${n(segments.length, "instrument box", "instrument boxes")}${spanning ? ` (${n(spanning, "part")} spanning folders get one box per folder)` : ""}; a box grows taller with the lines it covers and carries its name on a plate. ${n(M.lines.length, "bent steel line")} join box lids where plain code found an import, call or use between two parts; ${codeOnly} of them carry two tag collars because plain code found them and Wonder did not name them.`;
+  // U3 item 7: plain words for screen readers (no "skid", no "tag collars"); a model may give its own plain label.
+  const label =
+    typeof M.plainLabel === "string"
+      ? M.plainLabel
+      : `A drawing of the code: ${n(decks.length, "folder")}, ${n(fileCount, "file")} and ${n(M.boxes.length, "part")}, each part drawn as a box${spanning ? ` (${n(spanning, "part")} spanning folders get one box per folder)` : ""}; a box is taller when its part has more lines, and its name is written on its front. ${n(M.lines.length, "line")} join two boxes where plain code found one part importing, calling or using another; ${codeOnly} of them carry two small rings because plain code found them and Wonder did not name them.`;
   // U1: the needle of each dial, drawn above the skid so the page can turn it (dialNeedle).
   const needles = Object.entries(dials).map(([id, d]) => `<g class="u1-needle" data-needle="${esc(id)}">${k.lineSvg(dialNeedle(d, P, 0), { tone: "hi", free: "start" })}${k.dotsSvg([k.iso([d.x, d.y, d.top], P)], { size: 0.6, tone: "hi" })}</g>`).join("");
-  const svg = k.figureSvg({ width: W, height: H, label: M.extraLabel ? `${label} ${M.extraLabel}` : label, body: [...back, `<g class="ex-skid">${groups.join("")}</g>`, needles, `<g class="ex-hits">${hits}</g>`] });
+  const svg = k.figureSvg({ width: W, height: H, label: M.extraLabel && typeof M.plainLabel !== "string" ? `${label} ${M.extraLabel}` : label, body: [...back, `<g class="ex-skid">${groups.join("")}</g>`, needles, `<g class="ex-hits">${hits}</g>`] });
   return {
     svg,
     R,

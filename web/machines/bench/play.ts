@@ -97,6 +97,7 @@ export interface Script {
 
 const stepText = (s: StandInStep | undefined, language?: "js" | "ts" | "py"): string =>
   !s ? "fails: no answer is scripted for this call" : s.do === "return" ? `returns ${short(literal(s.value, language))}${s.afterMs ? ` after ${s.afterMs.toLocaleString("en-US")} ms` : ""}` : s.do === "throw" ? `throws ${visibleText(s.errorName)}` : "never answers";
+const clip = (s: string) => short(s);
 const short = (s: string) => {
   const v = visibleText(s);
   return v.length > 32 ? `${v.slice(0, 31)}…` : v;
@@ -281,7 +282,8 @@ export function marksOf(questions: readonly Question[], bets: readonly Bet[], ve
       .filter((b) => b.measures === q.measures)
       .map((b) => {
         const v = verdicts.find((x) => x.betId === b.id);
-        const pick = b.answer.kind === "quiz" ? quizChoiceLabel(b.answer.options, b.answer.choice) : b.answer.kind === "declined" ? CANT_TELL : "an answer";
+        // U3: a typed returned value reads as the code's language writes it.
+        const pick = b.answer.kind === "quiz" ? quizChoiceLabel(b.answer.options, b.answer.choice) : b.answer.kind === "declined" ? CANT_TELL : b.answer.kind === "json" ? `typed ${clip(literal(b.answer.value, language))}` : "an answer";
         return { who: b.who, name: b.who === "human" ? "You" : modelDisplay(b.who.slice(6)), pick, outcome: v?.outcome ?? "cant_check", ...(v?.reason ? { reason: v.reason } : {}) };
       })
       .sort((a, b) => (a.who === "human" ? -1 : b.who === "human" ? 1 : a.who < b.who ? -1 : 1));

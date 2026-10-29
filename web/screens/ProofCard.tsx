@@ -137,9 +137,13 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
           )}
         </div>
         <p className="pc-judged" data-testid="pc-judged">
-          judged by {card.judgedBy.join(", ") || "src/judge.ts"}
+          {PROOF_WORDS.judged}
         </p>
       </header>
+      {/* U3 item 7: plain words first; the technical details are folded below. */}
+      <p className="pc-plain" data-testid="pc-plain">
+        {PROOF_WORDS.what}
+      </p>
 
       {/* D07-04: the film's end frame. The scoreboard is the Atlas mark, large and centred, then who bet and how it came out. */}
       <section className="pc-hero" aria-label="scoreboard">
@@ -167,9 +171,9 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
           <thead>
             <tr>
               <th>who</th>
-              <th>asked</th>
-              <th>bet</th>
-              <th>the code</th>
+              <th>question</th>
+              <th>answer</th>
+              <th>the run measured</th>
               <th>outcome</th>
             </tr>
           </thead>
@@ -177,7 +181,7 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
             {card.bets.map((b) => (
               <tr key={b.betId} data-outcome={b.outcome ?? "none"}>
                 <td className="pc-who">{bettorName(b.who, names)}</td>
-                <td>{b.measures}</td>
+                <td title={b.measures}>{plainField(b.measures)}</td>
                 <td>{b.said}</td>
                 <td>{card.notShownAsFact ? "not shown" : b.observed}</td>
                 <td className={`pc-out pc-${b.outcome ?? "none"}`}>
@@ -199,6 +203,11 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
         </section>
       )}
 
+      <details className="pc-tech" data-testid="pc-tech">
+      <summary>{PROOF_WORDS.techSummary}</summary>
+      <p className="pc-small" data-testid="pc-judged-by">
+        judged by {card.judgedBy.join(", ") || "src/judge.ts"}
+      </p>
       <section className="pc-facts" aria-label="what ran">
         <dl>
           <dt>target</dt>
@@ -262,6 +271,7 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
           ))}
         </ul>
       </section>
+      </details>
 
       <footer className="pc-foot">
         {download && (
@@ -370,4 +380,18 @@ function ProofChange({ file, said }: { file: AtlasFile; said: Record<string, str
       )}
     </section>
   );
+}
+
+/** U3 item 7: the proof card's plain words (the technical details are folded under techSummary). */
+const PROOF_WORDS = {
+  judged: "Judged by plain code, not by an AI",
+  what: "What this card shows: each answer was sealed (locked with a fingerprint) before the code ran. Then Atlas ran the code once, and plain code compared each answer with what the run measured: matched, didn't match, or can't check.",
+  techSummary: "Technical details: the judge's file, the code's fingerprint (sha256), the seed, the control run and the sealed hashes",
+} as const;
+
+/** U3 item 7: a measured field's name in plain words ("calls:fetch" → "calls to fetch"). */
+function plainField(measures: string): string {
+  if (measures.startsWith("calls:")) return `calls to ${measures.slice(6)}`;
+  const words: Record<string, string> = { outcome: "how it ends", returnedJson: "what it returns", virtualMs: "how long it takes", calls: "calls", totalWaitMs: "total wait" };
+  return words[measures] ?? measures;
 }

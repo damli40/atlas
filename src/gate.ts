@@ -702,6 +702,11 @@ export interface Question {
   tolerancePct?: number;
   /** Added U1 (D48): quiz questions only. The options, written by plain code from the test (src/quiz.ts). */
   quiz?: readonly QuizOption[];
+  /**
+   * U3: a quiz question on the returned value that also takes a typed value: a "json" answer, matched only when it is
+   * exactly the returned value. Said in every bettor's text (D19), so the person and every model may type one.
+   */
+  allowsTyped?: true;
 }
 
 function q(measures: string, text: string, kind: Question["kind"], extra: Partial<Question> = {}): Question {
@@ -762,7 +767,7 @@ export function answerTemplate(question: Question): string {
       return `{"kind":"json","value":<any JSON value>}`;
     case "quiz":
       // U1 (D48): the model picks one option by its letter; the server fills in the options themselves.
-      return `{"kind":"quiz","choice":<one of ${(question.quiz ?? []).map((o) => `"${o.id}"`).join(" | ")}>} where ${(question.quiz ?? []).map((o) => `"${o.id}" = ${o.label}`).join("; ")}`;
+      return `{"kind":"quiz","choice":<one of ${(question.quiz ?? []).map((o) => `"${o.id}"`).join(" | ")}>} where ${(question.quiz ?? []).map((o) => `"${o.id}" = ${o.label}`).join("; ")}${question.allowsTyped ? `; or the exact value you expect, as {"kind":"json","value":<any JSON value>} (matched only when it is exactly the returned value)` : ""}`;
   }
 }
 

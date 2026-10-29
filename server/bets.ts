@@ -322,7 +322,9 @@ export type HumanBetBody = z.infer<typeof humanBetBody>;
 export function checkAnswer(question: Question, answer: HumanBetBody["answer"]): { ok: true; answer: BetAnswer } | { ok: false; reason: string } {
   const bad = (reason: string) => ({ ok: false as const, reason });
   if (answer.kind === "declined") return { ok: true, answer: { kind: "declined", reason: answer.reason } };
-  if (answer.kind !== question.kind) return bad(`"${question.measures}" takes a ${question.kind} answer; got ${answer.kind}`);
+  // U3 item 4: a quiz question on the returned value also takes a typed value (a json answer).
+  const typedOk = answer.kind === "json" && question.kind === "quiz" && question.allowsTyped === true;
+  if (answer.kind !== question.kind && !typedOk) return bad(`"${question.measures}" takes a ${question.kind} answer; got ${answer.kind}`);
   switch (answer.kind) {
     case "integer": {
       if (!Number.isSafeInteger(answer.value)) return bad(`"${question.measures}" needs a whole number; got ${answer.value}`);

@@ -132,12 +132,14 @@ export function quizQuestionsFor(test: unknown, exportNames?: readonly string[],
   const usual = questionsFor(params, language ? { language } : {});
   const byField = new Map(usual.map((q) => [q.measures, q]));
   const out: Question[] = [];
-  const as = (measures: string, quiz: QuizOption[]) => {
+  const as = (measures: string, quiz: QuizOption[], typed = false) => {
     const q = byField.get(measures);
-    if (q && quiz.length >= 2) out.push({ measures: q.measures, text: q.text, kind: "quiz", unit: q.unit, quiz });
+    if (q && quiz.length >= 2) out.push({ measures: q.measures, text: q.text, kind: "quiz", unit: q.unit, quiz, ...(typed ? { allowsTyped: true as const } : {}) });
   };
   as("outcome", endingOptions(params.watchLimitMs ?? CALL_DEFAULT_WATCH_LIMIT_MS));
-  as("returnedJson", valueOptions(params, language));
+  // U3 item 4: plain code cannot know what the code returns without running it, so besides the options written from the
+  // test a bettor may type the exact value (a "json" answer). The options are unchanged.
+  as("returnedJson", valueOptions(params, language), true);
   for (const a of standInsOf(params)) as(`calls:${a.name}`, countOptions((a as StandIn).calls.length));
   if (params.network) as(`calls:${params.network.replaces}`, countOptions(params.network.calls.length));
   as("virtualMs", timeOptions(params));

@@ -195,3 +195,25 @@
 .u1-pins[data-beside]{transform:translate(12px,-50%);align-items:flex-start}
 /* U2: while the bet pop-up is open, the corner readout under it steps aside */
 .u1-root[data-pop] [data-corner="readout"]{visibility:hidden}
+/* U3 item 4: the typed returned value (a code font), and the folded "How Atlas runs it". */
+.u1-typed{display:grid;gap:4px;margin-top:8px}
+.u1-typed label{font-size:12.5px;color:var(--anatomy-text)}
+.u1-typed-in{width:100%;padding:6px 10px;border-radius:8px;border:1px solid var(--anatomy-lo);background:var(--anatomy-page);color:var(--anatomy-strong);font:13px/1.4 var(--anatomy-mono,ui-monospace,"SF Mono",Menlo,Consolas,monospace)}
+.u1-typed-in:focus-visible{outline:2px solid var(--anatomy-strong);outline-offset:2px}
+.u1-typed .u1-sub{margin:0}
+.u1-how .u1-explain{margin-top:6px}
+/* U3 item 7: the paste box is code, so it is set in a code font even where the drawing's tokens are not loaded. */
+.u1-entry .u1-code,.u1-entry .u1-code::placeholder{font-family:var(--anatomy-mono,ui-monospace,"SF Mono",Menlo,Consolas,monospace)}
+/* U3 items 5-7 */
+.u1-linkrow{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;margin-top:10px}
+.u1-wait{display:grid;gap:6px;margin:4px 0 8px}
+.u1-wait .u1-status,.u1-wait .u1-sub{margin:0}
+.u1-wait .u1-btn{justify-self:start;margin-top:4px}
+.u1-claim-tested{margin:0 0 6px;font-style:italic}
+.u1-claimfacts{margin-top:14px;padding-top:12px;border-top:1px solid var(--anatomy-faint)}
+.u1-claimfacts h3{margin:0 0 8px;font-size:14px;color:var(--anatomy-strong)}
+.u1-claimfacts-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.u1-claimfacts-cols q{display:block;color:var(--anatomy-strong);overflow-wrap:anywhere}
+.u1-claimfacts ul{margin:0;padding-left:16px;display:grid;gap:4px;font-size:12.5px;overflow-wrap:anywhere}
+.u1-claimfacts p{margin:0 0 4px}
+@media (max-width:640px){.u1-claimfacts-cols{grid-template-columns:1fr}}
