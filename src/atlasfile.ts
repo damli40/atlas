@@ -248,7 +248,7 @@ export const atlasFileSchema = z
   .object({
     version: z.literal(1),
     // R2 review round 1: the rules the file was made under; absent = before R2.
-    rules: z.object({ timing: z.literal("d46"), conditions: z.literal("r2") }).strict().optional(),
+    rules: z.object({ timing: z.literal("d46"), conditions: z.literal("r2"), watchLimit: z.literal("u2").optional() }).strict().optional(),
     target: targetSchema,
     codeSha256: sha,
     forkBlock: z.number().int().positive().optional(),
@@ -623,7 +623,9 @@ export const MAX_FILE_DEPTH = 200;
  * becomes { ok: false } with the reason. Verify RE-JUDGES the stored run with plain code; it does not re-run it.
  */
 /** R2 review round 1: the rules a file made today is made under (buildAtlasFile writes them). */
-export const CURRENT_RULES = { timing: TIMING_RULE, conditions: CONDITIONS_RULE } as const;
+export const CURRENT_RULES = { timing: TIMING_RULE, conditions: CONDITIONS_RULE, watchLimit: "u2" } as const;
+/** U2 (D53): a file whose rules say watchLimit "u2" judges timing options of a call still running at the watch limit. */
+export const watchLimitRuleOf = (file: { rules?: { watchLimit?: string } }) => file.rules?.watchLimit === "u2";
 
 /**
  * R2 review round 1 (B1, B2): the timing rule every verdict in a file is re-judged with comes from the file's own
@@ -720,7 +722,7 @@ function verifyAtlasFileChecked(raw: unknown): Verification {
     }
     // Re-judge: the stored verdict must be exactly what plain code gives for this bet and run, under the rules the
     // file says it was made under (R2 review round 1: no marker = the rules before R2).
-    const again = judge(b, run, { timingRule: timingRuleOf(file) });
+    const again = judge(b, run, { timingRule: timingRuleOf(file), watchLimitRule: watchLimitRuleOf(file) });
     if (!sameJson(again, v)) say(`the verdict on bet ${b.id} is not what src/judge.ts gives for it (stored ${v.outcome}, judged ${again.outcome})`);
   }
   for (const v of file.verdicts) if (!file.bets.some((b) => b.id === v.betId)) say(`verdict names bet ${v.betId}, which is not in the file`);
@@ -897,7 +899,7 @@ export function changeProblems(file: AtlasFile): string[] {
     const v = replay.verdicts.find((x) => x.betId === b.id);
     if (!v) out.push(`bet ${b.id} has no verdict on the replay`);
     else {
-      if (!sameJson(judge(b, r, { timingRule: timingRuleOf(file) }), v)) out.push(`the replay verdict on bet ${b.id} is not what src/judge.ts gives`);
+      if (!sameJson(judge(b, r, { timingRule: timingRuleOf(file), watchLimitRule: watchLimitRuleOf(file) }), v)) out.push(`the replay verdict on bet ${b.id} is not what src/judge.ts gives`);
     }
     if (!(Date.parse(b.sealedAt) < Date.parse(r.startedAt))) out.push(`bet ${b.id} was not sealed before the replay started`);
   }
