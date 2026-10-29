@@ -1,0 +1,50 @@
+$ vitest run
+
+ RUN  v5.0.5 <repo>
+
+ ❯ tests/unit/x2-review1.test.tsx (14 tests | 1 failed) 131687ms
+   ❯ B4: a large outline never freezes the page (3)
+     × 40 parts with 47 joins draw in well under the page's 30 s limit (Node, no worker) 16063ms
+(node:68342) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:71385) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:72588) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:72587) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:72841) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:72897) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:73008) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:73169) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:73419) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:73465) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/unit/x2-review1.test.tsx > B4: a large outline never freezes the page > 40 parts with 47 joins draw in well under the page's 30 s limit (Node, no worker)
+AssertionError: expected 16055 to be less than 15000
+ ❯ tests/unit/x2-review1.test.tsx:127:28
+    125|     const t = Date.now();
+    126|     buildFigure(m);
+    127|     expect(Date.now() - t).toBeLessThan(15_000);
+       |                            ^
+    128|   }, 120_000);
+    129|   it("the live screen builds in a Web Worker and shows a seconds count…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 125 passed | 2 skipped (128)
+      Tests  1 failed | 1933 passed | 35 skipped (1969)
+   Start at  11:49:16
+   Duration  235.47s (tests 92%, import 8%)
+
+[ELIFECYCLE] Test failed. See above for more details.
+EXIT 1

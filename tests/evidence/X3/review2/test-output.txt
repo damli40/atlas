@@ -1,0 +1,62 @@
+
+ RUN  v5.0.5 <repo>
+
+ ✓ tests/unit/x3-track-record.test.ts > X3 track record: plain code over sealed bets and verdicts > groups every measured field into the five question types (and nothing else) 3ms
+ ✓ tests/unit/x3-track-record.test.ts > X3 track record: plain code over sealed bets and verdicts > keeps only the person's bets whose seal verifies, with the verdict's outcome; repeats are kept but marked; numbers say lower or higher 9ms
+ ✓ tests/unit/x3-track-record.test.ts > X3 track record: plain code over sealed bets and verdicts > counts matched / didn't match / can't check with n, leaves repeats out and says how many 1ms
+ ✓ tests/unit/x3-track-record.test.ts > X3 track record: plain code over sealed bets and verdicts > never a percentage with n < 5; at n ≥ 5 the percentage always comes with n 0ms
+ ✓ tests/unit/x3-track-record.test.ts > X3 track record: plain code over sealed bets and verdicts > the record before a round is the entries before that round's first entry (null when the round is not in it) 0ms
+ ✓ tests/unit/x3-track-record.test.ts > X3 track record: plain code over sealed bets and verdicts > the weak-spot summary is question types and counts only; null when nothing didn't match 0ms
+ ✓ tests/unit/x3-track-record.test.ts > X3 track record: plain code over sealed bets and verdicts > wording (D27): never learn, teach, score, skill, right or wrong, in any sentence the record or panel can show 1ms
+ ✓ tests/unit/x3-track-record.test.ts > X3 track store: one file per person, on disk, survives a restart, never code > a new store on the same folder reads the same record (a restart); files 600, folder 700; the file name and body hold no raw id 15ms
+ ✓ tests/unit/x3-track-record.test.ts > X3 track store: one file per person, on disk, survives a restart, never code > a hand-edited file cannot slip code in: only entries of exactly the server's shape are read 2ms
+ ✓ tests/unit/x3-track-record.test.ts > X3 track store: one file per person, on disk, survives a restart, never code > caps: people beyond the limit drop the one written longest ago; entries per person keep the newest 22ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 review M1: 50 realistic snippets, precision of 'found in this code' > every snippet gives exactly its expected 'found' labels, and none outside its truth (precision ≥ 90%; it is 100%) 29ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 review M1: 50 realistic snippets, precision of 'found in this code' > the paste screen's default example: 'no overall timeout' only; no rate limit, no retry storm (it waits) 1ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 review M1: 50 realistic snippets, precision of 'found in this code' > markers that could not be made precise are gone: rate limit, duplicate side effect and provider outage have none 0ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 review B4: a retry loop repeats the same call > for…of, for…in, indexed loops over items and Python loops over items are not retries 1ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 review B4: a retry loop repeats the same call > while, counting for and range() loops whose catch goes round are retries; a catch that throws, returns or breaks is not 2ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 review B4: a retry loop repeats the same call > a wait through any helper call in the catch path is not a retry storm (precision: an unknown call may wait) 1ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 review B1–B3: 'reproduced' needs the marker AND the stand-in passed at the marked call > a never-answers stand-in at the marked call, function never settled → reproduced, naming the stand-in and the line 17ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 review B1–B3: 'reproduced' needs the marker AND the stand-in passed at the marked call > B2: 'still running at the watch limit' is never proof → inconclusive, with the reason in the tooltip 1ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 review B1–B3: 'reproduced' needs the marker AND the stand-in passed at the marked call > B1: code with a deadline (abort signal, Promise.race, timeout) has no marker, so no run can make it 'reproduced' 3ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 review B1–B3: 'reproduced' needs the marker AND the stand-in passed at the marked call > B1: a signal handed to the marked call counts as a deadline, so neither timeout marker fires (the safe side) 1ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 review B1–B3: 'reproduced' needs the marker AND the stand-in passed at the marked call > B3: the never-answers stand-in must be the one passed at the marked call; another one that hangs is no evidence 1ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 review B1–B3: 'reproduced' needs the marker AND the stand-in passed at the marked call > two stand-ins that never answer: the run cannot say which held the function → inconclusive 1ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 review B1–B3: 'reproduced' needs the marker AND the stand-in passed at the marked call > the stand-in's last call was not the never-answering step → inconclusive; untrusted runs → inconclusive; a run that ended → note, label from the code 43ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 review B1–B3: 'reproduced' needs the marker AND the stand-in passed at the marked call > no function info (unknown parameters) → runs are never evidence 2ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 review B1–B3: 'reproduced' needs the marker AND the stand-in passed at the marked call > B4: retry storm is reproduced only on a marked no-wait retry loop, through its stand-in, at 20+ calls; a batch loop never 24ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 review M3: linear scan, capped > the reviewer's 61 KB nested-loop paste takes under 50 ms; a nested retry flood too 84ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3: the rest of the markers > comments and strings are blanked before any check 0ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3: the rest of the markers > Wonder's tag can list a kind, never decide a label 0ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3: the rest of the markers > every 'found' label names its lines and its marker; a failure with no marker is never 'found' 9ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 review round 2 (D49): the retry detector, and precision out of sample > the third set (40, truth written before scoring) and the reviewer's 40: every marker at 90% or more (it is 100%) 265ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 review round 2 (D49): the retry detector, and precision out of sample > not retries: a page loop that passes its counter (also inside a template), a consumer whose try sits in an item loop, a catch that returns or ends the loop 1ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 review round 2 (D49): the retry detector, and precision out of sample > a wait through any awaited helper outside the try (snooze, setTimeoutPromise) is a wait: no retry storm 24ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 review round 2 (D49): the retry detector, and precision out of sample > clock skew needs a clock read on both sides of the minus: a cutoff (Date.now() - DAY) is not a duration 1ms
+ ✓ tests/unit/x3-failure-labels.test.ts > X3 review round 2 (D49): the retry detector, and precision out of sample > Celery time_limit / soft_time_limit count as a deadline 1ms
+ ✓ tests/unit/x3-ui.test.tsx > X3 UI: the track record panel > shows matched / didn't match / can't check with n by type, the repeats left out, and none of the banned words 36ms
+ ✓ tests/unit/x3-ui.test.tsx > X3 UI: the track record panel > the proof card's 'your record before this round' appears only when the server knows the round as this person's 20ms
+ ✓ tests/unit/x3-ui.test.tsx > X3 UI: the track record panel > an empty record says so in plain words 9ms
+ ✓ tests/unit/x3-ui.test.tsx > X3 UI: failure labels > 'found in this code' links to its lines shown right there; 'reproduced' links to the proof card; 'common pattern' names no lines 44ms
+ ✓ tests/unit/x3-server.test.ts > X3 (D27) track record on the server > a judged round goes into this browser's record: matched / didn't match by type, with n; the run answer has before and after 1591ms
+ ✓ tests/unit/x3-server.test.ts > X3 (D27) track record on the server > a repeat of a test already run is left out and counted as left out 1858ms
+ ✓ tests/unit/x3-server.test.ts > X3 (D27) track record on the server > who the person is: the same browser across sessions; another browser starts empty; no browser id → the session; an invite code → the code 1707ms
+ ✓ tests/unit/x3-server.test.ts > X3 (D27) track record on the server > on disk: survives a restart (a new app on the same folder), and the folder holds no code, no session id and no browser id 847ms
+ ✓ tests/unit/x3-server.test.ts > X3 (D27) Wonder aims at weak spots; the bettors' text does not change (D19) > Muse Wonder's prompt gets the types and counts where this person's bets didn't match, never the earlier code; a person with no record gets the prompt as before 900ms
+ ✓ tests/unit/x3-server.test.ts > X3 (D27) Wonder aims at weak spots; the bettors' text does not change (D19) > the bet screen's text and every betting model's prompt are byte-identical with and without a track record 25ms
+ ✓ tests/unit/x3-server.test.ts > X3 (D28) labels on the server > a pasted retry with no deadline: 'found in this code' with its lines → a sealed never-answers run → 'reproduced', linked to its proof card 892ms
+ ✓ tests/unit/x3-server.test.ts > X3 (D28) labels on the server > a run that comes back can't check makes the label 'inconclusive' 20ms
+ ✓ tests/unit/x3-ui.test.tsx > X3 UI: failure labels > an explorer part's card shows its labels (Wonder's tag named as Wonder's) 7973ms
+ ✓ tests/unit/x3-ui.test.tsx > X3 review round 2 (D50): labels are shown before betting > with a function picked and no round yet, the paste screen asks for the labels and shows them 59ms
+ ✓ tests/unit/x3-server.test.ts > X3 (D28) labels on the server > an explorer part: Wonder's tag lists the kind, plain code decides; after a round on the part's function the label is 'reproduced' 3299ms
+ ✓ tests/unit/x3-server.test.ts > X3 review round 1 on the server > D50 (replaces round 1's hold): labels are readable before any bet, and every bettor's text carries them, byte for byte 11ms
+ ✓ tests/unit/x3-server.test.ts > X3 review round 1 on the server > M3: label requests are limited per client an hour; the scan is cached (the same answer, fast) 8ms
+ ✓ tests/unit/x3-server.test.ts > X3 review round 1 on the server > M3: the reviewer's 61 KB paste: POST /paste/labels answers in under 50 ms 55ms
+ ✓ tests/unit/x3-server.test.ts > X3 review round 1 on the server > B4 through the real sandbox: a batch loop where send fails 25 times is never 'retry storm: reproduced' 840ms
+
+ Test Files  4 passed (4)
+      Tests  53 passed (53)
+   Start at  11:56:49
+   Duration  14.33s (tests 77%, import 16%, transform 7%)
+

@@ -2,7 +2,119 @@
 
 Date: 2026-10-28 (WAT) · live spend **$0.0892** (one check, 4 model calls, cap $0.30) · Node 25.8.1, local executor.
 
-## Review round 1 (read this first: it corrects the sections below)
+## Review round 2 (read this first: it corrects round 1 below)
+
+Rebased onto main a39abb4 (U1, the drawing-first screen). Conflicts: `web/screens/Explorer.tsx` (kept U1's version and
+added X3's `visible` prop) and this index's README line (both kept).
+
+**What I told you in round 1 that was wrong.** I reported "found in this code" at 100% precision. That was on 50
+snippets I had tuned against. On the reviewer's 40 fresh snippets it was **64.7%**: 10 of the 12 false claims came from
+the retry detector, and 3 of them were false **"reproduced"** through the real server (a page-by-page loop, a queue
+consumer, a retry that waits through a helper named `snooze`). Round 1's "labels only after the seal" rule could also
+be bypassed (second tab, re-paste, one question sealed). Dami's D50 replaces that rule (below).
+
+### D49: the retry detector, fixed
+
+A loop is a **retry** only when all of these hold:
+- it is a `while` / `do … while`, a counting `for` (not over `.length`/`.size`), or Python `while` / `for … in range(…)`;
+- its `try` sits **directly** in it: no other loop, `.forEach` or `.map` between the loop's head and the try (B2);
+- the loop variable is **not passed** to the call, and nothing the call's arguments name is changed in the loop: the
+  same call with the same arguments each time (B1). Template literals' `${…}` are now read as code, so
+  `` fetch(`/p?n=${page}`) `` passes `page`;
+- **nothing** in the catch / except path throws, returns, breaks or raises, or changes a variable the loop test reads
+  (M1 cause 1).
+
+"Retry storm" also needs **no possible wait**: no wait word in the loop (now including `snooze`, `nap`,
+`setTimeoutPromise`, `promisify(setTimeout)`, `timers/promises`), and every call in the catch path and every awaited
+call outside the try is logging only; any other call might wait (B3). For **"reproduced"**, a storm also needs the
+run's measured wait time (`virtualMs`) to be **0**; any measured waiting means "not shown"; no measured wait time means
+"inconclusive". "No overall timeout" now also treats Celery's `time_limit` / `soft_time_limit` as a deadline.
+**"Clock skew"** needs a wall-clock read on **both sides** of the minus (a clock call, or a name set from one in these
+lines): `Date.now() - DAY` and `time.time() - 7 * 86400` are cutoffs, not durations, and no longer count.
+
+### Precision, out of sample
+
+**Set 3:** 40 snippets I wrote for this round, with hand truth, **committed before any marker was run on them**
+(commit a282887, `tests/fixtures/failure-labels/snippets-set3.ts`), and written without looking at the reviewer's 40.
+**Reviewer's 40:** copied unchanged with the reviewer's truth (`snippets-review2.ts`). Both are scored like `POST
+/paste/labels` (the function's own lines). Full tables: `review2/precision-*.txt`; the scorer: `review2/score.mts.txt`.
+
+| Set | Code | "found" | true | false | precision | real failures left as "common pattern" |
+|---|---|---|---|---|---|---|
+| Set 3 | round-1 code | 23 | 19 | 4 | 82.6% | 4 |
+| Set 3 | **round-2 code** | 16 | 16 | 0 | **100%** | 7 |
+| Reviewer's 40 | round-1 code | 34 | 22 | 12 | 64.7% (the review's own number) | 0 |
+| Reviewer's 40 | **round-2 code** | 19 | 19 | 0 | **100%** | 3 |
+| Committed 50 | round-2 code | 24 | 24 | 0 | 100% | 3 |
+
+Per marker after the fixes (true / found):
+
+| Marker | Set 3 | Reviewer's 40 |
+|---|---|---|
+| no overall timeout | 5/5 | 3/3 |
+| retry storm | 2/2 | 1/1 |
+| timeout | 2/2 | 5/5 |
+| race | 2/2 | 1/1 |
+| lost update | fired on none | 1/1 |
+| duplicate delivery | 1/1 | 2/2 |
+| partial commit | 2/2 | 4/4 |
+| clock skew | fired on none | 1/1 |
+| time zone | 2/2 | 1/1 |
+
+No marker is under 90%, so none fell back to "common pattern". **But the counts per marker are small** (1 to 5
+"found" each); 100% on 1/1 says little. The misses are on purpose: in set 3, `s3-08` (a catch that rethrows
+non-retryable errors is no longer a retry), `s3-15` (`timeout=None` contains the word timeout), `s3-17` (`got` is not a
+known client here), `s3-19` (a lost update through `Map.get` / `.set`), `s3-22` (auto-commit, no ack call), and
+`s3-31` / `s3-32` (`Date.now() - created.getTime()`: one side is not a clock read by the new rule).
+
+### D50: labels before betting, to every bettor (replaces round 1's "after the seal")
+
+- The 409 hold is gone. `POST /paste/labels` and `GET /outline/jobs/:id/labels` answer at any time.
+- **One labeler** (`server/labels.ts createLabeler`) serves both routes and `POST /experiments`, which now puts the
+  called function's labels **into the bettor text** (`src/paste-context.ts pastedBetHead`, lines made by
+  `labelsForBettors`): "Atlas's failure labels for this function (plain code's reading of its text, before any run of
+  this test):", one line per claimed label with its lines, and the "common pattern" ones named together as Atlas's list
+  only. The labels are part of the text's cache key.
+- **D19 byte equality, extended:** a test opens a round with both models and checks the page's "What every bettor sees"
+  text holds the labels, and that both Muse Spark's and Muse Spark Open's prompts contain that exact text. The earlier
+  tests (bettor text byte-identical with and without a track record; the server's text equals the pure builder's,
+  now given the same label lines) pass.
+- **The U1 drawing** shows the claimed labels before betting, as dashed chips on the part their lines belong to
+  (`BenchStage`'s `extraMarks`, now shown before a run; after a run they follow the marks toggle). U1's own stage test
+  now also checks that the label chip is there before betting and carries no run data.
+- **Bench M was not changed.** Its prompts are built by `pastedBetContext` without labels, so the prompt-freeze test
+  still passes and no new dry run was needed. That means a live Bench M run gives models the paste text **without**
+  labels, while a live paste round gives them **with** labels. Whether the benchmark should include labels is Dami's
+  call; doing so needs a new dry-run file.
+
+### Round-2 click-through (`screens/r2-*`, `drive-r2.mjs`, models mocked, $0)
+
+On the U1 screen at 1920×1080: paste the example → the drawing shows "found in this code: no overall timeout, lines
+4–11" on the function before any bet (on screen, below the top bar; nothing with run data) → open the bet → "What
+every bettor sees" has the same label lines → pick Wonder's never-answers test, seal → the run plays → the chip says
+"reproduced: no overall timeout, lines 4–11", and the proof-card link is there. At 390 px dark: the chip shows, no
+horizontal scroll. **All checks passed**: axe 0 on 4 states, overlap 0 on 2, reduced motion still, no page errors. The
+first attempt put the chip at y = 14 px, under the top bar (a percentage offset bug); fixed and now checked.
+
+### Counts (round 2)
+
+- X3 tests: 53 (`review2/test-output.txt`); type check clean (`review2/tsc-output.txt`).
+- Full suite 3 times on main a39abb4 + X3 (`review2/full-suite-1..3.txt`): runs 1 and 3 **1,934 passed, 35 skipped,
+  exit 0**; run 2 had **1 failure, the same X2 timing test as in round 1** ("40 parts … draw under 15 s", which measures
+  `buildFigure`; X3 does not touch it). I did not loosen it. So again **not 3 clean runs in a row**: 2 of 3 clean, the
+  one failure a timing assertion outside X3 that fails when the machine is busy.
+
+### Not done / unsure (round 2)
+
+- Small per-marker samples (see above).
+- The retry rules are text rules. A retry written through a helper (`retry(() => op())`), recursion, or a loop with
+  the try inside an `if` block that also holds another loop, is not read as a retry ("common pattern", the safe side).
+- "Same arguments each time" is judged from the text (no name in the call's arguments is set in the loop); the
+  harness does not record a stand-in's arguments, so a run cannot check it.
+- The legacy paste screen (under "Demos") still shows its labels card; per the scope change it was only switched to
+  "before betting", not polished.
+
+## Review round 1 (corrected by round 2 above)
 
 The adversarial review (`scratchpad/review-X3.md`, not in the repo) found the track record sound and the failure
 labels making false claims: **4 blockers, 3 majors, 5 minors.** Rebased onto main 26f5342 (E5, B1) first; the only
