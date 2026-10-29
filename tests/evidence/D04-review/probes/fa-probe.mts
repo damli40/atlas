@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { falseAlarmFromRun } from "../../../../runners/evm/level2.ts";
 import { checkFinding, normaliseQuote } from "../../../../server/meta/roles/investigator.ts";
-const run = JSON.parse(readFileSync(new URL("../../../../tests/evidence/D04-04/moonwell-level2-fKqHGIIi2_.atlas.json", import.meta.url), "utf8")).runs[0];
+const run = JSON.parse(readFileSync(new URL("../../../../tests/evidence/D04-04/superseded/moonwell-level2-fKqHGIIi2_.json", import.meta.url), "utf8")).runs[0];
 const bad = structuredClone(run); bad.controlPassed = false; bad.result.notMeasured.control = "WETH control did not match";
 const rows = falseAlarmFromRun(bad);
 console.log("control failed -> cbETH flagged:", rows.find((r) => r.market === "cbETH")!.flagged, "| rows flagged true:", rows.filter((r) => r.flagged).length);

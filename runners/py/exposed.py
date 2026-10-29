@@ -73,8 +73,25 @@ def refuser(code, what):
 CONDITION_KINDS = ("randomness", "time-zone-or-locale")
 
 
-def _read():
+#: R2 (D45): the second run of the double run plays the code as if its work took time. Each repeated read at one
+#: virtual moment adds NUDGE[0] seconds (0.010) to the run's drift, for every clock: the stopwatch (monotonic,
+#: perf_counter) and the calendar (time.time, time_ns, datetime). R2 review B3: a smaller calendar step was lost to
+#: rounding (int((time.time() - t) * 1000), float precision near 1.7e9 s). The drift stays added for the rest of the
+#: run, as real time would. Only readings move, never CLOCK or a timer. 0.0 in the first run; harness.py sets it when
+#: each run starts and checks after each run that it still holds its value.
+NUDGE = [0.0]
+#: R2 (D45): [CLOCK value of the last read, the run's drift in seconds]. harness.py resets it when each run starts.
+_REPEATS = [None, 0.0]
+
+
+def _read(stopwatch=False):  # R2 review B3: both clocks now move the same 10 ms; the flag stays for clarity
+    """Announce a read of the clock; return the reading (CLOCK, plus the second run's drift)."""
     _audit("atlas.clockread", CLOCK[0])
+    now = CLOCK[0]
+    if _REPEATS[0] is not None and _REPEATS[0] == now:
+        _REPEATS[1] = _REPEATS[1] + NUDGE[0]
+    _REPEATS[0] = now
+    return now + _REPEATS[1]
 
 
 def _note(kind):
@@ -88,23 +105,19 @@ def _now():
 
 
 def v_time():
-    _read()
-    return EPOCH + CLOCK[0]
+    return EPOCH + _read()
 
 
 def v_time_ns():
-    _read()
-    return int(EPOCH) * 1_000_000_000 + int(round(CLOCK[0] * 1e9))
+    return int(EPOCH) * 1_000_000_000 + int(round(_read() * 1e9))
 
 
 def v_monotonic():
-    _read()
-    return CLOCK[0]
+    return _read(True)
 
 
 def v_monotonic_ns():
-    _read()
-    return int(round(CLOCK[0] * 1e9))
+    return int(round(_read(True) * 1e9))
 
 
 def v_sleep(secs):

@@ -124,7 +124,9 @@ describe("B4: a large outline never freezes the page", () => {
     expect(m.lines.length).toBeLessThanOrEqual(MAX_DRAWN_LINES);
     const t = Date.now();
     buildFigure(m);
-    expect(Date.now() - t).toBeLessThan(15_000);
+    // R2 review round 1 (m5): the page's real limit is 30 s. Alone this build takes 9-12 s, but under a loaded full suite
+    // it reached 15-17 s and failed most full runs; 15 s measured the machine's load, not the drawing code.
+    expect(Date.now() - t).toBeLessThan(30_000);
   }, 120_000);
   it("the live screen builds in a Web Worker and shows a seconds counter meanwhile", () => {
     const src = readFileSync(join(ROOT, "web/machines/explorer/ExplorerMachine.tsx"), "utf8");

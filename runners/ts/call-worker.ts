@@ -48,6 +48,7 @@ import {
   pendingLoadTimers,
   runCall,
   seedRandomness,
+  setClockNudge,
   setRedactions,
   wholeRun,
   type CallWorkerRequest,
@@ -174,6 +175,9 @@ async function main(): Promise<void> {
   else if (ro.locale !== pins.locale) markWholeRun(PIN_FAILED_REASON(`the locale to ${pins.locale} (it is ${String(ro.locale).slice(0, 40)})`));
   if (typeof req.seed !== "string" || !/^[1-9]\d{0,9}$/.test(req.seed)) throw new Error("the request names no seed Atlas uses");
   seedRandomness(req.seed);
+  // R2 (D45): the second run of the double run moves the clock at each repeated read at one moment (0 or 10 ms, src/conditions.ts CLOCK_NUDGE_MS).
+  if (req.nudgeClockMs !== undefined && req.nudgeClockMs !== 0 && req.nudgeClockMs !== 10) throw new Error("the request names a clock nudge Atlas does not use");
+  setClockNudge(req.nudgeClockMs ?? 0);
   installVirtualClock();
   installSandboxGuards();
   nativeOn("unhandledRejection", (r: unknown) => noteUncaught("rejection", r));

@@ -1,0 +1,13 @@
+== run 1
+ Test Files  125 passed | 2 skipped (127)
+      Tests  1963 passed | 35 skipped (1998)
+   Duration  225.46s (tests 91%, import 9%)
+== run 2
+ Test Files  125 passed | 2 skipped (127)
+      Tests  1963 passed | 35 skipped (1998)
+   Duration  169.22s (tests 90%, import 9%)
+== run 3
+ Test Files  125 passed | 2 skipped (127)
+      Tests  1963 passed | 35 skipped (1998)
+   Duration  169.11s (tests 90%, import 9%)
+tsc exit 0

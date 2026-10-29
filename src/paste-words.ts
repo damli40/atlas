@@ -128,6 +128,10 @@ export const PASTE_WORDS = {
  * keep the process alive), the verdict screen and the proof card say so in these words. Plain code picks them from
  * the run's recorded condition kinds (src/conditions.ts); a model never writes them.
  */
+/** R1's timed-work sentence, before R2 (D45). Proof files made before R2 carry it; verify accepts it for them. */
+export const TIMED_WORK_SAYS_R1 =
+  "This code timed its own work: it read the clock more than once at the same moment of Atlas's simulated clock, which moves only while the code waits. Elapsed times read 0 ms here and don't reflect your machine.";
+
 export const CONDITION_WORDS = {
   heading: "Conditions",
   intro: "What this result depends on that is Atlas's, not the code's:",
@@ -139,8 +143,12 @@ export const CONDITION_WORDS = {
   pins: (seed: string, timeZone: string, locale: string) => `seed ${seed} · time zone ${timeZone} · locale ${locale}`,
   clock: "This code read the clock. Atlas's clock is simulated (it starts at 2026-01-01T00:00:00Z and moves only while the code waits), so time-based values are Atlas's, not your machine's.",
   // R1 review M1-M3: decided from the code's own clock reads (two or more at one simulated moment), never from CPU time.
+  // R2 (D45): a value that depends on the elapsed time is no longer shown as 0 ms; it is "can't check" (workTime).
   timedWork:
-    "This code timed its own work: it read the clock more than once at the same moment of Atlas's simulated clock, which moves only while the code waits. Elapsed times read 0 ms here and don't reflect your machine.",
+    "This code timed its own work: it read the clock more than once at the same moment of Atlas's simulated clock, which moves only while the code waits, so an elapsed time reads 0 here. Atlas ran it a second time as if the work took time: 10 ms more at each repeated read of a stopwatch clock (performance.now, process.hrtime, Python's perf_counter and monotonic), 1 ms more (JavaScript) or 10 ms more (Python) at each repeated read of the calendar clock (Date, Python's time.time and datetime), and that time stays added. A time stamp returned next to another one taken at the same moment changes too, so it is not reported. A value that changed is not reported; a value that stayed the same is. A check against a longer time (\"took over a second\") does not change this way, so it shows what fast work gives.",
+  // R2 (D45): the values that changed when the second run let time pass during the code's own timing.
+  workTime: (fields: string) =>
+    `Atlas can't check these values: ${fields}. They changed when Atlas's second run let time pass while the code timed its own work, so they depend on how long the work really takes. Atlas's clock is simulated and can't measure real work time.`,
   changedBetweenRuns: (fields: string) =>
     `Atlas ran this test twice with the same seed and pins, and these values changed between the two runs: ${fields}. They depend on something Atlas does not control (memory addresses, process ids, paths), so Atlas does not report them.`,
   host: (what: string) =>

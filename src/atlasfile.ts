@@ -21,7 +21,7 @@
 // No I/O, no clock (except `createdAt`, passed in), no model.
 
 import { z } from "zod";
-import { judge } from "./judge";
+import { TIMING_RULE, judge } from "./judge";
 import { quizQuestionsFor } from "./quiz";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -38,7 +38,7 @@ import type { AgentEvent, AtlasFile, Bet, BettorSlot, Change, Experiment, Findin
 // The two level captions live in src/captions.ts (no Node imports), so the web page can use them
 // without loading this file, which reads the Moonwell copy from disk.
 import { LEVEL2_CAPTION, PASTED_CAPTION, level1Caption } from "./captions";
-import { callRunPinProblems } from "./conditions";
+import { CONDITIONS_RULE, callRunPinProblems } from "./conditions";
 import { lineSpan } from "./words";
 import { pastedTargetProblems } from "./pasted-code";
 import { outlineSectionProblems } from "./outline/section";
@@ -192,6 +192,8 @@ const verdictSchema = z
     reference: z.object({ value: z.string(), method: z.string() }).strict().optional(),
     reason: z.string().optional(),
     judgedBy: z.literal("src/judge.ts"),
+    // R2 (D46): the timing rule a verdict was judged with; absent on older files (the rule before D46).
+    timingRule: z.literal("d46").optional(),
   })
   .strict();
 
@@ -245,6 +247,8 @@ const falseAlarmRowSchema = z
 export const atlasFileSchema = z
   .object({
     version: z.literal(1),
+    // R2 review round 1: the rules the file was made under; absent = before R2.
+    rules: z.object({ timing: z.literal("d46"), conditions: z.literal("r2") }).strict().optional(),
     target: targetSchema,
     codeSha256: sha,
     forkBlock: z.number().int().positive().optional(),
@@ -618,6 +622,17 @@ export const MAX_FILE_DEPTH = 200;
  * hostile file nested thousands of levels deep is refused before zod walks it, and any other unexpected throw
  * becomes { ok: false } with the reason. Verify RE-JUDGES the stored run with plain code; it does not re-run it.
  */
+/** R2 review round 1: the rules a file made today is made under (buildAtlasFile writes them). */
+export const CURRENT_RULES = { timing: TIMING_RULE, conditions: CONDITIONS_RULE } as const;
+
+/**
+ * R2 review round 1 (B1, B2): the timing rule every verdict in a file is re-judged with comes from the file's own
+ * rules marker, not from the verdict and not from a date: with the marker, D46 (and every judged timing verdict must
+ * say so); without it, the rule before D46 (and no verdict may say D46). Re-judging with that rule and comparing the
+ * whole verdict checks the label both ways.
+ */
+export const timingRuleOf = (file: { rules?: { timing: string } }) => (file.rules ? TIMING_RULE : null);
+
 export function verifyAtlasFile(raw: unknown): Verification {
   try {
     if (jsonDepth(raw, MAX_FILE_DEPTH) > MAX_FILE_DEPTH) return { ok: false, problems: [`the file nests deeper than ${MAX_FILE_DEPTH} levels, so Atlas does not read it`] };
@@ -659,7 +674,7 @@ function verifyAtlasFileChecked(raw: unknown): Verification {
       if (isCallRun(file, r)) for (const p of callRunAgreesWithItsTrace(r)) say(`run ${r.id}: ${p}`);
       if (isCallRun(file, r)) for (const p of callRunControlProblems(r)) say(`run ${r.id}: ${p}`);
       // R1 (D42): the seed, time zone and locale are Atlas's pinned ones, and the conditions are what the trace says.
-      if (isCallRun(file, r)) for (const p of callRunPinProblems(r, file.target.language ?? "js")) say(`run ${r.id}: ${p}`);
+      if (isCallRun(file, r)) for (const p of callRunPinProblems(r, file.target.language ?? "js", file.rules ?? null)) say(`run ${r.id}: ${p}`);
     }
     if (Date.parse(r.finishedAt) < Date.parse(r.startedAt)) say(`run ${r.id} finished before it started`);
   }
@@ -703,8 +718,9 @@ function verifyAtlasFileChecked(raw: unknown): Verification {
       }
       if (want === null || canonicalJson(want as JsonValue) !== canonicalJson(b.answer.options as unknown as JsonValue)) say(`bet ${b.id}: its quiz options are not the ones plain code writes for its test`);
     }
-    // Re-judge: the stored verdict must be exactly what plain code gives for this bet and run.
-    const again = judge(b, run);
+    // Re-judge: the stored verdict must be exactly what plain code gives for this bet and run, under the rules the
+    // file says it was made under (R2 review round 1: no marker = the rules before R2).
+    const again = judge(b, run, { timingRule: timingRuleOf(file) });
     if (!sameJson(again, v)) say(`the verdict on bet ${b.id} is not what src/judge.ts gives for it (stored ${v.outcome}, judged ${again.outcome})`);
   }
   for (const v of file.verdicts) if (!file.bets.some((b) => b.id === v.betId)) say(`verdict names bet ${v.betId}, which is not in the file`);
@@ -880,7 +896,9 @@ export function changeProblems(file: AtlasFile): string[] {
   for (const b of file.bets) {
     const v = replay.verdicts.find((x) => x.betId === b.id);
     if (!v) out.push(`bet ${b.id} has no verdict on the replay`);
-    else if (!sameJson(judge(b, r), v)) out.push(`the replay verdict on bet ${b.id} is not what src/judge.ts gives`);
+    else {
+      if (!sameJson(judge(b, r, { timingRule: timingRuleOf(file) }), v)) out.push(`the replay verdict on bet ${b.id} is not what src/judge.ts gives`);
+    }
     if (!(Date.parse(b.sealedAt) < Date.parse(r.startedAt))) out.push(`bet ${b.id} was not sealed before the replay started`);
   }
   if (replay.verdicts.length !== file.bets.length) out.push("the replay has verdicts for bets the file does not hold");
@@ -967,6 +985,7 @@ export function buildAtlasFile(input: BuildInput): AtlasFile {
   const captions = [...new Set([...requiredCaptions(base), ...(input.extraCaptions ?? [])])];
   const file: AtlasFile = {
     version: 1,
+    rules: { ...CURRENT_RULES },
     target: input.target,
     codeSha256: input.target.codeSha256,
     ...(input.run.forkBlock !== undefined ? { forkBlock: input.run.forkBlock } : {}),

@@ -20,7 +20,7 @@ import { judge } from "../../src/judge.ts";
 import { sealBet } from "../../src/seal.ts";
 import { buildAtlasFile, verifyAtlasFile } from "../../src/atlasfile.ts";
 import { exportedFunctionsFor, makePastedTarget } from "../../src/pasted-code.ts";
-import { CALL_PINNED_SEED, callRunPinProblems, conditionKindsInTrace } from "../../src/conditions.ts";
+import { CALL_PINNED_SEED, TIMED_WORK_REASON, callRunPinProblems, conditionKindsInTrace } from "../../src/conditions.ts";
 import { PASTE_WORDS, CONDITION_WORDS } from "../../src/paste-words.ts";
 import { CALL_ENV, CALL_SEED, callControlKey, callHarnessSha256, runCallControl, runCallExperiment } from "../../runners/ts/call-runner.ts";
 import { pyControlKey, pyHarnessSha256, runPyCallControl, runPyCallExperiment } from "../../runners/py/py-runner.ts";
@@ -83,11 +83,14 @@ function expectOutcomeNotMeasured(r: Run, cat: string) {
 
 describe("bench T2, the 13 JavaScript tests and 9 Python tests: what Atlas reports now", () => {
   const h01 = read("h01-cpu-elapsed.js");
-  it("h01a timeWork (CPU work timed with Date.now / performance.now): measured, labelled timed-work (review round 1: disclose, decided from the code's own reads)", async () => {
+  it("h01a timeWork (CPU work timed with Date.now / performance.now): the value is can't check, the outcome stays measured (R2, D45; was disclosed and measured in R1)", async () => {
     const r = await run(h01, "js", "timeWork");
-    expect(r.result.measured).toMatchObject({ outcome: "returned", returnedJson: '{"dateMs":0,"perfMsOver1":false,"x":4095}' });
-    expect(kinds(r)).toEqual(["clock", "timed-work"]);
-    expect(r.conditions?.find((c) => c.kind === "timed-work")?.says).toMatch(/timed its own work.*Elapsed times read 0 ms here/);
+    expect(r.result.measured).toMatchObject({ outcome: "returned", returnedType: "object" });
+    expect(r.result.measured.returnedJson).toBeUndefined();
+    expect(r.result.notMeasured.returnedJson).toBe(TIMED_WORK_REASON);
+    expect(kinds(r)).toEqual(["clock", "timed-work", "work-time"]);
+    expect(r.conditions?.find((c) => c.kind === "timed-work")?.says).toMatch(/timed its own work.*an elapsed time reads 0 here/);
+    expect(r.conditions?.find((c) => c.kind === "work-time")?.says).toMatch(/can't check these values: returnedJson\./);
   });
   it("h01b spinWait (busy-wait on Date.now): whole-run can't check, real-time reason (unchanged)", async () => {
     const r = await run(h01, "js", "spinWait");
@@ -197,10 +200,11 @@ describe("bench T2, the 13 JavaScript tests and 9 Python tests: what Atlas repor
       const r = await run(p02(), "py", "deadline", [standIn("fetch", [{ do: "return", value: "v", afterMs: 500 }], true)]);
       expect(r.result.measured).toMatchObject({ outcome: "returned", returnedJson: '"timed out"', returnedType: "string", virtualMs: 100, "calls:fetch": 1 });
     });
-    it("q02c cpu_elapsed (perf_counter around CPU work): measured, labelled timed-work (review round 1: disclose)", async () => {
+    it("q02c cpu_elapsed (perf_counter around CPU work, \"> 1 ms\"): the value is can't check (R2, D45; was disclosed and measured in R1)", async () => {
       const r = await run(p02(), "py", "cpu_elapsed");
-      expect(r.result.measured).toMatchObject({ outcome: "returned", returnedJson: "false" });
-      expect(kinds(r)).toEqual(["clock", "timed-work"]);
+      expect(r.result.measured).toMatchObject({ outcome: "returned", returnedType: "boolean" });
+      expect(r.result.notMeasured.returnedJson).toBe(TIMED_WORK_REASON);
+      expect(kinds(r)).toEqual(["clock", "timed-work", "work-time"]);
     });
   });
 });
@@ -252,8 +256,8 @@ describe("conditions are detected for each kind, and only the undecided kinds hi
     ["no clock, no randomness: no conditions (the line says None)", "export const f = (a) => a + 1;", "f", [], true],
     ["clock (Date.now)", "export function f(){ return Date.now(); }", "f", ["clock"], true],
     ["clock (one read each of new Date(), performance.now, process.hrtime, at different moments)", "export async function f(){ new Date(); await new Promise(r => setTimeout(r, 1)); performance.now(); await new Promise(r => setTimeout(r, 1)); process.hrtime(); return 1; }", "f", ["clock"], true],
-    ["timed-work: two reads at one moment, whatever the work (deterministic, no CPU line)", "export function f(){ const t = Date.now(); let x = 0; for (let i = 0; i < 2e7; i++) x = (x + i) % 7; return [Date.now() - t, x]; }", "f", ["clock", "timed-work"], true],
-    ["timed-work also for no work at all (the rule reads the code's reads, not the machine)", "export function f(){ return performance.now() - performance.now(); }", "f", ["clock", "timed-work"], true],
+    ["timed-work: two reads at one moment, whatever the work (deterministic, no CPU line); the elapsed value is can't check (R2)", "export function f(){ const t = Date.now(); let x = 0; for (let i = 0; i < 2e7; i++) x = (x + i) % 7; return [Date.now() - t, x]; }", "f", ["clock", "timed-work", "work-time"], true],
+    ["timed-work also for no work at all (the rule reads the code's reads, not the machine); can't check (R2)", "export function f(){ return performance.now() - performance.now(); }", "f", ["clock", "timed-work", "work-time"], true],
     ["randomness (Math.random)", "export const f = () => Math.random() > 2;", "f", ["randomness"], true],
     ["unseeded randomness (crypto.subtle.generateKey)", "export async function f(){ await crypto.subtle.generateKey({ name: 'HMAC', hash: 'SHA-256' }, true, ['sign']); return 1; }", "f", ["unseeded-randomness"], false],
     ["time zone (getHours)", "export const f = () => new Date(0).getHours();", "f", ["time-zone-or-locale"], true],
@@ -287,7 +291,7 @@ describe("conditions are detected for each kind, and only the undecided kinds hi
     ["randomness (random.choice)", "import random\n\ndef f():\n    return random.choice([1, 2, 3])\n", "f", ["randomness"], true],
     ["a seeded Random(5) is the code's own choice: no condition", "import random\n\ndef f():\n    return random.Random(5).random()\n", "f", [], true],
     ["hash-seed (a set comprehension)", "def f():\n    return len({x for x in 'abc'})\n", "f", ["hash-seed"], true],
-    ["timed-work (perf_counter around a loop): disclosed, measured", "import time\n\ndef f():\n    t = time.perf_counter()\n    x = 0\n    for i in range(200_000):\n        x = (x + i) % 7\n    return time.perf_counter() - t\n", "f", ["clock", "timed-work"], true],
+    ["timed-work (perf_counter around a loop): the elapsed value is can't check (R2), the outcome measured", "import time\n\ndef f():\n    t = time.perf_counter()\n    x = 0\n    for i in range(200_000):\n        x = (x + i) % 7\n    return time.perf_counter() - t\n", "f", ["clock", "timed-work", "work-time"], true],
     ["random.seed(n) by the code itself: its own draws, no randomness condition", "import random\n\ndef f():\n    random.seed(42)\n    return random.randint(1, 100)\n", "f", [], true],
     ["host: sys.platform and os.cpu_count() are measured and named", "import os, sys\n\ndef f():\n    return [len(sys.platform) > 0, os.cpu_count() is None or os.cpu_count() > 0]\n", "f", ["host"], true],
   ];
@@ -384,10 +388,17 @@ describe("proof files record the seed, time zone, locale and conditions, and ver
     // A run that started before R1 (2026-10-28) with no pins is a pre-R1 run; one that mixes in a pin is not. (The run is
     // checked on its own: moving a whole file's times back would break its bets' seals, which hash their times.)
     const old = { ...f.runs[0], startedAt: "2026-10-20T10:00:00.000Z", finishedAt: "2026-10-20T10:00:01.000Z" };
-    expect(callRunPinProblems(old, "js")).toEqual([]);
-    expect(callRunPinProblems({ ...old, locale: "en-US" }, "js").join("; ")).toMatch(/carries pins or conditions/);
+    // R2 review round 1: a pre-R1 file has no rules marker (null); under the current rules seed "none" is refused.
+    expect(callRunPinProblems(old, "js", null)).toEqual([]);
+    expect(callRunPinProblems({ ...old, locale: "en-US" }, "js", null).join("; ")).toMatch(/carries pins or conditions/);
+    expect(callRunPinProblems(old, "js").join("; ")).toMatch(/current rules, which pin every run/);
     expect(v.ok).toBe(false);
-    if (!v.ok) expect(v.problems.join("; ")).toMatch(/started after Atlas began pinning/);
+    // R2 review round 1: the file carries the current rules marker, which pin every run.
+    if (!v.ok) expect(v.problems.join("; ")).toMatch(/current rules, which pin every run/);
+    delete f.rules;
+    const w = verifyAtlasFile(f);
+    if (!w.ok) expect(w.problems.join("; ")).toMatch(/started after Atlas began pinning/);
+    expect(w.ok).toBe(false);
   });
   it.skipIf(!HAVE_PYTHON)("a Python run verifies with locale C and its hash-seed condition", async () => {
     const f = await file("def f():\n    return sorted({1, 2})\n", "py");

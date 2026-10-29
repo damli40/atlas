@@ -227,14 +227,36 @@ describe.skipIf(!HAVE_PYTHON)("time on the virtual clock", () => {
   });
 
   it("datetime, time.time, monotonic and localtime all read the virtual clock (UTC, from 2026-01-01)", async () => {
+    // R2 (D45): each clock is read at its own moment. Several raw readings at ONE moment are now can't check (the
+    // second run lets time pass between them), which the second test below records.
     const src = `import asyncio, datetime, time
 
 async def f():
     await asyncio.sleep(1.5)
-    return [datetime.datetime.now(datetime.timezone.utc).isoformat(), time.time(), time.monotonic(), time.strftime("%Y-%m-%d %H:%M:%S"), datetime.date.today().isoformat()]
+    a = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    await asyncio.sleep(0.25)
+    b = time.time()
+    await asyncio.sleep(0.25)
+    c = time.monotonic()
+    await asyncio.sleep(0.25)
+    d = time.strftime("%Y-%m-%d %H:%M:%S")
+    await asyncio.sleep(0.25)
+    return [a, b, c, d, datetime.date.today().isoformat()]
 `;
     const r = await runPy(src, { exportName: "f" });
-    expect(JSON.parse(r.result.measured.returnedJson as string)).toEqual(["2026-01-01T00:00:01.500000+00:00", 1767225601.5, 1.5, "2026-01-01 00:00:01", "2026-01-01"]);
+    expect(JSON.parse(r.result.measured.returnedJson as string)).toEqual(["2026-01-01T00:00:01.500000+00:00", 1767225601.75, 2, "2026-01-01 00:00:02", "2026-01-01"]);
+    expect(r.result.measured.virtualMs).toBe(2500);
+  });
+  it("R2 (D45): raw readings of several clocks at one moment are can't check; the time is still measured", async () => {
+    const src = `import asyncio, datetime, time
+
+async def f():
+    await asyncio.sleep(1.5)
+    return [datetime.datetime.now(datetime.timezone.utc).isoformat(), time.time(), time.monotonic()]
+`;
+    const r = await runPy(src, { exportName: "f" });
+    expect(r.result.measured.returnedJson).toBeUndefined();
+    expect(r.result.notMeasured.returnedJson).toMatch(/^Atlas's clock is simulated and can't measure real work time/);
     expect(r.result.measured.virtualMs).toBe(1500);
   });
 

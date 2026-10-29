@@ -10,7 +10,8 @@ import { quizChoiceLabel } from "../../src/quiz";
 import { moonwellLevelOf } from "../../src/bet-context";
 import { verifySeal } from "../../src/seal";
 import { notShownAsFact } from "../../src/trust";
-import type { AtlasFile, Bet, BettorSlot, Outcome, Run, TargetKind } from "../../src/types";
+import type { AtlasFile, Bet, BettorSlot, Outcome, Run, TargetKind, Verdict } from "../../src/types";
+import { ruleShownFor, toleranceShort } from "../../src/judge";
 import { canonicalJson } from "../../src/seal";
 import { AUTONOMOUS_PERSON_REASON, orderModelBettors } from "../../src/claimants";
 import { formatUsd1e18 } from "../../src/units";
@@ -67,7 +68,7 @@ export function showValue(measures: string, v: unknown): string {
   return String(v);
 }
 
-export function showAnswer(b: Pick<Bet, "answer">): string {
+export function showAnswer(b: Pick<Bet, "answer">, v?: Pick<Verdict, "outcome" | "timingRule">): string {
   const a = b.answer;
   switch (a.kind) {
     case "declined":
@@ -77,7 +78,8 @@ export function showAnswer(b: Pick<Bet, "answer">): string {
     case "enum":
       return a.value;
     case "number":
-      return a.unit === "USD" ? `$${a.value.toLocaleString("en-US")} (±${a.tolerancePct}%)` : `${a.value} ${a.unit} (±${a.tolerancePct}%)`;
+      // R2 (D46): a timing bet shows "±10% or 1 ms" (the rule its verdict recorded; see src/judge.ts ruleShownFor).
+      return a.unit === "USD" ? `$${a.value.toLocaleString("en-US")} (${toleranceShort(a.unit, a.tolerancePct)})` : `${a.value} ${a.unit} (${toleranceShort(a.unit, a.tolerancePct, ruleShownFor(v))})`;
     case "json":
       // E1: a JSON answer is printed as the judge compares it (canonical JSON).
       return canonicalJson(a.value);
@@ -140,7 +142,7 @@ export function proofCardModel(file: AtlasFile): ProofCardModel {
       who: b.who,
       measures: b.measures,
       question: b.question,
-      said: showAnswer(b),
+      said: showAnswer(b, v),
       observed: showValue(b.measures, v?.observed ?? run.result.measured[b.measures]),
       outcome: v?.outcome ?? null,
       ...(v?.reason ? { reason: v.reason } : {}),

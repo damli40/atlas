@@ -273,7 +273,7 @@ export function createTools(deps: ToolDeps) {
           ? `type one of these words: ${(q.options ?? []).map(quoteLine).join(", ")}`
           : q.kind === "json"
             ? 'a JSON value (true, 3, "text", null, {"ok": true})'
-            : `a ${q.kind === "integer" ? "whole number" : "number"}${q.unit === "ms" ? " in ms" : ""}${q.tolerancePct ? ` (counts as matched within ${q.tolerancePct}%)` : ""}`;
+            : `a ${q.kind === "integer" ? "whole number" : "number"}${q.unit === "ms" ? " in ms" : ""}${q.unit === "ms" ? ` (counts as matched within ${q.tolerancePct ?? 10}% or 1 ms)` : q.tolerancePct ? ` (counts as matched within ${q.tolerancePct}%)` : ""}`; // R2 (D46): src/judge.ts matchRuleWords
       lines.push(`  ${i + 1}) [${quoteLine(q.measures)}] ${quoteLine(q.text)} Answer: ${how}; or "skip".`);
     });
     const models = (Array.isArray(e.models) ? e.models : []).filter((m) => isObj(m) && m.status !== "not_asked");

@@ -1,0 +1,27 @@
+U01 JS latency log, result returned (expect measured) | {"ret":"49995000","outcome":"returned","cant":[],"k":["clock","timed-work"]}
+U02 JS returns 'took Nms' via Date.now (expect cant) | {"outcome":"returned","cant":["returnedJson:Atlas's clock is simulated and can't mea"],"k":["clock","timed-work","work-time"]}
+U03 JS returns 'took Nms' Math.round(Date.now diff) (expect cant) | {"outcome":"returned","cant":["returnedJson:Atlas's clock is simulated and can't mea"],"k":["clock","timed-work","work-time"]}
+U04 JS new Date() - start (expect cant) | {"outcome":"returned","cant":["returnedJson:Atlas's clock is simulated and can't mea"],"k":["clock","timed-work","work-time"]}
+U05 JS getTime diff (expect cant) | {"outcome":"returned","cant":["returnedJson:Atlas's clock is simulated and can't mea"],"k":["clock","timed-work","work-time"]}
+U06 JS hrtime.bigint ms (expect cant) | {"outcome":"returned","cant":["returnedJson:Atlas's clock is simulated and can't mea"],"k":["clock","timed-work","work-time"]}
+U07 JS perf toFixed(1) string (expect cant) | {"outcome":"returned","cant":["returnedJson:Atlas's clock is simulated and can't mea"],"k":["clock","timed-work","work-time"]}
+U08 JS token-bucket rate limiter, 5 quick calls (expect measured) | {"ret":"[true,true,true,false,false]","outcome":"returned","cant":[],"k":["clock","timed-work"]}
+U09 JS debounce Date.now 100ms, 3 quick calls (expect measured) | {"ret":"[\"fire\",\"skip\",\"skip\"]","outcome":"returned","cant":[],"k":["clock","timed-work"]}
+U10 JS 16ms frame throttle w/ performance.now (ordinary; over-refusal?) | {"outcome":"returned","cant":["returnedJson:Atlas's clock is simulated and can't mea"],"k":["clock","timed-work","work-time"]}
+U11 JS snowflake ids BigInt(Date.now()) x2 (ordinary; over-refusal?) | {"outcome":"returned","cant":["returnedJson:Atlas's clock is simulated and can't mea"],"k":["clock","timed-work","work-time"]}
+U12 JS 4ms memo TTL performance.now (ordinary; over-refusal?) | {"outcome":"returned","cant":["returnedJson:Atlas's clock is simulated and can't mea"],"k":["clock","timed-work","work-time"]}
+U13 JS slow-path branch at 50 ms (expect cant; gap?) | {"ret":"\"ok\"","outcome":"returned","cant":[],"k":["clock","timed-work"]}
+U14 JS elapsed % 10 (coincidence) | {"ret":"0","outcome":"returned","cant":[],"k":["clock","timed-work"]}
+U15 JS busy-wait 5 ms | {"cant":["wholeRun:the code ran past Atlas's 10000 ms limit"],"k":[]}
+P01 PY int((time.time()-t)*1000) (expect cant) | {"outcome":"returned","cant":["returnedJson:Atlas's clock is simulated and can't mea"],"k":["clock","timed-work","work-time"]}
+P02 PY round(time.time()-t, 3) (expect cant) | {"outcome":"returned","cant":["returnedJson:Atlas's clock is simulated and can't mea"],"k":["clock","timed-work","work-time"]}
+P03 PY f'took {ms:.0f}ms' time.time (expect cant) | {"outcome":"returned","cant":["returnedJson:Atlas's clock is simulated and can't mea"],"k":["clock","timed-work","work-time"]}
+P04 PY f'took {ms:.2f}ms' perf_counter (expect cant) | {"outcome":"returned","cant":["returnedJson:Atlas's clock is simulated and can't mea"],"k":["clock","timed-work","work-time"]}
+P05 PY timeit.timeit (expect cant) | {"cant":["wholeRun:the code imports the standard-library mo"],"k":[]}
+P06 PY timeit.default_timer diff (expect cant) | {"cant":["wholeRun:the code imports the standard-library mo"],"k":[]}
+P07 PY time_ns ms float (expect cant) | {"outcome":"returned","cant":["returnedJson:Atlas's clock is simulated and can't mea"],"k":["clock","timed-work","work-time"]}
+P08 PY datetime delta .seconds (expect cant) | {"ret":"0","outcome":"returned","cant":[],"k":["clock","timed-work","time-zone-or-locale"]}
+P09 PY logging-style result w/ strftime stamps (expect measured) | {"ret":"[\"00:00:00 start\",\"00:00:00 done\"]","outcome":"returned","cant":[],"k":["clock","timed-work","time-zone-or-locale"]}
+P10 PY rate limiter monotonic (expect measured) | {"ret":"[true,true,true,false]","outcome":"returned","cant":[],"k":["clock","timed-work"]}
+pace measured: {"outcome":"returned","virtualMs":1000,"returnedType":"number","returnedJson":"49995000"} | notMeasured: thrownName,thrownMessage | twin: {"outcome":"returned","virtualMs":999,"returned
+minDisplay measured: {"outcome":"returned","virtualMs":300,"returnedType":"array","returnedJson":"[1,2,3]"} | notMeasured: thrownName,thrownMessage | twin: {"outcome":"returned","virtualMs":290,"retur

@@ -12,6 +12,7 @@
 //
 // No I/O, no clock, no randomness.
 
+import { TIMING_TOLERANCE_PCT, matchRuleWords } from "./timing-rule";
 import type { ArgSpec, BetAnswer, ExperimentShape, JsonValue, QuizOption, StandInStep } from "./types";
 import { canonicalJson } from "./seal";
 import { CALL_OUTCOME_OPTIONS, OUTCOME_OPTIONS, SETTLE_FIELD, STAND_IN_CALLS_PREFIX, measuredUnit, type MeasuredUnit } from "./units";
@@ -554,7 +555,8 @@ export function extraQuestionsFor(params: ExperimentShape): Question[] {
 export function answerTemplate(question: Question): string {
   switch (question.kind) {
     case "integer":
-      return `{"kind":"integer","value":<whole number, ${question.unit === "ms" ? "milliseconds" : "a count"}>}`;
+      // R2 review round 1 (m2): a whole-number ms answer matches within 10% or 1 ms (D46), said where it is asked.
+      return `{"kind":"integer","value":<whole number, ${question.unit === "ms" ? `milliseconds; matched ${matchRuleWords("ms", TIMING_TOLERANCE_PCT)}` : "a count"}>}`;
     case "enum":
       return `{"kind":"enum","value":<one of ${(question.options ?? []).map((o) => `"${o}"`).join(" | ")}>,"options":${JSON.stringify(question.options ?? [])}}`;
     case "number":

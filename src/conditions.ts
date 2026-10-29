@@ -11,13 +11,16 @@
 // - R1 review round 1 (the double run): every pasted test runs TWICE, in two fresh sandboxes, with the same seed and
 //   pins. A measured field that differs between the two is not reported ("can't check"), whatever made it differ
 //   (memory addresses, process ids, temp-folder paths). The second run is kept in the proof file and verify rechecks it.
+// - R2 (D45): code that times its own work. The second run plays the code as if its work took time (more at each
+//   repeated clock read at one moment); a value that changes then depends on real work time and is "can't check"
+//   (TIMED_WORK_REASON, below).
 // - This file turns all of that into the sentences the verdict screen and the proof card show (the words live in
 //   src/paste-words.ts), merges the two runs, and lets `verify` recheck a proof file's pins, conditions and twin.
 // - A condition never silently changes a verdict. Some kinds only disclose (the value is Atlas's pinned one, said
 //   so); the others come with "not measured" fields whose reasons say why (those bets are "can't check").
 // No I/O. Safe to load in the browser and on the server.
 
-import { CONDITION_WORDS } from "./paste-words";
+import { CONDITION_WORDS, TIMED_WORK_SAYS_R1 } from "./paste-words";
 import type { PastedLanguage } from "./pasted-code";
 
 /** The seed every call-function run uses unless it replays an older run with another one. Just a number. */
@@ -34,6 +37,20 @@ export const LEGACY_CALL_SEED = "none";
  */
 export const R1_SINCE = "2026-10-28T00:00:00.000Z"; // R1 review round 2 (m3): the day of the first R1 commit
 
+/**
+ * R2 review round 1: the rules a proof file was made under say which words its conditions use. "r2": D45's timed-work
+ * words and the second run that adds time. A file without the marker was made before R2 (src/atlasfile.ts).
+ */
+export const CONDITIONS_RULE = "r2" as const;
+
+/**
+ * R2 review round 1: runs made by code from before R1 that started after R1_SINCE, named one by one (R1_SINCE stays).
+ * Ehs2a0hAe8: the E5 live proof, run on the E5 dev server, which ran pre-R1 code at 12:29 UTC on 2026-10-28.
+ */
+export const PRE_R1_RUNS_AFTER_CUTOFF: readonly { runId: string; codeSha256: string; why: string }[] = [
+  { runId: "Ehs2a0hAe8", codeSha256: "78c3d85698e09a69b9244e198a9e8442c444280638e5dd8eb62e5c7d00980ad5", why: "E5 live proof (tests/evidence/E5/live), made by the E5 dev server's pre-R1 code" },
+];
+
 /** A seed Atlas accepts: a whole number from 1 to 2^32 - 1 (Python's PYTHONHASHSEED range; 0 would switch it off). */
 export function isCallSeed(seed: unknown): seed is string {
   return typeof seed === "string" && /^[1-9]\d{0,9}$/.test(seed) && Number(seed) <= 4_294_967_295;
@@ -44,6 +61,7 @@ export const CONDITION_KINDS = [
   "changed-between-runs",
   "clock",
   "timed-work",
+  "work-time",
   "randomness",
   "unseeded-randomness",
   "hash-seed",
@@ -75,10 +93,14 @@ export function pinnedFor(language: PastedLanguage, seed: string = CALL_PINNED_S
   return { seed, timeZone: CALL_PINNED_TIME_ZONE, locale: CALL_PINNED_LOCALE[language] };
 }
 
-/** What the run read about the machine ("host"), and which fields differed between the two runs. */
+/**
+ * What the run read about the machine ("host"), which fields differed between the two runs ("changed"), and which
+ * differed because the second run moved the clock during the code's own timing ("workTime", R2 / D45).
+ */
 export interface ConditionDetail {
   host?: readonly string[];
   changed?: readonly string[];
+  workTime?: readonly string[];
 }
 
 export function conditionSays(kind: ConditionKind, pins: Pins, detail: ConditionDetail = {}): string {
@@ -90,6 +112,8 @@ export function conditionSays(kind: ConditionKind, pins: Pins, detail: Condition
       return W.clock;
     case "timed-work":
       return W.timedWork;
+    case "work-time":
+      return W.workTime((detail.workTime ?? []).join(", "));
     case "randomness":
       return W.randomness(pins.seed);
     case "unseeded-randomness":
@@ -130,14 +154,17 @@ const strList = (v: unknown): string[] | null => (Array.isArray(v) && v.every((x
 export function conditionsInTrace(trace: readonly Ev[]): { kinds: string[]; detail: ConditionDetail } | null {
   const evs = trace.filter((t) => t.event === "conditions");
   const twins = trace.filter((t) => t.event === "twin_differs");
-  if (evs.length > 1 || twins.length > 1) return null;
+  const clocks = trace.filter((t) => t.event === "clock_differs");
+  if (evs.length > 1 || twins.length > 1 || clocks.length > 1) return null;
   const kinds = evs.length === 0 ? [] : strList(evs[0]!.data?.kinds);
   const host = evs.length === 0 || evs[0]!.data?.host === undefined ? [] : strList(evs[0]!.data?.host);
   const changed = twins.length === 0 ? [] : strList(twins[0]!.data?.fields);
-  if (kinds === null || host === null || changed === null) return null;
+  const workTime = clocks.length === 0 ? [] : strList(clocks[0]!.data?.fields);
+  if (kinds === null || host === null || changed === null || workTime === null) return null;
   const all = [...kinds];
   if (changed.length > 0 && !all.includes("changed-between-runs")) all.push("changed-between-runs");
-  return { kinds: all, detail: { ...(host.length ? { host } : {}), ...(changed.length ? { changed } : {}) } };
+  if (workTime.length > 0 && !all.includes("work-time")) all.push("work-time");
+  return { kinds: all, detail: { ...(host.length ? { host } : {}), ...(changed.length ? { changed } : {}), ...(workTime.length ? { workTime } : {}) } };
 }
 
 /** Back-compatible: only the kinds (see conditionsInTrace). */
@@ -158,6 +185,28 @@ export function conditionsFromTrace(trace: readonly Ev[], pins: Pins): RunCondit
 export const CHANGED_BETWEEN_RUNS_REASON =
   "this value changed between two identical runs (same code, same test, same seed and pins), so it depends on something Atlas does not control, such as memory addresses, process ids or paths";
 
+/**
+ * R2 (D45): code that times its own work. Atlas's clock does not move while code works, so two clock reads at one
+ * moment read the same time, and an elapsed time reads 0. The second run of the double run (and only it) plays the
+ * code as if its work took time: each repeated read at one moment adds CLOCK_NUDGE_MS (10 ms) for a stopwatch clock
+ * (performance.now, process.hrtime, Python's perf_counter and monotonic) and a calendar step (below) for the
+ * calendar clock (Date, Python's time.time and datetime), and that time stays added for the rest of the run. The
+ * clock itself and its timers do not move; the call time is compared both ways (twinComparable). A value that
+ * changes then depends on how long the work took, which Atlas cannot measure: it is not reported, with
+ * TIMED_WORK_REASON. A value that stays the same is reported: a TTL cache that stamps and checks at once, a logger
+ * whose timestamps are not returned, a deadline loop's result.
+ * Why 10 ms for stopwatches: a check like "took more than 1 ms" (bench T2's h01a and q02c test exactly that) flips.
+ * The calendar clock (R2 review B3, M2): a whole 1 ms in JavaScript, so Date.now() stays a whole number and a Date
+ * (whole ms) shows it; 10 ms in Python, since a smaller step is lost in float rounding near 1.7e9 s.
+ * Not caught (m3, logged): a check past a longer time ("took over a second", "> 50 ms"), a value that comes out the
+ * same by chance (elapsed % 10), Python's timedelta .seconds.
+ * Over-refused (accepted): time stamps returned together from one moment (a logger's own stamps, createdAt and
+ * updatedAt), short windows under the step (a 4 ms memo, a 16 ms frame throttle on performance.now).
+ */
+export const CLOCK_NUDGE_MS = 10;
+export const TIMED_WORK_REASON =
+  "Atlas's clock is simulated and can't measure real work time: this value changed when Atlas's second run let time pass while the code timed its own work";
+
 /** The fields that make up how the call ended: when the outcome or its time differs, none of them is reported. */
 const ENDING_FIELDS = ["outcome", "virtualMs", "returnedJson", "returnedType", "thrownName", "thrownMessage", "thrownType"];
 
@@ -165,42 +214,97 @@ type Result = { measured: Record<string, string | number | boolean | null>; notM
 
 /**
  * Merges the first run's result with the second's. A field measured in both with the same value stays measured; a
- * field measured differently, or measured in only one, is not reported with CHANGED_BETWEEN_RUNS_REASON. When the
+ * field measured differently, or measured in only one, is not reported with `reason`: CHANGED_BETWEEN_RUNS_REASON, or
+ * TIMED_WORK_REASON when the second run moved the clock during the code's own timing (R2, D45). When the
  * outcome or its time differs, every ending field is not reported (the trace then ends with "stopped_watching").
  */
-export function mergeTwin(first: Result, second: Result): { result: Result; changed: string[]; endingChanged: boolean } {
+export function mergeTwin(first: Result, second: Result, reason: string = CHANGED_BETWEEN_RUNS_REASON): { result: Result; changed: string[]; endingChanged: boolean } {
   const keys = [...new Set([...Object.keys(first.measured), ...Object.keys(second.measured)])].sort();
   const has = (r: Result, k: string) => Object.prototype.hasOwnProperty.call(r.measured, k);
   const changed = keys.filter((k) => !(has(first, k) && has(second, k) && first.measured[k] === second.measured[k]));
-  const endingChanged = changed.includes("outcome") || changed.includes("virtualMs");
+  const endingChanged = endsWith(changed, reason);
   const measured: Result["measured"] = {};
   const notMeasured: Result["notMeasured"] = { ...first.notMeasured };
   for (const k of Object.keys(first.measured)) {
-    if (changed.includes(k) || (endingChanged && ENDING_FIELDS.includes(k))) notMeasured[k] = CHANGED_BETWEEN_RUNS_REASON;
+    if (changed.includes(k) || (endingChanged && ENDING_FIELDS.includes(k))) notMeasured[k] = reason;
     else measured[k] = first.measured[k]!;
   }
-  for (const k of changed) if (!has(first, k)) notMeasured[k] = CHANGED_BETWEEN_RUNS_REASON;
-  if (endingChanged) for (const k of ENDING_FIELDS) if (k in notMeasured || k in first.measured || k in second.measured) notMeasured[k] = CHANGED_BETWEEN_RUNS_REASON;
+  for (const k of changed) if (!has(first, k)) notMeasured[k] = reason;
+  if (endingChanged) for (const k of ENDING_FIELDS) if (k in notMeasured || k in first.measured || k in second.measured) notMeasured[k] = reason;
   return { result: { measured, notMeasured }, changed, endingChanged };
 }
 
 /**
+ * Which changed fields take every field of how the call ended with them. Between two identical runs, a changed outcome
+ * or call time does. R2 review M1: when the second run timed its own work, only a changed outcome does; a call time
+ * that moved because time passed during work is itself "can't check", but the returned value and the outcome stay
+ * measured if they did not change.
+ */
+function endsWith(changed: readonly string[], reason: string): boolean {
+  return changed.includes("outcome") || (reason !== TIMED_WORK_REASON && changed.includes("virtualMs"));
+}
+
+/** R2 review M1: the second run's added time (ms), from its own "conditions" event; 0 when it added none. */
+export function driftIn(trace: readonly Ev[]): number {
+  const ev = trace.find((t) => t.event === "conditions");
+  const d = ev?.data?.driftMs;
+  return typeof d === "number" && Number.isFinite(d) && d > 0 ? d : 0;
+}
+
+/**
+ * R2 review M1: the second run's measured fields, ready to compare with the first run's. Its readings moved forward
+ * but its timers did not, so code that waits until a deadline it read ends `drift` ms early on the virtual clock and
+ * on time as the code saw it. The call time counts as the same when it matches either way: on the virtual clock
+ * (a wait of a fixed length), or with the drift added back (a wait until a deadline the code read).
+ */
+export function twinComparable(first: Result, twin: { trace: readonly Ev[]; result: Result }): Result {
+  const drift = driftIn(twin.trace);
+  const a = first.measured.virtualMs;
+  const b = twin.result.measured.virtualMs;
+  if (drift > 0 && typeof a === "number" && typeof b === "number" && a !== b && Math.abs(b + drift - a) < 1e-6) {
+    return { ...twin.result, measured: { ...twin.result.measured, virtualMs: a } };
+  }
+  return twin.result;
+}
+
+/** R2 (D45): true when this trace's own "conditions" event says the code timed its own work (two reads at one moment). */
+export function timedWorkIn(trace: readonly Ev[]): boolean {
+  return conditionsInTrace(trace)?.kinds.includes("timed-work") === true;
+}
+
+/**
  * Verify: a run with a twin. Every field the run measured, the twin measured with the same value; every field the
- * run's "twin_differs" event names is not reported, with Atlas's reason; and every field measured differently
- * really is named there.
+ * run's "twin_differs" event names is not reported with CHANGED_BETWEEN_RUNS_REASON, and every field its
+ * "clock_differs" event names (R2, D45) with TIMED_WORK_REASON; every field measured differently really is named in
+ * one of them. A "clock_differs" event needs a twin that timed its own work (only then did its clock move), and a
+ * twin that timed its own work names its differences there, never as "changed between runs".
  */
 export function twinProblems(r: { trace: Ev[]; result: Result; twin?: { trace: Ev[]; result: Result } }): string[] {
   if (!r.twin) return [];
   const out: string[] = [];
   const c = conditionsInTrace(r.trace);
   const named = c?.detail.changed ?? [];
+  const namedClock = c?.detail.workTime ?? [];
+  const twinTimed = timedWorkIn(r.twin.trace);
+  if (namedClock.length > 0 && !twinTimed) out.push("its trace says values changed because the second run moved the clock, but the second run did not time its own work");
+  if (named.length > 0 && twinTimed) out.push("its second run timed its own work (its clock moved), but its trace says values changed between runs for another reason");
+  const twinMeasured = twinComparable(r.result, r.twin).measured;
   for (const [k, v] of Object.entries(r.result.measured)) {
-    if (!Object.prototype.hasOwnProperty.call(r.twin.result.measured, k) || r.twin.result.measured[k] !== v) out.push(`it reports ${k}, but its second run measured it differently`);
+    if (!Object.prototype.hasOwnProperty.call(twinMeasured, k) || twinMeasured[k] !== v) out.push(`it reports ${k}, but its second run measured it differently`);
   }
   for (const k of named) if (r.result.notMeasured[k] !== CHANGED_BETWEEN_RUNS_REASON) out.push(`its trace says ${k} changed between the two runs, but the run does not say so`);
+  for (const k of namedClock) if (r.result.notMeasured[k] !== TIMED_WORK_REASON) out.push(`its trace says ${k} changed when the second run moved the clock, but the run does not say so`);
+  // When the outcome or its time differs, every field of how the call ended goes with it (mergeTwin), named or not.
+  // R2: before R2 this check missed that, so a run whose outcome changed between its two runs failed verify.
+  const covers = (list: readonly string[], k: string, reason: string) => list.includes(k) || (endsWith(list, reason) && ENDING_FIELDS.includes(k));
   for (const k of Object.keys(r.twin.result.measured)) {
-    if (!Object.prototype.hasOwnProperty.call(r.result.measured, k) && r.result.notMeasured[k] === CHANGED_BETWEEN_RUNS_REASON && !named.includes(k)) out.push(`${k} is marked as changed between runs, but the trace does not name it`);
+    if (Object.prototype.hasOwnProperty.call(r.result.measured, k)) continue;
+    if (r.result.notMeasured[k] === CHANGED_BETWEEN_RUNS_REASON && !covers(named, k, CHANGED_BETWEEN_RUNS_REASON)) out.push(`${k} is marked as changed between runs, but the trace does not name it`);
+    if (r.result.notMeasured[k] === TIMED_WORK_REASON && !covers(namedClock, k, TIMED_WORK_REASON)) out.push(`${k} is marked as depending on timed work, but the trace does not name it`);
   }
+  // R2 review M1: a drift is only ever added by a second run that timed its own work.
+  if (driftIn(r.twin.trace) > 0 && !twinTimed) out.push("its second run says time was added, but it did not time its own work");
+  if (driftIn(r.trace) > 0) out.push("its first run says time was added, which only Atlas's second run does");
   return out;
 }
 
@@ -211,11 +315,15 @@ export function twinProblems(r: { trace: Ev[]; result: Result; twin?: { trace: E
  * says, in Atlas's words, and (when it has one) its twin agrees with what it reports.
  */
 export function callRunPinProblems(
-  r: { seed?: string; timeZone?: string; locale?: string; conditions?: unknown; startedAt: string; twin?: { trace: Ev[]; result: Result }; trace: Ev[]; result: Result },
+  r: { id?: string; codeSha256?: string; seed?: string; timeZone?: string; locale?: string; conditions?: unknown; startedAt: string; twin?: { trace: Ev[]; result: Result }; trace: Ev[]; result: Result },
   language: PastedLanguage,
+  rules: { conditions: string } | null = { conditions: CONDITIONS_RULE },
 ): string[] {
   if (r.seed === LEGACY_CALL_SEED) {
-    if (Date.parse(r.startedAt) >= Date.parse(R1_SINCE)) return ["it says nothing was pinned (seed none), but it started after Atlas began pinning every run, so its conditions are missing"];
+    // R2 review round 1: a file that says it was made under R2's rules was made by code that pins every run.
+    if (rules !== null) return ["it says nothing was pinned (seed none), but its file says it was made under Atlas's current rules, which pin every run"];
+    const named = PRE_R1_RUNS_AFTER_CUTOFF.some((x) => x.runId === r.id && x.codeSha256 === r.codeSha256);
+    if (Date.parse(r.startedAt) >= Date.parse(R1_SINCE) && !named) return ["it says nothing was pinned (seed none), but it started after Atlas began pinning every run, so its conditions are missing"];
     return r.timeZone !== undefined || r.locale !== undefined || r.conditions !== undefined || r.twin !== undefined || r.trace.some((t) => t.event === "conditions" || t.event === "twin_differs")
       ? ["it says nothing was pinned (seed none), but it carries pins or conditions"]
       : [];
@@ -232,7 +340,14 @@ export function callRunPinProblems(
   } catch (e) {
     return [...out, `its trace names a condition Atlas does not know (${(e as Error).message})`];
   }
-  if (JSON.stringify(r.conditions ?? null) !== JSON.stringify(want)) out.push("its conditions are not the ones its trace records, in Atlas's words");
+  // R2 review round 1 (B1, B2): the file says which rules made it. Under R2's rules the conditions are R2's words; a
+  // file without the marker was made before R2, so it carries R1's timed-work sentence and nothing only R2 writes
+  // (a clock_differs event, the work-time condition, a second run that added time).
+  if (rules === null) {
+    const wantR1 = want.map((w) => (w.kind === "timed-work" ? { kind: w.kind, says: TIMED_WORK_SAYS_R1 } : w));
+    if (JSON.stringify(r.conditions ?? null) !== JSON.stringify(wantR1)) out.push("its conditions are not the ones its trace records, in the words Atlas used before R2 (its file carries no rules marker)");
+    if (c.kinds.includes("work-time") || r.trace.some((t) => t.event === "clock_differs") || (r.twin && driftIn(r.twin.trace) > 0)) out.push("it carries what only Atlas's R2 rules write (time added in the second run), but its file carries no rules marker");
+  } else if (JSON.stringify(r.conditions ?? null) !== JSON.stringify(want)) out.push("its conditions are not the ones its trace records, in Atlas's words");
   if (c.kinds.some((k) => (UNDECIDED_KINDS as readonly string[]).includes(k)) && "outcome" in r.result.measured) {
     out.push("its trace says how the call ended depends on something outside the code, but it measured the outcome");
   }

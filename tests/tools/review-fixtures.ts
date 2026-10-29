@@ -13,7 +13,7 @@ import type { AtlasFile, Experiment, Run } from "../../src/types";
 
 const ROOT = join(import.meta.dirname, "..", "..");
 const COPY = join(ROOT, "contracts", "lib", "moonwell");
-export const LIVE_LEVEL2_PATH = join(ROOT, "tests", "evidence", "D04-04", "moonwell-level2-fKqHGIIi2_.atlas.json");
+export const LIVE_LEVEL2_PATH = join(ROOT, "tests", "evidence", "D04-04", "superseded", "moonwell-level2-fKqHGIIi2_.json");
 export const liveLevel2 = (): AtlasFile => JSON.parse(readFileSync(LIVE_LEVEL2_PATH, "utf8"));
 
 const prFile = (path: string) => {

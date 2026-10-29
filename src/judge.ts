@@ -20,6 +20,13 @@
 //
 // Tolerance is a share of the OBSERVED value. So when the observed value is 0, only a bet of
 // exactly 0 can match, at any tolerance; this follows from the rule and is intended.
+//
+// R2 (D46), timing bets near zero: a bet in ms (a number, or a whole number) matches when
+// |bet - measured| <= max(10% of measured, 1 ms) (a number bet uses its question's tolerancePct, 10% for
+// virtualMs). A bet below 0 ms is can't check. Every verdict judged with this rule says so
+// (`timingRule: "d46"`). A proof file says which rules it was made under (`rules`, src/atlasfile.ts);
+// verify re-judges every verdict under those rules, so an old file keeps the rule before D46. USD bets
+// and quiz ranges are unchanged.
 
 import type { Bet, Run, Verdict } from "./types";
 import { canonicalJson } from "./seal";
@@ -59,7 +66,24 @@ function withinTolerance(observed: ExactDecimal, value: ExactDecimal, toleranceP
   return diff * 100n * 10n ** BigInt(tolerancePct.scale) <= tol * absO;
 }
 
-export function judge(bet: Bet, run: Run): Verdict {
+export { TIMING_RULE, TIMING_TOLERANCE_PCT, TIMING_FLOOR_MS, matchRuleWords, toleranceShort, ruleShownFor, type TimingRule } from "./timing-rule";
+import { NEGATIVE_TIMING, TIMING_FLOOR_MS, TIMING_RULE, TIMING_TOLERANCE_PCT, type TimingRule } from "./timing-rule";
+
+/** |observed - value| <= floor, in exact decimal arithmetic (the three at one scale). */
+function withinFloor(observed: ExactDecimal, value: ExactDecimal, floor: number): boolean {
+  const [o, v, scale] = alignDecimals(observed, value);
+  const diff = o >= v ? o - v : v - o;
+  const f = parseExactDecimal(floor);
+  const [d, fl] = alignDecimals({ digits: diff, scale }, f);
+  return d <= fl;
+}
+
+/**
+ * Judges one bet against one run. `opts.timingRule` is the rule a timing bet is judged with: D46 by default (every new
+ * verdict); null for the rule before D46, which verify uses for a stored verdict that records no rule.
+ */
+export function judge(bet: Bet, run: Run, opts: { timingRule?: TimingRule | null } = {}): Verdict {
+  const timingRule = opts.timingRule === undefined ? TIMING_RULE : opts.timingRule;
   const base = { betId: bet.id, runId: run.id, judgedBy: "src/judge.ts" as const };
   const cantCheck = (reason: string, observed?: Observed, reference?: Reference): Verdict => ({
     ...base,
@@ -129,6 +153,16 @@ export function judge(bet: Bet, run: Run): Verdict {
   switch (answer.kind) {
     case "integer": {
       if (typeof answer.value !== "number" || !Number.isSafeInteger(answer.value)) return cantCheck("the bet is not a whole number", observed, reference);
+      // R2 review round 1 (m2): D46 covers every timing verdict, so a whole-number ms bet also matches within
+      // 10% or 1 ms of the measured value (it used to need the exact value; it still does under the old rule).
+      if (unit === "ms" && timingRule === TIMING_RULE) {
+        if (answer.value < 0) return cantCheck(NEGATIVE_TIMING, observed, reference);
+        const obsInt = typeof observed === "number" && Number.isSafeInteger(observed) ? String(observed) : typeof observed === "string" && DECIMAL_INTEGER_RE.test(observed) ? observed : null;
+        if (obsInt === null) return unreadable("a whole number");
+        const o = parseExactDecimal(obsInt);
+        const v = parseExactDecimal(answer.value);
+        return { ...decided(withinTolerance(o, v, parseExactDecimal(TIMING_TOLERANCE_PCT)) || withinFloor(o, v, TIMING_FLOOR_MS)), timingRule };
+      }
       if (typeof observed === "number") {
         if (!Number.isSafeInteger(observed)) return unreadable("a whole number");
         return decided(observed === answer.value);
@@ -197,6 +231,11 @@ export function judge(bet: Bet, run: Run): Verdict {
         val = parseExactDecimal(answer.value);
       } catch {
         return cantCheck("the bet is not a number", observed, reference);
+      }
+      // R2 (D46): a timing bet also matches within 1 ms; the verdict records the rule it was judged with.
+      if (unit === "ms" && timingRule === TIMING_RULE) {
+        if (val.digits < 0n) return cantCheck(NEGATIVE_TIMING, observed, reference); // R2 review round 1 (m1)
+        return { ...decided(withinTolerance(obs, val, tolerance) || withinFloor(obs, val, TIMING_FLOOR_MS)), timingRule };
       }
       return decided(withinTolerance(obs, val, tolerance));
     }

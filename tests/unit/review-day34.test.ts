@@ -11,7 +11,7 @@ import { checkFinding, matchesWholeLines } from "../../server/meta/roles/investi
 import type { AtlasFile, Run } from "../../src/types";
 
 const ROOT = join(import.meta.dirname, "..", "..");
-const EVIDENCE = join(ROOT, "tests", "evidence", "D04-04", "moonwell-level2-fKqHGIIi2_.atlas.json");
+const EVIDENCE = join(ROOT, "tests", "evidence", "D04-04", "superseded", "moonwell-level2-fKqHGIIi2_.json");
 /** The live D04-04 Level 2 file (control passed). */
 export const liveLevel2 = (): AtlasFile => JSON.parse(readFileSync(EVIDENCE, "utf8"));
 

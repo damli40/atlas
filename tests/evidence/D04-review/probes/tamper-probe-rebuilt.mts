@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 import { buildAtlasFile, verifyAtlasFile, level1Caption } from "../../../../src/atlasfile.ts";
 import { judge } from "../../../../src/judge.ts";
-const orig = JSON.parse(readFileSync(new URL("../../../../tests/evidence/D04-04/moonwell-level2-fKqHGIIi2_.atlas.json", import.meta.url), "utf8"));
+const orig = JSON.parse(readFileSync(new URL("../../../../tests/evidence/D04-04/superseded/moonwell-level2-fKqHGIIi2_.json", import.meta.url), "utf8"));
 const base = buildAtlasFile({ target: orig.target, experiment: orig.experiments[0], bets: orig.bets, run: orig.runs[0], verdicts: orig.bets.map((b: any) => judge(b, orig.runs[0])), findings: orig.findings, agentLog: orig.agentLog, extraCaptions: orig.captions, createdAt: orig.createdAt });
 const v = (f: any) => { const r = verifyAtlasFile(JSON.parse(JSON.stringify(f))); return r.ok ? "verifies" : `refused: ${(r as any).problems[0]}`; };
 console.log("committed file as-is:", v(orig));
