@@ -1,0 +1,1 @@
+SETUP MODE on port 18931: no invite code exists yet, so Atlas answers only /health and refuses everything else (503). Next, from your Mac: fly ssh console --app atlas-dami -C "/usr/local/bin/atlas-invites create --name dami --owner" (prints the code once), then: fly apps restart atlas-dami

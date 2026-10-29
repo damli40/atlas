@@ -1,0 +1,11 @@
+track records kept on disk in the invite store's folder (track-record/: one file per person, no code)
+invite codes required: 1 active (1 owner)
+spend ledger kept on disk (per invite per UTC day; owner reserve $20 of the $100 ceiling)
+client address for the per-address caps: the fly-client-ip header set by the proxy in front (ATLAS_TRUST_PROXY=1, ATLAS_CLIENT_IP_HEADER=fly-client-ip); a request without it falls back to the socket address
+page: the built page from <image-copy>/dist at /, the API under /api (one origin)
+hosted: Fly app atlas-dami in local; page + API on https://atlas-dami.fly.dev (API under /api); invite codes required (1 active, 1 owner); pasted runs on Modal (TypeScript and Python); store <scratch>/mnt/run2/atlas on the volume <scratch>/mnt; visitor address: the fly-client-ip header set by the proxy in front (ATLAS_TRUST_PROXY=1, ATLAS_CLIENT_IP_HEADER=fly-client-ip); a request without it falls back to the socket address; Muse Code: muse exec in sandbox-exec; secrets present: Meta NO, Baseten NO, Base RPC NO, Modal yes, invite pepper yes
+Atlas server listening on http://localhost:18931 (model bets off, Muse Spark Open not available (turned off on this server (ATLAS_SPARK_OPEN=off)), investigator off, test proposer off, fixer off, adversary off, outliner off, .atlas.json files kept in memory only, sandbox Modal (a throwaway container per run, no network))
+modal sandbox (none) error exit=none timedOut=false createMs=-1 setupMs=-1 runMs=-1 totalMs=1039 stdoutChars=0 stderrChars=0
+modal sandbox (none) error exit=none timedOut=false createMs=-1 setupMs=-1 runMs=-1 totalMs=996 stdoutChars=0 stderrChars=0
+Modal warm-up (JavaScript/TypeScript) failed (the server keeps running; each run will try Modal again): the sandbox could not start: Modal could not create a sandbox: /modal.client.ModalClient/AuthTokenGet UNAUTHENTICATED: Token ID is malformed
+Modal warm-up (Python) failed (the server keeps running; each run will try Modal again): the sandbox could not start: Modal could not create a sandbox: /modal.client.ModalClient/AuthTokenGet UNAUTHENTICATED: Token ID is malformed

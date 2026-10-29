@@ -1,0 +1,9 @@
+GET /health
+{"ok":false,"setup":true,"reason":"Atlas is not open yet: this server has no invite code. The operator makes the first (owner) code on the server, then restarts the app (tools/fly-setup.md). Nothing was run and no model was asked."}
+HTTP 200
+GET /
+HTTP 503
+POST /api/paste
+HTTP 503
+store folder after setup mode (no lock taken):
+(folder not made: setup mode writes nothing)

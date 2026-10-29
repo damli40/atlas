@@ -1,0 +1,13 @@
+PASS  health answers ok (HTTP 200)
+PASS  the page is served from the same origin (page HTTP 200, script /assets/index-L5aeKJVI.js HTTP 200)
+PASS  no other site may frame the page
+PASS  without a code a spending request gets 401 (HTTP 401)
+PASS  the invite page loads (HTTP 200)
+PASS  signing in from Atlas's own page works (HTTP 200)
+PASS  the invite cookie is Secure, HttpOnly, SameSite=Strict
+PASS  a cookie-signed POST from another site is refused (HTTP 403)
+PASS  pasted runs go to Modal (executor "modal")
+FAIL  one pasted round with real models (no allowed proposal from Muse Wonder: HTTP 200 not asked (this server asks no Meta model for tests))
+FAIL  a visitor cannot forge Fly-Client-IP (the 31st wrong code from one real address is refused) (HTTP 401: the forged address was believed)
+2 of 11 FAILED
+smoke exit 1

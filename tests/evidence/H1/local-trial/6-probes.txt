@@ -1,0 +1,25 @@
+-- 30 wrong codes claiming Fly-Client-IP 1.1.1.1, X-Forwarded-For different each time:
+  30 401
+-- 31st from 1.1.1.1: 429
+-- a visitor-added value first, 1.1.1.1 last (the proxy's last value counts): 429
+-- from 2.2.2.2: 401
+-- paths (status, content type):
+   /                            200 text/html; charset=utf-8
+   /anatomy/some-screen         200 text/html; charset=utf-8
+   /index.html                  200 text/html; charset=utf-8
+   /assets/nope.js              404 application/json
+   /assets/../../package.json   404 application/json
+   /%2e%2e/package.json         404 application/json
+   /.env                        404 application/json
+   /.git/config                 404 application/json
+   /api/health                  200 application/json
+   /health                      200 application/json
+   /api                         401 application/json
+   POST /                       404
+-- the live log streams through /api (curl stops it after 3 s):
+HTTP/1.1 200 OK
+content-type: text/event-stream
+x-content-type-options: nosniff
+-- a second server on the same store:
+Error: another Atlas server (pid 50411) is already using the invite store <scratch>/mnt/run2/atlas; run exactly one server process per store (one container only), or point ATLAS_INVITES_DIR elsewhere
+-- after SIGINT: server stopped; store folder now holds: invites.json spend-log.jsonl spend.json track-record 

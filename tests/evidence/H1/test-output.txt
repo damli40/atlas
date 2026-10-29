@@ -1,0 +1,55 @@
+
+ RUN  v5.0.5 <repo>
+
+ ✓ tests/unit/no-local-paths.test.ts > public repo hygiene > the patterns catch each form seen in this repo, and pass the redacted forms 1ms
+ ✓ tests/unit/no-local-paths.test.ts > public repo hygiene > no tracked text file contains a local home-folder path 118ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: when the server refuses to start > ATLAS_HOSTED: only 1 means hosted; a Fly machine without it is refused; any other value throws 1ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: when the server refuses to start > a machine without macOS sandbox-exec must send every pasted run to Modal 0ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: when the server refuses to start > fly.toml's own [env], with the secrets set, passes every hosted check 1ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: when the server refuses to start > refuses: invites off 0ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: when the server refuses to start > refuses: invites 0 0ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: when the server refuses to start > refuses: no public origin 0ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: when the server refuses to start > refuses: an http public origin 0ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: when the server refuses to start > refuses: another app's fly.dev origin 0ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: when the server refuses to start > refuses: local executor 0ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: when the server refuses to start > refuses: no Modal token secret 0ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: when the server refuses to start > refuses: an empty Modal token id 0ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: when the server refuses to start > refuses: no volume mounted 0ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: when the server refuses to start > refuses: no store folder 0ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: when the server refuses to start > refuses: store off the volume 0ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: when the server refuses to start > refuses: store is the volume itself 0ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: when the server refuses to start > refuses: store escapes with .. 0ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: when the server refuses to start > refuses: usage log off the volume 0ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: when the server refuses to start > refuses: Fly without the Fly-Client-IP rule 0ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: when the server refuses to start > refuses: Fly without trust proxy 0ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: when the server refuses to start > refuses: no built page 0ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: when the server refuses to start > all problems are listed at once, not one per restart 0ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: when the server refuses to start > the container entry reads .env first, like server/index.ts 0ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: when the server refuses to start > the store lock still refuses a second server on the same store (G1 M5), unchanged 6ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: setup mode (first deploy, no invite code yet) > is chosen only when hosted, every check passes, the pepper is set and no code is active 2ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: setup mode (first deploy, no invite code yet) > answers /health (so Fly's check passes and ssh works) and refuses everything else with 503 19ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: setup mode (first deploy, no invite code yet) > its startup line names the exact next two commands 0ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: the visitor's address behind Fly's proxy > ATLAS_CLIENT_IP_HEADER needs ATLAS_TRUST_PROXY=1 and a plain one-value header name 0ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: the visitor's address behind Fly's proxy > reads Fly-Client-IP and ignores X-Forwarded-For (whose right-most entry on Fly is the app itself) 1ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: the visitor's address behind Fly's proxy > the startup line says which rule is in use 0ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: one origin (the built page and the API from one server) > /api/x is the API's /x (query, body, cookie and Sec-Fetch-Site pass through); /health too 1ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: one origin (the built page and the API from one server) > serves the page, its assets (cached, hashed names) and the page's own paths; nothing outside dist/ 1ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: one origin (the built page and the API from one server) > every answer (page, API, 404) says no other site may frame it 1ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: one origin (the built page and the API from one server) > with the real invite gate: 401 without a code, the invite page and sign-in under /api, Secure cookie, cross-site refused, a whole round through /api 498ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: the startup summary > one line, no secret values, honest about Muse Code on Linux 0ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: the fixer on a machine without sandbox-exec > goes straight to the muse-spark-1.3 chat: no muse exec, no preflight, no 'Muse Code gave no answer' step 1ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: the deploy files agree with the server's rules > Dockerfile: pinned base by digest, Node the same as E4's Modal image (version and SHA-256), anvil and pnpm checked, server via host.ts, no Python 0ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: the deploy files agree with the server's rules > the entrypoint drops to the non-root user for good; the invite wrapper refuses without the pepper 9ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: the deploy files agree with the server's rules > the invite wrapper really refuses when the pepper or the store folder is missing 8ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: the deploy files agree with the server's rules > fly.toml: one machine never stopped for idleness, health on /health, the volume where the store is, rolling deploys 0ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: the deploy files agree with the server's rules > .dockerignore is an allow-list that keeps out docs/, pitch/, CLAUDE.md, .git, .env and the store files, and keeps what runs 0ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: tools/fly-secrets.sh (fake config files, a fake flyctl; no real secret is read) > sends the five keys from the right files and profile through stdin only, plus a fresh pepper the first time; prints no value 2333ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: tools/fly-secrets.sh (fake config files, a fake flyctl; no real secret is read) > keeps the app's existing pepper (re-running never invalidates handed-out codes) 723ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: tools/fly-secrets.sh (fake config files, a fake flyctl; no real secret is read) > a missing file stops it before flyctl is called at all 9ms
+ ✓ tests/unit/h1-hosting.test.ts > H1: tools/smoke-hosted.ts refuses before sending anything > needs an https address and the code in the environment 1234ms
+
+ Test Files  2 passed (2)
+      Tests  46 passed (46)
+   Start at  16:40:10
+   Duration  5.29s (tests 93%, import 5%, transform 2%)
+
