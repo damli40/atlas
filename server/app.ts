@@ -110,7 +110,7 @@ import { redactRpc, scrubDeep } from "../runners/evm/redact";
 import { RunDidNotFinish, runFailureReason } from "./run-failure";
 import { createHourlyLimit, createReplayGate, createRunGate, createSandboxGate, type ReplayGate } from "./replay-limits";
 import { clientIpOf, trustProxyFromEnv, trustedHopsFromEnv } from "./client-ip";
-import { buildAtlasFile, callRunAgreesWithItsTrace, resultDiff, sameJson, verifyAtlasFile, withChange } from "../src/atlasfile";
+import { buildAtlasFile, callRunAgreesWithItsTrace, resultDiff, sameJson, timingRuleOf, verifyAtlasFile, withChange } from "../src/atlasfile";
 import { ASKED_FIELD, createProofStore, EVM_GATE_CONTEXT, MOONWELL_PR_REF, evmTargetRefusal, extraCaptionsFor, forkBlockFor, humanFinding, recordedFindings, type ProofStore } from "./evm-round";
 import { control as runTsControl, readFixture, runExperiment, tsRunner } from "../runners/ts/control";
 import { changeAndReplay, type ChangeAnswer, type ReplayFn } from "./changes";
@@ -1817,7 +1817,8 @@ export function createApp(opts: AppOptions = {}) {
         before.runner === "evm"
           ? scrubDeep(await (opts.evmReplay ?? ((r, ch, ctx) => evmRunner({ onProgress: ctx.onProgress }).replayWithChange(r, ch, ctx)))(before, file.change, { experiment: exp }))
           : await (opts.tsReplay ?? ((r, ch, ctx) => tsRunner(executor).replayWithChange(r, ch, ctx)))(before, file.change, { experiment: exp });
-      const verdicts = file.bets.map((b) => judge(b, again));
+      // R2 review round 1: judged under the rules the file was made under, so an old file compares like with like.
+      const verdicts = file.bets.map((b) => judge(b, again, { timingRule: timingRuleOf(file) }));
       return {
         replayRunId: again.id,
         measuredEqual: sameJson(stored.run.result.measured, again.result.measured),
@@ -1881,7 +1882,7 @@ export function createApp(opts: AppOptions = {}) {
       replay = await runExperiment(exp, ctl, { executor, ...(before.seed !== undefined ? { seed: before.seed } : {}) });
       changeReplay = await rerunChange(file, exp, before);
     }
-    const again = file.bets.map((b) => judge(b, replay));
+    const again = file.bets.map((b) => judge(b, replay, { timingRule: timingRuleOf(file) }));
     return c.json({
       runId,
       replayRunId: replay.id,

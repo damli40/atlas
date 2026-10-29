@@ -339,6 +339,8 @@ export function checkAnswer(question: Question, answer: HumanBetBody["answer"]):
     }
     case "number": {
       if (!Number.isFinite(answer.value)) return bad(`"${question.measures}" needs a finite number`);
+      // R2 review round 1 (m1): a time cannot be below 0 ms.
+      if (question.unit === "ms" && answer.value < 0) return bad(`"${question.measures}" is a time in ms, so it cannot be below 0`);
       if (answer.unit !== undefined && answer.unit !== question.unit) return bad(`"${question.measures}" is in ${question.unit}; the bet said ${answer.unit}`);
       const tolerancePct = question.tolerancePct ?? 0;
       if (answer.tolerancePct !== undefined && answer.tolerancePct !== tolerancePct) return bad(`"${question.measures}" uses a ${tolerancePct}% tolerance; the bet said ${answer.tolerancePct}%`);

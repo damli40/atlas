@@ -35,6 +35,11 @@ result. It only carries messages between Muse and the Atlas server.
 - **The live run inside Muse Code:** [live/](live/). The film frames are `live/frames/00…09`, the full tool result
   is [live/atlas-run-tool-result.txt](live/atlas-run-tool-result.txt), and the proof file is
   [live/proof-Ehs2a0hAe8.atlas.json](live/proof-Ehs2a0hAe8.atlas.json).
+  **Corrected on 2026-10-29 (R2 review round 1):** the file was saved from `GET /proofs` as a visitor sees it, so its
+  source had been removed (`sourceWithheld`) and it never verified. The source was put back from
+  `live/retry-after-muse-edit.ts` (its SHA-256 equals the file's `codeSha256`) and `sourceWithheld` removed. Its
+  `agentLog` stays empty, as served; it cannot be recovered. Its run was made by the E5 dev server's pre-R1 code after
+  `R1_SINCE`, so verify names it in `PRE_R1_RUNS_AFTER_CUTOFF` (`src/conditions.ts`). It verifies now.
 - Full suite three times after review round 1, on main 75428ba:
   [review1-full-suite-1.txt](review1-full-suite-1.txt), [-2](review1-full-suite-2.txt), [-3](review1-full-suite-3.txt):
   0 failed each time (1,592 / 1,591 / 1,591 passed, 35 / 36 / 36 skipped, 1,627 tests). `tsc`:

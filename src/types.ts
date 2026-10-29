@@ -270,8 +270,19 @@ export interface RunAttempt {
   reason: string;
 }
 
+/**
+ * R2 review round 1 (B1, B2): the rules a proof file was made under, written by buildAtlasFile and checked by verify.
+ * timing "d46": timing bets judged within 10% or 1 ms; conditions "r2": D45's timed-work words and second run.
+ * A file without it was made before R2 and is judged by the rules before R2.
+ */
+export interface AtlasRules {
+  timing: "d46";
+  conditions: "r2";
+}
+
 export interface AtlasFile {
   version: 1;
+  rules?: AtlasRules;
   target: Target;
   codeSha256: string;
   forkBlock?: number; chainId?: number; seed?: string;

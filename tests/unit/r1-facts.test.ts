@@ -388,10 +388,17 @@ describe("proof files record the seed, time zone, locale and conditions, and ver
     // A run that started before R1 (2026-10-28) with no pins is a pre-R1 run; one that mixes in a pin is not. (The run is
     // checked on its own: moving a whole file's times back would break its bets' seals, which hash their times.)
     const old = { ...f.runs[0], startedAt: "2026-10-20T10:00:00.000Z", finishedAt: "2026-10-20T10:00:01.000Z" };
-    expect(callRunPinProblems(old, "js")).toEqual([]);
-    expect(callRunPinProblems({ ...old, locale: "en-US" }, "js").join("; ")).toMatch(/carries pins or conditions/);
+    // R2 review round 1: a pre-R1 file has no rules marker (null); under the current rules seed "none" is refused.
+    expect(callRunPinProblems(old, "js", null)).toEqual([]);
+    expect(callRunPinProblems({ ...old, locale: "en-US" }, "js", null).join("; ")).toMatch(/carries pins or conditions/);
+    expect(callRunPinProblems(old, "js").join("; ")).toMatch(/current rules, which pin every run/);
     expect(v.ok).toBe(false);
-    if (!v.ok) expect(v.problems.join("; ")).toMatch(/started after Atlas began pinning/);
+    // R2 review round 1: the file carries the current rules marker, which pin every run.
+    if (!v.ok) expect(v.problems.join("; ")).toMatch(/current rules, which pin every run/);
+    delete f.rules;
+    const w = verifyAtlasFile(f);
+    if (!w.ok) expect(w.problems.join("; ")).toMatch(/started after Atlas began pinning/);
+    expect(w.ok).toBe(false);
   });
   it.skipIf(!HAVE_PYTHON)("a Python run verifies with locale C and its hash-seed condition", async () => {
     const f = await file("def f():\n    return sorted({1, 2})\n", "py");

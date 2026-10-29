@@ -1,0 +1,211 @@
+{
+  "version": 1,
+  "target": {
+    "kind": "pasted",
+    "ref": "pasted:10c149dc1007",
+    "codeSha256": "10c149dc1007417597701dead5cdb8c4a850d0ba849cd86f4ac6ec1f88857c11",
+    "language": "js",
+    "source": "export function f(){ const t = Date.now(); const u = Date.now(); return u - t + 1; }"
+  },
+  "codeSha256": "10c149dc1007417597701dead5cdb8c4a850d0ba849cd86f4ac6ec1f88857c11",
+  "seed": "20260101",
+  "experiments": [
+    {
+      "id": "main-made-f",
+      "target": {
+        "kind": "pasted",
+        "ref": "pasted:10c149dc1007",
+        "codeSha256": "10c149dc1007417597701dead5cdb8c4a850d0ba849cd86f4ac6ec1f88857c11",
+        "language": "js",
+        "source": "export function f(){ const t = Date.now(); const u = Date.now(); return u - t + 1; }"
+      },
+      "runner": "ts",
+      "params": {
+        "shape": "call-function",
+        "exportName": "f",
+        "args": []
+      },
+      "proposedBy": {
+        "role": "human"
+      },
+      "gate": {
+        "allowed": true
+      }
+    }
+  ],
+  "bets": [
+    {
+      "id": "BbwdQL_dng",
+      "experimentId": "main-made-f",
+      "who": "human",
+      "question": "How long until f returns, in ms?",
+      "measures": "virtualMs",
+      "answer": {
+        "kind": "number",
+        "value": 1,
+        "tolerancePct": 10,
+        "unit": "ms"
+      },
+      "nonce": "c8cd3890518bfb9257d9642214744a67",
+      "sealedAt": "2026-10-29T10:35:55.239Z",
+      "sealedHash": "ed72932c6ae13162d5dac866ab231b66cab119f565ce09709778610079da5c99"
+    },
+    {
+      "id": "xoRDiAr1R3",
+      "experimentId": "main-made-f",
+      "who": "human",
+      "question": "What does f return?",
+      "measures": "returnedJson",
+      "answer": {
+        "kind": "json",
+        "value": 1
+      },
+      "nonce": "c0c8e42c4501b22b1495c92c1a22f7dd",
+      "sealedAt": "2026-10-29T10:35:55.239Z",
+      "sealedHash": "7d25700517222776ecbc2daaac1a3ffa0e39c8a9f4e0a93b7f84362411145454"
+    }
+  ],
+  "runs": [
+    {
+      "id": "P6BQNXI4KE",
+      "experimentId": "main-made-f",
+      "runner": "ts",
+      "executor": "local",
+      "codeSha256": "10c149dc1007417597701dead5cdb8c4a850d0ba849cd86f4ac6ec1f88857c11",
+      "seed": "20260101",
+      "timeZone": "UTC",
+      "locale": "en-US",
+      "conditions": [
+        {
+          "kind": "clock",
+          "says": "This code read the clock. Atlas's clock is simulated (it starts at 2026-01-01T00:00:00Z and moves only while the code waits), so time-based values are Atlas's, not your machine's."
+        },
+        {
+          "kind": "timed-work",
+          "says": "This code timed its own work: it read the clock more than once at the same moment of Atlas's simulated clock, which moves only while the code waits. Elapsed times read 0 ms here and don't reflect your machine."
+        }
+      ],
+      "twin": {
+        "trace": [
+          {
+            "t": 0,
+            "event": "start",
+            "data": {
+              "exportName": "f",
+              "args": 0,
+              "watchLimitMs": 30000
+            }
+          },
+          {
+            "t": 0,
+            "event": "returned",
+            "data": {
+              "type": "number"
+            }
+          },
+          {
+            "t": 0,
+            "event": "conditions",
+            "data": {
+              "kinds": [
+                "clock",
+                "timed-work"
+              ]
+            }
+          }
+        ],
+        "result": {
+          "measured": {
+            "outcome": "returned",
+            "virtualMs": 0,
+            "returnedType": "number",
+            "returnedJson": "1"
+          },
+          "notMeasured": {
+            "thrownName": "the call returned, so nothing was thrown",
+            "thrownMessage": "the call returned, so nothing was thrown"
+          }
+        }
+      },
+      "startedAt": "2026-10-29T10:35:55.246Z",
+      "finishedAt": "2026-10-29T10:35:56.119Z",
+      "trace": [
+        {
+          "t": 0,
+          "event": "start",
+          "data": {
+            "exportName": "f",
+            "args": 0,
+            "watchLimitMs": 30000
+          }
+        },
+        {
+          "t": 0,
+          "event": "returned",
+          "data": {
+            "type": "number"
+          }
+        },
+        {
+          "t": 0,
+          "event": "conditions",
+          "data": {
+            "kinds": [
+              "clock",
+              "timed-work"
+            ]
+          }
+        },
+        {
+          "t": 0,
+          "event": "call_checks",
+          "data": {
+            "harnessSha256": "040474046c6433c840156c5a552587d3308dc234f26b873375deb4fe71788861",
+            "controlRunId": "78K3NJqdtN",
+            "controlPassed": true,
+            "controlFinishedAt": "2026-10-29T10:35:55.237Z",
+            "runtime": {
+              "executor": "local",
+              "node": "v25.8.1"
+            }
+          }
+        }
+      ],
+      "result": {
+        "measured": {
+          "outcome": "returned",
+          "virtualMs": 0,
+          "returnedType": "number",
+          "returnedJson": "1"
+        },
+        "notMeasured": {
+          "thrownName": "the call returned, so nothing was thrown",
+          "thrownMessage": "the call returned, so nothing was thrown"
+        }
+      },
+      "controlPassed": true,
+      "controlRunId": "78K3NJqdtN"
+    }
+  ],
+  "verdicts": [
+    {
+      "betId": "BbwdQL_dng",
+      "runId": "P6BQNXI4KE",
+      "outcome": "not_matched",
+      "observed": 0,
+      "judgedBy": "src/judge.ts"
+    },
+    {
+      "betId": "xoRDiAr1R3",
+      "runId": "P6BQNXI4KE",
+      "outcome": "matched",
+      "observed": "1",
+      "judgedBy": "src/judge.ts"
+    }
+  ],
+  "agentLog": [],
+  "captions": [
+    "pasted code, run once in Atlas's sandbox on a virtual clock that starts at 2026-01-01T00:00:00Z"
+  ],
+  "createdAt": "2026-10-29T10:35:56.120Z"
+}

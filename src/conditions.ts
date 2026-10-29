@@ -37,6 +37,20 @@ export const LEGACY_CALL_SEED = "none";
  */
 export const R1_SINCE = "2026-10-28T00:00:00.000Z"; // R1 review round 2 (m3): the day of the first R1 commit
 
+/**
+ * R2 review round 1: the rules a proof file was made under say which words its conditions use. "r2": D45's timed-work
+ * words and the second run that adds time. A file without the marker was made before R2 (src/atlasfile.ts).
+ */
+export const CONDITIONS_RULE = "r2" as const;
+
+/**
+ * R2 review round 1: runs made by code from before R1 that started after R1_SINCE, named one by one (R1_SINCE stays).
+ * Ehs2a0hAe8: the E5 live proof, run on the E5 dev server, which ran pre-R1 code at 12:29 UTC on 2026-10-28.
+ */
+export const PRE_R1_RUNS_AFTER_CUTOFF: readonly { runId: string; codeSha256: string; why: string }[] = [
+  { runId: "Ehs2a0hAe8", codeSha256: "78c3d85698e09a69b9244e198a9e8442c444280638e5dd8eb62e5c7d00980ad5", why: "E5 live proof (tests/evidence/E5/live), made by the E5 dev server's pre-R1 code" },
+];
+
 /** A seed Atlas accepts: a whole number from 1 to 2^32 - 1 (Python's PYTHONHASHSEED range; 0 would switch it off). */
 export function isCallSeed(seed: unknown): seed is string {
   return typeof seed === "string" && /^[1-9]\d{0,9}$/.test(seed) && Number(seed) <= 4_294_967_295;
@@ -301,11 +315,15 @@ export function twinProblems(r: { trace: Ev[]; result: Result; twin?: { trace: E
  * says, in Atlas's words, and (when it has one) its twin agrees with what it reports.
  */
 export function callRunPinProblems(
-  r: { seed?: string; timeZone?: string; locale?: string; conditions?: unknown; startedAt: string; twin?: { trace: Ev[]; result: Result }; trace: Ev[]; result: Result },
+  r: { id?: string; codeSha256?: string; seed?: string; timeZone?: string; locale?: string; conditions?: unknown; startedAt: string; twin?: { trace: Ev[]; result: Result }; trace: Ev[]; result: Result },
   language: PastedLanguage,
+  rules: { conditions: string } | null = { conditions: CONDITIONS_RULE },
 ): string[] {
   if (r.seed === LEGACY_CALL_SEED) {
-    if (Date.parse(r.startedAt) >= Date.parse(R1_SINCE)) return ["it says nothing was pinned (seed none), but it started after Atlas began pinning every run, so its conditions are missing"];
+    // R2 review round 1: a file that says it was made under R2's rules was made by code that pins every run.
+    if (rules !== null) return ["it says nothing was pinned (seed none), but its file says it was made under Atlas's current rules, which pin every run"];
+    const named = PRE_R1_RUNS_AFTER_CUTOFF.some((x) => x.runId === r.id && x.codeSha256 === r.codeSha256);
+    if (Date.parse(r.startedAt) >= Date.parse(R1_SINCE) && !named) return ["it says nothing was pinned (seed none), but it started after Atlas began pinning every run, so its conditions are missing"];
     return r.timeZone !== undefined || r.locale !== undefined || r.conditions !== undefined || r.twin !== undefined || r.trace.some((t) => t.event === "conditions" || t.event === "twin_differs")
       ? ["it says nothing was pinned (seed none), but it carries pins or conditions"]
       : [];
@@ -322,9 +340,14 @@ export function callRunPinProblems(
   } catch (e) {
     return [...out, `its trace names a condition Atlas does not know (${(e as Error).message})`];
   }
-  // R2 (D45): a run made before R2 carries R1's timed-work sentence ("Elapsed times read 0 ms here"); both are Atlas's.
-  const wantR1 = want.map((w) => (w.kind === "timed-work" ? { kind: w.kind, says: TIMED_WORK_SAYS_R1 } : w));
-  if (JSON.stringify(r.conditions ?? null) !== JSON.stringify(want) && JSON.stringify(r.conditions ?? null) !== JSON.stringify(wantR1)) out.push("its conditions are not the ones its trace records, in Atlas's words");
+  // R2 review round 1 (B1, B2): the file says which rules made it. Under R2's rules the conditions are R2's words; a
+  // file without the marker was made before R2, so it carries R1's timed-work sentence and nothing only R2 writes
+  // (a clock_differs event, the work-time condition, a second run that added time).
+  if (rules === null) {
+    const wantR1 = want.map((w) => (w.kind === "timed-work" ? { kind: w.kind, says: TIMED_WORK_SAYS_R1 } : w));
+    if (JSON.stringify(r.conditions ?? null) !== JSON.stringify(wantR1)) out.push("its conditions are not the ones its trace records, in the words Atlas used before R2 (its file carries no rules marker)");
+    if (c.kinds.includes("work-time") || r.trace.some((t) => t.event === "clock_differs") || (r.twin && driftIn(r.twin.trace) > 0)) out.push("it carries what only Atlas's R2 rules write (time added in the second run), but its file carries no rules marker");
+  } else if (JSON.stringify(r.conditions ?? null) !== JSON.stringify(want)) out.push("its conditions are not the ones its trace records, in Atlas's words");
   if (c.kinds.some((k) => (UNDECIDED_KINDS as readonly string[]).includes(k)) && "outcome" in r.result.measured) {
     out.push("its trace says how the call ended depends on something outside the code, but it measured the outcome");
   }

@@ -5,7 +5,7 @@ import { localClient } from "../../../../runners/evm/reads.ts";
 import { level1Experiment } from "../../../../tests/tools/level1-run.ts";
 import { level2Experiment } from "../../../../tests/tools/level2-run.ts";
 import { sameJson } from "../../../../src/atlasfile.ts";
-const ref = JSON.parse(readFileSync(new URL("../../../../tests/evidence/D04-04/moonwell-level2-fKqHGIIi2_.atlas.json", import.meta.url), "utf8")).runs[0];
+const ref = JSON.parse(readFileSync(new URL("../../../../tests/evidence/D04-04/superseded/moonwell-level2-fKqHGIIi2_.json", import.meta.url), "utf8")).runs[0];
 const t0 = Date.now();
 const [l2, l1] = await Promise.all([
   evmRunner().run(level2Experiment(), { forkBlock: 42194662 }),

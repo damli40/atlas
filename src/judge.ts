@@ -21,11 +21,12 @@
 // Tolerance is a share of the OBSERVED value. So when the observed value is 0, only a bet of
 // exactly 0 can match, at any tolerance; this follows from the rule and is intended.
 //
-// R2 (D46), timing bets near zero: a number bet in ms also matches when it is within 1 ms of the
-// measured value: |bet - measured| <= max(tolerancePct% of measured, 1 ms) (call-function's virtualMs
-// question uses 10%). Every verdict judged with this rule says so (`timingRule: "d46"`); a verdict
-// without it was judged with the rule before D46, and verify re-judges it with that rule
-// (src/atlasfile.ts). Whole-number bets (retry-scenario's totalWaitMs) and USD bets are unchanged.
+// R2 (D46), timing bets near zero: a bet in ms (a number, or a whole number) matches when
+// |bet - measured| <= max(10% of measured, 1 ms) (a number bet uses its question's tolerancePct, 10% for
+// virtualMs). A bet below 0 ms is can't check. Every verdict judged with this rule says so
+// (`timingRule: "d46"`). A proof file says which rules it was made under (`rules`, src/atlasfile.ts);
+// verify re-judges every verdict under those rules, so an old file keeps the rule before D46. USD bets
+// and quiz ranges are unchanged.
 
 import type { Bet, Run, Verdict } from "./types";
 import { canonicalJson } from "./seal";
@@ -65,45 +66,8 @@ function withinTolerance(observed: ExactDecimal, value: ExactDecimal, toleranceP
   return diff * 100n * 10n ** BigInt(tolerancePct.scale) <= tol * absO;
 }
 
-/** R2 (D46): the timing rule a verdict records. Absent on a verdict = the rule before D46 (tolerancePct only). */
-export const TIMING_RULE = "d46" as const;
-export type TimingRule = typeof TIMING_RULE;
-/**
- * R2 (D46): a timing verdict on a run that started on or after this moment must record its rule. Before it, a verdict
- * without one is read as judged with the old rule. Set to the day after R2 was started (2026-10-28), so that day's
- * files (judged with the old rule, no record) still verify; a file from 2026-10-28 could be relabelled to the old
- * rule unnoticed.
- */
-export const TIMING_RULE_SINCE = "2026-10-29T00:00:00.000Z";
-/** R2 (D46): the absolute floor of a timing match, in ms. */
-export const TIMING_FLOOR_MS = 1;
-
-/**
- * R2 (D46): a number bet's match rule in the words bettors see, the screen and every model alike: "within 10%", and
- * for ms "within 10% or 1 ms". `rule` null gives the words of the rule before D46 (for a verdict that records none).
- */
-export function matchRuleWords(unit: string | undefined, tolerancePct: number, rule: TimingRule | null = TIMING_RULE): string {
-  return unit === "ms" && rule === TIMING_RULE ? `within ${tolerancePct}% or ${TIMING_FLOOR_MS} ms` : `within ${tolerancePct}%`;
-}
-
-/** The same rule, short, for a table cell: "±10%", or for ms "±10% or 1 ms". */
-export function toleranceShort(unit: string | undefined, tolerancePct: number, rule: TimingRule | null = TIMING_RULE): string {
-  return `±${matchRuleWords(unit, tolerancePct, rule).slice("within ".length)}`;
-}
-
-/**
- * The rule to show next to a bet: the one its verdict recorded; a judged verdict without one was judged before D46;
- * no verdict yet, or can't check, shows today's rule.
- */
-export function ruleShownFor(v: Pick<Verdict, "outcome" | "timingRule"> | undefined): TimingRule | null {
-  if (v?.timingRule) return v.timingRule;
-  return v && v.outcome !== "cant_check" ? null : TIMING_RULE;
-}
-
-/** True when the bet is one D46 applies to: a number bet in ms. */
-export function isTimingBet(bet: Pick<Bet, "answer">): boolean {
-  return bet.answer.kind === "number" && bet.answer.unit === "ms";
-}
+export { TIMING_RULE, TIMING_TOLERANCE_PCT, TIMING_FLOOR_MS, matchRuleWords, toleranceShort, ruleShownFor, type TimingRule } from "./timing-rule";
+import { NEGATIVE_TIMING, TIMING_FLOOR_MS, TIMING_RULE, TIMING_TOLERANCE_PCT, type TimingRule } from "./timing-rule";
 
 /** |observed - value| <= floor, in exact decimal arithmetic (the three at one scale). */
 function withinFloor(observed: ExactDecimal, value: ExactDecimal, floor: number): boolean {
@@ -189,6 +153,16 @@ export function judge(bet: Bet, run: Run, opts: { timingRule?: TimingRule | null
   switch (answer.kind) {
     case "integer": {
       if (typeof answer.value !== "number" || !Number.isSafeInteger(answer.value)) return cantCheck("the bet is not a whole number", observed, reference);
+      // R2 review round 1 (m2): D46 covers every timing verdict, so a whole-number ms bet also matches within
+      // 10% or 1 ms of the measured value (it used to need the exact value; it still does under the old rule).
+      if (unit === "ms" && timingRule === TIMING_RULE) {
+        if (answer.value < 0) return cantCheck(NEGATIVE_TIMING, observed, reference);
+        const obsInt = typeof observed === "number" && Number.isSafeInteger(observed) ? String(observed) : typeof observed === "string" && DECIMAL_INTEGER_RE.test(observed) ? observed : null;
+        if (obsInt === null) return unreadable("a whole number");
+        const o = parseExactDecimal(obsInt);
+        const v = parseExactDecimal(answer.value);
+        return { ...decided(withinTolerance(o, v, parseExactDecimal(TIMING_TOLERANCE_PCT)) || withinFloor(o, v, TIMING_FLOOR_MS)), timingRule };
+      }
       if (typeof observed === "number") {
         if (!Number.isSafeInteger(observed)) return unreadable("a whole number");
         return decided(observed === answer.value);
@@ -260,6 +234,7 @@ export function judge(bet: Bet, run: Run, opts: { timingRule?: TimingRule | null
       }
       // R2 (D46): a timing bet also matches within 1 ms; the verdict records the rule it was judged with.
       if (unit === "ms" && timingRule === TIMING_RULE) {
+        if (val.digits < 0n) return cantCheck(NEGATIVE_TIMING, observed, reference); // R2 review round 1 (m1)
         return { ...decided(withinTolerance(obs, val, tolerance) || withinFloor(obs, val, TIMING_FLOOR_MS)), timingRule };
       }
       return decided(withinTolerance(obs, val, tolerance));

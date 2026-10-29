@@ -17,7 +17,7 @@ import { canonicalJson } from "./seal";
 import { CALL_OUTCOME_OPTIONS } from "./units";
 import { CANT_TELL } from "./quiz";
 import type { Experiment, ExperimentShape } from "./types";
-import { matchRuleWords } from "./judge";
+import { TIMING_TOLERANCE_PCT, matchRuleWords } from "./judge";
 import { plural } from "./words";
 import { modelDisplay } from "./claimants";
 import { WONDER_MODEL, WONDER_DISPLAY } from "./paste-words";
@@ -57,7 +57,8 @@ export function answerHow(q: Pick<Question, "kind" | "unit" | "options" | "toler
     case "json":
       return "a JSON value (matched when it is exactly the returned value, key order ignored)";
     case "integer":
-      return q.unit === "ms" ? "a whole number of ms" : "a whole number";
+      // R2 review round 1 (m2): D46 covers whole-number timing bets too.
+      return q.unit === "ms" ? `a whole number of ms, matched ${matchRuleWords("ms", TIMING_TOLERANCE_PCT)} of what the run measures` : "a whole number";
     case "number":
       // R2 (D46): a timing answer also matches within 1 ms ("within 10% or 1 ms").
       return `a number in ${q.unit}, matched ${matchRuleWords(q.unit, q.tolerancePct ?? 0)} of what the run measures`;

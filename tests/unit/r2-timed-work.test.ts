@@ -220,13 +220,13 @@ describe("D45, verify: the second run's clock move is checked against the trace"
       if (!v.ok) expect(v.problems.join("; "), what).toMatch(re);
     }
   });
-  it("a run made before R2 (R1's timed-work sentence, no clock move) still verifies", async () => {
+  it("the timed-work words follow the file's rules marker: R2's words with it, R1's only in a file without it (review round 1)", async () => {
     const f = await file("export function f(){ const t = Date.now(); const u = Date.now(); return 1; }");
     expect(verifyAtlasFile(f).ok).toBe(true);
     const tw = f.runs[0].conditions.find((c: { kind: string }) => c.kind === "timed-work");
     expect(tw.says).toBe(CONDITION_WORDS.timedWork);
     tw.says = TIMED_WORK_SAYS_R1;
-    expect(verifyAtlasFile(f).ok).toBe(true);
+    expect(verifyAtlasFile(f).ok).toBe(false); // a pre-R2 file is tests/fixtures/r2/main-made-a39abb4.atlas.json
     tw.says = "nothing to see";
     expect(verifyAtlasFile(f).ok).toBe(false);
   });

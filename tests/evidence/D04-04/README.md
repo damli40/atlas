@@ -5,7 +5,8 @@ nothing written to the public `proofs/` (the live rounds wrote to a scratch fold
 
 ## Update, Oct 27: the two example files were regenerated
 
-The original files below are kept as recorded. `moonwell-level2-fKqHGIIi2_.atlas.json` no longer verifies with
+The original files below are kept as recorded. `moonwell-level2-fKqHGIIi2_.atlas.json` (moved on Oct 29, R2 review round 1, to
+[`superseded/moonwell-level2-fKqHGIIi2_.json`](superseded/README.md), so it no longer looks like a live proof) no longer verifies with
 today's `src/atlasfile.ts`: it predates the false-alarm table (S3, days 3–4 review), and it does not record the
 Investigator's places, so its "pointed elsewhere" caption can no longer be checked (M7). Two new example files
 were made by real rounds with the current code (the D05-04 browser run, 07:29 UTC):
@@ -49,7 +50,7 @@ ones valid and the old Level 2 file refused with its two reasons. `GET /replay` 
 | Run | sandbox, seed `1431iD0YhA`, control passed: calls 5, wait 12000 ms, throws | fork of Base @ 42194662; progress lines from the agent-log SSE (`moonwell-4-run-progress.png`); control passed; cbETH $1.12; 1 price source. The fork took ~4 s (anvil's local fork cache was warm) |
 | Verdicts (last PNG) | You: 5 matched, 15000 didn't match, throws matched. Spark: 5 / 12000 / throws, all matched. 6 seal checks ✓ | Columns You / Muse Spark 1.3 / observed / reference: You 2200 didn't match; Spark declined → can't check; observed $1.12; reference $2,206.68. 2 seal checks ✓ |
 | False-alarm table | n/a | 14 markets: 13 unchanged (0.0000%), cbETH flagged (−99.9491% vs raw Chainlink) |
-| .atlas.json | `fixture-GFNRq1eJx7.atlas.json` | `moonwell-level2-fKqHGIIi2_.atlas.json` |
+| .atlas.json | `fixture-GFNRq1eJx7.atlas.json` | `superseded/moonwell-level2-fKqHGIIi2_.json` (moved Oct 29) |
 
 ## Commands
 

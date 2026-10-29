@@ -4,10 +4,10 @@
 // is almost nothing: a bet of 1 ms on a run that took 0 ms "didn't match". From D46 a timing bet matches when it is
 // within 10% OR within 1 ms. Every new verdict on a timing bet says which rule judged it (`timingRule: "d46"`); a
 // verdict without it was judged before D46, and `verify` re-judges it with that older rule, so old proof files keep
-// their verdicts. Whole-number bets (the retry fixture's totalWaitMs) and Moonwell's USD price bets do not change.
+// their verdicts. Whole-number ms bets follow D46 too since review round 1; Moonwell's USD price bets do not change.
 
 import { beforeAll, describe, expect, it } from "vitest";
-import { TIMING_RULE, TIMING_RULE_SINCE, judge, matchRuleWords, toleranceShort } from "../../src/judge.ts";
+import { TIMING_RULE, judge, matchRuleWords, toleranceShort } from "../../src/judge.ts";
 import { answerHow } from "../../src/paste-context.ts";
 import { towardFromBets } from "../../src/change.ts";
 import { gate, questionsFor } from "../../src/gate.ts";
@@ -33,7 +33,6 @@ describe("D46: |bet - measured| <= max(10% of measured, 1 ms)", () => {
     [1, 0, "matched", "not_matched"],
     [0.5, 0, "matched", "not_matched"],
     [1.0001, 0, "not_matched", "not_matched"],
-    [-1, 0, "matched", "not_matched"],
     [6, 5, "matched", "not_matched"],
     [4, 5, "matched", "not_matched"],
     [7, 5, "not_matched", "not_matched"],
@@ -66,10 +65,10 @@ describe("D46: |bet - measured| <= max(10% of measured, 1 ms)", () => {
 });
 
 describe("D46 changes nothing else", () => {
-  it("whole-number ms bets stay exact (retry-scenario totalWaitMs, settledAtMs)", () => {
-    expect(judge(bet("totalWaitMs", { kind: "integer", value: 12001 }), run({ totalWaitMs: 12000 })).outcome).toBe("not_matched");
-    expect(judge(bet("settledAtMs", { kind: "integer", value: 1 }), run({ settledAtMs: 0 })).outcome).toBe("not_matched");
-    expect("timingRule" in judge(bet("totalWaitMs", { kind: "integer", value: 12000 }), run({ totalWaitMs: 12000 }))).toBe(false);
+  it("whole-number ms bets follow D46 too (review round 1, m2; see r2-review1.test.ts); whole-number counts stay exact", () => {
+    expect(judge(bet("totalWaitMs", { kind: "integer", value: 12001 }), run({ totalWaitMs: 12000 })).outcome).toBe("matched");
+    expect(judge(bet("settledAtMs", { kind: "integer", value: 1 }), run({ settledAtMs: 0 })).outcome).toBe("matched");
+    expect(judge(bet("calls", { kind: "integer", value: 4 }), run({ calls: 5 })).outcome).toBe("not_matched");
   });
   it("Moonwell's USD price bets: unchanged, no rule recorded", () => {
     const E18 = 10n ** 18n;
@@ -108,56 +107,3 @@ describe("bettors see the rule (D19: the screen and every model read the same wo
   });
 });
 
-describe("verify re-judges a proof file with the rule each verdict recorded", () => {
-  let control: Run;
-  beforeAll(async () => {
-    control = (await runCallControl()).run;
-  }, 60_000);
-  type Call = Extract<ExperimentShape, { shape: "call-function" }>;
-  async function file(betMs: number) {
-    const source = "export async function f(){ await new Promise((r) => setTimeout(r, 5)); return 1; }";
-    const target = makePastedTarget(source, "js");
-    const params: Call = { shape: "call-function", exportName: "f", args: [] };
-    const g = gate(params, { exportNames: exportedFunctionsFor(source, "js").map((e) => e.name) });
-    if (!g.allowed) throw new Error(g.reason);
-    const exp: Experiment = { id: "r2-f", target, runner: "ts", params: g.params, proposedBy: { role: "human" }, gate: { allowed: true } };
-    const b = sealBet({ who: "human", experimentId: exp.id, question: "q", measures: "virtualMs", answer: ms(betMs) });
-    await new Promise((r) => setTimeout(r, 5));
-    const r = await runCallExperiment(exp, control);
-    return JSON.parse(JSON.stringify(buildAtlasFile({ target: exp.target, experiment: exp, bets: [b], run: r, verdicts: [judge(b, r)], agentLog: [], createdAt: new Date().toISOString() })));
-  }
-  it("a new file records d46 and verifies; the same file judged before D46 (no rule, old outcome) verifies too", async () => {
-    const f = await file(5.6); // measured 5 ms: within 1 ms, not within 10%
-    expect(f.runs[0].result.measured.virtualMs).toBe(5);
-    expect(f.verdicts[0]).toMatchObject({ outcome: "matched", timingRule: "d46" });
-    expect(verifyAtlasFile(f).ok).toBe(true);
-    // An older file: no rule recorded, judged with the old rule. It verifies while its run started before
-    // TIMING_RULE_SINCE (true on the day R2 was built; a later run must record its rule, next test).
-    const old = JSON.parse(JSON.stringify(f));
-    delete old.verdicts[0].timingRule;
-    old.verdicts[0].outcome = "not_matched";
-    expect(verifyAtlasFile(old).ok).toBe(Date.parse(old.runs[0].startedAt) < Date.parse(TIMING_RULE_SINCE));
-  });
-  it("dropping the rule but keeping the D46 outcome is caught; so is a rule on an old outcome", async () => {
-    const f = await file(5.6);
-    const a = JSON.parse(JSON.stringify(f));
-    delete a.verdicts[0].timingRule;
-    const va = verifyAtlasFile(a);
-    expect(va.ok).toBe(false);
-    if (!va.ok) expect(va.problems.join("; ")).toMatch(/not what src\/judge.ts gives/);
-    const b = JSON.parse(JSON.stringify(f));
-    b.verdicts[0].outcome = "not_matched";
-    expect(verifyAtlasFile(b).ok).toBe(false);
-  });
-  it(`from ${TIMING_RULE_SINCE} on, a timing verdict must record its rule (no relabelling to the old rule)`, async () => {
-    const f = await file(9); // measured 5: not matched under both rules, so only the date check can catch it
-    const x = JSON.parse(JSON.stringify(f));
-    delete x.verdicts[0].timingRule;
-    // A run from before TIMING_RULE_SINCE: read as judged before D46 (true on the day R2 was built).
-    expect(verifyAtlasFile(x).ok).toBe(Date.parse(x.runs[0].startedAt) < Date.parse(TIMING_RULE_SINCE));
-    x.runs[0].startedAt = "2030-01-01T00:00:00.000Z";
-    const v = verifyAtlasFile(x);
-    expect(v.ok).toBe(false);
-    if (!v.ok) expect(v.problems.join("; ")).toMatch(/records no timing rule/);
-  });
-});

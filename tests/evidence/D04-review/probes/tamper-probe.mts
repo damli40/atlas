@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { verifyAtlasFile, level1Caption, HUMAN_PICKED_CBETH_CAPTION } from "../../../../src/atlasfile.ts";
 import { judge } from "../../../../src/judge.ts";
-const orig = JSON.parse(readFileSync(new URL("../../../../tests/evidence/D04-04/moonwell-level2-fKqHGIIi2_.atlas.json", import.meta.url), "utf8"));
+const orig = JSON.parse(readFileSync(new URL("../../../../tests/evidence/D04-04/superseded/moonwell-level2-fKqHGIIi2_.json", import.meta.url), "utf8"));
 console.log("original verifies:", verifyAtlasFile(orig).ok, "captions:", orig.captions);
 console.log("bets:", orig.bets.map((b: any) => [b.who, b.answer.value]), "verdicts:", orig.verdicts.map((v: any) => [v.outcome, v.observed]));
 console.log("controlPassed", orig.runs[0].controlPassed, "notMeasured keys", Object.keys(orig.runs[0].result.notMeasured));
