@@ -75,11 +75,19 @@ describe("D45, JavaScript: a value computed from the code's own timing is can't 
     const r = await run("export function f(){ const p0 = performance.now(); let x = 0; for (let i = 0; i < 1e5; i++) x = (x + i) % 7; return performance.now() - p0 > 1; }", "js");
     expect(r.result.notMeasured.returnedJson).toBe(TIMED_WORK_REASON);
   });
-  it("process.hrtime and new Date() differences are caught too", async () => {
+  it("process.hrtime and Date.now() differences are caught; `new Date() - start` is not (a known gap: a Date holds whole ms)", async () => {
     const a = await run("export function f(){ const t = process.hrtime(); for (let i = 0; i < 1e5; i++); const d = process.hrtime(t); return d[0] * 1e3 + d[1] / 1e6; }", "js");
     expect(a.result.notMeasured.returnedJson).toBe(TIMED_WORK_REASON);
-    const b = await run("export function f(){ const a = new Date(); for (let i = 0; i < 1e5; i++); return new Date() - a; }", "js");
+    const b = await run("export function f(){ const t = Date.now(); for (let i = 0; i < 1e5; i++); return Date.now() - t; }", "js");
     expect(b.result.notMeasured.returnedJson).toBe(TIMED_WORK_REASON);
+    const c = await run("export function f(){ const a = new Date(); for (let i = 0; i < 1e5; i++); return new Date() - a; }", "js");
+    expect(c.result.measured.returnedJson).toBe("0");
+    expect(kinds(c)).toEqual(["clock", "timed-work"]);
+  });
+  it('a check against a longer time ("took over a second") is not caught: reported as fast work gives it (known gap)', async () => {
+    const r = await run('export function f(){ const t = performance.now(); for (let i = 0; i < 1e5; i++); return performance.now() - t > 1000 ? "slow" : "fast"; }', "js");
+    expect(r.result.measured.returnedJson).toBe('"fast"');
+    expect(kinds(r)).toEqual(["clock", "timed-work"]);
   });
 });
 
@@ -106,6 +114,18 @@ describe("D45, JavaScript: ordinary code that stamps times but computes no durat
     );
     expect(r.result.measured).toMatchObject({ outcome: "returned", returnedJson: '"ok"', virtualMs: 400, "calls:call": 3 });
   });
+  it("a 5 s deadline loop on Date.now that returns an ISO time stamp at the end: measured (the drift is a microsecond)", async () => {
+    const r = await run("export async function f() { const start = Date.now(); let n = 0; while (Date.now() - start < 5000) { await new Promise((r) => setTimeout(r, 1000)); n++; } return { n, iso: new Date().toISOString() }; }", "js");
+    expect(r.result.measured).toMatchObject({ virtualMs: 5000, returnedJson: '{"iso":"2026-01-01T00:00:05.000Z","n":5}' });
+  });
+  it("createdAt / updatedAt as ISO text from two new Date() at one moment: measured", async () => {
+    const r = await run("export function f(){ return { createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }; }", "js");
+    expect(r.result.measured.returnedJson).toBe('{"createdAt":"2026-01-01T00:00:00.000Z","updatedAt":"2026-01-01T00:00:00.000Z"}');
+  });
+  it("two raw Date.now() numbers at one moment: can't check (the over-refusal this rule accepts)", async () => {
+    const r = await run("export function f(){ return [Date.now(), Date.now()]; }", "js");
+    expect(r.result.notMeasured.returnedJson).toBe(TIMED_WORK_REASON);
+  });
   it("one clock read per moment never moves: no timed-work, the second run is the same run", async () => {
     const r = await run("export async function f(){ const a = Date.now(); await new Promise(r => setTimeout(r, 30)); return Date.now() - a; }", "js");
     expect(r.result.measured).toMatchObject({ returnedJson: "30", virtualMs: 30 });
@@ -122,11 +142,13 @@ describe.skipIf(!HAVE_PYTHON)("D45, Python", () => {
     expect(kinds(r)).toEqual(["clock", "timed-work", "work-time"]);
     expect(callRunPinProblems(r, "py")).toEqual([]);
   });
-  it("time_ns, datetime.now() differences: caught", async () => {
-    const a = await run("import time\n\ndef f():\n    t = time.time_ns()\n    s = sum(range(100000))\n    return (time.time_ns() - t) // 1_000_000\n", "py");
+  it("time.time and datetime.now() differences: caught; time_ns rounded to whole ms is not (a known gap)", async () => {
+    const a = await run("import time\n\ndef f():\n    t = time.time()\n    s = sum(range(100000))\n    return time.time() - t\n", "py");
     expect(a.result.notMeasured.returnedJson).toBe(TIMED_WORK_REASON);
     const b = await run("from datetime import datetime, timezone\n\ndef f():\n    a = datetime.now(timezone.utc)\n    s = sum(range(100000))\n    return (datetime.now(timezone.utc) - a).total_seconds()\n", "py");
     expect(b.result.notMeasured.returnedJson).toBe(TIMED_WORK_REASON);
+    const c = await run("import time\n\ndef f():\n    t = time.time_ns()\n    s = sum(range(100000))\n    return (time.time_ns() - t) // 1_000_000\n", "py");
+    expect(c.result.measured.returnedJson).toBe("0");
   });
   it("raising when slow: how the call ended is can't check", async () => {
     const r = await run('import time\n\ndef f():\n    t = time.monotonic()\n    s = sum(range(100000))\n    if time.monotonic() - t > 0:\n        raise TimeoutError("slow")\n    return s\n', "py");
@@ -194,9 +216,9 @@ describe("D45, the pieces", () => {
   });
   it("the words name the same move as the code (CLOCK_NUDGE_MS) and Dami's sentence", () => {
     expect(CLOCK_NUDGE_MS).toBe(10);
-    expect(TIMED_WORK_REASON).toMatch(/^Atlas's clock is simulated and can't measure real work time: .*10 ms/);
-    expect(CONDITION_WORDS.timedWork).toContain(`${CLOCK_NUDGE_MS} ms`);
-    expect(CONDITION_WORDS.workTime("returnedJson")).toContain(`${CLOCK_NUDGE_MS} ms`);
+    expect(TIMED_WORK_REASON).toMatch(/^Atlas's clock is simulated and can't measure real work time: /);
+    expect(CONDITION_WORDS.timedWork).toContain(`${CLOCK_NUDGE_MS} ms more at each repeated read of a stopwatch clock`);
+    expect(CONDITION_WORDS.timedWork).toContain("1 microsecond more at each repeated read of the calendar clock");
     expect(CONDITION_WORDS.workTime("returnedJson")).toMatch(/Atlas's clock is simulated and can't measure real work time/);
     expect(CONDITION_WORDS.timedWork).not.toMatch(/don't reflect your machine/);
   });

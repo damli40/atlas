@@ -595,7 +595,7 @@ def main(key_text):
               + [bytearray(1 << 17) for _ in range(3)]) if req.get("variant") == 1 else []
     CLOCK = E["CLOCK"]
     WATCH = E["WATCH"]
-    # R2 (D45): the second run of the double run moves the clock reading 10 ms at each repeated read at one moment.
+    # R2 (D45): the second run of the double run plays the code as if its work took time (exposed.py _read).
     NUDGE = E["NUDGE"]
     REPEATS = E["_REPEATS"]
     nudge_ms = req.get("nudgeClockMs", 0)
@@ -1190,7 +1190,7 @@ def main(key_text):
         nudge_want[0] = nudge_ms / 1000.0
         NUDGE[0] = nudge_want[0]
         REPEATS[0] = None
-        REPEATS[1] = 0
+        REPEATS[1] = 0.0
         name = r["exportName"]
         names = [g[0] for g in run["gens"]]
         emit(ctx, "python", {"version": py_version, "implementation": py_impl})

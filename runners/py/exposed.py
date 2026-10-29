@@ -73,25 +73,24 @@ def refuser(code, what):
 CONDITION_KINDS = ("randomness", "time-zone-or-locale")
 
 
-#: R2 (D45): seconds the clock reading moves at each repeated read at one moment. 0.0 in the first run; harness.py
-#: sets 0.010 in the second run of the double run. Only the reading moves, never CLOCK or a timer. harness.py checks
-#: after each run that this still holds its value.
+#: R2 (D45): the second run of the double run plays the code as if its work took time. Each repeated read at one
+#: virtual moment adds to the run's drift: NUDGE[0] seconds (0.010) for a stopwatch clock (monotonic, perf_counter)
+#: and one ten-thousandth of it (1 microsecond) for the calendar clock (time.time, time_ns, datetime). The drift stays
+#: added for the rest of the run, as real time would. Only readings move, never CLOCK or a timer. 0.0 in the first
+#: run; harness.py sets it when each run starts and checks after each run that it still holds its value.
 NUDGE = [0.0]
-#: R2 (D45): [CLOCK value of the last read, how many reads in a row came at that value after the first].
-#: harness.py resets it when each run starts.
-_REPEATS = [None, 0]
+#: R2 (D45): [CLOCK value of the last read, the run's drift in seconds]. harness.py resets it when each run starts.
+_REPEATS = [None, 0.0]
 
 
-def _read():
-    """Announce a read of the clock; return the reading (CLOCK, plus the second run's nudge on a repeated read)."""
+def _read(stopwatch=False):
+    """Announce a read of the clock; return the reading (CLOCK, plus the second run's drift)."""
     _audit("atlas.clockread", CLOCK[0])
     now = CLOCK[0]
     if _REPEATS[0] is not None and _REPEATS[0] == now:
-        _REPEATS[1] = _REPEATS[1] + 1
-    else:
-        _REPEATS[0] = now
-        _REPEATS[1] = 0
-    return now + _REPEATS[1] * NUDGE[0]
+        _REPEATS[1] = _REPEATS[1] + (NUDGE[0] if stopwatch else NUDGE[0] / 10000.0)
+    _REPEATS[0] = now
+    return now + _REPEATS[1]
 
 
 def _note(kind):
@@ -113,11 +112,11 @@ def v_time_ns():
 
 
 def v_monotonic():
-    return _read()
+    return _read(True)
 
 
 def v_monotonic_ns():
-    return int(round(_read() * 1e9))
+    return int(round(_read(True) * 1e9))
 
 
 def v_sleep(secs):

@@ -145,10 +145,10 @@ export const CONDITION_WORDS = {
   // R1 review M1-M3: decided from the code's own clock reads (two or more at one simulated moment), never from CPU time.
   // R2 (D45): a value that depends on the elapsed time is no longer shown as 0 ms; it is "can't check" (workTime).
   timedWork:
-    "This code timed its own work: it read the clock more than once at the same moment of Atlas's simulated clock, which moves only while the code waits, so an elapsed time reads 0 ms here. Atlas ran it a second time with the clock moving 10 ms at each of those reads. A value that changed is not reported; a value that stayed the same is. A value that only changes past a longer time (a \"took over a second\" check) is still reported: it is what fast work gives.",
-  // R2 (D45): the values that changed when the second run moved the clock during the code's own timing.
+    "This code timed its own work: it read the clock more than once at the same moment of Atlas's simulated clock, which moves only while the code waits, so an elapsed time reads 0 here. Atlas ran it a second time as if the work took time: 10 ms more at each repeated read of a stopwatch clock (performance.now, process.hrtime, Python's perf_counter and monotonic), 1 microsecond more at each repeated read of the calendar clock (Date, Python's time.time and datetime). A value that changed is not reported; a value that stayed the same is. A check against a longer time (\"took over a second\") does not change this way, so it shows what fast work gives.",
+  // R2 (D45): the values that changed when the second run let time pass during the code's own timing.
   workTime: (fields: string) =>
-    `Atlas can't check these values: ${fields}. They changed when the clock moved 10 ms during the code's own timing, so they depend on how long the work really takes. Atlas's clock is simulated and can't measure real work time.`,
+    `Atlas can't check these values: ${fields}. They changed when Atlas's second run let time pass while the code timed its own work, so they depend on how long the work really takes. Atlas's clock is simulated and can't measure real work time.`,
   changedBetweenRuns: (fields: string) =>
     `Atlas ran this test twice with the same seed and pins, and these values changed between the two runs: ${fields}. They depend on something Atlas does not control (memory addresses, process ids, paths), so Atlas does not report them.`,
   host: (what: string) =>

@@ -11,8 +11,9 @@
 // - R1 review round 1 (the double run): every pasted test runs TWICE, in two fresh sandboxes, with the same seed and
 //   pins. A measured field that differs between the two is not reported ("can't check"), whatever made it differ
 //   (memory addresses, process ids, temp-folder paths). The second run is kept in the proof file and verify rechecks it.
-// - R2 (D45): code that times its own work. The second run moves the clock reading 10 ms at each repeated read at one
-//   moment; a value that changes then depends on real work time and is "can't check" (TIMED_WORK_REASON, below).
+// - R2 (D45): code that times its own work. The second run plays the code as if its work took time (more at each
+//   repeated clock read at one moment); a value that changes then depends on real work time and is "can't check"
+//   (TIMED_WORK_REASON, below).
 // - This file turns all of that into the sentences the verdict screen and the proof card show (the words live in
 //   src/paste-words.ts), merges the two runs, and lets `verify` recheck a proof file's pins, conditions and twin.
 // - A condition never silently changes a verdict. Some kinds only disclose (the value is Atlas's pinned one, said
@@ -172,17 +173,23 @@ export const CHANGED_BETWEEN_RUNS_REASON =
 
 /**
  * R2 (D45): code that times its own work. Atlas's clock does not move while code works, so two clock reads at one
- * moment read the same time, and an elapsed time reads 0 ms. The second run of the double run (and only it) moves
- * the clock READING by CLOCK_NUDGE_MS at each repeated read at one moment; the clock itself and its timers do not
- * move. A value that changes then depends on how long the work took, which Atlas cannot measure: it is not
- * reported, with TIMED_WORK_REASON. A value that stays the same is reported: a TTL cache longer than 10 ms that
- * stamps and checks at once, a logger whose two timestamps are not returned.
- * Why 10 ms, not 1: a check like "took more than 1 ms" (bench T2's h01a and q02c test exactly that) flips with it.
- * Not caught: a check past a longer time ("took over a second"); it is reported as fast work would give it.
+ * moment read the same time, and an elapsed time reads 0. The second run of the double run (and only it) plays the
+ * code as if its work took time: each repeated read at one moment adds CLOCK_NUDGE_MS (10 ms) for a stopwatch clock
+ * (performance.now, process.hrtime, Python's perf_counter and monotonic) and 1 microsecond for the calendar clock
+ * (Date, Python's time.time and datetime), and that time stays added for the rest of the run. The clock itself and
+ * its timers do not move. A value that changes then depends on how long the work took, which Atlas cannot measure:
+ * it is not reported, with TIMED_WORK_REASON. A value that stays the same is reported: a TTL cache that stamps and
+ * checks at once, a logger whose timestamps are not returned, an ISO time stamp (whole ms) after a deadline loop.
+ * Why 10 ms for stopwatches: a check like "took more than 1 ms" (bench T2's h01a and q02c test exactly that) flips.
+ * Why 1 microsecond for the calendar clock: about what two back-to-back reads take on a real machine, so time
+ * stamps written in whole ms (new Date().toISOString()) stay the same, while `Date.now() - start` is no longer 0.
+ * Not caught: a check past a longer time ("took over a second"), a calendar-clock duration that is rounded or checked
+ * against more than a microsecond, and `new Date() - start` in JavaScript (a Date holds whole ms).
+ * Over-refused: returning two or more raw calendar readings taken at one moment ([Date.now(), Date.now()]).
  */
 export const CLOCK_NUDGE_MS = 10;
 export const TIMED_WORK_REASON =
-  "Atlas's clock is simulated and can't measure real work time: this value changed when Atlas's second run let the clock move 10 ms each time the code read it again at the same moment (the code timed its own work)";
+  "Atlas's clock is simulated and can't measure real work time: this value changed when Atlas's second run let time pass while the code timed its own work";
 
 /** The fields that make up how the call ended: when the outcome or its time differs, none of them is reported. */
 const ENDING_FIELDS = ["outcome", "virtualMs", "returnedJson", "returnedType", "thrownName", "thrownMessage", "thrownType"];

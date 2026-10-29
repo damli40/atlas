@@ -89,7 +89,7 @@ describe("bench T2, the 13 JavaScript tests and 9 Python tests: what Atlas repor
     expect(r.result.measured.returnedJson).toBeUndefined();
     expect(r.result.notMeasured.returnedJson).toBe(TIMED_WORK_REASON);
     expect(kinds(r)).toEqual(["clock", "timed-work", "work-time"]);
-    expect(r.conditions?.find((c) => c.kind === "timed-work")?.says).toMatch(/timed its own work.*elapsed time reads 0 ms here/);
+    expect(r.conditions?.find((c) => c.kind === "timed-work")?.says).toMatch(/timed its own work.*an elapsed time reads 0 here/);
     expect(r.conditions?.find((c) => c.kind === "work-time")?.says).toMatch(/can't check these values: returnedJson\./);
   });
   it("h01b spinWait (busy-wait on Date.now): whole-run can't check, real-time reason (unchanged)", async () => {
