@@ -83,7 +83,7 @@ describe("H1: when the server refuses to start", () => {
     ["an empty Modal token id", (e) => (e.MODAL_TOKEN_ID = " "), /Modal token is missing/],
     ["no volume mounted", () => {}, /nothing is mounted at \/data/, { isMountPoint: () => false }],
     ["no store folder", (e) => delete e.ATLAS_INVITES_DIR, /ATLAS_INVITES_DIR is not set/],
-    ["store off the volume", (e) => (e.ATLAS_INVITES_DIR = "/home/atlas/.config/atlas"), /not a folder inside the volume/],
+    ["store off the volume", (e) => (e.ATLAS_INVITES_DIR = "/srv/atlas-store"), /not a folder inside the volume/],
     ["store is the volume itself", (e) => (e.ATLAS_INVITES_DIR = "/data"), /not a folder inside the volume/],
     ["store escapes with ..", (e) => (e.ATLAS_INVITES_DIR = "/data/../etc"), /not a folder inside the volume/],
     ["usage log off the volume", (e) => (e.ATLAS_USAGE_PATH = "/app/tests/evidence/usage/usage.jsonl"), /ATLAS_USAGE_PATH must be a file on the volume/],
