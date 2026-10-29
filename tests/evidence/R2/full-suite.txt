@@ -1,0 +1,22 @@
+== run 1
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/unit/x2-review1.test.tsx > B4: a large outline never freezes the page > 40 parts with 47 joins draw in well under the page's 30 s limit (Node, no worker)
+ Test Files  1 failed | 121 passed | 2 skipped (124)
+      Tests  1 failed | 1918 passed | 35 skipped (1954)
+   Duration  289.62s (tests 89%, import 10%)
+== run 2
+ Test Files  122 passed | 2 skipped (124)
+      Tests  1919 passed | 35 skipped (1954)
+   Duration  172.95s (tests 90%, import 9%)
+== run 3
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/unit/x2-review1.test.tsx > B4: a large outline never freezes the page > 40 parts with 47 joins draw in well under the page's 30 s limit (Node, no worker)
+ Test Files  1 failed | 121 passed | 2 skipped (124)
+      Tests  1 failed | 1918 passed | 35 skipped (1954)
+   Duration  274.24s (tests 92%, import 8%)
+tsc exit 0
+
+[exited with code 0]
+
+== the one failing test, alone, right after (machine load average 15.5 / 20.5 / 16.4 from other batches):
+tests/unit/x2-review1.test.tsx -t "40 parts": 2 passed
