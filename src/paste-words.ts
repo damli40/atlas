@@ -189,3 +189,59 @@ export const CALL_OUTCOME_SAY: Record<string, string> = {
 
 /** The verdict words (D15). The same three everywhere. */
 export const VERDICT_SAY = { matched: "matched", not_matched: "didn't match", cant_check: "can't check" } as const;
+
+// ---------- U2 (D53): plain words for the drawing screen's bet panel and results ----------
+// One sentence per term, said where the term first appears. Every model keeps its Meta name (D10); each is also
+// introduced by its role. These are the page's explanations of facts every bettor's shared text already holds.
+
+/** Muse Wonder by its role, Meta name kept. */
+export const WONDER_ROLE = "Muse Wonder 1.0 (Meta), the AI that writes tests";
+
+/** A betting model by its role: "Muse Spark 1.3 (Meta)", "Muse Spark Open (Meta, open weights)". */
+export function betterByRole(model: string): string {
+  if (/open/i.test(model)) return "Muse Spark Open (Meta, open weights)";
+  if (/^muse-spark-([\d.]+)$/.test(model)) return `Muse Spark ${model.replace(/^muse-spark-/, "")} (Meta)`;
+  return model;
+}
+
+export const BET_WORDS = {
+  writing: (fn: string) => `${WONDER_ROLE}, is writing a test for ${fn}…`,
+  testIs: "The test:",
+  clock: "Atlas's clock is simulated: waits cost no real time, so a 10-minute wait finishes at once.",
+  random: "Randomness is fixed (seeded), so running the test again gives the same answer.",
+  zone: (language: PastedLanguage) => `It runs in the UTC time zone with ${language === "py" ? "Python's plain \"C\" locale" : "the en-US locale"}, the same on every run.`,
+  watch: (ms: number, fromTest: boolean) =>
+    `Atlas stops watching after ${ms.toLocaleString("en-US")} ms of simulated time${fromTest ? " (a limit this test sets)" : " (Atlas's usual limit)"}. A call still going then is marked "still running", not guessed.`,
+  network: (lib: string) => `The real network is blocked. Atlas's fake ${lib} answers instead, exactly as this test scripts it, and counts each call.`,
+  ais: (names: readonly string[]) =>
+    names.length === 0 ? "No AI bets on this test." : `${names.length === 1 ? "One AI bets" : `${names.length === 2 ? "Two" : String(names.length)} AIs bet`} too, without seeing your answers: ${names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`}.`,
+  aiStatus: (name: string, status: string) => `${name}: ${status}`,
+  whoBets: "Who bets with you",
+  seal: "Seal my answers",
+  untapped: "Anything you leave untapped is sealed as “can't tell”.",
+  seen: "What every bettor sees (you and both AIs get exactly this text)",
+  leftOut: (n: number) => `${n} ${n === 1 ? "test" : "tests"} Atlas couldn't run ${n === 1 ? "was" : "were"} left out.`,
+  pickFor: (fn: string) => `Pick a test for ${fn}`,
+} as const;
+
+export const STAGE_WORDS = {
+  testCalls: "This is the function the test calls.",
+  willTest: "Atlas tests this function when you bet.",
+  fakeNetwork: (name: string) => `Atlas installs this in place of ${name}; the real network stays blocked. Scripted by the test:`,
+} as const;
+
+export const RESULT_WORDS = {
+  /** "You matched 2 of 3 checkable answers. Muse Spark 1.3 matched 3, Muse Spark Open 2." */
+  headline: (you: { matched: number; checkable: number }, others: readonly { name: string; matched: number; checkable: number }[]) => {
+    const head = you.checkable === 0 ? "None of your answers could be checked." : `You matched ${you.matched} of ${you.checkable} checkable ${you.checkable === 1 ? "answer" : "answers"}.`;
+    const rest = others.map((o, i) => (o.checkable === 0 ? `${o.name}: nothing checkable` : i === 0 ? `${o.name} matched ${o.matched}` : `${o.name} ${o.matched}`));
+    return rest.length ? `${head} ${rest.join(", ")}.` : head;
+  },
+  sameReason: (reason: string) => `Every answer here is can't check, for one reason: ${reason}`,
+  seeAbove: "can't check (the reason is above)",
+  testClaim: "Test this claim",
+  testClaimBusy: `${WONDER_ROLE}, is writing a test for this sentence…`,
+  nextTry: "Next things to try, found in this code:",
+  proofTitle: "Proof card",
+  closeProof: "Close the proof card",
+} as const;

@@ -71,7 +71,7 @@
 .u1-root .u1-needle .iso-line{stroke:var(--anatomy-lit);stroke-width:1.1px}
 
 /* chips: what the run did, placed above a part (run data: only after sealing) */
-.u1-chip{position:absolute;transform:translate(-50%,calc(-100% - 6px));white-space:nowrap;max-width:min(320px,70vw);overflow:hidden;text-overflow:ellipsis;padding:3px 9px;border-radius:999px;background:var(--anatomy-card);box-shadow:var(--anatomy-lift);color:var(--anatomy-strong);font:12.5px/1.4 var(--anatomy-mono);pointer-events:none}
+.u1-chip{position:absolute;border-radius:12px;transform:translate(-50%,calc(-100% - 6px));white-space:normal;width:max-content;max-width:min(340px,70vw);overflow-wrap:anywhere;padding:3px 9px;background:var(--anatomy-card);box-shadow:var(--anatomy-lift);color:var(--anatomy-strong);font:12.5px/1.4 var(--anatomy-mono);pointer-events:none}
 .u1-chip-clock{transform:translate(-50%,calc(-100% - 30px))}
 /* X3 (D50): a failure label sits just under its part's anchor (on the lid), clear of the top bar. */
 .u1-chip-label{transform:translate(-50%,14px);border:1px dashed var(--anatomy-mid);max-width:min(440px,86vw)}
@@ -83,8 +83,11 @@
 .u1-pin-n{font:600 11px/1 var(--anatomy-mono);color:var(--anatomy-muted)}
 .u1-pin:focus-visible{outline:2px solid var(--anatomy-strong);outline-offset:2px}
 .u1-glyph{width:12px;height:12px;flex:none;fill:none;stroke:var(--anatomy-strong);stroke-width:1.4}
+.u1-glyph{width:14px;height:14px}
 .u1-glyph[data-outcome="matched"] circle{fill:var(--anatomy-strong)}
+.u1-glyph[data-outcome="matched"] path{stroke:var(--anatomy-card);stroke-width:1.8}
 .u1-glyph[data-outcome="cant_check"]{stroke:var(--anatomy-muted)}
+.u1-glyph[data-outcome="cant_check"] text{fill:var(--anatomy-muted);stroke:none;font:700 8px/1 system-ui,sans-serif}
 
 /* the part card */
 .u1-card{position:absolute;left:16px;top:44px;width:min(330px,calc(100% - 32px));max-height:calc(100% - 140px);overflow:auto;padding:14px 16px;border-radius:12px;background:var(--anatomy-card);box-shadow:var(--anatomy-lift);color:var(--anatomy-text);z-index:3;cursor:auto}
@@ -121,7 +124,7 @@
 .u1-status{margin:8px 0;color:var(--anatomy-strong)}
 .u1-seen{margin-top:10px}
 .u1-seen summary{cursor:pointer;color:var(--anatomy-strong)}
-.u1-seen pre{max-height:240px;overflow:auto;white-space:pre;font:11.5px/1.5 var(--anatomy-mono);padding:10px;border-radius:8px;background:var(--anatomy-page)}
+.u1-seen pre{max-height:240px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font:11.5px/1.5 var(--anatomy-mono);padding:10px;border-radius:8px;background:var(--anatomy-page)}
 .u1-testlist{margin:8px 0;padding-left:18px;display:grid;gap:8px}
 .u1-pop .notice{margin:10px 0 0}
 
@@ -135,8 +138,8 @@
 .u1-mark-head:focus-visible{outline:2px solid var(--anatomy-strong);outline-offset:2px;border-radius:3px}
 .u1-measured{margin:4px 0;font-size:13.5px;color:var(--anatomy-strong);overflow-wrap:anywhere}
 .u1-picks{list-style:none;margin:4px 0 0;padding:0;display:grid;gap:3px;font-size:13px}
-.u1-picks li{display:grid;grid-template-columns:12px max-content minmax(0,1fr) max-content;align-items:baseline;gap:4px 8px}
-.u1-picks .u1-glyph{align-self:center}
+.u1-picks li{display:grid;grid-template-columns:14px max-content minmax(0,1fr) max-content;align-items:baseline;gap:4px 8px}
+.u1-picks .u1-glyph{align-self:start;margin-top:2px}
 .u1-picks .u1-pick{overflow-wrap:anywhere}
 .u1-who{color:var(--anatomy-strong);font-weight:550}
 .u1-pick{color:var(--anatomy-text)}
@@ -166,3 +169,29 @@
 @media (prefers-reduced-motion:reduce){.u1-root *{transition:none!important;animation:none!important}}
 .u1-shell main.u1-main{max-width:none;margin:0;padding:0;width:100%}
 .u1-shell .u1-sheet main{max-width:1180px;padding:16px 0 48px}
+
+/* U2: a dial rescaled to the run hides the test's own tick marks (they belong to the old scale) */
+.u1-root[data-rescaled] .u1-dial-marks{display:none}
+.u1-root .it.u1-live .iso-top{fill:color-mix(in srgb,var(--anatomy-lit) 14%,var(--anatomy-card))}
+
+/* U2 (D53): the bet panel's plain-words lines, the AIs line and the who-bets picker (above the seal button) */
+.u1-explain{margin:8px 0 0;padding-left:18px;display:grid;gap:3px;font-size:12.5px;color:var(--anatomy-muted)}
+.u1-models{margin:4px 0 12px;padding:8px 10px;border-radius:9px;background:var(--anatomy-page);font-size:13.5px;color:var(--anatomy-strong)}
+.u1-models p{margin:0 0 4px}
+.u1-who{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--anatomy-muted)}
+.u1-who select{padding:4px 8px;border-radius:8px;border:1px solid var(--anatomy-lo);background:var(--anatomy-card);color:var(--anatomy-strong)}
+.u1-claim p{margin:0 0 6px}
+.u1-next{margin-top:10px;font-size:13px}
+.u1-next p{margin:0 0 4px}
+.u1-next ul{margin:0;padding-left:18px}
+.u1-headline{margin:0 0 10px;font-size:17px;line-height:1.35;font-weight:650;color:var(--anatomy-strong)}
+.u1-samewhy{margin:0 0 10px;font-size:13px;color:var(--anatomy-muted);overflow-wrap:anywhere}
+/* the proof card, opened in place */
+.u1-proof{position:absolute;left:50%;top:44px;transform:translateX(-50%);width:min(880px,calc(100% - 32px));max-height:calc(100% - 120px);overflow:auto;padding:14px 18px 18px;border-radius:14px;background:var(--anatomy-card);box-shadow:var(--anatomy-lift);z-index:7;color:var(--anatomy-text)}
+.u1-proof-head{display:flex;align-items:center;gap:14px;position:sticky;top:-14px;background:var(--anatomy-card);padding:4px 0 8px;z-index:1}
+.u1-proof-head h2{margin:0;font-size:17px;color:var(--anatomy-strong);flex:1}
+.u1-proof-head .u1-close{position:static}
+/* U2: pins on a device or the clock sit to its right, clear of the deck plate below it */
+.u1-pins[data-beside]{transform:translate(12px,-50%);align-items:flex-start}
+/* U2: while the bet pop-up is open, the corner readout under it steps aside */
+.u1-root[data-pop] [data-corner="readout"]{visibility:hidden}
