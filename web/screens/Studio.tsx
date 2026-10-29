@@ -26,6 +26,7 @@ import { benchModel, dialFullMs, type CallTest } from "../machines/bench/model";
 import { marksOf, playScript } from "../machines/bench/play";
 import type { FileOutline } from "../../src/file-outline";
 import { U1_EXAMPLE } from "../u1-example";
+import { plural } from "../../src/words";
 import type { BetHandoff } from "./Explorer";
 
 type Lang = "js" | "ts" | "py";
@@ -452,7 +453,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                     </>
                   ) : (
                     <p className="u1-status" role="status" data-testid="u1-sealed">
-                      {`Sealed ${sealed.length} answers. ${busy ?? (models.thinking ? "Waiting for the models to seal theirs…" : "")}`}
+                      {`Sealed ${plural(sealed.length, "answer")}. ${busy ?? (models.thinking ? "Waiting for the models to seal theirs…" : "")}`}
                     </p>
                   )}
                   <ModelsLine slots={models.slots} claimant={claimant} onClaimant={onClaimant} locked />

@@ -15,6 +15,7 @@ import type { BenchReply } from "./bench.worker";
 import { CLOCK_ID, type BenchModel, type BenchPart } from "./model";
 import { OUTCOME_WORDS, type Mark, type Script } from "./play";
 import { applyPick } from "../explorer/pick";
+import { lineSpan } from "../../../src/words";
 
 const DARK = "(prefers-color-scheme: dark)";
 const STILL = "(prefers-reduced-motion: reduce)";
@@ -32,6 +33,9 @@ function useMedia(q: string): boolean {
 }
 export const useDarkScheme = () => useMedia(DARK);
 export const useReducedMotion = () => useMedia(STILL);
+
+/** An attribute value inside a "…" selector. */
+const attr = (v: string) => v.replace(/["\\]/g, "\\$&");
 
 type Dials = Record<string, { x: number; y: number; top: number; r: number }>;
 type Built = { svg: string; P: unknown; dials: Dials } | { error: string } | { drawing: true };
@@ -152,18 +156,18 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
     (frac: number) => {
       if (!("svg" in built)) return;
       const d = built.dials[CLOCK_ID];
-      const el = svgHost.current?.querySelector(`[data-needle="${CSS.escape(CLOCK_ID)}"] path`);
+      const el = svgHost.current?.querySelector(`[data-needle="${attr(CLOCK_ID)}"] path`);
       if (d && el) el.setAttribute("d", dialNeedle(d, built.P, frac));
     },
     [built],
   );
   const lamp = (id: string, on: boolean) => {
-    const el = svgHost.current?.querySelector(`[data-lamp="${CSS.escape(id)}"]`);
+    const el = svgHost.current?.querySelector(`[data-lamp="${attr(id)}"]`);
     if (el) el.toggleAttribute("data-on", on);
   };
   const lineLit = (id: string | null, on: boolean) => {
     if (!id) return;
-    for (const el of svgHost.current?.querySelectorAll(`[data-line="${CSS.escape(id)}"]`) ?? []) el.classList.toggle("u1-live", on);
+    for (const el of svgHost.current?.querySelectorAll(`[data-line="${attr(id)}"]`) ?? []) el.classList.toggle("u1-live", on);
   };
 
   // The run, played on the drawing. Without `after`: the rest state (lamps off, needle at 0, no chips, no marks).
@@ -194,8 +198,11 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
     }
     const timers: number[] = [];
     const at = (ms: number, fn: () => void) => timers.push(window.setTimeout(fn, ms));
+    const raf = { current: 0 };
     let from = 0;
     const turn = (to: number, over: number) => {
+      // One needle motion at a time: a newer turn cancels the older one, so a slow frame never lands an old value last.
+      cancelAnimationFrame(raf.current);
       const start = performance.now();
       const a = from;
       from = to;
@@ -207,7 +214,6 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
       };
       raf.current = requestAnimationFrame(step);
     };
-    const raf = { current: 0 };
     script.steps.forEach((s, i) => {
       at(300 + i * STEP_MS, () => {
         lamp(s.device, true);
@@ -227,7 +233,10 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
     at(end, () => {
       if (script.dialEndMs !== null) turn(script.dialEndMs, 500);
     });
-    at(end + 600, endState);
+    at(end + 600, () => {
+      cancelAnimationFrame(raf.current);
+      endState();
+    });
     return () => {
       timers.forEach((t) => clearTimeout(t));
       cancelAnimationFrame(raf.current);
@@ -471,7 +480,7 @@ function PartCard({ id, part, tested, pinned, onTest, onClose, canChange }: { id
       {part.kind === "code" ? (
         <>
           <h3>{part.part.name}</h3>
-          <p className="u1-sub">{`${part.part.kind === "class" ? "class" : "function"} · lines ${part.part.lineStart}–${part.part.lineEnd}${part.part.exported ? " · exported" : ""}`}</p>
+          <p className="u1-sub">{`${part.part.kind === "class" ? "class" : "function"} · ${lineSpan(part.part.lineStart, part.part.lineEnd)}${part.part.exported ? " · exported" : ""}`}</p>
           {part.part.signature && <code className="u1-sig">{part.part.signature}</code>}
           <p>{part.callsTo.length ? `Calls ${part.callsTo.join(", ")}.` : "Calls no other part of this file."} {part.calledBy.length ? `Called by ${part.calledBy.join(", ")}.` : ""}</p>
           {tested === id ? <p className="u1-sub">This is the function the test calls.</p> : part.part.exported && part.part.kind === "function" && onTest && canChange ? (
