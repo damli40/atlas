@@ -54,7 +54,7 @@ async function round(replies: string[]) {
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
-  act(() => root!.render(<App api={api} />));
+  act(() => root!.render(<App api={api} start="fixture" />));
   await until(() => $('[data-testid="pre-existing"]') !== null, "the target card");
   await act(async () => byText("button", "Show the questions")!.click());
   await until(() => $('[data-testid="bet-calls"]') !== null, "the questions");

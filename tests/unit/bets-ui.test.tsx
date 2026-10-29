@@ -62,7 +62,7 @@ describe("D02-04 bets UI: sealed hash before the run, checked by the browser aft
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
-    act(() => root!.render(<App api={api} />));
+    act(() => root!.render(<App api={api} start="fixture" />));
 
     // The target, with the mandatory pre-existing label.
     await until(() => $('[data-testid="pre-existing"]') !== null, "the target card");

@@ -48,10 +48,20 @@ async function readFiles(list: FileList): Promise<{ path: string; text: string }
   return out;
 }
 
-export function ExplorerFlow({ api, onBet, saved }: { api: Api; onBet: (h: BetHandoff) => void; saved?: () => Promise<OutlineView> }) {
-  const [repo, setRepo] = useState("damli40/atlas");
-  const [subfolder, setSubfolder] = useState("server/meta");
-  const [ref, setRef] = useState("");
+/** U1: "owner/repo", or a GitHub link (…/owner/repo/tree/<ref>/<folder>), as the explorer's three fields. */
+export function parseRepoInput(input: string): { repo: string; ref: string; subfolder: string } {
+  const t = input.trim().replace(/\.git$/, "").replace(/\/+$/, "");
+  const m = /^(?:https?:\/\/)?(?:www\.)?github\.com\/([^/]+\/[^/]+)(?:\/tree\/([^/]+)(?:\/(.+))?)?$/.exec(t);
+  if (m) return { repo: m[1]!, ref: m[2] ?? "", subfolder: m[3] ?? "" };
+  const [owner, name, ...rest] = t.split("/");
+  return { repo: owner && name ? `${owner}/${name}` : t, ref: "", subfolder: rest.join("/") };
+}
+
+export function ExplorerFlow({ api, onBet, saved, initialRepo, initialFiles }: { api: Api; onBet: (h: BetHandoff) => void; saved?: () => Promise<OutlineView>; initialRepo?: string; initialFiles?: FileList }) {
+  const first = initialRepo ? parseRepoInput(initialRepo) : null;
+  const [repo, setRepo] = useState(first?.repo ?? "damli40/atlas");
+  const [subfolder, setSubfolder] = useState(first ? first.subfolder : "server/meta");
+  const [ref, setRef] = useState(first?.ref ?? "");
   const [files, setFiles] = useState<FileList | null>(null);
   const [job, setJob] = useState<OutlineJob | null>(null);
   const [view, setView] = useState<OutlineView | null>(null);
@@ -87,7 +97,19 @@ export function ExplorerFlow({ api, onBet, saved }: { api: Api; onBet: (h: BetHa
     return () => clearTimeout(t);
   }, [job, api]);
 
-  const start = async (useFiles: boolean | "again") => {
+  // U1: opened from the drawing-first screen with a folder or files: start at once (one click there, none here).
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (autoStarted.current) return;
+    autoStarted.current = true;
+    if (initialFiles && initialFiles.length > 0) {
+      setFiles(initialFiles);
+      void start(true, initialFiles);
+    } else if (first) void start(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const start = async (useFiles: boolean | "again", given?: FileList) => {
     setBusy(true);
     setError(null);
     setView(null);
@@ -98,8 +120,8 @@ export function ExplorerFlow({ api, onBet, saved }: { api: Api; onBet: (h: BetHa
       const req: OutlineRequest =
         useFiles === "again" && lastRequest.current
           ? lastRequest.current
-          : useFiles === true && files
-            ? { files: await readFiles(files) }
+          : useFiles === true && (given ?? files)
+            ? { files: await readFiles((given ?? files)!) }
             : { repo: repo.trim(), ...(ref.trim() ? { ref: ref.trim() } : {}), ...(subfolder.trim() ? { subfolder: subfolder.trim() } : {}) };
       lastRequest.current = req;
       const j = await api.startOutline(req);

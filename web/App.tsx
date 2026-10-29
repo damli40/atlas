@@ -30,6 +30,8 @@ import { ProofCardPage, ProofLink } from "./screens/ProofCard";
 import type { Finding } from "../src/types";
 import { PasteFlow } from "./screens/Paste";
 import { ExplorerFlow, type BetHandoff } from "./screens/Explorer";
+import { Studio } from "./screens/Studio";
+import { useDarkScheme } from "./machines/bench/BenchStage";
 import type { OutlineView } from "./machines/explorer/outline-data";
 
 /** X2: the saved outline of Atlas's own server/meta at 058ab2a (no code text), loaded only when asked for. */
@@ -45,14 +47,109 @@ export function proofIdFromLocation(search: string): string | null {
   return id && /^[A-Za-z0-9_-]{1,64}$/.test(id) ? id : null;
 }
 
-export function App({ api: given }: { api?: Api } = {}) {
+/** U1 (D47): what opens first. "studio" is the drawing-first screen; the others are the earlier screens (demos). */
+export type Start = "studio" | Mode;
+
+export function App({ api: given, start = "studio" }: { api?: Api; start?: Start } = {}) {
   const proofId = typeof window === "undefined" ? null : proofIdFromLocation(window.location.search);
   if (proofId) return <ProofCardPage api={given ?? createApi(undefined, undefined, { session: storedSession(PASTE_SESSION_KEY) })} runId={proofId} />;
-  return <Rounds {...(given ? { api: given } : {})} />;
+  if (start !== "studio") return <Rounds {...(given ? { api: given } : {})} initial={start} />;
+  return <Shell {...(given ? { api: given } : {})} />;
 }
 
-function Rounds({ api: given }: { api?: Api }) {
-  const [mode, setMode] = useState<Mode>("fixture");
+const DEMOS: { mode: Mode; words: string; note: string }[] = [
+  { mode: "fixture", words: "The retry machine", note: "withRpcRetry (pre-existing code), bets and the retry machine" },
+  { mode: "pr", words: "The Moonwell pull request", note: "Solidity on a Base fork, the price pipe" },
+  { mode: "scale", words: "Many callers at once", note: "the waves chart (a mechanism, not an outage)" },
+  { mode: "paste", words: "The earlier paste screen", note: "forms and free answers, step by step" },
+];
+
+/**
+ * U1 (D47): the shell. The drawing-first screen fills the window; the code explorer and the earlier screens open full
+ * screen over it; the agent log is a collapsible edge.
+ */
+function Shell({ api: given }: { api?: Api }) {
+  const studioApi = useMemo(() => given ?? createApi(undefined, undefined, { onSession: (s) => storeSession(PASTE_SESSION_KEY, s) }), [given]);
+  const [view, setView] = useState<"studio" | "explore" | Mode>("studio");
+  const [handoff, setHandoff] = useState<BetHandoff | null>(null);
+  const [exploreStart, setExploreStart] = useState<{ repo?: string; files?: FileList } | null>(null);
+  const [claimant, setClaimant] = useState<ClaimantMode>("spark");
+  const [logOpen, setLogOpen] = useState(false);
+  const [roundOpen, setRoundOpen] = useState(false);
+  // Both Meta models bet by default when the server can ask Muse Spark Open (D07-01); otherwise Muse Spark alone.
+  useEffect(() => {
+    let live = true;
+    studioApi.claimants().then(
+      (i) => {
+        if (!live || !i.sparkOpen.available) return;
+        setClaimant("both");
+        studioApi.setClaimant("both");
+      },
+      () => {},
+    );
+    return () => {
+      live = false;
+    };
+  }, [studioApi]);
+  const pickClaimant = (m: ClaimantMode) => {
+    setClaimant(m);
+    studioApi.setClaimant(m);
+  };
+  const demo = DEMOS.find((d) => d.mode === view);
+  const dark = useDarkScheme();
+  return (
+    <div className={`iso u1-shell${logOpen ? " u1-log-open" : ""}`} data-theme={dark ? undefined : "light"}>
+      <header className="u1-bar">
+        <button type="button" className="u1-mark" onClick={() => setView("studio")} aria-label="Atlas: back to your drawing">
+          Atlas
+        </button>
+        <nav className="u1-nav" aria-label="more">
+          <button type="button" className="u1-link" aria-pressed={view === "explore"} onClick={() => setView("explore")} data-testid="mode-explore">
+            Draw a codebase
+          </button>
+          <details className="u1-menu">
+            <summary data-testid="u1-demos">Demos</summary>
+            <ul>
+              {DEMOS.map((d) => (
+                <li key={d.mode}>
+                  <button type="button" onClick={(e) => { (e.currentTarget.closest("details") as HTMLDetailsElement).open = false; setView(d.mode); }} data-testid={`mode-${d.mode}`}>
+                    <span>{d.words}</span>
+                    <span className="u1-sub">{d.note}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </details>
+          <button type="button" className="u1-link" aria-expanded={logOpen} aria-controls="u1-log" onClick={() => setLogOpen((o) => !o)} data-testid="u1-log-toggle">
+            {logOpen ? "Hide agent log" : "Agent log"}
+          </button>
+        </nav>
+      </header>
+      <main className="u1-main">
+        <div hidden={view !== "studio"} className="u1-fill">
+          <Studio api={studioApi} onExplore={(s) => { setExploreStart(s ?? null); setView("explore"); }} handoff={handoff} onHandoffUsed={() => setHandoff(null)} onRoundOpen={setRoundOpen} claimant={claimant} onClaimant={pickClaimant} />
+        </div>
+        {view === "explore" && (
+          <section className="u1-sheet" aria-label="Draw a codebase">
+            <ExplorerFlow key={exploreStart?.repo ?? "x"} api={studioApi} saved={savedOutline} onBet={(h) => { setHandoff(h); setView("studio"); }} {...(exploreStart?.repo ? { initialRepo: exploreStart.repo } : {})} {...(exploreStart?.files ? { initialFiles: exploreStart.files } : {})} />
+          </section>
+        )}
+        {demo && (
+          <section className="u1-sheet" aria-label={demo.words}>
+            <Rounds key={demo.mode} initial={demo.mode} embedded />
+          </section>
+        )}
+      </main>
+      <aside id="u1-log" className="u1-log" hidden={!logOpen} aria-label="Agent log">
+        {logOpen && <LiveLogStrip api={studioApi} dropped={null} open onToggle={() => setLogOpen(false)} />}
+      </aside>
+      {roundOpen && <span hidden data-testid="u1-round-open" />}
+    </div>
+  );
+}
+
+function Rounds({ api: given, initial = "fixture", embedded = false }: { api?: Api; initial?: Mode; embedded?: boolean }) {
+  const [mode, setMode] = useState<Mode>(initial);
   // One API client (one session) per target, so switching starts a clean round.
   const fixtureApi = useMemo(() => given ?? createApi(), [given]);
   const prApi = useMemo(() => given ?? createApi(), [given]);
@@ -92,10 +189,12 @@ function Rounds({ api: given }: { api?: Api }) {
   return (
     <div className={`shell${stripOpen ? " with-strip" : ""}${mode === "explore" ? " explore" : ""}`}>
       <main>
-        <header>
-          <h1>Atlas</h1>
-          <p className="muted">Know what your AI-written code does before you trust it.</p>
-        </header>
+        {!embedded && (
+          <header>
+            <h1>Atlas</h1>
+            <p className="muted">Know what your AI-written code does before you trust it.</p>
+          </header>
+        )}
         <nav className="switch" aria-label="what to test">
           <button type="button" className={mode === "fixture" ? "on" : undefined} aria-pressed={mode === "fixture"} onClick={() => setMode("fixture")}>
             withRpcRetry (TypeScript)

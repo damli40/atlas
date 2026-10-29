@@ -229,7 +229,7 @@ describe("S2 (page): a run that did not finish can be tried again with the same 
       if (path === "/runs") runs.push(res.status);
       return res;
     });
-    mount(<App api={api} />);
+    mount(<App api={api} start="fixture" />);
     await until(() => $('[data-testid="pre-existing"]') !== null, "the target card");
     await act(async () => byText("button", "Show the questions")!.click());
     await until(() => $('[data-testid="bet-calls"]') !== null, "the questions");

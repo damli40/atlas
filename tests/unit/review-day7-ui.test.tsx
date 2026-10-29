@@ -118,7 +118,7 @@ describe("M4: the claimant toggle is locked while a round is open", () => {
   it("after the questions are shown (the experiment exists), the toggle cannot change who bets", async () => {
     const app = createApp({});
     const api = createApi((url, init) => Promise.resolve(app.request(url.replace(/^\/api/, ""), init)));
-    mount(<App api={api} />);
+    mount(<App api={api} start="fixture" />);
     await until(() => $('[data-testid="pre-existing"]') !== null, "the target card");
     expect(($('[data-testid="claimant-toggle"]') as HTMLFieldSetElement).disabled).toBe(false);
     await act(async () => byText("button", "Show the questions")!.click());

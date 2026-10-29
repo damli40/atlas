@@ -302,7 +302,7 @@ function mount(sparkOpen: { available: true } | { available: false; reason: stri
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
-  act(() => root!.render(<App api={api} />));
+  act(() => root!.render(<App api={api} start="fixture" />));
 }
 
 describe("D07-01 page", () => {
