@@ -1,0 +1,54 @@
+| # | lang | snippet | found in this code | FALSE | missed |
+|---|---|---|---|---|---|
+| s3-01 | ts | retry with sleep backoff and maxAttempts, no deadline | no-overall-timeout | - | - |
+| s3-02 | ts | retry until a wall-clock deadline, with sleep | - | - | - |
+| s3-03 | ts | tight retry of client.send, no wait, no deadline | retry-storm, no-overall-timeout | - | - |
+| s3-04 | py | bounded retry, per-call timeout=3, sleep | - | - | - |
+| s3-05 | py | connect forever, no wait | retry-storm, no-overall-timeout | - | - |
+| s3-06 | ts | pagination do/while, no try | - | - | - |
+| s3-07 | ts | status polling loop with sleep, no try | - | - | - |
+| s3-08 | ts | retry that rethrows non-retryable errors, delay backoff, no deadline | no-overall-timeout | - | - |
+| s3-09 | ts | per-url inner retry with sleep, no deadline | no-overall-timeout | - | - |
+| s3-10 | ts | loop over shard numbers, shard passed to the call (not a retry) | retry-storm, no-overall-timeout | retry-storm, no-overall-timeout | - |
+| s3-11 | py | tries fn(0), fn(1), fn(2): different inputs, not a retry | retry-storm, no-overall-timeout | retry-storm, no-overall-timeout | - |
+| s3-12 | ts | health check fetch, no timeout | timeout | - | - |
+| s3-13 | ts | fetch with AbortController and setTimeout abort | - | - | - |
+| s3-14 | py | requests.get with params, no timeout | timeout | - | - |
+| s3-15 | py | requests.get with timeout=None (explicitly none) | - | - | timeout |
+| s3-16 | ts | axios instance with a timeout, then api.get | - | - | - |
+| s3-17 | ts | got(url) with no timeout (got has none by default) | - | - | timeout |
+| s3-18 | ts | this.balance += await rate(), no lock | race | - | - |
+| s3-19 | ts | read from a Map, await, write back (lost update through a method) | - | - | lost-update |
+| s3-20 | py | self.total = self.total + await, no lock | race | - | - |
+| s3-21 | py | the same update inside async with self.lock | - | - | - |
+| s3-22 | ts | kafkajs eachMessage, auto-commit, no dedupe (no ack call) | - | - | duplicate-delivery |
+| s3-23 | ts | SQS handler with a MessageId check before work | - | - | - |
+| s3-24 | py | pika callback: charge then basic_ack, no dedupe | duplicate-delivery | - | - |
+| s3-25 | py | pika callback with redis set nx on message_id | - | - | - |
+| s3-26 | ts | drizzle insert then update, no transaction | partial-commit | - | - |
+| s3-27 | ts | prisma.$transaction with two writes | - | - | - |
+| s3-28 | py | sqlalchemy session.add x2 then one commit | - | - | - |
+| s3-29 | py | autocommit on, two INSERTs | partial-commit | - | - |
+| s3-30 | ts | a single update | - | - | - |
+| s3-31 | ts | age from Date.now() minus a stored timestamp | clock-skew | - | - |
+| s3-32 | ts | Date.now() - lastPing > 30000 | clock-skew | - | - |
+| s3-33 | ts | duration from performance.now() | - | - | - |
+| s3-34 | py | elapsed from time.monotonic() | - | - | - |
+| s3-35 | py | deadline = time.time() + 30, no subtraction | - | - | - |
+| s3-36 | ts | toLocaleDateString() with no options | time-zone | - | - |
+| s3-37 | ts | toLocaleDateString with an explicit timeZone | - | - | - |
+| s3-38 | py | datetime.fromtimestamp(ts) with no tz | time-zone | - | - |
+| s3-39 | py | datetime.fromtimestamp(ts, tz=timezone.utc) | - | - | - |
+| s3-40 | ts | retry with node:timers/promises setTimeout as the wait, no deadline | no-overall-timeout | - | - |
+
+found 23, true 19, false 4, precision 82.6%, missed 4
+| marker | found | true | precision |
+|---|---|---|---|
+| no-overall-timeout | 8 | 6 | 75% |
+| retry-storm | 4 | 2 | 50% |
+| timeout | 2 | 2 | 100% |
+| race | 2 | 2 | 100% |
+| duplicate-delivery | 1 | 1 | 100% |
+| partial-commit | 2 | 2 | 100% |
+| clock-skew | 2 | 2 | 100% |
+| time-zone | 2 | 2 | 100% |
