@@ -175,17 +175,19 @@ export const CHANGED_BETWEEN_RUNS_REASON =
  * R2 (D45): code that times its own work. Atlas's clock does not move while code works, so two clock reads at one
  * moment read the same time, and an elapsed time reads 0. The second run of the double run (and only it) plays the
  * code as if its work took time: each repeated read at one moment adds CLOCK_NUDGE_MS (10 ms) for a stopwatch clock
- * (performance.now, process.hrtime, Python's perf_counter and monotonic) and 1 microsecond for the calendar clock
- * (Date, Python's time.time and datetime), and that time stays added for the rest of the run. The clock itself and
- * its timers do not move. A value that changes then depends on how long the work took, which Atlas cannot measure:
- * it is not reported, with TIMED_WORK_REASON. A value that stays the same is reported: a TTL cache that stamps and
- * checks at once, a logger whose timestamps are not returned, an ISO time stamp (whole ms) after a deadline loop.
+ * (performance.now, process.hrtime, Python's perf_counter and monotonic) and a calendar step (below) for the
+ * calendar clock (Date, Python's time.time and datetime), and that time stays added for the rest of the run. The
+ * clock itself and its timers do not move; the call time is compared both ways (twinComparable). A value that
+ * changes then depends on how long the work took, which Atlas cannot measure: it is not reported, with
+ * TIMED_WORK_REASON. A value that stays the same is reported: a TTL cache that stamps and checks at once, a logger
+ * whose timestamps are not returned, a deadline loop's result.
  * Why 10 ms for stopwatches: a check like "took more than 1 ms" (bench T2's h01a and q02c test exactly that) flips.
- * Why 1 microsecond for the calendar clock: about what two back-to-back reads take on a real machine, so time
- * stamps written in whole ms (new Date().toISOString()) stay the same, while `Date.now() - start` is no longer 0.
- * Not caught: a check past a longer time ("took over a second"), a calendar-clock duration that is rounded or checked
- * against more than a microsecond, and `new Date() - start` in JavaScript (a Date holds whole ms).
- * Over-refused: returning two or more raw calendar readings taken at one moment ([Date.now(), Date.now()]).
+ * The calendar clock (R2 review B3, M2): a whole 1 ms in JavaScript, so Date.now() stays a whole number and a Date
+ * (whole ms) shows it; 10 ms in Python, since a smaller step is lost in float rounding near 1.7e9 s.
+ * Not caught (m3, logged): a check past a longer time ("took over a second", "> 50 ms"), a value that comes out the
+ * same by chance (elapsed % 10), Python's timedelta .seconds.
+ * Over-refused (accepted): time stamps returned together from one moment (a logger's own stamps, createdAt and
+ * updatedAt), short windows under the step (a 4 ms memo, a 16 ms frame throttle on performance.now).
  */
 export const CLOCK_NUDGE_MS = 10;
 export const TIMED_WORK_REASON =
@@ -206,7 +208,7 @@ export function mergeTwin(first: Result, second: Result, reason: string = CHANGE
   const keys = [...new Set([...Object.keys(first.measured), ...Object.keys(second.measured)])].sort();
   const has = (r: Result, k: string) => Object.prototype.hasOwnProperty.call(r.measured, k);
   const changed = keys.filter((k) => !(has(first, k) && has(second, k) && first.measured[k] === second.measured[k]));
-  const endingChanged = changed.includes("outcome") || changed.includes("virtualMs");
+  const endingChanged = endsWith(changed, reason);
   const measured: Result["measured"] = {};
   const notMeasured: Result["notMeasured"] = { ...first.notMeasured };
   for (const k of Object.keys(first.measured)) {
@@ -216,6 +218,39 @@ export function mergeTwin(first: Result, second: Result, reason: string = CHANGE
   for (const k of changed) if (!has(first, k)) notMeasured[k] = reason;
   if (endingChanged) for (const k of ENDING_FIELDS) if (k in notMeasured || k in first.measured || k in second.measured) notMeasured[k] = reason;
   return { result: { measured, notMeasured }, changed, endingChanged };
+}
+
+/**
+ * Which changed fields take every field of how the call ended with them. Between two identical runs, a changed outcome
+ * or call time does. R2 review M1: when the second run timed its own work, only a changed outcome does; a call time
+ * that moved because time passed during work is itself "can't check", but the returned value and the outcome stay
+ * measured if they did not change.
+ */
+function endsWith(changed: readonly string[], reason: string): boolean {
+  return changed.includes("outcome") || (reason !== TIMED_WORK_REASON && changed.includes("virtualMs"));
+}
+
+/** R2 review M1: the second run's added time (ms), from its own "conditions" event; 0 when it added none. */
+export function driftIn(trace: readonly Ev[]): number {
+  const ev = trace.find((t) => t.event === "conditions");
+  const d = ev?.data?.driftMs;
+  return typeof d === "number" && Number.isFinite(d) && d > 0 ? d : 0;
+}
+
+/**
+ * R2 review M1: the second run's measured fields, ready to compare with the first run's. Its readings moved forward
+ * but its timers did not, so code that waits until a deadline it read ends `drift` ms early on the virtual clock and
+ * on time as the code saw it. The call time counts as the same when it matches either way: on the virtual clock
+ * (a wait of a fixed length), or with the drift added back (a wait until a deadline the code read).
+ */
+export function twinComparable(first: Result, twin: { trace: readonly Ev[]; result: Result }): Result {
+  const drift = driftIn(twin.trace);
+  const a = first.measured.virtualMs;
+  const b = twin.result.measured.virtualMs;
+  if (drift > 0 && typeof a === "number" && typeof b === "number" && a !== b && Math.abs(b + drift - a) < 1e-6) {
+    return { ...twin.result, measured: { ...twin.result.measured, virtualMs: a } };
+  }
+  return twin.result;
 }
 
 /** R2 (D45): true when this trace's own "conditions" event says the code timed its own work (two reads at one moment). */
@@ -239,19 +274,23 @@ export function twinProblems(r: { trace: Ev[]; result: Result; twin?: { trace: E
   const twinTimed = timedWorkIn(r.twin.trace);
   if (namedClock.length > 0 && !twinTimed) out.push("its trace says values changed because the second run moved the clock, but the second run did not time its own work");
   if (named.length > 0 && twinTimed) out.push("its second run timed its own work (its clock moved), but its trace says values changed between runs for another reason");
+  const twinMeasured = twinComparable(r.result, r.twin).measured;
   for (const [k, v] of Object.entries(r.result.measured)) {
-    if (!Object.prototype.hasOwnProperty.call(r.twin.result.measured, k) || r.twin.result.measured[k] !== v) out.push(`it reports ${k}, but its second run measured it differently`);
+    if (!Object.prototype.hasOwnProperty.call(twinMeasured, k) || twinMeasured[k] !== v) out.push(`it reports ${k}, but its second run measured it differently`);
   }
   for (const k of named) if (r.result.notMeasured[k] !== CHANGED_BETWEEN_RUNS_REASON) out.push(`its trace says ${k} changed between the two runs, but the run does not say so`);
   for (const k of namedClock) if (r.result.notMeasured[k] !== TIMED_WORK_REASON) out.push(`its trace says ${k} changed when the second run moved the clock, but the run does not say so`);
   // When the outcome or its time differs, every field of how the call ended goes with it (mergeTwin), named or not.
   // R2: before R2 this check missed that, so a run whose outcome changed between its two runs failed verify.
-  const covers = (list: readonly string[], k: string) => list.includes(k) || ((list.includes("outcome") || list.includes("virtualMs")) && ENDING_FIELDS.includes(k));
+  const covers = (list: readonly string[], k: string, reason: string) => list.includes(k) || (endsWith(list, reason) && ENDING_FIELDS.includes(k));
   for (const k of Object.keys(r.twin.result.measured)) {
     if (Object.prototype.hasOwnProperty.call(r.result.measured, k)) continue;
-    if (r.result.notMeasured[k] === CHANGED_BETWEEN_RUNS_REASON && !covers(named, k)) out.push(`${k} is marked as changed between runs, but the trace does not name it`);
-    if (r.result.notMeasured[k] === TIMED_WORK_REASON && !covers(namedClock, k)) out.push(`${k} is marked as depending on timed work, but the trace does not name it`);
+    if (r.result.notMeasured[k] === CHANGED_BETWEEN_RUNS_REASON && !covers(named, k, CHANGED_BETWEEN_RUNS_REASON)) out.push(`${k} is marked as changed between runs, but the trace does not name it`);
+    if (r.result.notMeasured[k] === TIMED_WORK_REASON && !covers(namedClock, k, TIMED_WORK_REASON)) out.push(`${k} is marked as depending on timed work, but the trace does not name it`);
   }
+  // R2 review M1: a drift is only ever added by a second run that timed its own work.
+  if (driftIn(r.twin.trace) > 0 && !twinTimed) out.push("its second run says time was added, but it did not time its own work");
+  if (driftIn(r.trace) > 0) out.push("its first run says time was added, which only Atlas's second run does");
   return out;
 }
 

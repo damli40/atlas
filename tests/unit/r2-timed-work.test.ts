@@ -75,14 +75,13 @@ describe("D45, JavaScript: a value computed from the code's own timing is can't 
     const r = await run("export function f(){ const p0 = performance.now(); let x = 0; for (let i = 0; i < 1e5; i++) x = (x + i) % 7; return performance.now() - p0 > 1; }", "js");
     expect(r.result.notMeasured.returnedJson).toBe(TIMED_WORK_REASON);
   });
-  it("process.hrtime and Date.now() differences are caught; `new Date() - start` is not (a known gap: a Date holds whole ms)", async () => {
+  it("process.hrtime, Date.now() and `new Date() - start` differences are all caught (R2 review B3: the calendar step is a whole 1 ms)", async () => {
     const a = await run("export function f(){ const t = process.hrtime(); for (let i = 0; i < 1e5; i++); const d = process.hrtime(t); return d[0] * 1e3 + d[1] / 1e6; }", "js");
     expect(a.result.notMeasured.returnedJson).toBe(TIMED_WORK_REASON);
     const b = await run("export function f(){ const t = Date.now(); for (let i = 0; i < 1e5; i++); return Date.now() - t; }", "js");
     expect(b.result.notMeasured.returnedJson).toBe(TIMED_WORK_REASON);
     const c = await run("export function f(){ const a = new Date(); for (let i = 0; i < 1e5; i++); return new Date() - a; }", "js");
-    expect(c.result.measured.returnedJson).toBe("0");
-    expect(kinds(c)).toEqual(["clock", "timed-work"]);
+    expect(c.result.notMeasured.returnedJson).toBe(TIMED_WORK_REASON);
   });
   it('a check against a longer time ("took over a second") is not caught: reported as fast work gives it (known gap)', async () => {
     const r = await run('export function f(){ const t = performance.now(); for (let i = 0; i < 1e5; i++); return performance.now() - t > 1000 ? "slow" : "fast"; }', "js");
@@ -114,13 +113,35 @@ describe("D45, JavaScript: ordinary code that stamps times but computes no durat
     );
     expect(r.result.measured).toMatchObject({ outcome: "returned", returnedJson: '"ok"', virtualMs: 400, "calls:call": 3 });
   });
-  it("a 5 s deadline loop on Date.now that returns an ISO time stamp at the end: measured (the drift is a microsecond)", async () => {
+  it("a 5 s deadline loop on Date.now that returns an ISO time stamp at the end: the stamp is can't check (accepted, R2 review B3), the call time and outcome stay measured", async () => {
     const r = await run("export async function f() { const start = Date.now(); let n = 0; while (Date.now() - start < 5000) { await new Promise((r) => setTimeout(r, 1000)); n++; } return { n, iso: new Date().toISOString() }; }", "js");
-    expect(r.result.measured).toMatchObject({ virtualMs: 5000, returnedJson: '{"iso":"2026-01-01T00:00:05.000Z","n":5}' });
+    expect(r.result.measured).toMatchObject({ outcome: "returned", virtualMs: 5000 });
+    expect(r.result.notMeasured.returnedJson).toBe(TIMED_WORK_REASON);
   });
-  it("createdAt / updatedAt as ISO text from two new Date() at one moment: measured", async () => {
+  it("createdAt / updatedAt as ISO text from two new Date() at one moment: can't check (accepted: the gap between them is the work time)", async () => {
     const r = await run("export function f(){ return { createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }; }", "js");
-    expect(r.result.measured.returnedJson).toBe('{"createdAt":"2026-01-01T00:00:00.000Z","updatedAt":"2026-01-01T00:00:00.000Z"}');
+    expect(r.result.notMeasured.returnedJson).toBe(TIMED_WORK_REASON);
+  });
+  it("R2 review M1: code that waits until a deadline it read keeps its call time, outcome and value", async () => {
+    const a = await run("const sleep = (ms) => new Promise(r => setTimeout(r, ms)); export async function f(){ const deadline = Date.now() + 1000; let s = 0; for (let i = 0; i < 1e4; i++) s += i; await sleep(Math.max(0, deadline - Date.now())); return s; }", "js");
+    expect(a.result.measured).toMatchObject({ outcome: "returned", virtualMs: 1000, returnedJson: "49995000" });
+    expect(a.twin?.result.measured.virtualMs).toBe(999); // the second run's timers did not move; compared with its 1 ms added back
+    expect(callRunPinProblems(a, "js")).toEqual([]);
+    const b = await run("const sleep = (ms) => new Promise(r => setTimeout(r, ms)); export async function f(){ const t0 = performance.now(); const v = [3,1,2].sort(); const left = 300 - (performance.now() - t0); if (left > 0) await sleep(left); return v; }", "js");
+    expect(b.result.measured).toMatchObject({ outcome: "returned", virtualMs: 300, returnedJson: "[1,2,3]" });
+    expect(callRunPinProblems(b, "js")).toEqual([]);
+  });
+  it("R2 review M1 (minimum): a call time that moved does not take an unchanged value or outcome with it", async () => {
+    const r = await run("const sleep = (ms) => new Promise(r => setTimeout(r, ms)); export async function f(){ const t = Date.now(); for (let i = 0; i < 1e4; i++); await sleep(Date.now() - t + 50); return 7; }", "js");
+    expect(r.result.measured).toMatchObject({ outcome: "returned", returnedJson: "7" });
+    expect(r.result.notMeasured.virtualMs).toBe(TIMED_WORK_REASON);
+    expect(callRunPinProblems(r, "js")).toEqual([]);
+  });
+  it("R2 review M2: Date.now() stays a whole number in the second run (a snowflake id does not throw)", async () => {
+    const r = await run("export function f(){ const a = BigInt(Date.now()) << 12n; const b = (BigInt(Date.now()) << 12n) | 1n; return [String(a), String(b), Number.isInteger(Date.now())]; }", "js");
+    expect(r.result.measured.outcome).toBe("returned");
+    expect(r.result.notMeasured.returnedJson).toBe(TIMED_WORK_REASON);
+    expect(JSON.parse(r.twin!.result.measured.returnedJson as string)[2]).toBe(true);
   });
   it("two raw Date.now() numbers at one moment: can't check (the over-refusal this rule accepts)", async () => {
     const r = await run("export function f(){ return [Date.now(), Date.now()]; }", "js");
@@ -142,13 +163,15 @@ describe.skipIf(!HAVE_PYTHON)("D45, Python", () => {
     expect(kinds(r)).toEqual(["clock", "timed-work", "work-time"]);
     expect(callRunPinProblems(r, "py")).toEqual([]);
   });
-  it("time.time and datetime.now() differences: caught; time_ns rounded to whole ms is not (a known gap)", async () => {
+  it("time.time, datetime.now() and time_ns rounded to whole ms: all caught (R2 review B3: Python's calendar step is 10 ms)", async () => {
     const a = await run("import time\n\ndef f():\n    t = time.time()\n    s = sum(range(100000))\n    return time.time() - t\n", "py");
     expect(a.result.notMeasured.returnedJson).toBe(TIMED_WORK_REASON);
     const b = await run("from datetime import datetime, timezone\n\ndef f():\n    a = datetime.now(timezone.utc)\n    s = sum(range(100000))\n    return (datetime.now(timezone.utc) - a).total_seconds()\n", "py");
     expect(b.result.notMeasured.returnedJson).toBe(TIMED_WORK_REASON);
     const c = await run("import time\n\ndef f():\n    t = time.time_ns()\n    s = sum(range(100000))\n    return (time.time_ns() - t) // 1_000_000\n", "py");
-    expect(c.result.measured.returnedJson).toBe("0");
+    expect(c.result.notMeasured.returnedJson).toBe(TIMED_WORK_REASON);
+    const d = await run("import time\n\ndef f():\n    t = time.time()\n    s = sum(range(100000))\n    return int((time.time() - t) * 1000)\n", "py");
+    expect(d.result.notMeasured.returnedJson).toBe(TIMED_WORK_REASON);
   });
   it("raising when slow: how the call ended is can't check", async () => {
     const r = await run('import time\n\ndef f():\n    t = time.monotonic()\n    s = sum(range(100000))\n    if time.monotonic() - t > 0:\n        raise TimeoutError("slow")\n    return s\n', "py");
@@ -218,7 +241,7 @@ describe("D45, the pieces", () => {
     expect(CLOCK_NUDGE_MS).toBe(10);
     expect(TIMED_WORK_REASON).toMatch(/^Atlas's clock is simulated and can't measure real work time: /);
     expect(CONDITION_WORDS.timedWork).toContain(`${CLOCK_NUDGE_MS} ms more at each repeated read of a stopwatch clock`);
-    expect(CONDITION_WORDS.timedWork).toContain("1 microsecond more at each repeated read of the calendar clock");
+    expect(CONDITION_WORDS.timedWork).toContain("1 ms more (JavaScript) or 10 ms more (Python) at each repeated read of the calendar clock");
     expect(CONDITION_WORDS.workTime("returnedJson")).toMatch(/Atlas's clock is simulated and can't measure real work time/);
     expect(CONDITION_WORDS.timedWork).not.toMatch(/don't reflect your machine/);
   });

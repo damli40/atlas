@@ -1301,6 +1301,9 @@ def main(key_text):
             data = {"kinds": sorted(kinds)}
             if host:
                 data["host"] = sorted(host)
+            # R2 review M1: the second run's added time, so its call time can be compared as the code saw it.
+            if REPEATS[1] > 0:
+                data["driftMs"] = ms(REPEATS[1])
             ctx["trace"].append({"t": ms(ctx["clock"]), "event": "conditions", "data": data})
 
         measured = {}

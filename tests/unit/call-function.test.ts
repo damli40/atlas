@@ -231,7 +231,11 @@ describe("time", () => {
   it("Date.now and performance.now follow the virtual clock (a 5 s deadline loop ends at 5 s)", async () => {
     const src = `export async function f() { const start = Date.now(); let n = 0; while (Date.now() - start < 5000) { await new Promise((r) => setTimeout(r, 1000)); n++; } return { n, iso: new Date().toISOString() }; }`;
     const r = await runPasted(src, { exportName: "f" });
-    expect(r.result.measured).toMatchObject({ outcome: "returned", virtualMs: 5000, returnedJson: '{"iso":"2026-01-01T00:00:05.000Z","n":5}' });
+    expect(r.result.measured).toMatchObject({ outcome: "returned", virtualMs: 5000 });
+    // R2 (D45, review B3): the code reads the clock twice at 0 ms and twice at 5 s, so the second run adds 1 ms each
+    // time and the ISO stamp at the end reads 5.002 s there: that stamp depends on work time and is can't check.
+    expect(r.result.notMeasured.returnedJson).toMatch(/^Atlas's clock is simulated and can't measure real work time/);
+    expect(r.twin?.result.measured.returnedJson).toBe('{"iso":"2026-01-01T00:00:05.002Z","n":5}');
   });
   it("a timer started while the file loads: whole run can't check", async () => {
     const r = await runPasted(`setInterval(() => {}, 1000);\nexport function f() { return 1; }`, { exportName: "f" });

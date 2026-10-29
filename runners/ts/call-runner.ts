@@ -19,7 +19,7 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { nanoid } from "nanoid";
-import { CALL_PINNED_LOCALE, CALL_PINNED_SEED, CALL_PINNED_TIME_ZONE, CLOCK_NUDGE_MS, conditionsFromTrace, isCallSeed, mergeTwin, pinnedFor, timedWorkIn, CHANGED_BETWEEN_RUNS_REASON, TIMED_WORK_REASON } from "../../src/conditions.ts";
+import { CALL_PINNED_LOCALE, CALL_PINNED_SEED, CALL_PINNED_TIME_ZONE, CLOCK_NUDGE_MS, conditionsFromTrace, isCallSeed, mergeTwin, pinnedFor, timedWorkIn, twinComparable, CHANGED_BETWEEN_RUNS_REASON, TIMED_WORK_REASON } from "../../src/conditions.ts";
 import { gate } from "../../src/gate.ts";
 import { staticRefusal } from "../../src/pasted-code.ts";
 import type { ArgSpec, Experiment, ExperimentShape, JsonValue, Run, Target, TraceEvent } from "../../src/types.ts";
@@ -435,7 +435,8 @@ export async function twinRun(first: Out, again: () => Promise<{ out?: Out; reas
   }
   const timed = timedWorkIn(second.out.trace);
   const reason = timed ? TIMED_WORK_REASON : CHANGED_BETWEEN_RUNS_REASON;
-  const merged = mergeTwin(first.result, second.out.result, reason);
+  // R2 review M1: the call time compared as the code saw it too (a wait until a deadline the code read).
+  const merged = mergeTwin(first.result, timed ? twinComparable(first.result, second.out) : second.out.result, reason);
   const trace = [...first.trace];
   const t = trace.length ? trace[trace.length - 1]!.t : 0;
   if (merged.changed.length > 0) trace.push({ t, event: timed ? "clock_differs" : "twin_differs", data: { fields: merged.changed } });

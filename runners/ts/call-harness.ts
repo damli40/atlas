@@ -214,9 +214,11 @@ function noteUndecided(kind: string, reason: string): void {
 /**
  * R2 (D45): the second run of the double run plays the code as if its work took time. Each repeated read at one
  * virtual moment adds time to the run's drift: clockNudgeMs (10 ms) for a stopwatch clock (performance.now,
- * process.hrtime, process.uptime), and one ten-thousandth of it (1 microsecond) for the calendar clock (Date.now,
- * new Date(), Intl). The drift stays added for the rest of the run, as real time would, so a wait after the work
- * still reads its full length. Only the readings move; the virtual clock and its timers do not. 0 in the first run.
+ * process.hrtime, process.uptime), and a whole 1 ms for the calendar clock (Date.now, new Date(), Intl), so Date.now()
+ * stays a whole number and a Date (whole ms) shows it (R2 review B3, M2). The drift stays added for the rest of the
+ * run, as real time would. Only the readings move; the virtual clock and its timers do not. The run's drift is written
+ * in its "conditions" event (driftMs), so the call's time can also be compared as the code saw it (src/conditions.ts
+ * twinComparable, R2 review M1). 0 in the first run.
  */
 let clockNudgeMs = 0;
 let driftMs = 0;
@@ -235,7 +237,7 @@ function noteClockRead(stopwatch: boolean): number {
   if (!active) return 0;
   if (lastReadAt === active.now) {
     noteCondition("timed-work");
-    driftMs += stopwatch ? clockNudgeMs : clockNudgeMs / 10000;
+    driftMs += stopwatch ? clockNudgeMs : clockNudgeMs / 10;
   }
   lastReadAt = active.now;
   return driftMs;
@@ -1615,7 +1617,12 @@ export async function runCall(fn: unknown, req: CallRunRequest, opts: CallHarnes
     put(ev, "t", clock.now);
     put(ev, "event", "conditions");
     const host = ReflectOwnKeys(hostReads) as string[];
-    put(ev, "data", host.length > 0 ? { kinds: ReflectApply(ArraySort, kinds, []), host: ReflectApply(ArraySort, host, []) } : { kinds: ReflectApply(ArraySort, kinds, []) });
+    const data = record<Record<string, unknown>>();
+    put(data, "kinds", ReflectApply(ArraySort, kinds, []));
+    if (host.length > 0) put(data, "host", ReflectApply(ArraySort, host, []));
+    // R2 review M1: the second run's added time, so its call time can be compared as the code saw it.
+    if (driftMs > 0) put(data, "driftMs", driftMs);
+    put(ev, "data", data);
     append(trace, ev);
   }
 
