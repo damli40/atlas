@@ -21,12 +21,13 @@ import { readFileSync } from "node:fs";
 import { nanoid } from "nanoid";
 import { gate } from "../../src/gate.ts";
 import { staticRefusalPy } from "../../src/pasted-python.ts";
+import { networkGap } from "../../src/network-fake.ts";
 import type { ArgSpec, Experiment, ExperimentShape, JsonValue, Run, Target, TraceEvent } from "../../src/types.ts";
 import { MODAL_IMAGE } from "../executor/modal.ts";
 import { findPython, pythonSandboxExecutor } from "../executor/sandbox-exec-python.ts";
 import type { ExecRuntime, Executor } from "../runner.ts";
 import { CALL_DEFAULT_WATCH_LIMIT_MS, type CallRunRequest, type CallWorkerResponse } from "../ts/call-harness.ts";
-import { CALL_SEED, compareCallCase, parseCallWorkerOutput, reuseControl, toWire, twinRun, type CallControlCase } from "../ts/call-runner.ts";
+import { CALL_SEED, compareCallCase, networkToWire, parseCallWorkerOutput, reuseControl, toWire, twinRun, type CallControlCase } from "../ts/call-runner.ts";
 import { ACCESS_REASON, PIN_FAILED_REASON, PROCESS_REASON, REAL_TIME_REASON } from "../ts/call-words.ts";
 import { CALL_PINNED_LOCALE, CALL_PINNED_TIME_ZONE, CLOCK_NUDGE_MS, conditionsFromTrace, isCallSeed, pinnedFor } from "../../src/conditions.ts";
 import {
@@ -174,7 +175,7 @@ async function pySandboxAnswer(executor: Executor, code: string, request: PyWork
 }
 
 function runRequest(id: string, p: CallShape): CallRunRequest {
-  return { id, exportName: p.exportName, args: toWire(p.args), watchLimitMs: p.watchLimitMs ?? CALL_DEFAULT_WATCH_LIMIT_MS };
+  return { id, exportName: p.exportName, args: toWire(p.args), watchLimitMs: p.watchLimitMs ?? CALL_DEFAULT_WATCH_LIMIT_MS, ...(p.network ? { network: networkToWire(p.network) } : {}) };
 }
 
 // ── the control ──────────────────────────────────────────────────────────────────────────────────
@@ -400,7 +401,8 @@ export async function runPyCallExperiment(exp: Experiment, ctl: Run, opts: { exe
   let python: PythonInfo | undefined;
   let runtime: ExecRuntime | undefined;
   let twin: Run["twin"];
-  const refused = staticRefusalPy(source);
+  // U2 (D53): a network library the code imports and the test does not fake is known before running.
+  const refused = networkGap(source, "py", exp.params.network) ?? staticRefusalPy(source, { fakes: exp.params.network ? [exp.params.network.replaces] : [] });
   if (refused) {
     result = { measured: {}, notMeasured: { wholeRun: refused } };
     trace.push({ t: 0, event: "refused_before_running", data: { reason: refused } });

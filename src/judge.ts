@@ -31,6 +31,7 @@
 import type { Bet, Run, Verdict } from "./types";
 import { canonicalJson } from "./seal";
 import { quizMembership } from "./quiz";
+import type { QuizOption } from "./types";
 import { ENUM_FIELD_OPTION_SETS, alignDecimals, measuredUnit, parseExactDecimal, usdToUsd1e18, type ExactDecimal } from "./units";
 
 const USD_1E18_PREFIX = "priceUsd1e18:";
@@ -82,7 +83,7 @@ function withinFloor(observed: ExactDecimal, value: ExactDecimal, floor: number)
  * Judges one bet against one run. `opts.timingRule` is the rule a timing bet is judged with: D46 by default (every new
  * verdict); null for the rule before D46, which verify uses for a stored verdict that records no rule.
  */
-export function judge(bet: Bet, run: Run, opts: { timingRule?: TimingRule | null } = {}): Verdict {
+export function judge(bet: Bet, run: Run, opts: { timingRule?: TimingRule | null; watchLimitRule?: boolean } = {}): Verdict {
   const timingRule = opts.timingRule === undefined ? TIMING_RULE : opts.timingRule;
   const base = { betId: bet.id, runId: run.id, judgedBy: "src/judge.ts" as const };
   const cantCheck = (reason: string, observed?: Observed, reference?: Reference): Verdict => ({
@@ -115,6 +116,16 @@ export function judge(bet: Bet, run: Run, opts: { timingRule?: TimingRule | null
   // 2. The bettor would not guess.
   if (bet.answer.kind === "declined") {
     return cantCheck("the bettor declined", observed, reference);
+  }
+  // 2a. U2 (D53): a call still running at the watch limit W took longer than W (or never ends). A quiz timing option is
+  //     judged on that: an option holding every time above W matched; one holding no time above W didn't match; any
+  //     other option (one that holds some times above W but not all) stays can't check.
+  if (opts.watchLimitRule !== false && bet.answer.kind === "quiz" && field === "virtualMs" && own(run.result.measured, "outcome") === "still_running_at_watch_limit") {
+    const w = watchLimitOf(run);
+    if (w !== null) {
+      const r = quizBeyondLimit(bet.answer.choice, bet.answer.options, w);
+      if (r !== null) return { ...base, outcome: r ? "matched" : "not_matched", observed: `more than ${w} ms (still running at Atlas's watch limit)` };
+    }
   }
   // 3. The runner says it knows it did not measure this field.
   const notMeasuredReason = own(run.result.notMeasured, field);
@@ -257,4 +268,31 @@ export function judge(bet: Bet, run: Run, opts: { timingRule?: TimingRule | null
       return cantCheck(`unknown bet kind ${String((unknownKind as { kind?: unknown }).kind)}`, observed, reference);
     }
   }
+}
+
+
+/** U2: the run's watch limit in virtual ms, from its own "start" trace event (written by the harness), or null. */
+export function watchLimitOf(run: Pick<Run, "trace">): number | null {
+  const ev = Array.isArray(run.trace) ? run.trace.find((t) => t && t.event === "start") : undefined;
+  const w = ev?.data && (ev.data as Record<string, unknown>).watchLimitMs;
+  return typeof w === "number" && Number.isSafeInteger(w) && w > 0 ? w : null;
+}
+
+/**
+ * U2: for a time known only to be above `w` ms: true when the chosen option holds every time above w, false when it
+ * holds none, null when it holds some (or the option is not a time range).
+ */
+export function quizBeyondLimit(choice: string, options: readonly QuizOption[], w: number): boolean | null {
+  if (!Array.isArray(options)) return null;
+  const picked = options.find((o) => o && o.id === choice);
+  if (!picked || !picked.match || picked.match.kind !== "ms") return null;
+  const m = picked.match;
+  const lo = Number(m.min);
+  const hi = m.max === null ? null : Number(m.max);
+  if (!Number.isFinite(lo) || (hi !== null && !Number.isFinite(hi))) return null;
+  // Every t > w is inside when there is no upper end and the lower end is at or below w.
+  if (hi === null) return lo <= w ? true : null;
+  // No t > w is inside when the upper end is at or below w.
+  if (hi <= w) return false;
+  return null;
 }

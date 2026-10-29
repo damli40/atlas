@@ -21,6 +21,7 @@ import { TIMING_TOLERANCE_PCT, matchRuleWords } from "./judge";
 import { plural } from "./words";
 import { modelDisplay } from "./claimants";
 import { WONDER_MODEL, WONDER_DISPLAY } from "./paste-words";
+import { LIBRARY_WORDS } from "./network-fake";
 import { CALL_PINNED_LOCALE, CALL_PINNED_SEED, CALL_PINNED_TIME_ZONE } from "./conditions";
 
 type CallShape = Extract<ExperimentShape, { shape: "call-function" }>;
@@ -134,7 +135,9 @@ export function pastedBetHead(input: PastedContextInput & { repeatOf?: string })
   const said = describeCall(call);
   return [
     `Code: one pasted ${lang} file, ${plural(lineCount, "line")}, fingerprint ${t.codeSha256.slice(0, 12)}…`,
-    "Where it runs: Atlas's sandbox, with no network, no files and no packages, on a virtual clock that starts at 2026-01-01T00:00:00Z (waits cost no real time).",
+    call.network
+      ? `Where it runs: Atlas's sandbox, with no files and no packages, and the real network blocked (this test's fake ${LIBRARY_WORDS[call.network.replaces]} answers instead, as scripted below), on a virtual clock that starts at 2026-01-01T00:00:00Z (waits cost no real time).`
+      : "Where it runs: Atlas's sandbox, with no network, no files and no packages, on a virtual clock that starts at 2026-01-01T00:00:00Z (waits cost no real time).",
     // R1 review M5: the pins are said to every bettor before sealing (a bet is about Atlas's run, so its settings count).
     pinsSentence(t.language ?? "js"),
     `What will run: ${said}`,

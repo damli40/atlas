@@ -16,14 +16,21 @@ import { canonicalJson } from "../../../src/seal";
 import { visibleText } from "../../../src/gate";
 import { modelDisplay } from "../../../src/claimants";
 import { CLOCK_ID, deviceId, type CallTest } from "./model";
+import { networkStepFor, networkStepWords } from "../../../src/network-fake";
+import { watchLimitOf } from "../../../src/judge";
 
 export interface PlayStep {
-  /** Virtual ms of the call. */
+  /** Virtual ms of the step. */
   at: number;
-  device: string;
+  /** "call": a stand-in or the network fake was called; "wait": the clock jumped (a wait ended); "end": the call ended. */
+  kind: "call" | "wait" | "end";
+  /** The device whose lamp lights (a call), or null. */
+  device: string | null;
   line: string | null;
+  /** Code boxes lit during this step (a wait lights the parts that wait; the end lights the function). */
+  parts: string[];
   call: number;
-  /** "call 2: throws TimeoutError" (the scripted answer of this call, in the trace's own terms). */
+  /** "call 2: throws TimeoutError", "waits until 400 ms", "throws TypeError: bad" (the words on the chip). */
   words: string;
 }
 export interface Script {
@@ -36,6 +43,8 @@ export interface Script {
   dialEndMs: number | null;
   /** The function box's ending words, or null when the ending is can't-check. */
   ending: string | null;
+  /** U2: true when the dial's end is the watch limit (the call was still running there), not a settle time. */
+  atLimit?: boolean;
 }
 
 const stepText = (s: StandInStep | undefined): string =>
@@ -45,31 +54,97 @@ const short = (s: string) => {
   return v.length > 32 ? `${v.slice(0, 31)}…` : v;
 };
 
-export function playScript(run: Run, test: CallTest, tested: string | null): Script {
+/** U2: the thrown value in plain words: "TypeError: bad key", "undefined", "a string". Null when the run did not say. */
+export function thrownWords(run: Pick<Run, "result">): string | null {
+  const m = run.result.measured;
+  const name = typeof m.thrownName === "string" ? m.thrownName : null;
+  const msg = typeof m.thrownMessage === "string" ? m.thrownMessage : null;
+  if (name) {
+    const full = visibleText(`${name}${msg ? `: ${msg}` : ""}`);
+    return full.length > 140 ? `${full.slice(0, 139)}…` : full;
+  }
+  const type = typeof m.thrownType === "string" ? m.thrownType : null;
+  if (type === null) return null;
+  if (type === "undefined" || type === "null") return `${type} (not an Error)`;
+  return `a ${type} (not an Error)`;
+}
+
+/** The most steps one replay shows; past it, waits are thinned (every call is kept). */
+export const MAX_PLAY_STEPS = 40;
+
+/**
+ * The run as steps on the drawing. `waitParts`: code boxes that contain a wait (plain code's reading of the file); they
+ * light when the clock jumps. Every step comes from the run's own trace; the test gives only the words of a scripted
+ * answer.
+ */
+export function playScript(run: Run, test: CallTest, tested: string | null, waitParts: readonly string[] = []): Script {
   const tl = timelineModel(run);
   const empty: Script = { notShown: tl.notShown, steps: [], totals: {}, dialEndMs: null, ending: null };
   if (tl.notShown !== null) return empty;
   const measured = run.result.measured;
   const has = (k: string) => Object.prototype.hasOwnProperty.call(measured, k);
-  const steps: PlayStep[] = [];
+  const calls: PlayStep[] = [];
   const totals: Record<string, string> = {};
   for (const lane of tl.lanes) {
     if (!has(`calls:${lane.name}`)) continue; // can't check: this device animates nothing
     const spec = test.args.find((a) => a.kind === "stand-in" && a.name === lane.name);
     const scripted = spec && spec.kind === "stand-in" ? spec : null;
+    const net = test.network && test.network.replaces === lane.name ? test.network : null;
     const id = deviceId(lane.name);
     for (const c of lane.calls) {
-      const step = scripted ? (c.n <= scripted.calls.length ? scripted.calls[c.n - 1] : scripted.then === "repeat_last" ? scripted.calls[scripted.calls.length - 1] : undefined) : undefined;
-      const said = c.answer === "no_answer_seen" ? "no answer before Atlas stopped watching" : stepText(step);
-      steps.push({ at: c.t, device: id, line: tested ? `${tested}=>${id}` : null, call: c.n, words: `call ${c.n}: ${said}` });
+      let said: string;
+      if (c.answer === "no_answer_seen") said = "no answer before Atlas stopped watching";
+      else if (net) {
+        const step = networkStepFor(net, c.n);
+        said = step ? networkStepWords(step, canonicalJson) : "throws AtlasStandInExhausted (no scripted answer left)";
+        if (step?.do === "never_answer" && c.answer === "threw") said = `never answers; the code gave up${c.errorName ? ` (${c.errorName})` : ""}`;
+      } else {
+        const step = scripted ? (c.n <= scripted.calls.length ? scripted.calls[c.n - 1] : scripted.then === "repeat_last" ? scripted.calls[scripted.calls.length - 1] : undefined) : undefined;
+        said = stepText(step);
+      }
+      calls.push({ at: c.t, kind: "call", device: id, line: tested ? `${tested}=>${id}` : null, parts: tested ? [tested] : [], call: c.n, words: `${lane.name} call ${c.n}: ${short(said).length < said.length ? said.slice(0, 60) : said}` });
     }
     const n = Number(measured[`calls:${lane.name}`]);
     totals[id] = `${n.toLocaleString("en-US")} ${n === 1 ? "call" : "calls"}`;
   }
-  steps.sort((a, b) => a.at - b.at || a.call - b.call);
-  const dialEndMs = has("virtualMs") && typeof measured.virtualMs === "number" ? measured.virtualMs : null;
-  const ending = has("outcome") ? tl.readout : null;
-  return { notShown: null, steps, totals, dialEndMs, ending };
+  // U2: the waits, from the run's own record of where its clock jumped ("clock_moves"; display only, never judged).
+  const ev = (run.trace ?? []).find((e) => e.event === "clock_moves");
+  const at = ev?.data && Array.isArray((ev.data as { at?: unknown }).at) ? ((ev.data as { at: unknown[] }).at.filter((x): x is number => typeof x === "number" && Number.isFinite(x))) : [];
+  const callTimes = new Set(calls.map((c) => c.at));
+  // Review m5: a moment when a stand-in or the fake network ANSWERED late (or gave up) is that device's, not the code's
+  // own wait: it lights the device, not the code's waiting parts.
+  const answeredBy = new Map<number, { device: string; words: string }>();
+  for (const e of run.trace ?? []) {
+    if (e.event !== "stand_in_returns" && e.event !== "stand_in_throws") continue;
+    const d = (e.data ?? {}) as { name?: unknown; afterMs?: unknown; aborted?: unknown; errorName?: unknown };
+    if (typeof d.name !== "string" || !has(`calls:${d.name}`) || callTimes.has(e.t) || answeredBy.has(e.t)) continue;
+    if (e.event === "stand_in_returns" && typeof d.afterMs !== "number") continue;
+    answeredBy.set(e.t, { device: deviceId(d.name), words: e.event === "stand_in_returns" ? `${d.name} answers at ${e.t.toLocaleString("en-US")} ms` : `${d.name} call ends at ${e.t.toLocaleString("en-US")} ms (${String(d.errorName ?? "an error")})` });
+  }
+  let waits: PlayStep[] = at
+    .filter((t) => !callTimes.has(t))
+    .map((t) => {
+      const dev = answeredBy.get(t);
+      return dev
+        ? { at: t, kind: "wait" as const, device: dev.device, line: tested ? `${tested}=>${dev.device}` : null, parts: [], call: 0, words: dev.words }
+        : { at: t, kind: "wait" as const, device: null, line: null, parts: waitParts.length ? [...waitParts] : tested ? [tested] : [], call: 0, words: `waits until ${t.toLocaleString("en-US")} ms` };
+    });
+  const room = Math.max(0, MAX_PLAY_STEPS - calls.length);
+  if (waits.length > room) {
+    const k = Math.ceil(waits.length / Math.max(1, room));
+    waits = waits.filter((_, i) => i % k === k - 1 || i === waits.length - 1).slice(-Math.max(1, room));
+  }
+  const steps = [...calls, ...waits].sort((a, b) => a.at - b.at || (a.kind === b.kind ? a.call - b.call : a.kind === "wait" ? -1 : 1));
+  const outcome = has("outcome") ? measured.outcome : null;
+  const atLimit = outcome === "still_running_at_watch_limit" && tl.end?.kind === "still_running";
+  const dialEndMs = has("virtualMs") && typeof measured.virtualMs === "number" ? measured.virtualMs : atLimit && tl.end && "t" in tl.end ? tl.end.t : null;
+  let ending = has("outcome") ? tl.readout : null;
+  if (ending && outcome === "threw") {
+    const w = thrownWords(run);
+    if (w) ending = `threw ${w}${typeof measured.virtualMs === "number" ? ` at ${measured.virtualMs.toLocaleString("en-US")} ms` : ""}`;
+  }
+  if (ending !== null) steps.push({ at: dialEndMs ?? steps[steps.length - 1]?.at ?? 0, kind: "end", device: null, line: null, parts: tested ? [tested] : [], call: 0, words: ending });
+  return { notShown: null, steps, totals, dialEndMs, ending, ...(atLimit ? { atLimit: true } : {}) };
 }
 
 export type MarkOutcome = Verdict["outcome"];
@@ -106,7 +181,24 @@ export function marksOf(questions: readonly Question[], bets: readonly Bet[], ve
     const observed = Object.prototype.hasOwnProperty.call(run.result.measured, q.measures) ? run.result.measured[q.measures]! : undefined;
     const why = run.result.notMeasured[q.measures] ?? run.result.notMeasured.wholeRun;
     const holder = observed !== undefined && run.controlPassed === true && q.quiz ? optionHolding(q.quiz, q.unit, observed) : null;
-    const measured = notShown !== null ? `can't check: ${notShown}` : run.controlPassed !== true ? "can't check: the run is not trusted" : observed === undefined ? `can't check: ${why ?? "not measured"}` : holder ? holder.label : String(observed);
+    let measured = notShown !== null ? `can't check: ${notShown}` : run.controlPassed !== true ? "can't check: the run is not trusted" : observed === undefined ? `can't check: ${why ?? "not measured"}` : holder ? holder.label : String(observed);
+    // U2: "another value" says which value ("[2,4,6] (another value)").
+    if (notShown === null && holder && holder.match.kind === "json-other" && typeof observed === "string") measured = `${visibleText(observed).length > 60 ? `${visibleText(observed).slice(0, 59)}…` : visibleText(observed)} (${holder.label})`;
+    // U2: a count or a time says its own number too, then the option that holds it ("4 times: 2 or more times").
+    if (notShown === null && holder && typeof observed === "number" && (q.unit === "count" || q.unit === "ms")) {
+      const said = q.unit === "count" ? `${observed.toLocaleString("en-US")} ${observed === 1 ? "time" : "times"}` : `${observed.toLocaleString("en-US")} ms`;
+      if (said !== holder.label && !holder.label.startsWith(`${said} `)) measured = `${said} (${holder.label})`;
+    }
+    // U2: the thrown value, plainly ("throws undefined (not an Error)", "throws TypeError: bad key").
+    if (notShown === null && q.measures === "outcome" && observed === "threw") {
+      const w = thrownWords(run);
+      if (w) measured = `throws ${w}`;
+    }
+    // U2: a call still running at the watch limit took longer than the limit.
+    if (notShown === null && q.measures === "virtualMs" && observed === undefined && run.result.measured.outcome === "still_running_at_watch_limit") {
+      const w = watchLimitOf(run);
+      if (w !== null) measured = `more than ${w.toLocaleString("en-US")} ms (still running when Atlas stopped watching)`;
+    }
     const picks = bets
       .filter((b) => b.measures === q.measures)
       .map((b) => {

@@ -73,8 +73,16 @@ describe("POST /paste", () => {
     expect(run.json.run.controlPassed).toBe(true);
     expect(run.json.run.result.measured).toMatchObject({ outcome: "returned", returnedJson: "3" });
     expect(run.json.verdicts[0].outcome).toBe("matched");
-    const pkg = await c.post("/paste", { code: "import requests\n\ndef get(u):\n    return requests.get(u).text\n" });
-    expect(pkg.json.cantCheck).toMatch(/requests/);
+    const pkg = await c.post("/paste", { code: "import numpy\n\ndef get(u):\n    return numpy.zeros(u)\n" });
+    expect(pkg.json.cantCheck).toMatch(/numpy/);
+    // U2 (D53): requests is a network library a test can fake, so the paste itself is runnable; a test without the
+    // fake is refused before running, with the network reason.
+    const net = await c.post("/paste", { code: "import requests\n\ndef get(u):\n    return requests.get(u).text\n" });
+    expect(net.json.cantCheck).toBeNull();
+    const ne = await c.post("/experiments", { target: { ref: net.json.target.ref, codeSha256: net.json.target.codeSha256 }, params: { shape: "call-function", exportName: "get", args: [{ kind: "json", value: "http://x" }] } });
+    await c.post("/bets", { experimentId: ne.json.experiment.id, who: "human", bets: [{ measures: "outcome", answer: { kind: "enum", value: "returned" } }] });
+    const nr = await c.post("/runs", { experimentId: ne.json.experiment.id });
+    expect(nr.json.run.result.notMeasured.wholeRun).toMatch(/calls requests \(line 1\) and this test has no fake for it/);
     const lib = await c.post("/paste", { code: "import sqlite3\n\ndef f():\n    return 1\n" });
     expect(lib.json.runnable).toBe(true);
     const le = await c.post("/experiments", { target: { ref: lib.json.target.ref, codeSha256: lib.json.target.codeSha256 }, params: { shape: "call-function", exportName: "f", args: [] } });
@@ -190,10 +198,11 @@ describe("Muse Wonder's proposals", () => {
     const c2 = client(two.app);
     const p2 = await c2.post("/paste", { code: RETRY_SRC });
     const t2 = { ref: p2.json.target.ref, codeSha256: p2.json.target.codeSha256 };
-    for (let i = 0; i < 3; i++) expect((await c2.post("/paste/proposals", { target: t2, exportName: "retryWithBackoff" })).json.ok).toBe(true);
-    const fourth = await c2.post("/paste/proposals", { target: t2, exportName: "retryWithBackoff" });
-    expect(fourth.json.reason).toMatch(/call limit reached/);
-    expect(two.m.calls).toHaveLength(3);
+    // U2: the cap is 6 per session (was 3), so "Bet on another test" and "Test this claim" both stay usable.
+    for (let i = 0; i < 6; i++) expect((await c2.post("/paste/proposals", { target: t2, exportName: "retryWithBackoff" })).json.ok).toBe(true);
+    const seventh = await c2.post("/paste/proposals", { target: t2, exportName: "retryWithBackoff" });
+    expect(seventh.json.reason).toMatch(/call limit reached/);
+    expect(two.m.calls).toHaveLength(6);
   });
 });
 

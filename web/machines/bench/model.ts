@@ -14,13 +14,15 @@ import type { ExperimentShape, StandInStep } from "../../../src/types";
 import type { ExplorerModel } from "../explorer/model";
 import { visibleText } from "../../../src/gate";
 import { canonicalJson } from "../../../src/seal";
+import { networkStepWords } from "../../../src/network-fake";
 
 export type CallTest = Extract<ExperimentShape, { shape: "call-function" }>;
 
 /** The id of the clock housing's box (never a function name: it has a space). */
 export const CLOCK_ID = "clock housing";
 export const deviceId = (standIn: string) => `stand-in ${standIn}`;
-export const STANDIN_FOLDER = "Atlas's stand-ins";
+/** U2: short enough for the deck plate (the longer "Atlas's stand-ins" was cut to "Atlas's st…"). */
+export const STANDIN_FOLDER = "stand-ins";
 
 export interface BenchInput {
   /** The file name shown on its deck plate ("pasted.ts"). */
@@ -35,7 +37,7 @@ export interface BenchInput {
 /** What a box is, for the hover card. */
 export type BenchPart =
   | { kind: "code"; part: FilePart; callsTo: string[]; calledBy: string[] }
-  | { kind: "device"; name: string; async: boolean; steps: string[]; then: string }
+  | { kind: "device"; name: string; async: boolean; steps: string[]; then: string; network?: boolean }
   | { kind: "clock"; fullMs: number; marks: number[] };
 
 export type BenchModel = ExplorerModel & {
@@ -86,12 +88,24 @@ export function benchModel(input: BenchInput): BenchModel {
       slots.push({ kind: "box", id, slices: [{ path: STANDIN_FOLDER, lines: 0 }] });
       if (tested) lines.push({ id: `${tested}=>${id}`, from: tested, to: id, kind: "calls", status: "plain" as unknown as "confirmed", codeEdges: 1, typeOnly: false });
     }
+    // U2 (D53): the network fake is a device too, wired to the function, with its own lamp.
+    if (test.network) {
+      const nf = test.network;
+      const id = deviceId(nf.replaces);
+      if (!parts[id]) {
+        parts[id] = { kind: "device", name: nf.replaces, async: true, network: true, steps: nf.calls.map((c) => networkStepWords(c, canonicalJson)), then: nf.then === "repeat_last" ? "every later call does the same as the last" : "any later call throws AtlasStandInExhausted" };
+        boxes.push(box(id, nf.replaces, 0, STANDIN_FOLDER, { device: true }) as ExplorerModel["boxes"][number]);
+        slots.push({ kind: "box", id, slices: [{ path: STANDIN_FOLDER, lines: 0 }] });
+        if (tested) lines.push({ id: `${tested}=>${id}`, from: tested, to: id, kind: "calls", status: "plain" as unknown as "confirmed", codeEdges: 1, typeOnly: false });
+      }
+    }
     const dial = input.dial ?? { marks: [], fullMs: 1000 };
     parts[CLOCK_ID] = { kind: "clock", fullMs: dial.fullMs, marks: dial.marks };
     boxes.push(box(CLOCK_ID, "clock", 0, STANDIN_FOLDER, { dial: { marks: dial.marks.map((m) => m / dial.fullMs) } }) as ExplorerModel["boxes"][number]);
     slots.push({ kind: "box", id: CLOCK_ID, slices: [{ path: STANDIN_FOLDER, lines: 0 }] });
     decks.push({ folder: STANDIN_FOLDER, slots });
-    extraLabel = `A second deck holds Atlas's stand-ins for this test: ${standIns.length === 0 ? "none" : standIns.map((s) => s.name).join(", ")}${tested && standIns.length ? `, each a small device with a signal lamp, wired to ${tested}` : ""}; and a clock housing whose dial is Atlas's virtual clock, from 0 to ${dial.fullMs.toLocaleString("en-US")} ms.`;
+    const devs = [...standIns.map((s) => s.name), ...(test.network ? [`${test.network.replaces} (a fake network)`] : [])];
+    extraLabel = `A second deck holds Atlas's stand-ins for this test: ${devs.length === 0 ? "none" : devs.join(", ")}${tested && devs.length ? `, each a small device with a signal lamp, wired to ${tested}` : ""}; and a clock housing whose dial is Atlas's virtual clock, from 0 to ${dial.fullMs.toLocaleString("en-US")} ms.`;
   }
   // Each box's joins, for the pick highlight (applyPick lights the picked box's drawn lines).
   for (const b of boxes) {

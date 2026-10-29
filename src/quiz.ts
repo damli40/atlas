@@ -38,7 +38,7 @@ const shortJson = (v: JsonValue) => {
 export function endingOptions(watchLimitMs: number): QuizOption[] {
   return withIds([
     { label: "returns a value", match: { kind: "word", value: "returned" } },
-    { label: "throws an error", match: { kind: "word", value: "threw" } },
+    { label: "throws (an Error or any other value)", match: { kind: "word", value: "threw" } },
     { label: "never finishes (waits forever, nothing left to wake it)", match: { kind: "word", value: "never_settled" } },
     { label: `still running when Atlas stops watching at ${ms(watchLimitMs)}`, match: { kind: "word", value: "still_running_at_watch_limit" } },
   ]);
@@ -66,7 +66,11 @@ export function countOptions(steps: number): QuizOption[] {
  * above 0. Every time from 0 up falls in exactly one range.
  */
 export function timeOptions(params: CallShape): QuizOption[] {
-  const waits = params.args.flatMap((a) => (a.kind === "stand-in" ? a.calls.map((c) => (c.do === "return" ? (c.afterMs ?? 0) : 0)) : []));
+  const waits = [
+    ...params.args.flatMap((a) => (a.kind === "stand-in" ? a.calls.map((c) => (c.do === "return" ? (c.afterMs ?? 0) : 0)) : [])),
+    // U2 (D53): the fake network's scripted answer delays are scripted waits too.
+    ...(params.network?.calls ?? []).map((c) => (c.do === "respond" ? (c.afterMs ?? 0) : 0)),
+  ];
   const positive = waits.filter((w) => w > 0);
   const zero: Omit<QuizOption, "id"> = { label: "0 ms (no wait at all)", match: { kind: "ms", min: 0, max: 0, minOpen: false, maxOpen: false } };
   if (positive.length === 0) return withIds([zero, { label: "more than 0 ms", match: { kind: "ms", min: 0, max: null, minOpen: true, maxOpen: false } }]);
@@ -91,6 +95,8 @@ export function valueOptions(params: CallShape): QuizOption[] {
     picked.push({ value, label });
   };
   for (const a of params.args) if (a.kind === "stand-in") for (const c of a.calls) if (c.do === "return") add(c.value, `${shortJson(c.value)} (what ${visibleText(a.name)} is scripted to return)`);
+  // U2 (D53): the body of each successful (2xx) answer the fake network is scripted to give.
+  for (const c of params.network?.calls ?? []) if (c.do === "respond" && c.status >= 200 && c.status <= 299) add(c.body, `${shortJson(c.body)} (the body the fake ${params.network!.replaces} answers with)`);
   params.args.forEach((a, i) => {
     if (a.kind === "json") add(a.value, `${shortJson(a.value)} (the same as argument ${i + 1})`);
   });
@@ -116,8 +122,8 @@ export function valueOptions(params: CallShape): QuizOption[] {
  * does not have (a run, a measured value, a model's words) is refused, and the options are built from the gate's copy.
  * The question texts are the usual call-function texts (src/gate.ts), so a person and every model read the same words.
  */
-export function quizQuestionsFor(test: unknown, exportNames?: readonly string[]): Question[] {
-  const decision = gate(test, { shapes: ["call-function"], ...(exportNames ? { exportNames } : {}) });
+export function quizQuestionsFor(test: unknown, exportNames?: readonly string[], language?: "js" | "ts" | "py"): Question[] {
+  const decision = gate(test, { shapes: ["call-function"], ...(exportNames ? { exportNames } : {}), ...(language ? { language } : {}) });
   if (!decision.allowed) throw new Error(`no quiz for a test the gate refuses: ${decision.reason}`);
   const params = decision.params as CallShape;
   const usual = questionsFor(params);
@@ -130,6 +136,7 @@ export function quizQuestionsFor(test: unknown, exportNames?: readonly string[])
   as("outcome", endingOptions(params.watchLimitMs ?? CALL_DEFAULT_WATCH_LIMIT_MS));
   as("returnedJson", valueOptions(params));
   for (const a of params.args) if (a.kind === "stand-in") as(`calls:${a.name}`, countOptions((a as StandIn).calls.length));
+  if (params.network) as(`calls:${params.network.replaces}`, countOptions(params.network.calls.length));
   as("virtualMs", timeOptions(params));
   return out;
 }

@@ -125,6 +125,7 @@ describe("U1 drawing-first screen", () => {
     expect(list.textContent).toContain("Muse Spark Open");
     expect(list.querySelector('[data-testid="mark-returnedJson"]')!.textContent).toMatch(/You.*can't tell.*can't check/);
     expect($('[data-testid="chip-stand-in fetchIt"]')!.textContent).toBe("3 calls");
-    expect($('[data-testid="u1-proof"]')!.getAttribute("href")).toMatch(/^\?proof=/);
+    // U2 (D53): the proof card opens in place (a panel), with a link to its own page.
+    expect($('[data-testid="u1-proof"]')!.tagName).toBe("BUTTON");
   }, 120_000);
 });

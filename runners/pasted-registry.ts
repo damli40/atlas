@@ -6,6 +6,7 @@
 // entry `py: { ... }` below with its own export finder, control and run; the screen and the server need no change.
 
 import type { Experiment, Run } from "../src/types.ts";
+import { networkUse } from "../src/network-fake.ts";
 import { exportedFunctionsFor, staticRefusalFor, type FoundExport, type PastedLanguage } from "../src/pasted-code.ts";
 import type { Executor } from "./runner.ts";
 import { callControlFor, runCallExperiment } from "./ts/call-runner.ts";
@@ -36,7 +37,7 @@ const jsTsRunner: PastedRunner = {
  * running, and a standard-library module the sandbox does not load is refused at run time, each with its reason.
  */
 const pyRunner: PastedRunner = {
-  read: (source) => ({ exports: exportedFunctionsFor(source, "py"), refusal: staticRefusalFor(source, "py") }),
+  read: (source) => ({ exports: exportedFunctionsFor(source, "py"), refusal: staticRefusalFor(source, "py", { fakes: networkUse(source, "py").map((u) => u.library) }) }),
   control: async (executor) => (await pyControlFor({ executor: pythonExecutorFor(executor) })).run, // D31
   run: (exp, ctl, executor, opts) => runPyCallExperiment(exp, ctl, { executor: pythonExecutorFor(executor), ...(opts?.seed !== undefined ? { seed: opts.seed } : {}) }),
 };

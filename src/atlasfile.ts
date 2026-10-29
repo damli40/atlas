@@ -39,6 +39,7 @@ import type { AgentEvent, AtlasFile, Bet, BettorSlot, Change, Experiment, Findin
 // without loading this file, which reads the Moonwell copy from disk.
 import { LEVEL2_CAPTION, PASTED_CAPTION, level1Caption } from "./captions";
 import { CONDITIONS_RULE, callRunPinProblems } from "./conditions";
+import { CALL_DEFAULT_WATCH_LIMIT_MS } from "./gate";
 import { lineSpan } from "./words";
 import { pastedTargetProblems } from "./pasted-code";
 import { outlineSectionProblems } from "./outline/section";
@@ -248,7 +249,7 @@ export const atlasFileSchema = z
   .object({
     version: z.literal(1),
     // R2 review round 1: the rules the file was made under; absent = before R2.
-    rules: z.object({ timing: z.literal("d46"), conditions: z.literal("r2") }).strict().optional(),
+    rules: z.object({ timing: z.literal("d46"), conditions: z.literal("r2"), watchLimit: z.literal("u2").optional() }).strict().optional(),
     target: targetSchema,
     codeSha256: sha,
     forkBlock: z.number().int().positive().optional(),
@@ -548,7 +549,12 @@ export function callRunAgreesWithItsTrace(r: Run): string[] {
   if (ends.length !== 1) return [`its trace has ${ends.length} ending events, not 1`];
   const end = ends[0]!;
   if (m.outcome !== end.event) out.push(`measured outcome is ${JSON.stringify(m.outcome ?? null)}, but its trace ends with ${end.event}`);
-  if ((end.event === "returned" || end.event === "threw") && m.virtualMs !== end.t) out.push(`measured virtualMs is ${JSON.stringify(m.virtualMs ?? null)}, but its trace settles at ${end.t}`);
+  // U2: a settle time the run does not report (R2's D45: it changed when the second run let time pass) is not compared;
+  // it is a claim not made, never a claim that disagrees with the trace.
+  // Review m7: only when the trace itself says why (the second run differed: clock_differs / twin_differs).
+  const timeNotReported =
+    Object.prototype.hasOwnProperty.call(r.result.notMeasured, "virtualMs") && !("virtualMs" in m) && r.trace.some((t) => (t.event === "clock_differs" || t.event === "twin_differs") && Array.isArray(asRecord(t.data).fields) && (asRecord(t.data).fields as unknown[]).includes("virtualMs"));
+  if ((end.event === "returned" || end.event === "threw") && !timeNotReported && m.virtualMs !== end.t) out.push(`measured virtualMs is ${JSON.stringify(m.virtualMs ?? null)}, but its trace settles at ${end.t}`);
   if (end.event !== "returned" && end.event !== "threw" && "virtualMs" in m) out.push("measured virtualMs is set, but the call did not settle");
   const counts = new Map<string, number>();
   for (const t of r.trace) if (t.event === "stand_in_call") counts.set(String(asRecord(t.data).name), (counts.get(String(asRecord(t.data).name)) ?? 0) + 1);
@@ -623,7 +629,9 @@ export const MAX_FILE_DEPTH = 200;
  * becomes { ok: false } with the reason. Verify RE-JUDGES the stored run with plain code; it does not re-run it.
  */
 /** R2 review round 1: the rules a file made today is made under (buildAtlasFile writes them). */
-export const CURRENT_RULES = { timing: TIMING_RULE, conditions: CONDITIONS_RULE } as const;
+export const CURRENT_RULES = { timing: TIMING_RULE, conditions: CONDITIONS_RULE, watchLimit: "u2" } as const;
+/** U2 (D53): a file whose rules say watchLimit "u2" judges timing options of a call still running at the watch limit. */
+export const watchLimitRuleOf = (file: { rules?: { watchLimit?: string } }) => file.rules?.watchLimit === "u2";
 
 /**
  * R2 review round 1 (B1, B2): the timing rule every verdict in a file is re-judged with comes from the file's own
@@ -673,6 +681,14 @@ function verifyAtlasFileChecked(raw: unknown): Verification {
       if (isRetryRun(file, r)) for (const p of tsRunAgreesWithItsTrace(r)) say(`run ${r.id}: ${p}`);
       if (isCallRun(file, r)) for (const p of callRunAgreesWithItsTrace(r)) say(`run ${r.id}: ${p}`);
       if (isCallRun(file, r)) for (const p of callRunControlProblems(r)) say(`run ${r.id}: ${p}`);
+      // U2 review m8: the watch limit the judge reads from the trace is the experiment's own.
+      if (isCallRun(file, r) && watchLimitRuleOf(file)) {
+        const ex = file.experiments.find((e) => e.id === r.experimentId);
+        const want = ex && ex.params.shape === "call-function" ? (ex.params.watchLimitMs ?? CALL_DEFAULT_WATCH_LIMIT_MS) : null;
+        const start = r.trace.find((t) => t.event === "start");
+        const got = start ? asRecord(start.data).watchLimitMs : undefined;
+        if (start && want !== null && got !== want) say(`run ${r.id}: its trace says a watch limit of ${String(got)} ms, but the experiment's is ${want} ms`);
+      }
       // R1 (D42): the seed, time zone and locale are Atlas's pinned ones, and the conditions are what the trace says.
       if (isCallRun(file, r)) for (const p of callRunPinProblems(r, file.target.language ?? "js", file.rules ?? null)) say(`run ${r.id}: ${p}`);
     }
@@ -720,7 +736,7 @@ function verifyAtlasFileChecked(raw: unknown): Verification {
     }
     // Re-judge: the stored verdict must be exactly what plain code gives for this bet and run, under the rules the
     // file says it was made under (R2 review round 1: no marker = the rules before R2).
-    const again = judge(b, run, { timingRule: timingRuleOf(file) });
+    const again = judge(b, run, { timingRule: timingRuleOf(file), watchLimitRule: watchLimitRuleOf(file) });
     if (!sameJson(again, v)) say(`the verdict on bet ${b.id} is not what src/judge.ts gives for it (stored ${v.outcome}, judged ${again.outcome})`);
   }
   for (const v of file.verdicts) if (!file.bets.some((b) => b.id === v.betId)) say(`verdict names bet ${v.betId}, which is not in the file`);
@@ -897,7 +913,7 @@ export function changeProblems(file: AtlasFile): string[] {
     const v = replay.verdicts.find((x) => x.betId === b.id);
     if (!v) out.push(`bet ${b.id} has no verdict on the replay`);
     else {
-      if (!sameJson(judge(b, r, { timingRule: timingRuleOf(file) }), v)) out.push(`the replay verdict on bet ${b.id} is not what src/judge.ts gives`);
+      if (!sameJson(judge(b, r, { timingRule: timingRuleOf(file), watchLimitRule: watchLimitRuleOf(file) }), v)) out.push(`the replay verdict on bet ${b.id} is not what src/judge.ts gives`);
     }
     if (!(Date.parse(b.sealedAt) < Date.parse(r.startedAt))) out.push(`bet ${b.id} was not sealed before the replay started`);
   }

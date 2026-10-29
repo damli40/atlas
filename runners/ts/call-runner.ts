@@ -22,10 +22,10 @@ import { nanoid } from "nanoid";
 import { CALL_PINNED_LOCALE, CALL_PINNED_SEED, CALL_PINNED_TIME_ZONE, CLOCK_NUDGE_MS, conditionsFromTrace, isCallSeed, mergeTwin, pinnedFor, timedWorkIn, twinComparable, CHANGED_BETWEEN_RUNS_REASON, TIMED_WORK_REASON } from "../../src/conditions.ts";
 import { gate } from "../../src/gate.ts";
 import { staticRefusal } from "../../src/pasted-code.ts";
-import type { ArgSpec, Experiment, ExperimentShape, JsonValue, Run, Target, TraceEvent } from "../../src/types.ts";
+import type { ArgSpec, Experiment, ExperimentShape, JsonValue, NetworkFake, Run, Target, TraceEvent } from "../../src/types.ts";
 import { localExecutor } from "../executor/local.ts";
 import type { ExecRuntime, Executor } from "../runner.ts";
-import { CALL_DEFAULT_WATCH_LIMIT_MS, type CallRunRequest, type CallWorkerRequest, type CallWorkerResponse, type WireArg } from "./call-harness.ts";
+import { CALL_DEFAULT_WATCH_LIMIT_MS, type CallRunRequest, type CallWorkerRequest, type CallWorkerResponse, type WireArg, type WireNetStep } from "./call-harness.ts";
 import { BUILTINS_CHANGED_REASON, RESULT_MARKER } from "./harness.ts";
 
 type CallShape = Extract<ExperimentShape, { shape: "call-function" }>;
@@ -77,8 +77,23 @@ export function toWire(args: ArgSpec[]): WireArg[] {
   });
 }
 
+/** U2 (D53): the fake network as the sandbox reads it (bodies travel as JSON text). */
+export function networkToWire(f: NetworkFake): { name: NetworkFake["replaces"]; calls: WireNetStep[]; then: NetworkFake["then"] } {
+  return {
+    name: f.replaces,
+    then: f.then,
+    calls: f.calls.map((s): WireNetStep =>
+      s.do === "respond"
+        ? { do: "respond", status: s.status, json: JSON.stringify(s.body), ...(s.afterMs !== undefined ? { afterMs: s.afterMs } : {}) }
+        : s.do === "throw"
+          ? { do: "throw", errorName: s.errorName, message: s.message }
+          : { do: "never_answer" },
+    ),
+  };
+}
+
 function runRequest(id: string, p: CallShape): CallRunRequest {
-  return { id, exportName: p.exportName, args: toWire(p.args), watchLimitMs: p.watchLimitMs ?? CALL_DEFAULT_WATCH_LIMIT_MS };
+  return { id, exportName: p.exportName, args: toWire(p.args), watchLimitMs: p.watchLimitMs ?? CALL_DEFAULT_WATCH_LIMIT_MS, ...(p.network ? { network: networkToWire(p.network) } : {}) };
 }
 
 type CallAnswer = (

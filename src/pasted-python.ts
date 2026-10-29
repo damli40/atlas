@@ -270,11 +270,13 @@ export function pyTopLevelFunctions(source: string): FoundExport[] {
  * Why plain code refuses to run this Python file at all, before any sandbox starts (null when nothing was
  * found). The harness refuses the same things again at run time, whatever this scan missed.
  */
-export function staticRefusalPy(source: string): string | null {
+export function staticRefusalPy(source: string, opts: { fakes?: readonly string[] } = {}): string | null {
   const scan = scanPySource(source);
   // Text this scan cannot read (an unclosed string or bracket) is NOT refused here: Python itself then reports
   // the exact SyntaxError in its own words (the spec's rule), and every import is refused at run time anyway.
-  const outside = scan.imports.find((imp) => !isPyStdlib(imp.module));
+  // U2 (D53): a network library the test fakes (requests, httpx) is supplied by Atlas's fake, so it is not "needed".
+  const faked = new Set(opts.fakes ?? []);
+  const outside = scan.imports.find((imp) => !isPyStdlib(imp.module) && !faked.has(imp.module.split(".")[0]!));
   if (outside) return pyNeedsPackageReason(outside.module);
   return null;
 }

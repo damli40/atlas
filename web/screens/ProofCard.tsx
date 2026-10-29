@@ -38,7 +38,7 @@ export function ProofLink({ runId }: { runId: string }) {
 }
 
 /** The card on its own page (`?proof=<runId>`): fetches the file, then draws it. */
-export function ProofCardPage({ api, runId }: { api: Api; runId: string }) {
+export function ProofCardPage({ api, runId, embedded = false }: { api: Api; runId: string; embedded?: boolean }) {
   const [file, setFile] = useState<AtlasFile | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -51,8 +51,10 @@ export function ProofCardPage({ api, runId }: { api: Api; runId: string }) {
       live = false;
     };
   }, [api, runId]);
+  // U2: inside the drawing screen the card is a panel, not a second <main> landmark.
+  const Shell = embedded ? "div" : "main";
   return (
-    <main className="proof-page">
+    <Shell className="proof-page">
       {file ? (
         <div className="proof-stack">
           <ProofCard file={file} api={api} />
@@ -66,7 +68,7 @@ export function ProofCardPage({ api, runId }: { api: Api; runId: string }) {
       ) : (
         <p className="muted">Reading the .atlas.json for run {runId}…</p>
       )}
-    </main>
+    </Shell>
   );
 }
 
@@ -157,7 +159,7 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
         </ul>
       </section>
 
-      <section className="pc-score" aria-label="bets">
+      <section className="pc-score" aria-label="bets" tabIndex={0}>
         {!card.notShownAsFact && (modelBettors.length > 1 || Object.keys(unseated).length > 0) && lines.length > 1 && (
           <BettorCounts verdicts={file.verdicts} bets={file.bets} names={names} columns={modelBettors} unseated={unseated} />
         )}

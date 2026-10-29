@@ -419,16 +419,423 @@ def make_async_standin(name, send):
     return standin
 
 
+# ---- U2 (D53): the fake network libraries ----
+# When a test carries a network fake, the pasted file's `import requests` / `import httpx` / `import urllib.request`
+# gets one of these modules instead of the real library (requests and httpx are not even installed; the network stays
+# blocked either way). Each call asks harness.py's generator (through _NET[0], set per run) what to do, and the module
+# builds the library's own kind of answer: a response object, or the library's own exception class, so code that
+# catches `requests.exceptions.Timeout` catches the fake's timeout. Changing anything here only changes what the code
+# sees; the call count lives in harness.py.
+
+import json as _json_mod
+
+#: The current run's fake network (a generator's `send`), or None. harness.py sets it and checks it after each run.
+_NET = [None]
+
+
+def _net_ask():
+    send = _NET[0]
+    if send is None:
+        refuse("access", "the network (no fake network was answering at that moment)")
+    return send(())
+
+
+#: HTTP reason phrases for the statuses tests use most (the real libraries put them in messages and .reason).
+_REASONS = {200: "OK", 201: "Created", 202: "Accepted", 204: "No Content", 301: "Moved Permanently", 302: "Found",
+            304: "Not Modified", 400: "Bad Request", 401: "Unauthorized", 403: "Forbidden", 404: "Not Found",
+            408: "Request Timeout", 409: "Conflict", 422: "Unprocessable Entity", 429: "Too Many Requests",
+            500: "Internal Server Error", 502: "Bad Gateway", 503: "Service Unavailable", 504: "Gateway Timeout"}
+
+
+def _net_text(body):
+    # Review M4: the body on the wire is the scripted body as compact JSON text, the same bytes as in JavaScript; .text
+    # gives those bytes and .json() parses them, so the two always agree (a string body "nope" is the text "\"nope\"").
+    return _json_mod.dumps(body, separators=(",", ":"), ensure_ascii=False)
+
+
+def _wait_sync(secs):
+    v_sleep(secs)
+
+
+def _wait_forever_sync():
+    # A blocking call that never answers: the clock runs to past the watch limit (still running when Atlas stops).
+    v_sleep(max(0.0, WATCH[0] - CLOCK[0]) + 0.001)
+    raise AtlasWatchLimit("Atlas's watch limit of virtual time ran out while a network call never answered")
+
+
+def _timeout_of(t, default=None):
+    """A read timeout in seconds from requests/httpx/urllib forms: a number, a (connect, read) pair, or an object with .read."""
+    if t is None:
+        return default
+    if isinstance(t, (int, float)) and not isinstance(t, bool):
+        return float(t)
+    if isinstance(t, tuple) and len(t) == 2:
+        return _timeout_of(t[1], default)
+    r = getattr(t, "read", None)
+    if isinstance(r, (int, float)) and not isinstance(r, bool):
+        return float(r)
+    return default
+
+
+def _sync_call(timeout, make_response, make_error, timeout_error):
+    ans = _net_ask()
+    kind = ans[0]
+    if kind == "respond":
+        after = ans[3]
+        if after > 0:
+            if timeout is not None and timeout < after:
+                _wait_sync(timeout)
+                raise timeout_error()
+            _wait_sync(after)
+        return make_response(ans[1], ans[2])
+    if kind == "throw":
+        raise make_error(ans[1], ans[2])
+    if kind == "exhausted":
+        raise ans[1]
+    if timeout is not None:
+        _wait_sync(timeout)
+        raise timeout_error()
+    _wait_forever_sync()
+
+
+async def _async_call(timeout, make_response, make_error, timeout_error):
+    ans = _net_ask()
+    kind = ans[0]
+    if kind == "respond":
+        after = ans[3]
+        if after > 0:
+            if timeout is not None and timeout < after:
+                await asyncio.sleep(timeout)
+                raise timeout_error()
+            await asyncio.sleep(after)
+        return make_response(ans[1], ans[2])
+    if kind == "throw":
+        raise make_error(ans[1], ans[2])
+    if kind == "exhausted":
+        raise ans[1]
+    if timeout is not None:
+        await asyncio.sleep(timeout)
+        raise timeout_error()
+    return await asyncio.get_running_loop().create_future()
+
+
+_METHODS = ("get", "post", "put", "patch", "delete", "head", "options")
+
+
+def _module(name, **attrs):
+    m = _types.ModuleType(name)
+    for k, v in attrs.items():
+        setattr(m, k, v)
+    return m
+
+
+def _make_requests():
+    class RequestException(IOError):
+        def __init__(self, *args, response=None, request=None, **kwargs):
+            super().__init__(*args)
+            self.response = response
+            self.request = request
+
+    class ConnectionError(RequestException): pass
+    class HTTPError(RequestException): pass
+    class Timeout(RequestException): pass
+    class ConnectTimeout(ConnectionError, Timeout): pass
+    class ReadTimeout(Timeout): pass
+    class TooManyRedirects(RequestException): pass
+    class JSONDecodeError(RequestException, ValueError): pass
+    errors = {c.__name__: c for c in (RequestException, ConnectionError, HTTPError, Timeout, ConnectTimeout, ReadTimeout, TooManyRedirects)}
+
+    class Response:
+        def __init__(self, status, body, url):
+            self.status_code = status
+            self._body = body
+            self.url = url
+            self.reason = _REASONS.get(status, "")
+            self.headers = {"Content-Type": "application/json"}
+            self.text = _net_text(body)
+            self.content = self.text.encode("utf-8")
+            self.encoding = "utf-8"
+
+        @property
+        def ok(self):
+            return self.status_code < 400
+
+        def json(self, **kwargs):
+            return _json_mod.loads(_json_mod.dumps(self._body))
+
+        def raise_for_status(self):
+            if 400 <= self.status_code < 500:
+                raise HTTPError("%d Client Error: %s for url: %s" % (self.status_code, self.reason, self.url), response=self)
+            if 500 <= self.status_code < 600:
+                raise HTTPError("%d Server Error: %s for url: %s" % (self.status_code, self.reason, self.url), response=self)
+
+        def close(self):
+            pass
+
+        def __repr__(self):
+            return "<Response [%d]>" % self.status_code
+
+    def request(method, url, **kwargs):
+        return _sync_call(_timeout_of(kwargs.get("timeout")), lambda st, b: Response(st, b, url), lambda n, m: errors[n](m) if n in errors else RequestException(m), lambda: ReadTimeout("Read timed out. (read timeout=%s)" % kwargs.get("timeout")))
+
+    class Session:
+        def __init__(self):
+            self.headers = {}
+            self.params = {}
+
+        def request(self, method, url, **kwargs):
+            return request(method, url, **kwargs)
+
+        def mount(self, prefix, adapter):
+            pass
+
+        def close(self):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    for meth in _METHODS:
+        setattr(Session, meth, (lambda m: lambda self, url, **kw: request(m, url, **kw))(meth))
+    exceptions = _module("requests.exceptions", JSONDecodeError=JSONDecodeError, **errors)
+    top = _module("requests", request=request, Session=Session, session=Session, Response=Response, exceptions=exceptions, codes=_module("requests.codes", ok=200), **errors)
+    for meth in _METHODS:
+        setattr(top, meth, (lambda m: lambda url, **kw: request(m, url, **kw))(meth))
+    return {"requests": top, "requests.exceptions": exceptions}
+
+
+def _make_httpx():
+    DEFAULT = 5.0  # httpx's own default timeout, in seconds
+    UNSET = object()  # review M5: "not given" (httpx's 5 s); an explicit None means no timeout at all
+    class HTTPError(Exception):
+        def __init__(self, message, *, request=None, response=None):
+            super().__init__(message)
+            self.request = request
+            self.response = response
+
+    class RequestError(HTTPError): pass
+    class TransportError(RequestError): pass
+    class TimeoutException(TransportError): pass
+    class ConnectTimeout(TimeoutException): pass
+    class ReadTimeout(TimeoutException): pass
+    class WriteTimeout(TimeoutException): pass
+    class PoolTimeout(TimeoutException): pass
+    class NetworkError(TransportError): pass
+    class ConnectError(NetworkError): pass
+    class ReadError(NetworkError): pass
+    class ProtocolError(TransportError): pass
+    class RemoteProtocolError(ProtocolError): pass
+    class HTTPStatusError(HTTPError): pass
+    errors = {c.__name__: c for c in (HTTPError, RequestError, TransportError, TimeoutException, ConnectTimeout, ReadTimeout, WriteTimeout, PoolTimeout, NetworkError, ConnectError, ReadError, ProtocolError, RemoteProtocolError, HTTPStatusError)}
+
+    class Timeout:
+        def __init__(self, timeout=UNSET, *, connect=UNSET, read=UNSET, write=UNSET, pool=UNSET):
+            base = DEFAULT if timeout is UNSET else timeout
+            self.read = base if read is UNSET else read
+            self.connect = base if connect is UNSET else connect
+
+    class Response:
+        def __init__(self, status, body, url):
+            self.status_code = status
+            self._body = body
+            self.url = url
+            self.headers = {"content-type": "application/json"}
+            self.text = _net_text(body)
+            self.content = self.text.encode("utf-8")
+            self.reason_phrase = _REASONS.get(status, "")
+
+        @property
+        def is_success(self):
+            return 200 <= self.status_code < 300
+
+        @property
+        def is_error(self):
+            return self.status_code >= 400
+
+        def json(self, **kwargs):
+            return _json_mod.loads(_json_mod.dumps(self._body))
+
+        def raise_for_status(self):
+            # Review m1: httpx raises for anything that is not 2xx (1xx, 3xx, 4xx, 5xx).
+            if not (200 <= self.status_code < 300):
+                kind = "Informational response" if self.status_code < 200 else "Redirect response" if self.status_code < 400 else "Client error" if self.status_code < 500 else "Server error"
+                raise HTTPStatusError("%s '%d %s' for url '%s'" % (kind, self.status_code, self.reason_phrase, self.url), response=self)
+            return self
+
+        def __repr__(self):
+            return "<Response [%d]>" % self.status_code
+
+
+    def seconds(timeout):
+        if timeout is UNSET:
+            return DEFAULT
+        if timeout is None:
+            return None
+        if isinstance(timeout, Timeout):
+            return timeout.read
+        return _timeout_of(timeout, None)
+
+    def parts(url, timeout):
+        return (lambda st, b: Response(st, b, url), lambda n, m: errors[n](m) if n in errors else RequestError(m), lambda: ReadTimeout("timed out"), seconds(timeout))
+
+    def request(method, url, *, timeout=UNSET, **kwargs):
+        mk, me, mt, t = parts(url, timeout)
+        return _sync_call(t, mk, me, mt)
+
+    class Client:
+        def __init__(self, *, timeout=UNSET, **kwargs):
+            self._timeout = timeout
+
+        def request(self, method, url, *, timeout=UNSET, **kwargs):
+            return request(method, url, timeout=timeout if timeout is not UNSET else self._timeout)
+
+        def close(self):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    class AsyncClient:
+        def __init__(self, *, timeout=UNSET, **kwargs):
+            self._timeout = timeout
+
+        async def request(self, method, url, *, timeout=UNSET, **kwargs):
+            mk, me, mt, t = parts(url, timeout if timeout is not UNSET else self._timeout)
+            return await _async_call(t, mk, me, mt)
+
+        async def aclose(self):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+    for meth in _METHODS:
+        setattr(Client, meth, (lambda m: lambda self, url, **kw: self.request(m, url, **kw))(meth))
+        setattr(AsyncClient, meth, (lambda m: lambda self, url, **kw: self.request(m, url, **kw))(meth))
+    top = _module("httpx", request=request, Client=Client, AsyncClient=AsyncClient, Timeout=Timeout, Response=Response, **errors)
+    for meth in _METHODS:
+        setattr(top, meth, (lambda m: lambda url, **kw: request(m, url, **kw))(meth))
+    return {"httpx": top}
+
+
+def _make_urllib():
+    import urllib as _real_urllib
+
+    class URLError(OSError):
+        def __init__(self, reason, filename=None):
+            super().__init__(reason)
+            self.reason = reason
+
+        def __str__(self):
+            return "<urlopen error %s>" % self.reason
+
+    class HTTPError(URLError):
+        def __init__(self, url, code, msg, hdrs=None, fp=None, body=""):
+            URLError.__init__(self, msg)
+            self.url = url
+            self.code = code
+            self.status = code
+            self.msg = msg
+            self.hdrs = hdrs or {}
+            self.headers = self.hdrs
+            self._text = body
+
+        def read(self):
+            return self._text.encode("utf-8")
+
+        def getcode(self):
+            return self.code
+
+        def __str__(self):
+            return "HTTP Error %d: %s" % (self.code, self.msg)
+
+    class Request:
+        def __init__(self, url, data=None, headers=None, method=None, **kwargs):
+            self.full_url = url
+            self.data = data
+            self.headers = dict(headers or {})
+            self.method = method
+
+        def add_header(self, k, v):
+            self.headers[k] = v
+
+        def get_method(self):
+            return self.method or ("POST" if self.data is not None else "GET")
+
+    class Response:
+        def __init__(self, status, body, url):
+            self.status = status
+            self.code = status
+            self.url = url
+            self.headers = {"Content-Type": "application/json"}
+            self.reason = "OK"
+            self._data = _net_text(body).encode("utf-8")
+
+        def read(self, n=-1):
+            d = self._data
+            self._data = b""
+            return d
+
+        def getcode(self):
+            return self.status
+
+        def close(self):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    def urlopen(url, data=None, timeout=None, **kwargs):
+        u = url.full_url if isinstance(url, Request) else url
+
+        def respond(status, body):
+            if status >= 400:
+                raise HTTPError(u, status, "Error", {}, None, _net_text(body))
+            return Response(status, body, u)
+
+        return _sync_call(_timeout_of(timeout), respond, lambda n, m: TimeoutError(m) if n == "TimeoutError" else URLError(m), lambda: TimeoutError("The read operation timed out"))
+
+    error = _module("urllib.error", URLError=URLError, HTTPError=HTTPError, ContentTooShortError=URLError)
+    request = _module("urllib.request", urlopen=urlopen, Request=Request, URLError=URLError, HTTPError=HTTPError)
+    top = _module("urllib")
+    for k, v in _real_urllib.__dict__.items():
+        if not k.startswith("__"):
+            setattr(top, k, v)
+    top.request = request
+    top.error = error
+    return {"urllib": top, "urllib.request": request, "urllib.error": error}
+
+
+_FAKE_MAKERS = {"requests": _make_requests, "httpx": _make_httpx, "urllib": _make_urllib}
+
+
 # ---- imports from the pasted file ----
 
 _real_import = __import__
 
 
-def make_import_guard(stdlib_names):
+def make_import_guard(stdlib_names, fake_libs=frozenset()):
     """The __import__ the pasted file sees: anything outside the standard library is "needs package X".
 
     This is for a clear reason only. The boundary is harness.py's audit hook, which sees every import Python
     actually performs (the code can reach the real __import__ through any function's __builtins__)."""
+
+    fakes = {}
+    for lib in fake_libs:
+        made = _FAKE_MAKERS[lib]()
+        fakes[lib.partition(".")[0]] = made
 
     def guarded_import(name, globals=None, locals=None, fromlist=(), level=0):
         if level and level > 0:
@@ -438,6 +845,20 @@ def make_import_guard(stdlib_names):
             cant("needs_package", "runtime")
             raise TypeError("module name must be str, not " + type(name).__name__)
         top = name.partition(".")[0]
+        # U2 (D53): a faked network library comes from Atlas's fake modules; the real one is never imported.
+        if top in fakes:
+            want = name if fromlist else top
+            mod = fakes[top].get(want)
+            if mod is None and top == "urllib" and name == "urllib":
+                mod = fakes[top]["urllib"]
+            if mod is None:
+                if top == "urllib":
+                    return _real_import(name, globals, locals, fromlist, level)
+                cant("needs_package", name)
+                err = ModuleNotFoundError("No module named '%s'" % name)
+                err.name = name
+                raise err
+            return mod
         if top not in stdlib_names:
             cant("needs_package", name)
             err = ModuleNotFoundError("No module named '%s'" % top)

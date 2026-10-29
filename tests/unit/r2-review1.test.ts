@@ -80,7 +80,7 @@ describe("a fresh R2 file", () => {
   const ms = (value: number): BetAnswer => ({ kind: "number", value, tolerancePct: 10, unit: "ms" });
   it("carries the rules marker and verifies; its timing verdict says d46", async () => {
     const f = await file("export function f(){ return 1; }", ms(1));
-    expect(f.rules).toEqual({ timing: "d46", conditions: "r2" });
+    expect(f.rules).toEqual({ timing: "d46", conditions: "r2", watchLimit: "u2" });
     expect(f.verdicts[0]).toMatchObject({ outcome: "matched", timingRule: "d46" });
     expect(problems(f)).toEqual([]);
   });

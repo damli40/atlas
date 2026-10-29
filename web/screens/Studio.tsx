@@ -15,7 +15,11 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent 
 import type { Question } from "../../src/gate";
 import { shortQuestionFor, pinsLineOf } from "../../src/paste-context";
 import { CANT_TELL, timeOptions } from "../../src/quiz";
-import { WONDER_DISPLAY } from "../../src/paste-words";
+import { WONDER_DISPLAY, BET_WORDS, RESULT_WORDS, betterByRole } from "../../src/paste-words";
+import { pickDefaultTest } from "../../src/default-test";
+import { LIBRARY_WORDS } from "../../src/network-fake";
+import { CALL_DEFAULT_WATCH_LIMIT_MS } from "../../src/gate";
+import { ProofCardPage } from "./ProofCard";
 import type { ClaimantMode } from "../../src/claimants";
 import { didNotFinish, type Api, type ExperimentAnswer, type HumanAnswer, type PasteAnswer, type ProposalsAnswer, type RunAnswer, type ShownBet } from "../api";
 import { useModelSlots } from "./Claimant";
@@ -41,6 +45,21 @@ export function defaultFunction(outline: FileOutline | undefined, exports: reado
   if (fns.length === 0) return exports[0]?.name ?? null;
   const out = (n: string) => outline!.joins.filter((j) => j.from === n).length;
   return [...fns].sort((a, b) => out(b.name) - out(a.name) || a.lineStart - b.lineStart)[0]!.name;
+}
+
+/** U2 (D53): the plain-code rule's pick among the allowed proposals (src/default-test.ts), or undefined. */
+export function defaultProposal<P extends { gate: { allowed: boolean }; params: unknown }>(proposals: readonly P[]): P | undefined {
+  const allowed = proposals.filter((p) => p.gate.allowed);
+  const i = pickDefaultTest(allowed.map((p) => p.params as CallTest));
+  return i >= 0 ? allowed[i] : undefined;
+}
+
+/** U2: the code boxes whose own lines wait (a timer or a sleep), read from the file's text by plain code. */
+export function waitingParts(source: string, outline: FileOutline | undefined): string[] {
+  if (!outline) return [];
+  const lines = source.split(/\r\n|\r|\n/);
+  const WAIT = /\b(setTimeout|setInterval|sleep|asyncio\.sleep|time\.sleep|wait_for|delay)\b/;
+  return outline.parts.filter((p) => WAIT.test(lines.slice(p.lineStart - 1, p.lineEnd).join("\n"))).map((p) => p.name);
 }
 
 /** The answers the page sends: a tap is a quiz answer; an untouched question or "can't tell" is declined. */
@@ -89,6 +108,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const [runTry, setRunTry] = useState(0);
   const [handoffNote, setHandoffNote] = useState<string | null>(null);
   const [source, setSource] = useState<string | null>(null);
+  const [proofOpen, setProofOpen] = useState(false);
+  const [readText, setReadText] = useState("");
   useEffect(() => onRoundOpen?.(exp !== null && result === null), [exp, result, onRoundOpen]);
 
   const target = pasted?.runnable ? pasted.target : null;
@@ -142,6 +163,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     setChanging(false);
     setForm(null);
     setError(null);
+    setProofOpen(false);
     runStarted.current = false;
     gen.current++;
   };
@@ -155,6 +177,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       setHandoffNote(null);
       setSource(from ?? null);
       setBusy("Reading your code…");
+      setReadText(text);
       try {
         const r = await api.paste(text, language);
         if (g !== gen.current) return;
@@ -219,14 +242,15 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     setOpen(next);
     if (next && proposals && !exp) setChanging(true); // proposals came back but no test is in use: show the list
     if (!next || !target || !fn || exp || proposals) return;
-    setBusy(`${WONDER_DISPLAY} is writing a test for ${fn}…`);
+    setBusy(BET_WORDS.writing(fn));
     setError(null);
     const g = gen.current;
     try {
       const p = await api.proposals(target, fn);
       if (g !== gen.current) return;
       setProposals(p);
-      const first = p.proposals.find((x) => x.gate.allowed);
+      // U2 (D53): the default is the most interesting allowed test by a plain-code rule (src/default-test.ts).
+      const first = defaultProposal(p.proposals);
       if (first) await start(() => api.experimentFromProposal(target, first.id, { quiz: true }));
       else setChanging(true);
     } catch (e) {
@@ -285,8 +309,51 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     // D47: run data only after the bets are sealed, and only the run of THIS round's test (review M1).
     if (!result || !exp || !test || sealed.length === 0 || result.run.experimentId !== exp.experiment.id) return null;
     const tested = model?.tested ?? null;
-    return { token: plays, script: playScript(result.run, test, tested), marks: marksOf(exp.questions, result.bets, result.verdicts, result.run, tested), dialFullMs: fullMs };
-  }, [result, exp, test, sealed, plays, model, fullMs]);
+    return { token: plays, script: playScript(result.run, test, tested, waitingParts(readText, pasted?.outline)), marks: marksOf(exp.questions, result.bets, result.verdicts, result.run, tested), dialFullMs: fullMs };
+  }, [result, exp, test, sealed, plays, model, fullMs, readText, pasted]);
+
+  // U2 (D53, "Test this claim"): Muse Wonder writes tests aimed at its own sentence (shown only after this run, D18);
+  // the gate checks them as usual, the plain-code rule preselects one, and a new round opens on it.
+  const testClaim = async () => {
+    if (!target || !fn || !exp) return;
+    const from = exp.experiment.id;
+    reset();
+    setOpen(true);
+    const g = gen.current;
+    setBusy(RESULT_WORDS.testClaimBusy);
+    try {
+      const p = await api.proposals(target, fn, { claimOf: from });
+      if (g !== gen.current) return;
+      setProposals(p);
+      // Here Wonder was asked to aim at its own sentence, so its first allowed test is the one aimed at it (the
+      // plain-code "most interesting" rule would steer away from, say, the zero the sentence is about).
+      const first = p.proposals.find((x) => x.gate.allowed);
+      if (first) await start(() => api.experimentFromProposal(target, first.id, { quiz: true }));
+      else setChanging(true);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
+  const anotherTest = async () => {
+    reset();
+    setOpen(true);
+    if (!target || !fn) return;
+    setBusy(BET_WORDS.writing(fn));
+    const g = gen.current;
+    try {
+      const p = await api.proposals(target, fn);
+      if (g !== gen.current) return;
+      setProposals(p);
+      setChanging(true);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
+  const nextTries = (labels?.labels ?? []).filter((l) => l.label === "found in this code" || l.label === "reproduced");
 
   // ---- entry ----
   if (!pasted) {
@@ -382,10 +449,29 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           title={title}
           side={open}
           footnote={
-            claim ? (
-              <p className="u1-claim" data-testid="u1-claim">
-                <span className="u1-k">{`${WONDER_DISPLAY} said, before the run:`}</span> <q>{claim}</q>
-              </p>
+            claim || nextTries.length ? (
+              <>
+                {claim && (
+                  <div className="u1-claim" data-testid="u1-claim">
+                    <p>
+                      <span className="u1-k">{`${WONDER_DISPLAY} said, before the run:`}</span> <q>{claim}</q>
+                    </p>
+                    <button type="button" className="u1-btn" onClick={testClaim} disabled={busy !== null} data-testid="u1-test-claim">
+                      {RESULT_WORDS.testClaim}
+                    </button>
+                  </div>
+                )}
+                {nextTries.length > 0 && (
+                  <div className="u1-next" data-testid="u1-next">
+                    <p className="u1-k">{RESULT_WORDS.nextTry}</p>
+                    <ul>
+                      {nextTries.map((l, i) => (
+                        <li key={i}>{`${l.name}${l.lines?.[0] ? `, ${lineSpan(l.lines[0].lineStart, l.lines[0].lineEnd)}` : ""}`}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </>
             ) : null
           }
           {...(!sealed.length ? { onTestFunction: chooseFunction } : {})}
@@ -396,34 +482,16 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                 Play the run again
               </button>
               {result?.proof?.ok ? (
-                <a className="u1-btn" href={`?proof=${encodeURIComponent(result.proof.runId)}`} target="_blank" rel="noreferrer" data-testid="u1-proof">
-                  Proof card
-                </a>
+                <button type="button" className="u1-btn" aria-expanded={proofOpen} onClick={() => setProofOpen((o) => !o)} data-testid="u1-proof">
+                  {RESULT_WORDS.proofTitle}
+                </button>
               ) : result?.proof ? (
                 <span className="u1-sub">{`No proof card: ${result.proof.ok ? "" : result.proof.reason}`}</span>
               ) : null}
               <button
                 type="button"
                 className="u1-btn"
-                onClick={() => {
-                  reset();
-                  setOpen(true);
-                  void (async () => {
-                    if (!target || !fn) return;
-                    setBusy(`${WONDER_DISPLAY} is writing a test for ${fn}…`);
-                    const g = gen.current;
-                    try {
-                      const p = await api.proposals(target, fn);
-                      if (g !== gen.current) return;
-                      setProposals(p);
-                      setChanging(true);
-                    } catch (e) {
-                      setError((e as Error).message);
-                    } finally {
-                      setBusy(null);
-                    }
-                  })();
-                }}
+                onClick={() => void anotherTest()}
                 data-testid="u1-again"
               >
                 Bet on another test
@@ -432,6 +500,20 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           )}
         </BenchStage>
       ) : null}
+      {proofOpen && result?.proof?.ok && (
+        <section className="u1-proof" role="dialog" aria-modal="false" aria-label={RESULT_WORDS.proofTitle} data-testid="u1-proof-panel">
+          <div className="u1-proof-head">
+            <h2>{RESULT_WORDS.proofTitle}</h2>
+            <a className="u1-link" href={`?proof=${encodeURIComponent(result.proof.runId)}`} target="_blank" rel="noreferrer">
+              Open on its own page
+            </a>
+            <button type="button" className="u1-close" onClick={() => setProofOpen(false)} aria-label={RESULT_WORDS.closeProof}>
+              ×
+            </button>
+          </div>
+          <ProofCardPage api={api} runId={result.proof.runId} embedded />
+        </section>
+      )}
 
       <div className="u1-topbar">
         <button
@@ -476,14 +558,20 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
               {exp && !changing && (
                 <>
                   <p className="u1-test" data-testid="u1-test">
-                    <span className="u1-k">The test:</span> {chosenSays ?? exp.experiment.params.shape}
+                    <span className="u1-k">{BET_WORDS.testIs}</span> {chosenSays ?? exp.experiment.params.shape}
                   </p>
                   {sealed.length === 0 && (
                     <button type="button" className="u1-link" onClick={() => setChanging(true)} data-testid="u1-change">
                       change test
                     </button>
                   )}
-                  <p className="u1-pins-line">{pinsLineOf(exp.seenContext, exp.experiment.target.language ?? "js")}</p>
+                  <ul className="u1-explain" data-testid="u1-explain">
+                    {test?.network && <li>{BET_WORDS.network(LIBRARY_WORDS[test.network.replaces])}</li>}
+                    <li>{BET_WORDS.clock}</li>
+                    <li>{BET_WORDS.random}</li>
+                    <li>{BET_WORDS.zone(exp.experiment.target.language ?? "js")}</li>
+                    <li>{BET_WORDS.watch(test?.watchLimitMs ?? CALL_DEFAULT_WATCH_LIMIT_MS, test?.watchLimitMs !== undefined)}</li>
+                  </ul>
                   <ol className="u1-quiz">
                     {exp.questions.map((q) => (
                       <li key={q.measures}>
@@ -509,23 +597,6 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                       </li>
                     ))}
                   </ol>
-                  {sealed.length === 0 ? (
-                    <>
-                      <button type="button" className="u1-btn u1-primary" onClick={seal} disabled={busy !== null} data-testid="u1-seal">
-                        Seal my answers
-                      </button>
-                      <p className="u1-sub">Anything you leave untapped is sealed as “can't tell”.</p>
-                    </>
-                  ) : (
-                    <p className="u1-status" role="status" data-testid="u1-sealed">
-                      {`Sealed ${plural(sealed.length, "answer")}. ${busy ?? (models.thinking ? "Waiting for the models to seal theirs…" : "")}`}
-                    </p>
-                  )}
-                  {sealed.length > 0 && !result && error && !busy && (
-                    <button type="button" className="u1-btn" onClick={() => setRunTry((n) => n + 1)} data-testid="u1-run-again">
-                      Run it again
-                    </button>
-                  )}
                   <ModelsLine
                     slots={models.slots}
                     claimant={claimant}
@@ -544,10 +615,28 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                       }
                     }}
                   />
+                  {sealed.length === 0 ? (
+                    <>
+                      <button type="button" className="u1-btn u1-primary" onClick={seal} disabled={busy !== null} data-testid="u1-seal">
+                        {BET_WORDS.seal}
+                      </button>
+                      <p className="u1-sub">{BET_WORDS.untapped}</p>
+                    </>
+                  ) : (
+                    <p className="u1-status" role="status" data-testid="u1-sealed">
+                      {`Sealed ${plural(sealed.length, "answer")}. ${busy ?? (models.thinking ? "Waiting for the AIs to seal theirs…" : "")}`}
+                    </p>
+                  )}
+                  {sealed.length > 0 && !result && error && !busy && (
+                    <button type="button" className="u1-btn" onClick={() => setRunTry((n) => n + 1)} data-testid="u1-run-again">
+                      Run it again
+                    </button>
+                  )}
                   {exp.seenContext && (
                     <details className="u1-seen">
-                      <summary>What every bettor sees</summary>
-                      <pre tabIndex={0} aria-label="What every bettor sees" data-scroll-x="">
+                      <summary>{BET_WORDS.seen}</summary>
+                      <p className="u1-pins-line">{pinsLineOf(exp.seenContext, exp.experiment.target.language ?? "js")}</p>
+                      <pre tabIndex={0} aria-label="What every bettor sees">
                         {exp.seenContext}
                       </pre>
                     </details>
@@ -556,31 +645,36 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
               )}
               {changing && target && fn && (
                 <div data-testid="u1-tests">
-                  <p className="u1-k">{`Pick a test for ${fn}`}</p>
+                  <p className="u1-k">{BET_WORDS.pickFor(fn)}</p>
                   {busy && (
                     <p className="u1-status" role="status">
                       {busy}
                     </p>
                   )}
                   <ul className="u1-testlist">
-                    {(proposals?.proposals ?? []).map((p, i) => (
-                      <li key={p.id}>
-                        {p.gate.allowed ? (
-                          <>
-                            <span>{p.says}</span>{" "}
-                            <button type="button" className="u1-link" onClick={() => start(() => api.experimentFromProposal(target, p.id, { quiz: true }))} disabled={busy !== null} data-testid={`u1-use-${i}`}>
-                              Use this test
-                            </button>{" "}
-                            <button type="button" className="u1-link" onClick={() => setForm({ initial: formFromParams(p.params), editedFrom: p.id })}>
-                              Edit
-                            </button>
-                          </>
-                        ) : (
-                          <span className="u1-sub">{`${WONDER_DISPLAY}'s test ${i + 1} was refused by the gate: ${p.gate.reason}`}</span>
-                        )}
-                      </li>
-                    ))}
+                    {(proposals?.proposals ?? [])
+                      .filter((p) => p.gate.allowed)
+                      .map((p, i) => (
+                        <li key={p.id}>
+                          <span>{p.says}</span>{" "}
+                          <button type="button" className="u1-link" onClick={() => start(() => api.experimentFromProposal(target, p.id, { quiz: true }))} disabled={busy !== null} data-testid={`u1-use-${i}`}>
+                            Use this test
+                          </button>{" "}
+                          <button type="button" className="u1-link" onClick={() => setForm({ initial: formFromParams(p.params), editedFrom: p.id })}>
+                            Edit
+                          </button>
+                        </li>
+                      ))}
                   </ul>
+                  {(() => {
+                    // U2 (D53): a test the gate or the sandbox would refuse is never offered; it is only counted, quietly.
+                    const out = (proposals?.proposals ?? []).filter((p) => !p.gate.allowed).length;
+                    return out > 0 ? (
+                      <p className="u1-sub" data-testid="u1-left-out">
+                        {BET_WORDS.leftOut(out)}
+                      </p>
+                    ) : null;
+                  })()}
                   <button type="button" className="u1-link" onClick={() => setForm({ initial: emptyForm() })}>
                     Write your own test
                   </button>
@@ -613,18 +707,21 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
 
 function ModelsLine({ slots, claimant, onClaimant, locked }: { slots: ReturnType<typeof useModelSlots>["slots"]; claimant: ClaimantMode; onClaimant: (m: ClaimantMode) => void; locked: boolean }) {
   const on = slots.filter((s) => s.status !== "off");
+  const say = (st: string) => (st === "thinking" ? "answering" : st === "sealed" ? "sealed" : st === "no_usable_answer" ? "no usable answer" : st);
   return (
-    <p className="u1-sub" data-testid="u1-models">
-      {on.length
-        ? `${on.map((s) => `${s.display}: ${s.status === "thinking" ? "answering" : s.status === "sealed" ? "sealed" : s.status === "no_usable_answer" ? "no usable answer" : s.status}`).join(" · ")}. They answer the same options, without seeing yours.`
-        : "No model bets on this test."}
+    <div className="u1-models" data-testid="u1-models">
+      <p>{BET_WORDS.ais(on.map((s) => betterByRole(s.model)))}</p>
+      {on.length > 0 && <p className="u1-sub">{on.map((s) => BET_WORDS.aiStatus(betterByRole(s.model), say(s.status))).join(" · ")}</p>}
       {!locked && (
-        <select className="u1-who-bets" value={claimant} onChange={(e) => onClaimant(e.target.value as ClaimantMode)} aria-label="Who bets with you">
-          <option value="spark">Muse Spark</option>
-          <option value="spark-open">Muse Spark Open</option>
-          <option value="both">Both</option>
-        </select>
+        <label className="u1-who">
+          <span>{BET_WORDS.whoBets}</span>
+          <select className="u1-who-bets" value={claimant} onChange={(e) => onClaimant(e.target.value as ClaimantMode)}>
+            <option value="spark">Muse Spark 1.3 (Meta)</option>
+            <option value="spark-open">Muse Spark Open (Meta, open weights)</option>
+            <option value="both">Both</option>
+          </select>
+        </label>
       )}
-    </p>
+    </div>
   );
 }

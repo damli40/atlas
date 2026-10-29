@@ -13,8 +13,9 @@
 // No I/O, no clock, no randomness.
 
 import { TIMING_TOLERANCE_PCT, matchRuleWords } from "./timing-rule";
-import type { ArgSpec, BetAnswer, ExperimentShape, JsonValue, QuizOption, StandInStep } from "./types";
+import type { ArgSpec, BetAnswer, ExperimentShape, JsonValue, NetworkLibrary, QuizOption, StandInStep } from "./types";
 import { canonicalJson } from "./seal";
+import { LIBRARY_LANGUAGE, LIBRARY_WORDS, NETWORK_ERRORS, NETWORK_LIBRARIES, networkFakeWords } from "./network-fake";
 import { CALL_OUTCOME_OPTIONS, OUTCOME_OPTIONS, SETTLE_FIELD, STAND_IN_CALLS_PREFIX, measuredUnit, type MeasuredUnit } from "./units";
 
 export type ShapeName = ExperimentShape["shape"];
@@ -41,6 +42,8 @@ export interface GateContext {
    * call-function experiment may only call one of them.
    */
   exportNames?: readonly string[];
+  /** U2 (D53): the pasted file's language. When set, a network fake must replace a library of this language. */
+  language?: "js" | "ts" | "py";
 }
 
 /**
@@ -96,7 +99,9 @@ type FieldSpec =
   | { kind: "usd1e18"; min: bigint; max: bigint }
   // Added E1
   | { kind: "exportName" }
-  | { kind: "callArgs" };
+  | { kind: "callArgs" }
+  // Added U2 (D53)
+  | { kind: "network" };
 
 interface ShapeSpec {
   runner: "ts" | "evm";
@@ -167,9 +172,10 @@ export const SHAPES: Readonly<Record<ShapeName, ShapeSpec>> = {
     runner: "ts",
     does: "calls one exported function of the pasted file once, with plain JSON arguments and stand-in functions Atlas controls",
     required: { exportName: { kind: "exportName" }, args: { kind: "callArgs" } },
-    optional: { watchLimitMs: int(BOUNDS.watchLimitMs) },
+    optional: { watchLimitMs: int(BOUNDS.watchLimitMs), network: { kind: "network" } },
     notes: {
       exportName: "the exported function to call",
+      network: `only when the code calls the network: one scripted fake for that library, installed in place of it (the real network stays blocked): {"replaces":"fetch" (JS/TS global fetch) | "requests" | "urllib" (urllib.request) | "httpx","calls":[<1 to ${BOUNDS.standInSteps.max} steps>],"then":"repeat_last"|"throw_exhausted"}; a step is {"do":"respond","status":<100-599>,"body":<JSON>,"afterMs"?:<virtual ms>} or {"do":"throw","errorName":<the library's own network error name: fetch TypeError|AbortError|TimeoutError; requests ConnectionError|Timeout|ConnectTimeout|ReadTimeout|HTTPError|TooManyRedirects|RequestException; urllib URLError|TimeoutError; httpx ConnectError|ConnectTimeout|ReadTimeout|TimeoutException|NetworkError|ReadError|RemoteProtocolError>,"message":<text>} or {"do":"never_answer"} (only the code's own timeout or abort ends that wait)`,
       args: `at most ${BOUNDS.callArgs}; each {"kind":"json","value":<JSON>} or a stand-in function {"kind":"stand-in","name":<identifier>,"async":<true|false>,"calls":[<1 to ${BOUNDS.standInSteps.max} steps>],"then":"repeat_last"|"throw_exhausted"}; a step is {"do":"return","value":<JSON>,"afterMs"?:<virtual ms, async only>} or {"do":"throw","errorName":<identifier>,"message":<text>} or {"do":"never_settle"} (async only)`,
       watchLimitMs: `how long Atlas watches, in virtual ms (default ${CALL_DEFAULT_WATCH_LIMIT_MS})`,
     },
@@ -253,7 +259,56 @@ function checkField(name: string, spec: FieldSpec, value: unknown, ctx: GateCont
     }
     case "callArgs":
       return checkCallArgs(name, value);
+    case "network":
+      return checkNetwork(name, value, ctx);
   }
+}
+
+/** U2 (D53): a network fake, every bound checked; undefined when it is fine. */
+function checkNetwork(name: string, value: unknown, ctx: GateContext): string | undefined {
+  if (!isRecord(value)) return `${name} must be an object with replaces, calls and then`;
+  const extra = Object.keys(value).filter((k) => !["replaces", "calls", "then"].includes(k));
+  if (extra.length) return `${name} has no field ${extra.map(show).join(", ")}; its fields are replaces, calls, then`;
+  const lib = value.replaces;
+  if (typeof lib !== "string" || !(NETWORK_LIBRARIES as readonly string[]).includes(lib)) return `${name}.replaces must be one of ${NETWORK_LIBRARIES.map((l) => `"${l}"`).join(", ")}; got ${show(lib)}`;
+  const want = ctx.language === undefined ? undefined : ctx.language === "py" ? "py" : "js";
+  if (want && LIBRARY_LANGUAGE[lib as NetworkLibrary] !== want) return `${name}.replaces "${lib}" is not a ${want === "py" ? "Python" : "JavaScript/TypeScript"} library; this file is ${want === "py" ? "Python" : "JavaScript/TypeScript"}`;
+  if (value.then !== "repeat_last" && value.then !== "throw_exhausted") return `${name}.then must be "repeat_last" or "throw_exhausted"; got ${show(value.then)}`;
+  if (!Array.isArray(value.calls) || value.calls.length < BOUNDS.standInSteps.min || value.calls.length > BOUNDS.standInSteps.max) {
+    return `${name}.calls must be a list of ${BOUNDS.standInSteps.min} to ${BOUNDS.standInSteps.max} steps`;
+  }
+  const errors = NETWORK_ERRORS[lib as NetworkLibrary];
+  for (let j = 0; j < value.calls.length; j++) {
+    const s = value.calls[j] as unknown;
+    const sat = `${name}.calls[${j}]`;
+    if (!isRecord(s)) return `${sat} must be an object with a "do" field`;
+    const fields = (allowed: string[]) => {
+      const bad = Object.keys(s).filter((k) => !allowed.includes(k));
+      return bad.length ? `${sat} (${String(s.do)}) has no field ${bad.map(show).join(", ")}; its fields are ${allowed.join(", ")}` : undefined;
+    };
+    if (s.do === "respond") {
+      const bad = fields(["do", "status", "body", "afterMs"]);
+      if (bad) return bad;
+      if (typeof s.status !== "number" || !Number.isSafeInteger(s.status) || s.status < 100 || s.status > 599) return `${sat}.status must be an HTTP status, a whole number from 100 to 599; got ${show(s.status)}`;
+      if (!Object.prototype.hasOwnProperty.call(s, "body")) return `${sat} (respond) needs body`;
+      if (!isJsonValue(s.body, 0)) return `${sat}.body must be plain JSON`;
+      if (s.afterMs !== undefined) {
+        const why = checkField(`${sat}.afterMs`, int(BOUNDS.afterMs), s.afterMs, {});
+        if (why) return why;
+      }
+    } else if (s.do === "throw") {
+      const bad = fields(["do", "errorName", "message"]);
+      if (bad) return bad;
+      if (typeof s.errorName !== "string" || !errors.includes(s.errorName)) return `${sat}.errorName must be one of ${lib}'s network errors (${errors.join(", ")}); got ${show(s.errorName)}`;
+      if (typeof s.message !== "string" || s.message.length > BOUNDS.errorMessageChars) return `${sat}.message must be text of at most ${BOUNDS.errorMessageChars} characters`;
+    } else if (s.do === "never_answer") {
+      const bad = fields(["do"]);
+      if (bad) return bad;
+    } else {
+      return `${sat}.do must be "respond", "throw" or "never_answer"; got ${show(s.do)}`;
+    }
+  }
+  return undefined;
 }
 
 /** A JavaScript-style name: what a stand-in, an error name and an exported function may be called. */
@@ -404,6 +459,22 @@ export function gate(params: unknown, ctx: GateContext = {}): GateDecision {
     const why = retryFieldWithoutEffect(params);
     if (why) return refuse(why);
   }
+  if (name === "call-function" && isRecord(params.network)) {
+    // U2 (D53): the fake's count is measured as calls:<library>, so no stand-in may carry that name; and its texts
+    // count towards the same budget as the arguments'.
+    const lib = String(params.network.replaces);
+    if ((params.args as Record<string, unknown>[]).some((a) => a.kind === "stand-in" && a.name === lib)) return refuse(`a stand-in is named "${lib}", the same as the network fake; each needs its own name (its call count is measured by name)`);
+    let chars = 0;
+    for (const a of params.args as ArgSpec[]) {
+      if (a.kind === "json") chars += visibleText(canonicalJson(a.value)).length;
+      else {
+        chars += visibleText(a.name).length;
+        for (const c of a.calls) chars += c.do === "return" ? visibleText(canonicalJson(c.value)).length : c.do === "throw" ? visibleText(c.errorName).length + visibleText(c.message).length : 0;
+      }
+    }
+    for (const c of (params.network as { calls: Record<string, unknown>[] }).calls) chars += c.do === "respond" ? visibleText(canonicalJson(c.body as JsonValue)).length : c.do === "throw" ? visibleText(String(c.errorName)).length + visibleText(String(c.message)).length : 0;
+    if (chars > BOUNDS.argsJsonChars) return refuse(`the texts in args and network (JSON values, names and messages, with hidden characters written as escapes) are ${chars} characters; the limit is ${BOUNDS.argsJsonChars}`);
+  }
   // A deep copy through JSON: every allowed field is plain JSON by now.
   return { allowed: true, params: JSON.parse(JSON.stringify(params)) as ExperimentShape };
 }
@@ -470,7 +541,8 @@ function standInWords(a: Extract<ArgSpec, { kind: "stand-in" }>): string {
 export function describeCall(params: Extract<ExperimentShape, { shape: "call-function" }>): string {
   const args = params.args.map((a) => (a.kind === "json" ? shortJson(a.value) : a.name)).join(", ");
   const standIns = params.args.filter((a): a is Extract<ArgSpec, { kind: "stand-in" }> => a.kind === "stand-in").map(standInWords);
-  return visibleText([`Atlas calls ${params.exportName}(${args}).`, ...standIns].join(" "));
+  const net = params.network ? [networkFakeWords(params.network, canonicalJson)] : [];
+  return visibleText([`Atlas calls ${params.exportName}(${args}).`, ...standIns, ...net].join(" "));
 }
 
 /** The questions about one call-function experiment, every text written here. */
@@ -483,6 +555,7 @@ function callFunctionQuestions(params: Extract<ExperimentShape, { shape: "call-f
     q("virtualMs", `${d} How long until ${fn} returns or throws, in ms of Atlas's virtual clock?`, "number", { tolerancePct: VIRTUAL_MS_TOLERANCE_PCT }),
   ];
   for (const a of params.args) if (a.kind === "stand-in") out.push(q(`${STAND_IN_CALLS_PREFIX}${a.name}`, `${d} How many times does ${fn} call ${visibleText(a.name)}?`, "integer"));
+  if (params.network) out.push(q(`${STAND_IN_CALLS_PREFIX}${params.network.replaces}`, `${d} How many times does ${fn} call the network (Atlas's fake ${LIBRARY_WORDS[params.network.replaces]})?`, "integer"));
   return out;
 }
 
@@ -593,6 +666,8 @@ function renderField(name: string, spec: FieldSpec, ctx: GateContext): string {
       return `${name}: ${ctx.exportNames ? `one of [${ctx.exportNames.map((n) => `"${n}"`).join(", ") || "(none)"}]` : "an exported function's name"}`;
     case "callArgs":
       return `${name}: list of arguments`;
+    case "network":
+      return `${name}: optional network fake`;
   }
 }
 

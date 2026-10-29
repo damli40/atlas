@@ -16,6 +16,8 @@ import { CLOCK_ID, type BenchModel, type BenchPart } from "./model";
 import { OUTCOME_WORDS, type Mark, type Script } from "./play";
 import { applyPick } from "../explorer/pick";
 import { lineSpan } from "../../../src/words";
+import { RESULT_WORDS, STAGE_WORDS } from "../../../src/paste-words";
+import { CANT_TELL } from "../../../src/quiz";
 
 const DARK = "(prefers-color-scheme: dark)";
 const STILL = "(prefers-reduced-motion: reduce)";
@@ -115,7 +117,16 @@ export interface BenchStageProps {
   footnote?: ReactNode;
 }
 
-const STEP_MS = 700;
+/** U2: about how long the steps of one replay take together (ms of real time), before the intro and the end. */
+export const PLAY_TOTAL_MS = 6000;
+/** U2: how long "Atlas calls the function" shows before the first step. */
+const INTRO_MS = 1100;
+/** U2: a round number of ms at or above `ms`, for a dial rescaled to a run that went past the test's own dial. */
+export function roundUp(ms: number): number {
+  const p = 10 ** Math.floor(Math.log10(Math.max(1, ms)));
+  for (const m of [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]) if (m * p >= ms) return m * p;
+  return 10 * p;
+}
 
 export function BenchStage({ model, theme, after = null, onTestFunction, title, children, extraMarks = [], side = false, footnote = null }: BenchStageProps) {
   const dark = useDarkScheme();
@@ -132,6 +143,7 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
   const [clockMs, setClockMs] = useState<number | null>(null);
   const [marksOn, setMarksOn] = useState(false);
   const [focusMark, setFocusMark] = useState<string | null>(null);
+  const [dialScale, setDialScale] = useState<number | null>(null);
   const svgReady = "svg" in built ? built.svg : null;
 
   // Anchors: each box's top centre in SVG units, measured from its hit path.
@@ -175,17 +187,29 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
   };
 
   // The run, played on the drawing. Without `after`: the rest state (lamps off, needle at 0, no chips, no marks).
+  // U2 (D53): a watchable pace (about 5 to 10 s in all): Atlas calls the function, then each call lights its device,
+  // each wait lights the parts that wait and moves the needle, and the ending shows on the function. "Play the run
+  // again" (a new token) plays it all again.
   useEffect(() => {
     setChips({});
     setClockMs(null);
     setMarksOn(false);
+    setDialScale(null);
     if (!svgReady) return;
-    for (const el of svgHost.current?.querySelectorAll("[data-lamp]") ?? []) el.removeAttribute("data-on");
-    for (const el of svgHost.current?.querySelectorAll(".u1-live") ?? []) el.classList.remove("u1-live");
+    const host = svgHost.current;
+    for (const el of host?.querySelectorAll("[data-lamp]") ?? []) el.removeAttribute("data-on");
+    for (const el of host?.querySelectorAll(".u1-live") ?? []) el.classList.remove("u1-live");
     needle(0);
     if (!after) return;
-    const { script, dialFullMs } = after;
-    const frac = (ms: number) => ms / Math.max(1, dialFullMs);
+    const { script } = after;
+    // The dial's scale: the test's own (before betting) unless the run went past it; then a round number above the run's
+    // end, said on the clock chip, and the test's tick marks (which belong to the old scale) are hidden.
+    const scale = script.dialEndMs !== null && script.dialEndMs > after.dialFullMs ? roundUp(script.dialEndMs) : after.dialFullMs;
+    if (scale !== after.dialFullMs) setDialScale(scale);
+    const frac = (ms: number) => Math.min(1, ms / Math.max(1, scale));
+    const partsLit = (ids: readonly string[], on: boolean) => {
+      for (const id of ids) for (const el of host?.querySelectorAll(`[data-of="${attr(id)}"]:not([data-line])`) ?? []) el.classList.toggle("u1-live", on);
+    };
     const endState = () => {
       const c: Record<string, string> = { ...script.totals };
       if (script.ending && model.tested) c[model.tested] = script.ending;
@@ -196,12 +220,12 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
       }
       setMarksOn(true);
     };
-    if (still || script.notShown !== null || script.steps.length === 0) {
+    if (still || script.notShown !== null) {
       endState();
       return;
     }
     const timers: number[] = [];
-    const at = (ms: number, fn: () => void) => timers.push(window.setTimeout(fn, ms));
+    const later = (ms: number, fn: () => void) => timers.push(window.setTimeout(fn, ms));
     const raf = { current: 0 };
     let from = 0;
     const turn = (to: number, over: number) => {
@@ -218,27 +242,42 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
       };
       raf.current = requestAnimationFrame(step);
     };
-    script.steps.forEach((s, i) => {
-      at(300 + i * STEP_MS, () => {
-        lamp(s.device, true);
+    const steps = script.steps;
+    const stepMs = Math.round(Math.min(2400, Math.max(260, PLAY_TOTAL_MS / Math.max(1, steps.length))));
+    const START = 300;
+    // Step 0: Atlas calls the function (it lights; the clock reads 0 ms).
+    later(START, () => {
+      if (model.tested) {
+        partsLit([model.tested], true);
+        setChips({ [model.tested]: `Atlas calls ${model.tested}` });
+      }
+      setClockMs(0);
+    });
+    later(START + INTRO_MS - 120, () => model.tested && partsLit([model.tested], false));
+    steps.forEach((s, i) => {
+      const t0 = START + INTRO_MS + i * stepMs;
+      later(t0, () => {
+        if (s.device) lamp(s.device, true);
         lineLit(s.line, true);
-        setChips((c) => ({ ...c, [s.device]: s.words }));
-        if (script.dialEndMs !== null) {
-          turn(s.at, STEP_MS * 0.6);
+        partsLit(s.parts, true);
+        const where = s.device ?? s.parts[0] ?? model.tested;
+        if (where) setChips((c) => ({ ...(s.kind === "end" ? { ...script.totals } : c), [where]: s.words }));
+        if (script.dialEndMs !== null || s.kind !== "end") {
+          turn(s.at, stepMs * 0.7);
           setClockMs(s.at);
         }
       });
-      at(300 + i * STEP_MS + STEP_MS * 0.6, () => {
-        lamp(s.device, false);
-        lineLit(s.line, false);
-      });
+      if (s.kind !== "end")
+        later(t0 + stepMs * 0.7, () => {
+          if (s.device) lamp(s.device, false);
+          lineLit(s.line, false);
+          partsLit(s.parts, false);
+        });
     });
-    const end = 300 + script.steps.length * STEP_MS;
-    at(end, () => {
-      if (script.dialEndMs !== null) turn(script.dialEndMs, 500);
-    });
-    at(end + 600, () => {
+    const end = START + INTRO_MS + steps.length * stepMs;
+    later(end + 700, () => {
       cancelAnimationFrame(raf.current);
+      for (const el of host?.querySelectorAll(".u1-live") ?? []) el.classList.remove("u1-live");
       endState();
     });
     return () => {
@@ -317,7 +356,7 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
   const readout = after && marksOn ? marksReadout(after.marks) : model.tested ? `testing ${model.tested}` : `${model.boxes.length} ${model.boxes.length === 1 ? "part" : "parts"} · ${model.lines.length} ${model.lines.length === 1 ? "join" : "joins"}`;
 
   return (
-    <div className={`iso u1-root${marksOn ? " u1-marked" : ""}`} data-theme={shown === "light" ? "light" : undefined} ref={rootRef} data-testid="bench-stage" data-phase={after ? (marksOn ? "marked" : "playing") : "rest"} data-side={side || (after && marksOn) ? "" : undefined}>
+    <div className={`iso u1-root${marksOn ? " u1-marked" : ""}`} data-theme={shown === "light" ? "light" : undefined} ref={rootRef} data-testid="bench-stage" data-pop={side && !after ? "" : undefined} data-rescaled={dialScale !== null ? "" : undefined} data-phase={after ? (marksOn ? "marked" : "playing") : "rest"} data-side={side || (after && marksOn) ? "" : undefined}>
       <div className="iso-plate-corners u1-corners" aria-hidden="true">
         <span className="iso-plate-corner" data-corner="fig">Fig U1</span>
         <span className="iso-plate-corner" data-corner="title">{title}</span>
@@ -364,14 +403,20 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
               )}
             {after && clockMs !== null && anchors[CLOCK_ID] && (
               <span className="u1-chip u1-chip-clock" data-run="" style={at(anchors[CLOCK_ID]!)} data-testid="chip-clock">
-                {`${clockMs.toLocaleString("en-US")} ms${clockMs > after.dialFullMs ? ` (past the dial's ${after.dialFullMs.toLocaleString("en-US")} ms)` : ""}`}
+                {`${clockMs.toLocaleString("en-US")} ms${after.script.atLimit && marksOn ? " (Atlas stopped watching; still running)" : ""}${dialScale !== null ? ` · dial now 0–${dialScale.toLocaleString("en-US")} ms` : ""}`}
               </span>
             )}
             {after &&
               marksOn &&
               [...marksByAnchor.entries()].map(([anchor, list]) =>
                 anchors[anchor] ? (
-                  <div key={`pins-${anchor}`} className="u1-pins" style={at({ x: anchors[anchor]!.x, y: anchors[anchor]!.y + anchors[anchor]!.h })} data-run="">
+                  <div
+                    key={`pins-${anchor}`}
+                    className="u1-pins"
+                    style={model.parts[anchor]?.kind === "code" ? at({ x: anchors[anchor]!.x, y: anchors[anchor]!.y + anchors[anchor]!.h }) : at({ x: anchors[anchor]!.x + anchors[anchor]!.w / 2, y: anchors[anchor]!.y + anchors[anchor]!.h / 2 })}
+                    data-beside={model.parts[anchor]?.kind === "code" ? undefined : ""}
+                    data-run=""
+                  >
                     {list.map((mk) => {
                       const you = mk.picks.find((p) => p.who === "human");
                       return (
@@ -406,7 +451,7 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
               )}
           </div>
         </div>
-        {cardId && anchors[cardId] && model.parts[cardId] && <PartCard id={cardId} part={model.parts[cardId]!} tested={model.tested} pinned={pinned === cardId} onTest={onTestFunction} onClose={() => setPinned(null)} canChange={!after} />}
+        {cardId && anchors[cardId] && model.parts[cardId] && <PartCard id={cardId} part={model.parts[cardId]!} tested={model.tested} hasTest={Boolean(model.parts[CLOCK_ID])} python={/\.py$/.test(String((model as { source?: unknown }).source ?? ""))} pinned={pinned === cardId} onTest={onTestFunction} onClose={() => setPinned(null)} canChange={!after} />}
       </div>
       <div className="u1-zoom" role="group" aria-label="zoom">
         <button type="button" onClick={() => zoomBy(1.25)} aria-label="Zoom in">
@@ -431,18 +476,72 @@ function marksReadout(marks: readonly Mark[]): string {
   return `you: ${n("matched")} matched · ${n("not_matched")} didn't match · ${n("cant_check")} can't check`;
 }
 
-/** matched = a filled dot; didn't match = a ring cut short; can't check = a dashed ring with a level dash (the scoreboard's marks). */
+/**
+ * U2: three shapes, never a spinner, always beside the words: matched = a filled disc with a tick; didn't match = an
+ * open circle with a cross; can't check = a dashed square with a question mark.
+ */
 export function Glyph({ outcome }: { outcome: Mark["picks"][number]["outcome"] }) {
   return (
-    <svg className="u1-glyph" data-outcome={outcome} viewBox="0 0 12 12" aria-hidden="true">
-      {outcome === "matched" ? <circle cx="6" cy="6" r="4.2" /> : outcome === "not_matched" ? <path d="M6 1.8a4.2 4.2 0 1 0 4.2 4.2" /> : <><circle cx="6" cy="6" r="4.2" strokeDasharray="1.6 1.6" /><path d="M3.6 6h4.8" /></>}
+    <svg className="u1-glyph" data-outcome={outcome} viewBox="0 0 14 14" aria-hidden="true">
+      {outcome === "matched" ? (
+        <>
+          <circle cx="7" cy="7" r="5.6" />
+          <path d="M4.3 7.2l1.9 1.9 3.6-4" />
+        </>
+      ) : outcome === "not_matched" ? (
+        <>
+          <circle cx="7" cy="7" r="5.6" />
+          <path d="M4.9 4.9l4.2 4.2M9.1 4.9l-4.2 4.2" />
+        </>
+      ) : (
+        <>
+          <rect x="1.6" y="1.6" width="10.8" height="10.8" rx="1.5" strokeDasharray="2 1.6" />
+          <text x="7" y="10" textAnchor="middle">?</text>
+        </>
+      )}
     </svg>
   );
 }
 
+/** U2: the results' headline, counted by plain code from the marks: each bettor's matched of checkable answers. */
+export function headlineOf(marks: readonly Mark[]): string {
+  const by = new Map<string, { name: string; matched: number; checkable: number; cantTell: number; total: number }>();
+  for (const m of marks)
+    for (const p of m.picks) {
+      const e = by.get(p.who) ?? { name: shortName(p.name), matched: 0, checkable: 0, cantTell: 0, total: 0 };
+      e.total++;
+      if (p.pick === CANT_TELL) e.cantTell++;
+      if (p.outcome !== "cant_check") e.checkable++;
+      if (p.outcome === "matched") e.matched++;
+      by.set(p.who, e);
+    }
+  const you = by.get("human") ?? { name: "You", matched: 0, checkable: 0, cantTell: 0, total: 0 };
+  // Muse Spark first, then Muse Spark Open (the open-weights model), then any other, as the pop-up introduced them.
+  const rank = (w: string) => (/open/i.test(w) ? 1 : /spark/i.test(w) ? 0 : 2);
+  const others = [...by.entries()].filter(([w]) => w !== "human").sort((a, b) => rank(a[0]) - rank(b[0]) || (a[0] < b[0] ? -1 : 1)).map(([, e]) => e);
+  return RESULT_WORDS.headline(you, others);
+}
+
+/** U2: when every mark is can't check for the same reason, that reason (said once, not on every question). */
+export function sharedReason(marks: readonly Mark[]): string | null {
+  if (marks.length < 2) return null;
+  const all = marks.map((m) => m.measured);
+  if (!all.every((x) => x.startsWith("can't check: ") && x === all[0])) return null;
+  return all[0]!.slice("can't check: ".length);
+}
+
 function MarkList({ marks, focus, onFocus, footnote }: { marks: readonly Mark[]; focus: string | null; onFocus: (m: string | null) => void; footnote: ReactNode }) {
+  const same = sharedReason(marks);
   return (
     <section className="u1-marks" aria-label="How each answer was judged" data-testid="mark-list">
+      <p className="u1-headline" data-testid="u1-headline">
+        {headlineOf(marks)}
+      </p>
+      {same && (
+        <p className="u1-samewhy" data-testid="u1-same-reason">
+          {RESULT_WORDS.sameReason(same)}
+        </p>
+      )}
       <h2>Judged by plain code</h2>
       <ul>
         {marks.map((m) => (
@@ -451,7 +550,7 @@ function MarkList({ marks, focus, onFocus, footnote }: { marks: readonly Mark[];
               {`${marks.indexOf(m) + 1}. ${m.question}`}
             </button>
             <p className="u1-measured">
-              <span className="u1-k">The run:</span> {m.measured}
+              <span className="u1-k">The run:</span> {same ? RESULT_WORDS.seeAbove : m.measured}
             </p>
             <ul className="u1-picks">
               {m.picks.map((p) => (
@@ -462,7 +561,7 @@ function MarkList({ marks, focus, onFocus, footnote }: { marks: readonly Mark[];
                   </span>
                   <span className="u1-pick">{p.pick}</span>
                   <span className="u1-out">{OUTCOME_WORDS[p.outcome]}</span>
-                  {p.outcome === "cant_check" && p.reason && focus === m.measures && <span className="u1-why">{p.reason}</span>}
+                  {p.outcome === "cant_check" && p.reason && !same && p.reason !== m.measured.replace(/^can't check: /, "") && focus === m.measures && <span className="u1-why">{p.reason}</span>}
                 </li>
               ))}
             </ul>
@@ -477,16 +576,16 @@ function MarkList({ marks, focus, onFocus, footnote }: { marks: readonly Mark[];
 /** "Muse Spark 1.3 (muse-spark-1.3)" → "Muse Spark 1.3"; the full name stays in the title (D10: Meta's names stay visible). */
 const shortName = (name: string) => name.replace(/\s*\(.*$/, "");
 
-function PartCard({ id, part, tested, pinned, onTest, onClose, canChange }: { id: string; part: BenchPart; tested: string | null; pinned: boolean; onTest?: (name: string) => void; onClose: () => void; canChange: boolean }) {
+function PartCard({ id, part, tested, hasTest, python, pinned, onTest, onClose, canChange }: { id: string; part: BenchPart; tested: string | null; hasTest: boolean; python: boolean; pinned: boolean; onTest?: (name: string) => void; onClose: () => void; canChange: boolean }) {
   return (
     <aside className="u1-card" data-pinned={pinned ? "" : undefined} aria-live="polite" data-testid="part-card">
       {part.kind === "code" ? (
         <>
           <h3>{part.part.name}</h3>
-          <p className="u1-sub">{`${part.part.kind === "class" ? "class" : "function"} · ${lineSpan(part.part.lineStart, part.part.lineEnd)}${part.part.exported ? " · exported" : ""}`}</p>
+          <p className="u1-sub">{`${part.part.kind === "class" ? "class" : "function"} · ${lineSpan(part.part.lineStart, part.part.lineEnd)}${part.part.exported ? (python ? " · top-level (Atlas can call it)" : " · exported (Atlas can call it)") : ""}`}</p>
           {part.part.signature && <code className="u1-sig">{part.part.signature}</code>}
           <p>{part.callsTo.length ? `Calls ${part.callsTo.join(", ")}.` : "Calls no other part of this file."} {part.calledBy.length ? `Called by ${part.calledBy.join(", ")}.` : ""}</p>
-          {tested === id ? <p className="u1-sub">This is the function the test calls.</p> : part.part.exported && part.part.kind === "function" && onTest && canChange ? (
+          {tested === id ? <p className="u1-sub">{hasTest ? STAGE_WORDS.testCalls : STAGE_WORDS.willTest}</p> : part.part.exported && part.part.kind === "function" && onTest && canChange ? (
             <button type="button" className="u1-btn" onClick={() => onTest(id)} data-testid={`test-fn-${id}`}>
               Test this function
             </button>
@@ -494,8 +593,8 @@ function PartCard({ id, part, tested, pinned, onTest, onClose, canChange }: { id
         </>
       ) : part.kind === "device" ? (
         <>
-          <h3>{`Stand-in: ${part.name}`}</h3>
-          <p className="u1-sub">{`A fake function Atlas passes in${part.async ? " (async)" : ""}. Scripted by the test:`}</p>
+          <h3>{part.network ? `Fake network: ${part.name}` : `Stand-in: ${part.name}`}</h3>
+          <p className="u1-sub">{part.network ? STAGE_WORDS.fakeNetwork(part.name) : `A fake function Atlas passes in${part.async ? " (async)" : ""}. Scripted by the test:`}</p>
           <ol className="u1-steps">
             {part.steps.map((s, i) => (
               <li key={i}>{s}</li>

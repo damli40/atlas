@@ -109,7 +109,7 @@ describe("U1 quiz options are built by plain code from the test only", () => {
   });
 
   it("the builder's only input is the test: anything a test does not have (a run, a measured value) is refused by the gate", () => {
-    expect(quizQuestionsFor.length).toBe(2); // (test, exportNames?) and nothing else
+    expect(quizQuestionsFor.length).toBe(3); // (test, exportNames?, language?) and nothing else (U2 added the language, for the gate)
     const smuggled = { ...test3, run: { result: { measured: { virtualMs: 123 } } } };
     expect(() => quizQuestionsFor(smuggled)).toThrow(/gate refuses/);
     const withMeasured = { ...test3, measured: { "calls:fetchIt": 9 } };

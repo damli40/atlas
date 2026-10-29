@@ -608,7 +608,11 @@ def main(key_text):
     new_loop = E["new_loop"]
     make_sync_standin = E["make_sync_standin"]
     make_async_standin = E["make_async_standin"]
-    import_guard = E["make_import_guard"](stdlib_names)
+    # U2 (D53): the network libraries this request fakes (one file, one test: the same for every run).
+    fake_libs = frozenset(r["network"]["name"] for r in req["runs"] if r.get("network") is not None and r["network"]["name"] != "fetch")
+    NET = E["_NET"]
+    net_want = [None]
+    import_guard = E["make_import_guard"](stdlib_names, fake_libs)
     # exposed.py is hostile by design, but its globals and loop classes are what makes a refusal visible ("can't
     # check"). Code that edits them (to silence a refusal, say) is caught by comparing against this snapshot.
     exposed_snapshot = [(k, E[k]) for k in E]
@@ -706,6 +710,17 @@ def main(key_text):
             c["conds"].add("timed-work")
         c["lastRead"] = v
 
+    def note_move(v):
+        # U2 (D53): each moment the virtual clock moved to, for the drawing's replay only (never judged).
+        c = current[0]
+        if c is None:
+            return
+        mv = c["moves"]
+        if len(mv) < 300:
+            mv.append(ms(v))
+        else:
+            c["movesMore"] = c.get("movesMore", 0) + 1
+
     def refuse(code, what, exc=None):
         mark_code(code, what)
         raise (exc if exc is not None else AtlasRefused("Atlas refused this: " + clean(what)))
@@ -719,6 +734,7 @@ def main(key_text):
             v = args[0] if len(args) > 0 else None
             if (type(v) is float or type(v) is int) and v == v and v > clock_high[0]:
                 clock_high[0] = float(v)
+                note_move(float(v))
             return
         if event == "atlas.cantcheck":
             code = args[0] if len(args) > 0 else ""
@@ -886,9 +902,53 @@ def main(key_text):
                 ctx["interfered"] = "a stand-in was interrupted from outside"
                 msg = yield ("throw", make_error("AtlasStandInBroken", "Atlas's stand-in was interrupted"))
 
+    def network_gen(name, steps, then, ctx):
+        """U2 (D53): the fake network's script and call count, like a stand-in's. Only `send` is handed out (to exposed.py's
+        fake library, through _NET); the answer says what the library should do, and exposed.py builds the library's own
+        response or error object from it."""
+        n = 0
+        msg = yield None
+        while True:
+            try:
+                if msg is QUERY:
+                    msg = yield n
+                    continue
+                n += 1
+                read_clock(ctx)
+                data = {"name": name, "n": n}
+                if ctx["settled"]:
+                    data["afterSettle"] = True
+                emit(ctx, "stand_in_call", data)
+                if n <= len(steps):
+                    step = steps[n - 1]
+                elif then == "repeat_last":
+                    step = steps[len(steps) - 1]
+                else:
+                    step = None
+                if step is None:
+                    emit(ctx, "stand_in_throws", {"name": name, "n": n, "errorName": "AtlasStandInExhausted"})
+                    answer = ("exhausted", make_error("AtlasStandInExhausted", "%s has no step for call %d (it has %d)" % (name, n, len(steps))))
+                elif step[0] == "throw":
+                    emit(ctx, "stand_in_throws", {"name": name, "n": n, "errorName": step[1]})
+                    answer = ("throw", step[1], step[2])
+                elif step[0] == "never":
+                    emit(ctx, "stand_in_never_answers", {"name": name, "n": n})
+                    answer = ("never",)
+                else:
+                    after = step[3]
+                    emit(ctx, "stand_in_returns", {"name": name, "n": n, "afterMs": after} if after else {"name": name, "n": n})
+                    answer = ("respond", step[1], fresh(step[2]), after / 1000.0)
+                msg = yield answer
+            except GeneratorExit:
+                ctx["interfered"] = "the fake network was closed from outside"
+                return
+            except BaseException:
+                ctx["interfered"] = "the fake network was interrupted from outside"
+                msg = yield ("exhausted", make_error("AtlasStandInBroken", "Atlas's fake network was interrupted"))
+
     runs = []
     for r in req["runs"]:
-        ctx = {"trace": [], "settled": False, "clock": 0.0, "interfered": None, "conds": set(), "lastRead": None, "host": set(), "selfSeeded": False}
+        ctx = {"trace": [], "settled": False, "clock": 0.0, "interfered": None, "conds": set(), "lastRead": None, "host": set(), "selfSeeded": False, "moves": []}
         args = []
         gens = []
         for a in r["args"]:
@@ -908,7 +968,22 @@ def main(key_text):
             next(g)
             args.append((make_async_standin if is_async else make_sync_standin)(a["name"], g.send))
             gens.append((a["name"], g))
-        runs.append({"req": r, "ctx": ctx, "args": args, "gens": gens})
+        net_send = None
+        net = r.get("network")
+        if net is not None:
+            nsteps = []
+            for s in net["calls"]:
+                if s["do"] == "respond":
+                    nsteps.append(("respond", s["status"], _json.loads(s["json"]), s.get("afterMs", 0) or 0))
+                elif s["do"] == "throw":
+                    nsteps.append(("throw", s["errorName"], s["message"]))
+                else:
+                    nsteps.append(("never",))
+            ng = network_gen(net["name"], nsteps, net["then"], ctx)
+            next(ng)
+            net_send = ng.send
+            gens.append((net["name"], ng))
+        runs.append({"req": r, "ctx": ctx, "args": args, "gens": gens, "net": net_send})
 
     # ---------------------------------------------------------------------------------------------------------
     # 8. Compile and load the code, with the hook armed.
@@ -1053,6 +1128,8 @@ def main(key_text):
             tamper(changed)
         if type(NUDGE[0]) is not float or NUDGE[0] != nudge_want[0] or len(NUDGE) != 1:
             tamper("exposed.py's NUDGE")
+        if len(NET) != 1 or NET[0] is not net_want[0]:
+            tamper("exposed.py's fake network")
         if atexit_count() != base_atexit:
             mark(word("process", what="atexit.register (a function run when the process ends, which Atlas never reaches)"))
         if len(gc_callbacks) != base_gc_callbacks:
@@ -1158,6 +1235,9 @@ def main(key_text):
             if when > now:
                 CLOCK[0] = float(when)
                 ctx["clock"] = float(when)
+                if when > clock_high[0]:
+                    clock_high[0] = float(when)
+                    note_move(float(when))
                 if clock_high[0] < ctx["clock"]:
                     clock_high[0] = ctx["clock"]
                 now = ctx["clock"]
@@ -1208,6 +1288,8 @@ def main(key_text):
         stop = None
         limit = False
         rand_before = rand_getstate(rand_inst)
+        net_want[0] = run["net"]
+        NET[0] = run["net"]
         current[0] = ctx
         try:
             value = fn(*run["args"])
@@ -1294,6 +1376,11 @@ def main(key_text):
         elif stop is not None or limit:
             emit(ctx, "stopped_watching_after_settle", {"reason": stop or "Atlas's watch limit (%d ms of virtual time) ran out while the code's timers were still running after it settled" % watch_ms})
 
+        if ctx["moves"]:
+            mdata = {"at": list(ctx["moves"])}
+            if ctx.get("movesMore"):
+                mdata["more"] = ctx["movesMore"]
+            ctx["trace"].append({"t": ms(ctx["clock"]), "event": "clock_moves", "data": mdata})
         # R1 (D42): the conditions this run noticed, in one event (src/conditions.ts reads it; verify rechecks it).
         kinds = set(static_conds) | load_conds | ctx["conds"]
         host = static_host | load_host | ctx["host"]
