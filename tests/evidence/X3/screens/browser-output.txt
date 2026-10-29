@@ -1,14 +1,18 @@
 === explore → bet → two rounds → reproduced → proof card (1920×1080, light)
 PASS explorer card: 'no overall timeout' is found in this code before any run
 PASS explorer card names Wonder's tag as Wonder's
-PASS overlap explorer-card-found: 457 px wide, 128 text boxes, 0 overlapping pairs, 0 outside
+PASS overlap explorer-card-found: 457 px wide, 119 text boxes, 0 overlapping pairs, 0 outside
 PASS axe explorer-card-found: 0 violations  (40 rules passed)
+PASS review M2: paste screen shows no labels before a round's bets are sealed, only the note
 PASS paste screen: the panel starts empty
-PASS paste screen: 'no overall timeout' found in this code
-PASS the 'found in this code' link goes to its lines
-PASS overlap paste-labels-found: 728 px wide, 77 text boxes, 0 overlapping pairs, 0 outside
 PASS overlap track-empty: 728 px wide, 8 text boxes, 0 overlapping pairs, 0 outside
-PASS axe paste-before: 0 violations  (37 rules passed)
+PASS axe paste-before: 0 violations  (35 rules passed)
+PASS review M2: no failure labels on the paste screen while the bets are not sealed
+PASS paste screen, after the seal: 'no overall timeout' found in this code
+PASS review M1: the default example shows no rate limit claim and retry storm only as a common pattern
+PASS the 'found in this code' link goes to its lines
+PASS overlap paste-labels-found: 728 px wide, 45 text boxes, 0 overlapping pairs, 0 outside
+PASS axe paste-labels-after-seal: 0 violations  (38 rules passed)
 panel after round 1: Your track record Where your guesses matched what the code did Outcome: matched 0 of 1 · didn't match 1 · can't check 0 (n = 1). Timing: matched 0 of 1 · didn't match 1 · can't check 0 (n = 1). Of the 1 that didn't match, your guess was higher 1 time. Call counts: matched 1 of 1 · didn't match 0 · can't check 0 (n = 1). 3 bets from 1 round. Counted by plain code from your sealed bets and the judge's verdicts (src/judge.ts). No model reads or writes it. Kept for this browser on this server (no invite code). When you ask Muse Wonder for tests, it is told only the kinds of question where your bets most often didn't match, with their counts: no code, nothing about anyone else. The betting models are not told any of this.
 PASS the panel shows the record by question type with n
 PASS the panel never says learn, teach, score, skill, right or wrong
@@ -16,25 +20,27 @@ PASS overlap track-panel: 728 px wide, 11 text boxes, 0 overlapping pairs, 0 out
 PASS axe after-round-1: 0 violations  (46 rules passed)
 Wonder was told: Muse Wonder 1.0 (muse-wonder-1.0) was told only this about your earlier rounds (plain code's counts from your track record, no code): In this person's earlier rounds, their sealed bets most often did not match what the code did on these kinds of question: outcome (1 of 1 didn't match); timing (1 of 1 didn't match; guessed lower than the run 0, higher 1). Counted by plain code from their own bets; it says nothing about this code. Where it fits this function, prefer tests whose answers turn on those questions.
 PASS Wonder's weak-spot note: types and counts only, no code
-round 2 facts: What the run measured Run 2QRvKsCWvz · known-case check matched first · local sandbox field the code outcome never_settled calls:fetchIt 1 returnedJson can't check: the call never settled: it was still waiting with nothing left that could wake it returnedType can't check: the call never settled: it 
-PASS paste screen: 'no overall timeout' flipped to reproduced, linked to run 2QRvKsCWvz
-PASS overlap paste-labels-reproduced: 728 px wide, 83 text boxes, 0 overlapping pairs, 0 outside
+round 2 facts: What the run measured Run T1DM2QmLna · known-case check matched first · local sandbox field the code outcome never_settled calls:fetchIt 1 returnedJson can't check: the call never settled: it was still waiting with nothing left that could wake it returnedType can't check: the call never settled: it 
+PASS paste screen: 'no overall timeout' flipped to reproduced, linked to run T1DM2QmLna
+PASS overlap paste-labels-reproduced: 728 px wide, 48 text boxes, 0 overlapping pairs, 0 outside
 PASS axe after-round-2: 0 violations  (47 rules passed)
 PASS reduced motion after-round-2: 0 running animations
-PASS explorer card: reproduced, linked to the same proof card (?proof=2QRvKsCWvz)
-PASS overlap explorer-card-reproduced: 457 px wide, 134 text boxes, 0 overlapping pairs, 0 outside
+PASS explorer card: reproduced, linked to the same proof card (?proof=T1DM2QmLna)
+PASS overlap explorer-card-reproduced: 457 px wide, 123 text boxes, 0 overlapping pairs, 0 outside
 PASS axe explorer-card-reproduced: 0 violations  (40 rules passed)
 record before round 2: Your record before this round Where your guesses matched what the code did Outcome: matched 0 of 1 · didn't match 1 · can't check 0 (n = 1). Timing: matched 0 of 1 · didn't match 1 · can't check 0 (n = 1). Of the 1 that didn't match, your guess was higher 1 time. Call counts: matched 1 of 1 · didn't match 0 · can't check 0 (n = 1). 3 bets from 1 round.
 PASS the proof card shows the record before this round (round 1 only)
 PASS overlap record-before: 760 px wide, 7 text boxes, 0 overlapping pairs, 0 outside
 PASS axe proof-card: 0 violations  (40 rules passed)
 === paste flow at 390 px (dark)
-PASS 390px paste-labels-390: scrollWidth 390 vs 390
-PASS overlap paste-labels-390: 358 px wide, 109 text boxes, 0 overlapping pairs, 0 outside
+PASS 390px paste-before-390: scrollWidth 390 vs 390
 PASS overlap track-empty-390: 358 px wide, 15 text boxes, 0 overlapping pairs, 0 outside
+PASS review M2: no failure labels on the paste screen while the bets are not sealed
+PASS 390px paste-labels-390: scrollWidth 390 vs 390
+PASS overlap paste-labels-390: 358 px wide, 68 text boxes, 0 overlapping pairs, 0 outside
 PASS 390px after-round-390: scrollWidth 390 vs 390
 PASS overlap track-390: 358 px wide, 15 text boxes, 0 overlapping pairs, 0 outside
-PASS overlap labels-reproduced-390: 358 px wide, 117 text boxes, 0 overlapping pairs, 0 outside
+PASS overlap labels-reproduced-390: 358 px wide, 73 text boxes, 0 overlapping pairs, 0 outside
 PASS axe paste-390-dark: 0 violations  (47 rules passed)
 PASS reduced motion paste-390-dark: 0 running animations
 PASS 390 px: a first round's proof card says it was the first

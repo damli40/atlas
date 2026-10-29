@@ -150,7 +150,7 @@ async function pickRetryPart(page) {
   throw new Error("no part offers retryWithBackoff");
 }
 /** Uses Wonder test `i`, bets, seals, runs and waits for the verdicts. */
-async function round(page, i, bets) {
+async function round(page, i, bets, afterSeal) {
   await page.getByTestId("ask-wonder").click();
   await page.getByTestId("proposals").waitFor({ timeout: 30000 });
   await page.getByTestId(`use-${i}`).click();
@@ -160,8 +160,10 @@ async function round(page, i, bets) {
     if (m === "outcome") await el.selectOption(v);
     else await el.fill(String(v));
   }
+  check((await page.locator(S.labels).count()) === 0, "review M2: no failure labels on the paste screen while the bets are not sealed");
   await page.getByTestId("seal").click();
   await page.getByTestId("hash-outcome").waitFor();
+  if (afterSeal) await afterSeal();
   await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="model-slot"]')].every((e) => e.getAttribute("data-status") !== "thinking"), null, { timeout: 60000 });
   await page.getByTestId("run").click();
   await page.getByTestId("seal-check-outcome").waitFor({ timeout: 120000 });
@@ -188,18 +190,23 @@ const labelOf = (page, scope) => page.locator(nt(scope)).getAttribute("data-labe
 
   await page.getByTestId("bet-retryWithBackoff").click();
   await page.getByTestId("export-retryWithBackoff").waitFor({ timeout: 30000 });
-  await page.locator(S.labels).waitFor({ timeout: 30000 });
+  await page.getByTestId("labels-after-seal").waitFor({ timeout: 30000 });
+  check((await page.locator(S.labels).count()) === 0, "review M2: paste screen shows no labels before a round's bets are sealed, only the note");
   check(/No judged bets yet/.test(await page.locator(S.track).innerText()), "paste screen: the panel starts empty");
-  check((await labelOf(page, S.labels)) === "found in this code", "paste screen: 'no overall timeout' found in this code");
-  await page.locator(`${S.labels} [data-testid="fl-lines-no-overall-timeout"]`).click();
-  check(await page.evaluate(() => document.querySelector("#paste-retry-no-overall-timeout-lines")?.matches(":target") ?? false), "the 'found in this code' link goes to its lines");
-  await page.locator(S.labels).screenshot({ path: `${outDir}/paste-labels-found-1920.png` });
-  await overlap(page, "paste-labels-found", S.labels);
   await overlap(page, "track-empty", S.track);
   await axe(page, "paste-before");
 
-  // Round 1: fetchIt fails once, then answers. The person bets "threw", 500 ms, 2 calls.
-  await round(page, 0, { outcome: "threw", virtualMs: 500, "calls:fetchIt": 2 });
+  // Round 1: fetchIt fails once, then answers. The person bets "threw", 500 ms, 2 calls. Labels appear after the seal.
+  await round(page, 0, { outcome: "threw", virtualMs: 500, "calls:fetchIt": 2 }, async () => {
+    await page.locator(S.labels).waitFor({ timeout: 30000 });
+    check((await labelOf(page, S.labels)) === "found in this code", "paste screen, after the seal: 'no overall timeout' found in this code");
+    check((await page.locator(`${S.labels} [data-failure="rate-limit"]`).count()) === 0 && (await page.locator(`${S.labels} [data-failure="retry-storm"]`).getAttribute("data-label")) === "common pattern", "review M1: the default example shows no rate limit claim and retry storm only as a common pattern");
+    await page.locator(`${S.labels} [data-testid="fl-lines-no-overall-timeout"]`).click();
+    check(await page.evaluate(() => document.querySelector("#paste-retry-no-overall-timeout-lines")?.matches(":target") ?? false), "the 'found in this code' link goes to its lines");
+    await page.locator(S.labels).screenshot({ path: `${outDir}/paste-labels-found-1920.png` });
+    await overlap(page, "paste-labels-found", S.labels);
+    await axe(page, "paste-labels-after-seal");
+  });
   await page.locator(`${S.track} [data-type="timing"]`).waitFor({ timeout: 30000 });
   const panel1 = flat(await page.locator(S.track).innerText());
   say("panel after round 1:", panel1);
@@ -268,11 +275,14 @@ const labelOf = (page, scope) => page.locator(nt(scope)).getAttribute("data-labe
   await page.getByTestId("mode-paste").click();
   await page.getByTestId("paste-example").click();
   await page.getByTestId("paste-read").click();
-  await page.locator(S.labels).waitFor({ timeout: 30000 });
-  await overflow(page, "paste-labels-390");
-  await overlap(page, "paste-labels-390", S.labels);
+  await page.getByTestId("labels-after-seal").waitFor({ timeout: 30000 });
+  await overflow(page, "paste-before-390");
   await overlap(page, "track-empty-390", S.track);
-  await round(page, 1, { outcome: "returned" });
+  await round(page, 1, { outcome: "returned" }, async () => {
+    await page.locator(S.labels).waitFor({ timeout: 30000 });
+    await overflow(page, "paste-labels-390");
+    await overlap(page, "paste-labels-390", S.labels);
+  });
   await page.waitForFunction((sel) => document.querySelector(sel)?.getAttribute("data-label") === "reproduced", nt(S.labels), { timeout: 30000 });
   await page.locator(`${S.track} [data-type="outcome"]`).waitFor({ timeout: 30000 });
   await overflow(page, "after-round-390");

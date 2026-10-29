@@ -1,0 +1,48 @@
+$ vitest run
+
+ RUN  v5.0.5 <repo>
+
+ ❯ tests/unit/x2-review1.test.tsx (14 tests | 1 failed) 131953ms
+   ❯ B4: a large outline never freezes the page (3)
+     × 40 parts with 47 joins draw in well under the page's 30 s limit (Node, no worker) 18643ms
+(node:93706) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:99296) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:99294) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:99941) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:99966) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:138) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:598) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1422) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1447) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/unit/x2-review1.test.tsx > B4: a large outline never freezes the page > 40 parts with 47 joins draw in well under the page's 30 s limit (Node, no worker)
+AssertionError: expected 18603 to be less than 15000
+ ❯ tests/unit/x2-review1.test.tsx:127:28
+    125|     const t = Date.now();
+    126|     buildFigure(m);
+    127|     expect(Date.now() - t).toBeLessThan(15_000);
+       |                            ^
+    128|   }, 120_000);
+    129|   it("the live screen builds in a Web Worker and shows a seconds count…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 123 passed | 2 skipped (126)
+      Tests  1 failed | 1914 passed | 35 skipped (1950)
+   Start at  09:34:36
+   Duration  293.12s (tests 88%, import 11%)
+
+[ELIFECYCLE] Test failed. See above for more details.
+EXIT 1

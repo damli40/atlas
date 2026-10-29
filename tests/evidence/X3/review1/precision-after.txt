@@ -1,0 +1,53 @@
+| 01 | ts | retry w/ Date.now deadline + exp backoff around fetch | clock-skew | - |
+| 02 | ts | retry no deadline, no backoff, fetch | retry-storm, no-overall-timeout, timeout | - |
+| 03 | ts | retry w/ setTimeout backoff, per-try AbortController timeout | - | - |
+| 04 | ts | single fetch w/ AbortSignal.timeout | - | - |
+| 05 | ts | axios.get with timeout option | - | - |
+| 06 | ts | loop over pages, axios w/ timeout, skip failures (not a retry) | - | - |
+| 07 | ts | batch parse with try/catch per row, no I/O | - | - |
+| 08 | ts | retry with pause() helper backoff, no deadline | no-overall-timeout | - |
+| 09 | ts | demo fixture RETRY_SRC (backoff, no deadline) | no-overall-timeout | - |
+| 10 | py | requests.get with timeout= | - | - |
+| 11 | py | requests retry w/ time.sleep backoff and timeout=10 | - | - |
+| 12 | py | asyncio.wait_for around aiohttp | - | - |
+| 13 | py | httpx retry, no sleep, no timeout | retry-storm, no-overall-timeout | - |
+| 14 | py | tenacity decorator; requests.get without timeout | timeout | - |
+| 15 | ts | amqp consumer with idempotency key header + redis NX | - | - |
+| 16 | ts | consumer with processedIds set | - | - |
+| 17 | ts | SQS consumer, no dedupe | duplicate-delivery | - |
+| 18 | ts | Kafka consumer, idempotent INSERT ... ON CONFLICT DO NOTHING by event id | - | - |
+| 19 | py | sqlite 'with conn:' transaction, two inserts | - | - |
+| 20 | py | psycopg2 cursor + conn.commit() | - | - |
+| 21 | ts | two SELECT reads via db.execute | - | - |
+| 22 | ts | pg BEGIN/COMMIT two inserts | - | - |
+| 23 | ts | in-memory Map cache delete x2 | - | - |
+| 24 | ts | pg-promise db.tx two writes (transaction via tx) | - | - |
+| 25 | ts | prisma two writes no transaction | partial-commit | - |
+| 26 | ts | explicit UTC Date arithmetic + toLocaleString with timeZone UTC | - | - |
+| 27 | ts | latency via Date.now() - start (wall clock duration) | clock-skew | - |
+| 28 | py | aware datetime arithmetic in UTC | - | - |
+| 29 | ts | Promise.all over a local in-memory fetchFromCache | - | - |
+| 30 | ts | read-await-write guarded by a mutex | - | - |
+| 31 | ts | the paste screen's default example (backoff, no deadline, stand-in fetchIt) | no-overall-timeout | - |
+| 32 | py | retry over range(3), except: pass, no wait | retry-storm, no-overall-timeout | - |
+| 33 | ts | indexed for loop over items, per-item try/catch (not a retry) | - | - |
+| 34 | ts | while(true) retry around rpc.call with sleep, no deadline | no-overall-timeout | - |
+| 35 | ts | single fetch with no signal | timeout | - |
+| 36 | ts | retry with AbortSignal.timeout per try and backoff | - | - |
+| 37 | py | requests.post without timeout | timeout | - |
+| 38 | py | urlopen with timeout=3 | - | - |
+| 39 | py | httpx.get once (httpx has a 5 s default timeout) | - | - |
+| 40 | ts | axios.post without a timeout option | timeout | - |
+| 41 | ts | knex: two inserts, no transaction | partial-commit | - |
+| 42 | py | django transaction.atomic around two saves | - | - |
+| 43 | ts | drizzle db.transaction with two inserts | - | - |
+| 44 | ts | message handler: work then msg.ack(), no dedupe | duplicate-delivery | - |
+| 45 | ts | local getHours on new Date() | time-zone | - |
+| 46 | ts | Intl.DateTimeFormat with an explicit timeZone | - | - |
+| 47 | py | duration from time.time() | clock-skew | - |
+| 48 | ts | duration from performance.now() (monotonic) | - | - |
+| 49 | ts | this.count = this.count + await, no lock | race | - |
+| 50 | ts | the same update inside a mutex | - | - |
+
+found 24, true 24, false 0, precision 100.0%, missed 3
+clock-skew 3/3 · retry-storm 3/3 · no-overall-timeout 7/7 · timeout 5/5 · duplicate-delivery 2/2 · partial-commit 2/2 · time-zone 1/1 · race 1/1

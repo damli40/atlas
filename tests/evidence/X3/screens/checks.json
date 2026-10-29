@@ -6,7 +6,11 @@
   },
   "paste-before": {
    "violations": [],
-   "passes": 37
+   "passes": 35
+  },
+  "paste-labels-after-seal": {
+   "violations": [],
+   "passes": 38
   },
   "after-round-1": {
    "violations": [],
@@ -34,6 +38,12 @@
   }
  },
  "overflow": {
+  "paste-before-390": {
+   "scrollWidth": 390,
+   "clientWidth": 390,
+   "noScroll": true,
+   "wide": []
+  },
   "paste-labels-390": {
    "scrollWidth": 390,
    "clientWidth": 390,
@@ -63,23 +73,23 @@
  },
  "overlap": {
   "explorer-card-found": {
-   "textBoxes": 128,
+   "textBoxes": 119,
    "overlaps": [],
    "overlapCount": 0,
    "outside": [],
    "outsideCount": 0,
    "width": 457
   },
-  "paste-labels-found": {
-   "textBoxes": 77,
+  "track-empty": {
+   "textBoxes": 8,
    "overlaps": [],
    "overlapCount": 0,
    "outside": [],
    "outsideCount": 0,
    "width": 728
   },
-  "track-empty": {
-   "textBoxes": 8,
+  "paste-labels-found": {
+   "textBoxes": 45,
    "overlaps": [],
    "overlapCount": 0,
    "outside": [],
@@ -95,7 +105,7 @@
    "width": 728
   },
   "paste-labels-reproduced": {
-   "textBoxes": 83,
+   "textBoxes": 48,
    "overlaps": [],
    "overlapCount": 0,
    "outside": [],
@@ -103,7 +113,7 @@
    "width": 728
   },
   "explorer-card-reproduced": {
-   "textBoxes": 134,
+   "textBoxes": 123,
    "overlaps": [],
    "overlapCount": 0,
    "outside": [],
@@ -118,16 +128,16 @@
    "outsideCount": 0,
    "width": 760
   },
-  "paste-labels-390": {
-   "textBoxes": 109,
+  "track-empty-390": {
+   "textBoxes": 15,
    "overlaps": [],
    "overlapCount": 0,
    "outside": [],
    "outsideCount": 0,
    "width": 358
   },
-  "track-empty-390": {
-   "textBoxes": 15,
+  "paste-labels-390": {
+   "textBoxes": 68,
    "overlaps": [],
    "overlapCount": 0,
    "outside": [],
@@ -143,7 +153,7 @@
    "width": 358
   },
   "labels-reproduced-390": {
-   "textBoxes": 117,
+   "textBoxes": 73,
    "overlaps": [],
    "overlapCount": 0,
    "outside": [],

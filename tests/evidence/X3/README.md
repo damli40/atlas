@@ -2,6 +2,151 @@
 
 Date: 2026-10-28 (WAT) · live spend **$0.0892** (one check, 4 model calls, cap $0.30) · Node 25.8.1, local executor.
 
+## Review round 1 (read this first: it corrects the sections below)
+
+The adversarial review (`scratchpad/review-X3.md`, not in the repo) found the track record sound and the failure
+labels making false claims: **4 blockers, 3 majors, 5 minors.** Rebased onto main 26f5342 (E5, B1) first; the only
+conflict was this index's README line (both kept).
+
+**What I told you before that was wrong:**
+- "Reproduced may appear without a marker" (decision 3 below) was unsafe. A run showed how Atlas's *stand-in* behaved,
+  not how the code behaves: a stand-in ignores abort signals, so code with a 5 s abort deadline was labelled
+  "reproduced: no overall timeout" (B1). "Still running at the watch limit" was counted as proof, but it is Atlas's
+  30 s limit, not the code's (B2). Any never-answering stand-in counted, even a progress callback (B3). A batch loop
+  that tries each item once was read as a retry, so 25 items gave "retry storm: reproduced" (B4).
+- "Found in this code" was false 18 of 33 times on the reviewer's 30 snippets, including "rate limit" on the paste
+  screen's own example, which waits between tries (M1).
+
+**The rule now (the coordinator's): precision over coverage.** A label says "found in this code" or "reproduced" only
+when that is very likely true. Everything else stays "common pattern". A missed failure is acceptable; a false claim
+is not.
+
+### Precision of "found in this code" on 50 snippets (M1)
+
+The reviewer's 30 snippets plus 20 of mine, committed with the truth and the expected labels in
+`tests/fixtures/failure-labels/snippets.ts` (`x3-failure-labels.test.ts` checks every one). Full per-snippet tables:
+`review1/precision-before.txt`, `review1/precision-after.txt`.
+
+| | "found" labels | true | false | precision | real failures left as common pattern |
+|---|---|---|---|---|---|
+| Before (X3 as first delivered) | 56 | 27 | 29 | **48%** | 0 |
+| After | 24 | 24 | 0 | **100%** | 3 (rate limit ×2, which has no marker now; timeout on `fetchIt`, a stand-in name and not a known client) |
+
+Per marker after: no overall timeout 7/7 · timeout 5/5 · retry storm 3/3 · clock skew 3/3 · duplicate delivery 2/2 ·
+partial commit 2/2 · time zone 1/1 · race 1/1 (lost update fired on none). One truth changed: snippet 01's "clock skew"
+counts as true, as the reviewer counted it (its deadline is measured on the wall clock).
+
+### The markers now (this table replaces "The curated list" below)
+
+| Failure | "Found in this code" only when… |
+|---|---|
+| retry storm | a **retry loop** (below) with no wait in it (sleep, setTimeout, delay, wait, pause, backoff) and whose catch / except path calls nothing but logging (any other call might be a wait) |
+| no overall timeout | a retry loop, and nowhere in the lines a deadline: timeout/deadline names or keywords, `signal`, AbortSignal/AbortController, Promise.race, wait_for, stop_after_delay, clock reads |
+| timeout | a call to `fetch`, `axios[.method]`, `requests.<method>` or `urlopen` whose own arguments set no timeout or signal, and no deadline anywhere in the lines. httpx and aiohttp never count (they have default timeouts); `fetchFromCache`-style names never count |
+| race | `this.x = this.x + await …` (or `+= await`), and no lock, mutex, semaphore or acquire in the lines |
+| lost update | read `this.x`, then await, then write `this.x`, and no lock, mutex, semaphore or acquire in the lines |
+| duplicate delivery | an ack (ack, deleteMessage, basic_ack, commitOffsets) after an awaited call that does work, and no duplicate check anywhere, **strings included**: seen, processed…, dedupe, idempot…, messageId, eventId, already…, ON CONFLICT, NX, INSERT OR IGNORE, upsert |
+| partial commit | two or more **real database writes** (a write method on db, conn, client, prisma, knex, session, cursor, …; or execute/query whose SQL is INSERT / UPDATE / DELETE) and no transaction anywhere, strings included: transaction, BEGIN, begin(), commit, rollback, atomic, savepoint, `.tx(`, `$transaction`, `with conn` |
+| clock skew | a duration from wall-clock reads (`Date.now() - …`, `time.time() - …`) |
+| time zone | a local-time method, and no time zone named anywhere (timeZone, tz, tzinfo, timezone, UTC, ZoneInfo) |
+| rate limit, duplicate side effect, provider outage | **no marker: always "common pattern"** |
+
+**A retry loop (B4)** is a `while` loop, a `do … while`, a counting `for (init; test; step)` whose test does not read
+`.length`/`.size` and whose body does not index with the loop variable, or Python `while` / `for … in range(…)` (not
+over `len(…)`), whose body has a try with a catch / except, and whose catch path does not start with throw, return or
+break. `for … of`, `for … in`, `.forEach` and Python loops over items are never retries.
+
+### "Reproduced" now (B1–B3)
+
+Only for "no overall timeout" and "retry storm", and only when **the marker matched AND** a sealed run shows the
+failure **through the stand-in passed exactly where the marked loop makes its call** (plain code finds the call in the
+try block, its name must be a parameter of the function, and the run's argument at that position must be the stand-in):
+
+| What the run did | Label |
+|---|---|
+| that stand-in was set to never answer, its last call was the never-answering step, the function `never_settled` | **reproduced** |
+| outcome `still_running_at_watch_limit` | **inconclusive**: "Atlas stopped watching at its own limit; the code may still have a deadline after that" (B2; Python too) |
+| the code hands that call a signal or timeout | **inconclusive**, tooltip: "Atlas's stand-ins ignore abort signals and timeouts handed to them…" (B1; in practice the marker does not fire then) |
+| another stand-in also never answers | inconclusive (the run cannot say which held the function) |
+| control failed / whole run can't check / not measured | inconclusive |
+| the function still ended | the code's label stays, with a note naming the run |
+| a stand-in somewhere else never answers (B3), or no stand-in at the marked call | no evidence at all |
+| retry storm: the stand-in at the marked call failed every time and was called 20+ times | **reproduced**; fewer: note only |
+
+The "timeout" marker's calls are known clients (fetch, axios, requests), which a stand-in never replaces, so no run
+can reproduce "timeout".
+
+### M2: labels only after the round's bets are sealed (the coordinator's decision)
+
+- Paste screen: no labels at all until this round's bets are sealed. Before that it says "Atlas's failure labels for
+  this function appear once your bets on a round are sealed, so you and the betting models bet on the same
+  information." Labels are not even requested before then (test with a spy).
+- Server, both label routes: **409** while this session has an open round on the code whose person's bets are not
+  sealed (test: 200 → open round 409 on both routes → seal → 200).
+- Explorer card: labels before any round (no bet open); while a round on its code is open and unsealed, it says
+  "Failure labels are held…" instead.
+
+### M3: speed and limits
+
+- The scan is linear: one pass to blank comments and strings, one pass to pair brackets (each loop finds its body in
+  O(1)), running per-line counts for "is there a wait / deadline in this range", next-`try` and next-`catch` tables.
+  Caps: 2,000 loop heads (the rest are not read, and the page says so), loop bodies over 300 lines and try/catch blocks
+  over 120 lines are not read as retries.
+- The reviewer's 61 KB nested-loop paste: about **8–20 ms** in the scanner (was 962 ms); a test asserts **POST
+  /paste/labels < 50 ms** on it (server, real route), and another the scanner alone < 50 ms on it and on a 44 KB
+  nested-retry flood.
+- The code-only scan is cached per (source fingerprint, language, function); requests then only add the runs.
+- `ATLAS_LABELS_PER_IP_PER_HOUR` (default 600) per client, counted per invite code when there is one (test: the 4th
+  request at a limit of 3 is 429).
+
+### Scope change during round 1 (D47/D48)
+
+Dami redesigned the screens: the drawing comes first and betting is an optional quiz pop-up; batch U1 is rebuilding the
+paste and explorer screens. So the UI changes here are minimal (labels hidden until the seal, a "held" note on the
+explorer card, wording). For U1's overlays, every label in the API answer carries its **line references**
+(`lines`, plus `excerpt`), and a run-based label its **`runId` and `proofLink`** (`?proof=<runId>`). The rule that
+labels appear only after the round's bets are sealed is enforced by the server (409), so it holds for any new screen.
+
+### Minors
+
+1. **Fixed.** A "found" row now reads "What can fail: …" and "Plain code saw this failure's marker in these lines:
+   … A marker is a pattern in the text, not a run." Each badge has a tooltip saying what the label does and does not
+   claim (also shown as text, not only on hover).
+2. **Logged.** A browser id is a bearer name locally (documented in decision 1).
+3. **Logged.** With invite codes off on a public server, made-up browser ids can evict real records (2,000 files).
+4. **Fixed** by B2's rule, which is shared by JS and Python.
+5. Covered by B1–B4 and M1.
+
+### The live check under the new rules ($0, re-judged offline)
+
+The live round's code (`withRetry(call, tries)`) and its round-2 facts were re-judged with the new code, no model
+call: "no overall timeout" is still **reproduced**: "call, passed where line 6 calls call, never answered on its call
+1, and the function never settled". The live result below stands. Its retry storm row is now "common pattern" (the
+loop waits).
+
+### Counts after round 1
+
+- X3 tests: 48 (`review1/test-output.txt`), plus the 50 fixture snippets inside one of them. Type check clean
+  (`review1/tsc-output.txt`).
+- Full suite (rebased on main 26f5342): runs 1 and 2 **1,915 passed, 35 skipped, exit 0**; run 3 had **1 failure:
+  X2's timing test** "40 parts with 47 joins draw … under 15 s" took 16.7 s on a busy machine (it measures
+  `buildFigure`, which X3 does not touch; it passes alone, and it also failed once in an earlier attempt today). I did
+  not loosen it. A 4th run: 1,915 passed, exit 0 (`review1/full-suite-1..4.txt`). So: not 3 clean runs in a row; 3 of 4
+  clean, the 1 failure a timing assertion outside X3.
+- An earlier attempt of these runs failed the wording lint on my own new string "What can go wrong" ("wrong" is a
+  banned verdict word); it now reads "What can fail".
+- Click-through (`screens/`, redone with the round-1 code, models mocked, $0): **all 42 checks passed**: axe 0
+  violations on 9 page states, overlap 0 on 11 sections, no horizontal scroll at 390 px on 4 states, reduced motion
+  still, no page errors. New checks: no labels on the paste screen before the seal (twice), the default example shows
+  no rate-limit claim. The paste screen's labels now appear right after the seal (`paste-labels-found-1920.png`).
+
+### Not done / unsure
+
+- Precision is 100% on 50 snippets I and the reviewer chose. Real code will find cases neither of us wrote; the
+  fixture is where to add them.
+- Coverage dropped on purpose: rate limit, and "timeout" on any call that is not a known client, are never claimed.
+- The markers still read text, not a syntax tree. A loop written in an unusual way is missed (common pattern).
+
 ## Where to look first
 
 - **Track record (D27).** After every judged round, plain code adds the person's own sealed bets and the judge's
@@ -48,7 +193,7 @@ entries per person (oldest drop), 2,000 people (the file written longest ago is 
 What counts: every human bet judged by `POST /runs` (paste, the fixture, Moonwell). What does not: the models' bets,
 autonomous rounds (no person), and the re-judging after a change replay (that is the same bet again).
 
-## The curated list and each marker's plain-code rule
+## The curated list and each marker's plain-code rule (superseded: see Review round 1)
 
 Before any check, comments are blanked out. For most checks, string contents are too, so a word in a comment or a log
 message never counts. "A retry loop" below means: a `for`/`while` loop whose body contains `catch` (JS/TS) or
