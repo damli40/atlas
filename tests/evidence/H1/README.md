@@ -29,7 +29,7 @@ Atlas now has everything it needs to run as one website on Fly.io, and Dami runs
   `server/client-ip.ts` (the Fly-Client-IP rule), `server/meta/roles/fixer.ts` (chat directly without sandbox-exec).
 - The deploy files: `Dockerfile`, `.dockerignore`, `fly.toml`, `tools/fly-entrypoint.sh`, `tools/atlas-invites.sh`.
 - For Dami: `tools/fly-setup.md` (the commands in order), `tools/fly-secrets.sh`, `tools/smoke-hosted.ts`.
-- The tests: `tests/unit/h1-hosting.test.ts` (44 tests; output in [test-output.txt](test-output.txt)).
+- The tests: `tests/unit/h1-hosting.test.ts` (47 tests after the review; output in [test-output.txt](test-output.txt)).
 - The local trial of the hosted server: [local-trial/](local-trial/) (below).
 
 ## Decisions I made (Dami can change any)
@@ -108,11 +108,42 @@ pepper and store, every model role off, and a scratch HOME so no real key file w
 - **Memory.** 2 GB is a guess for an anvil fork of Base plus an outline job.
 - **Latency from `lhr`.** Not measured, for visitors or for the calls to Meta, Modal and Baseten.
 - **One real round on Modal from Fly** (E4 measured Modal from this Mac). The smoke test does it, for about $0.05.
-- **`fly.dev` on the Public Suffix List** (D52 relies on it, so the G1 cookie is not shared with other Fly apps). I took
-  D52's word and did not re-check the list.
+- (`fly.dev` on the Public Suffix List: confirmed by the review, line 13718 of the list.)
 
 ## Host rules this adds (to G1's "How to turn it on")
 
 `ATLAS_HOSTED=1`, `ATLAS_VOLUME_DIR` (default `/data`), `ATLAS_USAGE_PATH` on the volume, `ATLAS_CLIENT_IP_HEADER=fly-client-ip`
 with `ATLAS_TRUST_PROXY=1`, and `ATLAS_EXECUTOR=modal` on any machine without macOS sandbox-exec. All are set in
 `fly.toml`; the secrets come from `tools/fly-secrets.sh`. `ATLAS_SERVE_PAGE=1` serves the built page locally too (the same code path; not started on its own).
+
+## Review round 1: 0 blockers, 0 majors, 9 minors
+
+Fixed (4, the cheap security-adjacent ones):
+
+| # | What broke | Fix | Test |
+|---|---|---|---|
+| m1 | A symbolic link inside `dist/` served the file it points to, even outside `dist/` (not reachable today: `vite build` makes no links) | The file's REAL path must also be inside `dist/`; a link that stays inside still works | "review m1: a symbolic link inside dist/ never serves a file or folder outside it" |
+| m2 | `TRACE /api/...` gave 500 and a stack trace in the logs (anyone could fill `fly logs`) | Any method other than GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS gets 405 with an `Allow` header, on `/api`, `/health` and page paths, before anything else runs | "review m2: TRACE and other unusual methods get 405 ..." (over a real socket: in-process, `new Request` itself refuses TRACE) |
+| m5 | Nothing stops Dami from starting a second machine (its own volume, ledger and $100 ceiling) | A warning in `tools/fly-setup.md` step 9: never `fly scale count` above 1, never `fly machine clone` | (docs) |
+| m8 | `tools/fly-secrets.sh` relied on flyctl staying quiet; with debug logging on, flyctl might print its requests | The script unsets `LOG_LEVEL`, `FLY_LOG_LEVEL` and the other debug switches (names only) before calling flyctl, and drops flyctl's stderr on the import; a failure prints one plain line | "review m8: flyctl's debug switches are turned off, and its stderr never reaches the screen" (a fake flyctl that echoes its input to stderr and fails) |
+
+After the fixes: full suite **2,063 passed, 0 failed, 35 skipped** ([review1-full-suite.txt](review1-full-suite.txt)); `tsc --noEmit` exit 0 ([review1-tsc-output.txt](review1-tsc-output.txt)); the H1 tests: [review1-test-output.txt](review1-test-output.txt). $0.
+
+## Known limits (logged, not fixed)
+
+1. **(m3) The security policy header only blocks framing.** `Content-Security-Policy` is `frame-ancestors 'none'`.
+   The cookie is HttpOnly, so an injected script could not read the code, but it could spend with it (a same-origin
+   request carries the cookie). The review found no injection point. A fuller policy (`default-src 'self'` and so on)
+   would need a check that the built page and the invite page still load under it.
+2. **(m4) A full volume fails closed but can get stuck.** If the disk is full, a reservation throws before any money
+   moves (good), but the reservation stays in memory until a restart, and a failing settle in a background job could
+   end the process; the restart might then fail on the same full disk. An outage, never extra spend. 1 GB holds the
+   JSON lines for a very long time. From reading the code; not tested.
+3. **(m6) The entrypoint runs `chown`/`chmod` as root on the store folder.** If something running as `atlas` swapped
+   `/data/atlas` for a symbolic link, the next boot would change the permissions of wherever it points. It needs code
+   already running as `atlas` on the host; no visitor code runs there (it all goes to Modal).
+4. **(m7) Debian packages are not pinned to versions.** The base image is pinned by digest and every download by
+   checksum, but `apt-get install` takes the current `ca-certificates`, `curl`, `xz-utils` and `libatomic1`. They come
+   from Debian's signed repository, so this affects reproducibility, not trust.
+5. **(m9) The guide's hidden prompt for the code is zsh syntax.** Dami's shell is zsh. The line now also shows the bash
+   form in a comment.
