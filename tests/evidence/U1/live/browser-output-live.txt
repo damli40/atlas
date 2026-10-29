@@ -1,0 +1,15 @@
+PASS axe entry light: 0 violations  (31 rules passed)
+PASS before-bet rule rest light: {"phase":"rest","runEls":0,"litLamps":0,"liveLines":0,"marks":0,"overlay":"","svgHasRunWords":false}
+PASS axe rest light: 0 violations  (32 rules passed)
+PASS overlap rest light: 1920 px wide, 7 text boxes, 0 overlapping pairs, 0 outside
+PASS before-bet rule bet open light: {"phase":"rest","runEls":0,"litLamps":0,"liveLines":0,"marks":0,"overlay":"","svgHasRunWords":false}
+PASS axe bet open light: 0 violations  (35 rules passed)
+PASS overlap bet open light: 440 px wide, 36 text boxes, 0 overlapping pairs, 0 outside
+PASS clicks from paste to the marked drawing (light): 5
+PASS axe marked light: 0 violations  (38 rules passed)
+PASS overlap marked light: 1920 px wide, 78 text boxes, 0 overlapping pairs, 0 outside
+marks (light): 1. How it endsThe run: throws an errorYoureturns a valuedidn't matchMuse Spark Openthrows an errormatchedMuse Spark 1.3throws an errormatched | 2. What it returnsThe run: can't check: the call threw, so it returned nothingYou3 (the same as argument 2)can't checkMuse Spark Opencan't tellcan't checkMuse Spark 1.3can't tellcan't check | 3. Calls to fetchItThe run: 2 or more timesYou0 times (never called)didn't matchMuse Spark Open2 or more timesmatchedMuse Spark 1.32 or more timesmatched | 4. How long it takesThe run: more than 0 msYoucan't tellcan't checkMuse Spark Openmore than 0 msmatchedMuse Spark 1.3more than 0 msmatched
+PASS marked: 4 questions marked on the drawing
+PASS proof card link: ?proof=N9WpfMSSJK
+PASS page errors: 0
+ALL CHECKS PASSED

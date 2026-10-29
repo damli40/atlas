@@ -1,0 +1,57 @@
+PASS axe entry light: 0 violations  (31 rules passed)
+PASS before-bet rule rest light: {"phase":"rest","runEls":0,"litLamps":0,"liveLines":0,"marks":0,"overlay":"","svgHasRunWords":false}
+PASS axe rest light: 0 violations  (32 rules passed)
+PASS overlap rest light: 1920 px wide, 7 text boxes, 0 overlapping pairs, 0 outside
+PASS before-bet rule bet open light: {"phase":"rest","runEls":0,"litLamps":0,"liveLines":0,"marks":0,"overlay":"","svgHasRunWords":false}
+PASS axe bet open light: 0 violations  (38 rules passed)
+PASS overlap bet open light: 440 px wide, 41 text boxes, 0 overlapping pairs, 0 outside
+PASS clicks from paste to the marked drawing (light): 5
+PASS axe marked light: 0 violations  (39 rules passed)
+PASS overlap marked light: 1920 px wide, 86 text boxes, 0 overlapping pairs, 0 outside
+marks (light): 1. How it endsThe run: returns a valueYoureturns a valuematchedMuse Spark Openthrows an errordidn't matchMuse Spark 1.3returns a valuematched | 2. What it returnsThe run: {"price":42} (what fetchIt is scripted to return)Youcan't tellcan't checkMuse Spark Open3 (the same as argument 2)didn't matchMuse Spark 1.3{"price":42} (what fetchIt is scripted to return)matched | 3. Calls to fetchItThe run: 3 timesYou3 timesmatchedMuse Spark Open1 to 2 timesdidn't matchMuse Spark 1.30 times (never called)didn't match | 4. How long it takesThe run: more than 300 msYoumore than 300 msmatchedMuse Spark Openmore than 0 ms, less than 300 msdidn't matchMuse Spark 1.30 ms (no wait at all)didn't match
+PASS marked: 4 questions marked on the drawing
+PASS proof card link: ?proof=cWUIVqJNoL
+PASS axe entry dark: 0 violations  (31 rules passed)
+PASS before-bet rule rest dark: {"phase":"rest","runEls":0,"litLamps":0,"liveLines":0,"marks":0,"overlay":"","svgHasRunWords":false}
+PASS axe rest dark: 0 violations  (32 rules passed)
+PASS overlap rest dark: 1920 px wide, 7 text boxes, 0 overlapping pairs, 0 outside
+PASS before-bet rule bet open dark: {"phase":"rest","runEls":0,"litLamps":0,"liveLines":0,"marks":0,"overlay":"","svgHasRunWords":false}
+PASS axe bet open dark: 0 violations  (38 rules passed)
+PASS overlap bet open dark: 440 px wide, 41 text boxes, 0 overlapping pairs, 0 outside
+PASS clicks from paste to the marked drawing (dark): 5
+PASS axe marked dark: 0 violations  (39 rules passed)
+PASS overlap marked dark: 1920 px wide, 86 text boxes, 0 overlapping pairs, 0 outside
+marks (dark): 1. How it endsThe run: returns a valueYoureturns a valuematchedMuse Spark Openthrows an errordidn't matchMuse Spark 1.3returns a valuematched | 2. What it returnsThe run: {"price":42} (what fetchIt is scripted to return)Youcan't tellcan't checkMuse Spark Open3 (the same as argument 2)didn't matchMuse Spark 1.3{"price":42} (what fetchIt is scripted to return)matched | 3. Calls to fetchItThe run: 3 timesYou3 timesmatchedMuse Spark Open1 to 2 timesdidn't matchMuse Spark 1.30 times (never called)didn't match | 4. How long it takesThe run: more than 300 msYoumore than 300 msmatchedMuse Spark Openmore than 0 ms, less than 300 msdidn't matchMuse Spark 1.30 ms (no wait at all)didn't match
+PASS marked: 4 questions marked on the drawing
+PASS proof card link: ?proof=ajx5Ul9Xvi
+PASS before-bet rule rest light: {"phase":"rest","runEls":0,"litLamps":0,"liveLines":0,"marks":0,"overlay":"","svgHasRunWords":false}
+PASS before-bet rule bet open light: {"phase":"rest","runEls":0,"litLamps":0,"liveLines":0,"marks":0,"overlay":"","svgHasRunWords":false}
+PASS clicks from paste to the marked drawing (light, reduced motion): 5
+PASS reduced motion marked light: 0 running animations
+PASS reduced motion light: no lamp ever lit (0); the end state shows at once
+marks (light): 1. How it endsThe run: returns a valueYoureturns a valuematchedMuse Spark Openthrows an errordidn't matchMuse Spark 1.3returns a valuematched | 2. What it returnsThe run: {"price":42} (what fetchIt is scripted to return)Youcan't tellcan't checkMuse Spark Open3 (the same as argument 2)didn't matchMuse Spark 1.3{"price":42} (what fetchIt is scripted to return)matched | 3. Calls to fetchItThe run: 3 timesYou3 timesmatchedMuse Spark Open1 to 2 timesdidn't matchMuse Spark 1.30 times (never called)didn't match | 4. How long it takesThe run: more than 300 msYoumore than 300 msmatchedMuse Spark Openmore than 0 ms, less than 300 msdidn't matchMuse Spark 1.30 ms (no wait at all)didn't match
+PASS marked: 4 questions marked on the drawing
+PASS proof card link: ?proof=SVAYQiVtus
+PASS before-bet rule rest dark: {"phase":"rest","runEls":0,"litLamps":0,"liveLines":0,"marks":0,"overlay":"","svgHasRunWords":false}
+PASS before-bet rule bet open dark: {"phase":"rest","runEls":0,"litLamps":0,"liveLines":0,"marks":0,"overlay":"","svgHasRunWords":false}
+PASS clicks from paste to the marked drawing (dark, reduced motion): 5
+PASS reduced motion marked dark: 0 running animations
+PASS reduced motion dark: no lamp ever lit (0); the end state shows at once
+marks (dark): 1. How it endsThe run: returns a valueYoureturns a valuematchedMuse Spark Openthrows an errordidn't matchMuse Spark 1.3returns a valuematched | 2. What it returnsThe run: {"price":42} (what fetchIt is scripted to return)Youcan't tellcan't checkMuse Spark Open3 (the same as argument 2)didn't matchMuse Spark 1.3{"price":42} (what fetchIt is scripted to return)matched | 3. Calls to fetchItThe run: 3 timesYou3 timesmatchedMuse Spark Open1 to 2 timesdidn't matchMuse Spark 1.30 times (never called)didn't match | 4. How long it takesThe run: more than 300 msYoumore than 300 msmatchedMuse Spark Openmore than 0 ms, less than 300 msdidn't matchMuse Spark 1.30 ms (no wait at all)didn't match
+PASS marked: 4 questions marked on the drawing
+PASS proof card link: ?proof=_u7VuH1iF2
+PASS 390px entry light: scrollWidth 390 vs 390
+PASS 390px rest light: scrollWidth 390 vs 390
+PASS 390px light: the drawing zooms (transform: translate(0px, 0px) scale(1); → transform: translate(0px, 0px) scale(1.25);)
+PASS 390px bet open light: scrollWidth 390 vs 390
+PASS 390px marked light: scrollWidth 390 vs 390 (button.u1-btn right=402)
+PASS overlap marked 390 light: 374 px wide, 63 text boxes, 0 overlapping pairs, 0 outside
+PASS 390px entry dark: scrollWidth 390 vs 390
+PASS 390px rest dark: scrollWidth 390 vs 390
+PASS 390px dark: the drawing zooms (transform: translate(0px, 0px) scale(1); → transform: translate(0px, 0px) scale(1.25);)
+PASS 390px bet open dark: scrollWidth 390 vs 390
+PASS 390px marked dark: scrollWidth 390 vs 390 (button.u1-btn right=402)
+PASS overlap marked 390 dark: 374 px wide, 63 text boxes, 0 overlapping pairs, 0 outside
+clicks on the earlier paste screen, paste to verdict (3 answers, 2 typed): 11
+PASS page errors: 0
+ALL CHECKS PASSED

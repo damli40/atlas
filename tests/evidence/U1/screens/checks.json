@@ -1,0 +1,212 @@
+{
+  "axe": {
+    "entry light": {
+      "violations": [],
+      "passes": 31
+    },
+    "rest light": {
+      "violations": [],
+      "passes": 32
+    },
+    "bet open light": {
+      "violations": [],
+      "passes": 38
+    },
+    "marked light": {
+      "violations": [],
+      "passes": 39
+    },
+    "entry dark": {
+      "violations": [],
+      "passes": 31
+    },
+    "rest dark": {
+      "violations": [],
+      "passes": 32
+    },
+    "bet open dark": {
+      "violations": [],
+      "passes": 38
+    },
+    "marked dark": {
+      "violations": [],
+      "passes": 39
+    }
+  },
+  "overflow": {
+    "entry light": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "noScroll": true,
+      "wide": []
+    },
+    "rest light": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "noScroll": true,
+      "wide": []
+    },
+    "bet open light": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "noScroll": true,
+      "wide": []
+    },
+    "marked light": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "noScroll": true,
+      "wide": [
+        "button.u1-btn right=402"
+      ]
+    },
+    "entry dark": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "noScroll": true,
+      "wide": []
+    },
+    "rest dark": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "noScroll": true,
+      "wide": []
+    },
+    "bet open dark": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "noScroll": true,
+      "wide": []
+    },
+    "marked dark": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "noScroll": true,
+      "wide": [
+        "button.u1-btn right=402"
+      ]
+    }
+  },
+  "motion": {
+    "marked light": {
+      "running": 0
+    },
+    "lamps lit light": 0,
+    "marked dark": {
+      "running": 0
+    },
+    "lamps lit dark": 0
+  },
+  "overlap": {
+    "rest light": {
+      "textBoxes": 7,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "width": 1920
+    },
+    "bet open light": {
+      "textBoxes": 41,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "width": 440
+    },
+    "marked light": {
+      "textBoxes": 86,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "width": 1920
+    },
+    "rest dark": {
+      "textBoxes": 7,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "width": 1920
+    },
+    "bet open dark": {
+      "textBoxes": 41,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "width": 440
+    },
+    "marked dark": {
+      "textBoxes": 86,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "width": 1920
+    },
+    "marked 390 light": {
+      "textBoxes": 63,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "width": 374
+    },
+    "marked 390 dark": {
+      "textBoxes": 63,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "width": 374
+    }
+  },
+  "beforeBet": {
+    "rest light": {
+      "phase": "rest",
+      "runEls": 0,
+      "litLamps": 0,
+      "liveLines": 0,
+      "marks": 0,
+      "overlay": "",
+      "svgHasRunWords": false
+    },
+    "bet open light": {
+      "phase": "rest",
+      "runEls": 0,
+      "litLamps": 0,
+      "liveLines": 0,
+      "marks": 0,
+      "overlay": "",
+      "svgHasRunWords": false
+    },
+    "rest dark": {
+      "phase": "rest",
+      "runEls": 0,
+      "litLamps": 0,
+      "liveLines": 0,
+      "marks": 0,
+      "overlay": "",
+      "svgHasRunWords": false
+    },
+    "bet open dark": {
+      "phase": "rest",
+      "runEls": 0,
+      "litLamps": 0,
+      "liveLines": 0,
+      "marks": 0,
+      "overlay": "",
+      "svgHasRunWords": false
+    }
+  },
+  "clicks": {
+    "new light": 5,
+    "new dark": 5,
+    "new light reduced": 5,
+    "new dark reduced": 5,
+    "before": 11
+  },
+  "errors": []
+}

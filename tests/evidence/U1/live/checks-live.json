@@ -1,0 +1,85 @@
+{
+  "axe": {
+    "entry light": {
+      "violations": [],
+      "passes": 31
+    },
+    "rest light": {
+      "violations": [],
+      "passes": 32
+    },
+    "bet open light": {
+      "violations": [],
+      "passes": 35
+    },
+    "marked light": {
+      "violations": [],
+      "passes": 38
+    }
+  },
+  "overflow": {},
+  "motion": {},
+  "overlap": {
+    "rest light": {
+      "textBoxes": 7,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "width": 1920
+    },
+    "bet open light": {
+      "textBoxes": 36,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "width": 440
+    },
+    "marked light": {
+      "textBoxes": 78,
+      "overlaps": [],
+      "overlapCount": 0,
+      "outside": [],
+      "outsideCount": 0,
+      "width": 1920
+    }
+  },
+  "beforeBet": {
+    "rest light": {
+      "phase": "rest",
+      "runEls": 0,
+      "litLamps": 0,
+      "liveLines": 0,
+      "marks": 0,
+      "overlay": "",
+      "svgHasRunWords": false
+    },
+    "bet open light": {
+      "phase": "rest",
+      "runEls": 0,
+      "litLamps": 0,
+      "liveLines": 0,
+      "marks": 0,
+      "overlay": "",
+      "svgHasRunWords": false
+    }
+  },
+  "clicks": {
+    "new light": 5
+  },
+  "errors": [],
+  "liveTest": "The test: Atlas calls fetchWithRetry(fetchIt, 3, 100). fetchIt (async) throws Error (\"flaky\") on call 1; every later call throws Error (\"flaky\") too.",
+  "liveSeen": "Code: one pasted TypeScript file, 25 lines, fingerprint df2152f38c62…\nWhere it runs: Atlas's sandbox, with no network, no files and no packages, on a virtual clock that starts at 2026-01-01T00:00:00Z (waits cost no real time).\nAtlas runs it on a simulated clock starting 2026-01-01 UTC, in time zone UTC with an en-US locale, with randomness seeded (seed 20260101).\nWhat will run: Atlas calls fetchWithRetry(fetchIt, 3, 100). fetchIt (async) throws Error (\"flaky\") on call 1; every later call throws Error (\"flaky\") too.\nTest written by: Muse Wonder 1.0 (muse-wonder-1.0).\nAtlas watches for at most 30,000 ms of virtual time.\nQuestions (written by plain code):\n1. What does fetchWithRetry do? Answer: pick one: (a) returns a value; (b) throws an error; (c) never finishes (waits forever, nothing left to wake it); (d) still running when Atlas stops watching at 30,000 ms; or can't tell.\n2. If fetchWithRetry returns, what value does it return, as JSON? Answer: pick one: (a) 3 (the same as argument 2); (b) 100 (the same as argument 3); (c) another value; or can't tell.\n3. How many times does fetchWithRetry call fetchIt? Answer: pick one: (a) 0 times (never called); (b) once; (c) 2 or more times; or can't tell.\n4. How long until fetchWithRetry returns or throws, in ms of Atlas's virtual clock? Answer: pick one: (a) 0 ms (no wait at all); (b) more than 0 ms; or can't tell.\nThe test exactly, as JSON (what Atlas runs): {\"args\":[{\"async\":true,\"calls\":[{\"do\":\"throw\",\"errorName\":\"Error\",\"message\":\"flaky\"}],\"kind\":\"stand-in\",\"name\":\"fetchIt\",\"then\":\"repeat_last\"},{\"kind\":\"json\",\"value\":3},{\"kind\":\"json\",\"value\":100}],\"exportName\":\"fetchWithRetry\",\"shape\":\"call-function\",\"watchLimitMs\":30000}\nHow to bet: Give your best estimate for each question. Decline only if you cannot form any estimate at all; if you decline, say why.\nThe whole file, numbered as on screen, line 10 (where fetchWithRetry is declared) marked \">\":\n  1| // Fetch a price, retrying a flaky source with a growing wait.\n  2| function backoffMs(attempt: number, baseMs: number): number {\n  3|   return baseMs * 2 ** attempt;\n  4| }\n  5| \n  6| function sleep(ms: number): Promise<void> {\n  7|   return new Promise((resolve) => setTimeout(resolve, ms));\n  8| }\n  9| \n> 10| export async function fetchWithRetry(fetchIt: () => Promise<unknown>, attempts: number = 3, baseMs: number = 100) {\n  11|   let last: unknown;\n  12|   for (let i = 0; i < attempts; i++) {\n  13|     try {\n  14|       return await fetchIt();\n  15|     } catch (e) {\n  16|       last = e;\n  17|       await sleep(backoffMs(i, baseMs));\n  18|     }\n  19|   }\n  20|   throw last;\n  21| }\n  22| \n  23| export async function getPrice(fetchQuote: () => Promise<unknown>) {\n  24|   return fetchWithRetry(fetchQuote, 3, 100);\n  25| }",
+  "live": {
+    "marks": [
+      "1. How it endsThe run: throws an errorYoureturns a valuedidn't matchMuse Spark Openthrows an errormatchedMuse Spark 1.3throws an errormatched",
+      "2. What it returnsThe run: can't check: the call threw, so it returned nothingYou3 (the same as argument 2)can't checkMuse Spark Opencan't tellcan't checkMuse Spark 1.3can't tellcan't check",
+      "3. Calls to fetchItThe run: 2 or more timesYou0 times (never called)didn't matchMuse Spark Open2 or more timesmatchedMuse Spark 1.32 or more timesmatched",
+      "4. How long it takesThe run: more than 0 msYoucan't tellcan't checkMuse Spark Openmore than 0 msmatchedMuse Spark 1.3more than 0 msmatched"
+    ],
+    "test": null,
+    "claim": "Muse Wonder 1.0 (muse-wonder-1.0) said, before the run: People expect X; the code does Y: people expect no sleep after the final failed attempt and a real error when no attempt is made, but the code sleeps even after its last failure and throws undefined without calling fetchIt when attempts is 0.",
+    "proof": "?proof=N9WpfMSSJK"
+  }
+}
