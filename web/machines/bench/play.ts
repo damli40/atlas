@@ -59,7 +59,10 @@ export function thrownWords(run: Pick<Run, "result">): string | null {
   const m = run.result.measured;
   const name = typeof m.thrownName === "string" ? m.thrownName : null;
   const msg = typeof m.thrownMessage === "string" ? m.thrownMessage : null;
-  if (name) return short(`${name}${msg ? `: ${msg}` : ""}`).replace(/…$/, "…");
+  if (name) {
+    const full = visibleText(`${name}${msg ? `: ${msg}` : ""}`);
+    return full.length > 140 ? `${full.slice(0, 139)}…` : full;
+  }
   const type = typeof m.thrownType === "string" ? m.thrownType : null;
   if (type === null) return null;
   if (type === "undefined" || type === "null") return `${type} (not an Error)`;
@@ -162,6 +165,13 @@ export function marksOf(questions: readonly Question[], bets: readonly Bet[], ve
     const why = run.result.notMeasured[q.measures] ?? run.result.notMeasured.wholeRun;
     const holder = observed !== undefined && run.controlPassed === true && q.quiz ? optionHolding(q.quiz, q.unit, observed) : null;
     let measured = notShown !== null ? `can't check: ${notShown}` : run.controlPassed !== true ? "can't check: the run is not trusted" : observed === undefined ? `can't check: ${why ?? "not measured"}` : holder ? holder.label : String(observed);
+    // U2: "another value" says which value ("[2,4,6] (another value)").
+    if (notShown === null && holder && holder.match.kind === "json-other" && typeof observed === "string") measured = `${visibleText(observed).length > 60 ? `${visibleText(observed).slice(0, 59)}…` : visibleText(observed)} (${holder.label})`;
+    // U2: a count or a time says its own number too, then the option that holds it ("4 times: 2 or more times").
+    if (notShown === null && holder && typeof observed === "number" && (q.unit === "count" || q.unit === "ms")) {
+      const said = q.unit === "count" ? `${observed.toLocaleString("en-US")} ${observed === 1 ? "time" : "times"}` : `${observed.toLocaleString("en-US")} ms`;
+      if (said !== holder.label && !holder.label.startsWith(`${said} `)) measured = `${said} (${holder.label})`;
+    }
     // U2: the thrown value, plainly ("throws undefined (not an Error)", "throws TypeError: bad key").
     if (notShown === null && q.measures === "outcome" && observed === "threw") {
       const w = thrownWords(run);

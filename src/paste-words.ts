@@ -208,7 +208,7 @@ export const BET_WORDS = {
   writing: (fn: string) => `${WONDER_ROLE}, is writing a test for ${fn}…`,
   testIs: "The test:",
   clock: "Atlas's clock is simulated: waits cost no real time, so a 10-minute wait finishes at once.",
-  random: "Randomness is fixed (seeded), so running the test again gives the same answer.",
+  random: "Randomness is pinned to one seed, so running the test again gives the same answer.",
   zone: (language: PastedLanguage) => `It runs in the UTC time zone with ${language === "py" ? "Python's plain \"C\" locale" : "the en-US locale"}, the same on every run.`,
   watch: (ms: number, fromTest: boolean) =>
     `Atlas stops watching after ${ms.toLocaleString("en-US")} ms of simulated time${fromTest ? " (a limit this test sets)" : " (Atlas's usual limit)"}. A call still going then is marked "still running", not guessed.`,

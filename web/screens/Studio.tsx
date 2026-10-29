@@ -325,7 +325,9 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       const p = await api.proposals(target, fn, { claimOf: from });
       if (g !== gen.current) return;
       setProposals(p);
-      const first = defaultProposal(p.proposals);
+      // Here Wonder was asked to aim at its own sentence, so its first allowed test is the one aimed at it (the
+      // plain-code "most interesting" rule would steer away from, say, the zero the sentence is about).
+      const first = p.proposals.find((x) => x.gate.allowed);
       if (first) await start(() => api.experimentFromProposal(target, first.id, { quiz: true }));
       else setChanging(true);
     } catch (e) {
