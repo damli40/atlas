@@ -41,15 +41,15 @@ export const LIBRARY_WORDS: Record<NetworkLibrary, string> = {
 
 /**
  * How a "never answers" step ends, per library, in the words every bettor reads. Each is what the real library does
- * when the server never answers: fetch has no timeout of its own (only the code's AbortSignal ends the wait); requests
+ * when the server never answers: fetch waits for the code's AbortSignal or Node's own 300 s limit; requests
  * and urllib wait forever unless the code passed `timeout=`; httpx gives up after its timeout, 5 s unless the code set
  * another.
  */
 export const NEVER_ANSWER_WORDS: Record<NetworkLibrary, string> = {
-  fetch: "A call that never answers waits until the code aborts it (an AbortSignal, then fetch throws AbortError); fetch has no timeout of its own.",
+  fetch: "A call that never answers waits until the code aborts it (an AbortSignal: fetch then throws the abort reason, AbortError by default) or until Node's own fetch gives up after 300,000 ms (TypeError: fetch failed).",
   requests: "A call that never answers waits forever, unless the code passed timeout=, which ends the wait with requests' ReadTimeout.",
   urllib: "A call that never answers waits forever, unless the code passed timeout=, which ends the wait with TimeoutError.",
-  httpx: "A call that never answers ends with httpx's ReadTimeout after the timeout (5 s unless the code set another).",
+  httpx: "A call that never answers ends with httpx's ReadTimeout after the timeout: 5 s unless the code set another; timeout=None waits forever.",
 };
 
 const shortJson = (v: JsonValue, canonical: (v: JsonValue) => string) => {
@@ -133,7 +133,8 @@ function codeOnly(src: string, language: "js" | "ts" | "py"): string {
         if (!triple && c !== "`" && src[j] === "\n") break;
         j++;
       }
-      const stop = Math.min(src.length, j + q.length);
+      // An unclosed quote ends at the line break, which is kept (so line numbers stay right).
+      const stop = src.startsWith(q, j) ? Math.min(src.length, j + q.length) : j;
       out += q + src.slice(i + q.length, j).replace(/[^\n]/g, " ") + (src.startsWith(q, j) ? q : "");
       i = stop;
       continue;
@@ -155,9 +156,19 @@ export function networkUse(source: string, language: "js" | "ts" | "py"): Networ
   const code = codeOnly(source, language);
   const out: NetworkUse[] = [];
   if (language !== "py") {
-    const declared = /\b(?:function|const|let|var|class)\s+fetch\b|\bimport\s*\{[^}]*\bfetch\b[^}]*\}/.test(code) || /[(,]\s*fetch\s*[,):=]/.test(code.replace(/\bfetch\s*\(/g, ""));
-    const m = /(?:\b(?:globalThis|window|self)\s*\.\s*fetch\b)|(?:(?<![.\w$])fetch\s*\()/.exec(code);
-    if (m && !declared) out.push({ library: "fetch", line: lineOf(code, m.index) });
+    // The file's own top-level `fetch` (a declaration or an import) replaces the global one. (Review m2: a property
+    // or a parameter named fetch elsewhere no longer hides the global calls.)
+    const declared = /^\s*(?:export\s+)?(?:async\s+)?(?:function|const|let|var|class)\s+fetch\b|\bimport\s*\{[^}]*\bfetch\b[^}]*\}/m.test(code);
+    const re = /(?:\b(?:globalThis|window|self)\s*\.\s*fetch\b)|(?:(?<![.\w$])fetch\s*\()/g;
+    for (let m = re.exec(code); m; m = re.exec(code)) {
+      // Review m3: a method named fetch (`async fetch(u) {` in a class or object) is a definition, not a call.
+      const before = code.slice(Math.max(0, m.index - 12), m.index);
+      const after = code.slice(m.index);
+      const isDefinition = /(?:async|static|get|set)\s+$/.test(before) || /^fetch\s*\([^()]*\)\s*(?::\s*[^{;=]+)?\{/.test(after) && !/[=(,:?]\s*$|return\s*$|await\s*$/.test(before);
+      if (isDefinition) continue;
+      if (!declared) out.push({ library: "fetch", line: lineOf(code, m.index) });
+      break;
+    }
     return out;
   }
   const add = (library: NetworkLibrary, index: number) => {

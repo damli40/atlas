@@ -440,8 +440,17 @@ def _net_ask():
     return send(())
 
 
+#: HTTP reason phrases for the statuses tests use most (the real libraries put them in messages and .reason).
+_REASONS = {200: "OK", 201: "Created", 202: "Accepted", 204: "No Content", 301: "Moved Permanently", 302: "Found",
+            304: "Not Modified", 400: "Bad Request", 401: "Unauthorized", 403: "Forbidden", 404: "Not Found",
+            408: "Request Timeout", 409: "Conflict", 422: "Unprocessable Entity", 429: "Too Many Requests",
+            500: "Internal Server Error", 502: "Bad Gateway", 503: "Service Unavailable", 504: "Gateway Timeout"}
+
+
 def _net_text(body):
-    return body if isinstance(body, str) else _json_mod.dumps(body)
+    # Review M4: the body on the wire is the scripted body as compact JSON text, the same bytes as in JavaScript; .text
+    # gives those bytes and .json() parses them, so the two always agree (a string body "nope" is the text "\"nope\"").
+    return _json_mod.dumps(body, separators=(",", ":"), ensure_ascii=False)
 
 
 def _wait_sync(secs):
@@ -541,7 +550,7 @@ def _make_requests():
             self.status_code = status
             self._body = body
             self.url = url
-            self.reason = ""
+            self.reason = _REASONS.get(status, "")
             self.headers = {"Content-Type": "application/json"}
             self.text = _net_text(body)
             self.content = self.text.encode("utf-8")
@@ -555,8 +564,10 @@ def _make_requests():
             return _json_mod.loads(_json_mod.dumps(self._body))
 
         def raise_for_status(self):
-            if self.status_code >= 400:
-                raise HTTPError("%d Error for url: %s" % (self.status_code, self.url), response=self)
+            if 400 <= self.status_code < 500:
+                raise HTTPError("%d Client Error: %s for url: %s" % (self.status_code, self.reason, self.url), response=self)
+            if 500 <= self.status_code < 600:
+                raise HTTPError("%d Server Error: %s for url: %s" % (self.status_code, self.reason, self.url), response=self)
 
         def close(self):
             pass
@@ -597,6 +608,8 @@ def _make_requests():
 
 
 def _make_httpx():
+    DEFAULT = 5.0  # httpx's own default timeout, in seconds
+    UNSET = object()  # review M5: "not given" (httpx's 5 s); an explicit None means no timeout at all
     class HTTPError(Exception):
         def __init__(self, message, *, request=None, response=None):
             super().__init__(message)
@@ -619,9 +632,10 @@ def _make_httpx():
     errors = {c.__name__: c for c in (HTTPError, RequestError, TransportError, TimeoutException, ConnectTimeout, ReadTimeout, WriteTimeout, PoolTimeout, NetworkError, ConnectError, ReadError, ProtocolError, RemoteProtocolError, HTTPStatusError)}
 
     class Timeout:
-        def __init__(self, timeout=None, *, connect=None, read=None, write=None, pool=None):
-            self.read = read if read is not None else timeout
-            self.connect = connect if connect is not None else timeout
+        def __init__(self, timeout=UNSET, *, connect=UNSET, read=UNSET, write=UNSET, pool=UNSET):
+            base = DEFAULT if timeout is UNSET else timeout
+            self.read = base if read is UNSET else read
+            self.connect = base if connect is UNSET else connect
 
     class Response:
         def __init__(self, status, body, url):
@@ -631,7 +645,7 @@ def _make_httpx():
             self.headers = {"content-type": "application/json"}
             self.text = _net_text(body)
             self.content = self.text.encode("utf-8")
-            self.reason_phrase = ""
+            self.reason_phrase = _REASONS.get(status, "")
 
         @property
         def is_success(self):
@@ -645,28 +659,38 @@ def _make_httpx():
             return _json_mod.loads(_json_mod.dumps(self._body))
 
         def raise_for_status(self):
-            if self.status_code >= 400:
-                raise HTTPStatusError("Server error '%d' for url '%s'" % (self.status_code, self.url), response=self)
+            # Review m1: httpx raises for anything that is not 2xx (1xx, 3xx, 4xx, 5xx).
+            if not (200 <= self.status_code < 300):
+                kind = "Informational response" if self.status_code < 200 else "Redirect response" if self.status_code < 400 else "Client error" if self.status_code < 500 else "Server error"
+                raise HTTPStatusError("%s '%d %s' for url '%s'" % (kind, self.status_code, self.reason_phrase, self.url), response=self)
             return self
 
         def __repr__(self):
             return "<Response [%d]>" % self.status_code
 
-    DEFAULT = 5.0  # httpx's own default timeout, in seconds
+
+    def seconds(timeout):
+        if timeout is UNSET:
+            return DEFAULT
+        if timeout is None:
+            return None
+        if isinstance(timeout, Timeout):
+            return timeout.read
+        return _timeout_of(timeout, None)
 
     def parts(url, timeout):
-        return (lambda st, b: Response(st, b, url), lambda n, m: errors[n](m) if n in errors else RequestError(m), lambda: ReadTimeout("timed out"), _timeout_of(timeout, DEFAULT))
+        return (lambda st, b: Response(st, b, url), lambda n, m: errors[n](m) if n in errors else RequestError(m), lambda: ReadTimeout("timed out"), seconds(timeout))
 
-    def request(method, url, *, timeout=None, **kwargs):
+    def request(method, url, *, timeout=UNSET, **kwargs):
         mk, me, mt, t = parts(url, timeout)
         return _sync_call(t, mk, me, mt)
 
     class Client:
-        def __init__(self, *, timeout=None, **kwargs):
+        def __init__(self, *, timeout=UNSET, **kwargs):
             self._timeout = timeout
 
-        def request(self, method, url, *, timeout=None, **kwargs):
-            return request(method, url, timeout=timeout if timeout is not None else self._timeout)
+        def request(self, method, url, *, timeout=UNSET, **kwargs):
+            return request(method, url, timeout=timeout if timeout is not UNSET else self._timeout)
 
         def close(self):
             pass
@@ -678,11 +702,11 @@ def _make_httpx():
             return False
 
     class AsyncClient:
-        def __init__(self, *, timeout=None, **kwargs):
+        def __init__(self, *, timeout=UNSET, **kwargs):
             self._timeout = timeout
 
-        async def request(self, method, url, *, timeout=None, **kwargs):
-            mk, me, mt, t = parts(url, timeout if timeout is not None else self._timeout)
+        async def request(self, method, url, *, timeout=UNSET, **kwargs):
+            mk, me, mt, t = parts(url, timeout if timeout is not UNSET else self._timeout)
             return await _async_call(t, mk, me, mt)
 
         async def aclose(self):

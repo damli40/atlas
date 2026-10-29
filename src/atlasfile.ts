@@ -39,6 +39,7 @@ import type { AgentEvent, AtlasFile, Bet, BettorSlot, Change, Experiment, Findin
 // without loading this file, which reads the Moonwell copy from disk.
 import { LEVEL2_CAPTION, PASTED_CAPTION, level1Caption } from "./captions";
 import { CONDITIONS_RULE, callRunPinProblems } from "./conditions";
+import { CALL_DEFAULT_WATCH_LIMIT_MS } from "./gate";
 import { lineSpan } from "./words";
 import { pastedTargetProblems } from "./pasted-code";
 import { outlineSectionProblems } from "./outline/section";
@@ -550,7 +551,9 @@ export function callRunAgreesWithItsTrace(r: Run): string[] {
   if (m.outcome !== end.event) out.push(`measured outcome is ${JSON.stringify(m.outcome ?? null)}, but its trace ends with ${end.event}`);
   // U2: a settle time the run does not report (R2's D45: it changed when the second run let time pass) is not compared;
   // it is a claim not made, never a claim that disagrees with the trace.
-  const timeNotReported = Object.prototype.hasOwnProperty.call(r.result.notMeasured, "virtualMs") && !("virtualMs" in m);
+  // Review m7: only when the trace itself says why (the second run differed: clock_differs / twin_differs).
+  const timeNotReported =
+    Object.prototype.hasOwnProperty.call(r.result.notMeasured, "virtualMs") && !("virtualMs" in m) && r.trace.some((t) => (t.event === "clock_differs" || t.event === "twin_differs") && Array.isArray(asRecord(t.data).fields) && (asRecord(t.data).fields as unknown[]).includes("virtualMs"));
   if ((end.event === "returned" || end.event === "threw") && !timeNotReported && m.virtualMs !== end.t) out.push(`measured virtualMs is ${JSON.stringify(m.virtualMs ?? null)}, but its trace settles at ${end.t}`);
   if (end.event !== "returned" && end.event !== "threw" && "virtualMs" in m) out.push("measured virtualMs is set, but the call did not settle");
   const counts = new Map<string, number>();
@@ -678,6 +681,14 @@ function verifyAtlasFileChecked(raw: unknown): Verification {
       if (isRetryRun(file, r)) for (const p of tsRunAgreesWithItsTrace(r)) say(`run ${r.id}: ${p}`);
       if (isCallRun(file, r)) for (const p of callRunAgreesWithItsTrace(r)) say(`run ${r.id}: ${p}`);
       if (isCallRun(file, r)) for (const p of callRunControlProblems(r)) say(`run ${r.id}: ${p}`);
+      // U2 review m8: the watch limit the judge reads from the trace is the experiment's own.
+      if (isCallRun(file, r) && watchLimitRuleOf(file)) {
+        const ex = file.experiments.find((e) => e.id === r.experimentId);
+        const want = ex && ex.params.shape === "call-function" ? (ex.params.watchLimitMs ?? CALL_DEFAULT_WATCH_LIMIT_MS) : null;
+        const start = r.trace.find((t) => t.event === "start");
+        const got = start ? asRecord(start.data).watchLimitMs : undefined;
+        if (start && want !== null && got !== want) say(`run ${r.id}: its trace says a watch limit of ${String(got)} ms, but the experiment's is ${want} ms`);
+      }
       // R1 (D42): the seed, time zone and locale are Atlas's pinned ones, and the conditions are what the trace says.
       if (isCallRun(file, r)) for (const p of callRunPinProblems(r, file.target.language ?? "js", file.rules ?? null)) say(`run ${r.id}: ${p}`);
     }

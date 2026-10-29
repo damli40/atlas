@@ -86,6 +86,7 @@ const RealFunction = Function;
 const ReflectConstruct = Reflect.construct;
 const ERROR_CTORS: Record<string, ErrorConstructor> = { __proto__: null, Error, TypeError, RangeError, SyntaxError, ReferenceError, EvalError, URIError } as unknown as Record<string, ErrorConstructor>;
 const nativeSetTimeout = g.setTimeout as (...a: unknown[]) => unknown;
+const TextEncoderCtor = TextEncoder;
 const DOMExceptionCtor = g.DOMException as (new (message: string, name: string) => Error) | undefined;
 const MathImul = Math.imul;
 const Uint8ArrayCtor = Uint8Array;
@@ -115,6 +116,8 @@ const OUTSIDE_WAIT_MS = 2_000;
 export const MAX_TRACE_EVENTS = 1_000;
 /** U2: the most clock moments one run's "clock_moves" event lists (the rest are counted as `more`). */
 const MAX_CLOCK_MOVES = 300;
+/** U2 review m6: Node's built-in fetch stops waiting for a server's headers after this long (undici headersTimeout). */
+export const NODE_FETCH_GIVES_UP_MS = 300_000;
 const ALWAYS_KEPT: Record<string, true> = { __proto__: null, clock_moves: true, start: true, returned: true, threw: true, never_settled: true, still_running_at_watch_limit: true, stopped_watching: true, stopped_watching_after_settle: true } as unknown as Record<string, true>;
 
 // ---------------------------------------------------------------------------------------------
@@ -1496,6 +1499,7 @@ export async function runCall(fn: unknown, req: CallRunRequest, opts: CallHarnes
   // json() and text() of the scripted body. A call that never answers waits until the code's own AbortSignal aborts it
   // (fetch has no timeout of its own), as real fetch does.
   const net = req.network && req.network.name === "fetch" ? req.network : undefined;
+  let netPending = 0;
   let fetchBefore: PropertyDescriptor | undefined;
   if (net) {
     const name = net.name;
@@ -1507,11 +1511,21 @@ export async function runCall(fn: unknown, req: CallRunRequest, opts: CallHarnes
       if (reason !== undefined) return reason;
       return DOMExceptionCtor ? new DOMExceptionCtor("This operation was aborted", "AbortError") : makeError("AbortError", "This operation was aborted");
     };
+    // Review M3/M4: the body on the wire is the scripted body as JSON text, once. text() gives those bytes and json()
+    // parses them, so the two always agree; a body can be read once (a second read rejects with TypeError, as in real
+    // fetch); arrayBuffer() and blob()-less code paths read the same bytes.
     const response = (status: number, json: string, url: string): Record<string, unknown> => {
-      const text = (() => {
-        const v = JSONParse(json) as unknown;
-        return typeof v === "string" ? v : json;
-      })();
+      let used = false;
+      const read = <T>(f: () => T): Promise<T> => {
+        if (used) return promiseReject(makeError("TypeError", "Body is unusable: Body has already been read"));
+        used = true;
+        r.bodyUsed = true;
+        try {
+          return promiseResolve(f()) as Promise<T>;
+        } catch (e) {
+          return promiseReject(e);
+        }
+      };
       const r: Record<string, unknown> = {
         status,
         ok: status >= 200 && status <= 299,
@@ -1525,13 +1539,26 @@ export async function runCall(fn: unknown, req: CallRunRequest, opts: CallHarnes
           has: (k: unknown) => StringCtor(k).toLowerCase() === "content-type",
           forEach: (cb: (v: string, k: string) => void) => cb("application/json", "content-type"),
         },
-        json: () => promiseResolve(JSONParse(json)),
-        text: () => promiseResolve(text),
-        clone: () => response(status, json, url),
+        json: () => read(() => JSONParse(json)),
+        text: () => read(() => json),
+        arrayBuffer: () => read(() => new TextEncoderCtor().encode(json).buffer),
+        bytes: () => read(() => new TextEncoderCtor().encode(json)),
+        clone: () => {
+          if (used) throw makeError("TypeError", "Response.clone: Body has already been consumed.");
+          return response(status, json, url);
+        },
       };
       return r;
     };
     const fakeFetch = function fetch(this: unknown, input?: unknown, init?: unknown): Promise<unknown> {
+      try {
+        return fetchBody(input, init);
+      } catch (e) {
+        // Real fetch never throws synchronously: anything that goes wrong reading its arguments rejects instead.
+        return promiseReject(e);
+      }
+    };
+    const fetchBody = (input?: unknown, init?: unknown): Promise<unknown> => {
       watch();
       const n = (counts.get(name) ?? 0) + 1;
       counts.set(name, n);
@@ -1554,23 +1581,45 @@ export async function runCall(fn: unknown, req: CallRunRequest, opts: CallHarnes
       }
       return new PromiseCtor<unknown>((resolve, reject) => {
         let done = false;
+        // Review M2: an open request keeps a real Node process alive, so while this call is unanswered Atlas keeps
+        // firing even the code's unref'd timers (AbortSignal.timeout), as a real run would.
+        netPending++;
+        let giveUp: VTimer | null = null;
         const onAbort = () => {
           if (done) return;
           done = true;
-          emit("stand_in_throws", { name, n, errorName: "AbortError", aborted: true });
-          reject(abortError(signal));
+          netPending--;
+          if (giveUp) clock.cancel(giveUp);
+          const why = abortError(signal);
+          const nm = why && typeof why === "object" && typeof (why as { name?: unknown }).name === "string" ? (why as { name: string }).name : "the abort reason";
+          emit("stand_in_throws", { name, n, errorName: nm, aborted: true });
+          reject(why);
         };
         if (signal && typeof signal === "object" && typeof (signal as { addEventListener?: unknown }).addEventListener === "function") {
           (signal as { addEventListener: (t: string, f: () => void, o: unknown) => void }).addEventListener("abort", onAbort, { once: true });
         }
         if (step.do === "never_answer") {
           emit("stand_in_never_answers", { name, n });
+          // Review m6: Node's built-in fetch gives up on a server that never sends headers after 300 s (undici's
+          // headersTimeout), with TypeError "fetch failed". The fake does the same on Atlas's clock.
+          giveUp = clock.schedule(
+            clock.now + NODE_FETCH_GIVES_UP_MS,
+            () => {
+              if (done) return;
+              done = true;
+              netPending--;
+              emit("stand_in_throws", { name, n, errorName: "TypeError", gaveUp: true });
+              reject(makeError("TypeError", "fetch failed"));
+            },
+            { atlas: true },
+          );
           return;
         }
         const after = step.afterMs ?? 0;
         const answer = () => {
           if (done) return;
           done = true;
+          netPending--;
           emit("stand_in_returns", after > 0 ? { name, n, afterMs: after } : { name, n });
           resolve(response(step.status, step.json, url));
         };
@@ -1662,7 +1711,7 @@ export async function runCall(fn: unknown, req: CallRunRequest, opts: CallHarnes
         break;
       }
       if (!next) break; // nothing scheduled and the queue is drained: quiet (settled) or never settles
-      if (!clock.hasRef()) {
+      if (!clock.hasRef() && netPending === 0) {
         // R1 (review MINOR 3): only unref'd timers are left. A plain Node script would exit here; a program that
         // stays up would fire them. Which one is true depends on the caller, so Atlas stops and does not guess.
         noteCondition("unref-timer");

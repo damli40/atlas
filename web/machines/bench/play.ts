@@ -111,7 +111,24 @@ export function playScript(run: Run, test: CallTest, tested: string | null, wait
   const ev = (run.trace ?? []).find((e) => e.event === "clock_moves");
   const at = ev?.data && Array.isArray((ev.data as { at?: unknown }).at) ? ((ev.data as { at: unknown[] }).at.filter((x): x is number => typeof x === "number" && Number.isFinite(x))) : [];
   const callTimes = new Set(calls.map((c) => c.at));
-  let waits: PlayStep[] = at.filter((t) => !callTimes.has(t)).map((t) => ({ at: t, kind: "wait" as const, device: null, line: null, parts: waitParts.length ? [...waitParts] : tested ? [tested] : [], call: 0, words: `waits until ${t.toLocaleString("en-US")} ms` }));
+  // Review m5: a moment when a stand-in or the fake network ANSWERED late (or gave up) is that device's, not the code's
+  // own wait: it lights the device, not the code's waiting parts.
+  const answeredBy = new Map<number, { device: string; words: string }>();
+  for (const e of run.trace ?? []) {
+    if (e.event !== "stand_in_returns" && e.event !== "stand_in_throws") continue;
+    const d = (e.data ?? {}) as { name?: unknown; afterMs?: unknown; aborted?: unknown; errorName?: unknown };
+    if (typeof d.name !== "string" || !has(`calls:${d.name}`) || callTimes.has(e.t) || answeredBy.has(e.t)) continue;
+    if (e.event === "stand_in_returns" && typeof d.afterMs !== "number") continue;
+    answeredBy.set(e.t, { device: deviceId(d.name), words: e.event === "stand_in_returns" ? `${d.name} answers at ${e.t.toLocaleString("en-US")} ms` : `${d.name} call ends at ${e.t.toLocaleString("en-US")} ms (${String(d.errorName ?? "an error")})` });
+  }
+  let waits: PlayStep[] = at
+    .filter((t) => !callTimes.has(t))
+    .map((t) => {
+      const dev = answeredBy.get(t);
+      return dev
+        ? { at: t, kind: "wait" as const, device: dev.device, line: tested ? `${tested}=>${dev.device}` : null, parts: [], call: 0, words: dev.words }
+        : { at: t, kind: "wait" as const, device: null, line: null, parts: waitParts.length ? [...waitParts] : tested ? [tested] : [], call: 0, words: `waits until ${t.toLocaleString("en-US")} ms` };
+    });
   const room = Math.max(0, MAX_PLAY_STEPS - calls.length);
   if (waits.length > room) {
     const k = Math.ceil(waits.length / Math.max(1, room));
@@ -124,7 +141,7 @@ export function playScript(run: Run, test: CallTest, tested: string | null, wait
   let ending = has("outcome") ? tl.readout : null;
   if (ending && outcome === "threw") {
     const w = thrownWords(run);
-    if (w) ending = `threw ${w} at ${(measured.virtualMs as number).toLocaleString("en-US")} ms`;
+    if (w) ending = `threw ${w}${typeof measured.virtualMs === "number" ? ` at ${measured.virtualMs.toLocaleString("en-US")} ms` : ""}`;
   }
   if (ending !== null) steps.push({ at: dialEndMs ?? steps[steps.length - 1]?.at ?? 0, kind: "end", device: null, line: null, parts: tested ? [tested] : [], call: 0, words: ending });
   return { notShown: null, steps, totals, dialEndMs, ending, ...(atLimit ? { atLimit: true } : {}) };

@@ -138,7 +138,7 @@ describe("U2 network fakes: the quiz and every bettor's text", () => {
     const text = pastedBetContext({ experiment: { target: makePastedTarget(FETCH_SRC, "ts"), params: t, proposedBy: { role: "human" } }, questions: qs, exportLine: 3 });
     expect(text).toMatch(/real network blocked \(this test's fake fetch answers instead/);
     expect(text).toMatch(/Atlas's fake fetch \(in place of the network, which stays blocked\) answers 503 with \{"error":"busy"\} on call 1, then never answers on call 2, then answers 200 with \{"ok":true\} after 40 ms on call 3/);
-    expect(text).toMatch(/fetch has no timeout of its own/);
+    expect(text).toMatch(/Node's own fetch gives up after 300,000 ms/);
   });
   it("server: the page's text and both models' prompts are byte-identical with a network fake (D19)", async () => {
     const calls: ChatArgs[] = [];
@@ -333,4 +333,55 @@ async def run_all(jobs, rate=2):
     expect(byField.virtualMs).toBe("cant_check");
     expect(r.json.proof.ok).toBe(true);
   }, 120_000);
+});
+
+describe("U2 review round 1 (adversarial): the fakes behave like the real libraries where it changes a fact", () => {
+  let ctl: Run;
+  beforeAll(async () => {
+    ctl = (await runCallControl()).run;
+  }, 60_000);
+  const exp = (src: string, lang: "ts" | "py", params: Call): Experiment => ({ id: "e1", target: makePastedTarget(src, lang), runner: "ts", params, proposedBy: { role: "human" }, gate: { allowed: true } });
+  const one = (src: string, steps: NonNullable<Call["network"]>["calls"]) => runCallExperiment(exp(src, "ts", { shape: "call-function", exportName: "f", args: [], network: { replaces: "fetch", calls: steps, then: "repeat_last" } }), ctl);
+
+  it("M2: AbortSignal.timeout ends a never-answering fetch at its time (an open request keeps the run alive)", async () => {
+    const r = await one("export async function f() {\n  try { await fetch('u', { signal: AbortSignal.timeout(5000) }); return 'answered'; } catch (e) { return String((e as Error).name); }\n}\n", [{ do: "never_answer" }]);
+    expect(r.result.measured).toMatchObject({ outcome: "returned", returnedJson: '"TimeoutError"', virtualMs: 5000, "calls:fetch": 1 });
+  }, 60_000);
+  it("M3/M4: a body reads once; text and json agree on the same bytes", async () => {
+    const r = await one("export async function f() {\n  const a = await fetch('u');\n  const t = await a.text();\n  let second = 'read twice';\n  try { await a.json(); } catch (e) { second = (e as Error).name; }\n  const b = await fetch('u');\n  return [t, await b.json(), second];\n}\n", [{ do: "respond", status: 200, body: "nope" }]);
+    expect(r.result.measured.returnedJson).toBe('["\\"nope\\"","nope","TypeError"]');
+  }, 60_000);
+  it("m6: with no abort, a never-answering fetch is still running at the watch limit (Node's fetch gives up only at 300 s)", async () => {
+    const r = await one("export async function f() { return (await fetch('u')).status; }\n", [{ do: "never_answer" }]);
+    expect(r.result.measured.outcome).toBe("still_running_at_watch_limit");
+  }, 60_000);
+
+  it.skipIf(findPython() === null)("M5: httpx timeout=None waits forever; m1: raise_for_status on a 302", async () => {
+    const pctl = (await runPyCallControl()).run;
+    const SRC = "import httpx\n\ndef none(u):\n    return httpx.get(u, timeout=None).status_code\n\ndef redirect(u):\n    try:\n        httpx.get(u).raise_for_status()\n        return 'ok'\n    except httpx.HTTPStatusError as e:\n        return str(e)\n";
+    const run = (exportName: string, steps: NonNullable<Call["network"]>["calls"]) => runPyCallExperiment(exp(SRC, "py", { shape: "call-function", exportName, args: [{ kind: "json", value: "http://x" }], network: { replaces: "httpx", calls: steps, then: "repeat_last" } }), pctl);
+    expect((await run("none", [{ do: "never_answer" }])).result.measured.outcome).toBe("still_running_at_watch_limit");
+    expect((await run("redirect", [{ do: "respond", status: 302, body: {} }])).result.measured.returnedJson).toBe(`"Redirect response '302 Found' for url 'http://x'"`);
+  }, 120_000);
+
+  it("M1: the replay does not crash on a run that threw with no reported settle time", async () => {
+    const { playScript } = await import("../../web/machines/bench/play");
+    const r: Run = { id: "r", experimentId: "e1", runner: "ts", executor: "local", codeSha256: "x", startedAt: "2026-10-29T00:00:01.000Z", finishedAt: "2026-10-29T00:00:02.000Z", trace: [{ t: 0, event: "start", data: { watchLimitMs: 30000 } }, { t: 5, event: "threw" }], result: { measured: { outcome: "threw", thrownType: "Error", thrownName: "Error", thrownMessage: "x" }, notMeasured: { virtualMs: "changed" } }, controlPassed: true };
+    expect(playScript(r, { shape: "call-function", exportName: "f", args: [] }, "f").ending).toBe("threw Error: x");
+  });
+
+  it("m3: a method named fetch is not a network call; an unclosed quote keeps line numbers", () => {
+    expect(networkUse("class C { async fetch(u) { return 1 } }\nexport const f = () => new C().fetch(1);\n", "ts")).toEqual([]);
+    expect(networkUse("const o = { fetch: 1 };\nexport const f = () => fetch('x');\n", "ts")).toEqual([{ library: "fetch", line: 2 }]);
+    expect(networkUse("x = 'it\nimport requests\n", "py")).toEqual([{ library: "requests", line: 2 }]);
+  });
+});
+
+describe("U2 review m7: verify only skips a settle time the trace explains", () => {
+  it("returned with virtualMs not reported: allowed with a clock_differs naming virtualMs, refused without", async () => {
+    const { callRunAgreesWithItsTrace } = await import("../../src/atlasfile");
+    const base: Run = { id: "r", experimentId: "e1", runner: "ts", executor: "local", codeSha256: "x", startedAt: "a", finishedAt: "b", trace: [{ t: 0, event: "start" }, { t: 500, event: "returned" }], result: { measured: { outcome: "returned", returnedJson: "1" }, notMeasured: { virtualMs: "hidden" } }, controlPassed: true };
+    expect(callRunAgreesWithItsTrace(base)).toEqual([expect.stringMatching(/measured virtualMs is null, but its trace settles at 500/)]);
+    expect(callRunAgreesWithItsTrace({ ...base, trace: [...base.trace, { t: 500, event: "clock_differs", data: { fields: ["virtualMs"] } }] })).toEqual([]);
+  });
 });

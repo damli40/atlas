@@ -26,14 +26,18 @@ describe("U2 the replay script", () => {
       { t: 5710, event: "stand_in_call", data: { name: "fetch", n: 3 } },
       { t: 5710, event: "stand_in_returns", data: { name: "fetch", n: 3 } },
       { t: 5710, event: "returned", data: { type: "object" } },
-      { t: 5710, event: "clock_moves", data: { at: [263, 5263, 5710] } },
+      { t: 5710, event: "clock_moves", data: { at: [263, 5263, 5500, 5710] } },
     ],
     result: { measured: { outcome: "returned", virtualMs: 5710, returnedJson: '{"ok":1}', returnedType: "object", "calls:fetch": 3 }, notMeasured: {} },
   });
   it("every call of the fake network lights its device with the scripted words; waits light the waiting parts; the ending comes last", () => {
     const s = playScript(r, fetchTest, "fetchWithRetry", ["sleep"]);
     expect(s.steps.filter((x) => x.kind === "call").map((x) => x.words)).toEqual(["fetch call 1: answers 503 with {}", "fetch call 2: never answers; the code gave up (AbortError)", "fetch call 3: answers 200 with {\"ok\":1}"]);
-    expect(s.steps.filter((x) => x.kind === "wait")).toEqual([expect.objectContaining({ at: 5263, parts: ["sleep"], words: "waits until 5,263 ms" })]);
+    // the abort at 5,263 ms ended fetch's call (the device lights); the code's own sleep ends at 5,500 ms (its part lights)
+    expect(s.steps.filter((x) => x.kind === "wait")).toEqual([
+      expect.objectContaining({ at: 5263, device: "stand-in fetch", parts: [], words: "fetch call ends at 5,263 ms (AbortError)" }),
+      expect.objectContaining({ at: 5500, device: null, parts: ["sleep"], words: "waits until 5,500 ms" }),
+    ]);
     expect(s.steps[s.steps.length - 1]).toMatchObject({ kind: "end", words: expect.stringMatching(/^returned at 5,710 ms/) });
     expect(s.totals["stand-in fetch"]).toBe("3 calls");
   });
