@@ -3,7 +3,10 @@
 // .dockerignore, tools/fly-secrets.sh) checked against the server's own rules. Mocked models; no network; $0.
 
 import { spawnSync } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import { request as httpRequest } from "node:http";
+import type { AddressInfo } from "node:net";
+import { serve } from "@hono/node-server";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -243,6 +246,54 @@ describe("H1: one origin (the built page and the API from one server)", () => {
     expect(seen).toHaveLength(0);
   });
 
+  it("review m1: a symbolic link inside dist/ never serves a file or folder outside it", async () => {
+    const { api } = echoApi();
+    const d = dist();
+    const outside = mkdtempSync(join(tmpdir(), "atlas-h1-outside-"));
+    writeFileSync(join(outside, "secret.txt"), "OUTSIDE-SECRET");
+    symlinkSync(join(outside, "secret.txt"), join(d, "assets", "link.txt"));
+    symlinkSync(outside, join(d, "linkdir"));
+    writeFileSync(join(d, "assets", "inside.txt"), "inside");
+    symlinkSync(join(d, "assets", "inside.txt"), join(d, "assets", "ok-link.txt"));
+    const page = servePage(api, d);
+    for (const p of ["/assets/link.txt", "/linkdir/secret.txt"]) {
+      const r = await page.request(p);
+      expect([p, r.status]).toEqual([p, 404]);
+      expect(await r.text()).not.toContain("OUTSIDE-SECRET");
+    }
+    expect(await (await page.request("/assets/ok-link.txt")).text()).toBe("inside"); // a link that stays inside is fine
+  });
+
+  it("review m2: TRACE and other unusual methods get 405 on /api, /health and page paths, never a 500", async () => {
+    const { api, seen } = echoApi();
+    const page = servePage(api, dist());
+    const server = serve({ fetch: page.fetch, port: 0, hostname: "127.0.0.1" });
+    await new Promise<void>((r) => server.once("listening", () => r()));
+    const port = (server.address() as AddressInfo).port;
+    const ask = (method: string, path: string) =>
+      new Promise<{ status: number; body: string; allow: string | undefined }>((res, rej) => {
+        const req = httpRequest({ host: "127.0.0.1", port, method, path }, (r) => {
+          let body = "";
+          r.on("data", (c) => (body += c));
+          r.on("end", () => res({ status: r.statusCode ?? 0, body, allow: r.headers.allow as string | undefined }));
+        });
+        req.on("error", rej);
+        req.end();
+      });
+    try {
+      for (const [m, p] of [["TRACE", "/api/paste"], ["TRACE", "/health"], ["TRACE", "/"], ["TRACE", "/assets/index-abc.js"], ["PROPFIND", "/api/runs"]] as const) {
+        const r = await ask(m, p);
+        expect([m, p, r.status]).toEqual([m, p, 405]);
+        expect(r.body).not.toMatch(/at |TypeError|stack/);
+        expect(r.allow).toContain("GET");
+      }
+      expect((await ask("GET", "/api/x")).status).toBe(200);
+      expect(seen.map((s) => s.path)).toEqual(["/x"]); // the refused ones never reached the API
+    } finally {
+      server.close();
+    }
+  });
+
   it("every answer (page, API, 404) says no other site may frame it", async () => {
     const { api } = echoApi();
     const page = servePage(api, dist());
@@ -389,7 +440,7 @@ describe("H1: the deploy files agree with the server's rules", () => {
 });
 
 describe("H1: tools/fly-secrets.sh (fake config files, a fake flyctl; no real secret is read)", () => {
-  const setup = (opts: { pepperExists?: boolean; dropBaseten?: boolean } = {}) => {
+  const setup = (opts: { pepperExists?: boolean; dropBaseten?: boolean; noisy?: boolean } = {}) => {
     const t = mkdtempSync(join(tmpdir(), "atlas-h1-secrets-"));
     const home = join(t, "home");
     for (const d of [".config/meta-model-api", ".config/baseten", ".config/atlas"]) mkdirSync(join(home, d), { recursive: true });
@@ -399,9 +450,9 @@ describe("H1: tools/fly-secrets.sh (fake config files, a fake flyctl; no real se
     writeFileSync(join(home, ".modal.toml"), '[other]\ntoken_id = "ak-WRONG"\ntoken_secret = "as-WRONG"\n\n[damli40]\ntoken_id = "ak-FAKEID444"\n"token_secret" = \'as-FAKESECRET555\'\n');
     mkdirSync(join(t, "bin"));
     const log = join(t, "fly.log");
-    writeFileSync(join(t, "bin", "fly"), `#!/bin/sh\necho "argv: $*" >> "${log}"\ncase "$1 $2" in\n  "secrets list") ${opts.pepperExists ? `echo '[{"name":"ATLAS_INVITE_PEPPER"}]'` : "echo '[]'"} ;;\n  "secrets import") while IFS= read -r l; do echo "stdin: $l" >> "${log}"; done ;;\nesac\n`);
+    writeFileSync(join(t, "bin", "fly"), `#!/bin/sh\necho "argv: $*" >> "${log}"\ncase "$1 $2" in\n  "secrets list") ${opts.pepperExists ? `echo '[{"name":"ATLAS_INVITE_PEPPER"}]'` : "echo '[]'"} ;;\n  "secrets import") echo "env-log-level: [\${LOG_LEVEL:-}\${FLY_LOG_LEVEL:-}]" >> "${log}"; while IFS= read -r l; do echo "stdin: $l" >> "${log}"; ${opts.noisy ? 'echo "DEBUG request body: $l" >&2;' : ""} done; ${opts.noisy ? "exit 3" : ":"} ;;\nesac\n`);
     chmodSync(join(t, "bin", "fly"), 0o755);
-    const r = spawnSync("sh", [join(ROOT, "tools/fly-secrets.sh")], { env: { HOME: home, PATH: `${join(t, "bin")}:/usr/bin:/bin` }, encoding: "utf8" });
+    const r = spawnSync("sh", [join(ROOT, "tools/fly-secrets.sh")], { env: { HOME: home, PATH: `${join(t, "bin")}:/usr/bin:/bin`, ...(opts.noisy ? { LOG_LEVEL: "debug", FLY_LOG_LEVEL: "debug" } : {}) }, encoding: "utf8" });
     let flyLog = "";
     try {
       flyLog = readFileSync(log, "utf8");
@@ -425,6 +476,14 @@ describe("H1: tools/fly-secrets.sh (fake config files, a fake flyctl; no real se
     expect(r.status).toBe(0);
     expect(flyLog).not.toMatch(/ATLAS_INVITE_PEPPER=/);
     expect(r.stdout).toMatch(/kept the app's existing ATLAS_INVITE_PEPPER/);
+  });
+
+  it("review m8: flyctl's debug switches are turned off, and its stderr never reaches the screen (a failure says so plainly)", () => {
+    const { r, flyLog } = setup({ noisy: true });
+    expect(flyLog).toContain("env-log-level: []");
+    expect(r.status).toBe(1);
+    expect(r.stderr).toMatch(/fly secrets import failed for app "atlas-dami"/);
+    expect(r.stdout + r.stderr).not.toMatch(/FAKE|DEBUG request body/);
   });
 
   it("a missing file stops it before flyctl is called at all", () => {

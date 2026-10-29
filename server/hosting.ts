@@ -19,7 +19,7 @@
 // - Any non-macOS machine (no sandbox-exec) must run every pasted run on Modal: pasted Python runs only inside macOS's
 //   sandbox-exec locally, so on Linux without ATLAS_EXECUTOR=modal the server refuses to start.
 
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { dirname, extname, isAbsolute, join, normalize, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Hono } from "hono";
@@ -166,11 +166,18 @@ function fileFor(root: string, urlPath: string): string | null {
   if (full !== root && !full.startsWith(root.endsWith(sep) ? root : root + sep)) return null;
   if (relative(root, full).split(sep).some((part) => part.startsWith("."))) return null; // no dotfiles
   try {
-    return statSync(full).isFile() ? full : null;
+    // H1 review m1: the REAL path must also be inside root, so a symbolic link in dist/ cannot serve a file outside it.
+    const real = realpathSync(full);
+    const realRoot = realpathSync(root);
+    if (real !== realRoot && !real.startsWith(realRoot.endsWith(sep) ? realRoot : realRoot + sep)) return null;
+    return statSync(real).isFile() ? real : null;
   } catch {
     return null;
   }
 }
+
+/** H1 review m2: the methods passed on at all. Anything else (TRACE, CONNECT, made-up ones) gets 405, never a 500. */
+export const ALLOWED_METHODS: ReadonlySet<string> = new Set(["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]);
 
 /**
  * The production server: `api` (the invite gate in front of the app) under /api, the built page everywhere else.
@@ -196,16 +203,17 @@ export function servePage(api: Fetcher, distDir: string = DIST_DIR): Hono {
   };
   app.all("*", async (c) => {
     const path = c.req.path;
+    if (!ALLOWED_METHODS.has(c.req.method)) return withSafety(c.json({ error: `method ${c.req.method.slice(0, 20)} is not allowed` }, 405, { allow: [...ALLOWED_METHODS].join(", ") }));
     if (path === "/api" || path.startsWith("/api/")) return withSafety(await toApi(c.req.raw, c.env, path.slice(4) || "/"));
     if (path === "/health") return withSafety(await toApi(c.req.raw, c.env, "/health"));
     if (c.req.method !== "GET" && c.req.method !== "HEAD") return withSafety(c.json({ error: "not found (the API is under /api)" }, 404));
     // A path with a hidden part (/.env, /.git/...) is never a page or a file: 404, not the page.
     if (path.split("/").some((part) => part.startsWith("."))) return withSafety(c.json({ error: "not found" }, 404));
-    let file = path === "/" ? join(root, "index.html") : fileFor(root, path);
-    if (!file && extname(path) === "") file = join(root, "index.html");
+    let file = path === "/" ? fileFor(root, "/index.html") : fileFor(root, path);
+    if (!file && extname(path) === "") file = fileFor(root, "/index.html");
     if (!file || !existsSync(file)) return withSafety(c.json({ error: "not found" }, 404));
     const body = readFileSync(file);
-    const isAsset = relative(root, file).startsWith(`assets${sep}`);
+    const isAsset = relative(realpathSync(root), file).startsWith(`assets${sep}`); // file is a real path (review m1)
     const headers: Record<string, string> = {
       "content-type": TYPES[extname(file).toLowerCase()] ?? "application/octet-stream",
       "cache-control": isAsset ? "public, max-age=31536000, immutable" : "no-cache",

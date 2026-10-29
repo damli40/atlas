@@ -48,10 +48,12 @@ fly apps restart atlas-dami
 fly logs --app atlas-dami --no-tail      # look for the line that starts "hosted:" and "Modal warm-up"
 
 # 9. Confirm there is exactly one machine.
+#    WARNING: never run `fly scale count` above 1, and never `fly machine clone`. A second machine gets its own new
+#    volume, so its own spend ledger and its own $100 ceiling, and about half the visitors would land on it (503).
 fly status --app atlas-dami
 
 # 10. Smoke test (spends about $0.05 of real model calls). Type the code at the prompt; it stays out of your history.
-read -rs "ATLAS_SMOKE_INVITE?Invite code: "; export ATLAS_SMOKE_INVITE; echo
+read -rs "ATLAS_SMOKE_INVITE?Invite code: "; export ATLAS_SMOKE_INVITE; echo   # zsh; in bash: read -rsp 'Invite code: ' ATLAS_SMOKE_INVITE
 pnpm exec tsx tools/smoke-hosted.ts https://atlas-dami.fly.dev
 # Once, also check that a visitor cannot forge their address (your address then cannot try a WRONG code for an hour):
 ATLAS_SMOKE_FORGE_CHECK=1 pnpm exec tsx tools/smoke-hosted.ts https://atlas-dami.fly.dev

@@ -23,6 +23,9 @@
 
 set -eu
 set +x
+# H1 review m8: flyctl's debug logging could print its outgoing requests (which would hold the values). Turn every
+# such switch off for this script, whatever the shell had set.
+unset LOG_LEVEL FLY_LOG_LEVEL FLYCTL_LOG_LEVEL DEBUG FLY_DEBUG FLYCTL_DEBUG GRPC_TRACE GRPC_VERBOSITY 2>/dev/null || true
 
 fail() {
   printf 'fly-secrets: %s\n' "$1" >&2
@@ -127,7 +130,7 @@ esac
   printf 'MODAL_TOKEN_ID=%s\n' "$MODAL_TOKEN_ID_V"
   printf 'MODAL_TOKEN_SECRET=%s\n' "$MODAL_TOKEN_SECRET_V"
   if [ -n "$PEPPER_V" ]; then printf 'ATLAS_INVITE_PEPPER=%s\n' "$PEPPER_V"; fi
-} | fly secrets import --app "$APP" --stage >/dev/null || fail "fly secrets import failed for app \"$APP\" (nothing printed, to keep the values off screen); run: fly secrets list --app $APP"
+} | fly secrets import --app "$APP" --stage >/dev/null 2>&1 || fail "fly secrets import failed for app \"$APP\" (nothing printed, to keep the values off screen); run: fly secrets list --app $APP"
 
 printf 'fly-secrets: staged META_API_KEY, BASETEN_API_KEY, BASE_RPC_URL, MODAL_TOKEN_ID, MODAL_TOKEN_SECRET for app "%s" (Modal profile [%s]); %s.\n' "$APP" "$PROFILE" "$PEPPER_NOTE"
 printf 'fly-secrets: they reach the machine on the next deploy: fly deploy --remote-only --ha=false (or, if nothing else changed: fly secrets deploy --app %s)\n' "$APP"
