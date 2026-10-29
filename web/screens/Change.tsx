@@ -7,6 +7,7 @@
 // block), the pass rule's replay lines on Moonwell, and the machine drawn from the replay run.
 // When Muse Code gave no usable change, the page says "Muse Code: no usable change (<reason>)".
 
+import { quizChoiceLabel } from "../../src/quiz";
 import { useState } from "react";
 import { AFTER_LABEL, BEFORE_LABEL, CHANGE_CAPTION, theoryCaptions } from "../../src/change";
 import { parseUnifiedDiff } from "../../src/diff";
@@ -24,6 +25,7 @@ const asStored: FormatValue = (_m, v) => String(v);
 
 function answerText(b: Bet): string {
   if (b.answer.kind === "number") return `${b.answer.value} ${b.answer.unit} (±${b.answer.tolerancePct}%)`;
+  if (b.answer.kind === "quiz") return quizChoiceLabel(b.answer.options, b.answer.choice);
   return b.answer.kind === "declined" ? "declined" : String(b.answer.value);
 }
 

@@ -4,6 +4,7 @@
 // before the run (kept from the seal step, not taken from the run's answer). Model bets are checked
 // the same way, against the hashes the page showed while their answers were still hidden.
 
+import { quizChoiceLabel } from "../../src/quiz";
 import { canonicalJson, computeSealHash } from "../../src/seal";
 import type { Bet, Outcome, Verdict } from "../../src/types";
 import type { RunAnswer, SealedOnly } from "../api";
@@ -68,6 +69,7 @@ export function answerText(b: Bet | undefined): string {
   if (b.answer.kind === "number") return `${b.answer.value} ${b.answer.unit} (±${b.answer.tolerancePct}%)`;
   // E3: a JSON answer is shown as the judge compares it (canonical JSON), never as "[object Object]".
   if (b.answer.kind === "json") return canonicalJson(b.answer.value);
+  if (b.answer.kind === "quiz") return quizChoiceLabel(b.answer.options, b.answer.choice);
   return b.answer.kind === "declined" ? "declined" : String(b.answer.value);
 }
 
@@ -82,6 +84,7 @@ function sameAsTyped(answer: Bet["answer"], typedRaw: string): boolean {
       return false;
     }
   }
+  if (answer.kind === "quiz") return answer.choice === typedRaw;
   return String(answer.value) === typedRaw;
 }
 

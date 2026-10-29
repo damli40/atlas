@@ -8,6 +8,7 @@
 // The Adversary's own sentence ("why") sits in a separate model panel with the model id, never beside a
 // verdict as Atlas's words.
 
+import { quizChoiceLabel } from "../../src/quiz";
 import { useState } from "react";
 import { notShownAsFact } from "../../src/trust";
 import { canonicalJson } from "../../src/seal";
@@ -41,6 +42,7 @@ function answerText(b: Bet, format: FormatValue): string {
   if (b.answer.kind === "number") return `${b.answer.value} ${b.answer.unit} (±${b.answer.tolerancePct}%)`;
   // E1: a JSON answer is printed as the judge compares it (canonical JSON).
   if (b.answer.kind === "json") return canonicalJson(b.answer.value);
+  if (b.answer.kind === "quiz") return quizChoiceLabel(b.answer.options, b.answer.choice);
   return format(b.measures, b.answer.value);
 }
 

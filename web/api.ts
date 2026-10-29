@@ -13,6 +13,7 @@ import { CLAIMANT_HEADER, DEFAULT_CLAIMANT_MODE, type ClaimantMode, type Claiman
 export type { ClaimantMode, ClaimantsInfo };
 import type { AdversaryAnswer } from "../server/app";
 import type { OutlineAtlasFile } from "../src/outline/types";
+import type { FileOutline } from "../src/file-outline";
 import type { OutlineView } from "./machines/explorer/outline-data";
 
 export type { ModelSlotView, SealedOnly, FalseAlarmRow, ChangeAnswer, AdversaryAnswer };
@@ -68,7 +69,7 @@ export interface RunAnswer {
   falseAlarm?: FalseAlarmRow[];
 }
 
-export type HumanAnswer = { kind: "integer"; value: number } | { kind: "enum"; value: string } | { kind: "number"; value: number } | { kind: "json"; value: unknown };
+export type HumanAnswer = { kind: "integer"; value: number } | { kind: "enum"; value: string } | { kind: "number"; value: number } | { kind: "json"; value: unknown } | { kind: "quiz"; choice: string } | { kind: "declined"; reason: string };
 
 /** E3: what POST /paste answers. */
 export interface PasteAnswer {
@@ -80,6 +81,8 @@ export interface PasteAnswer {
   exports: { name: string; line: number; declaredAs: string }[];
   cantCheck: string | null;
   lines: number;
+  /** U1 (D47): the file's functions and joins by plain code. Absent on servers before U1. */
+  outline?: FileOutline;
 }
 export interface PasteLanguage {
   language: "js" | "ts" | "py";
@@ -255,8 +258,8 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
     /** D04-04: lines a person picked themselves. */
     pickLines: (target: Target, file: string, lineStart: number, lineEnd: number) =>
       post<{ finding: Finding }>("/findings", { target: { ref: target.ref, codeSha256: target.codeSha256 }, file, lineStart, lineEnd }).then((r) => r.finding),
-    experiment: (target: Pick<Target, "ref" | "codeSha256">, params: unknown, findingId?: string, editedFrom?: string) =>
-      post<ExperimentAnswer>("/experiments", { target: { ref: target.ref, codeSha256: target.codeSha256 }, params, ...(findingId ? { findingId } : {}), ...(editedFrom ? { editedFrom } : {}) }),
+    experiment: (target: Pick<Target, "ref" | "codeSha256">, params: unknown, findingId?: string, editedFrom?: string, opts: { quiz?: true } = {}) =>
+      post<ExperimentAnswer>("/experiments", { target: { ref: target.ref, codeSha256: target.codeSha256 }, params, ...(findingId ? { findingId } : {}), ...(editedFrom ? { editedFrom } : {}), ...(opts.quiz ? { quiz: true } : {}) }),
     bet: (experimentId: string, measures: string, answer: HumanAnswer) =>
       post<{ bet: ShownBet }>("/bets", { experimentId, who: "human", measures, answer }).then((r) => r.bet),
     /**
@@ -280,8 +283,8 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
     /** E3: Muse Wonder proposes up to 3 tests for one export; the gate checks each. */
     proposals: (target: Pick<Target, "ref" | "codeSha256">, exportName: string) => post<ProposalsAnswer>("/paste/proposals", { target: { ref: target.ref, codeSha256: target.codeSha256 }, exportName }),
     /** E3: a test Muse Wonder proposed, used as proposed. */
-    experimentFromProposal: (target: Pick<Target, "ref" | "codeSha256">, proposalId: string) =>
-      post<ExperimentAnswer>("/experiments", { target: { ref: target.ref, codeSha256: target.codeSha256 }, proposalId }),
+    experimentFromProposal: (target: Pick<Target, "ref" | "codeSha256">, proposalId: string, opts: { quiz?: true } = {}) =>
+      post<ExperimentAnswer>("/experiments", { target: { ref: target.ref, codeSha256: target.codeSha256 }, proposalId, ...(opts.quiz ? { quiz: true } : {}) }),
     /** E3: Muse Wonder's sentence, once the person's bets on this experiment are sealed. */
     claim: (experimentId: string) => post<{ model: string; display: string; claim: string }>("/paste/claim", { experimentId }),
     /** X1/X2: start an outline job on a GitHub folder or uploaded files (202, then poll outlineJob). */

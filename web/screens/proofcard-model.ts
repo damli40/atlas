@@ -6,6 +6,7 @@
 // matched first, the captions the file carries, and every sealed hash, re-hashed here in the browser.
 // The card never says whether code is "good"; only whether each bet matched what the code did.
 
+import { quizChoiceLabel } from "../../src/quiz";
 import { moonwellLevelOf } from "../../src/bet-context";
 import { verifySeal } from "../../src/seal";
 import { notShownAsFact } from "../../src/trust";
@@ -80,6 +81,9 @@ export function showAnswer(b: Pick<Bet, "answer">): string {
     case "json":
       // E1: a JSON answer is printed as the judge compares it (canonical JSON).
       return canonicalJson(a.value);
+    case "quiz":
+      // U1 (D48): the chosen option's own words.
+      return quizChoiceLabel(a.options, a.choice);
   }
 }
 

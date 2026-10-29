@@ -4,6 +4,7 @@
 // model said (its answers and its own rationale). The rationale is the model's words, kept here in
 // the model panel; it is never part of a verdict.
 
+import { quizChoiceLabel } from "../../src/quiz";
 import type { Bet } from "../../src/types";
 import type { ModelSlotView } from "../api";
 import { ShortHash } from "./Bets";
@@ -54,7 +55,7 @@ export function ModelSlotCard({ slot, revealed }: { slot: ModelSlotView | null; 
           <ul className="seals" data-testid="model-panel">
             {revealed.map((b) => (
               <li key={b.id} data-testid={`model-said-${b.measures}`}>
-                <b>{b.measures}</b>: {b.answer.kind === "declined" ? `declined (${b.answer.reason})` : b.answer.kind === "json" ? answerText(b) : String(b.answer.value)}
+                <b>{b.measures}</b>: {b.answer.kind === "declined" ? `declined (${b.answer.reason})` : b.answer.kind === "json" ? answerText(b) : b.answer.kind === "quiz" ? quizChoiceLabel(b.answer.options, b.answer.choice) : String(b.answer.value)}
                 {b.rationale && <span className="muted"> · "{b.rationale}"</span>}
               </li>
             ))}
