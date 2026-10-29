@@ -1,0 +1,28 @@
+// Scores "found in this code" against hand truth, through the paste route's own span logic (functionInfo → the
+// function's lines; whole file when not found). Usage: tsx score.mts <set> where set is set3 | rev | c50
+import { labelFailures, type Lang } from "<repo>/src/failure-labels.ts";
+import { functionInfo } from "<repo>/server/labels.ts";
+const which = process.argv[2];
+let S: { id: string; lang: Lang; desc: string; code: string; truth: string[]; fn?: string }[];
+if (which === "set3") S = (await import("<repo>/tests/fixtures/failure-labels/snippets-set3.ts")).SET3;
+else if (which === "c50") S = (await import("<repo>/tests/fixtures/failure-labels/snippets.ts")).SNIPPETS;
+else S = (await import("<repo>/tests/fixtures/failure-labels/snippets-review2.ts")).REVIEW2;
+const firstExport = (code: string, lang: Lang) => (lang === "py" ? /^(?:async\s+)?def\s+(\w+)/m.exec(code)?.[1] : /export\s+(?:async\s+)?(?:function\s*\*?\s*|const\s+|class\s+)(\w+)/.exec(code)?.[1]);
+const per: Record<string, [number, number]> = {};
+let t = 0, f = 0, missed = 0;
+const rows: string[] = [];
+for (const s of S) {
+  const name = s.fn ?? firstExport(s.code, s.lang);
+  let fn = null;
+  try { fn = name ? functionInfo(s.code, s.lang, name) : null; } catch { fn = null; }
+  const n = s.code.split("\n").length;
+  const a = labelFailures({ language: s.lang, spans: [{ path: "pasted", text: s.code, lineStart: fn?.lineStart ?? 1, lineEnd: fn?.lineEnd ?? n }], ...(fn ? { functions: [fn] } : {}) });
+  const found = a.labels.filter((l) => l.label === "found in this code").map((l) => l.failure);
+  for (const x of found) { per[x] ??= [0, 0]; per[x][1]++; if (s.truth.includes(x)) { per[x][0]++; t++; } else f++; }
+  const miss = s.truth.filter((x) => !found.includes(x));
+  missed += miss.length;
+  rows.push(`| ${s.id} | ${s.lang} | ${s.desc} | ${found.join(", ") || "-"} | ${found.filter((x) => !s.truth.includes(x)).join(", ") || "-"} | ${miss.join(", ") || "-"} |`);
+}
+console.log("| # | lang | snippet | found in this code | FALSE | missed |\n|---|---|---|---|---|---|\n" + rows.join("\n"));
+console.log(`\nfound ${t + f}, true ${t}, false ${f}, precision ${((t / Math.max(1, t + f)) * 100).toFixed(1)}%, missed ${missed}`);
+console.log("| marker | found | true | precision |\n|---|---|---|---|\n" + Object.entries(per).map(([k, [a, b]]) => `| ${k} | ${b} | ${a} | ${((a / b) * 100).toFixed(0)}% |`).join("\n"));

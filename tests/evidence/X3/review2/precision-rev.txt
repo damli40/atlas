@@ -1,0 +1,55 @@
+| # | lang | snippet | found in this code | FALSE | missed |
+|---|---|---|---|---|---|
+| o01 | ts | got with retry + timeout options | - | - | - |
+| o02 | ts | ky (10 s default timeout) | - | - | - |
+| o03 | ts | undici request (default headers/body timeouts) | - | - | - |
+| o04 | ts | node-fetch pagination by page number, failures skipped (NOT a retry) | timeout | - | - |
+| o05 | ts | p-retry around fetch with no signal (p-retry backs off) | timeout | - | - |
+| o06 | ts | retry loop, AbortSignal.timeout per try, backoff | - | - | - |
+| o07 | ts | SQS consumer loop: long poll, per-message try, ack after work, no dedupe | duplicate-delivery | - | - |
+| o08 | ts | kafkajs eachMessage with autoCommit (no explicit ack) | - | - | - |
+| o09 | ts | Prisma: create order then decrement stock, no $transaction | partial-commit | - | - |
+| o10 | ts | Prisma $transaction | - | - | - |
+| o11 | ts | knex.transaction with trx | - | - | - |
+| o12 | ts | knex two inserts, no transaction | partial-commit | - | - |
+| o13 | ts | pg pool two writes, no BEGIN | partial-commit | - | - |
+| o14 | ts | pg client BEGIN/COMMIT | - | - | - |
+| o15 | ts | class-free: lost update on module object? (exported fn reading state.x) -> no marker | - | - | - |
+| o16 | ts | Redis lock spin with SET NX and sleep, no try | - | - | - |
+| o17 | ts | luxon setZone | - | - | - |
+| o18 | ts | UTC getters only | - | - | - |
+| o19 | ts | local getHours for a 9am digest, no zone | time-zone | - | - |
+| o20 | ts | query cutoff 'last 24 h' from Date.now() - DAY (not a duration) | - | - | - |
+| o21 | ts | elapsed via Date.now() for a metric | clock-skew | - | - |
+| o22 | ts | retry, wait via util.promisify(setTimeout) named setTimeoutPromise | no-overall-timeout | - | - |
+| o23 | ts | while(true) retry, no wait, no deadline (true storm + no overall timeout) | retry-storm, no-overall-timeout | - | - |
+| o24 | ts | cursor pagination; catch stops the walk via cursor = null (no retry) | - | - | - |
+| o25 | ts | async generator, catch returns | - | - | - |
+| o26 | ts | class: balance += await (race) and read-await-write of this.pending (lost update), with a redis lock key named 'lockKey' only in a string | race, lost-update | - | - |
+| o27 | ts | node-cron with timezone option; job body uses toISOString only | - | - | - |
+| o28 | ts | webhook handler: Stripe event id dedupe via upsert, then ack | - | - | - |
+| o29 | py | tenacity stop_after_attempt + wait_exponential, requests.get without timeout | timeout | - | - |
+| o30 | py | backoff decorator max_time + requests timeout | - | - | - |
+| o31 | py | manual retry with time.sleep backoff, requests.get without timeout | no-overall-timeout, timeout | - | - |
+| o32 | py | asyncio.timeout around an httpx retry loop | - | - | - |
+| o33 | py | SQLAlchemy session add x2 + commit | - | - | - |
+| o34 | py | sqlite3 autocommit (isolation_level=None), two writes | partial-commit | - | - |
+| o35 | py | Celery task: self.retry with countdown, requests.post without timeout | timeout | - | - |
+| o36 | py | Celery task with soft_time_limit/time_limit, while retry loop without wait | - | - | retry-storm |
+| o37 | py | pika consumer, ack after work, no dedupe | duplicate-delivery | - | - |
+| o38 | py | datetime.now() with ZoneInfo | - | - | - |
+| o39 | py | cutoff time.time() - 7 days for a DELETE (not a duration) | - | - | - |
+| o40 | py | generator: transient error -> continue at once, forever | - | - | retry-storm, no-overall-timeout |
+
+found 19, true 19, false 0, precision 100.0%, missed 3
+| marker | found | true | precision |
+|---|---|---|---|
+| timeout | 5 | 5 | 100% |
+| duplicate-delivery | 2 | 2 | 100% |
+| partial-commit | 4 | 4 | 100% |
+| time-zone | 1 | 1 | 100% |
+| clock-skew | 1 | 1 | 100% |
+| no-overall-timeout | 3 | 3 | 100% |
+| retry-storm | 1 | 1 | 100% |
+| race | 1 | 1 | 100% |
+| lost-update | 1 | 1 | 100% |

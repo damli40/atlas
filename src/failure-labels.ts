@@ -108,6 +108,18 @@ export function maskSource(text: string, lang: Lang, keepStrings = false): strin
     if (c === '"' || c === "'" || c === "`") {
       i++;
       while (i < n && text[i] !== c) {
+        // Round 2: a template literal's \${…} parts are code (a loop variable inside a URL is still the loop variable).
+        if (c === "`" && text[i] === "$" && text[i + 1] === "{") {
+          let depth = 0;
+          for (; i < n; i++) {
+            if (text[i] === "{") depth++;
+            else if (text[i] === "}" && --depth === 0) {
+              i++;
+              break;
+            }
+          }
+          continue;
+        }
         if (text[i] === "\\") {
           if (!keepStrings) blank(i);
           i++;
@@ -204,9 +216,9 @@ const PY_KEYWORDS = new Set(["if", "for", "while", "return", "await", "not", "an
 /** Calls that never wait: logging and collecting. A catch path that calls anything else may be waiting. */
 const HARMLESS_CALL = /^(console\.\w+|print|log|logger\.\w+|logging\.\w+|log\.\w+|warn|\w+\.(push|append|add)|String|Number|str|repr|JSON\.stringify)$/;
 /** A wait between tries. */
-const WAIT = /\b(sleep|setTimeout|delay|wait|pause|backoff\w*|wait_exponential)\b|asyncio\.sleep\b|time\.sleep\b/;
+const WAIT = /\b(sleep|setTimeout|setTimeoutPromise|delay|wait|pause|snooze|nap|backoff\w*|wait_exponential)\b|asyncio\.sleep\b|time\.sleep\b|promisify\s*\(\s*setTimeout|timers\/promises/;
 /** A deadline or timeout anywhere: a timeout/deadline name or keyword argument, an abort signal, a race, a clock read. */
-const DEADLINE = /\b(deadline\w*|timeout\w*|Timeout|timeouts|signal|AbortSignal|AbortController|wait_for|perf_counter|monotonic|elapsed\w*|expiresAt|expires_at|stop_after_delay|max_time)\b|Promise\.race\b|asyncio\.timeout\b|Date\.now\b|performance\.now\b|time\.time\b/;
+const DEADLINE = /\b(deadline\w*|timeout\w*|Timeout|timeouts|signal|AbortSignal|AbortController|wait_for|perf_counter|monotonic|elapsed\w*|expiresAt|expires_at|stop_after_delay|max_time|time_limit|soft_time_limit)\b|Promise\.race\b|asyncio\.timeout\b|Date\.now\b|performance\.now\b|time\.time\b/;
 const CATCH_JS = /\bcatch\b/;
 
 /** The calls in a piece of code view, in order: dotted name, its "(" offset (in `text`), whether awaited. */
@@ -223,6 +235,24 @@ function callsIn(text: string, from: number, to: number, lang: Lang): { name: st
     out.push({ name, open: m.index + m[0].length - 1, awaited: !!m[1] });
   }
   return out;
+}
+
+/** The plain names a piece of code reads (not property names after a dot, not keywords). */
+function namesIn(code: string): string[] {
+  const out = new Set<string>();
+  for (const m of code.matchAll(/(?<![\w$.])([A-Za-z_$][\w$]*)/g)) if (!JS_KEYWORDS.has(m[1]!) && !PY_KEYWORDS.has(m[1]!) && !/^(true|false|null|undefined|None|True|False|let|const|var)$/.test(m[1]!)) out.add(m[1]!);
+  return [...out];
+}
+const esc = (n: string) => n.replace(/\$/g, "\\$");
+/** Does this code assign (=, +=, ++ …) to any of these names? */
+function assignsAny(code: string, names: readonly string[]): boolean {
+  return names.some((n) => new RegExp(`(?<![\\w$.])${esc(n)}\\s*(=(?!=)|\\+=|-=|\\*=|\\+\\+|--)|(\\+\\+|--)\\s*${esc(n)}\\b`).test(code));
+}
+/** The call gets the same arguments each time round: no loop variable in them, and nothing they name is set in the loop. */
+function sameArgsEachTime(args: string, bodyText: string, loopVar: string | null): boolean {
+  const names = namesIn(args);
+  if (loopVar && names.includes(loopVar)) return false;
+  return !names.some((n) => assignsAny(bodyText, [n]) || new RegExp(`\\b(const|let|var)\\s+${esc(n)}\\b`).test(bodyText));
 }
 
 export function scanSpan(path: string, fileText: string, lang: Lang, lineStart: number, lineEnd: number, params: readonly string[] = []): SpanScan {
@@ -248,6 +278,8 @@ export function scanSpan(path: string, fileText: string, lang: Lang, lineStart: 
   const argsOf = (open: number) => (close[open]! > open ? text.slice(open + 1, close[open]!) : "");
   const harmlessOnly = (calls: ReturnType<typeof callsIn>) => calls.every((x) => HARMLESS_CALL.test(x.name));
   let heads = 0;
+  // Lines that start another loop (round 2, B2: a try inside an item loop belongs to that loop, not the outer one).
+  const loopP = prefixOf(lines, lang === "py" ? /^\s*(?:async\s+)?(for|while)\b/ : /(?:^|[^\w$.])(for|while|do)\b|\.(forEach|map)\s*\(/);
 
   if (lang === "py") {
     // Block ends from indentation, in one pass with a stack of open blocks.
@@ -274,26 +306,40 @@ export function scanSpan(path: string, fileText: string, lang: Lang, lineStart: 
       const e = end[i]!;
       if (e <= i || e - i > MAX_BODY_LINES) continue;
       let loopVar: string | null = null;
+      let testNames: string[] = [];
       if (head[1] === "for") {
         const f = /^\s*(\w+)\s+in\s+range\s*\((.*)\)\s*$/.exec(head[2]!);
         if (!f || /\blen\s*\(/.test(f[2]!)) continue; // a loop over items, not a retry
         loopVar = f[1]!;
-      }
+        testNames = [loopVar];
+      } else testNames = namesIn(head[2]!);
       const t = nextTry[i + 1]!;
       if (t < 0 || t > e) continue;
+      // Round 2 (B2): the try sits directly in this loop: no other loop between the loop's head and the try.
+      if (countIn(loopP, i + 1, t - 1) > 0) continue;
       const tEnd = end[t]!;
       if (tEnd <= t || tEnd - t > MAX_BLOCK_LINES) continue;
       const ex = tEnd + 1;
       if (ex > e || !/^\s*except\b/.test(lines[ex]!.code) || lines[ex]!.indent !== lines[t]!.indent) continue;
       const exEnd = end[ex]!;
       if (exEnd <= ex || exEnd - ex > MAX_BLOCK_LINES) continue;
-      if (/^\s*(raise|return|break)\b/.test(lines[ex + 1]!.code)) continue; // the except path does not go round
-      if (loopVar && new RegExp(`\\[\\s*${loopVar}\\s*\\]`).test(text.slice(starts[i]!, starts[e]! + lines[e]!.code.length))) continue;
-      const tryCalls = callsIn(text, starts[t + 1]!, starts[tEnd]! + lines[tEnd]!.code.length, lang);
-      const call = pickCall(tryCalls);
+      const exText = text.slice(starts[ex + 1]!, starts[exEnd]! + lines[exEnd]!.code.length);
+      // Round 2 (M1 cause 1): the except path goes round only if nothing in it raises, returns, breaks or changes
+      // what the loop test reads.
+      if (/\b(raise|return|break)\b/.test(exText) || assignsAny(exText, testNames)) continue;
+      const bodyText = text.slice(starts[i + 1] ?? starts[i]!, starts[e]! + lines[e]!.code.length);
+      if (loopVar && new RegExp(`\\[\\s*${loopVar}\\s*\\]`).test(bodyText)) continue;
+      const tryFrom = starts[t + 1]!;
+      const tryTo = starts[tEnd]! + lines[tEnd]!.code.length;
+      const call = pickCall(callsIn(text, tryFrom, tryTo, lang));
       if (!call) continue;
-      const exCalls = callsIn(text, starts[ex + 1]!, starts[exEnd]! + lines[exEnd]!.code.length, lang);
-      s.retries.push({ at: ref(i, e), callee: call.name, calleeLine: lines[lineIndexOf(s, call.open)]!.line, calleeArgs: argsOf(call.open), noWait: countIn(waitP, i, e) === 0 && harmlessOnly(exCalls) });
+      const args = argsOf(call.open);
+      // Round 2 (B1, storm): the loop variable is not passed to the call, and nothing the call's arguments name is
+      // changed in the loop: the same call with the same arguments each time.
+      if (!sameArgsEachTime(args, bodyText, loopVar)) continue;
+      // Round 2 (B3): any call outside the try (and any call in the except path) that is not logging may be a wait.
+      const outside = [...callsIn(text, starts[i + 1] ?? starts[i]!, starts[t]!, lang), ...callsIn(text, tryTo, starts[e]! + lines[e]!.code.length, lang)];
+      s.retries.push({ at: ref(i, e), callee: call.name, calleeLine: lines[lineIndexOf(s, call.open)]!.line, calleeArgs: args, noWait: countIn(waitP, i, e) === 0 && harmlessOnly(outside) });
     }
     return s;
   }
@@ -322,6 +368,7 @@ export function scanSpan(path: string, fileText: string, lang: Lang, lineStart: 
     const kwAt = starts[i]! + m.index + m[0].length - m[1]!.length;
     let bodyFrom = kwAt + m[1]!.length;
     let loopVar: string | null = null;
+    let testNames: string[] = [];
     if (m[1] === "for" || m[1] === "while") {
       const p = text.indexOf("(", bodyFrom);
       if (p < 0 || p - bodyFrom > 4 || close[p]! < 0) continue;
@@ -330,11 +377,19 @@ export function scanSpan(path: string, fileText: string, lang: Lang, lineStart: 
         // Only a counting loop (init; test; step) can be a retry; for…of / for…in take a new item each time.
         if (!header.includes(";") || /\b(of|in)\b/.test(header) || /\.(length|size)\b|\blength\b/.test(header)) continue;
         loopVar = /^\s*(?:let|var|const)?\s*([A-Za-z_$][\w$]*)\s*=/.exec(header)?.[1] ?? null;
-      }
+        testNames = namesIn(header.split(";")[1] ?? "");
+      } else testNames = namesIn(header);
       bodyFrom = close[p]! + 1;
     }
     const body = blockFrom(bodyFrom);
     if (!body) continue;
+    if (m[1] === "do") {
+      const w = /^\s*while\s*\(/.exec(text.slice(body[1] + 1, body[1] + 40));
+      if (w) {
+        const p = body[1] + 1 + w[0].length - 1;
+        if (close[p]! > p) testNames = namesIn(text.slice(p + 1, close[p]!));
+      }
+    }
     const a = i;
     const b = lineIndexOf(s, body[1]);
     if (b - a > MAX_BODY_LINES) continue;
@@ -342,6 +397,10 @@ export function scanSpan(path: string, fileText: string, lang: Lang, lineStart: 
     if (t < 0 || t > b) continue;
     const tryAt = starts[t]! + lines[t]!.code.search(/\btry\b/);
     if (tryAt < body[0]) continue;
+    // Round 2 (B2): the try sits directly in this loop: no other loop (or .forEach / .map) between the head and the try.
+    if (countIn(loopP, a + 1, t - 1) > 0) continue;
+    if (/(?:^|[^\w$.])(for|while|do)\b|\.(forEach|map)\s*\(/.test(text.slice(body[0] + 1, t === a ? tryAt : Math.min(tryAt, starts[a + 1] ?? tryAt)))) continue;
+    if (t !== a && /(?:^|[^\w$.])(for|while|do)\b|\.(forEach|map)\s*\(/.test(text.slice(starts[t]!, tryAt))) continue;
     const tb = blockFrom(tryAt + 3);
     if (!tb || tb[1] > body[1]) continue;
     const tLine = lineIndexOf(s, tb[1]);
@@ -352,11 +411,21 @@ export function scanSpan(path: string, fileText: string, lang: Lang, lineStart: 
     if (!/^\s*$/.test(text.slice(tb[1] + 1, catchAt))) continue; // the catch belongs to this try
     const cb = blockFrom(catchAt + 5);
     if (!cb || cb[1] > body[1] || lineIndexOf(s, cb[1]) - c > MAX_BLOCK_LINES) continue;
-    if (/^\s*(throw|return|break)\b/.test(text.slice(cb[0] + 1, cb[1]))) continue; // the catch path does not go round
-    if (loopVar && new RegExp(`\\[\\s*${loopVar.replace(/\$/g, "\\$")}\\s*\\]`).test(text.slice(body[0], body[1]))) continue;
+    const catchText = text.slice(cb[0] + 1, cb[1]);
+    // Round 2 (M1 cause 1): the catch path goes round only if nothing in it throws, returns, breaks or changes what
+    // the loop test reads.
+    if (/\b(throw|return|break)\b/.test(catchText) || assignsAny(catchText, testNames)) continue;
+    const bodyText = text.slice(body[0], body[1]);
+    if (loopVar && new RegExp(`\\[\\s*${loopVar.replace(/\$/g, "\\$")}\\s*\\]`).test(bodyText)) continue;
     const call = pickCall(callsIn(text, tb[0] + 1, tb[1], lang));
     if (!call) continue;
-    s.retries.push({ at: ref(a, b), callee: call.name, calleeLine: lines[lineIndexOf(s, call.open)]!.line, calleeArgs: argsOf(call.open), noWait: countIn(waitP, a, b) === 0 && harmlessOnly(callsIn(text, cb[0] + 1, cb[1], lang)) });
+    const args = argsOf(call.open);
+    // Round 2 (B1, storm): the loop variable is not passed to the call, and nothing its arguments name is changed in
+    // the loop: the same call with the same arguments each time.
+    if (!sameArgsEachTime(args, bodyText, loopVar)) continue;
+    // Round 2 (B3): any awaited call outside the try, and any call in the catch path, that is not logging may be a wait.
+    const outside = [...callsIn(text, body[0] + 1, tryAt, lang), ...callsIn(text, cb[1], body[1], lang)].filter((x) => x.awaited);
+    s.retries.push({ at: ref(a, b), callee: call.name, calleeLine: lines[lineIndexOf(s, call.open)]!.line, calleeArgs: args, noWait: countIn(waitP, a, b) === 0 && harmlessOnly(callsIn(text, cb[0] + 1, cb[1], lang)) && harmlessOnly(outside) });
   }
   return s;
 }
@@ -620,9 +689,18 @@ export const CURATED: readonly KindSpec[] = [
         id: "clock-skew",
         name: "clock skew",
         says: "A duration taken from the wall clock jumps when the machine's clock is corrected.",
-        marker: "a duration made by subtracting wall-clock reads: `Date.now() - …`, `… - Date.now()`, `time.time() - …`, `new Date().getTime() - …` (performance.now and time.monotonic do not count)",
+        marker: "a subtraction with a wall-clock read on BOTH sides: `Date.now() - t0`, `time.time() - start`, where t0 / start were set from Date.now(), time.time() or new Date().getTime() in these lines (performance.now and time.monotonic do not count; `Date.now() - DAY` does not count)",
         find: (c) => {
-          const hits = c.lines().filter((l) => /(Date\.now\(\)|time\.time\(\)|new Date\(\)\.getTime\(\))\s*-|-\s*(Date\.now\(\)|time\.time\(\)|new Date\(\)\.getTime\(\))/.test(l.code));
+          const CLOCK = /(Date\.now\(\)|time\.time\(\)|time\.time_ns\(\)|new Date\(\)\.getTime\(\))/;
+          const vars = new Set<string>();
+          for (const l of c.lines()) for (const m of l.code.matchAll(/(?<![\w$.])([A-Za-z_$][\w$]*)\s*=\s*(Date\.now\(\)|time\.time\(\)|time\.time_ns\(\)|new Date\(\)\.getTime\(\))\s*(?:;|$|\))/g)) vars.add(m[1]!);
+          const side = (x: string) => CLOCK.test(x) || vars.has(x);
+          const hits = c.lines().filter((l) => {
+            for (const m of l.code.matchAll(/(Date\.now\(\)|time\.time\(\)|time\.time_ns\(\)|new Date\(\)\.getTime\(\)|[A-Za-z_$][\w$]*)\s*-\s*(Date\.now\(\)|time\.time\(\)|time\.time_ns\(\)|new Date\(\)\.getTime\(\)|[A-Za-z_$][\w$]*)/g)) {
+              if (side(m[1]!) && side(m[2]!)) return true;
+            }
+            return false;
+          });
           return hits.length ? { lines: hits.map(lineRef) } : null;
         },
       },
@@ -784,7 +862,11 @@ function judgeRun(kind: "never-answers" | "storm", loops: RetryLoop[], e: RunEvi
     if (bad) return { is: "inconclusive", why: bad };
     const n = measured[`calls:${arg.name}`];
     if (typeof n !== "number") return { is: "inconclusive", why: e.run.result.notMeasured[`calls:${arg.name}`] ?? `the run did not count the calls to ${arg.name}` };
-    if (n >= STORM_CALLS) return { is: "shown", fact: `${arg.name}, passed where line ${loop.calleeLine} calls ${loop.callee}, failed on every call and was called ${n} times in one call of the function, with no wait in the loop (Atlas's line is ${STORM_CALLS})` };
+    // Round 2 (B3): a storm means no wait between tries, so the run's own measured wait time must be 0.
+    const waited = measured.virtualMs;
+    if (n >= STORM_CALLS && typeof waited !== "number") return { is: "inconclusive", why: `the run did not measure its wait time, so it cannot show that ${arg.name} was called again with no wait` };
+    if (n >= STORM_CALLS && typeof waited === "number" && waited > 0) return { is: "not shown", fact: `${arg.name} was called ${n} times, but the run measured ${waited} ms of waiting, so the tries were not back to back` };
+    if (n >= STORM_CALLS) return { is: "shown", fact: `${arg.name}, passed where line ${loop.calleeLine} calls ${loop.callee}, failed on every call and was called ${n} times in one call of the function, and the run measured 0 ms of waiting (Atlas's line is ${STORM_CALLS} calls)` };
     return { is: "not shown", fact: `${arg.name} failed on every call and was called ${n} times (fewer than ${STORM_CALLS})` };
   }
   return null;
