@@ -232,8 +232,14 @@ export const STAGE_WORDS = {
 
 export const RESULT_WORDS = {
   /** "You matched 2 of 3 checkable answers. Muse Spark 1.3 matched 3, Muse Spark Open 2." */
-  headline: (you: { matched: number; checkable: number }, others: readonly { name: string; matched: number; checkable: number }[]) => {
-    const head = you.checkable === 0 ? "None of your answers could be checked." : `You matched ${you.matched} of ${you.checkable} checkable ${you.checkable === 1 ? "answer" : "answers"}.`;
+  headline: (you: { matched: number; checkable: number; cantTell?: number; total?: number }, others: readonly { name: string; matched: number; checkable: number }[]) => {
+    const tell = you.cantTell ?? 0;
+    const head =
+      you.total !== undefined && tell === you.total && you.total > 0
+        ? "You answered “can't tell” to every question."
+        : you.checkable === 0
+          ? "None of your answers could be checked."
+          : `You matched ${you.matched} of ${you.checkable} checkable ${you.checkable === 1 ? "answer" : "answers"}${tell > 0 ? ` (${tell} left as “can't tell”)` : ""}.`;
     const rest = others.map((o, i) => (o.checkable === 0 ? `${o.name}: nothing checkable` : i === 0 ? `${o.name} matched ${o.matched}` : `${o.name} ${o.matched}`));
     return rest.length ? `${head} ${rest.join(", ")}.` : head;
   },

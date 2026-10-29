@@ -73,6 +73,11 @@ describe("U2 results", () => {
     ];
     expect(headlineOf(marks)).toBe("You matched 1 of 2 checkable answers. Muse Spark 1.3 matched 2, Muse Spark Open 1.");
   });
+  it("an answer left as can't tell is said as such, never as 'could not be checked'", () => {
+    const one = (outcome: Mark["picks"][number]["outcome"], pick: string): Mark => ({ measures: "m" + pick + outcome, anchor: "f", question: "q", measured: "x", picks: [{ who: "human", name: "You", pick, outcome }] });
+    expect(headlineOf([one("cant_check", "can't tell"), one("cant_check", "can't tell")])).toBe("You answered “can't tell” to every question.");
+    expect(headlineOf([one("matched", "a"), one("cant_check", "can't tell")])).toBe("You matched 1 of 1 checkable answer (1 left as “can't tell”).");
+  });
   it("a reason every mark shares is said once", () => {
     const same = [mk("a", "can't check: fetch is blocked", []), mk("b", "can't check: fetch is blocked", [])];
     expect(sharedReason(same)).toBe("fetch is blocked");

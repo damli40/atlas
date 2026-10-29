@@ -17,6 +17,7 @@ import { OUTCOME_WORDS, type Mark, type Script } from "./play";
 import { applyPick } from "../explorer/pick";
 import { lineSpan } from "../../../src/words";
 import { RESULT_WORDS, STAGE_WORDS } from "../../../src/paste-words";
+import { CANT_TELL } from "../../../src/quiz";
 
 const DARK = "(prefers-color-scheme: dark)";
 const STILL = "(prefers-reduced-motion: reduce)";
@@ -504,15 +505,17 @@ export function Glyph({ outcome }: { outcome: Mark["picks"][number]["outcome"] }
 
 /** U2: the results' headline, counted by plain code from the marks: each bettor's matched of checkable answers. */
 export function headlineOf(marks: readonly Mark[]): string {
-  const by = new Map<string, { name: string; matched: number; checkable: number }>();
+  const by = new Map<string, { name: string; matched: number; checkable: number; cantTell: number; total: number }>();
   for (const m of marks)
     for (const p of m.picks) {
-      const e = by.get(p.who) ?? { name: shortName(p.name), matched: 0, checkable: 0 };
+      const e = by.get(p.who) ?? { name: shortName(p.name), matched: 0, checkable: 0, cantTell: 0, total: 0 };
+      e.total++;
+      if (p.pick === CANT_TELL) e.cantTell++;
       if (p.outcome !== "cant_check") e.checkable++;
       if (p.outcome === "matched") e.matched++;
       by.set(p.who, e);
     }
-  const you = by.get("human") ?? { name: "You", matched: 0, checkable: 0 };
+  const you = by.get("human") ?? { name: "You", matched: 0, checkable: 0, cantTell: 0, total: 0 };
   // Muse Spark first, then Muse Spark Open (the open-weights model), then any other, as the pop-up introduced them.
   const rank = (w: string) => (/open/i.test(w) ? 1 : /spark/i.test(w) ? 0 : 2);
   const others = [...by.entries()].filter(([w]) => w !== "human").sort((a, b) => rank(a[0]) - rank(b[0]) || (a[0] < b[0] ? -1 : 1)).map(([, e]) => e);
