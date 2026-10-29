@@ -1,0 +1,77 @@
+# H1 (D52): Atlas on Fly.io. One machine, one volume, one origin. Setup steps: tools/fly-setup.md.
+#
+# If you pick another app name, change it in TWO places: `app` below and ATLAS_PUBLIC_ORIGIN in [env]. The server
+# refuses to start when they disagree (its own-page check would refuse every visitor).
+
+app = "atlas-dami"
+# London: the closest Fly region to Lagos with good links (West Africa's subsea cables land in Europe), and a short hop
+# to the US services every run calls (Meta's API, Modal, Baseten, the Base RPC). Johannesburg (jnb) is farther from
+# Lagos by network and from those services. Not measured; see tools/fly-setup.md "Region".
+primary_region = "lhr"
+
+# The server removes its store lock on SIGINT/SIGTERM before it exits (server/access/store.ts).
+kill_signal = "SIGINT"
+kill_timeout = 30
+# A little swap so a brief spike (an anvil fork plus an outline job) slows down instead of being killed.
+swap_size_mb = 512
+
+[build]
+  dockerfile = "Dockerfile"
+
+[deploy]
+  # One machine with a volume: "rolling" stops the old process before the new one starts, so two servers never share
+  # the store (canary and bluegreen would start a second machine, and Fly refuses them with volumes anyway).
+  strategy = "rolling"
+  max_unavailable = 1
+
+[env]
+  ATLAS_HOSTED = "1"
+  ATLAS_PUBLIC_ORIGIN = "https://atlas-dami.fly.dev"
+  ATLAS_REQUIRE_INVITE = "1"
+  ATLAS_EXECUTOR = "modal"
+  # Fly's proxy puts the app's own address right-most in X-Forwarded-For; the visitor's address is in Fly-Client-IP.
+  ATLAS_TRUST_PROXY = "1"
+  ATLAS_CLIENT_IP_HEADER = "fly-client-ip"
+  ATLAS_VOLUME_DIR = "/data"
+  ATLAS_INVITES_DIR = "/data/atlas"
+  ATLAS_USAGE_PATH = "/data/usage.jsonl"
+  # Refusal records (S7) are written here; /app in the image is read-only to the server's user. Nothing else changes:
+  # .atlas.json files stay in memory (ATLAS_PUBLISH_PROOFS is not set).
+  ATLAS_PROOFS_DIR = "/data/proofs"
+  PORT = "8080"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Never stopped for being idle: the server keeps sessions, live logs and kept runs in memory, warms Modal once at
+  # start (D32) and reads the Moonwell PR once at start; a stop would lose all of that and make the next visitor wait.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 100
+    hard_limit = 200
+
+  [[http_service.checks]]
+    grace_period = "30s"
+    interval = "30s"
+    method = "GET"
+    timeout = "5s"
+    path = "/health"
+    [http_service.checks.headers]
+      X-Forwarded-Proto = "https"
+
+[[mounts]]
+  source = "atlas_data"
+  destination = "/data"
+  initial_size = "1gb"
+  snapshot_retention = 14
+
+[[restart]]
+  policy = "on-failure"
+  retries = 10
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "2gb"

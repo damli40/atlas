@@ -33,6 +33,15 @@
 !/tools/
 /tools/*
 !/tools/invites.ts
+# H1 (D52): hosting on Fly.io (no secrets in any of them; the secrets script reads local files at run time)
+!/tools/fly-secrets.sh
+!/tools/fly-setup.md
+!/tools/smoke-hosted.ts
+!/tools/fly-entrypoint.sh
+!/tools/atlas-invites.sh
+!/Dockerfile
+!/.dockerignore
+!/fly.toml
 # B1 (D35): the two benchmarks, their pre-registered pass rules, corpora and results
 !/bench/
 !/.github/

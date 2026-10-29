@@ -1,0 +1,41 @@
+# H1: what enters the image. An ALLOW-LIST, like .gitignore: everything is left out unless named below, so no secret,
+# scratch file, private doc (docs/, pitch/, CLAUDE.md), evidence folder or .git can reach the image by accident.
+*
+
+# the app
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!tsconfig.json
+!vite.config.ts
+!index.html
+!LICENSE
+!PRE-EXISTING.md
+!server
+!runners
+!src
+!web
+!contracts
+!proofs
+# the known-case checks read these at run time (runners/ts/control.ts); the page imports one outline fixture
+!tests/fixtures
+!tests/oracle
+# the operator's tools that run on the host
+!tools/invites.ts
+!tools/fly-entrypoint.sh
+!tools/atlas-invites.sh
+
+# never, even inside the folders above
+**/node_modules
+**/.env
+**/.env.*
+**/*.key
+**/*.pem
+**/pepper
+**/invites.json
+**/spend.json
+**/spend-log.jsonl
+**/server.lock
+**/*.log
+**/log.md
+**/.DS_Store
