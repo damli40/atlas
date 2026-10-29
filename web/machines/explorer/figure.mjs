@@ -520,6 +520,7 @@ export function buildFigure(M) {
 
     // ---- boxes, each with one engraved name plate on its front face ----
     const names = {};
+    const dials = {};
     for (const seg of segments) {
       const box = boxOf.get(seg.boxId);
       const { plan, slices } = seg;
@@ -549,8 +550,10 @@ export function buildFigure(M) {
         const y0 = plan.y + 3 + v * 2.4;
         return path3([[xr, y0, z0 + 2], [xr, y0 + 1.1, z0 + 2], [xr, y0 + 1.1, z0 + BH - 2], [xr, y0, z0 + BH - 2]], true);
       });
+      // U1: a stand-in "device" or the clock housing is a plainer box (mid tone); a part of the code stays "hi".
+      const bodyTone = box.device || box.dial ? "mid" : "hi";
       const svg =
-        S(k.slabOf(plan, z0, BH, P, 4, 0.6), { tone: "hi", inner: Ln(k.sideSeam(plan, z0 + 1.6, P, 4), { tone: "faint" }) + (seams ? Ln(seams, { tone: "faint" }) : "") }) +
+        S(k.slabOf(plan, z0, BH, P, 4, 0.6), { tone: bodyTone, inner: Ln(k.sideSeam(plan, z0 + 1.6, P, 4), { tone: "faint" }) + (seams ? Ln(seams, { tone: "faint" }) : "") }) +
         Ln(k.planOutline(lid, z0 + BH, P, 4), { tone: "faint" }) +
         Dots(screws.map(([x, y]) => at([x, y, z0 + BH])), { size: 0.45, tone: "mid" }) +
         `<path class="iso-fill ex-plate" d="${plate}"/>` +
@@ -568,6 +571,41 @@ export function buildFigure(M) {
       const hz = z0 + BH / 2 - 1.2;
       const shapes = parts.map((q) => R.solid(A.slab(q.plan, hz, 2.4, { name: `${solidName}.${q.name}` }, 2)));
       put(`${solidName}.handle`, [xr + 1.4, yc, hz + 1.2], parts.map((q) => S(k.slabOf(q.plan, hz, 2.4, P, 2), { tone: "mid" })).join(""), shapes, { attrs: ` data-of="${esc(box.id)}"` });
+      const lidZ0 = z0 + BH;
+      const [mx, my] = [plan.x + plan.w / 2, plan.y + plan.d / 2];
+      if (box.device && seg.primary) {
+        // U1: the stand-in's signal lamp, a lens on a bezel in the middle of the lid. It lights once per call in the run.
+        const F = G.frameAlong([mx, my, lidZ0], [0, 0, 1]);
+        const shapes2 = [R.solid(A.disc(F, 0, LAMP.bezelH, LAMP.bezelR, { name: `lamp.${box.id}.bezel` })), R.solid(A.disc(F, LAMP.bezelH, LAMP.bezelH + LAMP.lensH, LAMP.lensR, { name: `lamp.${box.id}.lens` }))];
+        const lamp2 =
+          S(G.disc(0, LAMP.bezelH, LAMP.bezelR, F, P, { steps: 28, bevel: 0.2 }), { tone: "mid" }) +
+          `<g class="u1-lamp" data-lamp="${esc(box.id)}">${S(G.disc(LAMP.bezelH, LAMP.bezelH + LAMP.lensH, LAMP.lensR, F, P, { steps: 28, bevel: 0.3 }), { tone: "lo" })}</g>`;
+        put(`lamp.${box.id}`, [mx, my, lidZ0 + 1], lamp2, shapes2, { attrs: ` data-of="${esc(box.id)}"` });
+      }
+      if (box.dial && seg.primary) {
+        // U1: the clock dial, Atlas's virtual clock. A turned bezel with a knurled rim, a face with one tick per tenth and
+        // a longer tick at each time the test's own waits mark (box.dial.marks, fractions of the dial); the needle is
+        // drawn by the live page (needle path from dialNeedle).
+        const DR = Math.min(plan.w, plan.d) / 2 - 2.2;
+        const F = G.frameAlong([mx, my, lidZ0], [0, 0, 1]);
+        const top = lidZ0 + DIAL.h;
+        const shapes2 = [R.solid(A.disc(F, 0, DIAL.h, DR, { name: `dial.${box.id}` }))];
+        const ticks = k.radialTicks(mx, my, DR - 1.6, 20, 2, top, [0.9, 1.6], P, DIAL.from, DIAL.span);
+        const marks = (box.dial.marks ?? []).map((f) => {
+          const a = DIAL.from + Math.max(0, Math.min(1, f)) * DIAL.span;
+          return k.lineOnTop([mx + Math.sin(a) * (DR - 4.4), my - Math.cos(a) * (DR - 4.4)], [mx + Math.sin(a) * (DR - 1.6), my - Math.cos(a) * (DR - 1.6)], top, P);
+        });
+        const dialSvg =
+          S(G.disc(0, DIAL.h, DR, F, P, { steps: 48, bevel: 0.4 }), { tone: "hi" }) +
+          Ln(k.knurl(mx, my, DR, lidZ0 + 0.3, top - 0.3, 56, P, 0.2), { tone: "lo" }) +
+          Ln(k.ring(mx, my, DR - 1.6, top, P, 56), { tone: "lo" }) +
+          Ln(ticks.minor, { tone: "lo" }) +
+          Ln(ticks.major, { tone: "mid" }) +
+          (marks.length ? `<g class="u1-dial-marks">${Ln(marks.join(""), { tone: "hi" })}</g>` : "") +
+          Ln(k.ring(mx, my, 1.1, top, P, 16), { tone: "mid" });
+        put(`dial.${box.id}`, [mx, my, lidZ0 + DIAL.h / 2], dialSvg, shapes2, { attrs: ` data-of="${esc(box.id)}"` });
+        dials[box.id] = { x: mx, y: my, top, r: DR };
+      }
     }
 
     // ---- fittings and steel lines ----
@@ -610,7 +648,7 @@ export function buildFigure(M) {
       }
     });
 
-    return { R, P, back, names };
+    return { R, P, back, names, dials };
   };
   let drawn;
   for (let attempt = 0; ; attempt++) {
@@ -623,7 +661,7 @@ export function buildFigure(M) {
     if (idx.length === 0) break;
     for (const i of idx) floor[i] = level[i] + 1;
   }
-  const { R, P, back, names } = drawn;
+  const { R, P, back, names, dials } = drawn;
 
   A.settle(R, P);
   R.items.sort((a, b) => a.key - b.key);
@@ -640,14 +678,28 @@ export function buildFigure(M) {
   const spanning = M.boxes.filter((b) => segments.filter((g) => g.boxId === b.id).length > 1).length;
   const n = (count, one, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
   const label = `An instrument skid on a base plate: ${n(decks.length, "folder deck")}, trays for ${n(fileCount, "file")}, and ${n(M.boxes.length, "part")} whose lines plain code confirmed, drawn as ${n(segments.length, "instrument box", "instrument boxes")}${spanning ? ` (${n(spanning, "part")} spanning folders get one box per folder)` : ""}; a box grows taller with the lines it covers and carries its name on a plate. ${n(M.lines.length, "bent steel line")} join box lids where plain code found an import, call or use between two parts; ${codeOnly} of them carry two tag collars because plain code found them and Wonder did not name them.`;
-  const svg = k.figureSvg({ width: W, height: H, label, body: [...back, `<g class="ex-skid">${groups.join("")}</g>`, `<g class="ex-hits">${hits}</g>`] });
+  // U1: the needle of each dial, drawn above the skid so the page can turn it (dialNeedle).
+  const needles = Object.entries(dials).map(([id, d]) => `<g class="u1-needle" data-needle="${esc(id)}">${k.lineSvg(dialNeedle(d, P, 0), { tone: "hi", free: "start" })}${k.dotsSvg([k.iso([d.x, d.y, d.top], P)], { size: 0.6, tone: "hi" })}</g>`).join("");
+  const svg = k.figureSvg({ width: W, height: H, label: M.extraLabel ? `${label} ${M.extraLabel}` : label, body: [...back, `<g class="ex-skid">${groups.join("")}</g>`, needles, `<g class="ex-hits">${hits}</g>`] });
   return {
     svg,
     R,
     P,
     names,
+    dials,
     stats: { solids: R.solids.length, items: R.items.length, lines: M.lines.length, runs: R.tubes.length, trays: trays.length, files: fileCount, decks: decks.length, boxes: segments.length, levels: Math.max(0, ...level) + 1 },
   };
+}
+
+/** U1: the lamp on a stand-in device and the dial on the clock housing (world units). */
+const LAMP = { bezelR: 3.6, bezelH: 0.8, lensR: 2.6, lensH: 1.2 };
+/** The dial sweeps 300°, from 210° (0 ms) clockwise; `marks` and the needle are fractions of that sweep. */
+export const DIAL = { h: 2.2, from: (210 * Math.PI) / 180, span: (300 * Math.PI) / 180 };
+
+/** The needle of a dial at a fraction (0–1) of its sweep, as an SVG path (a short tail past the pivot, like a gauge). */
+export function dialNeedle(d, P, frac) {
+  const a = DIAL.from + Math.max(0, Math.min(1, frac)) * DIAL.span;
+  return k.lineOnTop([d.x - Math.sin(a) * 2.2, d.y + Math.cos(a) * 2.2], [d.x + Math.sin(a) * (d.r - 2.4), d.y - Math.cos(a) * (d.r - 2.4)], d.top + 0.15, P);
 }
 
 function pointAlong(route, s) {

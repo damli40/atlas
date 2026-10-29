@@ -24,6 +24,7 @@ export { prototypeKeyIn };
 import { z } from "zod";
 import { describeCall, visibleText } from "../src/gate";
 import { guessLanguage } from "../src/paste-language";
+import { fileOutline } from "../src/file-outline";
 import { PASTED_LANGUAGES, PASTED_MAX_BYTES, makePastedTarget, utf8Bytes, type FoundExport, type PastedLanguage } from "../src/pasted-code";
 import type { ExperimentShape, Target } from "../src/types";
 import { PASTE_WORDS, WONDER_DISPLAY } from "../src/paste-words";
@@ -348,6 +349,8 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
         exports: read.exports,
         cantCheck: read.refusal,
         lines,
+        // U1 (D47): the file's functions and which calls which, by plain code (the drawing shows this before any test).
+        outline: fileOutline(code, language),
       });
     });
 
