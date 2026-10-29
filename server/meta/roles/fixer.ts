@@ -150,6 +150,8 @@ export interface FixerDeps {
   /** Where the muse path's usage lines go. Default: ATLAS_USAGE_PATH, else tests/evidence/usage/usage.jsonl. */
   usagePath?: string;
   now?: () => Date;
+  /** H1: which OS sandbox muse exec would run in (default: osSandbox(), macOS sandbox-exec or null). Tests pass null for Linux. */
+  osSandbox?: () => string | null;
 }
 
 export { towardFromBets } from "../../../src/change";
@@ -453,7 +455,9 @@ const pathLabel = (p: FixerPath, model: string) => changeProposer(p, model);
 
 /** Ask for a change, check it by plain code, one repair try. Never throws for model trouble. */
 export async function runFixer(input: FixerInput, deps: FixerDeps = {}): Promise<FixerResult> {
-  const museExec = deps.museExec === undefined ? realMuseExec() : deps.museExec;
+  // H1: on a machine without macOS sandbox-exec (the Linux host), muse exec can never run, so the fixer goes straight
+  // to the muse-spark-1.3 chat: no preflight, no hold of muse exec's worst case, no "Muse Code gave no answer" step.
+  const museExec = deps.museExec === undefined ? ((deps.osSandbox ?? osSandbox)() ? realMuseExec() : null) : deps.museExec;
   const chat = deps.chat ?? realChat;
   const guard = deps.guard ?? (<R,>(call: () => Promise<R>) => call());
   const now = deps.now ?? (() => new Date());
@@ -471,7 +475,7 @@ export async function runFixer(input: FixerInput, deps: FixerDeps = {}): Promise
     log?.model({ role: "fixer", model: m, action: oneLine(usage ? action : `${action} (${COST_UNKNOWN})`), usage: usage ?? NO_USAGE });
 
   // S4: the preflight (no code sent) runs once, before the first real muse exec run.
-  const preflight = deps.musePreflight === undefined ? (deps.museExec === undefined ? realMuseExec() : null) : deps.musePreflight;
+  const preflight = deps.musePreflight === undefined ? (deps.museExec === undefined && museExec ? realMuseExec() : null) : deps.musePreflight;
   let preflightDone = false;
   /** Null when muse exec's reports allow the answer to be used; else why not (S4, fail closed). */
   const reportProblem = (r: MuseExecResult): string | null => {
