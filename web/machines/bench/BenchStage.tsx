@@ -360,7 +360,7 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
               )}
             {after && clockMs !== null && anchors[CLOCK_ID] && (
               <span className="u1-chip u1-chip-clock" data-run="" style={at(anchors[CLOCK_ID]!)} data-testid="chip-clock">
-                {`${clockMs.toLocaleString("en-US")} ms`}
+                {`${clockMs.toLocaleString("en-US")} ms${clockMs > after.dialFullMs ? ` (past the dial's ${after.dialFullMs.toLocaleString("en-US")} ms)` : ""}`}
               </span>
             )}
             {after &&

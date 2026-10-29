@@ -81,6 +81,12 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const [repo, setRepo] = useState("");
   const models = useModelSlots(api);
   const runStarted = useRef(false);
+  // Review M1: every async answer belongs to one round. reset() starts a new round, and a late answer from an older one
+  // (Wonder's tests, an experiment, a run) is dropped instead of landing on the new drawing.
+  const gen = useRef(0);
+  const [runTry, setRunTry] = useState(0);
+  const [handoffNote, setHandoffNote] = useState<string | null>(null);
+  const [source, setSource] = useState<string | null>(null);
   useEffect(() => onRoundOpen?.(exp !== null && result === null), [exp, result, onRoundOpen]);
 
   const target = pasted?.runnable ? pasted.target : null;
@@ -105,18 +111,27 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     setForm(null);
     setError(null);
     runStarted.current = false;
+    gen.current++;
   };
 
   const read = useCallback(
-    async (text: string, language?: Lang, want?: string) => {
+    async (text: string, language?: Lang, want?: string, from?: string) => {
       if (text.trim() === "") return;
       reset();
+      const g = gen.current;
       setPasted(null);
+      setHandoffNote(null);
+      setSource(from ?? null);
       setBusy("Reading your code…");
       try {
         const r = await api.paste(text, language);
+        if (g !== gen.current) return;
         setPasted(r);
-        setFn(want && r.exports.some((e) => e.name === want) ? want : defaultFunction(r.outline, r.exports));
+        // Review M4: a function the explorer named that this file does not export is said plainly, never swapped silently.
+        if (want && !r.exports.some((e) => e.name === want)) {
+          setHandoffNote(`${want} is not exported by this file, and Atlas can only call exported functions. Pick one on the drawing.`);
+          setFn(null);
+        } else setFn(want ?? defaultFunction(r.outline, r.exports));
       } catch (e) {
         setError((e as Error).message);
       } finally {
@@ -135,7 +150,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     onHandoffUsed?.();
     setCode(handoff.code);
     setLang(handoff.language);
-    void read(handoff.code, handoff.language, handoff.exportName);
+    void read(handoff.code, handoff.language, handoff.exportName, handoff.from);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handoff?.nonce]);
 
@@ -150,10 +165,12 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
 
   // ---- the bet pop-up ----
   const start = async (make: () => Promise<ExperimentAnswer>) => {
+    const g = gen.current;
     setBusy("Getting the questions ready…");
     setError(null);
     try {
       const out = await make();
+      if (g !== gen.current) return;
       setExp(out);
       setPicked({});
       setChanging(false);
@@ -168,11 +185,14 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const openBet = async () => {
     const next = !open;
     setOpen(next);
+    if (next && proposals && !exp) setChanging(true); // proposals came back but no test is in use: show the list
     if (!next || !target || !fn || exp || proposals) return;
     setBusy(`${WONDER_DISPLAY} is writing a test for ${fn}…`);
     setError(null);
+    const g = gen.current;
     try {
       const p = await api.proposals(target, fn);
+      if (g !== gen.current) return;
       setProposals(p);
       const first = p.proposals.find((x) => x.gate.allowed);
       if (first) await start(() => api.experimentFromProposal(target, first.id, { quiz: true }));
@@ -186,6 +206,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const chooseFunction = (name: string) => {
     if (sealed.length > 0) return;
     reset();
+    setOpen(false); // the next "Bet on your understanding" asks Wonder about the new function
     setFn(name);
   };
 
@@ -206,9 +227,11 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   useEffect(() => {
     if (!exp || sealed.length === 0 || result || models.thinking || runStarted.current) return;
     runStarted.current = true;
+    const g = gen.current;
     setBusy("Running the test…");
     api.run(exp.experiment.id).then(
       (r) => {
+        if (g !== gen.current) return;
         models.fromRun(r);
         setResult(r);
         setPlays((n) => n + 1);
@@ -217,16 +240,18 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
         if (exp.experiment.proposedBy.role === "investigator" || exp.experiment.proposedBy.editedFrom) api.claim(exp.experiment.id).then((c) => setClaim(c.claim), () => setClaim(null));
       },
       (e: Error) => {
+        if (g !== gen.current) return;
         runStarted.current = false;
         setBusy(null);
         setError(didNotFinish(e) ? `The run did not finish: ${e.message}` : e.message);
       },
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [exp, sealed, result, models.thinking]);
+  }, [exp, sealed, result, models.thinking, runTry]);
 
   const after: After | null = useMemo(() => {
-    if (!result || !exp || !test || sealed.length === 0) return null; // D47: run data only after the bets are sealed
+    // D47: run data only after the bets are sealed, and only the run of THIS round's test (review M1).
+    if (!result || !exp || !test || sealed.length === 0 || result.run.experimentId !== exp.experiment.id) return null;
     const tested = model?.tested ?? null;
     return { token: plays, script: playScript(result.run, test, tested), marks: marksOf(exp.questions, result.bets, result.verdicts, result.run, tested), dialFullMs: fullMs };
   }, [result, exp, test, sealed, plays, model, fullMs]);
@@ -314,7 +339,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const notRunnable = !pasted.runnable ? (pasted.reason ?? "Atlas cannot run this language here yet.") : pasted.cantCheck;
   const allowed = proposals?.proposals.filter((p) => p.gate.allowed) ?? [];
   const chosenSays = exp ? allowed.find((p) => p.params && JSON.stringify(p.params) === JSON.stringify(exp.experiment.params))?.says : undefined;
-  const title = `${FILE_NAME[pasted.target.language ?? "ts"]} · ${pasted.lines} lines`;
+  const title = `${source ?? FILE_NAME[pasted.target.language ?? "ts"]} · ${plural(pasted.lines, "line")}`;
   return (
     <div className="u1-studio">
       {shownModel ? (
@@ -353,8 +378,10 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                   void (async () => {
                     if (!target || !fn) return;
                     setBusy(`${WONDER_DISPLAY} is writing a test for ${fn}…`);
+                    const g = gen.current;
                     try {
                       const p = await api.proposals(target, fn);
+                      if (g !== gen.current) return;
                       setProposals(p);
                       setChanging(true);
                     } catch (e) {
@@ -390,6 +417,11 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
         </button>
       </div>
 
+      {handoffNote && (
+        <p className="u1-banner" role="note" data-testid="u1-handoff-note">
+          {handoffNote}
+        </p>
+      )}
       {notRunnable && (
         <p className="u1-banner" role="note" data-testid="u1-cant-run">
           {notRunnable}
@@ -456,7 +488,29 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                       {`Sealed ${plural(sealed.length, "answer")}. ${busy ?? (models.thinking ? "Waiting for the models to seal theirs…" : "")}`}
                     </p>
                   )}
-                  <ModelsLine slots={models.slots} claimant={claimant} onClaimant={onClaimant} locked />
+                  {sealed.length > 0 && !result && error && !busy && (
+                    <button type="button" className="u1-btn" onClick={() => setRunTry((n) => n + 1)} data-testid="u1-run-again">
+                      Run it again
+                    </button>
+                  )}
+                  <ModelsLine
+                    slots={models.slots}
+                    claimant={claimant}
+                    locked={sealed.length > 0 || busy !== null}
+                    onClaimant={(m) => {
+                      // Review m7: who bets is chosen per test, so a change asks again on the same test.
+                      onClaimant(m);
+                      const same = (proposals?.proposals ?? []).find((p) => p.gate.allowed && JSON.stringify(p.params) === JSON.stringify(exp.experiment.params));
+                      if (target) {
+                        const params = exp.experiment.params;
+                        const editedFrom = exp.experiment.proposedBy.editedFrom?.proposalId;
+                        reset();
+                        if (same && exp.experiment.proposedBy.role === "investigator") void start(() => api.experimentFromProposal(target, same.id, { quiz: true }));
+                        else void start(() => api.experiment(target, params, undefined, editedFrom, { quiz: true }));
+                        setProposals(proposals);
+                      }
+                    }}
+                  />
                   {exp.seenContext && (
                     <details className="u1-seen">
                       <summary>What every bettor sees</summary>
@@ -532,7 +586,7 @@ function ModelsLine({ slots, claimant, onClaimant, locked }: { slots: ReturnType
         ? `${on.map((s) => `${s.display}: ${s.status === "thinking" ? "answering" : s.status === "sealed" ? "sealed" : s.status === "no_usable_answer" ? "no usable answer" : s.status}`).join(" · ")}. They answer the same options, without seeing yours.`
         : "No model bets on this test."}
       {!locked && (
-        <select value={claimant} onChange={(e) => onClaimant(e.target.value as ClaimantMode)} aria-label="Who bets with you">
+        <select className="u1-who-bets" value={claimant} onChange={(e) => onClaimant(e.target.value as ClaimantMode)} aria-label="Who bets with you">
           <option value="spark">Muse Spark</option>
           <option value="spark-open">Muse Spark Open</option>
           <option value="both">Both</option>

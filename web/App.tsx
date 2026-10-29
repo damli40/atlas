@@ -73,6 +73,11 @@ function Shell({ api: given }: { api?: Api }) {
   const [view, setView] = useState<"studio" | "explore" | Mode>("studio");
   const [handoff, setHandoff] = useState<BetHandoff | null>(null);
   const [exploreStart, setExploreStart] = useState<{ repo?: string; files?: FileList } | null>(null);
+  const [exploreKey, setExploreKey] = useState(0);
+  const [explorerOpened, setExplorerOpened] = useState(false);
+  useEffect(() => {
+    if (view === "explore") setExplorerOpened(true);
+  }, [view]);
   const [claimant, setClaimant] = useState<ClaimantMode>("spark");
   const [logOpen, setLogOpen] = useState(false);
   const [roundOpen, setRoundOpen] = useState(false);
@@ -127,11 +132,12 @@ function Shell({ api: given }: { api?: Api }) {
       </header>
       <main className="u1-main">
         <div hidden={view !== "studio"} className="u1-fill">
-          <Studio api={studioApi} onExplore={(s) => { setExploreStart(s ?? null); setView("explore"); }} handoff={handoff} onHandoffUsed={() => setHandoff(null)} onRoundOpen={setRoundOpen} claimant={claimant} onClaimant={pickClaimant} />
+          <Studio api={studioApi} onExplore={(s) => { setExploreStart(s ?? null); setExploreKey((k) => k + 1); setView("explore"); }} handoff={handoff} onHandoffUsed={() => setHandoff(null)} onRoundOpen={setRoundOpen} claimant={claimant} onClaimant={pickClaimant} />
         </div>
-        {view === "explore" && (
-          <section className="u1-sheet" aria-label="Draw a codebase">
-            <ExplorerFlow key={exploreStart?.repo ?? "x"} api={studioApi} saved={savedOutline} onBet={(h) => { setHandoff(h); setView("studio"); }} {...(exploreStart?.repo ? { initialRepo: exploreStart.repo } : {})} {...(exploreStart?.files ? { initialFiles: exploreStart.files } : {})} />
+        {/* Review m2: once opened, the explorer stays mounted (hidden), so coming back never re-runs an outline job. */}
+        {(view === "explore" || explorerOpened) && (
+          <section className="u1-sheet" aria-label="Draw a codebase" hidden={view !== "explore"}>
+            <ExplorerFlow key={exploreKey} api={studioApi} saved={savedOutline} onBet={(h) => { setHandoff(h); setView("studio"); }} {...(exploreStart?.repo ? { initialRepo: exploreStart.repo } : {})} {...(exploreStart?.files ? { initialFiles: exploreStart.files } : {})} />
           </section>
         )}
         {demo && (

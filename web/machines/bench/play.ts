@@ -10,6 +10,7 @@
 import type { Bet, Run, StandInStep, Verdict } from "../../../src/types";
 import type { Question } from "../../../src/gate";
 import { timelineModel } from "../calltimeline/model";
+import { notShownAsFact } from "../../../src/trust";
 import { optionHolding, quizChoiceLabel, CANT_TELL } from "../../../src/quiz";
 import { canonicalJson } from "../../../src/seal";
 import { visibleText } from "../../../src/gate";
@@ -99,11 +100,13 @@ export function anchorOf(measures: string, tested: string | null): string {
 
 /** One mark per quiz question: the measured option, and each bettor's pick and verdict (plain code's). */
 export function marksOf(questions: readonly Question[], bets: readonly Bet[], verdicts: readonly Verdict[], run: Run, tested: string | null): Mark[] {
+  // Review M3: a run that may not be shown as fact states no value on any mark.
+  const notShown = notShownAsFact(run);
   return questions.map((q) => {
     const observed = Object.prototype.hasOwnProperty.call(run.result.measured, q.measures) ? run.result.measured[q.measures]! : undefined;
     const why = run.result.notMeasured[q.measures] ?? run.result.notMeasured.wholeRun;
     const holder = observed !== undefined && run.controlPassed === true && q.quiz ? optionHolding(q.quiz, q.unit, observed) : null;
-    const measured = run.controlPassed !== true ? "can't check: the run is not trusted" : observed === undefined ? `can't check: ${why ?? "not measured"}` : holder ? holder.label : String(observed);
+    const measured = notShown !== null ? `can't check: ${notShown}` : run.controlPassed !== true ? "can't check: the run is not trusted" : observed === undefined ? `can't check: ${why ?? "not measured"}` : holder ? holder.label : String(observed);
     const picks = bets
       .filter((b) => b.measures === q.measures)
       .map((b) => {

@@ -95,6 +95,16 @@ export function valueOptions(params: CallShape): QuizOption[] {
     if (a.kind === "json") add(a.value, `${shortJson(a.value)} (the same as argument ${i + 1})`);
   });
   if (picked.length === 0) return [];
+  // Review m5: values cut to the same words get their length and a number, so no two options read alike.
+  const seenLabels = new Map<string, number>();
+  for (const p of picked) seenLabels.set(p.label, (seenLabels.get(p.label) ?? 0) + 1);
+  const nth = new Map<string, number>();
+  for (const p of picked) {
+    if ((seenLabels.get(p.label) ?? 0) < 2) continue;
+    const k = (nth.get(p.label) ?? 0) + 1;
+    nth.set(p.label, k);
+    p.label = `${p.label} [${canonicalJson(p.value).length} characters as JSON; value ${k} of ${seenLabels.get(p.label)} that start alike]`;
+  }
   return withIds([
     ...picked.map((p) => ({ label: p.label, match: { kind: "json" as const, value: p.value } })),
     { label: "another value", match: { kind: "json-other" as const, not: picked.map((p) => p.value) } },
@@ -168,17 +178,26 @@ export function quizMembership(choice: string, options: readonly QuizOption[], u
   if (!kinds || options.some((o) => !o || typeof o !== "object" || !o.match || !kinds.includes(o.match.kind))) return { cantCheck: `the quiz options do not fit the measured unit "${unit}"` };
   const picked = options.find((o) => o.id === choice);
   if (!picked) return { cantCheck: "the bet's choice is not one of its own options" };
-  const m = picked.match;
+  // Review m4: a measured value that no option holds is "can't check" (as the enum judge says), never "didn't match".
+  if (!options.some((o) => holds(o.match, observed) === true)) {
+    const any = holds(picked.match, observed);
+    return { cantCheck: typeof any === "string" ? any : "the measured value is in none of the options" };
+  }
+  return { matched: holds(picked.match, observed) === true };
+}
+
+/** true / false: whether the option holds the value; a string: why it cannot be read. */
+function holds(m: QuizMatch, observed: string | number | boolean | null): boolean | string {
   switch (m.kind) {
     case "word":
-      if (typeof observed !== "string") return { cantCheck: "the runner did not store this field as a word" };
-      return { matched: observed === m.value };
+      if (typeof observed !== "string") return "the runner did not store this field as a word";
+      return observed === m.value;
     case "count": {
       let v: bigint;
       if (typeof observed === "number" && Number.isSafeInteger(observed)) v = BigInt(observed);
       else if (typeof observed === "string" && DECIMAL_INTEGER_RE.test(observed)) v = BigInt(observed);
-      else return { cantCheck: "the runner did not store this field as a whole number" };
-      return { matched: v >= BigInt(m.min) && (m.max === null || v <= BigInt(m.max)) };
+      else return "the runner did not store this field as a whole number";
+      return v >= BigInt(m.min) && (m.max === null || v <= BigInt(m.max));
     }
     case "ms": {
       let v: ExactDecimal;
@@ -186,27 +205,27 @@ export function quizMembership(choice: string, options: readonly QuizOption[], u
         if (typeof observed !== "number" && typeof observed !== "string") throw new Error();
         v = parseExactDecimal(observed);
       } catch {
-        return { cantCheck: "the runner did not store this field as a number" };
+        return "the runner did not store this field as a number";
       }
       const lo = cmp(v, parseExactDecimal(m.min));
       const aboveLo = m.minOpen ? lo > 0 : lo >= 0;
-      if (!aboveLo) return { matched: false };
-      if (m.max === null) return { matched: true };
+      if (!aboveLo) return false;
+      if (m.max === null) return true;
       const hi = cmp(v, parseExactDecimal(m.max));
-      return { matched: m.maxOpen ? hi < 0 : hi <= 0 };
+      return m.maxOpen ? hi < 0 : hi <= 0;
     }
     case "json":
     case "json-other": {
-      if (typeof observed !== "string") return { cantCheck: "the runner did not store this field as JSON text" };
+      if (typeof observed !== "string") return "the runner did not store this field as JSON text";
       try {
-        if (m.kind === "json") return { matched: observed === canonicalJson(m.value) };
-        return { matched: !m.not.some((v: JsonValue) => canonicalJson(v) === observed) };
+        if (m.kind === "json") return observed === canonicalJson(m.value);
+        return !m.not.some((v: JsonValue) => canonicalJson(v) === observed);
       } catch {
-        return { cantCheck: "the quiz option is not plain JSON" };
+        return "the quiz option is not plain JSON";
       }
     }
     default:
-      return { cantCheck: "the quiz option has an unknown kind" };
+      return "the quiz option has an unknown kind";
   }
 }
 

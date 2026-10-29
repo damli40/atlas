@@ -202,3 +202,24 @@ describe("U1 D19: every bettor reads the same options, byte for byte", () => {
     expect(v.ok).toBe(false);
   }, 60_000);
 });
+
+describe("U1 review round 1", () => {
+  const qs = quizQuestionsFor(test3);
+  const of = (m: string) => qs.find((q) => q.measures === m)!.quiz! as QuizOption[];
+  it("m4: a measured value no option holds is can't check, never didn't match", () => {
+    expect(judge(bet("outcome", "a", of("outcome")), run({ outcome: "pending" })).outcome).toBe("cant_check");
+    expect(judge(bet("virtualMs", "a", of("virtualMs")), run({ virtualMs: -5 })).outcome).toBe("cant_check");
+  });
+  it("m5: two values cut to the same words get different labels", () => {
+    const long = (n: number) => "x".repeat(n);
+    const o = valueOptions({ ...test3, args: [{ kind: "json", value: long(60) }, { kind: "json", value: long(61) }] });
+    const labels = o.map((x) => x.label);
+    expect(new Set(labels).size).toBe(labels.length);
+  });
+  it("M3: the marks state no measured value when the run may not be shown as fact", async () => {
+    const { marksOf } = await import("../../web/machines/bench/play");
+    const r = run({ outcome: "returned" }, { wholeRun: "the code imports a package" });
+    const marks = marksOf(qs, [], [], r, "retryWithBackoff");
+    for (const m of marks) expect(m.measured).toMatch(/^can't check/);
+  });
+});
