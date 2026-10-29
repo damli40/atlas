@@ -43,7 +43,29 @@ export type BetAnswer =
   | { kind: "number"; value: number; tolerancePct: number; unit: string } // |run - value| <= tolerancePct% of run
   | { kind: "enum"; value: string; options: string[] }                   // exact match
   | { kind: "json"; value: JsonValue }                                   // Added E1: canonical-JSON equality (returnedJson)
+  /** Added U1 (D48): one tap on a quiz question. `options` are the question's own options (src/quiz.ts), sealed with the bet. */
+  | { kind: "quiz"; choice: string; options: QuizOption[] }              // matched when the measured value is inside the chosen option
   | { kind: "declined"; reason: string };                                // the bettor would not guess → verdict "cant_check"
+
+/**
+ * Added U1 (D48): what one quiz option covers. Plain code (src/quiz.ts) writes every option from the test itself, never
+ * from a run. "word": the measured word equals `value`. "count": a whole number from min to max (both included; max null
+ * = no upper end). "ms": a time range; `minOpen` / `maxOpen` leave that end out. "json": exactly this value (canonical
+ * JSON). "json-other": any JSON value that is none of `not`.
+ */
+export type QuizMatch =
+  | { kind: "word"; value: string }
+  | { kind: "count"; min: number; max: number | null }
+  | { kind: "ms"; min: number; max: number | null; minOpen: boolean; maxOpen: boolean }
+  | { kind: "json"; value: JsonValue }
+  | { kind: "json-other"; not: JsonValue[] };
+export interface QuizOption {
+  /** "a", "b", "c", ... in the order shown. */
+  id: string;
+  /** The words on the option, written by plain code. */
+  label: string;
+  match: QuizMatch;
+}
 
 export interface Bet {
   id: string;

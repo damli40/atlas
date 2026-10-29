@@ -286,6 +286,8 @@ const humanAnswer = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("declined"), reason: z.string().trim().min(1).max(300).regex(/\w/, "a declined bet needs a reason in words") }).strict(),
   // E1: a json bet (returnedJson). The value is checked by plain code in checkAnswer (depth first, without recursion).
   z.object({ kind: z.literal("json"), value: z.unknown() }).strict(),
+  // U1 (D48): one tap on a quiz question, by the option's letter. The options come from the question, never the browser.
+  z.object({ kind: z.literal("quiz"), choice: z.string().min(1).max(8) }).strict(),
 ]);
 
 /** What the browser sends for ONE bet. The server fills question, options, unit and tolerance from the question itself. */
@@ -347,6 +349,11 @@ export function checkAnswer(question: Question, answer: HumanBetBody["answer"]):
       const why = jsonBetValueProblem(answer.value);
       if (why) return bad(`"${question.measures}" needs a JSON value Atlas can compare: ${why}`);
       return { ok: true, answer: { kind: "json", value: answer.value as JsonValue } };
+    }
+    case "quiz": {
+      const options = [...(question.quiz ?? [])];
+      if (!options.some((o) => o.id === answer.choice)) return bad(`"${question.measures}" has the options ${options.map((o) => o.id).join(", ")}; got "${answer.choice}"`);
+      return { ok: true, answer: { kind: "quiz", choice: answer.choice, options } };
     }
   }
 }

@@ -15,6 +15,7 @@
 import { CALL_DEFAULT_WATCH_LIMIT_MS, describeCall, visibleText, type Question } from "./gate";
 import { canonicalJson } from "./seal";
 import { CALL_OUTCOME_OPTIONS } from "./units";
+import { CANT_TELL } from "./quiz";
 import type { Experiment, ExperimentShape } from "./types";
 import { plural } from "./words";
 import { modelDisplay } from "./claimants";
@@ -45,8 +46,11 @@ export function testJson(params: unknown): string {
 }
 
 /** How a question is answered, in the words the bet screen shows next to it. */
-export function answerHow(q: Pick<Question, "kind" | "unit" | "options" | "tolerancePct">): string {
+export function answerHow(q: Pick<Question, "kind" | "unit" | "options" | "tolerancePct" | "quiz">): string {
   switch (q.kind) {
+    case "quiz":
+      // U1 (D48): the options exactly as the quiz shows them, so every bettor reads the same choices (D19).
+      return `pick one: ${(q.quiz ?? []).map((o) => `(${o.id}) ${o.label}`).join("; ")}; or ${CANT_TELL}`;
     case "enum":
       return `one of ${(q.options ?? CALL_OUTCOME_OPTIONS).join(", ")}`;
     case "json":

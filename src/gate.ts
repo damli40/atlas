@@ -12,7 +12,7 @@
 //
 // No I/O, no clock, no randomness.
 
-import type { ArgSpec, BetAnswer, ExperimentShape, JsonValue, StandInStep } from "./types";
+import type { ArgSpec, BetAnswer, ExperimentShape, JsonValue, QuizOption, StandInStep } from "./types";
 import { canonicalJson } from "./seal";
 import { CALL_OUTCOME_OPTIONS, OUTCOME_OPTIONS, SETTLE_FIELD, STAND_IN_CALLS_PREFIX, measuredUnit, type MeasuredUnit } from "./units";
 
@@ -502,6 +502,8 @@ export interface Question {
   options?: readonly string[];
   /** number questions: the tolerance a bet must use, as a share of the observed value. */
   tolerancePct?: number;
+  /** Added U1 (D48): quiz questions only. The options, written by plain code from the test (src/quiz.ts). */
+  quiz?: readonly QuizOption[];
 }
 
 function q(measures: string, text: string, kind: Question["kind"], extra: Partial<Question> = {}): Question {
@@ -559,6 +561,9 @@ export function answerTemplate(question: Question): string {
       return `{"kind":"number","value":<number>,"tolerancePct":${question.tolerancePct ?? PRICE_TOLERANCE_PCT},"unit":"${question.unit}"}`;
     case "json":
       return `{"kind":"json","value":<any JSON value>}`;
+    case "quiz":
+      // U1 (D48): the model picks one option by its letter; the server fills in the options themselves.
+      return `{"kind":"quiz","choice":<one of ${(question.quiz ?? []).map((o) => `"${o.id}"`).join(" | ")}>} where ${(question.quiz ?? []).map((o) => `"${o.id}" = ${o.label}`).join("; ")}`;
   }
 }
 

@@ -22,6 +22,7 @@
 
 import { z } from "zod";
 import { judge } from "./judge";
+import { quizQuestionsFor } from "./quiz";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { FORK_BLOCK, PR578_CODE_SHA256 } from "../runners/evm/moonwell-base";
@@ -32,7 +33,7 @@ import { applyFileDiff, parseUnifiedDiff, type DiffFile } from "./diff";
 import { CHANGE_CAPTION, theoryCaptions, towardFromBets } from "./change";
 import { planChangedConfig } from "../runners/change";
 import type { OutlineSection } from "./outline/types";
-import type { AgentEvent, AtlasFile, Bet, BettorSlot, Change, Experiment, Finding, Run, RunAttempt, Target, Verdict } from "./types";
+import type { AgentEvent, AtlasFile, Bet, BettorSlot, Change, Experiment, Finding, JsonValue, Run, RunAttempt, Target, Verdict } from "./types";
 
 // The two level captions live in src/captions.ts (no Node imports), so the web page can use them
 // without loading this file, which reads the Moonwell copy from disk.
@@ -88,6 +89,28 @@ const answerSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("enum"), value: z.string(), options: z.array(z.string()) }).strict(),
   z.object({ kind: z.literal("declined"), reason: z.string() }).strict(),
   z.object({ kind: z.literal("json"), value: z.json() }).strict(),
+  // Added U1 (D48): a quiz answer with the options it was sealed with. Verify checks the options against the test.
+  z
+    .object({
+      kind: z.literal("quiz"),
+      choice: z.string(),
+      options: z.array(
+        z
+          .object({
+            id: z.string(),
+            label: z.string(),
+            match: z.discriminatedUnion("kind", [
+              z.object({ kind: z.literal("word"), value: z.string() }).strict(),
+              z.object({ kind: z.literal("count"), min: z.number().int(), max: z.number().int().nullable() }).strict(),
+              z.object({ kind: z.literal("ms"), min: z.number(), max: z.number().nullable(), minOpen: z.boolean(), maxOpen: z.boolean() }).strict(),
+              z.object({ kind: z.literal("json"), value: z.json() }).strict(),
+              z.object({ kind: z.literal("json-other"), not: z.array(z.json()) }).strict(),
+            ]),
+          })
+          .strict(),
+      ),
+    })
+    .strict(),
 ]);
 
 const betSchema = z
@@ -669,6 +692,17 @@ function verifyAtlasFileChecked(raw: unknown): Verification {
       continue;
     }
     if (v.runId !== run.id) say(`the verdict on bet ${b.id} names run ${v.runId}, not ${run.id}`);
+    // U1 (D48): a quiz bet's options must be exactly the ones plain code writes for its test (src/quiz.ts).
+    if (b.answer.kind === "quiz") {
+      const exp = file.experiments.find((e) => e.id === b.experimentId);
+      let want: unknown = null;
+      try {
+        want = quizQuestionsFor(exp?.params).find((q) => q.measures === b.measures)?.quiz ?? null;
+      } catch {
+        want = null;
+      }
+      if (want === null || canonicalJson(want as JsonValue) !== canonicalJson(b.answer.options as unknown as JsonValue)) say(`bet ${b.id}: its quiz options are not the ones plain code writes for its test`);
+    }
     // Re-judge: the stored verdict must be exactly what plain code gives for this bet and run.
     const again = judge(b, run);
     if (!sameJson(again, v)) say(`the verdict on bet ${b.id} is not what src/judge.ts gives for it (stored ${v.outcome}, judged ${again.outcome})`);

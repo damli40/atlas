@@ -124,6 +124,7 @@ import { createPaste, DEFAULT_PASTES_PER_IP_PER_HOUR, PASTE_BODY_BYTES, PASTE_SW
 export const MAX_PASTED_PROOF_CHARS = 64 * 1024 * 1024;
 import { guardPastedChat } from "./meta/pasted-guard";
 import { pastedBetHead } from "../src/paste-context";
+import { quizQuestionsFor } from "../src/quiz";
 import { pastedSeenCap } from "./meta/roles/claimant-bets";
 import { MAX_PASTED_PROMPT_CHARS } from "./meta/pasted-guard";
 import { createOutlineRoutes, DEFAULT_OUTLINES_PER_IP_PER_HOUR, OUTLINE_BODY_BYTES, type OutlineOptions } from "./outline/routes";
@@ -162,6 +163,8 @@ const experimentBody = z.object({
   editedFrom: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/).optional(),
   // The params are checked by src/gate.ts below (not here), so a refusal carries the gate's plain reason.
   params: z.unknown().optional(),
+  /** U1 (D47/D48): ask the questions as a quiz (options written by plain code, src/quiz.ts). Pasted call-function tests only. */
+  quiz: z.literal(true).optional(),
   // Human-proposed only, for now (the Claimant's model bets arrive through the server, not this route).
   proposedBy: z.object({ role: z.literal("human") }).optional(),
 });
@@ -965,6 +968,7 @@ export function createApp(opts: AppOptions = {}) {
     // D04-04: the runner and the gate's allow-list follow the target, never the request.
     const runnerKind = target.kind === "github-pr" ? ("evm" as const) : ("ts" as const);
     const gateCtx: GateContext = pastedEntry ? { shapes: ["call-function"], exportNames: pastedEntry.exports.map((e) => e.name) } : runnerKind === "evm" ? EVM_GATE_CONTEXT : TS_GATE_CONTEXT;
+    if (body.quiz && !pastedEntry) return c.json({ error: "quiz is for pasted code only" }, 400);
     // E3: a test Muse Wonder proposed in this session, used as proposed (an edited one comes as params, from the person).
     if (body.params === undefined && body.proposalId === undefined) return c.json({ error: "body: send params (the experiment) or, for pasted code, proposalId" }, 400);
     let fromProposal: { setId: string; model: string; params: unknown } | undefined;
@@ -1020,6 +1024,11 @@ export function createApp(opts: AppOptions = {}) {
     } as Experiment;
     const round = newRound(experiment, gateCtx);
     round.gateContext = gateCtx;
+    // U1 (D48): the quiz replaces the free answers with plain code's options; the person and every model get the same ones.
+    if (body.quiz && decision.allowed) {
+      round.questions = quizQuestionsFor(experiment.params, gateCtx.exportNames);
+      round.extraQuestions = [];
+    }
     if (finding) round.finding = finding;
     if (runnerKind === "evm" && decision.allowed) {
       // One plain-code question per Moonwell round: cbETH's price (src/gate.ts's template). The other
@@ -1043,7 +1052,8 @@ export function createApp(opts: AppOptions = {}) {
       // numbered file is kept once per file and joined on when the text is served.
       const call = experiment.params as Extract<Experiment["params"], { shape: "call-function" }>;
       const line = pastedEntry.exports.find((e) => e.name === call.exportName)?.line ?? 0;
-      const key = [target.codeSha256, target.language, line, canonicalJson(experiment.proposedBy), canonicalJson(experiment.params), round.repeatOf ?? ""].join("\n");
+      // U1: the questions are part of the text (a quiz lists its options), so they are part of the key.
+      const key = [target.codeSha256, target.language, line, canonicalJson(experiment.proposedBy), canonicalJson(experiment.params), round.repeatOf ?? "", body.quiz ? "quiz" : ""].join("\n");
       const block = paste.fileBlock(target.codeSha256, target.source ?? "", line);
       const cap = pastedSeenCap(round.questions, MAX_PASTED_PROMPT_CHARS);
       const got = paste.headFor(

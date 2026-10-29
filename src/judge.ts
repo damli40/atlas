@@ -23,6 +23,7 @@
 
 import type { Bet, Run, Verdict } from "./types";
 import { canonicalJson } from "./seal";
+import { quizMembership } from "./quiz";
 import { ENUM_FIELD_OPTION_SETS, alignDecimals, measuredUnit, parseExactDecimal, usdToUsd1e18, type ExactDecimal } from "./units";
 
 const USD_1E18_PREFIX = "priceUsd1e18:";
@@ -110,6 +111,13 @@ export function judge(bet: Bet, run: Run): Verdict {
   const unreadable = (what: string) =>
     cantCheck(`runner stored ${field} as ${observed === null ? "null" : typeof observed}, not ${what}`, observed, reference);
 
+  // 4a. Added U1 (D48): a quiz bet matches when the measured value is inside the chosen option (src/quiz.ts).
+  if (bet.answer.kind === "quiz") {
+    const quizUnit = measuredUnit(field);
+    if (quizUnit === undefined) return cantCheck(`Atlas has no unit on file for ${field}, so a bet on it cannot be compared`, observed, reference);
+    const r = quizMembership(bet.answer.choice, bet.answer.options, quizUnit, observed);
+    return "cantCheck" in r ? cantCheck(r.cantCheck, observed, reference) : decided(r.matched);
+  }
   const answer = bet.answer;
   // 5. Units: the bet must be in the field's own unit (src/units.ts).
   const unit = measuredUnit(field);

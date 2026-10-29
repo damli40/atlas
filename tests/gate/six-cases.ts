@@ -97,7 +97,7 @@ function poster(request: Requester) {
 }
 
 function betText(a: BetAnswer): string {
-  return a.kind === "declined" ? "declined" : String(a.value);
+  return a.kind === "declined" ? "declined" : a.kind === "quiz" ? a.choice : String(a.value);
 }
 
 /** Runs the whole gate through `request` (app.request in-process, or fetch against a server). */

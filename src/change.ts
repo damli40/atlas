@@ -3,6 +3,7 @@
 // Atlas never calls a change a repair of anything: the code changed toward what the bettors
 // expected, and the same experiment ran again. The verdicts say whether the same bets matched.
 
+import { quizChoiceLabel } from "./quiz";
 import type { Bet, Verdict } from "./types";
 import { formatUsd1e18 } from "./units";
 
@@ -27,6 +28,7 @@ function answerText(b: Bet): string {
   const a = b.answer;
   if (a.kind === "number") return `${a.value} ${a.unit} (match if within ${a.tolerancePct}% of what the run measures)`;
   if (a.kind === "declined") return "declined to guess";
+  if (a.kind === "quiz") return quizChoiceLabel(a.options, a.choice);
   return String(a.value);
 }
 

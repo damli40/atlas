@@ -11,6 +11,8 @@ export const betAnswerSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("enum"), value: z.string().min(1).max(100), options: z.array(z.string().max(100)).min(1).max(20) }),
   // E3: a JSON bet (returnedJson). Its value is checked by plain code (depth, plain JSON, size) where it is used.
   z.strictObject({ kind: z.literal("json"), value: z.unknown() }),
+  // U1 (D48): a quiz answer is the option's letter; the server fills in the question's own options before sealing.
+  z.strictObject({ kind: z.literal("quiz"), choice: z.string().min(1).max(8) }),
   // A declined bet must say why in words: "unknown: <why>". Blank or only spaces is refused.
   z.strictObject({ kind: z.literal("declined"), reason: z.string().trim().min(1).max(500).regex(/\w/, "a declined bet needs a reason in words") }),
 ]);

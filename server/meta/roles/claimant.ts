@@ -217,6 +217,11 @@ function checkAnswer(q: Question, a: BetAnswer): AnswerProblem | undefined {
       if (!opts.includes(a.value)) return { full: `${on} must be one of ${opts.map((o) => `"${o}"`).join(", ")}; got "${a.value}"`, safe: `${on}: ${q.measures} not one of the options` };
       return undefined;
     }
+    case "quiz": {
+      const ids = (q.quiz ?? []).map((o) => o.id);
+      if (!ids.includes(a.choice)) return { full: `${on} must choose one of ${ids.map((o) => `"${o}"`).join(", ")}; got "${a.choice}"`, safe: `${on}: the choice is not one of the options` };
+      return undefined;
+    }
   }
 }
 
@@ -284,7 +289,10 @@ export function validateBetsFor(
     const b = byField.get(q.measures)!;
     const why = checkAnswer(q, b.answer as BetAnswer);
     if (why) return { ok: false, error: why.full, safe: why.safe };
-    bets.push({ question: q, out: b });
+    // U1 (D48): a quiz answer is sealed with the question's own options (the model sends only the letter).
+    const answer = b.answer as { kind: string; choice?: string };
+    if (answer.kind === "quiz") bets.push({ question: q, out: { ...b, answer: { kind: "quiz", choice: answer.choice!, options: [...(q.quiz ?? [])] } as unknown as ClaimantBetOut["answer"] } });
+    else bets.push({ question: q, out: b });
   }
   return { ok: true, bets };
 }
