@@ -6,6 +6,7 @@
 //   +1  any scripted failure at all (a throw, a never-answer, or an HTTP status of 400 or more)
 //   +1  any scripted wait (an answer that comes after some virtual ms)
 //   +1  the test passes any stand-in or network fake at all (the drawing has a device to light)
+//   +1  the test sets its own watch limit (it expects a long wait or a hang)
 //   −5  a degenerate argument: a negative number anywhere in the JSON arguments (a count of −1 retries)
 //   −2  a zero or an empty value as a whole argument (0, "", [], {}): usually "zero retries" or "no input"
 // The highest score wins; a tie keeps Wonder's own order. The score reads only the test, never a run.
@@ -45,6 +46,7 @@ export function interestScore(test: CallShape): number {
   if (all.some((s) => s.kind !== "ok")) score += 1;
   if (all.some((s) => s.wait)) score += 1;
   if (devices.length > 0) score += 1;
+  if (test.watchLimitMs !== undefined) score += 1;
   for (const a of test.args) {
     if (a.kind !== "json") continue;
     if (hasNegative(a.value)) score -= 5;

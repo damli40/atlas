@@ -548,7 +548,10 @@ export function callRunAgreesWithItsTrace(r: Run): string[] {
   if (ends.length !== 1) return [`its trace has ${ends.length} ending events, not 1`];
   const end = ends[0]!;
   if (m.outcome !== end.event) out.push(`measured outcome is ${JSON.stringify(m.outcome ?? null)}, but its trace ends with ${end.event}`);
-  if ((end.event === "returned" || end.event === "threw") && m.virtualMs !== end.t) out.push(`measured virtualMs is ${JSON.stringify(m.virtualMs ?? null)}, but its trace settles at ${end.t}`);
+  // U2: a settle time the run does not report (R2's D45: it changed when the second run let time pass) is not compared;
+  // it is a claim not made, never a claim that disagrees with the trace.
+  const timeNotReported = Object.prototype.hasOwnProperty.call(r.result.notMeasured, "virtualMs") && !("virtualMs" in m);
+  if ((end.event === "returned" || end.event === "threw") && !timeNotReported && m.virtualMs !== end.t) out.push(`measured virtualMs is ${JSON.stringify(m.virtualMs ?? null)}, but its trace settles at ${end.t}`);
   if (end.event !== "returned" && end.event !== "threw" && "virtualMs" in m) out.push("measured virtualMs is set, but the call did not settle");
   const counts = new Map<string, number>();
   for (const t of r.trace) if (t.event === "stand_in_call") counts.set(String(asRecord(t.data).name), (counts.get(String(asRecord(t.data).name)) ?? 0) + 1);

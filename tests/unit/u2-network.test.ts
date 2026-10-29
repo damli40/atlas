@@ -287,3 +287,50 @@ describe("U2 Test this claim (server)", () => {
   }, 60_000);
 });
 
+
+describe("U2 walkthrough bug: a settle time the run does not report no longer breaks the proof file", () => {
+  const RATE = `import asyncio
+import time
+
+
+class RateLimiter:
+    def __init__(self, rate: int, per: float = 1.0):
+        self.rate = rate
+        self.per = per
+        self.tokens = rate
+        self.last = time.monotonic()
+
+    async def acquire(self):
+        while True:
+            now = time.monotonic()
+            self.tokens = min(self.rate, self.tokens + (now - self.last) * self.rate / self.per)
+            self.last = now
+            if self.tokens >= 1:
+                self.tokens -= 1
+                return
+            await asyncio.sleep((1 - self.tokens) * self.per / self.rate)
+
+
+async def run_all(jobs, rate=2):
+    limiter = RateLimiter(rate)
+    results = []
+    for job in jobs:
+        await limiter.acquire()
+        results.append(job * 2)
+    return results
+`;
+  it.skipIf(findPython() === null)("run_all([1,2,3], 2): the time is can't check (D45), but the ending and the value are judged and the proof verifies", async () => {
+    const app = createApp({ agentLog: createAgentLog() });
+    const c = client(app);
+    const p = await c.post("/paste", { code: RATE, language: "py" });
+    const e = await c.post("/experiments", { target: p.json.target, params: { shape: "call-function", exportName: "run_all", args: [{ kind: "json", value: [1, 2, 3] }, { kind: "json", value: 2 }] }, quiz: true });
+    const qs = e.json.questions as { measures: string }[];
+    await c.post("/bets", { experimentId: e.json.experiment.id, who: "human", bets: qs.map((q) => ({ measures: q.measures, answer: { kind: "quiz", choice: "a" } })) });
+    const r = await c.post("/runs", { experimentId: e.json.experiment.id });
+    expect(r.json.run.result.notMeasured.virtualMs).toMatch(/can't measure real work time/);
+    const byField = Object.fromEntries((r.json.verdicts as { betId: string; outcome: string }[]).map((v) => [(r.json.bets as { id: string; measures: string }[]).find((b) => b.id === v.betId)!.measures, v.outcome]));
+    expect(byField.outcome).toBe("matched"); // (a) returns a value
+    expect(byField.virtualMs).toBe("cant_check");
+    expect(r.json.proof.ok).toBe(true);
+  }, 120_000);
+});
