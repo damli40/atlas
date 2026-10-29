@@ -150,8 +150,8 @@ export function ExplorerFlow({ api, onBet, saved, initialRepo, initialFiles, vis
 
   // X3 (D28): plain code's common-failure labels per part, read when the outline arrives and each time the screen is
   // shown again (a round run from "Bet on this part" can turn a label into "reproduced").
-  // X3 review M2: while a round on this code has the person's bets still to seal, the server holds the labels (409);
-  // the card then says so instead of showing any.
+  // X3 review round 2 (D50): labels are shown before betting; the "held" note remains only for a server that answers
+  // 409 (none does since D50).
   const [labels, setLabels] = useState<Record<string, LabelsAnswer> | null>(null);
   const [labelsHeld, setLabelsHeld] = useState(false);
   useEffect(() => {

@@ -52,8 +52,20 @@ function runTraces(stage: HTMLElement) {
     litLamps: stage.querySelectorAll("[data-lamp][data-on]").length,
     liveLines: stage.querySelectorAll(".u1-live").length,
     marks: stage.querySelectorAll(".u1-pin, [data-testid='mark-list']").length,
-    /** Words laid over the drawing (everything on the figure but the SVG itself). */
-    figureText: [...stage.querySelector(".u1-figure")!.children].filter((c) => !c.classList.contains("u1-svg")).map((c) => c.textContent).join(""),
+    /**
+     * Words laid over the drawing (everything on the figure but the SVG itself). X3 review round 2 (D50): plain code's
+     * failure labels ([data-label-mark]) are facts about the code's text, shown before betting to every bettor alike;
+     * they are counted separately below, not as run traces.
+     */
+    figureText: [...stage.querySelector(".u1-figure")!.children]
+      .filter((c) => !c.classList.contains("u1-svg"))
+      .map((c) => {
+        const k = c.cloneNode(true) as HTMLElement;
+        k.querySelectorAll("[data-label-mark]").forEach((x) => x.remove());
+        return k.hasAttribute("data-label-mark") ? "" : k.textContent;
+      })
+      .join(""),
+    labelMarks: [...stage.querySelectorAll("[data-label-mark]")].map((e) => e.textContent),
   };
 }
 
@@ -82,6 +94,8 @@ describe("U1 drawing-first screen", () => {
     expect([...stage.querySelectorAll("[data-hit]")].map((e) => e.getAttribute("data-hit"))).toEqual(expect.arrayContaining(["backoffMs", "sleep", "fetchWithRetry", "getPrice"]));
     let t = runTraces(stage);
     expect(t).toMatchObject({ runEls: 0, litLamps: 0, liveLines: 0, marks: 0, figureText: "" });
+    // D50: the failure label is drawn before any bet, and it carries no run result.
+    expect(t.labelMarks).toEqual(["found in this code: no overall timeout, lines 12–19"]);
 
     // open the bet: Wonder's first allowed test is preselected, the stand-in deck appears, still no result
     click($('[data-testid="u1-bet-toggle"]'));

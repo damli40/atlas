@@ -321,7 +321,11 @@ describe("model bets on the returned value (json kind), and the one bet-context 
     const p = await c.post("/paste", { code: ADD });
     const e = await c.post("/experiments", { target: tgt(p), params });
     const target = { kind: "pasted" as const, ref: p.json.target.ref, codeSha256: p.json.target.codeSha256, language: "js" as const, source: ADD };
-    const built = pastedBetContext({ experiment: { target, params: e.json.experiment.params, proposedBy: { role: "human" } }, questions: e.json.questions, exportLine: 1 });
+    // X3 review round 2 (D50): the server adds plain code's failure labels for the called function; the same pure
+    // builder takes them as lines (the labels route gives the same answer the server used).
+    const { labelsForBettors } = await import("../../src/failure-labels");
+    const labels = labelsForBettors((await c.post("/paste/labels", { target: tgt(p), exportName: (e.json.experiment.params as { exportName: string }).exportName })).json as never);
+    const built = pastedBetContext({ experiment: { target, params: e.json.experiment.params, proposedBy: { role: "human" } }, questions: e.json.questions, exportLine: 1, labels });
     expect(e.json.seenContext).toBe(built);
     expect(built).not.toMatch(/USD/);
   });

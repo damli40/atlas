@@ -103,7 +103,11 @@ export interface BenchStageProps {
   title: string;
   /** Called with each mark's anchor position, so the page can lay out its own list. */
   children?: ReactNode;
-  /** X3 hook: extra marks (e.g. failure labels) pinned to parts after sealing. Never shown before `after` exists. */
+  /**
+   * X3 hook: extra marks pinned to parts: plain code's failure labels. D50 (X3 review round 2): shown before betting too
+   * (they are facts about the code's text, and every bettor's text carries the same labels); after a run they follow
+   * the marks toggle like the run's own marks. They never carry run data before a run exists.
+   */
   extraMarks?: { anchor: string; text: string }[];
   /** A panel (the bet pop-up) is open on the right: the drawing moves left to stay in view. */
   side?: boolean;
@@ -392,11 +396,10 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
                   </div>
                 ) : null,
               )}
-            {after &&
-              marksOn &&
+            {(after ? marksOn : true) &&
               extraMarks.map((x, i) =>
                 anchors[x.anchor] ? (
-                  <span key={`x-${i}`} className="u1-chip u1-chip-label" data-run="" style={at(anchors[x.anchor]!)}>
+                  <span key={`x-${i}`} className="u1-chip u1-chip-label" data-label-mark="" style={at({ x: anchors[x.anchor]!.x, y: anchors[x.anchor]!.y - 22 * (i % 3 + 1) })} data-testid={`label-mark-${i}`}>
                     {x.text}
                   </span>
                 ) : null,

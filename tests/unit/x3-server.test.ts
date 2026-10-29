@@ -252,28 +252,21 @@ describe("X3 (D28) labels on the server", () => {
 });
 
 describe("X3 review round 1 on the server", () => {
-  it("M2: while a round on this code has the person's bets still to seal, both label routes answer 409; after the seal, 200", async () => {
-    const n = RETRY_SRC.split("\n").length - 1;
-    const outline = JSON.stringify({ parts: [{ id: "retry", name: "Retry helper", purpose: "Retries.", files: [{ path: "retry.ts", lineStart: 1, lineEnd: n, quotedSnippet: RETRY_SRC.split("\n")[0] }], patterns: ["retry"] }], joins: [] });
-    const usage = { promptTokens: 0, completionTokens: 0, usd: 0 };
-    const { app } = makeApp({ outline: { outliner: { chat: async () => ({ ok: true, finishReason: "stop", usage, content: outline }) } } });
-    const c = client(app, BROWSER);
-    const job = await c.post("/outline/jobs", { files: [{ path: "retry.ts", text: RETRY_SRC }] });
-    for (let i = 0; i < 200; i++) {
-      const j = await c.get(`/outline/jobs/${job.json.jobId}`);
-      if (j.json.status === "done" || j.json.status === "failed") break;
-      await new Promise((r) => setTimeout(r, 50));
-    }
+  it("D50 (replaces round 1's hold): labels are readable before any bet, and every bettor's text carries them, byte for byte", async () => {
+    const { app, m } = makeApp();
+    const c = client(app, BROWSER, undefined, { "x-atlas-claimant": "both" });
     const t = await paste(c);
-    expect((await c.post("/paste/labels", { target: t, exportName: "retryWithBackoff" })).status).toBe(200);
     const e = await c.post("/experiments", { target: t, params: NEVER });
-    const held = await c.post("/paste/labels", { target: t, exportName: "retryWithBackoff" });
-    expect(held.status).toBe(409);
-    expect(held.json.error).toMatch(/once your bets on the open round are sealed/);
-    expect((await c.get(`/outline/jobs/${job.json.jobId}/labels`)).status).toBe(409);
-    await c.post("/bets", { experimentId: e.json.experiment.id, who: "human", bets: [{ measures: "outcome", answer: { kind: "enum", value: "threw" } }] });
-    expect((await c.post("/paste/labels", { target: t, exportName: "retryWithBackoff" })).status).toBe(200);
-    expect((await c.get(`/outline/jobs/${job.json.jobId}/labels`)).status).toBe(200);
+    // No bet sealed yet: the labels route answers (no 409 any more).
+    const l = await c.post("/paste/labels", { target: t, exportName: "retryWithBackoff" });
+    expect(l.status).toBe(200);
+    const seen = e.json.seenContext as string;
+    expect(seen).toContain("Atlas's failure labels for this function (plain code's reading of its text, before any run of this test):");
+    expect(seen).toContain("- no overall timeout (retry): found in this code at lines 4–11.");
+    await c.post(`/experiments/${e.json.experiment.id}/model-bets`, {});
+    const bettors = m.calls.filter((x) => x.role === "claimant");
+    expect(bettors).toHaveLength(2);
+    for (const b of bettors) expect(b.messages.map((x) => x.content).join("\n")).toContain(seen);
   });
 
   it("M3: label requests are limited per client an hour; the scan is cached (the same answer, fast)", async () => {

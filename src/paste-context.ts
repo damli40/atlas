@@ -73,6 +73,11 @@ export interface PastedContextInput {
   questions: readonly Question[];
   /** Line of the called export (from src/pasted-code.ts), marked ">" in the numbered file; absent = none marked. */
   exportLine?: number;
+  /**
+   * X3 review round 2 (D50): plain code's failure labels for the called function (src/failure-labels.ts
+   * labelsForBettors), shown to every bettor before betting: the person's page and both betting models get these bytes.
+   */
+  labels?: readonly string[];
 }
 
 /**
@@ -141,6 +146,7 @@ export function pastedBetHead(input: PastedContextInput & { repeatOf?: string })
     // characters; this line never does, so every bettor has every value the person can see (the page's
     // "The test as JSON" view shows this same text).
     `The test exactly, as JSON (what Atlas runs): ${testJson(call)}`,
+    ...(input.labels ?? []),
     `How to bet: ${PASTE_BET_INSTRUCTION}`,
     `The whole file, numbered as on screen${mark ? `, line ${mark} (where ${call.exportName} is declared) marked ">"` : ""}:`,
   ].join("\n");

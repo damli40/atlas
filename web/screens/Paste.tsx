@@ -125,11 +125,11 @@ export function PasteFlow({ api, onRoundOpen, handoff = null, onHandoffUsed }: {
   const target = pasted?.runnable ? pasted.target : null;
 
   // X3 (D28): the picked function's common-failure labels, read again after every run (a run can reproduce one).
-  // X3 review M2 (coordinator's decision): shown only once this round's bets are sealed, so the person and the betting
-  // models bet on the same information. Before that (and with no round yet) they are not read at all.
+  // X3 review round 2 (D50, replacing round 1's "after the seal" rule): shown before betting; every bettor's text
+  // carries the same labels (server/app.ts puts them in the bettor text).
   const [labels, setLabels] = useState<PasteLabelsAnswer | null>(null);
   const [labelsError, setLabelsError] = useState<string | null>(null);
-  const labelsOpen = exp !== null && sealed.length > 0;
+  const labelsOpen = true;
   const labelKey = target && exportName && labelsOpen ? `${target.codeSha256}:${exportName}:${exp?.experiment.id ?? ""}:${result?.run.id ?? ""}` : null;
   useEffect(() => {
     if (!target || !exportName || !labelsOpen) {
@@ -353,11 +353,6 @@ export function PasteFlow({ api, onRoundOpen, handoff = null, onHandoffUsed }: {
         </section>
       )}
 
-      {target && exportName && !labelsOpen && (
-        <p className="muted small" data-testid="labels-after-seal">
-          {FL_WORDS.afterSeal}
-        </p>
-      )}
       {target && exportName && labelsOpen && (labels || labelsError) && (
         <section className="card" aria-label={FL_WORDS.heading} data-testid="paste-failure-labels">
           <h2>{FL_WORDS.heading}</h2>

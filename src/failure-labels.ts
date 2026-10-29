@@ -27,7 +27,7 @@
 // so a large or odd file costs milliseconds, and what the cap skips stays "common pattern".
 
 import type { ArgSpec, ExperimentShape, Run, StandInStep } from "./types";
-import { fileLines } from "./words";
+import { fileLines, lineSpan } from "./words";
 
 export type FailureLabelKind = "common pattern" | "found in this code" | "reproduced" | "inconclusive";
 export type Lang = "js" | "ts" | "py";
@@ -935,4 +935,22 @@ export function labelFromScan(scan: Scan, runs: readonly RunEvidence[] = [], fun
 /** Scan, then label. */
 export function labelFailures(input: LabelInput): LabelsAnswer {
   return labelFromScan(scanFailures(input), input.runs ?? [], input.functions ?? [], input.wonderModel);
+}
+
+/**
+ * X3 review round 2 (D50): the labels as lines of the bettor text. Plain code's words only; the same lines reach the
+ * person's page and every betting model (src/paste-context.ts). The "found" and run-based labels each get a line with
+ * their lines of code; the "common pattern" ones are named together, said to be Atlas's list only.
+ */
+export function labelsForBettors(a: Pick<LabelsAnswer, "labels">): string[] {
+  const head = "Atlas's failure labels for this function (plain code's reading of its text, before any run of this test):";
+  if (a.labels.length === 0) return [head, "- none: plain code saw none of the kinds of code on Atlas's list."];
+  const strong = a.labels.filter((l) => l.label !== "common pattern");
+  const common = a.labels.filter((l) => l.label === "common pattern");
+  const where = (l: LabelledFailure) => (l.lines && l.lines.length ? ` at ${l.lines.map((x) => lineSpan(x.lineStart, x.lineEnd)).join(", ")}` : "");
+  return [
+    head,
+    ...strong.map((l) => `- ${l.name} (${l.kindName}): ${l.label}${where(l)}${l.runId ? `, run ${l.runId}` : ""}. ${l.says}`),
+    ...(common.length ? [`- only on Atlas's list, not seen in this code (common pattern): ${common.map((l) => l.name).join(", ")}.`] : []),
+  ];
 }

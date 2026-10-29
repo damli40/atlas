@@ -21,7 +21,6 @@ export const FL_WORDS = {
   heading: "Known ways this kind of code fails",
   intro: "Atlas's short list of failures for each kind of code. Plain code decides each label; Muse Wonder may suggest a kind, never a label.",
   none: "Plain code saw none of the kinds of code on Atlas's list (retry, network call, concurrency, queue, database write, time) in these lines.",
-  afterSeal: "Atlas's failure labels for this function appear once your bets on a round are sealed, so you and the betting models bet on the same information.",
   held: "Failure labels are held while a round on this code has bets still to seal, so you and the betting models bet on the same information.",
   legend: "Labels: reproduced (a sealed Atlas run showed it) · inconclusive (a run was tried but cannot show it) · found in this code (plain code saw the failure's marker in these lines; not a run) · common pattern (only Atlas's list says so).",
 } as const;

@@ -28,6 +28,8 @@ import type { FileOutline } from "../../src/file-outline";
 import { U1_EXAMPLE } from "../u1-example";
 import { plural } from "../../src/words";
 import type { BetHandoff } from "./Explorer";
+import type { PasteLabelsAnswer } from "../api";
+import { lineSpan } from "../../src/words";
 
 type Lang = "js" | "ts" | "py";
 const FILE_NAME: Record<Lang, string> = { js: "pasted.js", ts: "pasted.ts", py: "pasted.py" };
@@ -99,6 +101,36 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   );
   // Mark the function under test even before a test exists (it is lit on the drawing).
   const shownModel = useMemo(() => (model && !model.tested && fn ? { ...model, tested: fn } : model), [model, fn]);
+
+  // X3 (D28) + review round 2 (D50): plain code's failure labels for the function, drawn on the parts BEFORE betting
+  // (every bettor's text carries the same labels). Read again after each run (a run can reproduce one). Only labels
+  // plain code claims ("found in this code", "reproduced", "inconclusive") become marks; "common pattern" ones stay in
+  // the bettor text, where they are said to be Atlas's list only.
+  const [labels, setLabels] = useState<PasteLabelsAnswer | null>(null);
+  useEffect(() => {
+    if (!target || !fn) {
+      setLabels(null);
+      return;
+    }
+    let live = true;
+    Promise.resolve()
+      .then(() => api.pasteLabels(target, fn))
+      .then(
+        (a) => live && setLabels(a),
+        () => live && setLabels(null),
+      );
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [api, target?.codeSha256, fn, result?.run.id]);
+  const labelMarks = useMemo(() => {
+    if (!labels || !pasted?.outline) return [];
+    const partAt = (line: number) => pasted.outline!.parts.find((p) => p.lineStart <= line && line <= p.lineEnd)?.name ?? fn ?? "";
+    return labels.labels
+      .filter((l) => l.label !== "common pattern")
+      .map((l) => ({ anchor: partAt(l.lines?.[0]?.lineStart ?? 0), text: `${l.label}: ${l.name}${l.lines?.[0] ? `, ${lineSpan(l.lines[0].lineStart, l.lines[0].lineEnd)}` : ""}` }));
+  }, [labels, pasted, fn]);
 
   const reset = () => {
     setProposals(null);
@@ -346,6 +378,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
         <BenchStage
           model={shownModel}
           after={after}
+          extraMarks={labelMarks}
           title={title}
           side={open}
           footnote={

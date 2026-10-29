@@ -10,8 +10,8 @@
 //   round's code fingerprint equals the file's).
 // Both belong to the session that pasted the code / started the job; any other session gets 404.
 // X3 review round 1:
-// - M2: while this session has an open round on the code whose person's bets are not sealed yet, both routes answer
-//   409: the person and the betting models bet on the same information (labels come after the seal).
+// - Round 2 (Dami's D50, replacing round 1's "after the seal" hold): labels are shown BEFORE betting, to every bettor
+//   alike: the page draws them and the bettor text every betting model gets carries them (POST /experiments).
 // - M3: the code-only scan is cached per source fingerprint and span (labels then only add the runs), and each client
 //   may ask at most DEFAULT_LABELS_PER_CLIENT_PER_HOUR times an hour (per invite code when there is one).
 
@@ -30,7 +30,6 @@ import type { OutlineSection } from "../src/outline/types";
 export const DEFAULT_LABELS_PER_CLIENT_PER_HOUR = 600;
 /** Code-only scans kept (least recently used dropped first). */
 export const MAX_CACHED_SCANS = 300;
-export const LABELS_AFTER_SEAL = "Atlas's failure labels for this code are shown once your bets on the open round are sealed, so you and the betting models bet on the same information";
 
 export interface LabelDeps {
   paste: Paste;
@@ -59,16 +58,6 @@ export function runsOf(betStore: BetStore, proofOf: LabelDeps["proofOf"], sessio
   return out.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
 }
 
-/** M2: a round of this session on code with one of these fingerprints that is open and holds none of the person's bets. */
-export function openUnsealed(betStore: BetStore, sessionId: string, shas: ReadonlySet<string>): boolean {
-  for (const r of betStore.peek(sessionId)?.values() ?? []) {
-    const round = r as Round;
-    if (round.autonomous || round.status !== "open" || !shas.has(round.experiment.target.codeSha256)) continue;
-    if (!round.bets.some((b) => b.who === "human")) return true;
-  }
-  return false;
-}
-
 /** A parameter's plain name ("fetchIt: () => …" → fetchIt, "n=3" → n, "*args" → args), or null (destructured). */
 export const paramName = (p: string): string | null => /^\s*(?:\.\.\.|\*{1,2})?([A-Za-z_$][\w$]*)/.exec(p)?.[1] ?? null;
 
@@ -93,7 +82,11 @@ function mergeLabels(answers: LabelsAnswer[]): LabelledFailure[] {
   return [...best.values()];
 }
 
-export function registerLabelRoutes(app: Hono, deps: LabelDeps) {
+/**
+ * X3: the labeler. One scan cache, used by both label routes and by POST /experiments, which puts a pasted function's
+ * labels into the bettor text (D50: labels are shown before betting, to every bettor alike).
+ */
+export function createLabeler(deps: LabelDeps) {
   const scans = new Map<string, Scan>();
   const scanOf = (key: string, make: () => Scan): Scan => {
     let v = scans.get(key);
@@ -103,7 +96,30 @@ export function registerLabelRoutes(app: Hono, deps: LabelDeps) {
     while (scans.size > MAX_CACHED_SCANS) scans.delete(scans.keys().next().value!);
     return v;
   };
+  /** Labels for one pasted function: its own lines, plus this session's sealed runs of it. */
+  const forPaste = (sessionId: string, target: { codeSha256: string; language?: string; source?: string }, name: string): LabelsAnswer => {
+    const lang = (target.language ?? "js") as Lang;
+    const text = target.source ?? "";
+    const key = `${target.codeSha256}:${lang}:${name}`;
+    const scan = scanOf(key, () => {
+      let fn: FunctionInfo | null = null;
+      try {
+        fn = functionInfo(text, lang, name);
+      } catch {
+        fn = null;
+      }
+      const total = text.split("\n").length;
+      const sc = scanFailures({ language: lang, spans: [{ path: "pasted", text, lineStart: fn?.lineStart ?? 1, lineEnd: fn?.lineEnd ?? total }], ...(fn ? { functions: [fn] } : {}) });
+      return { ...sc, fn, ...(fn ? {} : { note: `plain code could not find where ${name} ends, so it read the whole file` }) } as Scan & { fn: FunctionInfo | null };
+    }) as Scan & { fn: FunctionInfo | null };
+    const runs = runsOf(deps.betStore, deps.proofOf, sessionId, target.codeSha256, name);
+    return labelFromScan(scan, runs, scan.fn ? [scan.fn] : []);
+  };
+  return { forPaste, register: (app: Hono) => registerLabelRoutes(app, deps, scanOf, forPaste) };
+}
+export type Labeler = ReturnType<typeof createLabeler>;
 
+function registerLabelRoutes(app: Hono, deps: LabelDeps, scanOf: (key: string, make: () => Scan) => Scan, forPaste: Labeler["forPaste"]) {
   app.post("/paste/labels", async (c) => {
     const sessionId = sessionIdOf(c);
     if (sessionId === null) return c.json({ error: BAD_SESSION }, 400);
@@ -119,25 +135,9 @@ export function registerLabelRoutes(app: Hono, deps: LabelDeps) {
     if (!entry || typeof entry.target.source !== "string") return c.json({ error: "this session has no pasted file with that ref and fingerprint: paste it first (POST /paste)" }, 404);
     const name = parsed.data.exportName;
     if (!entry.exports.some((e) => e.name === name)) return c.json({ error: `the pasted file has no export named "${name}"` }, 400);
-    if (openUnsealed(deps.betStore, sessionId, new Set([entry.target.codeSha256]))) return c.json({ error: LABELS_AFTER_SEAL, afterSeal: true }, 409);
     const allowed = deps.takeLabels(c);
     if (!allowed.ok) return c.json({ error: `labels not read: ${allowed.reason}` }, 429);
-    const lang = (entry.target.language ?? "js") as Lang;
-    const text = entry.target.source;
-    const key = `${entry.target.codeSha256}:${lang}:${name}`;
-    let fn: FunctionInfo | null = null;
-    const scan = scanOf(key, () => {
-      try {
-        fn = functionInfo(text, lang, name);
-      } catch {
-        fn = null;
-      }
-      const total = text.split("\n").length;
-      const sc = scanFailures({ language: lang, spans: [{ path: "pasted", text, lineStart: fn?.lineStart ?? 1, lineEnd: fn?.lineEnd ?? total }], ...(fn ? { functions: [fn] } : {}) });
-      return { ...sc, fn, ...(fn ? {} : { note: `plain code could not find where ${name} ends, so it read the whole file` }) } as Scan & { fn: FunctionInfo | null };
-    }) as Scan & { fn: FunctionInfo | null };
-    const runs = runsOf(deps.betStore, deps.proofOf, sessionId, entry.target.codeSha256, name);
-    const answer = labelFromScan(scan, runs, scan.fn ? [scan.fn] : []);
+    const answer = forPaste(sessionId, entry.target, name);
     return c.json({ ...answer, exportName: name });
   });
 
@@ -148,7 +148,6 @@ export function registerLabelRoutes(app: Hono, deps: LabelDeps) {
     if (!job || job.sessionId !== sessionId) return c.json({ error: "no such outline job in this session" }, 404);
     const s = job.section;
     if (!s) return c.json({ error: "the job is not done yet" }, 409);
-    if (openUnsealed(deps.betStore, sessionId, new Set(s.files.map((f) => f.sha256)))) return c.json({ error: LABELS_AFTER_SEAL, afterSeal: true }, 409);
     const allowed = deps.takeLabels(c);
     if (!allowed.ok) return c.json({ error: `labels not read: ${allowed.reason}` }, 429);
     if (!s.verified) return c.json({ parts: {}, note: "there is no outline to label: Muse Wonder gave none" });

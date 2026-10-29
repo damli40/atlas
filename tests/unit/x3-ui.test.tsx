@@ -106,8 +106,8 @@ describe("X3 UI: failure labels", () => {
   });
 });
 
-describe("X3 review M2: the paste screen shows failure labels only after the round's bets are sealed", () => {
-  it("with a function picked and no sealed bets, the labels are not even asked for; the page says when they appear", async () => {
+describe("X3 review round 2 (D50): labels are shown before betting", () => {
+  it("with a function picked and no round yet, the paste screen asks for the labels and shows them", async () => {
     const asked: unknown[] = [];
     const PASTED: PasteAnswer = {
       target: { kind: "pasted", ref: "pasted:abc", codeSha256: "a".repeat(64), language: "ts" },
@@ -134,8 +134,7 @@ describe("X3 review M2: the paste screen shows failure labels only after the rou
       await new Promise((r) => setTimeout(r, 20));
     });
     expect(host.querySelector('input[type="radio"]:checked')).not.toBeNull();
-    expect(asked).toEqual([]);
-    expect(host.querySelector('[data-testid="paste-failure-labels"]')).toBeNull();
-    expect(host.querySelector('[data-testid="labels-after-seal"]')!.textContent).toMatch(/appear once your bets on a round are sealed/);
+    expect(asked).toHaveLength(1);
+    expect(host.querySelector('[data-testid="paste-failure-labels"]')).not.toBeNull();
   });
 });

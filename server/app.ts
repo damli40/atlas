@@ -130,7 +130,8 @@ import { MAX_PASTED_PROMPT_CHARS } from "./meta/pasted-guard";
 import { createOutlineRoutes, DEFAULT_OUTLINES_PER_IP_PER_HOUR, OUTLINE_BODY_BYTES, type OutlineOptions } from "./outline/routes";
 import { memoryTrackStore, type Person, type TrackStore } from "./track-store";
 import { entriesFromRound, recordBefore, trackRecordOf, weakSpotSummary, type TrackRecord } from "../src/track-record";
-import { DEFAULT_LABELS_PER_CLIENT_PER_HOUR, registerLabelRoutes } from "./labels";
+import { createLabeler, DEFAULT_LABELS_PER_CLIENT_PER_HOUR } from "./labels";
+import { labelsForBettors } from "../src/failure-labels";
 import { currentPrincipal } from "./access/context";
 
 const REPO_ROOT = fileURLToPath(new URL("../", import.meta.url));
@@ -693,6 +694,20 @@ export function createApp(opts: AppOptions = {}) {
       outlinesByIp.take(ip);
       return pastesByIp.take(ip);
     }, takeModelRound: (c) => modelRoundsByIp.take(clientOf(c)), takeGithubRead: () => githubReads.take() });
+  // X3 review M3: label requests per client an hour (per invite code when there is one).
+  const labelsByIp = createHourlyLimit(envCount(process.env.ATLAS_LABELS_PER_IP_PER_HOUR, DEFAULT_LABELS_PER_CLIENT_PER_HOUR), "label requests");
+  // X3 (D28): common-failure labels for a pasted function and for every confirmed part of an outline (plain code).
+  // D50: the same labels go into a pasted round's bettor text, so every bettor sees them before betting.
+  const labeler = createLabeler({
+    paste,
+    betStore,
+    proofOf,
+    takeLabels: (c) => labelsByIp.take(clientOf(c)),
+    outlineJobOf: (id) => {
+      const j = outline.jobOf(id);
+      return j ? { sessionId: j.sessionId, ...(j.section ? { section: j.section } : {}) } : undefined;
+    },
+  });
   /** The text of one file of a target, as Atlas read it. */
   const fileTextOf = (target: Target, file: string): string | undefined => {
     if (target.kind === "ts-fixture") return file === target.ref ? readFixture(target) : undefined;
@@ -935,19 +950,7 @@ export function createApp(opts: AppOptions = {}) {
   });
   registerEventRoutes(app, agentLog); // D02-05: GET /events/:sessionId (SSE)
   paste.register(app); // E3: GET /paste/languages, POST /paste, /paste/proposals, /paste/claim
-  // X3 review M3: label requests per client an hour (per invite code when there is one).
-  const labelsByIp = createHourlyLimit(envCount(process.env.ATLAS_LABELS_PER_IP_PER_HOUR, DEFAULT_LABELS_PER_CLIENT_PER_HOUR), "label requests");
-  // X3 (D28): common-failure labels for a pasted function and for every confirmed part of an outline (plain code).
-  registerLabelRoutes(app, {
-    paste,
-    betStore,
-    proofOf,
-    takeLabels: (c) => labelsByIp.take(clientOf(c)),
-    outlineJobOf: (id) => {
-      const j = outline.jobOf(id);
-      return j ? { sessionId: j.sessionId, ...(j.section ? { section: j.section } : {}) } : undefined;
-    },
-  });
+  labeler.register(app); // X3 (D28): POST /paste/labels, GET /outline/jobs/:id/labels
 
   // X3 (D27): GET /track-record[?before=<runId>] → this person's record now and, with `before`, their record before
   // that round (null when the round is not in their record). Plain code over their own sealed bets and verdicts.
@@ -1115,12 +1118,14 @@ export function createApp(opts: AppOptions = {}) {
       const call = experiment.params as Extract<Experiment["params"], { shape: "call-function" }>;
       const line = pastedEntry.exports.find((e) => e.name === call.exportName)?.line ?? 0;
       // U1: the questions are part of the text (a quiz lists its options), so they are part of the key.
-      const key = [target.codeSha256, target.language, line, canonicalJson(experiment.proposedBy), canonicalJson(experiment.params), round.repeatOf ?? "", body.quiz ? "quiz" : ""].join("\n");
+      // X3 review round 2 (D50): the called function's failure labels, in the text every bettor gets (and in the key).
+      const labels = labelsForBettors(labeler.forPaste(sessionId, target, call.exportName));
+      const key = [target.codeSha256, target.language, line, canonicalJson(experiment.proposedBy), canonicalJson(experiment.params), round.repeatOf ?? "", body.quiz ? "quiz" : "", ...labels].join("\n");
       const block = paste.fileBlock(target.codeSha256, target.source ?? "", line);
       const cap = pastedSeenCap(round.questions, MAX_PASTED_PROMPT_CHARS);
       const got = paste.headFor(
         key,
-        () => pastedBetHead({ experiment, questions: round.questions, exportLine: line, ...(round.repeatOf ? { repeatOf: round.repeatOf } : {}) }),
+        () => pastedBetHead({ experiment, questions: round.questions, exportLine: line, labels, ...(round.repeatOf ? { repeatOf: round.repeatOf } : {}) }),
         (head) => (head.length + 1 + block.length > cap ? `the text every bettor gets for this test would be ${head.length + 1 + block.length} characters; with the questions around it, a model's prompt may hold at most ${cap}, so this test is not made` : null),
       );
       if (!got.ok) return c.json({ error: got.reason }, 413);
