@@ -25,8 +25,11 @@ const view = q.get("view") ?? "path";
 const spec = view === "stress" ? stress() : (data.specs as unknown as Record<string, RenderSpec>)[view]!;
 const host = document.getElementById("plate")!;
 const drawn = q.get("worker") ? await drawInWorker(spec) : drawSpec(spec, { narrow: innerWidth < 600 });
+const t0 = performance.now();
 const m = mountDrawing(host, drawn, spec, { theme: q.get("theme") === "dark" ? "dark" : "light" });
-Object.assign(window, { __drawn: { kind: drawn.kind, ms: drawn.ms, hidden: drawn.kind === "drawing" ? drawn.scene.hiddenLabels : 0 }, __mount: m });
+// Until the browser has really put it on screen: two animation frames after the SVG goes in.
+await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+Object.assign(window, { __drawn: { kind: drawn.kind, ms: drawn.ms, onScreenMs: performance.now() - t0, hidden: drawn.kind === "drawing" ? drawn.scene.hiddenLabels : 0 }, __mount: m });
 if (q.get("play") && m.player) {
   await (spec.steps.length ? m.player.playSteps() : m.player.entrance());
   for (const mark of spec.marks) await m.player.landMark(mark);
