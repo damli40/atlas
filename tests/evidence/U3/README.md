@@ -103,7 +103,7 @@ These runs also found a real bug: Wonder wrote expiry tests without raising the 
 | tsc | exit 0 | `tsc-output.txt` |
 | no-local-paths | pass | in the full suite |
 
-**One test fails on this branch on purpose until the merge:** `bench-order (h)`. Commit 7cb133e changed `bench/models/run.ts`, and its log entry is in the next commit, 09dcfc7, because a hook blocked `git commit --amend`. Fold those two into one commit at merge. SUITE_FOLD
+**One test fails on this branch on purpose until the merge:** `bench-order (h)`. Commit 7cb133e changed `bench/models/run.ts`, and its log entry is in the next commit, 09dcfc7, because a hook blocked `git commit --amend`. Fold those two into one commit at merge. Checked in a throwaway clone: with those two folded, the tree is byte-identical to this branch and all 35 bench-order tests pass, (h) included.
 
 ## Live spend
 
