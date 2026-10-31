@@ -119,6 +119,19 @@ ledger. Fake: the Meta models, and Muse (the test writes the file).
 **Two E5 tests were changed:** both hard-coded the tool list, which now has 8 tools. Nothing else in E5 changed.
 `tests/tools/g1-fixtures.ts` gained `modalRuntime`, so a pretend Modal run makes a proof that verifies.
 
+## Suite
+
+Full suite on the final branch, twice: [full-suite-1.txt](full-suite-1.txt), [-2](full-suite-2.txt): 0 failed, 2,125 passed,
+35 skipped, both times. `tsc`: [tsc-output.txt](tsc-output.txt), exit 0. `no-local-paths` passes.
+
+**An earlier full run had 7 failures.** Four were mine and are fixed: the two new routes were missing from G1's route table, the
+live proof changed the refusal index (2 tests; now 25 rows), and one count sentence skipped `plural()`. The other 3 were existing
+timing tests (`call-function`, `call-function-review1`, `x3-failure-labels`) that failed in that one run and passed alone and in
+both later full runs. They look load-related, but I did not prove that.
+
+**The refusal index grew by 3 rows for one sealed bet:** Muse Spark declined one question, and the index lists it once per run
+(the first run and two re-runs). The generator was not changed.
+
 ## Known limits
 
 1. **Atlas cannot prove the person typed the words.** This is E5's limit 1, and it matters more here, because the offer
