@@ -54,7 +54,7 @@
   }
  },
  "run": {
-  "id": "PBugC4G5C8",
+  "id": "xvxI-wleE1",
   "experimentId": "r3-fails-twice",
   "runner": "ts",
   "executor": "local",
@@ -168,8 +168,8 @@
     }
    }
   },
-  "startedAt": "2026-10-31T20:05:06.126Z",
-  "finishedAt": "2026-10-31T20:05:06.789Z",
+  "startedAt": "2026-10-31T20:07:46.256Z",
+  "finishedAt": "2026-10-31T20:07:47.699Z",
   "trace": [
    {
     "t": 0,
@@ -259,9 +259,9 @@
     "event": "call_checks",
     "data": {
      "harnessSha256": "79151171257dee924d634b17d55fdca72900356d4262fd78d00c3e1e563beb49",
-     "controlRunId": "0EKnT-meNJ",
+     "controlRunId": "fKpysN7WLB",
      "controlPassed": true,
-     "controlFinishedAt": "2026-10-31T20:05:06.126Z",
+     "controlFinishedAt": "2026-10-31T20:07:46.256Z",
      "runtime": {
       "executor": "local",
       "node": "v25.8.1"
@@ -283,6 +283,6 @@
    }
   },
   "controlPassed": true,
-  "controlRunId": "0EKnT-meNJ"
+  "controlRunId": "fKpysN7WLB"
  }
 }
