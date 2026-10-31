@@ -29,6 +29,7 @@ import { FORK_BLOCK, PR578_CODE_SHA256 } from "../runners/evm/moonwell-base";
 import { evaluateReplayRule, falseAlarmFromRun } from "./falsealarm";
 import { chainlinkTo1e18, usdTimesRatio1e18 } from "./units";
 import { canonicalJson, jsonDepth, sha256Hex, verifySeal } from "./seal";
+import { CONFIDENCE_LEVELS } from "./felt";
 import { applyFileDiff, parseUnifiedDiff, type DiffFile } from "./diff";
 import { CHANGE_CAPTION, theoryCaptions, towardFromBets } from "./change";
 import { planChangedConfig } from "../runners/change";
@@ -127,6 +128,8 @@ const betSchema = z
     sealedHash: sha,
     rationale: z.string().optional(),
     repeat: z.literal(true).optional(),
+    // Added X4 (D56): the person's one tap, sealed. Files from before X4 have none (the rules marker says so).
+    confidence: z.enum(CONFIDENCE_LEVELS).optional(),
   })
   .strict();
 
@@ -249,7 +252,7 @@ export const atlasFileSchema = z
   .object({
     version: z.literal(1),
     // R2 review round 1: the rules the file was made under; absent = before R2.
-    rules: z.object({ timing: z.literal("d46"), conditions: z.literal("r2"), watchLimit: z.literal("u2").optional(), literals: z.literal("u3").optional() }).strict().optional(),
+    rules: z.object({ timing: z.literal("d46"), conditions: z.literal("r2"), watchLimit: z.literal("u2").optional(), literals: z.literal("u3").optional(), confidence: z.literal("x4").optional() }).strict().optional(),
     target: targetSchema,
     codeSha256: sha,
     forkBlock: z.number().int().positive().optional(),
@@ -635,7 +638,7 @@ export const MAX_FILE_DEPTH = 200;
  * becomes { ok: false } with the reason. Verify RE-JUDGES the stored run with plain code; it does not re-run it.
  */
 /** R2 review round 1: the rules a file made today is made under (buildAtlasFile writes them). */
-export const CURRENT_RULES = { timing: TIMING_RULE, conditions: CONDITIONS_RULE, watchLimit: "u2", literals: "u3" } as const;
+export const CURRENT_RULES = { timing: TIMING_RULE, conditions: CONDITIONS_RULE, watchLimit: "u2", literals: "u3", confidence: "x4" } as const;
 /** U3: a file whose rules say literals "u3" wrote its call sentences and quiz options in the code's own language. */
 export const literalsLanguageOf = (file: { rules?: { literals?: string }; target: { language?: "js" | "ts" | "py" } }) => (file.rules?.literals === "u3" ? file.target.language : undefined);
 /** U2 (D53): a file whose rules say watchLimit "u2" judges timing options of a call still running at the watch limit. */
@@ -717,6 +720,16 @@ function verifyAtlasFileChecked(raw: unknown): Verification {
     for (const p of evmRunAgreesWithItsTrace(r)) say(`run ${r.id}: ${p}`);
   }
   const runOf = (b: Bet) => file.runs.find((r) => r.experimentId === b.experimentId);
+  // X4 (D56): "How sure are you overall?" is the person's, one value per round, and only files made under X4's rules hold it.
+  for (const b of file.bets) {
+    if (b.confidence === undefined) continue;
+    if (b.who !== "human") say(`bet ${b.id} is ${b.who}'s and carries a "how sure" answer, which only a person gives`);
+    if (file.rules?.confidence !== "x4") say(`bet ${b.id} carries a "how sure" answer, but its file does not say it was made under the rules that record one`);
+  }
+  for (const e of file.experiments) {
+    const said = new Set(file.bets.filter((b) => b.who === "human" && b.experimentId === e.id).map((b) => b.confidence ?? "none"));
+    if (said.size > 1) say(`the person's bets on experiment ${e.id} differ on how sure they were (${[...said].join(", ")}); a round has one answer`);
+  }
   for (const b of file.bets) {
     if (!verifySeal(b)) say(`bet ${b.id}: its fields do not hash to its sealedHash`);
     const run = runOf(b);

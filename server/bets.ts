@@ -27,8 +27,9 @@ import { nanoid } from "nanoid";
 import { z } from "zod";
 import { extraQuestionsFor, questionsFor, type GateContext, type Question } from "../src/gate";
 import { jsonBetValueProblem, sealBet } from "../src/seal";
+import { CONFIDENCE_LEVELS } from "../src/felt";
 import type { JsonValue } from "../src/types";
-import type { Bet, BetAnswer, Experiment, Finding, Run, RunAttempt, Verdict } from "../src/types";
+import type { Bet, BetAnswer, Confidence, Experiment, Finding, Run, RunAttempt, Verdict } from "../src/types";
 import type { ClaimantMode } from "../src/claimants";
 import type { ChainFactsResult } from "../src/chain-facts";
 import { spenderOf } from "./access/context";
@@ -297,6 +298,8 @@ export const humanBetBody = z
     who: z.literal("human"),
     measures: z.string().min(1).max(100),
     answer: humanAnswer,
+    // X4 (D56): optional, person only; one value per round (server/app.ts POST /bets).
+    confidence: z.enum(CONFIDENCE_LEVELS).optional(),
   })
   .strict();
 
@@ -309,6 +312,7 @@ export const humanBetsBody = z
     experimentId: z.string().min(1).max(64),
     who: z.literal("human"),
     bets: z.array(z.object({ measures: z.string().min(1).max(100), answer: humanAnswer }).strict()).min(1).max(20),
+    confidence: z.enum(CONFIDENCE_LEVELS).optional(),
   })
   .strict();
 
@@ -363,8 +367,8 @@ export function checkAnswer(question: Question, answer: HumanBetBody["answer"]):
 }
 
 /** Seal a checked human bet with the SERVER's clock and a fresh server nonce. */
-export function sealHumanBet(round: Round, question: Question, answer: BetAnswer, now: Date = new Date()): Bet {
-  return sealBet({ experimentId: round.experiment.id, who: "human", question: question.text, measures: question.measures, answer, ...(round.repeatOf ? { repeat: true as const } : {}) }, now);
+export function sealHumanBet(round: Round, question: Question, answer: BetAnswer, now: Date = new Date(), confidence?: Confidence): Bet {
+  return sealBet({ experimentId: round.experiment.id, who: "human", question: question.text, measures: question.measures, answer, ...(round.repeatOf ? { repeat: true as const } : {}), ...(confidence ? { confidence } : {}) }, now);
 }
 
 /**

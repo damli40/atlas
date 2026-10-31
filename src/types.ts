@@ -87,7 +87,15 @@ export interface Bet {
    * Sealed with the bet. A track record (X3) can leave these bets out.
    */
   repeat?: true;
+  /**
+   * Added X4 (D56): the person's one tap, "How sure are you overall?". The same value on every one of their bets in the
+   * round, and sealed in each bet's hash, so it cannot change after the run. Never on a model's bet.
+   */
+  confidence?: Confidence;
 }
+
+/** X4 (D56): the three answers to "How sure are you overall?". */
+export type Confidence = "sure" | "think so" | "guess";
 
 /** A plain JSON value (what a fake RPC call may resolve with). */
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
@@ -321,6 +329,8 @@ export interface AtlasRules {
   watchLimit?: "u2";
   /** U3: call sentences and quiz options write values in the code's own language (Python's True, not true). */
   literals?: "u3";
+  /** X4 (D56): this file may hold a person's sealed "how sure" answer. A file from before X4 cannot. */
+  confidence?: "x4";
 }
 
 export interface AtlasFile {
