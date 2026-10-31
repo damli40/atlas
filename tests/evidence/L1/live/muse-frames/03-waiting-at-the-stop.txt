@@ -1,0 +1,82 @@
+
+  Muse Code 1.4.14
+
+❯ /atlas retry.ts retryWithBackoff. I am the person and I answer now, so do not stop to ask: use the allowed test where fetchIt
+  always throws. My bets, typed: outcome threw, virtualMs 700, calls:fetchIt 3. Skip any other question.
+
+◆ Carrying your bets to Atlas — reading the target file first.
+
+  Searched 2 times · ctrl+o
+
+◆ 2 MCP calls · plugin:atlas:atlas · ✓ ×2 · 5.9s · ctrl+o
+
+◆ Using the always-throws test you picked — opening the betting round.
+
+◆ 3 MCP calls · plugin:atlas:atlas · ✓ ×3 · 2s · ctrl+o
+
+◆ ----- [298ab47c6f54] what every bettor sees: begin -----
+  Code: one pasted TypeScript file, 13 lines, fingerprint db4d38fad66c…
+  Where it runs: Atlas's sandbox, with no network, no files and no packages, on a virtual clock that starts at
+  2026-01-01T00:00:00Z (waits cost no real time).
+  Atlas runs it on a simulated clock starting 2026-01-01 UTC, in time zone UTC with an en-US locale, with randomness seeded (seed
+  20260101).
+  What will run: Atlas calls retryWithBackoff(fetchIt, 3, 100). fetchIt (async) throws Error ("always fails") on call 1; every
+  later call throws Error ("always fails") too.
+  Test written by: Muse Wonder 1.0 (muse-wonder-1.0).
+  Atlas watches for at most 30,000 ms of virtual time.
+  Questions (written by plain code):
+  1. What does retryWithBackoff do? Answer: one of returned, threw, never_settled, still_running_at_watch_limit.
+  2. If retryWithBackoff returns, what value does it return, as JSON? Answer: a JSON value (matched when it is exactly the
+     returned value, key order ignored).
+  3. How long until retryWithBackoff returns or throws, in ms of Atlas's virtual clock? Answer: a number in ms, matched within 10%
+     or 1 ms of what the run measures.
+  4. How many times does retryWithBackoff call fetchIt? Answer: a whole number.
+  The test exactly, as JSON (what Atlas runs): {"args":[{"async":true,"calls":[{"do":"throw","errorName":"Error","message":"always
+  fails"}],"kind":"stand-in","name":"fetchIt","then":"repeat_last"},{"kind":"json","value":3},{"kind":"json","value":100}]
+  ,"exportName":"retryWithBackoff","shape":"call-function"}
+  Atlas's failure labels for this function (plain code's reading of its text, before any run of this test):
+  • no overall timeout (retry): found in this code at lines 4–11. The retries have no deadline as a whole, so a call that never
+    answers can hold the caller forever.
+  • only on Atlas's list, not seen in this code (common pattern): retry storm, duplicate side effect.
+  How to bet: Give your best estimate for each question. Decline only if you cannot form any estimate at all; if you decline, say
+  why.
+  The whole file, numbered as on screen, line 2 (where retryWithBackoff is declared) marked ">":
+    1| // Retries a call, waiting longer after each failure.
+  │ 2| export async function retryWithBackoff(fetchIt: () => Promise<unknown>, attempts: number = 3, baseMs: number = 100) {
+    3| let last: unknown;
+    4| for (let i = 0; i < attempts; i++) {
+    5| try {
+    6| return await fetchIt();
+    7| } catch (e) {
+    8| last = e;
+    9| await new Promise((r) => setTimeout(r, baseMs));
+    10| }
+    11| }
+    12| throw last;
+    13| }
+  ----- [298ab47c6f54] what every bettor sees: end -----
+
+  Atlas run BZPNH-8J67 — what the code did:
+  outcome = "threw"; virtualMs = 300; thrownType = "Error"; thrownName = "Error"; thrownMessage = "always fails"; calls:fetchIt =
+  3
+
+  Who bet what:
+  • outcome: you bet "threw", Muse Spark 1.3 bet "threw", the code did "threw" — you: matched, Muse Spark 1.3: matched
+  • returnedJson: you skipped (no bet), Muse Spark 1.3 declined — can't check
+  • virtualMs: you bet 700, Muse Spark 1.3 bet 300, the code did 300 — you: didn't match, Muse Spark 1.3: matched
+  • calls:fetchIt: you bet 3, Muse Spark 1.3 bet 3, the code did 3 — you: matched, Muse Spark 1.3: matched
+
+  Proof card: proof card (http://127.0.0.1:8797/proofs/BZPNH-8J67)
+
+  One of your answers didn't match. Atlas offers this choice:
+
+  If your answers are what you want the code to do, type: my answers are what I want
+
+  Waiting for your reply.
+
+── Voice input (alt(option)+v to start) ──────────────────────────────────────────────────────────────────────────────────────────
+❯ /goal pins a session objective with a progress bar
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  muse-spark-1.3 · low · <scratch>/ws · Launch overrides
+
+

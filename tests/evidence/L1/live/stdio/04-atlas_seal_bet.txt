@@ -1,0 +1,9 @@
+> atlas_seal_bet {"experiment_id":"NoIzB2Uie1","answers":[{"measures":"outcome","typed":"threw"},{"measures":"virtualMs","typed":"700"},{"measures":"calls:fetchIt","typed":"3"}]}
+Sealed by Atlas's server (its clock and its random nonce; the hash is shown before the run). Check these are the person's own words:
+  [outcome] they typed "threw" → sealed as "threw"
+  [virtualMs] they typed "700" → sealed as 700
+  [calls:fetchIt] they typed "3" → sealed as 3
+  outcome: sealed 2026-10-31T20:24:08.036Z, hash b3606f1eda9cd756…
+  virtualMs: sealed 2026-10-31T20:24:08.036Z, hash 6677fbbf03721f01…
+  calls:fetchIt: sealed 2026-10-31T20:24:08.036Z, hash 1fae7874ecc0ee86…
+Next: call atlas_run to run the code.

@@ -1,0 +1,59 @@
+Do you trust this workspace?
+Workspace: <scratch>/ws
+
+Trusting allows project-local skills, rules, hooks, and plugin config to load before the model runs.
+Only trust this workspace when you trust its contents.
+⟩ 1  Trust and continue
+  2  Quit
+
+Use Up/Down or 1/2, then Enter. Esc quits.
+
+  Muse Code 1.4.14
+
+❯ /atlas retry.ts retryWithBackoff
+
+◆ Starting your Atlas bet on retryWithBackoff — locating the file first.
+
+  Searched 2 times · ctrl+o
+
+◆ 2 MCP calls · plugin:atlas:atlas · atlas_propose_tests ✗ · +1 ✓ · 0.3s · ctrl+o
+
+◆ Atlas could not propose a test for retryWithBackoff in retry.ts.
+
+  Tool message, as returned:
+
+  │ Muse Wonder 1.0 (muse-wonder-1.0) proposed no test: the model call failed: spend limit reached: $0.00 of the $0.30 ceiling is
+  │ used or held; this one could cost up to $0.34.
+
+  I stopped here and did not work around it. You can now accept the edit, change it, or ask for another test — in this case, let
+  me know how you'd like to proceed (for example, try again later).
+
+── Voice input (alt(option)+v to start) ──────────────────────────────────────────────────────────────────────────────────────────
+❯
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  muse-spark-1.3 · low · <scratch>/ws · Launch overrides
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

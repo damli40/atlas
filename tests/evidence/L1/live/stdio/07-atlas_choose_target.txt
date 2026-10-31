@@ -1,0 +1,3 @@
+> atlas_choose_target {"experiment_id":"NoIzB2Uie1","typed":"yes, go ahead"}
+[isError]
+Nothing was chosen: "yes, go ahead" is not the choice. Only the person's own words "my answers are what I want" choose this, so do not edit toward their answers. Ask them.

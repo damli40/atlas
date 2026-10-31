@@ -15,6 +15,7 @@
 // checks the two are the same.)
 
 import { canonicalJson, sha256Hex } from "./seal";
+import { plural } from "./words";
 import type { Bet, JsonValue, Run, Verdict } from "./types";
 
 /** The person's own words for the choice. Nothing else counts as choosing. */
@@ -175,7 +176,7 @@ export function loopStopOf(tries: readonly LoopTry[], targetBets: readonly LoopT
   const mine = targetBets.map((t) => last.verdicts?.find((v) => v.betId === t.betId));
   const count = (o: Verdict["outcome"]) => mine.filter((v) => v?.outcome === o).length;
   if (mine.length > 0 && count("matched") === mine.length) return { reason: "all_matched", says: `Atlas stopped: every answer you sealed matched on re-run ${tries.length}. ${MATCHED_MEANS}` };
-  if (count("not_matched") > 0) return tries.length >= maxTries ? { reason: "cap", says: `${capWords}. ${count("not_matched")} of your ${mine.length} answers still didn't match` } : null;
+  if (count("not_matched") > 0) return tries.length >= maxTries ? { reason: "cap", says: `${capWords}. ${count("not_matched")} of your ${plural(mine.length, "answer")} still didn't match` } : null;
   if (count("matched") === 0) return { reason: "cant_check", says: `Atlas stopped: none of your answers could be checked on this run, so there is nothing to compare them with. The rest is yours` };
   return { reason: "nothing_left", says: `Atlas stopped: none of your answers is left as "didn't match", but ${mine.length - count("matched")} could not be checked on this run, so Atlas cannot say they matched. ${MATCHED_MEANS}` };
 }

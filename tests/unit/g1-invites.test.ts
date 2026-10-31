@@ -44,6 +44,8 @@ const SPENDING: { method: string; route: string; path: string; body?: unknown; s
   { method: "POST", route: "/runs", path: "/runs", body: {}, spends: "a sandbox (Modal) or an EVM fork (RPC)" },
   { method: "POST", route: "/sweeps", path: "/sweeps", body: {}, spends: "a sandbox" },
   { method: "POST", route: "/changes", path: "/changes", body: {}, spends: "Muse Code / fixer chat (Meta) + a replay (sandbox or EVM fork)" },
+  { method: "POST", route: "/loop/choose", path: "/loop/choose", body: {}, spends: "nothing itself; it opens the retry loop's re-runs (L1)" },
+  { method: "POST", route: "/loop/rerun", path: "/loop/rerun", body: {}, spends: "a re-run of the test on the changed code (sandbox, L1)" },
   { method: "POST", route: "/adversary", path: "/adversary", body: {}, spends: "Adversary (Meta) + model bets + a run" },
   { method: "GET", route: "/replay/:runId", path: "/replay/x", spends: "a re-run from a proof card (sandbox or EVM fork)" },
   { method: "GET", route: "/events/:sessionId", path: "/events/x", spends: "nothing in dollars; an open live-log stream holds a connection (closed since review round 2)" },
