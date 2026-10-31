@@ -2,6 +2,7 @@
 // All on-chain numbers are decimal strings of integers (bigint-safe), never JS numbers.
 
 import type { FalseAlarmRow, PassRuleLine } from "./falsealarm";
+import type { AtlasLoop } from "./loop";
 import type { OutlineSection } from "./outline/types";
 import type { RunCondition } from "./conditions";
 export type TargetKind = "ts-fixture" | "github-pr" | "pasted";
@@ -360,6 +361,8 @@ export interface AtlasFile {
   bettors?: BettorSlot[];
   /** Added final review S2: earlier attempts of this experiment that did not finish, oldest first. Older files have none. */
   attempts?: RunAttempt[];
+  /** Added L1 (D57): the person's choice and each re-run of the same test toward their sealed answers (src/loop.ts). */
+  loop?: AtlasLoop;
   /** Text a replayer must show: pre-existing labels, "replayed on a fork", "mechanism, not an incident". */
   captions: string[];
   /**

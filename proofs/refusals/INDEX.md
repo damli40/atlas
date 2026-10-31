@@ -5,7 +5,7 @@
 
 Every real "can't check" verdict and every real gate rejection recorded in this repo, each traceable to a file. Nothing here was made for this index: plain code reads it from the run files (how: the comment at the top of `tests/tools/refusal-index.ts`).
 
-**Counts:** 22 can't-check verdicts (18 on bets Muse Spark 1.3 (muse-spark-1.3) declined, 2 on bets Muse Spark Open (meta-models/muse-spark-open-1026) · via Baseten declined, 1 from plain code that had nothing to measure, 1 replay of a declined bet) · 1 gate rejection · **0 gate rejections of a model's proposal** · 2 model slots with no usable answer (not declines, not counted).
+**Counts:** 25 can't-check verdicts (19 on bets Muse Spark 1.3 (muse-spark-1.3) declined, 2 on bets Muse Spark Open (meta-models/muse-spark-open-1026) · via Baseten declined, 1 from plain code that had nothing to measure, 3 replays of a declined bet) · 1 gate rejection · **0 gate rejections of a model's proposal** · 2 model slots with no usable answer (not declines, not counted).
 
 ## Can't-check verdicts (src/judge.ts)
 
@@ -33,6 +33,9 @@ Every real "can't check" verdict and every real gate rejection recorded in this 
 | 20 | 2026-10-27 10:56 | `-pgWeZFo9d` | `CAsObyR5nT` (priceUsd1e18:cbETH) | Muse Spark 1.3 (muse-spark-1.3) | the bettor declined · "live Chainlink cbETH price at future Base block 42194662 is not knowable in advance" | [`2026-10-27--pgWeZFo9d-CAsObyR5nT.json`](2026-10-27--pgWeZFo9d-CAsObyR5nT.json), `tests/evidence/D07-02/run-moonwell.json` |
 | 21 | 2026-10-27 10:56 | `6WcBUBJ1D0` | `Fv8nnN78rL` (priceUsd1e18:cbETH) | Muse Spark 1.3 (muse-spark-1.3) | the bettor declined · "no reliable cbETH USD price for Base block 42194663 on 2026-02-15" | [`2026-10-27-6WcBUBJ1D0-Fv8nnN78rL.json`](2026-10-27-6WcBUBJ1D0-Fv8nnN78rL.json), `tests/evidence/D07-02/adversary-moonwell.json` |
 | 22 | 2026-10-28 12:29 | `Ehs2a0hAe8` | `zHvVIYzNJU` (returnedJson) | Muse Spark 1.3 (muse-spark-1.3) | the bettor declined · "function throws so there is no return value to estimate" | `tests/evidence/E5/live/proof-Ehs2a0hAe8.atlas.json` |
+| 23 | 2026-10-31 20:24 | `Jgg8cVVmbw` | `v8aSDlg2Is` (returnedJson) | Muse Spark 1.3 (muse-spark-1.3) | the bettor declined · "function throws so there is no return value to estimate" | `tests/evidence/L1/live/stdio/proof-pVDWj2CsFL.atlas.json` |
+| 24 | 2026-10-31 20:24 | `nPXmkpF9fx` | `v8aSDlg2Is` (returnedJson) | Muse Spark 1.3 (muse-spark-1.3) | the bettor declined (the same sealed bet, judged again on a replay) · "function throws so there is no return value to estimate" | `tests/evidence/L1/live/stdio/proof-pVDWj2CsFL.atlas.json` |
+| 25 | 2026-10-31 20:24 | `pVDWj2CsFL` | `v8aSDlg2Is` (returnedJson) | Muse Spark 1.3 (muse-spark-1.3) | the bettor declined (the same sealed bet, judged again on a replay) · "function throws so there is no return value to estimate" | `tests/evidence/L1/live/stdio/proof-pVDWj2CsFL.atlas.json` |
 
 ## Gate rejections (src/gate.ts)
 

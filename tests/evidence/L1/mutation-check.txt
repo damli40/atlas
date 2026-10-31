@@ -1,0 +1,6 @@
+no cap in the stop rule:       Tests  1 failed | 23 passed (24)
+seals not rechecked:       Tests  1 failed | 23 passed (24)
+server takes any words:       Tests  1 failed | 23 passed (24)
+plugin takes any words:       Tests  1 failed | 23 passed (24)
+verify does not re-judge tries:       Tests  1 failed | 23 passed (24)
+a different seed:       Tests  11 failed | 13 passed (24)

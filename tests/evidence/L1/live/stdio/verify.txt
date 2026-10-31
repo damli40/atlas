@@ -1,0 +1,5 @@
+verify: ok
+tampered copy: loop: its fingerprint is not the hash of its contents, so it was edited after Atlas wrote it; loop: try 2: the verdict on bet PdKtHXblBT is not what src/judge.ts gives (stored not_matched); loop: it says it stopped (all_matched), but its tries give no stop
+measured per try: [600,700]
+seeds: ["20260101","20260101","20260101"]
+stopped: all_matched

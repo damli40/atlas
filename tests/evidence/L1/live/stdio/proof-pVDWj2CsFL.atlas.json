@@ -1,0 +1,1236 @@
+{
+  "version": 1,
+  "rules": {
+    "timing": "d46",
+    "conditions": "r2",
+    "watchLimit": "u2"
+  },
+  "target": {
+    "kind": "pasted",
+    "ref": "pasted:db4d38fad66c",
+    "codeSha256": "db4d38fad66ce39a201f23e69895ba7845bb788d5c3397f01f79e34dc5f8edb7",
+    "language": "ts",
+    "source": "// Retries a call, waiting longer after each failure.\nexport async function retryWithBackoff(fetchIt: () => Promise<unknown>, attempts: number = 3, baseMs: number = 100) {\n  let last: unknown;\n  for (let i = 0; i < attempts; i++) {\n    try {\n      return await fetchIt();\n    } catch (e) {\n      last = e;\n      await new Promise((r) => setTimeout(r, baseMs));\n    }\n  }\n  throw last;\n}\n"
+  },
+  "codeSha256": "db4d38fad66ce39a201f23e69895ba7845bb788d5c3397f01f79e34dc5f8edb7",
+  "seed": "20260101",
+  "experiments": [
+    {
+      "id": "NoIzB2Uie1",
+      "target": {
+        "kind": "pasted",
+        "ref": "pasted:db4d38fad66c",
+        "codeSha256": "db4d38fad66ce39a201f23e69895ba7845bb788d5c3397f01f79e34dc5f8edb7",
+        "language": "ts",
+        "source": "// Retries a call, waiting longer after each failure.\nexport async function retryWithBackoff(fetchIt: () => Promise<unknown>, attempts: number = 3, baseMs: number = 100) {\n  let last: unknown;\n  for (let i = 0; i < attempts; i++) {\n    try {\n      return await fetchIt();\n    } catch (e) {\n      last = e;\n      await new Promise((r) => setTimeout(r, baseMs));\n    }\n  }\n  throw last;\n}\n"
+      },
+      "runner": "ts",
+      "params": {
+        "shape": "call-function",
+        "exportName": "retryWithBackoff",
+        "args": [
+          {
+            "kind": "stand-in",
+            "name": "fetchIt",
+            "async": true,
+            "calls": [
+              {
+                "do": "throw",
+                "errorName": "Error",
+                "message": "always fails"
+              }
+            ],
+            "then": "repeat_last"
+          },
+          {
+            "kind": "json",
+            "value": 3
+          },
+          {
+            "kind": "json",
+            "value": 100
+          }
+        ]
+      },
+      "proposedBy": {
+        "role": "investigator",
+        "model": "muse-wonder-1.0"
+      },
+      "gate": {
+        "allowed": true
+      }
+    }
+  ],
+  "bets": [
+    {
+      "id": "PdKtHXblBT",
+      "experimentId": "NoIzB2Uie1",
+      "who": "human",
+      "question": "Atlas calls retryWithBackoff(fetchIt, 3, 100). fetchIt (async) throws Error (\"always fails\") on call 1; every later call throws Error (\"always fails\") too. What does retryWithBackoff do?",
+      "measures": "outcome",
+      "answer": {
+        "kind": "enum",
+        "value": "threw",
+        "options": [
+          "returned",
+          "threw",
+          "never_settled",
+          "still_running_at_watch_limit"
+        ]
+      },
+      "nonce": "432a050f059d703b7cbd0c2135ee0936",
+      "sealedAt": "2026-10-31T20:24:08.036Z",
+      "sealedHash": "b3606f1eda9cd7562dd0ac05e1214ba1e417517a07398113c595c12a6da99220"
+    },
+    {
+      "id": "Bt0oFRKSSg",
+      "experimentId": "NoIzB2Uie1",
+      "who": "human",
+      "question": "Atlas calls retryWithBackoff(fetchIt, 3, 100). fetchIt (async) throws Error (\"always fails\") on call 1; every later call throws Error (\"always fails\") too. How long until retryWithBackoff returns or throws, in ms of Atlas's virtual clock?",
+      "measures": "virtualMs",
+      "answer": {
+        "kind": "number",
+        "value": 700,
+        "tolerancePct": 10,
+        "unit": "ms"
+      },
+      "nonce": "51872861bd05b0b96166122549711eac",
+      "sealedAt": "2026-10-31T20:24:08.036Z",
+      "sealedHash": "6677fbbf03721f018e08c399b625534c3f5318edccfccaa3be6ee9bb7a750c07"
+    },
+    {
+      "id": "OhdkDShSjJ",
+      "experimentId": "NoIzB2Uie1",
+      "who": "human",
+      "question": "Atlas calls retryWithBackoff(fetchIt, 3, 100). fetchIt (async) throws Error (\"always fails\") on call 1; every later call throws Error (\"always fails\") too. How many times does retryWithBackoff call fetchIt?",
+      "measures": "calls:fetchIt",
+      "answer": {
+        "kind": "integer",
+        "value": 3
+      },
+      "nonce": "e66df8f18c08a4ad301f4d34695ad293",
+      "sealedAt": "2026-10-31T20:24:08.036Z",
+      "sealedHash": "1fae7874ecc0ee86f681a4d41085b24d7e8738b85e12541a531942cef41e87c8"
+    },
+    {
+      "id": "RQGq3hTB-j",
+      "experimentId": "NoIzB2Uie1",
+      "who": "model:muse-spark-1.3",
+      "question": "Atlas calls retryWithBackoff(fetchIt, 3, 100). fetchIt (async) throws Error (\"always fails\") on call 1; every later call throws Error (\"always fails\") too. What does retryWithBackoff do?",
+      "measures": "outcome",
+      "answer": {
+        "kind": "enum",
+        "value": "threw",
+        "options": [
+          "returned",
+          "threw",
+          "never_settled",
+          "still_running_at_watch_limit"
+        ]
+      },
+      "nonce": "60cc3a178a96fcdfbe656df66ce5b5de",
+      "sealedAt": "2026-10-31T20:24:09.286Z",
+      "sealedHash": "885cff9dffe7b92f92c180679ad4206646977b1cc3d9a44be35ca8c814d6b227",
+      "rationale": "fetchIt always throws so loop exhausts 3 attempts and throws last error."
+    },
+    {
+      "id": "v8aSDlg2Is",
+      "experimentId": "NoIzB2Uie1",
+      "who": "model:muse-spark-1.3",
+      "question": "Atlas calls retryWithBackoff(fetchIt, 3, 100). fetchIt (async) throws Error (\"always fails\") on call 1; every later call throws Error (\"always fails\") too. If retryWithBackoff returns, what value does it return, as JSON?",
+      "measures": "returnedJson",
+      "answer": {
+        "kind": "declined",
+        "reason": "unknown: function throws so there is no return value to estimate"
+      },
+      "nonce": "996785e1fed616090cd3184dc37e4048",
+      "sealedAt": "2026-10-31T20:24:09.286Z",
+      "sealedHash": "40721cfe8cb1c6628790ea4862900de41a0a0cdcf1404872c3d6f088d9201cd1",
+      "rationale": "Outcome is throw, so no returned value exists."
+    },
+    {
+      "id": "g5tP4th4hp",
+      "experimentId": "NoIzB2Uie1",
+      "who": "model:muse-spark-1.3",
+      "question": "Atlas calls retryWithBackoff(fetchIt, 3, 100). fetchIt (async) throws Error (\"always fails\") on call 1; every later call throws Error (\"always fails\") too. How long until retryWithBackoff returns or throws, in ms of Atlas's virtual clock?",
+      "measures": "virtualMs",
+      "answer": {
+        "kind": "number",
+        "value": 300,
+        "tolerancePct": 10,
+        "unit": "ms"
+      },
+      "nonce": "3893cc326e21d64734f1364f143ee8b3",
+      "sealedAt": "2026-10-31T20:24:09.286Z",
+      "sealedHash": "b454f23cb06c17251dd4cd1900ecd35430f33828aefe8b35482f0f40828583ca",
+      "rationale": "Three failures each wait 100ms via setTimeout before throwing, totaling 300ms virtual time."
+    },
+    {
+      "id": "pN7IZ5wTto",
+      "experimentId": "NoIzB2Uie1",
+      "who": "model:muse-spark-1.3",
+      "question": "Atlas calls retryWithBackoff(fetchIt, 3, 100). fetchIt (async) throws Error (\"always fails\") on call 1; every later call throws Error (\"always fails\") too. How many times does retryWithBackoff call fetchIt?",
+      "measures": "calls:fetchIt",
+      "answer": {
+        "kind": "integer",
+        "value": 3
+      },
+      "nonce": "f184ebd005e792f42a332aa9012c48b8",
+      "sealedAt": "2026-10-31T20:24:09.286Z",
+      "sealedHash": "9da97f3e0eeb0a49056f178a048f51247cd1e562bfed8e7816ac08ee5b2ecb85",
+      "rationale": "Loop runs i=0,1,2 calling fetchIt once per iteration."
+    }
+  ],
+  "runs": [
+    {
+      "id": "pVDWj2CsFL",
+      "experimentId": "NoIzB2Uie1",
+      "runner": "ts",
+      "executor": "local",
+      "codeSha256": "db4d38fad66ce39a201f23e69895ba7845bb788d5c3397f01f79e34dc5f8edb7",
+      "seed": "20260101",
+      "timeZone": "UTC",
+      "locale": "en-US",
+      "conditions": [],
+      "twin": {
+        "trace": [
+          {
+            "t": 0,
+            "event": "start",
+            "data": {
+              "exportName": "retryWithBackoff",
+              "args": 3,
+              "watchLimitMs": 30000
+            }
+          },
+          {
+            "t": 0,
+            "event": "stand_in_call",
+            "data": {
+              "name": "fetchIt",
+              "n": 1
+            }
+          },
+          {
+            "t": 0,
+            "event": "stand_in_throws",
+            "data": {
+              "name": "fetchIt",
+              "n": 1,
+              "errorName": "Error"
+            }
+          },
+          {
+            "t": 100,
+            "event": "stand_in_call",
+            "data": {
+              "name": "fetchIt",
+              "n": 2
+            }
+          },
+          {
+            "t": 100,
+            "event": "stand_in_throws",
+            "data": {
+              "name": "fetchIt",
+              "n": 2,
+              "errorName": "Error"
+            }
+          },
+          {
+            "t": 200,
+            "event": "stand_in_call",
+            "data": {
+              "name": "fetchIt",
+              "n": 3
+            }
+          },
+          {
+            "t": 200,
+            "event": "stand_in_throws",
+            "data": {
+              "name": "fetchIt",
+              "n": 3,
+              "errorName": "Error"
+            }
+          },
+          {
+            "t": 300,
+            "event": "threw",
+            "data": {
+              "type": "Error",
+              "name": "Error"
+            }
+          },
+          {
+            "t": 300,
+            "event": "clock_moves",
+            "data": {
+              "at": [
+                100,
+                200,
+                300
+              ]
+            }
+          }
+        ],
+        "result": {
+          "measured": {
+            "outcome": "threw",
+            "virtualMs": 300,
+            "thrownType": "Error",
+            "thrownName": "Error",
+            "thrownMessage": "always fails",
+            "calls:fetchIt": 3
+          },
+          "notMeasured": {
+            "returnedJson": "the call threw, so it returned nothing",
+            "returnedType": "the call threw, so it returned nothing"
+          }
+        }
+      },
+      "startedAt": "2026-10-31T20:24:09.300Z",
+      "finishedAt": "2026-10-31T20:24:11.311Z",
+      "trace": [
+        {
+          "t": 0,
+          "event": "start",
+          "data": {
+            "exportName": "retryWithBackoff",
+            "args": 3,
+            "watchLimitMs": 30000
+          }
+        },
+        {
+          "t": 0,
+          "event": "stand_in_call",
+          "data": {
+            "name": "fetchIt",
+            "n": 1
+          }
+        },
+        {
+          "t": 0,
+          "event": "stand_in_throws",
+          "data": {
+            "name": "fetchIt",
+            "n": 1,
+            "errorName": "Error"
+          }
+        },
+        {
+          "t": 100,
+          "event": "stand_in_call",
+          "data": {
+            "name": "fetchIt",
+            "n": 2
+          }
+        },
+        {
+          "t": 100,
+          "event": "stand_in_throws",
+          "data": {
+            "name": "fetchIt",
+            "n": 2,
+            "errorName": "Error"
+          }
+        },
+        {
+          "t": 200,
+          "event": "stand_in_call",
+          "data": {
+            "name": "fetchIt",
+            "n": 3
+          }
+        },
+        {
+          "t": 200,
+          "event": "stand_in_throws",
+          "data": {
+            "name": "fetchIt",
+            "n": 3,
+            "errorName": "Error"
+          }
+        },
+        {
+          "t": 300,
+          "event": "threw",
+          "data": {
+            "type": "Error",
+            "name": "Error"
+          }
+        },
+        {
+          "t": 300,
+          "event": "clock_moves",
+          "data": {
+            "at": [
+              100,
+              200,
+              300
+            ]
+          }
+        },
+        {
+          "t": 300,
+          "event": "call_checks",
+          "data": {
+            "harnessSha256": "79151171257dee924d634b17d55fdca72900356d4262fd78d00c3e1e563beb49",
+            "controlRunId": "fCWyny3yq1",
+            "controlPassed": true,
+            "controlFinishedAt": "2026-10-31T20:22:16.602Z",
+            "runtime": {
+              "executor": "local",
+              "node": "v25.8.1"
+            }
+          }
+        }
+      ],
+      "result": {
+        "measured": {
+          "outcome": "threw",
+          "virtualMs": 300,
+          "thrownType": "Error",
+          "thrownName": "Error",
+          "thrownMessage": "always fails",
+          "calls:fetchIt": 3
+        },
+        "notMeasured": {
+          "returnedJson": "the call threw, so it returned nothing",
+          "returnedType": "the call threw, so it returned nothing"
+        }
+      },
+      "controlPassed": true,
+      "controlRunId": "fCWyny3yq1"
+    }
+  ],
+  "verdicts": [
+    {
+      "betId": "PdKtHXblBT",
+      "runId": "pVDWj2CsFL",
+      "outcome": "matched",
+      "observed": "threw",
+      "judgedBy": "src/judge.ts"
+    },
+    {
+      "betId": "Bt0oFRKSSg",
+      "runId": "pVDWj2CsFL",
+      "outcome": "not_matched",
+      "observed": 300,
+      "judgedBy": "src/judge.ts",
+      "timingRule": "d46"
+    },
+    {
+      "betId": "OhdkDShSjJ",
+      "runId": "pVDWj2CsFL",
+      "outcome": "matched",
+      "observed": 3,
+      "judgedBy": "src/judge.ts"
+    },
+    {
+      "betId": "RQGq3hTB-j",
+      "runId": "pVDWj2CsFL",
+      "outcome": "matched",
+      "observed": "threw",
+      "judgedBy": "src/judge.ts"
+    },
+    {
+      "betId": "v8aSDlg2Is",
+      "runId": "pVDWj2CsFL",
+      "outcome": "cant_check",
+      "reason": "the bettor declined",
+      "judgedBy": "src/judge.ts"
+    },
+    {
+      "betId": "g5tP4th4hp",
+      "runId": "pVDWj2CsFL",
+      "outcome": "matched",
+      "observed": 300,
+      "judgedBy": "src/judge.ts",
+      "timingRule": "d46"
+    },
+    {
+      "betId": "pN7IZ5wTto",
+      "runId": "pVDWj2CsFL",
+      "outcome": "matched",
+      "observed": 3,
+      "judgedBy": "src/judge.ts"
+    }
+  ],
+  "agentLog": [
+    {
+      "t": "2026-10-31T20:24:00.270Z",
+      "role": "human",
+      "action": "pastes one TypeScript file (13 lines, sha256 db4d38fad66c…, 1 exports)",
+      "ref": {
+        "kind": "target",
+        "id": "db4d38fad66ce39a201f23e69895ba7845bb788d5c3397f01f79e34dc5f8edb7"
+      }
+    },
+    {
+      "t": "2026-10-31T20:24:05.702Z",
+      "role": "investigator",
+      "model": "muse-wonder-1.0",
+      "action": "proposes 3 tests for retryWithBackoff (3 allowed by the gate)",
+      "usage": {
+        "promptTokens": 1133,
+        "completionTokens": 924,
+        "reasoningTokens": 543,
+        "usd": 0.023012
+      }
+    },
+    {
+      "t": "2026-10-31T20:24:05.702Z",
+      "role": "gate",
+      "action": "allows test 8-NI32shdb for retryWithBackoff",
+      "ref": {
+        "kind": "experiment",
+        "id": "8-NI32shdb"
+      }
+    },
+    {
+      "t": "2026-10-31T20:24:05.702Z",
+      "role": "gate",
+      "action": "allows test j86kswa4ww for retryWithBackoff",
+      "ref": {
+        "kind": "experiment",
+        "id": "j86kswa4ww"
+      }
+    },
+    {
+      "t": "2026-10-31T20:24:05.702Z",
+      "role": "gate",
+      "action": "allows test oDMktIVO5f for retryWithBackoff",
+      "ref": {
+        "kind": "experiment",
+        "id": "oDMktIVO5f"
+      }
+    },
+    {
+      "t": "2026-10-31T20:24:05.719Z",
+      "role": "gate",
+      "action": "allowed (src/gate.ts)",
+      "ref": {
+        "kind": "experiment",
+        "id": "NoIzB2Uie1"
+      }
+    },
+    {
+      "t": "2026-10-31T20:24:08.036Z",
+      "role": "human",
+      "action": "seals a bet on outcome",
+      "ref": {
+        "kind": "bet",
+        "id": "PdKtHXblBT"
+      }
+    },
+    {
+      "t": "2026-10-31T20:24:08.036Z",
+      "role": "human",
+      "action": "seals a bet on virtualMs",
+      "ref": {
+        "kind": "bet",
+        "id": "Bt0oFRKSSg"
+      }
+    },
+    {
+      "t": "2026-10-31T20:24:08.036Z",
+      "role": "human",
+      "action": "seals a bet on calls:fetchIt",
+      "ref": {
+        "kind": "bet",
+        "id": "OhdkDShSjJ"
+      }
+    },
+    {
+      "t": "2026-10-31T20:24:09.287Z",
+      "role": "claimant",
+      "model": "muse-spark-1.3",
+      "action": "bets on NoIzB2Uie1 (4 answers, hidden until the run)",
+      "ref": {
+        "kind": "experiment",
+        "id": "NoIzB2Uie1"
+      },
+      "usage": {
+        "promptTokens": 1223,
+        "completionTokens": 936,
+        "reasoningTokens": 699,
+        "usd": 0.023612
+      }
+    },
+    {
+      "t": "2026-10-31T20:24:09.287Z",
+      "role": "seal",
+      "action": "seals 4 bets from muse-spark-1.3 at server time",
+      "ref": {
+        "kind": "experiment",
+        "id": "NoIzB2Uie1"
+      }
+    },
+    {
+      "t": "2026-10-31T20:24:09.294Z",
+      "role": "seal",
+      "action": "verifies 7 seals"
+    },
+    {
+      "t": "2026-10-31T20:24:11.311Z",
+      "role": "runner",
+      "action": "runs pasted:db4d38fad66c in the sandbox (NoIzB2Uie1)",
+      "ref": {
+        "kind": "run",
+        "id": "pVDWj2CsFL"
+      }
+    },
+    {
+      "t": "2026-10-31T20:24:11.311Z",
+      "role": "judge",
+      "action": "judges 7 bets: 5 matched, 1 didn't match, 1 can't check",
+      "ref": {
+        "kind": "run",
+        "id": "pVDWj2CsFL"
+      }
+    }
+  ],
+  "bettors": [
+    {
+      "who": "human",
+      "status": "sealed"
+    },
+    {
+      "who": "model:muse-spark-1.3",
+      "status": "sealed"
+    }
+  ],
+  "loop": {
+    "choice": {
+      "typed": "my answers are what I want",
+      "chosenAt": "2026-10-31T20:24:13.647Z",
+      "fromRunId": "pVDWj2CsFL"
+    },
+    "targetBets": [
+      {
+        "betId": "PdKtHXblBT",
+        "sealedHash": "b3606f1eda9cd7562dd0ac05e1214ba1e417517a07398113c595c12a6da99220"
+      },
+      {
+        "betId": "Bt0oFRKSSg",
+        "sealedHash": "6677fbbf03721f018e08c399b625534c3f5318edccfccaa3be6ee9bb7a750c07"
+      },
+      {
+        "betId": "OhdkDShSjJ",
+        "sealedHash": "1fae7874ecc0ee86f681a4d41085b24d7e8738b85e12541a531942cef41e87c8"
+      }
+    ],
+    "maxTries": 3,
+    "tries": [
+      {
+        "try": 1,
+        "codeSha256": "8bd12efd8b260ce8c1fd0f4e5422e3ea1e65a04f2c846e2393a72d805d1852c1",
+        "source": "// Retries a call, waiting longer after each failure.\nexport async function retryWithBackoff(fetchIt: () => Promise<unknown>, attempts: number = 3, baseMs: number = 100) {\n  let last: unknown;\n  for (let i = 0; i < attempts; i++) {\n    try {\n      return await fetchIt();\n    } catch (e) {\n      last = e;\n      await new Promise((r) => setTimeout(r, baseMs * 2));\n    }\n  }\n  throw last;\n}\n",
+        "changes": {
+          "added": 1,
+          "removed": 1,
+          "lines": [
+            {
+              "tag": "-",
+              "line": 9,
+              "text": "      await new Promise((r) => setTimeout(r, baseMs));"
+            },
+            {
+              "tag": "+",
+              "line": 9,
+              "text": "      await new Promise((r) => setTimeout(r, baseMs * 2));"
+            }
+          ]
+        },
+        "sinceBet": {
+          "added": 1,
+          "removed": 1
+        },
+        "run": {
+          "id": "Jgg8cVVmbw",
+          "experimentId": "NoIzB2Uie1",
+          "runner": "ts",
+          "executor": "local",
+          "codeSha256": "8bd12efd8b260ce8c1fd0f4e5422e3ea1e65a04f2c846e2393a72d805d1852c1",
+          "seed": "20260101",
+          "timeZone": "UTC",
+          "locale": "en-US",
+          "conditions": [],
+          "twin": {
+            "trace": [
+              {
+                "t": 0,
+                "event": "start",
+                "data": {
+                  "exportName": "retryWithBackoff",
+                  "args": 3,
+                  "watchLimitMs": 30000
+                }
+              },
+              {
+                "t": 0,
+                "event": "stand_in_call",
+                "data": {
+                  "name": "fetchIt",
+                  "n": 1
+                }
+              },
+              {
+                "t": 0,
+                "event": "stand_in_throws",
+                "data": {
+                  "name": "fetchIt",
+                  "n": 1,
+                  "errorName": "Error"
+                }
+              },
+              {
+                "t": 200,
+                "event": "stand_in_call",
+                "data": {
+                  "name": "fetchIt",
+                  "n": 2
+                }
+              },
+              {
+                "t": 200,
+                "event": "stand_in_throws",
+                "data": {
+                  "name": "fetchIt",
+                  "n": 2,
+                  "errorName": "Error"
+                }
+              },
+              {
+                "t": 400,
+                "event": "stand_in_call",
+                "data": {
+                  "name": "fetchIt",
+                  "n": 3
+                }
+              },
+              {
+                "t": 400,
+                "event": "stand_in_throws",
+                "data": {
+                  "name": "fetchIt",
+                  "n": 3,
+                  "errorName": "Error"
+                }
+              },
+              {
+                "t": 600,
+                "event": "threw",
+                "data": {
+                  "type": "Error",
+                  "name": "Error"
+                }
+              },
+              {
+                "t": 600,
+                "event": "clock_moves",
+                "data": {
+                  "at": [
+                    200,
+                    400,
+                    600
+                  ]
+                }
+              }
+            ],
+            "result": {
+              "measured": {
+                "outcome": "threw",
+                "virtualMs": 600,
+                "thrownType": "Error",
+                "thrownName": "Error",
+                "thrownMessage": "always fails",
+                "calls:fetchIt": 3
+              },
+              "notMeasured": {
+                "returnedJson": "the call threw, so it returned nothing",
+                "returnedType": "the call threw, so it returned nothing"
+              }
+            }
+          },
+          "startedAt": "2026-10-31T20:24:13.704Z",
+          "finishedAt": "2026-10-31T20:24:15.067Z",
+          "trace": [
+            {
+              "t": 0,
+              "event": "start",
+              "data": {
+                "exportName": "retryWithBackoff",
+                "args": 3,
+                "watchLimitMs": 30000
+              }
+            },
+            {
+              "t": 0,
+              "event": "stand_in_call",
+              "data": {
+                "name": "fetchIt",
+                "n": 1
+              }
+            },
+            {
+              "t": 0,
+              "event": "stand_in_throws",
+              "data": {
+                "name": "fetchIt",
+                "n": 1,
+                "errorName": "Error"
+              }
+            },
+            {
+              "t": 200,
+              "event": "stand_in_call",
+              "data": {
+                "name": "fetchIt",
+                "n": 2
+              }
+            },
+            {
+              "t": 200,
+              "event": "stand_in_throws",
+              "data": {
+                "name": "fetchIt",
+                "n": 2,
+                "errorName": "Error"
+              }
+            },
+            {
+              "t": 400,
+              "event": "stand_in_call",
+              "data": {
+                "name": "fetchIt",
+                "n": 3
+              }
+            },
+            {
+              "t": 400,
+              "event": "stand_in_throws",
+              "data": {
+                "name": "fetchIt",
+                "n": 3,
+                "errorName": "Error"
+              }
+            },
+            {
+              "t": 600,
+              "event": "threw",
+              "data": {
+                "type": "Error",
+                "name": "Error"
+              }
+            },
+            {
+              "t": 600,
+              "event": "clock_moves",
+              "data": {
+                "at": [
+                  200,
+                  400,
+                  600
+                ]
+              }
+            },
+            {
+              "t": 600,
+              "event": "call_checks",
+              "data": {
+                "harnessSha256": "79151171257dee924d634b17d55fdca72900356d4262fd78d00c3e1e563beb49",
+                "controlRunId": "fCWyny3yq1",
+                "controlPassed": true,
+                "controlFinishedAt": "2026-10-31T20:22:16.602Z",
+                "runtime": {
+                  "executor": "local",
+                  "node": "v25.8.1"
+                }
+              }
+            }
+          ],
+          "result": {
+            "measured": {
+              "outcome": "threw",
+              "virtualMs": 600,
+              "thrownType": "Error",
+              "thrownName": "Error",
+              "thrownMessage": "always fails",
+              "calls:fetchIt": 3
+            },
+            "notMeasured": {
+              "returnedJson": "the call threw, so it returned nothing",
+              "returnedType": "the call threw, so it returned nothing"
+            }
+          },
+          "controlPassed": true,
+          "controlRunId": "fCWyny3yq1"
+        },
+        "verdicts": [
+          {
+            "betId": "PdKtHXblBT",
+            "runId": "Jgg8cVVmbw",
+            "outcome": "matched",
+            "observed": "threw",
+            "judgedBy": "src/judge.ts"
+          },
+          {
+            "betId": "Bt0oFRKSSg",
+            "runId": "Jgg8cVVmbw",
+            "outcome": "not_matched",
+            "observed": 600,
+            "judgedBy": "src/judge.ts",
+            "timingRule": "d46"
+          },
+          {
+            "betId": "OhdkDShSjJ",
+            "runId": "Jgg8cVVmbw",
+            "outcome": "matched",
+            "observed": 3,
+            "judgedBy": "src/judge.ts"
+          },
+          {
+            "betId": "RQGq3hTB-j",
+            "runId": "Jgg8cVVmbw",
+            "outcome": "matched",
+            "observed": "threw",
+            "judgedBy": "src/judge.ts"
+          },
+          {
+            "betId": "v8aSDlg2Is",
+            "runId": "Jgg8cVVmbw",
+            "outcome": "cant_check",
+            "reason": "the bettor declined",
+            "judgedBy": "src/judge.ts"
+          },
+          {
+            "betId": "g5tP4th4hp",
+            "runId": "Jgg8cVVmbw",
+            "outcome": "not_matched",
+            "observed": 600,
+            "judgedBy": "src/judge.ts",
+            "timingRule": "d46"
+          },
+          {
+            "betId": "pN7IZ5wTto",
+            "runId": "Jgg8cVVmbw",
+            "outcome": "matched",
+            "observed": 3,
+            "judgedBy": "src/judge.ts"
+          }
+        ]
+      },
+      {
+        "try": 2,
+        "codeSha256": "30bb4508fda99c5be2578f64846870ba100a47cb77024eb06309299b4279c8f6",
+        "source": "// Retries a call, waiting longer after each failure.\nexport async function retryWithBackoff(fetchIt: () => Promise<unknown>, attempts: number = 3, baseMs: number = 100) {\n  let last: unknown;\n  for (let i = 0; i < attempts; i++) {\n    try {\n      return await fetchIt();\n    } catch (e) {\n      last = e;\n      await new Promise((r) => setTimeout(r, baseMs * 2 ** i));\n    }\n  }\n  throw last;\n}\n",
+        "changes": {
+          "added": 1,
+          "removed": 1,
+          "lines": [
+            {
+              "tag": "-",
+              "line": 9,
+              "text": "      await new Promise((r) => setTimeout(r, baseMs * 2));"
+            },
+            {
+              "tag": "+",
+              "line": 9,
+              "text": "      await new Promise((r) => setTimeout(r, baseMs * 2 ** i));"
+            }
+          ]
+        },
+        "sinceBet": {
+          "added": 1,
+          "removed": 1
+        },
+        "run": {
+          "id": "nPXmkpF9fx",
+          "experimentId": "NoIzB2Uie1",
+          "runner": "ts",
+          "executor": "local",
+          "codeSha256": "30bb4508fda99c5be2578f64846870ba100a47cb77024eb06309299b4279c8f6",
+          "seed": "20260101",
+          "timeZone": "UTC",
+          "locale": "en-US",
+          "conditions": [],
+          "twin": {
+            "trace": [
+              {
+                "t": 0,
+                "event": "start",
+                "data": {
+                  "exportName": "retryWithBackoff",
+                  "args": 3,
+                  "watchLimitMs": 30000
+                }
+              },
+              {
+                "t": 0,
+                "event": "stand_in_call",
+                "data": {
+                  "name": "fetchIt",
+                  "n": 1
+                }
+              },
+              {
+                "t": 0,
+                "event": "stand_in_throws",
+                "data": {
+                  "name": "fetchIt",
+                  "n": 1,
+                  "errorName": "Error"
+                }
+              },
+              {
+                "t": 100,
+                "event": "stand_in_call",
+                "data": {
+                  "name": "fetchIt",
+                  "n": 2
+                }
+              },
+              {
+                "t": 100,
+                "event": "stand_in_throws",
+                "data": {
+                  "name": "fetchIt",
+                  "n": 2,
+                  "errorName": "Error"
+                }
+              },
+              {
+                "t": 300,
+                "event": "stand_in_call",
+                "data": {
+                  "name": "fetchIt",
+                  "n": 3
+                }
+              },
+              {
+                "t": 300,
+                "event": "stand_in_throws",
+                "data": {
+                  "name": "fetchIt",
+                  "n": 3,
+                  "errorName": "Error"
+                }
+              },
+              {
+                "t": 700,
+                "event": "threw",
+                "data": {
+                  "type": "Error",
+                  "name": "Error"
+                }
+              },
+              {
+                "t": 700,
+                "event": "clock_moves",
+                "data": {
+                  "at": [
+                    100,
+                    300,
+                    700
+                  ]
+                }
+              }
+            ],
+            "result": {
+              "measured": {
+                "outcome": "threw",
+                "virtualMs": 700,
+                "thrownType": "Error",
+                "thrownName": "Error",
+                "thrownMessage": "always fails",
+                "calls:fetchIt": 3
+              },
+              "notMeasured": {
+                "returnedJson": "the call threw, so it returned nothing",
+                "returnedType": "the call threw, so it returned nothing"
+              }
+            }
+          },
+          "startedAt": "2026-10-31T20:24:15.094Z",
+          "finishedAt": "2026-10-31T20:24:16.053Z",
+          "trace": [
+            {
+              "t": 0,
+              "event": "start",
+              "data": {
+                "exportName": "retryWithBackoff",
+                "args": 3,
+                "watchLimitMs": 30000
+              }
+            },
+            {
+              "t": 0,
+              "event": "stand_in_call",
+              "data": {
+                "name": "fetchIt",
+                "n": 1
+              }
+            },
+            {
+              "t": 0,
+              "event": "stand_in_throws",
+              "data": {
+                "name": "fetchIt",
+                "n": 1,
+                "errorName": "Error"
+              }
+            },
+            {
+              "t": 100,
+              "event": "stand_in_call",
+              "data": {
+                "name": "fetchIt",
+                "n": 2
+              }
+            },
+            {
+              "t": 100,
+              "event": "stand_in_throws",
+              "data": {
+                "name": "fetchIt",
+                "n": 2,
+                "errorName": "Error"
+              }
+            },
+            {
+              "t": 300,
+              "event": "stand_in_call",
+              "data": {
+                "name": "fetchIt",
+                "n": 3
+              }
+            },
+            {
+              "t": 300,
+              "event": "stand_in_throws",
+              "data": {
+                "name": "fetchIt",
+                "n": 3,
+                "errorName": "Error"
+              }
+            },
+            {
+              "t": 700,
+              "event": "threw",
+              "data": {
+                "type": "Error",
+                "name": "Error"
+              }
+            },
+            {
+              "t": 700,
+              "event": "clock_moves",
+              "data": {
+                "at": [
+                  100,
+                  300,
+                  700
+                ]
+              }
+            },
+            {
+              "t": 700,
+              "event": "call_checks",
+              "data": {
+                "harnessSha256": "79151171257dee924d634b17d55fdca72900356d4262fd78d00c3e1e563beb49",
+                "controlRunId": "fCWyny3yq1",
+                "controlPassed": true,
+                "controlFinishedAt": "2026-10-31T20:22:16.602Z",
+                "runtime": {
+                  "executor": "local",
+                  "node": "v25.8.1"
+                }
+              }
+            }
+          ],
+          "result": {
+            "measured": {
+              "outcome": "threw",
+              "virtualMs": 700,
+              "thrownType": "Error",
+              "thrownName": "Error",
+              "thrownMessage": "always fails",
+              "calls:fetchIt": 3
+            },
+            "notMeasured": {
+              "returnedJson": "the call threw, so it returned nothing",
+              "returnedType": "the call threw, so it returned nothing"
+            }
+          },
+          "controlPassed": true,
+          "controlRunId": "fCWyny3yq1"
+        },
+        "verdicts": [
+          {
+            "betId": "PdKtHXblBT",
+            "runId": "nPXmkpF9fx",
+            "outcome": "matched",
+            "observed": "threw",
+            "judgedBy": "src/judge.ts"
+          },
+          {
+            "betId": "Bt0oFRKSSg",
+            "runId": "nPXmkpF9fx",
+            "outcome": "matched",
+            "observed": 700,
+            "judgedBy": "src/judge.ts",
+            "timingRule": "d46"
+          },
+          {
+            "betId": "OhdkDShSjJ",
+            "runId": "nPXmkpF9fx",
+            "outcome": "matched",
+            "observed": 3,
+            "judgedBy": "src/judge.ts"
+          },
+          {
+            "betId": "RQGq3hTB-j",
+            "runId": "nPXmkpF9fx",
+            "outcome": "matched",
+            "observed": "threw",
+            "judgedBy": "src/judge.ts"
+          },
+          {
+            "betId": "v8aSDlg2Is",
+            "runId": "nPXmkpF9fx",
+            "outcome": "cant_check",
+            "reason": "the bettor declined",
+            "judgedBy": "src/judge.ts"
+          },
+          {
+            "betId": "g5tP4th4hp",
+            "runId": "nPXmkpF9fx",
+            "outcome": "not_matched",
+            "observed": 700,
+            "judgedBy": "src/judge.ts",
+            "timingRule": "d46"
+          },
+          {
+            "betId": "pN7IZ5wTto",
+            "runId": "nPXmkpF9fx",
+            "outcome": "matched",
+            "observed": 3,
+            "judgedBy": "src/judge.ts"
+          }
+        ]
+      }
+    ],
+    "stopped": {
+      "reason": "all_matched",
+      "says": "Atlas stopped: every answer you sealed matched on re-run 2. \"Matched\" means the code did what you bet on in this one test, nothing more: read the changed lines before you accept them"
+    },
+    "fingerprint": "ee920ccd73658054068b88bbd3ea044bda0df1cd6d231b2f2957ec4c227691b2"
+  },
+  "captions": [
+    "pasted code, run once in Atlas's sandbox on a virtual clock that starts at 2026-01-01T00:00:00Z",
+    "the person chose their sealed answers as the target and reviews the change; \"matched\" means the code did what they bet on in this one test, nothing more"
+  ],
+  "createdAt": "2026-10-31T20:24:11.311Z"
+}

@@ -30,6 +30,7 @@ import { jsonBetValueProblem, sealBet } from "../src/seal";
 import { CONFIDENCE_LEVELS } from "../src/felt";
 import type { JsonValue } from "../src/types";
 import type { Bet, BetAnswer, Confidence, Experiment, Finding, Run, RunAttempt, Verdict } from "../src/types";
+import type { AtlasLoop } from "../src/loop";
 import type { ClaimantMode } from "../src/claimants";
 import type { ChainFactsResult } from "../src/chain-facts";
 import { spenderOf } from "./access/context";
@@ -169,6 +170,8 @@ export interface Round {
   seenFile?: { codeSha256: string; exportLine: number };
   /** E3 review r2 M2: this round repeats a test already run in this session (that round's experiment id). */
   repeatOf?: string;
+  /** L1 (D57): the retry loop, once the person chose their sealed answers as the target. Counted here, on the server. */
+  loop?: { state: Omit<AtlasLoop, "fingerprint">; running: boolean; /** Why it ended outside the proof file's own rules (a try that could not be recorded). */ halted?: string };
 }
 
 /**

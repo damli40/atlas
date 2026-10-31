@@ -115,6 +115,7 @@ import { buildAtlasFile, callRunAgreesWithItsTrace, resultDiff, sameJson, timing
 import { ASKED_FIELD, createProofStore, EVM_GATE_CONTEXT, MOONWELL_PR_REF, evmTargetRefusal, extraCaptionsFor, forkBlockFor, humanFinding, recordedFindings, type ProofStore } from "./evm-round";
 import { control as runTsControl, readFixture, runExperiment, tsRunner } from "../runners/ts/control";
 import { changeAndReplay, type ChangeAnswer, type ReplayFn } from "./changes";
+import { registerLoop } from "./loop";
 import { MUSE_CODE, type MuseExec } from "./meta/roles/fixer";
 import { ADVERSARY_MODEL, runAdversary } from "./meta/roles/adversary";
 import { functionDefaults } from "../src/experiment-name";
@@ -275,7 +276,9 @@ export function withheldSource(file: AtlasFile): AtlasFile & { sourceWithheld: t
   };
   // E3 review r2 M1: nor the session's activity log (other pastes' fingerprints, gate reasons quoting values). The
   // test, the facts, the verdicts and the models' bets stay: they are what the proof is.
-  return { ...file, target: strip(file.target), experiments: file.experiments.map((e) => ({ ...e, target: strip(e.target) })), agentLog: [], sourceWithheld: true };
+  // L1 (D57): nor the code of any re-run, or its changed lines. The fingerprints, facts and verdicts stay.
+  const loop = file.loop ? { ...file.loop, tries: file.loop.tries.map(({ source: _code, changes, ...t }) => ({ ...t, changes: { added: changes.added, removed: changes.removed } })) } : undefined;
+  return { ...file, target: strip(file.target), experiments: file.experiments.map((e) => ({ ...e, target: strip(e.target) })), agentLog: [], ...(loop ? { loop: loop as unknown as AtlasFile["loop"] } : {}), sourceWithheld: true };
 }
 
 /** E3: the stand-in "finding" a pasted round hands the bet role (the whole file; never in a prompt or a proof file). */
@@ -1888,6 +1891,21 @@ export function createApp(opts: AppOptions = {}) {
   });
 
   // D04-04: the round's .atlas.json, as kept (memory) or published (disk).
+  // L1 (D57): the retry loop for the Muse Code plugin: POST /loop/choose and POST /loop/rerun (server/loop.ts).
+  registerLoop(app, {
+    betStore,
+    sandboxGate,
+    clientOf,
+    runPasted,
+    keepRun,
+    proofOf,
+    putProof: (file, run) => pastedProofs.put(file, run),
+    log: (sessionId) => sessionEmitter(agentLog, sessionId),
+    noteRoundChars: (sessionId, experimentId, chars) => {
+      for (const d of paste.noteRoundChars(experimentId, chars, keepRound)) betStore.peek(d.sessionId)?.delete(d.experimentId);
+    },
+  });
+
   app.get("/proofs/:runId", (c) => {
     const file = proofOf(c.req.param("runId"));
     if (!file) return c.json({ error: `no .atlas.json for run ${c.req.param("runId")}` }, 404);

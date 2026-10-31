@@ -1,0 +1,43 @@
+
+ RUN  v5.0.5 <repo>
+
+ ✓ tests/unit/l1-loop.test.ts > L1 the words of the choice > the plugin's copy of the phrase is the server's; only the phrase counts 2ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the words of the choice > the changed lines: what was added and removed, with line numbers; line endings count 2ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the words of the choice > the ledger's money sentences stop the loop; its 'wait a few seconds' sentences do not 0ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the whole loop, with a fake Muse > the person chooses; a first edit still misses; a second matches; same test, same seed, same sealed bets, no new bet 1967ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the whole loop, with a fake Muse > the tools are listed for Muse, with the person-only rule in the description 0ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the cap, on the server > three misses: Atlas stops, hands back, and says what each try measured; a fourth is refused however it is asked 1773ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the cap, on the server > the same code twice uses no try and runs nothing; going back to the code they bet on neither 1293ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the cap, on the server > two re-runs at once: one runs, the other is refused, so the count cannot be raced 934ms
+ ✓ tests/unit/l1-restart.test.ts > L1 the round survives a restart of the plugin's program > stopped with SIGTERM: a new program carries on with the same round, and the proof holds 5997ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the cap, on the server > a run that stops part way counts as a try, is said plainly, and the same code may go again 1060ms
+ ✓ tests/unit/l1-loop.test.ts > L1 every re-run goes through G1's metering > needs an invite; each sandbox is in the spend log; a used-up budget stops the loop with the plain reason, and nothing starts 1292ms
+ ✓ tests/unit/l1-loop.test.ts > L1 a sealed bet cannot change between tries > a new bet is refused; an edited bet stops the loop with nothing run; a validly re-sealed swap stops it too 1089ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the person's choice cannot come from the agent without typed words > no words, other words, an object, too fast, before the run: nothing is chosen and nothing re-runs 530ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the person's choice cannot come from the agent without typed words > nothing to offer when every answer matched, or when the person skipped every question 884ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the whole run says can't check: the loop stops and says why > an edit that imports a library 437ms
+ ✓ tests/unit/l1-restart.test.ts > L1 the round survives a restart of the plugin's program > killed outright with SIGKILL: a new program carries on with the same round, and the proof holds 5733ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the whole run says can't check: the loop stops and says why > an edit that deletes the function 772ms
+ ✓ tests/unit/l1-loop.test.ts > L1 U3's two-call tests (code that keeps state) > the same two calls run again on the changed code, and the proof verifies 840ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the awkward ends > a first run that is 'can't check' as a whole offers nothing and cannot be chosen 10ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the awkward ends > a try that cannot go in the proof file ends the loop and says so; the file keeps what verifies 1092ms
+ ✓ tests/unit/l1-restart.test.ts > L1 the round survives a restart of the plugin's program > the saved file is private and holds no code and no invite 2745ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the obvious cheat: plain code cannot know, so the person sees it > a hard-coded function matches, and the result shows every changed line and says the person reviews 796ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the obvious cheat: plain code cannot know, so the person sees it > an edit far longer than an answer shows says how many lines are not shown; they stay in the proof 706ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the obvious cheat: plain code cannot know, so the person sees it > a changed line cannot start a new line, and its text sits inside a tag the file cannot know 497ms
+ ✓ tests/unit/l1-loop.test.ts > L1 verify: every edit to a try fails it > change any single value anywhere in the loop, one at a time: every one fails 1155ms
+ ✓ tests/unit/l1-restart.test.ts > L1 the round survives a restart of the plugin's program > with no data folder, the loss is said plainly and says what to do 2793ms
+ ✓ tests/unit/l1-loop.test.ts > L1 verify: every edit to a try fails it > deleted, added, reordered tries and a removed stop: all fail 1420ms
+ ✓ tests/unit/l1-loop.test.ts > L1 verify: every edit to a try fails it > the same edits with the fingerprint recomputed still fail: verify re-judges, re-hashes and recomputes 1209ms
+ ✓ tests/unit/l1-loop.test.ts > L1 verify: every edit to a try fails it > a file with no loop still verifies as before, and /replay still runs a file with one 2504ms
+ ✓ tests/unit/l1-restart.test.ts > L1 the round survives a restart of the plugin's program > a server that lost the round: said plainly, nothing ran 5078ms
+ ✓ tests/unit/l1-restart.test.ts > L1 the round survives a restart of the plugin's program > another workspace does not see the round; a broken file is ignored and written down 4ms
+ ✓ tests/unit/l1-restart.test.ts > L1 nothing ends the program silently > an uncaught error and an unhandled rejection are written down and the program stays up 5ms
+ ✓ tests/unit/l1-restart.test.ts > L1 nothing ends the program silently > a closed stdout and a signal are the ways out, and each is written down first 3ms
+ ✓ tests/unit/l1-restart.test.ts > L1 nothing ends the program silently > the log never holds an invite, keeps one line per event, and stays short; no folder means no file 33ms
+
+ Test Files  2 passed (2)
+      Tests  34 passed (34)
+   Start at  23:16:26
+   Duration  23.11s (tests 98%, import 2%)
+

@@ -84,13 +84,13 @@ async function readCapped(res: Awaited<ReturnType<Fetch>>, cap: number, signal: 
   return Buffer.concat(chunks.map((c) => Buffer.from(c))).toString("utf8");
 }
 
-export function createAtlasClient(config: AtlasConfig, opts: { fetch?: Fetch; timeoutMs?: number; maxAnswerBytes?: number } = {}): AtlasClient {
+export function createAtlasClient(config: AtlasConfig, opts: { fetch?: Fetch; timeoutMs?: number; maxAnswerBytes?: number; /** L1: the session saved before a restart, so the server's rounds stay reachable. */ session?: string } = {}): AtlasClient {
   const doFetch: Fetch = opts.fetch ?? ((url, init) => fetch(url, init) as ReturnType<Fetch>);
   const defaultTimeout = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const cap = opts.maxAnswerBytes ?? MAX_ANSWER_BYTES;
   // One session id per MCP server process (1-64 letters, digits, _ or -, as Atlas requires). Made here, so the very
   // first request already belongs to it; a server that hands back another id wins (it is the one Atlas keeps).
-  let session = `muse_${randomBytes(12).toString("base64url")}`;
+  let session = opts.session ?? `muse_${randomBytes(12).toString("base64url")}`;
   const scrub = (s: string) => (config.invite ? s.split(config.invite).join("<invite>") : s);
 
   async function request<T>(method: "GET" | "POST", path: string, body: unknown, timeoutMs: number): Promise<AtlasAnswer<T>> {
