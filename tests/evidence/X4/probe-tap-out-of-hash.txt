@@ -1,0 +1,5 @@
+     × changing it, adding it or removing it after sealing breaks the seal 3ms
+     × tampering after the run: changed on one bet, changed on all, removed: each refused 305ms
+     × known limit: re-hashing every bet after an edit changes the hashes, which the file alone cannot catch 308ms
+     × a tampered bet is not kept in the record at all 1ms
+      Tests  4 failed | 57 passed (61)
