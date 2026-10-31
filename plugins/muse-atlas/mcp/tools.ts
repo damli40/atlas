@@ -504,7 +504,7 @@ export function createTools(deps: ToolDeps) {
         const v = verdicts.find((x) => x.betId === b.id);
         const said = b.answer.kind === "declined" ? "no bet" : visible(JSON.stringify(b.answer.value));
         const did = v && v.observed !== undefined ? `; the code did ${visible(typeof v.observed === "string" && b.measures === "returnedJson" ? v.observed : JSON.stringify(v.observed))}` : "";
-        lines.push(`  [${quoteLine(b.measures)}] ${bettorName(b.who)} bet ${said}${did} → ${v ? OUTCOME_WORDS[v.outcome] ?? quoteLine(v.outcome) : "not judged"}${v?.outcome === "cant_check" && v.reason ? ` (${quoteLine(v.reason)})` : ""}`);
+        lines.push(`  [${quoteLine(b.measures)}] ${bettorName(b.who)} ${b.answer.kind === "declined" ? "placed no bet" : `bet ${said}`}${did} → ${v ? OUTCOME_WORDS[v.outcome] ?? quoteLine(v.outcome) : "not judged"}${v?.outcome === "cant_check" && v.reason ? ` (${quoteLine(v.reason)})` : ""}`);
       }
     }
     lines.push("", "What each try measured:");
