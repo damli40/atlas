@@ -9,6 +9,7 @@
 
 import type { Scene } from "../scene";
 import type { RenderSpec, SpecMark, SpecStep } from "../spec";
+import { idFromAttr } from "../words";
 
 const PEN = "cubic-bezier(.42,.04,.3,1)";
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -39,10 +40,10 @@ export class Player {
   ) {
     const media = typeof matchMedia === "function" ? matchMedia("(prefers-reduced-motion: reduce)").matches : false;
     this.instant = o.reducedMotion ?? media;
-    for (const el of svg.querySelectorAll<SVGGElement>("[data-node]")) this.nodes.set(el.dataset.node!, el);
-    for (const el of svg.querySelectorAll<SVGGElement>("[data-edge]")) this.edges.set(el.dataset.edge!, el);
-    for (const el of svg.querySelectorAll<SVGGElement>("[data-label-of]")) this.labels.set(el.dataset.labelOf!, el);
-    for (const el of svg.querySelectorAll<SVGGElement>("[data-mark]")) this.marks.push({ el, on: el.dataset.mark!, kind: [...el.classList].find((c) => c.startsWith("rr-mark-"))!.slice(8) });
+    for (const el of svg.querySelectorAll<SVGGElement>("[data-node]")) this.nodes.set(idFromAttr(el.dataset.node!), el);
+    for (const el of svg.querySelectorAll<SVGGElement>("[data-edge]")) this.edges.set(idFromAttr(el.dataset.edge!), el);
+    for (const el of svg.querySelectorAll<SVGGElement>("[data-label-of]")) this.labels.set(idFromAttr(el.dataset.labelOf!), el);
+    for (const el of svg.querySelectorAll<SVGGElement>("[data-mark]")) this.marks.push({ el, on: idFromAttr(el.dataset.mark!), kind: [...el.classList].find((c) => c.startsWith("rr-mark-"))!.slice(8) });
   }
 
   get reduced(): boolean {

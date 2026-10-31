@@ -10,7 +10,7 @@ are in this folder, and there is no TLA+ and no model anywhere in it.
 | `renderer/hand.ts` | `tools/kit/hand.js`, `tools/kit/util.js` | ported to SVG: follower, wander, seeded generator |
 | `renderer/layout.ts` | `tools/lib/layout.js`, `tools/lib/tagchart.js` | reading pele's SVG back; the "words beside the line" search |
 | `renderer/live/svg.ts` | `tools/lib/tagchart.js`, `tools/lib/draw.js`, `tools/kit/shapes.js` | the ticket, pin, arrow and hatching recipes, redrawn as SVG |
-| `renderer/export/kit/*`, `renderer/export/lib/*` | `tools/kit/*`, `tools/lib/{classic,draw,letter,mask,storybook}.js` | the pencil engine, copied; `letter.js` changed to load Besley instead of Kevin fonts |
+| `renderer/export/engine/kit/*`, `renderer/export/engine/lib/*` | `tools/kit/*`, `tools/lib/{classic,draw,letter,mask,storybook}.js` | the pencil engine, copied; `letter.js` changed to load Besley instead of Kevin fonts |
 | `renderer/export/plate.ts` | `tools/lib/tagchart.js`, `business/art/order.js` | the same recipes, drawing a Scene in pencil |
 
 Other third-party parts:

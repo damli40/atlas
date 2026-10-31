@@ -214,15 +214,9 @@ export function layOut(spec: RenderSpec): Scene {
   spec.nodes.forEach((n, i) => {
     if (n.region === undefined) body.push(`  ${nodeLine(measured[i]!, i)}`);
   });
-  const pairCount = new Map<string, number>();
-  const edgeKeys = new Map<string, string>();
   spec.edges.forEach((e, i) => {
     const from = nodeToken.get(e.from)!;
     const to = nodeToken.get(e.to)!;
-    const pair = `${from}_${to}`;
-    const k = pairCount.get(pair) ?? 0;
-    pairCount.set(pair, k + 1);
-    edgeKeys.set(`L_${pair}_${k}`, e.id);
     const clean = e.words ? cleanWords(e.words) : "";
     let label = "";
     if (clean) {
@@ -257,19 +251,23 @@ export function layOut(spec: RenderSpec): Scene {
     const y = Number(ATTR(m[2]!, "y"));
     rawClusters.set(m[1]!, { x0: x, y0: y, x1: x + Number(ATTR(m[2]!, "width")), y1: y + Number(ATTR(m[2]!, "height")) });
   }
+  // Pele writes the edges in the order they were given, with ids like L_n0_n1_2: the order maps them, the id double-checks it.
   const rawEdges = new Map<string, { pts: Pt[]; tip: Pt | null }>();
-  for (const m of svg.matchAll(/<g class="pele-edge [^"]*" data-id="([^"]+)">([\s\S]*?)<\/g>|<g class="pele-edge" data-id="([^"]+)">([\s\S]*?)<\/g>/g)) {
-    const id = m[1] ?? m[3]!;
-    const inner = m[2] ?? m[4]!;
-    const paths = [...inner.matchAll(/<path( class="pele-marker")?[^>]*? d="([^"]+)"/g)];
+  let edgeIndex = 0;
+  for (const m of svg.matchAll(/<g class="pele-edge(?: [^"]*)?" data-id="([^"]+)">([\s\S]*?)<\/g>/g)) {
+    const spe = spec.edges[edgeIndex++];
+    if (!spe) throw new OverBudget("the layout drew more lines than the chart has");
+    const expected = `L_${nodeToken.get(spe.from)}_${nodeToken.get(spe.to)}_`;
+    if (!m[1]!.startsWith(expected)) throw new OverBudget(`the layout's line ${JSON.stringify(m[1])} is not the chart's line ${JSON.stringify(spe.id)}`);
+    const paths = [...m[2]!.matchAll(/<path( class="pele-marker")?[^>]*? d="([^"]+)"/g)];
     const line = paths.find((p) => !p[1]);
     const marker = paths.find((p) => p[1]);
-    if (line) rawEdges.set(id, { pts: pathPoints(line[2]!), tip: marker ? pathPoints(marker[2]!)[0]! : null });
+    if (line) rawEdges.set(spe.id, { pts: pathPoints(line[2]!), tip: marker ? pathPoints(marker[2]!)[0]! : null });
   }
   spec.nodes.forEach((n, i) => {
     if (!rawNodes.has(`n${i}`)) throw new OverBudget(`the layout did not place the part ${JSON.stringify(cleanWords(n.words))}`);
   });
-  for (const [key, id] of edgeKeys) if (!rawEdges.has(key)) throw new OverBudget(`the layout did not route the line ${JSON.stringify(id)}`);
+  for (const e of spec.edges) if (!rawEdges.has(e.id)) throw new OverBudget(`the layout did not route the line ${JSON.stringify(e.id)}`);
 
   // ---- nodes ----
   const pins: SceneNode["pin"][] = ["red", "blue", "ochre"];
@@ -311,9 +309,10 @@ export function layOut(spec: RenderSpec): Scene {
   });
   const nodeById = new Map(nodes.map((n) => [n.id, n]));
   // A node with a mark has a ring or a tick round it, so words keep clear of that too.
-  const ringed = new Set(spec.marks.map((m) => m.on));
+  const ringed = new Map<string, number>();
+  for (const m of spec.marks) ringed.set(m.on, Math.max(ringed.get(m.on) ?? 0, m.kind === "cant-check" ? 30 : 20));
   const blockers: Box[] = nodes.map((n) => {
-    const r = ringed.has(n.id) ? 18 : 0;
+    const r = ringed.get(n.id) ?? 0;
     return { x0: n.box.x0 - 3 - r, x1: n.box.x1 + 9 + r, y0: n.box.y0 - 10 - r, y1: n.box.y1 + 11 + r };
   });
 
@@ -335,7 +334,6 @@ export function layOut(spec: RenderSpec): Scene {
     const words = wrapWords(cleanWords(r.words), box.x1 - box.x0 - 24, TYPE.region, "italic", 1)[0]!;
     const label = block("region", "italic", TYPE.region, [words], box.x0 + 14, box.y0 + 5, 20, r.id);
     regions.push({ id: r.id, kind: r.kind, box, label, depth: regionDepth(r.id) });
-    blockers.push({ x0: label.box.x0 - 3, x1: label.box.x1 + 3, y0: label.box.y0, y1: label.box.y1 });
   });
 
   // ---- edges: trimmed so they stop short of what they point at ----
@@ -343,9 +341,9 @@ export function layOut(spec: RenderSpec): Scene {
   const grid = new PointGrid();
   const edges: SceneEdge[] = [];
   const pelePts = new Map<string, Pt[]>();
-  for (const [key, id] of edgeKeys) {
-    const raw = rawEdges.get(key)!;
-    const e = spec.edges.find((x) => x.id === id)!;
+  for (const e of spec.edges) {
+    const id = e.id;
+    const raw = rawEdges.get(id)!;
     const route = raw.tip ? [...raw.pts, raw.tip] : raw.pts;
     const target = nodeById.get(e.to)!;
     const tip = route[route.length - 1]!;
@@ -370,6 +368,22 @@ export function layOut(spec: RenderSpec): Scene {
     }
     pelePts.set(id, pts);
     for (const p of resample(pts, 5)) grid.add(p);
+  }
+
+  // A region's label moves along its top edge to where no line runs; a region's outline counts as a line for all words.
+  for (const r of regions) {
+    const b = r.box;
+    const perimeter = resample([[b.x0, b.y0], [b.x1, b.y0], [b.x1, b.y1], [b.x0, b.y1], [b.x0, b.y0]], 5);
+    const w = r.label.box.x1 - r.label.box.x0;
+    for (let dx = 0; dx + w < b.x1 - b.x0 - 20; dx += 26) {
+      const try0 = { x0: r.label.box.x0 + dx - 3, x1: r.label.box.x1 + dx + 3, y0: r.label.box.y0, y1: r.label.box.y1 };
+      if (!grid.hits(try0, 2) && !blockers.some((t) => overlap(try0, t))) {
+        shiftBlock(r.label, dx, 0);
+        break;
+      }
+    }
+    for (const p of perimeter) grid.add(p);
+    blockers.push({ x0: r.label.box.x0 - 3, x1: r.label.box.x1 + 3, y0: r.label.box.y0, y1: r.label.box.y1 });
   }
 
   // ---- words beside the lines ----
@@ -446,7 +460,7 @@ export function layOut(spec: RenderSpec): Scene {
   const marks: SceneMark[] = spec.marks.map((m) => {
     const node = nodeById.get(m.on)!;
     const text = cleanWords(`${m.who}${m.words ? `${m.kind === "cant-check" ? ": " : " "}${m.words}` : ""}`);
-    const lines = wrapWords(text, 300, TYPE.mark, "italic", 3);
+    const lines = wrapWords(text, 300, TYPE.mark, "italic", 6);
     const w = Math.max(...lines.map((l) => textWidth(l, TYPE.mark, "italic")));
     const h = lines.length * LINE.mark;
     const cy = (node.box.y0 + node.box.y1) / 2 - h / 2;

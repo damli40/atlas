@@ -53,7 +53,10 @@ export function moonwellFlow(input: MoonwellInput): RenderSpec {
   const price = formatUsd1e18(BigInt(priceRaw));
 
   const usdBets = (input.bets ?? []).filter((b) => b.measures === `priceUsd1e18:${symbol}`);
-  const nodes: SpecNode[] = [{ id: "feed", kind: "device", words: feedWords, provenance: "run" }];
+  // The note goes first, so the feed sits in the middle of the top row and its thread runs straight down.
+  const nodes: SpecNode[] = [];
+  if (count === 1) nodes.push({ id: "gear", kind: "note", words: usdBets.length > 0 ? "the multiply step the bettors expected is not there" : "no multiply step: the run counted one price source", provenance: "run", missing: true });
+  nodes.push({ id: "feed", kind: "device", words: feedWords, provenance: "run" });
   const edges: RenderSpec["edges"] = [];
   const steps: SpecStep[] = [{ id: "s0", nodes: ["feed"], edges: [], provenance: "run", beat: "start", words: `the price read went through ${feedWords}` }];
   const sourceWords = count === null ? "the source count was not measured" : `${count} price source${count === 1 ? "" : "s"}`;
@@ -61,7 +64,6 @@ export function moonwellFlow(input: MoonwellInput): RenderSpec {
   edges.push({ id: "e-price", from: "feed", to: "price", words: sourceWords, kind: "thread", provenance: "run" });
   steps.push({ id: "s1", nodes: ["price"], edges: ["e-price"], provenance: "run", beat: "end", words: `the oracle reported ${price}` });
   if (count === 1) {
-    nodes.push({ id: "gear", kind: "note", words: usdBets.length > 0 ? "the multiply step the bettors expected is not there" : "no multiply step: the run counted one price source", provenance: "run", missing: true });
     edges.push({ id: "e-gear", from: "gear", to: "price", kind: "dashed-note", provenance: "run" });
     steps.push({ id: "s2", nodes: ["gear"], edges: ["e-gear"], provenance: "run", beat: "note" });
   }

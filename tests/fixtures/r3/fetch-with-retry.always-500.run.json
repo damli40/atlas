@@ -38,7 +38,7 @@
   }
  },
  "run": {
-  "id": "dEfYIl5P4A",
+  "id": "B7CRPZ-0cb",
   "experimentId": "r3-always-500",
   "runner": "ts",
   "executor": "local",
@@ -172,8 +172,8 @@
     }
    }
   },
-  "startedAt": "2026-10-31T20:07:47.701Z",
-  "finishedAt": "2026-10-31T20:07:48.472Z",
+  "startedAt": "2026-10-31T20:12:38.389Z",
+  "finishedAt": "2026-10-31T20:12:38.696Z",
   "trace": [
    {
     "t": 0,
@@ -282,9 +282,9 @@
     "event": "call_checks",
     "data": {
      "harnessSha256": "79151171257dee924d634b17d55fdca72900356d4262fd78d00c3e1e563beb49",
-     "controlRunId": "fKpysN7WLB",
+     "controlRunId": "Ik7Em_nqQi",
      "controlPassed": true,
-     "controlFinishedAt": "2026-10-31T20:07:46.256Z",
+     "controlFinishedAt": "2026-10-31T20:12:38.088Z",
      "runtime": {
       "executor": "local",
       "node": "v25.8.1"
@@ -307,6 +307,6 @@
    }
   },
   "controlPassed": true,
-  "controlRunId": "fKpysN7WLB"
+  "controlRunId": "Ik7Em_nqQi"
  }
 }

@@ -6,6 +6,7 @@
 
 import type { Scene } from "../scene";
 import type { RenderSpec } from "../spec";
+import { idFromAttr } from "../words";
 import type { Drawn } from "./draw";
 import { Player, type PlayerOptions } from "./player";
 
@@ -89,12 +90,12 @@ export function mountDrawing(host: HTMLElement, drawn: Drawn, spec: RenderSpec, 
   const nodeOf = (t: EventTarget | null) => (t as Element | null)?.closest?.("[data-node]") as SVGGElement | null;
   on(host, "pointerover", (e) => {
     const n = nodeOf(e.target);
-    near(n ? n.dataset.node! : null);
+    near(n ? idFromAttr(n.dataset.node!) : null);
   });
   on(host, "pointerleave", () => near(null));
   on(host, "focusin", (e) => {
     const n = nodeOf(e.target);
-    if (n) near(n.dataset.node!);
+    if (n) near(idFromAttr(n.dataset.node!));
   });
   on(host, "focusout", () => near(null));
   on(host, "keydown", (e) => {
@@ -112,13 +113,13 @@ export function mountDrawing(host: HTMLElement, drawn: Drawn, spec: RenderSpec, 
     }
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      o.onSelect?.(n.dataset.node!);
+      o.onSelect?.(idFromAttr(n.dataset.node!));
       return;
     }
     // Arrow keys walk to the next part this one is joined to.
     if (e.key.startsWith("Arrow")) {
       e.preventDefault();
-      const id = n.dataset.node!;
+      const id = idFromAttr(n.dataset.node!);
       const forward = e.key === "ArrowDown" || e.key === "ArrowRight";
       const next = forward ? scene.edges.find((x) => x.from === id && x.to !== id)?.to : scene.edges.find((x) => x.to === id && x.from !== id)?.from;
       if (next) (player.nodes.get(next) as unknown as HTMLElement | undefined)?.focus();
@@ -175,7 +176,7 @@ export function mountDrawing(host: HTMLElement, drawn: Drawn, spec: RenderSpec, 
     if (moved < 4 && e.type === "pointerup") {
       player.skip();
       const n = nodeOf(e.target);
-      if (n) o.onSelect?.(n.dataset.node!);
+      if (n) o.onSelect?.(idFromAttr(n.dataset.node!));
     }
   };
   on(host, "pointerup", up);

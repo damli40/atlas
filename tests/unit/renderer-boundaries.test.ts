@@ -1,0 +1,66 @@
+// R3: the fences. The renderer imports no Atlas run, model or server code; no TLA+, no Kevin fonts; export stays optional.
+import { execFileSync } from "node:child_process";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+
+const root = join(import.meta.dirname, "..", "..");
+const walk = (dir: string): string[] => readdirSync(dir).flatMap((f) => {
+  const p = join(dir, f);
+  if (f === "dist" || f === "node_modules") return [];
+  return statSync(p).isDirectory() ? walk(p) : [p];
+});
+const files = walk(join(root, "renderer"));
+const imports = (p: string) => [...readFileSync(p, "utf8").matchAll(/(?:from|import\()\s*["']([^"']+)["']/g)].map((m) => m[1]!);
+
+describe("R3 boundaries", () => {
+  it("the drawing core and live backend import nothing of Atlas", () => {
+    const core = files.filter((f) => /\.(ts|mjs)$/.test(f) && !f.includes("/authors/") && !f.includes("/preview/") && !f.endsWith(".d.ts"));
+    expect(core.length).toBeGreaterThan(8);
+    for (const f of core) for (const i of imports(f)) expect(`${f} -> ${i}`).not.toMatch(/-> (\.\.\/)*(\.\.\/\.\.\/)?(src|server|runners|web)\b|\.\.\/\.\.\/src|\.\.\/\.\.\/server|\.\.\/\.\.\/runners|\.\.\/\.\.\/web/);
+  });
+  it("authors read Atlas's types and pure rules only: no server, runner, model or file system", () => {
+    for (const f of files.filter((x) => x.includes("/authors/"))) {
+      for (const i of imports(f)) {
+        expect(i).not.toMatch(/server|runners|meta|node:/);
+        if (i.includes("src/") && !i.endsWith("/types") && !i.endsWith("file-outline") && !i.endsWith("outline/types")) expect(i).toMatch(/src\/(trust|units|network-fake)$/);
+      }
+    }
+  });
+  it("the live backend is browser-safe: no node: imports, no canvas", () => {
+    for (const f of files.filter((x) => x.includes("/live/"))) for (const i of imports(f)) expect(i).not.toMatch(/^node:|napi-rs/);
+    for (const name of ["spec.ts", "layout.ts", "hand.ts", "words.ts", "scene.ts", "check.ts"]) for (const i of imports(join(root, "renderer", name))) expect(i).not.toMatch(/^node:|napi-rs/);
+  });
+  it("no TLA+, no model, no Kevin font, no boba", () => {
+    for (const f of files) {
+      if (!/\.(ts|mjs|js|json|html)$/.test(f)) continue;
+      const text = readFileSync(f, "utf8");
+      const code = f.includes("NOTICE") ? "" : text;
+      expect(`${f}: ${/\bTLC\b|\.tla\b/.test(code)}`).toMatch(/false$/);
+      expect(`${f}: ${/api\.meta\.ai|chat\/completions/.test(code)}`).toMatch(/false$/);
+      expect(`${f}: ${/KevinSerif|KevinSans|Kevin Serif/.test(code)}`).toMatch(/false$/);
+      expect(`${f}: ${/\bboba\b/i.test(code)}`).toMatch(/false$/);
+    }
+    expect(files.some((f) => /Kevin/.test(f))).toBe(false);
+  });
+  it("licences are next to what they cover", () => {
+    expect(readFileSync(join(root, "renderer/LICENSE-statechart-art"), "utf8")).toMatch(/Kevin T\. Ngo/);
+    expect(readFileSync(join(root, "renderer/export/engine/LICENSE"), "utf8")).toMatch(/Kevin T\. Ngo/);
+    expect(readFileSync(join(root, "renderer/fonts/OFL.txt"), "utf8")).toMatch(/Open Font License/);
+    const pre = readFileSync(join(root, "PRE-EXISTING.md"), "utf8");
+    for (const w of ["statechart-art", "pele 1.12.0", "Besley", "@napi-rs/canvas"]) expect(pre).toContain(w);
+  });
+  it("the canvas engine is a dev dependency, never reachable from the server or the page", () => {
+    const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+    expect(pkg.devDependencies["@napi-rs/canvas"]).toBe("1.0.13");
+    expect(pkg.dependencies["@napi-rs/canvas"]).toBeUndefined();
+    expect(pkg.devDependencies.pele).toBe("1.12.0");
+    let hits = "";
+    try {
+      hits = execFileSync("git", ["grep", "-l", "renderer/export", "--", "server", "src", "runners", "web"], { cwd: root, encoding: "utf8" }).trim();
+    } catch {
+      hits = ""; // git grep exits 1 when nothing matches
+    }
+    expect(hits).toBe("");
+  });
+});

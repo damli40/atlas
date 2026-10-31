@@ -19,6 +19,17 @@ export function cleanWords(raw: string): string {
   return chars.length > MAX_CHARS ? `${chars.slice(0, MAX_CHARS - 1).join("")}…` : s;
 }
 
+/** A spec id as a plain-ASCII attribute value, whatever the id holds; the player and the checks turn it back. */
+export function idAttr(id: string): string {
+  try {
+    return encodeURIComponent(id);
+  } catch {
+    // A lone half of a surrogate pair: not valid text, so it cannot be encoded as it is.
+    return encodeURIComponent(Array.from(id, (c) => (c.length === 1 && c >= "\ud800" && c <= "\udfff" ? "?" : c)).join(""));
+  }
+}
+export const idFromAttr = (a: string): string => decodeURIComponent(a);
+
 /** Escapes text for SVG or HTML, in text or inside a quoted attribute. */
 export function esc(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);

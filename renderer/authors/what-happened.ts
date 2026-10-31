@@ -145,7 +145,7 @@ export function pathItems(input: WhatHappenedInput): { items: PathItem[]; notes:
       break;
     }
     if (e.event === "stand_in_call" || e.event === "call") {
-      const name = str(d.name) ?? "the call";
+      const name = str(d.name) ?? "the RPC";
       const n = num(d.n) ?? 1;
       if (e.event === "stand_in_call" && d.afterSettle === true && !ended) {
         ended = true;
@@ -156,7 +156,7 @@ export function pathItems(input: WhatHappenedInput): { items: PathItem[]; notes:
       continue;
     }
     if (e.event === "stand_in_returns" || e.event === "resolve" || e.event === "stand_in_throws" || e.event === "reject" || e.event === "stand_in_never_answers" || e.event === "no_answer") {
-      const name = str(d.name) ?? "the call";
+      const name = str(d.name) ?? "the RPC";
       const n = num(d.n) ?? 1;
       const call = [...items].reverse().find((x): x is Extract<PathItem, { kind: "call" }> => x.kind === "call" && x.name === name && x.n === n);
       if (!call) continue;
@@ -387,6 +387,13 @@ export function whatHappened(input: WhatHappenedInput): RenderSpec {
     }
   }
 
+  // Several bettors on one step share one mark: fewer words, on clean paper.
+  const merged: SpecMark[] = [];
+  for (const m of marks) {
+    const same = merged.find((x) => x.on === m.on && x.kind === m.kind);
+    if (!same) merged.push({ ...m });
+    else same.words = `${same.words}; ${m.who} ${m.words}`;
+  }
   const conditions = (input.run.conditions ?? []).map((c) => ({ words: c.says, provenance: "run" as const }));
   const captions = [
     { words: `Every step comes from run ${clip(input.run.id, 24)}'s trace. Atlas's clock is virtual: nothing waited for real.`, provenance: "run" as const },
@@ -394,7 +401,7 @@ export function whatHappened(input: WhatHappenedInput): RenderSpec {
     ...conditions,
     ...(input.preExisting ? [{ words: input.preExisting, provenance: "plain-code" as const }] : []),
   ];
-  return { ...base, nodes, edges, steps, marks, captions, path: { edges: edges.map((e) => e.id), provenance: "run", ...(partsWaysAt ? { partsWaysAt } : {}) }, ...(nodes.length === 0 ? { notShown: "the run recorded no step that can be drawn" } : {}) };
+  return { ...base, nodes, edges, steps, marks: merged, captions, path: { edges: edges.map((e) => e.id), provenance: "run", ...(partsWaysAt ? { partsWaysAt } : {}) }, ...(nodes.length === 0 ? { notShown: "the run recorded no step that can be drawn" } : {}) };
 }
 
 /** Author (d): the retry demo. The code is pre-existing, so the drawing says so (PRE-EXISTING.md). */

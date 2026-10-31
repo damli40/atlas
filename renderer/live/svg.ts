@@ -10,7 +10,7 @@
 import { handLine, hatchPath, inkPoly, linePath, ribbon, rng, TAU, type Pt, type Rng } from "../hand";
 import type { Box, Scene, SceneEdge, SceneMark, SceneNode, SceneRegion, TextBlock } from "../scene";
 import { CLOCK_R } from "../layout";
-import { esc } from "../words";
+import { esc, idAttr } from "../words";
 
 const n1 = (v: number) => (Math.round(v * 10) / 10).toString();
 
@@ -208,7 +208,7 @@ function nodeSvg(n: SceneNode, seed: string, interactive: boolean): string {
   const label = `${n.full}${n.sourceWords ? `, ${n.sourceWords}` : ""}`;
   const a11y = interactive ? ` tabindex="0" role="button" aria-label="${esc(label)}"` : "";
   const rot = n.tilt ? ` transform="rotate(${n.tilt.toFixed(2)} ${n1(n.pivot[0])} ${n1(n.pivot[1])})"` : "";
-  return `<g class="rr-node rr-${n.kind}${n.missing ? " rr-node-missing" : ""}" data-node="${esc(n.id)}" data-provenance="${n.provenance}" data-px="${n1(n.pivot[0])}" data-py="${n1(n.pivot[1])}"${a11y}${rot}><title>${esc(label)}</title><g class="rr-settle">${body}</g></g>`;
+  return `<g class="rr-node rr-${n.kind}${n.missing ? " rr-node-missing" : ""}" data-node="${idAttr(n.id)}" data-provenance="${n.provenance}" data-px="${n1(n.pivot[0])}" data-py="${n1(n.pivot[1])}"${a11y}${rot}><title>${esc(label)}</title><g class="rr-settle">${body}</g></g>`;
 }
 
 function arrowHead(tip: Pt, ang: number, len: number): string {
@@ -223,7 +223,7 @@ function arrowHead(tip: Pt, ang: number, len: number): string {
 function edgeSvg(e: SceneEdge, seed: string): string {
   const R = rng(`${seed}:edge:${e.id}`);
   const hand = handLine(e.pts, R, { bow: 0.85, tremor: 0.85, smooth: 3.5 });
-  const attrs = `data-edge="${esc(e.id)}" data-from="${esc(e.from)}" data-to="${esc(e.to)}" data-provenance="${e.provenance}"`;
+  const attrs = `data-edge="${idAttr(e.id)}" data-from="${idAttr(e.from)}" data-to="${idAttr(e.to)}" data-provenance="${e.provenance}"`;
   const tooltip = e.full ? `<title>${esc(e.full)}</title>` : "";
   const start = n1Pair(hand[0]!);
   const end = n1Pair(hand[hand.length - 1]!);
@@ -249,7 +249,7 @@ function regionSvg(r: SceneRegion, seed: string): string {
   const R = rng(`${seed}:region:${r.id}`);
   const shape = rrect(r.box, 12, 4);
   const line = handLine([...shape, shape[0]!], R, { bow: 0.4, tremor: 0.6, smooth: 2, step: 7 });
-  return `<g class="rr-region" data-region="${esc(r.id)}"><path class="rr-region-line" d="${ribbon(line, 1, R)}"/>${textSvg(r.label, "rr-soft")}</g>`;
+  return `<g class="rr-region" data-region="${idAttr(r.id)}"><path class="rr-region-line" d="${ribbon(line, 1, R)}"/>${textSvg(r.label, "rr-soft")}</g>`;
 }
 
 /** The mark on a node: a tick for matched, a red ring for didn't match, a dashed ring and "?" for can't check. */
@@ -281,14 +281,16 @@ function markSvg(m: SceneMark, node: SceneNode, seed: string): string {
     const ring = handLine(pts, R, { bow: 0.25, tremor: 0.7, smooth: 2.5, step: 5 });
     art = `<path class="rr-mark-ring" d="${ribbon(ring, 2.5, R, { taper: true })}"/><path class="rr-mark-spine" d="${linePath(ring)}"/>`;
   } else {
+    // Outside any red ring on the same node, and rounded the same way so it clears the corners.
     const pts: Pt[] = [];
-    for (let i = 0; i <= 44; i++) {
-      const t = (i / 44) * TAU;
-      pts.push([cx + Math.cos(t) * rx, cy + Math.sin(t) * ry]);
+    const sg = (v: number, e: number) => Math.sign(v) * Math.abs(v) ** e;
+    for (let i = 0; i <= 56; i++) {
+      const t = (i / 56) * TAU;
+      pts.push([cx + sg(Math.cos(t), 0.66) * (rx + 9), cy + sg(Math.sin(t), 0.66) * (ry + 9)]);
     }
     art = `<path class="rr-mark-cant" d="${linePath(handLine(pts, R, { bow: 0.25, tremor: 0.6, step: 5 }))}"/>`;
   }
-  return `<g class="rr-mark rr-mark-${m.kind}" data-mark="${esc(m.on)}">${art}${words}</g>`;
+  return `<g class="rr-mark rr-mark-${m.kind}" data-mark="${idAttr(m.on)}">${art}${words}</g>`;
 }
 
 /** A square of paper fibres, repeated across the sheet: the tooth you only notice when it is missing. */
@@ -331,7 +333,7 @@ export function sceneToSvg(scene: Scene, spec: { seed: string }, o: SvgOptions =
     `<g class="rr-nodes">${scene.nodes.map((n) => nodeSvg(n, scene.seed, interactive)).join("")}</g>` +
     `<g class="rr-labels">${scene.edges
       .filter((e) => e.label)
-      .map((e) => `<g class="rr-label" data-label-of="${esc(e.id)}">${textSvg(e.label!)}</g>`)
+      .map((e) => `<g class="rr-label" data-label-of="${idAttr(e.id)}">${textSvg(e.label!)}</g>`)
       .join("")}</g>` +
     `<g class="rr-marks">${scene.marks.map((mk) => markSvg(mk, byId.get(mk.on)!, scene.seed)).join("")}</g>` +
     `<g class="rr-captions">${scene.captions.map((c) => textSvg(c, "rr-caption")).join("")}</g>` +
