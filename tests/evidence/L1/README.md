@@ -4,11 +4,20 @@ Date: 2026-10-31 (WAT) · Muse Code 1.4.14 (R7309.1) · Node 25.8.1
 
 ## The one thing to know first
 
-**The live run in real Muse Code stopped at the $2.00 limit before the loop.** Muse reached the offer ("type: my answers
-are what I want") and waited, without choosing for the person. It never made an edit under the loop. So no frame shows
-Muse Code itself editing and re-running. The loop itself ran live afterwards over the plugin's real MCP program, against a
-real Atlas server with real Muse Wonder and Muse Spark, and **the edits in that part were written by the build agent's
-script, not by Muse.** Finishing the Muse part needs about $0.55 more; see "Cost". That decision is Dami's.
+**Real Muse Code never completed edit → re-run, and the second try went over its limit.** Two attempts failed:
+
+1. At the $2.00 limit, Muse reached the offer ("type: my answers are what I want") and waited, without choosing for the person.
+2. The coordinator then raised the limit to $2.55 to finish in the same session. The choice was typed, and Muse called
+   `atlas_choose_target` as it should. **The plugin's MCP program had died during the 32 idle minutes**, so the call failed with
+   `Broken pipe (os error 32)`. Muse tried again, checked `atlas_status`, reported the error and **did not edit the file**. That
+   was the right behaviour, and it spent the money. See "Why the plugin was gone" for what I could and could not find out.
+
+**The spend reached $2.5923 at the upper-bound price, $0.04 over the $2.55 hard stop.** The meter pressed Esc at $2.40 and killed
+tmux at $2.52, but it reads logs every 3 s, and the calls that had already started finished after that. No fresh run was started.
+
+The loop itself ran live over the plugin's real MCP program, against a real Atlas server with real Muse Wonder and Muse Spark, and
+**the edits in that part were written by the build agent's script, not by Muse.** Nobody has seen Muse Code do the edit and the
+re-run.
 
 ## What this is, in plain words
 
@@ -30,8 +39,10 @@ Atlas still never judges correctness. "Matched" means the code did what you bet 
 - Rules shared by server and verify: `src/loop.ts`. Verify: `loopProblems` in `src/atlasfile.ts`.
 - Routes: `server/loop.ts` (`POST /loop/choose`, `POST /loop/rerun`).
 - Tools added: `atlas_choose_target`, `atlas_rerun` (`plugins/muse-atlas/mcp/`), steps 7–11 of `commands/atlas.md`.
-- Tests: `tests/unit/l1-loop.test.ts` (24), output in [test-output.txt](test-output.txt).
+- Tests: `tests/unit/l1-loop.test.ts` (25), output in [test-output.txt](test-output.txt).
 - Film text frames, real Muse: [live/muse-frames/](live/muse-frames/). `02-round.txt` ends at the offer.
+  `04-choice-typed.txt` is the choice being typed. **`04-choice-from-session-log.txt` is not a screen capture:** the meter killed
+  tmux before the capture ran, so that text is Muse's own session log.
 - Loop text frames, real MCP program with scripted edits: [live/stdio/](live/stdio/), in step order. `11-atlas_rerun.txt`
   is the best single frame. Proof file: [live/stdio/proof-pVDWj2CsFL.atlas.json](live/stdio/proof-pVDWj2CsFL.atlas.json).
 - Spend: [live/muse-meter.txt](live/muse-meter.txt), [live/atlas-usage.jsonl](live/atlas-usage.jsonl).
@@ -84,18 +95,31 @@ was not asked again. Verify passes on the proof file; a copy with one flipped ve
 
 | | Tokens | Upper bound (cached at full price) | Uncached only |
 |---|---|---|---|
-| Muse Code, 15 calls (attempt 0: 7; attempt 1: 8, reminder child runs included) | 437,050 in (357,083 cached), 4,965 out | $1.8475 | $0.4192 |
+| Muse Code, 20 calls (attempt 0: 7; attempt 1: 8; the choice after the limit was raised: 5, reminder child runs included) | 596,178 in (469,806 cached), 5,841 out | $2.5015 | $0.6223 |
 | Atlas: Muse Wonder + Muse Spark, 2 rounds | see `atlas-usage.jsonl` | $0.0907 | $0.0907 |
-| **Total** | | **≤ $1.94** | **≈ $0.51 + whatever Meta charges for cached tokens** |
+| **Total** | | **≤ $2.59** (limit $2.55; **$0.04 over**) | **≈ $0.71 + whatever Meta charges for cached tokens** |
 
-Meta has not published a price for cached tokens, so the real bill lies between the two figures. The meter's stop did not change anything:
-it was set to press Esc at $1.85, and Muse had already finished its reply by then. I did not type the choice, because the next three calls (choose,
-edit, re-run), at about $0.14 each, would have passed $2.00.
+Meta has not published a price for cached tokens, so the real bill lies between the two figures. Part 1 stopped at ≤ $1.94; the
+last 5 calls cost $0.65 and produced no edit.
 
-To finish in real Muse: about 4 calls, about $0.55 at the upper bound, if the same Muse session is still open. A fresh
-session costs about $1.60 (8 calls for the round, then 4, at about $0.13 each).
+To finish in real Muse now takes a fresh session, about 12 calls, about $1.60 at the upper bound, and the idle problem below
+should be understood first. Keep the time between the offer and the choice short.
 
-## What the tests prove (24; models mocked, $0)
+## Why the plugin was gone
+
+**I don't know why it died.** The Muse session's own logs hold no exit reason, and the program's stderr was not kept. The plugin has
+no timer and exits only when its stdin closes or it crashes.
+
+What I ruled out, at $0, with a second Muse on the free echo provider and the same plugin in the same HOME:
+- Plain idling: its plugin child was alive after 35 minutes. **That child had never run a tool**, so this does not cover a child
+  that had run a round, which is the case that failed.
+- Running the full suite twice, and `muse plugins validate` on the same HOME: the child survived both.
+
+What this means for a person: if they take a long time between the result and typing their choice, the loop may be unable to
+continue. They see the broken-pipe error, and Muse does not edit. Restarting Muse loses the round on Muse's side, so they would
+start again. **This is open, and it needs a test with a child that has run a round.**
+
+## What the tests prove (25; models mocked, $0)
 
 Real: the Atlas server, the sandbox runner, the judge, seals, verify, the plugin's tools, and in the budget test G1's gate and
 ledger. Fake: the Meta models, and Muse (the test writes the file).
@@ -116,13 +140,15 @@ ledger. Fake: the Meta models, and Muse (the test writes the file).
   no code; `/replay` still works on a file with a loop.
 - **Do the tests bite?** See [mutation-check.txt](mutation-check.txt): each guard removed in turn.
 
+- **Two-call tests (U3):** the same two calls run again on the changed code; the proof verifies, and a tampered fact fails it.
+
 **Two E5 tests were changed:** both hard-coded the tool list, which now has 8 tools. Nothing else in E5 changed.
 `tests/tools/g1-fixtures.ts` gained `modalRuntime`, so a pretend Modal run makes a proof that verifies.
 
 ## Suite
 
-Full suite on the final branch, twice: [full-suite-1.txt](full-suite-1.txt), [-2](full-suite-2.txt): 0 failed, 2,125 passed,
-35 skipped, both times. `tsc`: [tsc-output.txt](tsc-output.txt), exit 0. `no-local-paths` passes.
+Full suite after the rebase onto main 8b7b21e (U3), twice: [full-suite-1.txt](full-suite-1.txt), [-2](full-suite-2.txt): 0 failed,
+2,166 passed, 35 skipped, both times. `tsc`: [tsc-output.txt](tsc-output.txt), exit 0. `no-local-paths` passes.
 
 **An earlier full run had 7 failures.** Four were mine and are fixed: the two new routes were missing from G1's route table, the
 live proof changed the refusal index (2 tests; now 25 rows), and one count sentence skipped `plural()`. The other 3 were existing
@@ -134,6 +160,7 @@ both later full runs. They look load-related, but I did not prove that.
 
 ## Known limits
 
+0. **The plugin's program can be gone when the person replies**, for an unknown reason; see "Why the plugin was gone".
 1. **Atlas cannot prove the person typed the words.** This is E5's limit 1, and it matters more here, because the offer
    prints the exact words the agent would need. A misbehaving agent, or one obeying text in the file, can pass them. What
    lowers the risk: typed strings only, the 2-second floor, "only the person" in the result, the tool description and the
@@ -157,5 +184,7 @@ both later full runs. They look load-related, but I did not prove that.
 ## Not done
 
 - No re-run in real Muse Code; see the top.
+- U3's two-call tests: supported, with no code change needed, because they are the same test shape and the same runner. One test
+  covers it through the server routes, not through the plugin's tools or real Muse.
 - No adversarial review of this batch by a second reviewer yet.
 - `docs/` and `CLAUDE.md` untouched, as briefed, so `pitch/VIDEO-INDEX.md` is not updated for this result.

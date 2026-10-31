@@ -1,33 +1,34 @@
 
  RUN  v5.0.5 <repo>
 
- ✓ tests/unit/l1-loop.test.ts > L1 the words of the choice > the plugin's copy of the phrase is the server's; only the phrase counts 4ms
- ✓ tests/unit/l1-loop.test.ts > L1 the words of the choice > the changed lines: what was added and removed, with line numbers; line endings count 3ms
- ✓ tests/unit/l1-loop.test.ts > L1 the words of the choice > the ledger's money sentences stop the loop; its 'wait a few seconds' sentences do not 1ms
- ✓ tests/unit/l1-loop.test.ts > L1 the whole loop, with a fake Muse > the person chooses; a first edit still misses; a second matches; same test, same seed, same sealed bets, no new bet 8034ms
- ✓ tests/unit/l1-loop.test.ts > L1 the whole loop, with a fake Muse > the tools are listed for Muse, with the person-only rule in the description 1ms
- ✓ tests/unit/l1-loop.test.ts > L1 the cap, on the server > three misses: Atlas stops, hands back, and says what each try measured; a fourth is refused however it is asked 8562ms
- ✓ tests/unit/l1-loop.test.ts > L1 the cap, on the server > the same code twice uses no try and runs nothing; going back to the code they bet on neither 11633ms
- ✓ tests/unit/l1-loop.test.ts > L1 the cap, on the server > two re-runs at once: one runs, the other is refused, so the count cannot be raced 6801ms
- ✓ tests/unit/l1-loop.test.ts > L1 the cap, on the server > a run that stops part way counts as a try, is said plainly, and the same code may go again 6009ms
- ✓ tests/unit/l1-loop.test.ts > L1 every re-run goes through G1's metering > needs an invite; each sandbox is in the spend log; a used-up budget stops the loop with the plain reason, and nothing starts 6778ms
- ✓ tests/unit/l1-loop.test.ts > L1 a sealed bet cannot change between tries > a new bet is refused; an edited bet stops the loop with nothing run; a validly re-sealed swap stops it too 6187ms
- ✓ tests/unit/l1-loop.test.ts > L1 the person's choice cannot come from the agent without typed words > no words, other words, an object, too fast, before the run: nothing is chosen and nothing re-runs 2483ms
- ✓ tests/unit/l1-loop.test.ts > L1 the person's choice cannot come from the agent without typed words > nothing to offer when every answer matched, or when the person skipped every question 4588ms
- ✓ tests/unit/l1-loop.test.ts > L1 the whole run says can't check: the loop stops and says why > an edit that imports a library 1554ms
- ✓ tests/unit/l1-loop.test.ts > L1 the whole run says can't check: the loop stops and says why > an edit that deletes the function 2116ms
- ✓ tests/unit/l1-loop.test.ts > L1 the awkward ends > a first run that is 'can't check' as a whole offers nothing and cannot be chosen 20ms
- ✓ tests/unit/l1-loop.test.ts > L1 the awkward ends > a try that cannot go in the proof file ends the loop and says so; the file keeps what verifies 5019ms
- ✓ tests/unit/l1-loop.test.ts > L1 the obvious cheat: plain code cannot know, so the person sees it > a hard-coded function matches, and the result shows every changed line and says the person reviews 3236ms
- ✓ tests/unit/l1-loop.test.ts > L1 the obvious cheat: plain code cannot know, so the person sees it > an edit far longer than an answer shows says how many lines are not shown; they stay in the proof 4203ms
- ✓ tests/unit/l1-loop.test.ts > L1 the obvious cheat: plain code cannot know, so the person sees it > a changed line cannot start a new line, and its text sits inside a tag the file cannot know 4423ms
- ✓ tests/unit/l1-loop.test.ts > L1 verify: every edit to a try fails it > change any single value anywhere in the loop, one at a time: every one fails 11478ms
- ✓ tests/unit/l1-loop.test.ts > L1 verify: every edit to a try fails it > deleted, added, reordered tries and a removed stop: all fail 8233ms
- ✓ tests/unit/l1-loop.test.ts > L1 verify: every edit to a try fails it > the same edits with the fingerprint recomputed still fail: verify re-judges, re-hashes and recomputes 8378ms
- ✓ tests/unit/l1-loop.test.ts > L1 verify: every edit to a try fails it > a file with no loop still verifies as before, and /replay still runs a file with one 7314ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the words of the choice > the plugin's copy of the phrase is the server's; only the phrase counts 1ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the words of the choice > the changed lines: what was added and removed, with line numbers; line endings count 1ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the words of the choice > the ledger's money sentences stop the loop; its 'wait a few seconds' sentences do not 0ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the whole loop, with a fake Muse > the person chooses; a first edit still misses; a second matches; same test, same seed, same sealed bets, no new bet 1243ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the whole loop, with a fake Muse > the tools are listed for Muse, with the person-only rule in the description 0ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the cap, on the server > three misses: Atlas stops, hands back, and says what each try measured; a fourth is refused however it is asked 1328ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the cap, on the server > the same code twice uses no try and runs nothing; going back to the code they bet on neither 1294ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the cap, on the server > two re-runs at once: one runs, the other is refused, so the count cannot be raced 705ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the cap, on the server > a run that stops part way counts as a try, is said plainly, and the same code may go again 640ms
+ ✓ tests/unit/l1-loop.test.ts > L1 every re-run goes through G1's metering > needs an invite; each sandbox is in the spend log; a used-up budget stops the loop with the plain reason, and nothing starts 1037ms
+ ✓ tests/unit/l1-loop.test.ts > L1 a sealed bet cannot change between tries > a new bet is refused; an edited bet stops the loop with nothing run; a validly re-sealed swap stops it too 731ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the person's choice cannot come from the agent without typed words > no words, other words, an object, too fast, before the run: nothing is chosen and nothing re-runs 469ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the person's choice cannot come from the agent without typed words > nothing to offer when every answer matched, or when the person skipped every question 913ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the whole run says can't check: the loop stops and says why > an edit that imports a library 354ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the whole run says can't check: the loop stops and says why > an edit that deletes the function 507ms
+ ✓ tests/unit/l1-loop.test.ts > L1 U3's two-call tests (code that keeps state) > the same two calls run again on the changed code, and the proof verifies 807ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the awkward ends > a first run that is 'can't check' as a whole offers nothing and cannot be chosen 12ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the awkward ends > a try that cannot go in the proof file ends the loop and says so; the file keeps what verifies 1228ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the obvious cheat: plain code cannot know, so the person sees it > a hard-coded function matches, and the result shows every changed line and says the person reviews 817ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the obvious cheat: plain code cannot know, so the person sees it > an edit far longer than an answer shows says how many lines are not shown; they stay in the proof 1098ms
+ ✓ tests/unit/l1-loop.test.ts > L1 the obvious cheat: plain code cannot know, so the person sees it > a changed line cannot start a new line, and its text sits inside a tag the file cannot know 654ms
+ ✓ tests/unit/l1-loop.test.ts > L1 verify: every edit to a try fails it > change any single value anywhere in the loop, one at a time: every one fails 1268ms
+ ✓ tests/unit/l1-loop.test.ts > L1 verify: every edit to a try fails it > deleted, added, reordered tries and a removed stop: all fail 1002ms
+ ✓ tests/unit/l1-loop.test.ts > L1 verify: every edit to a try fails it > the same edits with the fingerprint recomputed still fail: verify re-judges, re-hashes and recomputes 986ms
+ ✓ tests/unit/l1-loop.test.ts > L1 verify: every edit to a try fails it > a file with no loop still verifies as before, and /replay still runs a file with one 1225ms
 
  Test Files  1 passed (1)
-      Tests  24 passed (24)
-   Start at  21:34:47
-   Duration  120.01s (tests 98%, import 1%, transform 1%)
+      Tests  25 passed (25)
+   Start at  21:57:41
+   Duration  18.76s (tests 98%, import 1%)
 
