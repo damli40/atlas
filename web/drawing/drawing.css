@@ -45,7 +45,7 @@ button{font-family:"Atlas Besley",Georgia,serif}
 .r-sheet .rr>rect:first-of-type{fill:transparent}
 .r-chart{left:max(39vw,710px);top:0;width:calc(100vw - max(39vw,710px) - 14px);height:100%}
 .u1-root[data-stage="run"] .r-chart,.u1-root[data-stage="verdict"] .r-chart{transform:translate(calc(5vw - max(39vw,710px)),48%) scale(.47);pointer-events:none}
-.u1-root[data-stage="verdict"] .r-chart{opacity:0}
+.u1-root[data-stage="verdict"] .r-chart{opacity:0;transition:opacity .12s linear}
 .u1-root[data-stage="run"] .r-chart .rr-captions{opacity:0;transition:opacity .4s}
 .r-path{left:max(43vw,670px);top:0;width:calc(100vw - max(43vw,670px) - 14px);height:100%}
 .r-step{position:absolute;left:clamp(20px,5vw,96px);top:clamp(180px,27vh,280px);margin:0;width:min(560px,calc(100vw - 40px));font-style:italic;font-size:clamp(18px,1.4vw,25px);line-height:1.35;min-height:1.4em;z-index:3;pointer-events:none;color:var(--anatomy-strong)}
