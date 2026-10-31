@@ -21,6 +21,7 @@ import { CallTimeline } from "../machines/calltimeline/CallTimeline";
 import { PASTE_WORDS } from "../../src/paste-words";
 import { ConditionsLine } from "./Conditions";
 import { RecordBefore } from "./TrackRecord";
+import { FELT_WORDS } from "../../src/paste-words";
 
 /** S6: the pre-existing label, from the file when it carries one. */
 const preExistingLabel = (file: AtlasFile) =>
@@ -111,6 +112,7 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
   const title = call && file.target.kind === "pasted" ? `${call.exportName} · pasted ${file.target.language ? LANGUAGE_NAME[file.target.language] : "code"}` : targetName(card.target);
   const caption = (q: string) => shortQuestionFor(q, exp0?.params, file.target.language);
   const fp = (h: string) => `${h.slice(0, 12)}…${h.slice(-6)}`;
+  const saidHowSure = file.bets.find((b) => b.who === "human" && b.confidence)?.confidence;
 
   return (
     <article className="proof-card" data-testid="proof-card" aria-label={`proof card for run ${card.runId}`}>
@@ -128,6 +130,12 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
             // E3 review r2 M2: a repeat of a test already run in the session; its bets are sealed with repeat: true.
             <p className="pc-level" data-testid="pc-repeat">
               A repeat of a test already run in this session: its bets are marked as a repeat.
+            </p>
+          )}
+          {saidHowSure && (
+            // X4 (D56): sealed with the person's answers; verify checks it.
+            <p className="pc-level" data-testid="pc-how-sure">
+              {FELT_WORDS.proofSaid(saidHowSure)}
             </p>
           )}
           {card.level && (

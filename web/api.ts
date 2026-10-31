@@ -4,7 +4,7 @@
 
 import type { Question } from "../src/gate";
 import type { ChainFactsResult } from "../src/chain-facts";
-import type { AtlasFile, Bet, Experiment, Finding, Run, Target, Verdict } from "../src/types";
+import type { AtlasFile, Bet, Confidence, Experiment, Finding, Run, Target, Verdict } from "../src/types";
 import type { FalseAlarmRow } from "../runners/evm/level2";
 import type { ModelSlotView, SealedOnly } from "../server/bets";
 import type { ChangeAnswer } from "../server/changes";
@@ -309,8 +309,8 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
      * sealed. Returns the person's whole sealed set on this experiment, which is exactly what the
      * run will judge, so the page shows (and later checks) that set and nothing else.
      */
-    bets: (experimentId: string, answers: { measures: string; answer: HumanAnswer }[]) =>
-      post<{ bets: ShownBet[] }>("/bets", { experimentId, who: "human", bets: answers }).then((r) => r.bets),
+    bets: (experimentId: string, answers: { measures: string; answer: HumanAnswer }[], confidence?: Confidence | null) =>
+      post<{ bets: ShownBet[] }>("/bets", { experimentId, who: "human", bets: answers, ...(confidence ? { confidence } : {}) }).then((r) => r.bets),
     /** Waits for the model's bets on this experiment; returns its status and sealed hashes (never its answers). */
     modelBets: (experimentId: string) =>
       post<{ model: ModelSlotView | null }>(`/experiments/${encodeURIComponent(experimentId)}/model-bets`, {}).then((r) => r.model),

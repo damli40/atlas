@@ -1,0 +1,16 @@
+/* X4 (D56): the "how sure" pieces. The colours fall back to the surrounding text, so they work on any screen. */
+.felt-pick{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;min-width:0}
+.felt-pick-label{font-size:13px;font-weight:600}
+.felt-opts{display:flex;flex-wrap:wrap;gap:5px}
+.felt-pick .felt-opt{padding:3px 10px;border-radius:999px;border:1px solid currentColor;background:transparent;color:inherit;font-family:inherit;font-size:12.5px;font-weight:400;line-height:1.35;min-height:0;cursor:pointer}
+.felt-pick .felt-opt[aria-checked="true"]{background:var(--anatomy-strong,#222);border-color:var(--anatomy-strong,#222);color:var(--anatomy-page,#fff)}
+.felt-opt:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+.felt-opt:disabled{cursor:default}
+.felt-hint{flex-basis:100%;font-size:12px;opacity:.85}
+.felt-round{margin:0 0 10px;font-size:15px;line-height:1.35;font-weight:600}
+.felt-record{margin:12px 0 0;padding-top:10px;border-top:1px solid color-mix(in srgb,currentColor 25%,transparent);font-size:13px;line-height:1.4}
+.felt-record h3{margin:0 0 6px;font-size:13px;font-weight:650}
+.felt-record ul{margin:0 0 6px;padding-left:18px}
+.felt-record li{margin:2px 0}
+.felt-paths{margin:6px 0;font-weight:600}
+.felt-note{margin:4px 0 0;font-size:12px;opacity:.85}
