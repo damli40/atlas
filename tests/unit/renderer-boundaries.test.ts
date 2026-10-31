@@ -58,7 +58,10 @@ describe("R3 boundaries", () => {
       if (seen.has(f)) return;
       seen.add(f);
       const dir = f.slice(0, f.lastIndexOf("/"));
-      for (const i of imports(f)) {
+      // Only what reaches the bundle: an `import type` vanishes at build time.
+      const code = readFileSync(f, "utf8").replace(/(import|export)\s+type\s[^;]*;/g, "");
+      for (const m of code.matchAll(/(?:from|import\()\s*["']([^"']+)["']|^import\s+["']([^"']+)["']/gm)) {
+        const i = (m[1] ?? m[2])!;
         if (!i.startsWith(".")) continue;
         const base = join(dir, i);
         const hit = [base, `${base}.ts`, `${base}.tsx`, `${base}.mjs`, join(base, "index.ts")].find((c) => {
