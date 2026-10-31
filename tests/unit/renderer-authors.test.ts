@@ -1,8 +1,9 @@
 // R3: the authors: pure functions from Atlas's data to a RenderSpec. What they refuse to claim matters most.
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { betView, paramNames } from "../../renderer/authors/bet-view";
-import { fileChart, outlineChart } from "../../renderer/authors/code-chart";
+import { betView, waitLines } from "../../renderer/authors/bet-view";
+import { explorerSpec } from "../../renderer/authors/code-chart";
+import { explorerModel } from "../../web/machines/explorer/model";
 import { MOONWELL_ALLOWED_WORDS, moonwellFlow } from "../../renderer/authors/moonwell";
 import { collapse, partingKey, pathItems, retryDemo, whatHappened, type WhatHappenedInput } from "../../renderer/authors/what-happened";
 import { specProblems, type RenderSpec } from "../../renderer/spec";
@@ -29,70 +30,90 @@ const loopTrace = (calls: number, waitMs: number): TraceEvent[] => {
   return t;
 };
 
-describe("R3 author (a): code charts", () => {
-  it("a file: tickets, 'calls' words, a self-call the outline's joins leave out, nothing from a run", () => {
-    const src = "export function a(n) { return n ? a(n - 1) : b(); }\nfunction b() {\n  return 1;\n}\n// a() in a comment\n";
-    const s = fileChart({ fileName: "x.js", outline: fileOutline(src, "js"), source: "function a(n) {\n  return n ? a(n - 1) : b();\n}\nfunction b() {\n  return 1;\n}\n", language: "js" });
-    expect(specProblems(s)).toEqual([]);
-    expect(s.stage).toBe("pre-bet");
-    expect(s.nodes.every((n) => n.provenance === "plain-code")).toBe(true);
-  });
-  it("a function calling itself gets a self-loop; a name in a comment does not", () => {
-    const src = "export function a(n) {\n  return n ? a(n - 1) : b();\n}\nexport function b() {\n  // b() mentioned here\n  return 1;\n}\n";
-    const s = fileChart({ fileName: "x.js", outline: fileOutline(src, "js"), source: src, language: "js" });
-    expect(s.edges.find((e) => e.id === "self:a")?.words).toBe("calls itself");
-    expect(s.edges.find((e) => e.id === "self:b")).toBeUndefined();
-    expect(s.edges.find((e) => e.from === "part:a" && e.to === "part:b")?.words).toBe("calls");
-  });
-  it("an empty file says why instead of drawing", () => {
-    const s = fileChart({ fileName: "x.js", outline: fileOutline("const a = 1;\n", "js") });
-    expect(s.notShown).toBeTruthy();
-  });
+describe("R3 author (a): the explorer's chart", () => {
+  const s = explorerSpec(explorerModel(metaOutline));
   it("server/meta: folders are regions; Wonder-only joins are dotted, never threads; only confirmed parts", () => {
-    const s = outlineChart({ name: "server/meta", verified: metaOutline.verified });
     expect(specProblems(s)).toEqual([]);
     expect(s.regions.some((r) => r.words === "roles/")).toBe(true);
     expect(s.nodes.length).toBe(metaOutline.verified.counts.confirmedParts);
-    const modelOnly = metaOutline.verified.joins.filter((j: { status: string }) => j.status === "model-only");
-    for (const j of modelOnly) {
-      const e = s.edges.find((x) => x.id === `join:${j.id}`);
-      if (e) expect(e.kind).toBe("dashed-note");
-    }
     expect(s.edges.filter((e) => e.provenance === "wonder-words").every((e) => e.kind === "dashed-note")).toBe(true);
+    const m = explorerModel(metaOutline);
+    const withChalk = explorerSpec({ ...m, chalk: [{ id: "x", from: m.boxes[0]!.id, to: m.boxes[1]!.id, kind: "calls", words: "w", reason: "r", noLinkFound: false }] });
+    expect(withChalk.edges.find((e) => e.id === "chalk:x")).toMatchObject({ kind: "dashed-note", provenance: "wonder-words" });
     expect(s.captions.map((c) => c.words).join()).toMatch(/never that the name or purpose is true/);
   });
-  it("no verified outline, or a can't-check outline, draws nothing and says why", () => {
-    expect(outlineChart({ name: "x", verified: null, failure: "no answer" }).notShown).toBe("no answer");
-    expect(outlineChart({ name: "x", verified: { ...metaOutline.verified, cantCheck: "too large" } }).notShown).toBe("too large");
+  it("does not repeat itself: one legend line, words only where they say something new, parallel links are one thicker line", () => {
+    expect(s.legend).toMatch(/A solid line: plain code found that one part imports the other; thicker means more links/);
+    expect(s.quiet).toBe(true);
+    const threads = s.edges.filter((e) => e.kind === "thread");
+    expect(threads.filter((e) => e.words === "imports").length).toBe(0);
+    expect(threads.filter((e) => e.words).length).toBeLessThan(threads.length / 2);
+    expect(Math.max(...threads.map((e) => e.weight ?? 1))).toBeGreaterThan(1);
+    const pairs = threads.map((e) => `${e.from}|${e.to}`);
+    expect(new Set(pairs).size).toBe(pairs.length);
+  });
+  it("draws nothing and says why when the model has nothing to draw", () => {
+    expect(explorerSpec(explorerModel({ ...metaOutline, verified: null, wonder: { ...metaOutline.wonder, failure: "no answer" } })).notShown).toMatch(/no usable outline/);
+    expect(explorerSpec(explorerModel({ ...metaOutline, verified: { ...metaOutline.verified, cantCheck: "too large" } })).notShown).toMatch(/too large/);
   });
 });
 
-describe("R3 author (b): the bet view", () => {
-  const spec = betView({ fileName: "f.ts", outline: fileOutline(source, "ts"), source, language: "ts", test: twice.experiment.params });
+describe("R3 author (b): the chart and the bet view use U3's call sites", () => {
+  const spec = betView({ fileName: "f.ts", outline: fileOutline(source, "ts"), source, language: "ts", test: twice.experiment.params, tested: "fetchWithRetry" });
+  const wire = (s: RenderSpec, from: string, to: string) => s.edges.some((e) => e.from === from && e.to === to);
   it("has no run values, and validates as pre-bet", () => {
     expect(spec.stage).toBe("pre-bet");
     expect(specProblems(spec)).toEqual([]);
     const words = allWords(spec);
     for (const leaked of ["710", "263", "447", "called fetch", "returned"]) expect(words).not.toContain(leaked);
   });
-  it("wires the fake and the clock to the functions whose own lines call them", () => {
-    const wire = (from: string, to: string) => spec.edges.some((e) => e.from === from && e.to === to);
-    expect(wire("part:fetchWithRetry", "device:fetch")).toBe(true);
-    expect(wire("part:sleep", "device:fetch")).toBe(false);
-    expect(wire("part:sleep", "clock")).toBe(true);
+  it("wires the fake only from the function whose own lines call it", () => {
+    expect(wire(spec, "fetchWithRetry", "stand-in fetch")).toBe(true);
+    expect(wire(spec, "sleep", "stand-in fetch")).toBe(false);
   });
-  it("a stand-in is wired only if the function's lines call its parameter; otherwise it stands alone and a caption says so", () => {
+  it("a string or a comment containing fetch( draws no wire", () => {
+    const src = 'export function a() {\n  const s = "fetch(url)";\n  // fetch(other)\n  return s;\n}\nexport async function b() {\n  return fetch("https://x.test");\n}\n';
+    const test = { shape: "call-function" as const, exportName: "a", args: [], network: { replaces: "fetch" as const, then: "repeat_last" as const, calls: [{ do: "respond" as const, status: 200, body: {} }] } };
+    const s = betView({ fileName: "f.ts", outline: fileOutline(src, "ts"), source: src, language: "ts", test });
+    expect(wire(s, "a", "stand-in fetch")).toBe(false);
+    expect(wire(s, "b", "stand-in fetch")).toBe(true);
+  });
+  it("an abort timer is not a wait; a Promise a timer resolves is, and so is a Python sleep", () => {
+    expect(wire(spec, "fetchWithRetry", "clock housing")).toBe(false);
+    expect(wire(spec, "sleep", "clock housing")).toBe(true);
+    const o = (src: string, lang: "js" | "py") => waitLines(src, lang, fileOutline(src, lang));
+    expect(o("export function a() {\n  setTimeout(() => go(), 100);\n}\n", "js")).toEqual([]);
+    expect(o('export function a() {\n  const s = "new Promise((r) => setTimeout(r, 1))";\n  return s;\n}\n', "js")).toEqual([]);
+    expect(o("export function a() {\n  return new Promise((resolve) => setTimeout(resolve, 100));\n}\n", "js")).toEqual(["a"]);
+    expect(o("import time\ndef a():\n    time.sleep(1)\n", "py")).toEqual(["a"]);
+    expect(o('def a():\n    return "time.sleep(1)"\n', "py")).toEqual([]);
+  });
+  it("a stand-in is wired only if plain code finds a line calling it; otherwise a caption says why", () => {
     const src = "export async function go(load, n) {\n  return load(n);\n}\nexport async function no(load) {\n  return 1;\n}\n";
     const standIn = { kind: "stand-in" as const, name: "lookup", async: true, then: "repeat_last" as const, calls: [{ do: "return" as const, value: 1 }] };
     const yes = betView({ fileName: "f.js", outline: fileOutline(src, "js"), source: src, language: "js", test: { shape: "call-function", exportName: "go", args: [standIn, { kind: "json", value: 1 }] } });
-    expect(yes.edges.some((e) => e.to === "device:lookup" && e.from === "part:go")).toBe(true);
+    expect(wire(yes, "go", "stand-in lookup")).toBe(true);
     const no = betView({ fileName: "f.js", outline: fileOutline(src, "js"), source: src, language: "js", test: { shape: "call-function", exportName: "no", args: [standIn] } });
-    expect(no.edges.some((e) => e.to === "device:lookup")).toBe(false);
-    expect(no.captions.map((c) => c.words).join()).toMatch(/No function's own lines were seen calling lookup/);
+    expect(no.edges.some((e) => e.to === "stand-in lookup")).toBe(false);
+    expect(no.captions.map((c) => c.words).join()).toMatch(/no line/);
   });
-  it("reads parameter names through types and defaults", () => {
-    expect(paramNames("function f(a: Map<string, number>, b = [1, 2], ...c: X[])")).toEqual(["a", "b", "c"]);
-    expect(paramNames("def f(a, b=1, *c)")).toEqual(["a", "b", "c"]);
+  it("a function calling itself gets a self-loop from U3's reading; a mention in a comment does not", () => {
+    const src = "export function a(n) {\n  return n ? a(n - 1) : b();\n}\nexport function b() {\n  // b() mentioned here\n  return 1;\n}\n";
+    const s = betView({ fileName: "x.js", outline: fileOutline(src, "js"), source: src, language: "js", test: null });
+    expect(s.edges.find((e) => e.id === "self:a")?.words).toBe("calls itself");
+    expect(s.edges.find((e) => e.id === "self:b")).toBeUndefined();
+    expect(s.edges.find((e) => e.from === "a" && e.to === "b")?.words).toBe("calls");
+    expect(s.nodes.every((n) => n.provenance === "plain-code")).toBe(true);
+  });
+  it("failure labels are tags on their parts, allowed before a bet; a run tag is refused", () => {
+    const s = betView({ fileName: "f.ts", outline: fileOutline(source, "ts"), source, language: "ts", test: null, labels: [{ anchor: "fetchWithRetry", text: "found in this code: no overall timeout" }] });
+    expect(s.tags).toEqual([{ on: "fetchWithRetry", words: "found in this code: no overall timeout", provenance: "plain-code" }]);
+    expect(specProblems(s)).toEqual([]);
+    expect(specProblems({ ...s, tags: [{ on: "fetchWithRetry", words: "x", provenance: "run" }] }).join()).toMatch(/pre-bet but holds run data/);
+  });
+  it("an empty file says why instead of drawing", () => {
+    const s = betView({ fileName: "x.js", outline: fileOutline("const a = 1;\n", "js"), source: "const a = 1;\n", language: "js", test: null });
+    expect(s.notShown).toBeTruthy();
   });
 });
 
@@ -101,7 +122,7 @@ describe("R3 author (c): what happened", () => {
     const s = whatHappened({ run: twice.run, experiment: twice.experiment });
     expect(specProblems(s)).toEqual([]);
     expect(s.nodes.map((n) => n.words)).toEqual(["called fetch", "waited 263 ms", "called fetch", "waited 447 ms", "called fetch", 'returned {"price":42}']);
-    expect(s.edges.map((e) => e.words).filter(Boolean)).toEqual(["answered 503", "answered 503", "answered 200"]);
+    expect(s.edges.map((e) => e.words).filter(Boolean)).toEqual(["answered 503 (scripted)", "answered 503 (scripted)", "answered 200 (scripted)"]);
     expect(s.path?.edges.length).toBe(s.edges.length);
     expect(s.edges.every((e) => e.provenance === "run" && e.kind === "thread")).toBe(true);
     expect(s.captions.map((c) => c.words).join()).toMatch(/pins it to seed/);
@@ -117,7 +138,7 @@ describe("R3 author (c): what happened", () => {
     const many = whatHappened({ run: run(loopTrace(48, 100), { outcome: "threw", virtualMs: 4700, thrownName: "Error", "calls:fetch": 48 }), experiment: net(500) });
     const t = many.nodes.find((n) => n.words.includes("48 times"));
     expect(t?.small).toBe("calls 1 to 48");
-    expect(many.edges.find((e) => e.from === t?.id)?.words).toBe("each answered 500, waits 100 ms");
+    expect(many.edges.find((e) => e.from === t?.id)?.words).toBe("each answered 500 (scripted), waits 100 ms");
     expect(many.nodes.length).toBeLessThan(5);
     const few = whatHappened({ run: run(loopTrace(3, 100), { outcome: "threw", virtualMs: 200, thrownName: "Error", "calls:fetch": 3 }), experiment: net(500) });
     expect(few.nodes.filter((n) => n.words === "called fetch").length).toBe(3);
@@ -184,7 +205,40 @@ describe("R3 author (c): what happened", () => {
   it("a code that threw after retries: real fixture", () => {
     const s = whatHappened({ run: always.run, experiment: always.experiment });
     expect(s.nodes[s.nodes.length - 1]?.words).toBe("threw Error at 3,173 ms");
-    expect(s.edges.filter((e) => e.words === "answered 500").length).toBe(4);
+    expect(s.edges.filter((e) => e.words === "answered 500 (scripted)").length).toBe(4);
+  });
+});
+
+describe("R3 author (c): a test of several calls", () => {
+  const seq = (t: TraceEvent[], m: Run["result"]["measured"]) => run(t, m);
+  const params = { params: { shape: "call-function", exportName: "get_user_plan", args: [], calls: [{ exportName: "get_user_plan", args: [] }, { exportName: "get_user_plan", args: [], waitMs: 61000 }] } } as unknown as NonNullable<WhatHappenedInput["experiment"]>;
+  it("the path shows each call: its start, its end, and Atlas's own scripted wait between them, kept apart from the code's waits", () => {
+    const t: TraceEvent[] = [
+      { t: 0, event: "start", data: { exportName: "get_user_plan", calls: 2 } },
+      { t: 0, event: "call_start", data: { n: 1, exportName: "get_user_plan" } },
+      { t: 500, event: "call_returned", data: { n: 1, type: "string", json: '"pro"' } },
+      { t: 61500, event: "call_start", data: { n: 2, exportName: "get_user_plan" } },
+      { t: 62000, event: "returned", data: { type: "string" } },
+    ];
+    const s = whatHappened({ run: seq(t, { outcome: "returned", returnedJson: '"pro"', virtualMs: 500 }), experiment: params });
+    const w = s.nodes.map((n) => `${n.small ?? ""}|${n.words}`);
+    expect(w).toEqual(["Atlas's call 1 of 2|get_user_plan", "|waited 500 ms", 'end of call 1|call 1 returned "pro"', "|Atlas waited 61,000 ms, as the test says", "Atlas's call 2 of 2|get_user_plan", "|waited 500 ms", 'the end|returned "pro"']);
+    expect(specProblems(s)).toEqual([]);
+  });
+  it("a sequence's ending time is the whole run's clock, not the last call's own", () => {
+    const t: TraceEvent[] = [
+      { t: 0, event: "start", data: { calls: 2 } },
+      { t: 0, event: "call_start", data: { n: 1, exportName: "f" } },
+      { t: 100, event: "call_threw", data: { n: 1, name: "Boom" } },
+      { t: 100, event: "call_start", data: { n: 2, exportName: "f" } },
+      { t: 300, event: "threw", data: { name: "Error" } },
+    ];
+    const s = whatHappened({ run: seq(t, { outcome: "threw", thrownName: "Error", virtualMs: 200 }) });
+    expect(s.nodes[s.nodes.length - 1]?.words).toBe("threw Error at 300 ms");
+    expect(s.nodes.map((n) => n.words)).toContain("call 1 threw Boom");
+  });
+  it("a single-call run is unchanged: no turn tickets", () => {
+    expect(whatHappened({ run: twice.run, experiment: twice.experiment }).nodes.some((n) => /Atlas's call/.test(n.small ?? ""))).toBe(false);
   });
 });
 

@@ -20,7 +20,7 @@ export interface TextLine {
 
 export interface TextBlock {
   /** What the block is, for the checks and the player. */
-  role: "node" | "small" | "edge" | "region" | "title" | "kicker" | "subtitle" | "caption" | "mark";
+  role: "node" | "small" | "edge" | "region" | "title" | "kicker" | "subtitle" | "caption" | "mark" | "tag";
   owner?: string;
   face: "regular" | "italic";
   size: number;
@@ -60,6 +60,8 @@ export interface SceneEdge {
   label: TextBlock | null;
   full: string;
   labelHidden: boolean;
+  /** How many links in the code this line stands for. */
+  weight: number;
 }
 
 export interface SceneRegion {
@@ -84,6 +86,8 @@ export interface Scene {
   edges: SceneEdge[];
   regions: SceneRegion[];
   marks: SceneMark[];
+  tags: TextBlock[];
+  quiet: boolean;
   title: TextBlock | null;
   kicker: TextBlock | null;
   subtitle: TextBlock | null;

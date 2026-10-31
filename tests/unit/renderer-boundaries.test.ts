@@ -22,8 +22,10 @@ describe("R3 boundaries", () => {
   it("authors read Atlas's types and pure rules only: no server, runner, model or file system", () => {
     for (const f of files.filter((x) => x.includes("/authors/"))) {
       for (const i of imports(f)) {
-        expect(i).not.toMatch(/server|runners|meta|node:/);
-        if (i.includes("src/") && !i.endsWith("/types") && !i.endsWith("file-outline") && !i.endsWith("outline/types")) expect(i).toMatch(/src\/(trust|units|network-fake)$/);
+        expect(i).not.toMatch(/server|runners|\/meta|node:/);
+        if (i.includes("src/") && !i.endsWith("/types") && !i.endsWith("file-outline") && !i.endsWith("outline/types")) expect(i).toMatch(/src\/(trust|units|network-fake|call-sites)$/);
+        // The bench and explorer models are pure: plain code's reading of the code, no run and no server.
+        if (i.includes("web/")) expect(i).toMatch(/web\/machines\/(bench|explorer)\/model$/);
       }
     }
   });
@@ -49,6 +51,32 @@ describe("R3 boundaries", () => {
     expect(readFileSync(join(root, "renderer/fonts/OFL.txt"), "utf8")).toMatch(/Open Font License/);
     const pre = readFileSync(join(root, "PRE-EXISTING.md"), "utf8");
     for (const w of ["statechart-art", "pele 1.12.0", "Besley", "@napi-rs/canvas"]) expect(pre).toContain(w);
+  });
+  it("the shipped page reaches no old isometric figure", () => {
+    const seen = new Set<string>();
+    const walkFrom = (f: string) => {
+      if (seen.has(f)) return;
+      seen.add(f);
+      const dir = f.slice(0, f.lastIndexOf("/"));
+      for (const i of imports(f)) {
+        if (!i.startsWith(".")) continue;
+        const base = join(dir, i);
+        const hit = [base, `${base}.ts`, `${base}.tsx`, `${base}.mjs`, join(base, "index.ts")].find((c) => {
+          try {
+            return statSync(c).isFile();
+          } catch {
+            return false;
+          }
+        });
+        if (hit && /\.(ts|tsx|mjs)$/.test(hit)) walkFrom(hit);
+      }
+    };
+    walkFrom(join(root, "web/main.tsx"));
+    const shipped = [...seen].map((f) => f.slice(root.length + 1));
+    expect(shipped.length).toBeGreaterThan(20);
+    expect(shipped).toContain("renderer/live/mount.ts");
+    for (const f of shipped) expect(f).not.toMatch(/figure\.mjs|figure\.worker|bench\.worker|iso-kit|RetryMachine|PricePipe|CallTimeline|\/art\.tsx|\/live\.tsx|machines\/iso\//);
+    for (const f of shipped) expect(f).not.toMatch(/renderer\/export/);
   });
   it("the canvas engine is a dev dependency, never reachable from the server or the page", () => {
     const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));

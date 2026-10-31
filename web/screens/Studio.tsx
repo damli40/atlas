@@ -380,7 +380,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     const callers = Object.fromEntries(Object.entries(model?.parts ?? {}).flatMap(([id, p]) => (p.kind === "device" ? [[id, (p.calledBy ?? []).map((c) => c.part)]] : [])));
     const language = pasted?.target.language ?? pasted?.language.chosen;
     const wiring = pasted?.outline ? { outline: pasted.outline, callers, ...(language ? { language } : {}) } : undefined;
-    return { token: plays, script: playScript(result.run, test, tested, waitingParts(readText, pasted?.outline), wiring), marks: marksOf(exp.questions, result.bets, result.verdicts, result.run, tested, language), dialFullMs: fullMs };
+    return { token: plays, script: playScript(result.run, test, tested, waitingParts(readText, pasted?.outline), wiring), marks: marksOf(exp.questions, result.bets, result.verdicts, result.run, tested, language), dialFullMs: fullMs, run: result.run, experiment: exp.experiment, bets: result.bets, verdicts: result.verdicts };
   }, [result, exp, test, sealed, plays, model, fullMs, readText, pasted]);
 
   // U2 (D53, "Test this claim"): Muse Wonder writes tests aimed at its own sentence (shown only after this run, D18);
@@ -491,9 +491,13 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const title = `${source ?? FILE_NAME[pasted.target.language ?? "ts"]} · ${plural(pasted.lines, "line")}`;
   return (
     <div className="u1-studio">
-      {shownModel ? (
+      {shownModel && pasted.outline ? (
         <BenchStage
           model={shownModel}
+          source={readText}
+          language={pasted.target.language ?? pasted.language.chosen ?? "ts"}
+          outline={pasted.outline}
+          fileName={FILE_NAME[pasted.target.language ?? "ts"]}
           after={after}
           extraMarks={labelMarks}
           title={title}

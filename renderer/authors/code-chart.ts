@@ -1,102 +1,30 @@
-// R3 author (a): a code chart, from plain code's outline. Structure only: this takes no run, no bet and no model verdict.
+// R3 author (a): a folder's chart, from the code explorer's model. Structure only: no run, no bet, no model verdict.
+// (The chart of one pasted file is author (b)'s `betView` with no test.)
 //
-// Plain words: each function or part is a ticket; a solid line means plain code found the call in the code; a dashed note
-// means only Muse Wonder says so (never a thread, D55). Folders become regions. Pure; imports types only.
+// Plain words: each part is a ticket; a solid line means plain code found the link in the code; a dotted line means only Muse
+// Wonder says so (never a thread, D55). Folders become regions. Pure; imports types only.
+//
+// A dense chart stops repeating itself:
+// - one legend line says what a line means, and only a line of a different kind carries a word;
+// - several links between the same two parts are one thicker line;
+// - parts are grouped in their folders;
+// - the lines step back until a part is hovered, which brings its own lines forward.
 
-import type { FileOutline } from "../../src/file-outline";
-import type { VerifiedOutline } from "../../src/outline/types";
-import type { Pin, RenderSpec, SpecEdge, SpecNode, SpecRegion } from "../spec";
+import type { ExplorerModel } from "../../web/machines/explorer/model";
+import type { Pin, RenderSpec, SpecCaption, SpecEdge, SpecNode, SpecRegion, SpecTag } from "../spec";
 
 const PINS: Pin[] = ["ochre", "blue", "red"];
-
-/** Lines of a part with comments cut: enough to spot a name being called, without a parser's cost. */
-export function codeLines(source: string, lineStart: number, lineEnd: number, language: "js" | "ts" | "py"): string[] {
-  const comment = language === "py" ? /(^|\s)#.*$/ : /(^|\s)\/\/.*$/;
-  return source
-    .split("\n")
-    .slice(lineStart - 1, lineEnd)
-    .map((l) => l.replace(comment, ""));
-}
-
-const called = (lines: string[], name: string) => {
-  const re = new RegExp(`(^|[^\\w$.])${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\(`);
-  return lines.some((l) => re.test(l));
-};
-
-export interface FileChartInput {
-  fileName: string;
-  outline: FileOutline;
-  /** The file's text: lets the chart show a function calling itself, which the outline's joins leave out. */
-  source?: string;
-  language?: "js" | "ts" | "py";
-  seed?: string;
-  /** Set when this chart is shown before a bet: nothing from a run may be in it. It never is, by construction. */
-  subtitle?: string;
-}
-
-/** The chart of one pasted file. */
-export function fileChart(input: FileChartInput): RenderSpec {
-  const { outline, fileName } = input;
-  const nodes: SpecNode[] = outline.parts.map((p) => ({
-    id: `part:${p.name}`,
-    kind: "ticket",
-    words: p.name,
-    small: p.lineEnd > p.lineStart ? `lines ${p.lineStart}-${p.lineEnd}` : `line ${p.lineStart}`,
-    sourceLines: [{ path: fileName, lineStart: p.lineStart, lineEnd: p.lineEnd }],
-    provenance: "plain-code",
-    pin: p.exported ? "red" : "ochre",
-  }));
-  const edges: SpecEdge[] = outline.joins.map((j) => ({ id: `join:${j.id}`, from: `part:${j.from}`, to: `part:${j.to}`, words: j.kind, kind: "thread", provenance: "plain-code" }));
-  if (input.source && input.language) {
-    for (const p of outline.parts) {
-      // Skip the signature line: a definition's own name is not a call.
-      if (p.lineEnd > p.lineStart && called(codeLines(input.source, p.lineStart + 1, p.lineEnd, input.language), p.name)) {
-        edges.push({ id: `self:${p.name}`, from: `part:${p.name}`, to: `part:${p.name}`, words: "calls itself", kind: "thread", provenance: "plain-code" });
-      }
-    }
-  }
-  return {
-    version: 1,
-    stage: "pre-bet",
-    seed: input.seed ?? `file:${fileName}`,
-    kicker: "your code, read by plain code",
-    title: fileName,
-    subtitle: input.subtitle ?? "what calls what, before anything has run",
-    nodes,
-    edges,
-    regions: [],
-    marks: [],
-    captions: outline.notes.map((words) => ({ words, provenance: "plain-code" })),
-    steps: [],
-    ...(nodes.length === 0 ? { notShown: outline.notes[0] ?? "plain code found no function or class in this file to draw" } : {}),
-  };
-}
-
-export interface OutlineChartInput {
-  /** What the code explorer is drawing: its name for the caption. */
-  name: string;
-  verified: VerifiedOutline | null;
-  /** Why there is no outline, when `verified` is null. */
-  failure?: string;
-  seed?: string;
-}
 
 const folderOf = (path: string) => {
   const i = path.lastIndexOf("/");
   return i < 0 ? "" : path.slice(0, i);
 };
 
-/**
- * The chart of a whole folder, from the verified outline. Only confirmed parts are drawn. A part's existence and lines are
- * plain code's; its name is Muse Wonder's, so its node says so ("wonder-words"). Joins plain code found are threads; a
- * join only Wonder claims is a dashed note. A join to a part that is not drawn goes in a caption instead.
- */
-export function outlineChart(input: OutlineChartInput): RenderSpec {
-  const base: RenderSpec = { version: 1, stage: "pre-bet", seed: input.seed ?? `outline:${input.name}`, kicker: "a folder, read by plain code", title: input.name, subtitle: "names by Muse Wonder, lines and joins checked by plain code", nodes: [], edges: [], regions: [], marks: [], captions: [], steps: [] };
-  const v = input.verified;
-  if (!v) return { ...base, notShown: input.failure ?? "Muse Wonder gave no usable outline, so there is nothing plain code could check" };
-  if (v.cantCheck) return { ...base, notShown: v.cantCheck };
-  const parts = v.parts.filter((p) => p.status === "confirmed");
+const joinWord = (kind: string, typeOnly: boolean) => (typeOnly ? "types only" : kind === "data" ? "shares data, direction not checked" : kind);
+
+export function explorerSpec(model: ExplorerModel, o: { seed?: string; labels?: Record<string, string[]> } = {}): RenderSpec {
+  const base: RenderSpec = { version: 1, stage: "pre-bet", seed: o.seed ?? `outline:${model.source}`, kicker: model.commit ? `at commit ${model.commit.slice(0, 7)}` : "uploaded files", title: model.source, subtitle: "names by Muse Wonder, lines and joins checked by plain code", nodes: [], edges: [], regions: [], marks: [], captions: [], steps: [], quiet: true };
+  if (model.notShown !== null) return { ...base, notShown: model.notShown };
   const regions = new Map<string, SpecRegion>();
   const regionOf = (folder: string) => {
     if (folder === "") return undefined;
@@ -104,39 +32,52 @@ export function outlineChart(input: OutlineChartInput): RenderSpec {
     if (!regions.has(id)) regions.set(id, { id, words: `${folder}/`, kind: "folder" });
     return id;
   };
-  const nodes: SpecNode[] = parts.map((p) => {
-    const region = regionOf(folderOf(p.files[0] ?? ""));
+  const nodes: SpecNode[] = model.boxes.map((b) => {
+    const first = b.spans[0];
+    const region = regionOf(folderOf(first?.path ?? ""));
+    const name = (first?.path ?? "").split("/").pop() ?? "";
     return {
-      id: `part:${p.id}`,
+      id: b.id,
       kind: "ticket",
-      words: p.name.text,
-      small: p.spans.length === 1 ? `${p.spans[0]!.path}${p.spans[0]!.wholeFile ? "" : `:${p.spans[0]!.lineStart}-${p.spans[0]!.lineEnd}`}` : `${p.spans.length} places`,
-      sourceLines: p.spans.map((s) => ({ path: s.path, lineStart: s.lineStart, lineEnd: s.lineEnd })),
+      words: b.name.text,
+      small: b.spans.length === 1 ? (first!.wholeFile ? name : `${name}:${first!.lineStart}-${first!.lineEnd}`) : `${b.spans.length} places`,
+      sourceLines: b.spans.map((s) => ({ path: s.path, lineStart: s.lineStart, lineEnd: s.lineEnd })),
       provenance: "wonder-words",
-      pin: PINS[Math.abs([...(p.files[0] ?? "")].reduce((a, c) => a + c.charCodeAt(0), 0)) % 3],
+      pin: PINS[Math.abs([...(first?.path ?? "")].reduce((a, c) => a + c.charCodeAt(0), 0)) % 3]!,
       ...(region ? { region } : {}),
     };
   });
-  const drawn = new Set(parts.map((p) => p.id));
-  const edges: SpecEdge[] = [];
-  let leftOut = 0;
-  for (const j of v.joins) {
-    if (!drawn.has(j.from) || !drawn.has(j.to)) {
-      leftOut++;
-      continue;
-    }
-    if (j.status === "model-only") {
-      edges.push({ id: `join:${j.id}`, from: `part:${j.from}`, to: `part:${j.to}`, words: "Wonder says so; plain code could not check it", kind: "dashed-note", provenance: "wonder-words" });
-    } else {
-      const words = j.typeOnly ? "types only" : j.kind === "data" ? "shares data, direction not checked" : j.kind;
-      edges.push({ id: `join:${j.id}`, from: `part:${j.from}`, to: `part:${j.to}`, words, kind: "thread", provenance: "plain-code" });
-    }
+  // Several links between the same two parts are one line, as thick as the links are many.
+  const merged = new Map<string, { from: string; to: string; kinds: Map<string, number>; weight: number; ids: string[] }>();
+  for (const l of model.lines) {
+    const key = JSON.stringify([l.from, l.to]);
+    const m = merged.get(key) ?? { from: l.from, to: l.to, kinds: new Map<string, number>(), weight: 0, ids: [] };
+    const w = joinWord(l.kind, l.typeOnly);
+    m.kinds.set(w, (m.kinds.get(w) ?? 0) + 1);
+    m.weight += Math.max(1, l.codeEdges);
+    m.ids.push(l.id);
+    merged.set(key, m);
   }
-  const unconfirmed = v.parts.length - parts.length;
-  const captions = [
-    ...(unconfirmed ? [{ words: `${unconfirmed} part${unconfirmed === 1 ? "" : "s"} Wonder proposed did not match the code, so ${unconfirmed === 1 ? "it is" : "they are"} not drawn.`, provenance: "plain-code" as const }] : []),
-    ...(leftOut ? [{ words: `${leftOut} join${leftOut === 1 ? "" : "s"} touch a part that is not drawn, so ${leftOut === 1 ? "it is" : "they are"} left out.`, provenance: "plain-code" as const }] : []),
-    { words: `"Confirmed" means these lines exist on whole definitions, never that the name or purpose is true. A dotted line is only ${v.model}'s word.`, provenance: "plain-code" as const },
+  const counts = new Map<string, number>();
+  for (const m of merged.values()) for (const [k, n] of m.kinds) counts.set(k, (counts.get(k) ?? 0) + n);
+  const common = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "imports";
+  const edges: SpecEdge[] = [...merged.values()].map((m) => {
+    const others = [...m.kinds.keys()].filter((k) => k !== common);
+    return { id: m.ids.join("+"), from: m.from, to: m.to, ...(others.length ? { words: others.join(", ") } : {}), kind: "thread" as const, provenance: "plain-code" as const, weight: m.weight };
+  });
+  for (const c of model.chalk) {
+    if (!nodes.some((n) => n.id === c.from) || !nodes.some((n) => n.id === c.to)) continue;
+    edges.push({ id: `chalk:${c.id}`, from: c.from, to: c.to, kind: "dashed-note", provenance: "wonder-words" });
+  }
+  const tags: SpecTag[] = [];
+  for (const [on, list] of Object.entries(o.labels ?? {})) if (nodes.some((n) => n.id === on)) for (const words of list) tags.push({ on, words, provenance: "plain-code" });
+  const n = (k: number, one: string) => `${k} ${one}${k === 1 ? "" : "s"}`;
+  const captions: SpecCaption[] = [
+    ...(model.unconfirmed.length ? [{ words: `${n(model.unconfirmed.length, "part")} Wonder proposed did not match the code, so not drawn.`, provenance: "plain-code" as const }] : []),
+    ...(model.notDrawn.length ? [{ words: `${n(model.notDrawn.length, "join")} found but not drawn: see the list.`, provenance: "plain-code" as const }] : []),
+    { words: `"Confirmed" means these lines exist on whole definitions, never that the name or purpose is true.`, provenance: "plain-code" as const },
   ];
-  return { ...base, nodes, edges, regions: [...regions.values()], captions, ...(nodes.length === 0 ? { notShown: "plain code could not confirm any part of this outline" } : {}) };
+  const verb = common === "imports" ? "imports" : common === "calls" ? "calls" : `is joined by "${common}" to`;
+  const legend = `A solid line: plain code found that one part ${verb} the other; thicker means more links. A dotted line is only ${model.model}'s word. Hover a part to bring its lines forward.`;
+  return { ...base, nodes, edges, regions: [...regions.values()], tags, legend, captions };
 }

@@ -38,7 +38,13 @@ export type PathItem =
   | { kind: "loop"; name: string; from: number; to: number; count: number; t: number; answer: string; waits: { min: number; max: number } | null; good: boolean }
   | { kind: "wait"; ms: number | null; t: number; cut?: boolean }
   | { kind: "end"; words: string; t: number | null; good: boolean }
-  | { kind: "stop"; words: string };
+  | { kind: "stop"; words: string }
+  /** A sequence: Atlas makes call n of m. */
+  | { kind: "turn"; n: number; of: number; fn: string; t: number }
+  /** A sequence: how an earlier call ended. */
+  | { kind: "turn-end"; n: number; words: string; t: number }
+  /** A sequence: Atlas's own scripted wait between calls, not the code's. */
+  | { kind: "atlas-wait"; ms: number; t: number };
 
 export interface WhatHappenedInput {
   run: Pick<Run, "id" | "trace" | "result" | "controlPassed" | "twin" | "conditions" | "forkBlock">;
@@ -62,13 +68,13 @@ function scripted(input: WhatHappenedInput, name: string, n: number): { words: s
   const pick = <T,>(calls: T[], then: string): T | undefined => (n <= calls.length ? calls[n - 1] : then === "repeat_last" ? calls[calls.length - 1] : undefined);
   if (p.network && p.network.replaces === name) {
     const s = pick<NetworkStep>(p.network.calls, p.network.then);
-    if (s?.do === "respond") return { words: `answered ${s.status}`, good: s.status < 400 };
+    if (s?.do === "respond") return { words: `answered ${s.status} (scripted)`, good: s.status < 400 };
     return null;
   }
   for (const a of p.args) {
     if (a.kind !== "stand-in" || a.name !== name) continue;
     const s = pick<StandInStep>(a.calls, a.then);
-    if (s?.do === "return") return { words: `returned ${clip(JSON.stringify(s.value as JsonValue), 30)}`, good: true };
+    if (s?.do === "return") return { words: `returned ${clip(JSON.stringify(s.value as JsonValue), 26)} (scripted)`, good: true };
   }
   return null;
 }
@@ -78,7 +84,7 @@ const fingerprint = (e: TraceEvent) => {
   const d = rec(e.data);
   return `${e.t}|${e.event}|${str(d.name) ?? ""}|${num(d.n) ?? ""}|${str(d.errorName) ?? ""}`;
 };
-const BOOKKEEPING = new Set(["call_checks", "clock_moves", "conditions", "log", "control", "start"]);
+const BOOKKEEPING = new Set(["call_checks", "clock_moves", "conditions", "log", "control"]);
 
 /** The path items, read in trace order. Exported for the tests. */
 export function pathItems(input: WhatHappenedInput): { items: PathItem[]; notes: string[] } {
@@ -97,8 +103,8 @@ export function pathItems(input: WhatHappenedInput): { items: PathItem[]; notes:
   let divergeAt = Infinity;
   const twin = run.twin?.trace;
   if (Array.isArray(twin)) {
-    const a = trace.filter((e) => !BOOKKEEPING.has(e.event));
-    const b = twin.filter((e) => !BOOKKEEPING.has(e.event));
+    const a = trace.filter((e) => !BOOKKEEPING.has(e.event) && e.event !== "start");
+    const b = twin.filter((e) => !BOOKKEEPING.has(e.event) && e.event !== "start");
     for (let i = 0; i < Math.max(a.length, b.length); i++) {
       if (!a[i] || !b[i] || fingerprint(a[i]!) !== fingerprint(b[i]!)) {
         divergeAt = a[i] ? trace.indexOf(a[i]!) : Infinity;
@@ -113,9 +119,15 @@ export function pathItems(input: WhatHappenedInput): { items: PathItem[]; notes:
       lastT = t;
     }
   };
+  // A sequence measures the last call's own time; the path's clock is the whole run's, so the ending adds where that call began.
+  const lastStart = [...trace].reverse().find((e) => e.event === "call_start")?.t ?? 0;
+  const startData = rec(trace.find((e) => e.event === "start")?.data);
+  const seqCalls = input.experiment?.params.shape === "call-function" ? input.experiment.params.calls : undefined;
+  const nCalls = num(startData.calls) ?? seqCalls?.length ?? 0;
   const endItem = (): PathItem => {
     const outcome = str(own(measured, "outcome"));
-    const v = num(own(measured, "virtualMs")) ?? num(own(measured, "settledAtMs"));
+    const raw = num(own(measured, "virtualMs")) ?? num(own(measured, "settledAtMs"));
+    const v = raw === null ? null : raw + lastStart;
     const at = v !== null ? ` at ${grouped(v)} ms` : "";
     if (outcome === "returned" || outcome === "returns") {
       const j = str(own(measured, "returnedJson")) ?? str(own(measured, "returned"));
@@ -136,8 +148,26 @@ export function pathItems(input: WhatHappenedInput): { items: PathItem[]; notes:
       items.push({ kind: "stop", words: "the second run of this test went differently from here, so Atlas does not claim what came next" });
       break;
     }
-    if (BOOKKEEPING.has(e.event)) continue;
+    if (BOOKKEEPING.has(e.event) || e.event === "start") continue;
     const d = rec(e.data);
+    if (e.event === "call_start" && nCalls > 1) {
+      const n = num(d.n) ?? 1;
+      const scriptedWait = seqCalls?.[n - 1]?.waitMs ?? 0;
+      if (scriptedWait > 0 && e.t - lastT >= scriptedWait) {
+        addGap(e.t - scriptedWait);
+        items.push({ kind: "atlas-wait", ms: scriptedWait, t: e.t });
+        lastT = e.t;
+      } else addGap(e.t);
+      items.push({ kind: "turn", n, of: nCalls, fn: str(d.exportName) ?? "the function", t: e.t });
+      continue;
+    }
+    if (e.event === "call_returned" || e.event === "call_threw") {
+      addGap(e.t);
+      const json = str(d.json);
+      const name = str(d.name) ?? str(d.type);
+      items.push({ kind: "turn-end", n: num(d.n) ?? 1, t: e.t, words: e.event === "call_returned" ? (json !== null ? `call ${num(d.n) ?? 1} returned ${clip(json, 30)}` : `call ${num(d.n) ?? 1} returned`) : `call ${num(d.n) ?? 1} threw${name ? ` ${clip(name, 30)}` : ""}` });
+      continue;
+    }
     if (e.event === "trace_cut") {
       const kept = num(d.kept);
       const more = num(d.dropped) ?? num(d.eventsNotKept);
@@ -268,6 +298,12 @@ function expectedWords(bet: Pick<Bet, "answer" | "measures">): string {
   return "nothing";
 }
 
+/** What a question is about, in plain words. */
+function measureWords(measures: string): string {
+  if (measures.startsWith("calls:")) return `calls to ${measures.slice(6)}`;
+  return ({ calls: "calls", outcome: "how it ends", returnedJson: "what it returns", virtualMs: "how long it takes", totalWaitMs: "the total wait" } as Record<string, string>)[measures] ?? measures;
+}
+
 const whoWords = (who: string) => (who === "human" ? "you" : who.replace(/^model:/, "").replace(/^meta-models\//, ""));
 
 /**
@@ -356,6 +392,13 @@ export function whatHappened(input: WhatHappenedInput): RenderSpec {
       const words = ms === null ? "waited (time not reported)" : it.cut ? `was waiting ${grouped(ms)} ms when Atlas stopped` : `waited ${grouped(ms)} ms`;
       // The sweep is on a log scale: enough to feel longer waits without any one filling the dial.
       add({ id, kind: "clock", words, provenance: "run", sweep: ms === null ? 0.05 : Math.max(0.06, Math.min(0.92, Math.log10(1 + ms) / 5)) }, { beat: "wait", device: "clock", words, ...(ms === null ? {} : { ms }) });
+    } else if (it.kind === "turn") {
+      add({ id, kind: "ticket", words: `${clip(it.fn, 26)}`, small: `Atlas's call ${it.n} of ${it.of}`, provenance: "run", pin: "ochre" }, { beat: "start", words: `Atlas makes call ${it.n} of ${it.of}: ${it.fn}` });
+    } else if (it.kind === "turn-end") {
+      add({ id, kind: "ticket", words: it.words, small: `end of call ${it.n}`, provenance: "run", pin: "blue" }, { beat: "end", words: it.words });
+    } else if (it.kind === "atlas-wait") {
+      const words = `Atlas waited ${grouped(it.ms)} ms, as the test says`;
+      add({ id, kind: "clock", words, provenance: "plain-code", sweep: Math.max(0.06, Math.min(0.92, Math.log10(1 + it.ms) / 5)) }, { beat: "wait", device: "clock", words, ms: it.ms });
     } else if (it.kind === "end") {
       add({ id, kind: "ticket", words: it.words, small: "the end", provenance: "run", pin: it.good ? "blue" : "red" }, { beat: "end", words: it.words });
     } else {
@@ -371,19 +414,20 @@ export function whatHappened(input: WhatHappenedInput): RenderSpec {
   for (const b of bets) {
     const v = verdictOf(b.id);
     if (!v || !lastNode) continue;
+    if (b.answer.kind === "declined" && b.who === "human") continue; // no answer, nothing to mark
     const who = whoWords(b.who);
     if (v.outcome === "cant_check") {
-      marks.push({ on: lastNode, kind: "cant-check", who, words: `can't check, ${clip(v.reason ?? "not measured", 90)}` });
+      marks.push({ on: lastNode, kind: "cant-check", who, words: `can't check ${measureWords(b.measures)}, ${clip(v.reason ?? "not measured", 80)}` });
     } else if (v.outcome === "matched") {
       const name = b.measures.startsWith("calls:") ? b.measures.slice(6) : null;
       const lastCall = [...items].reverse().find((i) => (i.kind === "call" || i.kind === "loop") && (name === null || i.name === name));
       const on = bets.length === 1 && lastCall && b.measures.startsWith("calls") ? nodes[items.indexOf(lastCall)]!.id : lastNode;
-      marks.push({ on, kind: "matched", who, words: `said ${expectedWords(b)}, and it matched` });
+      marks.push({ on, kind: "matched", who, words: `said ${expectedWords(b)} for ${measureWords(b.measures)}, and it matched` });
     } else {
       const key = parting.get(b.id)!;
       const on = keyToNode.get(key) ?? lastNode;
       partsWaysAt ??= on;
-      marks.push({ on, kind: "didnt-match", who, words: `said ${expectedWords(b)}. The run parts ways here.` });
+      marks.push({ on, kind: "didnt-match", who, words: `said ${expectedWords(b)} for ${measureWords(b.measures)}. The run parts ways here.` });
     }
   }
 

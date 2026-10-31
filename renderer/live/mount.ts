@@ -27,8 +27,11 @@ export interface Mounted {
   fit(): void;
   setTheme(t: "light" | "dark"): void;
   destroy(): void;
-  /** True while the person has moved the view. */
   view(): { x: number; y: number; k: number };
+  /** Keep this part and its joins lit (a picked part), or null. */
+  pick(id: string | null): void;
+  /** True when the drawing is wider or taller than its host at the fit, so a phone needs to pan. */
+  needsPan(): boolean;
 }
 
 /** Puts `drawn` in `host`. The list and the "not shown" sentence are plain HTML, with nothing to move. */
@@ -37,7 +40,7 @@ export function mountDrawing(host: HTMLElement, drawn: Drawn, spec: RenderSpec, 
   host.dataset.theme = o.theme ?? "light";
   if (drawn.kind !== "drawing") {
     host.innerHTML = drawn.html;
-    return { player: null, fit() {}, setTheme: (t) => void (host.dataset.theme = t), destroy: () => void (host.innerHTML = ""), view: () => ({ x: 0, y: 0, k: 1 }) };
+    return { player: null, fit() {}, setTheme: (t) => void (host.dataset.theme = t), destroy: () => void (host.innerHTML = ""), view: () => ({ x: 0, y: 0, k: 1 }), pick() {}, needsPan: () => false };
   }
   // The text was escaped and no script, link or foreign object was written (renderer/check.ts proves it for hostile names).
   host.innerHTML = drawn.svg;
@@ -89,18 +92,19 @@ export function mountDrawing(host: HTMLElement, drawn: Drawn, spec: RenderSpec, 
       player.nodes.get(e.to)?.classList.add("rr-near");
     }
   };
+  let picked: string | null = null;
   const nodeOf = (t: EventTarget | null) => (t as Element | null)?.closest?.("[data-node]") as SVGGElement | null;
   on(host, "pointerover", (e) => {
     if (o.hover === false || e.pointerType !== "mouse") return;
     const n = nodeOf(e.target);
-    near(n ? idFromAttr(n.dataset.node!) : null);
+    near(n ? idFromAttr(n.dataset.node!) : picked);
   });
-  on(host, "pointerleave", () => near(null));
+  on(host, "pointerleave", () => near(picked));
   on(host, "focusin", (e) => {
     const n = nodeOf(e.target);
     if (n) near(idFromAttr(n.dataset.node!));
   });
-  on(host, "focusout", () => near(null));
+  on(host, "focusout", () => near(picked));
   on(host, "keydown", (e) => {
     const n = nodeOf(e.target);
     if (e.key === "0") return fit();
@@ -214,5 +218,10 @@ export function mountDrawing(host: HTMLElement, drawn: Drawn, spec: RenderSpec, 
       host.innerHTML = "";
     },
     view: () => ({ ...state }),
+    pick(id) {
+      picked = id;
+      near(id);
+    },
+    needsPan: () => scene.width * state.k > host.clientWidth + 2 || scene.height * state.k > host.clientHeight + 2,
   };
 }

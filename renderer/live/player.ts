@@ -40,7 +40,9 @@ export class Player {
     private o: PlayerOptions = {},
   ) {
     const media = typeof matchMedia === "function" ? matchMedia("(prefers-reduced-motion: reduce)").matches : false;
-    this.instant = o.reducedMotion ?? media;
+    // No Web Animations here (a test page, a very old browser): the drawing simply arrives finished.
+    const canAnimate = typeof svg.animate === "function";
+    this.instant = !canAnimate || (o.reducedMotion ?? media);
     for (const el of svg.querySelectorAll<SVGGElement>("[data-node]")) this.nodes.set(idFromAttr(el.dataset.node!), el);
     for (const el of svg.querySelectorAll<SVGGElement>("[data-edge]")) this.edges.set(idFromAttr(el.dataset.edge!), el);
     for (const el of svg.querySelectorAll<SVGGElement>("[data-label-of]")) this.labels.set(idFromAttr(el.dataset.labelOf!), el);
@@ -256,6 +258,13 @@ export class Player {
     ]);
   }
 
+  /** Back to the start of the story: everything the steps bring in is hidden again, and nothing is quiet. */
+  rewind(): void {
+    this.resume();
+    for (const el of this.svg.querySelectorAll(".rr-calm")) el.classList.remove("rr-calm");
+    this.hide({ nodes: this.spec.steps.flatMap((s) => s.nodes), edges: this.spec.steps.flatMap((s) => s.edges) });
+  }
+
   /** A device's lamp blinks: this call reached it. `ok`: the steady ochre of an answer. */
   async flash(id: string, ms = 340): Promise<void> {
     const el = this.nodes.get(id);
@@ -266,11 +275,12 @@ export class Player {
   }
 
   /** The way in for a chart: tickets pinned in layout order, threads drawn from each to each. */
-  async entrance(): Promise<void> {
+  async entrance(only?: { nodes: Set<string>; edges: Set<string> }): Promise<void> {
     this.busy++;
     this.resume();
-    this.hide();
-    const order = [...this.scene.nodes].sort((a, b) => a.box.y0 - b.box.y0 || a.box.x0 - b.box.x0);
+    if (only) this.hide({ nodes: only.nodes, edges: only.edges });
+    else this.hide();
+    const order = [...this.scene.nodes].filter((n) => !only || only.nodes.has(n.id)).sort((a, b) => a.box.y0 - b.box.y0 || a.box.x0 - b.box.x0);
     const big = order.length > 16 || this.scene.edges.length > 24;
     const seen = new Set<string>();
     for (const n of order) {
@@ -279,7 +289,7 @@ export class Player {
       await this.rest(big ? 34 : 60);
       seen.add(n.id);
       if (big) continue;
-      for (const e of this.scene.edges) if (e.from !== e.to && seen.has(e.from) && e.to === n.id) await this.drawThread(e.id, { pace: 0.8 });
+      for (const e of this.scene.edges) if (e.from !== e.to && (seen.has(e.from) || (only && !only.nodes.has(e.from))) && e.to === n.id && this.edges.get(e.id)?.classList.contains("rr-pending")) await this.drawThread(e.id, { pace: 0.8 });
     }
     for (const e of this.scene.edges) {
       if (this.edges.get(e.id)?.classList.contains("rr-pending")) {

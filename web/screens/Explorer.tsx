@@ -195,8 +195,8 @@ export function ExplorerFlow({ api, onBet, saved, initialRepo, initialFiles, vis
   const at = job ? STEPS.findIndex((s) => s.status === job.status) : -1;
   return (
     <>
-      <section className="card" aria-label="choose a codebase">
-        <h2>Explore a codebase</h2>
+      <details className="r-ex-form" open={!model || undefined} aria-label="choose a codebase">
+        <summary>{model ? "Draw another codebase" : "Explore a codebase"}</summary>
         <p className="muted">
           Atlas reads a small codebase (at most 50 JavaScript, TypeScript or Python files, 300 KB), plain code maps it, Muse Wonder proposes its parts and how they join, and plain code checks every part and join against the
           files. The machine draws only what plain code confirmed.
@@ -249,7 +249,7 @@ export function ExplorerFlow({ api, onBet, saved, initialRepo, initialFiles, vis
             </button>
           </p>
         ) : null}
-      </section>
+      </details>
       {model ? (
         <section aria-label="explorer" data-testid="explorer">
           {isSaved ? <p className="muted">{SAVED_NOTE}</p> : null}

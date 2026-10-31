@@ -17,7 +17,7 @@ import { bettorNames, changeProposer, orderModelBettors } from "../../src/claima
 import { AFTER_LABEL, BEFORE_LABEL, CHANGE_CAPTION, theoryCaptions } from "../../src/change";
 import { targetName } from "../../src/target-name";
 import { shortQuestionFor, LANGUAGE_NAME } from "../../src/paste-context";
-import { CallTimeline } from "../machines/calltimeline/CallTimeline";
+import { RunPath } from "../drawing/RunPath";
 import { PASTE_WORDS } from "../../src/paste-words";
 import { ConditionsLine } from "./Conditions";
 import { RecordBefore } from "./TrackRecord";
@@ -199,7 +199,7 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
       {call && file.runs[0] && (
         // E3: the call timeline, drawn from the file's own run (the same component as the round's screen).
         <section className="pc-machine" aria-label="call timeline" data-testid="pc-call-timeline">
-          <CallTimeline run={file.runs[0]} still />
+          <RunPath run={file.runs[0]} experiment={file.experiments[0]} bets={file.bets} verdicts={file.verdicts} still testid="pc-path" />
         </section>
       )}
 

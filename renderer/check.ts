@@ -16,7 +16,7 @@ const unesc = (s: string) => idFromAttr(s);
 
 /** How far from a box a line may begin or end and still be "on" it, in px. */
 const START_SLACK = 16;
-const END_SLACK = 28;
+const END_SLACK = 32;
 
 const hit = (a: Box, b: Box, g = 0) => a.x0 < b.x1 + g && a.x1 > b.x0 - g && a.y0 < b.y1 + g && a.y1 > b.y0 - g;
 
@@ -36,6 +36,7 @@ function allBlocks(scene: Scene): TextBlock[] {
   for (const e of scene.edges) if (e.label) out.push(e.label);
   for (const r of scene.regions) out.push(r.label);
   for (const m of scene.marks) out.push(m.words);
+  out.push(...scene.tags);
   return out;
 }
 
@@ -118,7 +119,7 @@ export function checkDrawing(spec: RenderSpec, scene: Scene, svg: string): strin
       if (hit(box, n.box)) out.push(`the words ${JSON.stringify(b.lines[0]?.text)} sit on the part ${JSON.stringify(n.id)}`);
     }
     // A line through words (node words have the card under them, so only words on open paper count).
-    if (b.role === "edge" || b.role === "mark" || b.role === "title" || b.role === "subtitle" || b.role === "caption") {
+    if (b.role === "edge" || b.role === "mark" || b.role === "tag" || b.role === "title" || b.role === "subtitle" || b.role === "caption") {
       for (const e of scene.edges) {
         for (const p of e.pts) {
           if (p[0] > box.x0 && p[0] < box.x1 && p[1] > box.y0 && p[1] < box.y1) {

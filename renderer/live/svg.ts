@@ -233,7 +233,8 @@ function edgeSvg(e: SceneEdge, seed: string): string {
   const last = hand[hand.length - 1]!;
   const prev = hand[Math.max(0, hand.length - 5)]!;
   const ang = Math.atan2(last[1] - prev[1], last[0] - prev[0]);
-  const w = e.onPath ? 2.25 : 1.3;
+  // More links, a thicker line (the square root, so one heavy join does not shout).
+  const w = e.onPath ? 2.25 : Math.min(3.6, 1.2 + 0.42 * Math.sqrt(Math.max(0, e.weight - 1)));
   const head = arrowHead(last, ang, e.onPath ? 15 : 11.5);
   // The line stops at the head's notch, so the head's point is the only thing that arrives.
   const stem = hand.slice(0, Math.max(2, hand.length - 1));
@@ -326,7 +327,7 @@ export function sceneToSvg(scene: Scene, spec: { seed: string }, o: SvgOptions =
     paperTile(spec.seed, pid) +
     `<rect class="rr-sheet" x="${-m}" y="${-m}" width="${scene.width + m * 2}" height="${scene.height + m * 2}"/>` +
     `<rect x="${-m}" y="${-m}" width="${scene.width + m * 2}" height="${scene.height + m * 2}" fill="url(#${pid})"/>` +
-    `<g class="rr-world">` +
+    `<g class="rr-world${scene.quiet ? " rr-quiet" : ""}">` +
     `<g class="rr-head-block">${head}</g>` +
     `<g class="rr-regions">${scene.regions.map((r) => regionSvg(r, scene.seed)).join("")}</g>` +
     `<g class="rr-edges">${sorted.map((e) => edgeSvg(e, scene.seed)).join("")}</g>` +
@@ -336,6 +337,7 @@ export function sceneToSvg(scene: Scene, spec: { seed: string }, o: SvgOptions =
       .map((e) => `<g class="rr-label" data-label-of="${idAttr(e.id)}">${textSvg(e.label!)}</g>`)
       .join("")}</g>` +
     `<g class="rr-marks">${scene.marks.map((mk) => markSvg(mk, byId.get(mk.on)!, scene.seed)).join("")}</g>` +
+    `<g class="rr-tags">${scene.tags.map((t) => `<g class="rr-tag" data-tag-of="${idAttr(t.owner ?? "")}">${textSvg(t, "rr-tag-words")}</g>`).join("")}</g>` +
     `<g class="rr-captions">${scene.captions.map((c) => textSvg(c, "rr-caption")).join("")}</g>` +
     `</g></svg>`
   );

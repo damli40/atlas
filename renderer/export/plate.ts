@@ -151,7 +151,7 @@ export async function drawPlate(spec: RenderSpec, o: PlateOptions): Promise<Scen
       continue;
     }
     const color = e.onPath ? RED : "#2c2628";
-    const nib = e.onPath ? 0.46 : 0.26;
+    const nib = e.onPath ? 0.46 : Math.min(0.72, 0.24 + 0.08 * Math.sqrt(Math.max(0, e.weight - 1)));
     const stem = trim(pts, 0, 1.2);
     P.ink(stem, { nib, tremor: 0.7, color });
     const end = pts[pts.length - 1]!;
@@ -185,6 +185,7 @@ export async function drawPlate(spec: RenderSpec, o: PlateOptions): Promise<Scen
     if (m.kind === "matched") P.ink([[mm(b.x1) - 1.6, mm(b.y0) + 0.4], [mm(b.x1) - 0.6, mm(b.y0) + 1.8], [mm(b.x1) + 2.2, mm(b.y0) - 2.2]], { nib: 0.5, color: "#5f8fb0" });
     words(P, Lt, m.words, m.kind === "didnt-match" ? RED : INK);
   }
+  for (const t of scene.tags) words(P, Lt, t, "#8a6420");
   for (const c of scene.captions) words(P, Lt, c, "#5d5650");
   await P.finish(o.out);
   return scene;

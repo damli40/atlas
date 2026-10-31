@@ -31,7 +31,7 @@ import type { Finding } from "../src/types";
 import { PasteFlow } from "./screens/Paste";
 import { ExplorerFlow, type BetHandoff } from "./screens/Explorer";
 import { Studio } from "./screens/Studio";
-import { useDarkScheme } from "./machines/bench/BenchStage";
+import { useDarkScheme } from "./drawing/media";
 import type { OutlineView } from "./machines/explorer/outline-data";
 
 /** X2: the saved outline of Atlas's own server/meta at 058ab2a (no code text), loaded only when asked for. */

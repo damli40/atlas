@@ -23,7 +23,7 @@ import { ModelSlotCard } from "./ModelPanel";
 import { VerdictScreen, type FormatValue } from "./Verdict";
 import { modelTextsOf, WhyScreen } from "./Why";
 import { notShownAsFact } from "../../src/trust";
-import { PricePipe } from "../machines/pricepipe/PricePipe";
+import { MoonwellDrawing } from "../drawing/MoonwellDrawing";
 import { ChangePanel } from "./Change";
 import { AdversaryPanel } from "./Adversary";
 import { plural } from "../../src/words";
@@ -281,7 +281,7 @@ export function MoonwellFlow({ api, onRoundOpen }: { api: Api; onRoundOpen?: (op
         </section>
       )}
 
-      {result && result.run.runner === "evm" && <PricePipe run={result.run} bets={result.bets} verdicts={result.verdicts} />}
+      {result && result.run.runner === "evm" && <MoonwellDrawing run={result.run} bets={result.bets} verdicts={result.verdicts} />}
 
       {result && (
         <VerdictScreen

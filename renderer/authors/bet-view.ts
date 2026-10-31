@@ -1,119 +1,108 @@
-// R3 author (b): the bet view: the code chart plus a device for each stand-in and network fake, wired to the functions
-// whose own lines call them, and the clock. Takes the test (what Atlas WILL do) and no run, so it cannot show a result.
+// R3 author (b): the code's chart, and once a test is chosen, the bet view: a device for each stand-in and network fake and
+// Atlas's clock. It reads the bench model (web/machines/bench/model.ts), which holds U3's call sites (src/call-sites.ts): a
+// wire appears only where plain code found the part's OWN lines calling the thing, with comments and strings removed. So a
+// string that says `fetch(` draws nothing. No run goes in, so no run can come out.
 //
-// Plain words: a wire appears only where plain code sees the function's own lines call the thing. A stand-in is passed in as
-// an argument, so it is looked for under that parameter's name. If no function's lines call it, it is drawn with no wire and
-// a caption says so; nothing is wired on a guess.
-// U3's call-site logic is not on main yet; this uses src/file-outline.ts and a text search, and phase 2 can swap in U3's.
+// The clock gets a wire only where plain code can tell the part really waits (`waitLines` below). A timer that only starts
+// something later (fetchWithRetry's abort timer) is not a wait, so it draws no wire.
 
+import { codeLines } from "../../src/call-sites";
 import type { FileOutline } from "../../src/file-outline";
-import { networkStepWords } from "../../src/network-fake";
-import type { ExperimentShape, JsonValue, NetworkLibrary, StandInStep } from "../../src/types";
-import type { RenderSpec, SpecCaption, SpecEdge, SpecNode } from "../spec";
-import { codeLines, fileChart } from "./code-chart";
+import { benchModel, CLOCK_ID, type BenchModel, type CallTest } from "../../web/machines/bench/model";
+import type { Pin, RenderSpec, SpecCaption, SpecEdge, SpecNode, SpecTag } from "../spec";
 
-export type CallTest = Extract<ExperimentShape, { shape: "call-function" }>;
+export { CLOCK_ID as CLOCK_NODE };
+export const deviceNodeId = (name: string) => `stand-in ${name}`;
 
 export interface BetViewInput {
   fileName: string;
   outline: FileOutline;
   source: string;
   language: "js" | "ts" | "py";
-  test: CallTest;
+  /** The chosen test, or null before one is chosen. */
+  test: CallTest | null;
+  /** The function drawn as the one under test. */
+  tested?: string | null;
+  /** Plain code's failure labels, on the parts they are about. */
+  labels?: { anchor: string; text: string }[];
   seed?: string;
 }
 
-export const deviceNodeId = (name: string) => `device:${name}`;
-export const CLOCK_NODE = "clock";
+/**
+ * The parts whose own lines plainly wait: a Promise that a timer resolves (`new Promise((r) => setTimeout(r, ms))`), or a
+ * Python sleep. Read from code only (comments and strings removed). Anything else plain code cannot call a wait, so it is left
+ * out, including `setTimeout(() => controller.abort(), 5000)`, which starts something later and waits for nothing.
+ */
+export function waitLines(source: string, language: "js" | "ts" | "py", outline: Pick<FileOutline, "parts">): string[] {
+  const lines = codeLines(source, language);
+  return outline.parts
+    .filter((p) => {
+      const text = lines.slice(p.lineStart - 1, p.lineEnd).join("\n");
+      if (language === "py") return /(^|[^\w.])(time\.|asyncio\.)sleep\s*\(/m.test(text);
+      const m = /new\s+Promise\s*(?:<[^>]*>\s*)?\(\s*\(?\s*([A-Za-z_$][\w$]*)[^)=]*\)?\s*(?::[^=]*)?=>/.exec(text);
+      if (!m) return false;
+      const r = m[1]!.replace(/[$]/g, "\\$&");
+      return new RegExp(`setTimeout\\s*\\(\\s*${r}\\b|setTimeout\\s*\\(\\s*\\(\\s*\\)\\s*=>\\s*\\{?\\s*${r}\\s*\\(`).test(text);
+    })
+    .map((p) => p.name);
+}
 
-/** How a network library's calls look in the code's own text. */
-const NETWORK_CALL: Record<NetworkLibrary, RegExp> = {
-  fetch: /(^|[^\w$.])fetch\s*\(/,
-  requests: /(^|[^\w$.])requests\.\w+\s*\(/,
-  urllib: /(^|[^\w$.])(urllib\.request\.)?urlopen\s*\(/,
-  httpx: /(^|[^\w$.])httpx\.\w+\s*\(/,
-};
-/** How a wait looks in the code's own text. */
-const WAIT_CALL: Record<"js" | "ts" | "py", RegExp> = {
-  js: /(^|[^\w$.])setTimeout\s*\(/,
-  ts: /(^|[^\w$.])setTimeout\s*\(/,
-  py: /(^|[^\w$])(time\.|asyncio\.)?sleep\s*\(/,
-};
-
-const json = (v: JsonValue) => JSON.stringify(v);
-const standInStep = (s: StandInStep) => (s.do === "return" ? `returns ${json(s.value)}${s.afterMs ? ` after ${s.afterMs} ms` : ""}` : s.do === "throw" ? `throws ${s.errorName}` : "never answers");
-const scriptWords = (steps: string[], then: string) => {
-  const shown = steps.length > 5 ? [...steps.slice(0, 4), `${steps.length - 4} more`] : steps;
-  return `${shown.join(", then ")}${then === "repeat_last" ? "; later calls do the same as the last" : "; a later call throws"}`;
-};
-
-/** The parameter names in a signature, in order, without types or defaults. */
-export function paramNames(signature: string | undefined): string[] {
-  if (!signature) return [];
-  const open = signature.indexOf("(");
-  if (open < 0) return [];
-  let depth = 0;
-  let cur = "";
-  const out: string[] = [];
-  for (const ch of signature.slice(open + 1)) {
-    if (ch === ")" && depth === 0) break;
-    if ("([{<".includes(ch)) depth++;
-    if (")]}>".includes(ch)) depth--;
-    if (ch === "," && depth === 0) {
-      out.push(cur);
-      cur = "";
-    } else cur += ch;
+/** The bench model as a spec. Node ids are the model's box ids, so a part card and a lamp find their part directly. */
+export function benchSpec(model: BenchModel, input: Pick<BetViewInput, "fileName" | "outline" | "source" | "language" | "seed" | "labels">): RenderSpec {
+  const tested = model.tested;
+  const nodes: SpecNode[] = [];
+  const edges: SpecEdge[] = [];
+  const captions: SpecCaption[] = input.outline.notes.map((words) => ({ words, provenance: "plain-code" }));
+  const joinKinds = new Map(input.outline.joins.map((j) => [j.id, j.kind]));
+  const lineSpan = (a: number, b: number) => (b > a ? `lines ${a}-${b}` : `line ${a}`);
+  for (const b of model.boxes) {
+    const part = model.parts[b.id];
+    if (!part) continue;
+    if (part.kind === "code") {
+      const pin: Pin = b.id === tested ? "red" : part.part.exported ? "blue" : "ochre";
+      nodes.push({ id: b.id, kind: "ticket", words: part.part.name, small: lineSpan(part.part.lineStart, part.part.lineEnd), sourceLines: [{ path: input.fileName, lineStart: part.part.lineStart, lineEnd: part.part.lineEnd }], provenance: "plain-code", pin });
+      if (part.selfCalls?.length) edges.push({ id: `self:${b.id}`, from: b.id, to: b.id, words: "calls itself", kind: "thread", provenance: "plain-code" });
+    } else if (part.kind === "device") {
+      nodes.push({ id: b.id, kind: "device", words: part.network ? `${part.name}, faked` : part.name, provenance: "plain-code" });
+      captions.push({ words: `Atlas's ${part.network ? "fake" : "stand-in"} ${part.name}: ${part.steps.join(", then ")}; after that, ${part.then}.${part.network ? " The real network stays blocked." : ""}`, provenance: "plain-code" });
+      if (part.noCable) captions.push({ words: part.noCable, provenance: "plain-code" });
+    } else {
+      nodes.push({ id: b.id, kind: "clock", words: "Atlas's clock", provenance: "plain-code", sweep: 0.08 });
+    }
   }
-  if (cur.trim()) out.push(cur);
-  return out.map((p) => p.replace(/^\s*(\.\.\.|\*+)?/, "").split(/[:=?]/)[0]!.trim());
+  const seen = new Set(nodes.map((n) => n.id));
+  for (const l of model.lines) {
+    if (!seen.has(l.from) || !seen.has(l.to)) continue;
+    const kind = joinKinds.get(l.id);
+    edges.push({ id: l.id, from: l.from, to: l.to, words: kind ?? (l.kind === "calls" ? "calls" : "uses"), kind: "thread", provenance: "plain-code" });
+  }
+  if (seen.has(CLOCK_ID)) {
+    for (const name of waitLines(input.source, input.language, input.outline)) {
+      if (seen.has(name)) edges.push({ id: `wait:${name}`, from: name, to: CLOCK_ID, words: "waits on", kind: "thread", provenance: "plain-code" });
+    }
+  }
+  const tags: SpecTag[] = (input.labels ?? []).filter((x) => seen.has(x.anchor)).map((x) => ({ on: x.anchor, words: x.text, provenance: "plain-code" }));
+  const hasTest = seen.has(CLOCK_ID);
+  return {
+    version: 1,
+    stage: "pre-bet",
+    seed: input.seed ?? `bet:${input.fileName}`,
+    kicker: input.fileName,
+    title: tested ?? input.fileName,
+    subtitle: hasTest ? "the code, and what Atlas will plug in. Nothing has run." : "what calls what, before anything has run",
+    nodes,
+    edges,
+    regions: [],
+    marks: [],
+    tags,
+    captions,
+    steps: [],
+    ...(model.notShown !== null ? { notShown: model.notShown } : {}),
+  };
 }
 
 export function betView(input: BetViewInput): RenderSpec {
-  const chart = fileChart({ fileName: input.fileName, outline: input.outline, source: input.source, language: input.language, seed: input.seed ?? `bet:${input.fileName}:${input.test.exportName}` });
-  const { outline, source, language, test } = input;
-  const nodes: SpecNode[] = [...chart.nodes];
-  const edges: SpecEdge[] = [...chart.edges];
-  const captions: SpecCaption[] = [...chart.captions];
-  const partLines = (p: FileOutline["parts"][number]) => codeLines(source, p.lineStart, p.lineEnd, language);
-  const tested = outline.parts.find((p) => p.name === test.exportName);
-  const notWired: string[] = [];
-
-  const wire = (deviceId: string, device: string, match: (p: FileOutline["parts"][number]) => boolean, words: string) => {
-    let any = false;
-    for (const p of outline.parts) {
-      if (!match(p)) continue;
-      any = true;
-      edges.push({ id: `wire:${p.name}->${device}`, from: `part:${p.name}`, to: deviceId, words, kind: "thread", provenance: "plain-code" });
-    }
-    return any;
-  };
-
-  // Stand-ins: passed in as arguments; called under the parameter's name.
-  const params = paramNames(tested?.signature);
-  test.args.forEach((a, i) => {
-    if (a.kind !== "stand-in") return;
-    const id = deviceNodeId(a.name);
-    if (nodes.some((n) => n.id === id)) return;
-    nodes.push({ id, kind: "device", words: a.name, provenance: "plain-code" });
-    const param = params[i];
-    const re = param ? new RegExp(`(^|[^\\w$.])${param.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\(`) : null;
-    if (!(re && tested && partLines(tested).slice(1).some((l) => re.test(l)) && wire(id, a.name, (p) => p === tested, "calls"))) notWired.push(a.name);
-    captions.push({ words: `Atlas's stand-in ${a.name}: ${scriptWords(a.calls.map(standInStep), a.then)}.`, provenance: "plain-code" });
-  });
-
-  // The network fake: called under the library's own name.
-  if (test.network) {
-    const nf = test.network;
-    const id = deviceNodeId(nf.replaces);
-    nodes.push({ id, kind: "device", words: `${nf.replaces}, faked`, provenance: "plain-code" });
-    if (!wire(id, nf.replaces, (p) => partLines(p).some((l) => NETWORK_CALL[nf.replaces].test(l)), "calls")) notWired.push(nf.replaces);
-    captions.push({ words: `Atlas's fake ${nf.replaces}: ${scriptWords(nf.calls.map((c) => networkStepWords(c, json)), nf.then)}. The real network stays blocked.`, provenance: "plain-code" });
-  }
-
-  // The clock: whoever's own lines start a wait. Atlas's clock is virtual; nothing waits for real.
-  nodes.push({ id: CLOCK_NODE, kind: "clock", words: "Atlas's clock", provenance: "plain-code", sweep: 0.08 });
-  wire(CLOCK_NODE, "clock", (p) => partLines(p).some((l) => WAIT_CALL[language].test(l)), "waits on");
-
-  if (notWired.length) captions.push({ words: `No function's own lines were seen calling ${notWired.join(", ")}, so ${notWired.length === 1 ? "it has" : "they have"} no wire.`, provenance: "plain-code" });
-  return { ...chart, title: test.exportName, kicker: input.fileName, subtitle: "the code, and what Atlas will plug in. Nothing has run.", nodes, edges, captions };
+  const model = benchModel({ fileName: input.fileName, outline: input.outline, test: input.test, source: input.source, language: input.language });
+  const shown = input.tested && !model.tested ? { ...model, tested: input.tested } : model;
+  return benchSpec(shown, input);
 }

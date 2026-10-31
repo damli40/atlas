@@ -126,6 +126,37 @@ describe("R3 shapes of chart", () => {
   }
 });
 
+describe("R3 hidden words and dense charts", () => {
+  it("words with no clean spot are counted, and a caption says so", () => {
+    const n = 12;
+    const nodes = Array.from({ length: n }, (_, i) => ticket(`n${i}`));
+    const edges = nodes.slice(1).flatMap((x, i) => Array.from({ length: 6 }, (_, k) => thread(`e${i}-${k}`, "n0", x.id, "a very long sentence beside this line that wants a lot of room on the paper")));
+    const spec = shell({ nodes, edges });
+    const d = drawSpec(spec);
+    if (d.kind !== "drawing") throw new Error("expected a drawing");
+    expect(d.scene.hiddenLabels).toBeGreaterThan(0);
+    const said = d.scene.captions.map((c) => c.lines.map((l) => l.text).join(" ")).join(" ");
+    expect(said).toMatch(/words had no clean spot on the paper/);
+    expect(said).toMatch(/hover the line/);
+    expect(checkDrawing(spec, d.scene, d.svg)).toEqual([]);
+  });
+  it("a quiet chart gathers lines into one part, and still passes the checks", () => {
+    const nodes = ["a", "b", "c", "d", "t"].map((x) => ticket(x));
+    const edges = ["a", "b", "c", "d"].map((x) => ({ ...thread(`${x}t`, x, "t"), weight: 4 }));
+    const spec = shell({ nodes, edges, quiet: true, legend: "A line means imports." });
+    const d = drawOk(spec);
+    expect(d.svg).toMatch(/rr-quiet/);
+    const ends = d.scene.edges.map((e) => e.pts[e.pts.length - 1]!.map((v) => Math.round(v)).join(","));
+    expect(new Set(ends).size).toBe(1);
+    expect(d.scene.captions[0]?.lines[0]?.text).toContain("A line means imports");
+  });
+  it("tags sit on clean paper beside their parts", () => {
+    const d = drawOk(shell({ nodes: [ticket("a"), ticket("b")], edges: [thread("e", "a", "b")], tags: [{ on: "a", words: "found in this code: no overall timeout", provenance: "plain-code" }] }));
+    expect(d.scene.tags.length).toBe(1);
+    expect(d.svg).toMatch(/data-tag-of="a"/);
+  });
+});
+
 describe("R3 the hand", () => {
   it("is reproducible and keeps its ends where they were aimed", () => {
     const pts: [number, number][] = [[0, 0], [200, 0], [200, 300]];

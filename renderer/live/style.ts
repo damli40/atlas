@@ -66,6 +66,13 @@ position:relative;overflow:hidden;background:var(--rr-paper);touch-action:none;u
 .rr-undim{opacity:1;transition:opacity .35s ease}
 .rr-calm{opacity:.42;transition:opacity .7s ease}
 .rr-hover .rr-edge:not(.rr-near),.rr-hover .rr-node:not(.rr-near),.rr-hover .rr-label:not(.rr-near){opacity:.28;transition:opacity .16s linear}
+.rr-tag-words{fill:#8a6420}
+.rr-host[data-theme="dark"] .rr-tag-words{fill:#d9b264}
+.rr-quiet .rr-edge{opacity:.3;transition:opacity .18s linear}
+.rr-quiet .rr-label{opacity:.55;transition:opacity .18s linear}
+.rr-quiet.rr-hover .rr-edge.rr-near,.rr-quiet.rr-hover .rr-label.rr-near{opacity:1}
+.rr-quiet.rr-hover .rr-edge:not(.rr-near){opacity:.1}
+.rr-quiet.rr-hover .rr-label:not(.rr-near){opacity:.12}
 .rr-pending{visibility:hidden}
 .rr-nib{fill:var(--rr-red);pointer-events:none}
 .rr-edge:not(.rr-on-path) .rr-nib{fill:var(--rr-thread-off)}

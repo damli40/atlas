@@ -33,7 +33,8 @@ for (const [name, exp] of recording ? cases : []) {
 
 // ---- the specs the preview draws: Atlas's authors write them here, in Node. The page only ever sees specs. ----
 const { betView } = await import("../authors/bet-view");
-const { fileChart, outlineChart } = await import("../authors/code-chart");
+const { explorerSpec } = await import("../authors/code-chart");
+const { explorerModel } = await import("../../web/machines/explorer/model");
 const { moonwellFlow } = await import("../authors/moonwell");
 const { retryDemo, whatHappened } = await import("../authors/what-happened");
 const { fileOutline } = await import("../../src/file-outline");
@@ -46,7 +47,7 @@ const read = (rel: string) => JSON.parse(readFileSync(join(dir, "..", "..", ".."
 const twice = read("tests/fixtures/r3/fetch-with-retry.fails-twice-then-200.run.json");
 const always = read("tests/fixtures/r3/fetch-with-retry.always-500.run.json");
 const outline = fileOutline(source, "ts");
-const bet: Spec = betView({ fileName: "fetchWithRetry.ts", outline, source, language: "ts", test: twice.experiment.params, seed: "hero-bet" });
+const bet: Spec = betView({ fileName: "fetchWithRetry.ts", outline, source, language: "ts", test: twice.experiment.params, tested: "fetchWithRetry", seed: "hero-bet" });
 
 const judged = (run: typeof twice.run, experimentId: string, measures: string, answer: object) => {
   const b = { id: "b1", experimentId, who: "human", question: "", measures, answer, nonce: "", sealedAt: "", sealedHash: "" };
@@ -69,8 +70,8 @@ const specs: Record<string, Spec> = {
   path: whatHappened({ run: twice.run, experiment: twice.experiment, title: "fetchWithRetry", bets: [mismatch.bet as never], verdicts: [mismatch.verdict], seed: "path" }),
   always500: whatHappened({ run: always.run, experiment: always.experiment, title: "fetchWithRetry", kicker: "what happened when fetch always answers 500", seed: "always" }),
   bet: { ...bet, seed: "bet" },
-  chart: fileChart({ fileName: "fetchWithRetry.ts", outline, source, language: "ts", seed: "chart" }),
-  meta: outlineChart({ name: "server/meta", verified: metaOutline.verified, seed: "meta" }),
+  chart: betView({ fileName: "fetchWithRetry.ts", outline, source, language: "ts", test: null, tested: "fetchWithRetry", seed: "chart" }),
+  meta: explorerSpec(explorerModel(metaOutline), { seed: "meta" }),
   retry: retryDemo({ run: retryFile.runs[0], experiment: retryFile.experiments[0], bets: retryFile.bets, verdicts: retryFile.verdicts, seed: "retry" }),
   moonwell: moonwellFlow({ run: moonFile.runs[0], bets: moonFile.bets, verdicts: moonFile.verdicts, fileCaptions: moonFile.captions, seed: "moonwell" }),
 };

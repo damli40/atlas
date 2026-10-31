@@ -20,8 +20,8 @@ import { cleanWords, textWidth, wrapWords, type Face } from "./words";
 
 register(flowchart);
 
-export const TYPE = { node: 23, small: 11, edge: 18, region: 16, title: 66, kicker: 17, subtitle: 22, caption: 15, mark: 17, note: 17 } as const;
-const LINE = { node: 29, note: 23, edge: 22, caption: 21, mark: 22 } as const;
+export const TYPE = { node: 23, small: 11, edge: 18, region: 16, title: 66, kicker: 17, subtitle: 22, caption: 15, mark: 17, note: 17, tag: 14.5 } as const;
+const LINE = { node: 29, note: 23, edge: 22, caption: 21, mark: 22, tag: 18 } as const;
 const MARGIN = 48;
 /** The radius of a clock's dial. */
 export const CLOCK_R = 25;
@@ -235,7 +235,7 @@ export function layOut(spec: RenderSpec, o: LayoutOptions = {}): Scene {
     body.push(`  ${from} ${e.kind === "thread" ? "-->" : "-.->"}${label} ${to}`);
   });
   const dense = spec.edges.length > 24;
-  const source = `---\nconfig:\n  flowchart:\n    rankSpacing: ${dense ? 56 : 44}\n    nodeSpacing: ${dense ? 46 : 72}\n---\nflowchart ${direction}\n${body.join("\n")}\n`;
+  const source = `---\nconfig:\n  flowchart:\n    rankSpacing: ${dense ? 56 : spec.marks.length ? 60 : 44}\n    nodeSpacing: ${dense ? 46 : 72}\n---\nflowchart ${direction}\n${body.join("\n")}\n`;
 
   // ---- pele ----
   let svg = "";
@@ -375,8 +375,37 @@ export function layOut(spec: RenderSpec, o: LayoutOptions = {}): Scene {
       });
     }
     pelePts.set(id, pts);
-    for (const p of resample(pts, 5)) grid.add(p);
   }
+
+  // A dense chart: lines into one part gather into a bundle just above it, so many arrows read as one river, not a fan.
+  if (spec.quiet) {
+    const inbound = new Map<string, string[]>();
+    for (const e of spec.edges) {
+      if (e.kind !== "thread" || e.from === e.to) continue;
+      inbound.set(e.to, [...(inbound.get(e.to) ?? []), e.id]);
+    }
+    for (const [to, ids] of inbound) {
+      if (ids.length < 3) continue;
+      const target = nodeById.get(to)!;
+      const aim: Pt = [target.pivot[0], target.pivot[1] - 15];
+      const trunk: Pt = [aim[0], aim[1] - 26];
+      for (const id of ids) {
+        const pts = pelePts.get(id)!;
+        if (pts[pts.length - 1]![1] > target.box.y0 + 4) continue; // it comes in from the side or below: leave it
+        const total = polyLen(pts);
+        const end = pts[pts.length - 1]!;
+        let at = 0;
+        const bent = pts.map((p, i) => {
+          if (i > 0) at += Math.hypot(p[0] - pts[i - 1]![0], p[1] - pts[i - 1]![1]);
+          const u = Math.max(0, Math.min(1, (at - (total - Math.min(total, 120))) / Math.min(total, 120)));
+          const w = u * u * (3 - 2 * u);
+          return [p[0] + (trunk[0] - end[0]) * w, p[1] + (trunk[1] - end[1]) * w] as Pt;
+        });
+        pelePts.set(id, [...bent, aim]);
+      }
+    }
+  }
+  for (const pts of pelePts.values()) for (const p of resample(pts, 5)) grid.add(p);
 
   // A region's label moves along its top edge to where no line runs; a region's outline counts as a line for all words.
   for (const r of regions) {
@@ -461,6 +490,7 @@ export function layOut(spec: RenderSpec, o: LayoutOptions = {}): Scene {
       label: labelOf.get(e.id) ?? null,
       full: e.words ? cleanWords(e.words) : "",
       labelHidden: !!edgeLines.get(e.id) && !labelOf.get(e.id),
+      weight: e.weight ?? 1,
     });
   }
 
@@ -491,6 +521,29 @@ export function layOut(spec: RenderSpec, o: LayoutOptions = {}): Scene {
       taken.push(placed.box);
     }
     return { on: m.on, kind: m.kind, words: placed };
+  });
+
+  // ---- tags: a part's notes (failure labels), on clean paper beside it ----
+  const tags: TextBlock[] = (spec.tags ?? []).map((t) => {
+    const node = nodeById.get(t.on)!;
+    const lines = wrapWords(cleanWords(t.words), narrow ? 150 : 260, TYPE.tag, "italic", 3);
+    const w = Math.max(...lines.map((l) => textWidth(l, TYPE.tag, "italic")));
+    const h = lines.length * LINE.tag;
+    for (let push = 0; push < 80; push++) {
+      for (const side of [1, -1]) {
+        const x = side > 0 ? node.box.x1 + 14 + push * 14 : node.box.x0 - 14 - w - push * 14;
+        const y = node.box.y0 + 8;
+        const b = { x0: x - 3, x1: x + w + 3, y0: y - 2, y1: y + h + 2 };
+        if (!clash(b)) {
+          taken.push(b);
+          return block("tag", "italic", TYPE.tag, lines, x, y, LINE.tag, t.on);
+        }
+      }
+    }
+    const y = Math.max(...taken.map((b) => b.y1)) + 8;
+    const placed = block("tag", "italic", TYPE.tag, lines, node.box.x0, y, LINE.tag, t.on);
+    taken.push(placed.box);
+    return placed;
   });
 
   // ---- the plate: bounds, then the title where the paper is clean, then captions below ----
@@ -555,8 +608,9 @@ export function layOut(spec: RenderSpec, o: LayoutOptions = {}): Scene {
   const captions: TextBlock[] = [];
   let capY = y1 + 26;
   const capW = narrow ? Math.max(340, x1 - x0) : Math.max(460, Math.min(x1 - x0, 880));
-  for (const c of spec.captions) {
-    const lines = wrapWords(cleanWords(c.words), capW, TYPE.caption, "italic", 5);
+  const hiddenWords = hiddenLabels > 0 ? [`${hiddenLabels} line${hiddenLabels === 1 ? "'s" : "s'"} words had no clean spot on the paper, so ${hiddenLabels === 1 ? "they are" : "they are"} not drawn: hover the line to read them.`] : [];
+  for (const words of [...(spec.legend ? [spec.legend] : []), ...spec.captions.map((c) => c.words), ...hiddenWords]) {
+    const lines = wrapWords(cleanWords(words), capW, TYPE.caption, "italic", 5);
     const b = block("caption", "italic", TYPE.caption, lines, x0, capY, LINE.caption);
     captions.push(b);
     capY = b.box.y1 + 6;
@@ -587,6 +641,7 @@ export function layOut(spec: RenderSpec, o: LayoutOptions = {}): Scene {
     shiftBlock(r.label, dx, dy);
   }
   for (const m of marks) shiftBlock(m.words, dx, dy);
+  for (const t of tags) shiftBlock(t, dx, dy);
   for (const b of [...stack, ...captions]) shiftBlock(b, dx, dy);
   regions.sort((a, b) => a.depth - b.depth);
   return {
@@ -597,6 +652,8 @@ export function layOut(spec: RenderSpec, o: LayoutOptions = {}): Scene {
     edges,
     regions,
     marks,
+    tags,
+    quiet: spec.quiet === true,
     title,
     kicker,
     subtitle,

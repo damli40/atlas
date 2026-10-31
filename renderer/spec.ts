@@ -49,6 +49,8 @@ export interface SpecEdge {
   words?: string;
   kind: EdgeKind;
   provenance: Provenance;
+  /** How many links in the code this one line stands for: a thicker line is more links. */
+  weight?: number;
 }
 
 export interface SpecRegion {
@@ -72,6 +74,13 @@ export interface SpecMark {
   who: string;
   /** Short plain words beside the mark. */
   words?: string;
+}
+
+/** A note on a part drawn before or after a run (a failure label). Never run data before a bet. */
+export interface SpecTag {
+  on: string;
+  words: string;
+  provenance: Provenance;
 }
 
 export interface SpecCaption {
@@ -109,6 +118,12 @@ export interface RenderSpec {
   regions: SpecRegion[];
   path?: SpecPath;
   marks: SpecMark[];
+  /** Words on parts: failure labels. Optional. */
+  tags?: SpecTag[];
+  /** One line that says what the lines mean, so the words need not repeat on every line. */
+  legend?: string;
+  /** A dense chart: lines step back until a part is hovered, and lines into one part gather into a bundle. */
+  quiet?: boolean;
   captions: SpecCaption[];
   steps: SpecStep[];
   /** Set when nothing may be drawn (a failed control, a whole-run can't check): the one sentence shown instead. */
@@ -170,6 +185,7 @@ export function specProblems(spec: RenderSpec): string[] {
     if (spec.path.partsWaysAt !== undefined && !nodes.has(spec.path.partsWaysAt)) out.push(`the path parts ways at a node that does not exist: ${JSON.stringify(spec.path.partsWaysAt)}`);
   }
   for (const m of spec.marks) if (!nodes.has(m.on)) out.push(`a mark sits on a node that does not exist: ${JSON.stringify(m.on)}`);
+  for (const t of spec.tags ?? []) if (!nodes.has(t.on)) out.push(`a tag sits on a node that does not exist: ${JSON.stringify(t.on)}`);
   for (const s of spec.steps) {
     for (const id of s.nodes) if (!nodes.has(id)) out.push(`step ${JSON.stringify(s.id)} lights a node that does not exist: ${JSON.stringify(id)}`);
     for (const id of s.edges) if (!edges.has(id)) out.push(`step ${JSON.stringify(s.id)} lights an edge that does not exist: ${JSON.stringify(id)}`);
@@ -185,6 +201,7 @@ export function specProblems(spec: RenderSpec): string[] {
     for (const c of spec.captions) if (c.provenance === "run") ran(`caption ${JSON.stringify(c.words)}`);
     for (const s of spec.steps) if (s.provenance === "run") ran(`step ${JSON.stringify(s.id)}`);
     if (spec.marks.length > 0) ran("matched / didn't match marks");
+    for (const t of spec.tags ?? []) if (t.provenance === "run") ran(`tag ${JSON.stringify(t.words)}`);
   }
   return out;
 }
