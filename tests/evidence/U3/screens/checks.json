@@ -1,0 +1,218 @@
+{
+  "rounds": {
+    "ts light 1920x1080": {
+      "landing": "Paste one file. Atlas draws its functions and how they call each other. Then, if you like, bet on what it will do: Atlas runs it and shows whether your bet matched.",
+      "card": "fetchPage / function · lines 3–11 / async function fetchPage<T>(url: string, cursor: string | null, attempt = 0): Promise<Page<T>> / Calls no other part of this file. Called by fetchAllOrders. / Calls itself (line 7): it runs again from the top, for example to retry. / Atlas can only call exported functions, and fetchPage is not exported. It runs when fetchAllOrders calls it, so test that one to see it work. / ×",
+      "wait": "Muse Wonder 1.0 (Meta) is writing tests for fetchAllOrders: 1 s so far (usually under a minute).Step 1 of 3: Muse Wonder reads your file and writes up to 3 tests aimed at its edges.The drawing stays live meanwhile: hover or click any part.Write my own test instead",
+      "cardDuringWait": "fetchAllOrders",
+      "firstTestMs": 6241,
+      "test": "The test: Atlas calls fetchAllOrders(\"https://example.com/orders\"). Atlas's fake fetch (in place of the network, which stays blocked) answers 429 with {} on call 1; every later call answers 429 with {} too.",
+      "play": {
+        "ms": 8276,
+        "frames": 77,
+        "maxLampsLit": 1,
+        "maxPartsLit": 24,
+        "needlePositions": 27,
+        "chipStates": 6,
+        "litTogether": [
+          "fetchAllOrders",
+          "fetchAllOrders + fetchAllOrders->fetchPage + fetchPage + fetchPage=>stand-in fetch"
+        ],
+        "replayLabelsWhilePlaying": [
+          "Playing the run…"
+        ],
+        "firstChip": {
+          "ms": 443,
+          "popOpen": false
+        }
+      },
+      "replayAfter": "Play the run again",
+      "headline": "You matched 0 of 3 checkable answers. Muse Spark 1.3 matched 0, Muse Spark Open 2.",
+      "marks": [
+        "1. How it endsThe run: throws Error: HTTP 429Youreturns a valuedidn't matchMuse Spark Openthrows (an Error or any other value)matchedMuse Spark 1.3returns a valuedidn't match",
+        "2. What it returnsThe run: can't check: the call threw, so it returned nothing?You\"https://example.com/orders\" (the same as argument 1)can't check?Muse Spark Openanother valuecan't check?Muse Spark 1.3\"https://example.com/orders\" (the same as argument 1)can't check",
+        "3. Calls to fetchThe run: 4 times (2 or more times)You0 times (never called)didn't matchMuse Spark Openoncedidn't matchMuse Spark 1.30 times (never called)didn't match",
+        "4. How long it takesThe run: 1,400 ms (more than 0 ms)You0 ms (no wait at all)didn't matchMuse Spark Openmore than 0 msmatchedMuse Spark 1.30 ms (no wait at all)didn't match"
+      ],
+      "claim": "People expect fetchAllOrders to return every order or fail loudly; it silently stops after maxPages pages and gives up on a 4th 429 with a bare \"HTTP 429\". (mocked for the U3 click-through: no model was called)",
+      "claimWait": "This test checks Muse Wonder's sentence: “People expect fetchAllOrders to return every order or fail loudly; it silently stops after maxPages pages and gives up on a 4th 429 with a bare \"HTTP 429\". (mocked for the U3 click-through: no model was called)”Muse Wonder 1.0 (Meta) is writing tests for fetchAllOrders: 0 s so far (usually under a minute).Step 1 of 3: Muse Wonder reads your file and writes up to 3 tests aimed at its edges.The drawing stays live meanwhile: hover or click any part.Write my own test instead",
+      "claimFacts": "What the run shows about this claim: you decideMuse Wonder 1.0 said, before the first run:People expect fetchAllOrders to return every order or fail loudly; it silently stops after maxPages pages and gives up on a 4th 429 with a bare \"HTTP 429\". (mocked for the U3 click-through: no model was called)What this run measured (plain code):How it ends: throws Error: HTTP 429What it returns: can't check: the call threw, so it returned nothingCalls to fetch: 4 times (2 or more times)How long it takes: 1,400 ms (more than 0 ms)Atlas does not say whether the sentence holds. Neither an AI nor plain code may decide that; compare the two yourself."
+    },
+    "ts dark 1920x1080": {
+      "card": "fetchPage / function · lines 3–11 / async function fetchPage<T>(url: string, cursor: string | null, attempt = 0): Promise<Page<T>> / Calls no other part of this file. Called by fetchAllOrders. / Calls itself (line 7): it runs again from the top, for example to retry. / Atlas can only call exported functions, and fetchPage is not exported. It runs when fetchAllOrders calls it, so test that one to see it work. / ×",
+      "wait": "Muse Wonder 1.0 (Meta) is writing tests for fetchAllOrders: 1 s so far (usually under a minute).Step 1 of 3: Muse Wonder reads your file and writes up to 3 tests aimed at its edges.The drawing stays live meanwhile: hover or click any part.Write my own test instead",
+      "cardDuringWait": "fetchAllOrders",
+      "firstTestMs": 6239,
+      "test": "The test: Atlas calls fetchAllOrders(\"https://example.com/orders\"). Atlas's fake fetch (in place of the network, which stays blocked) answers 429 with {} on call 1; every later call answers 429 with {} too.",
+      "play": {
+        "ms": 8088,
+        "frames": 76,
+        "maxLampsLit": 1,
+        "maxPartsLit": 24,
+        "needlePositions": 23,
+        "chipStates": 6,
+        "litTogether": [
+          "fetchAllOrders",
+          "fetchAllOrders + fetchAllOrders->fetchPage + fetchPage + fetchPage=>stand-in fetch"
+        ],
+        "replayLabelsWhilePlaying": [
+          "Playing the run…"
+        ],
+        "firstChip": {
+          "ms": 314,
+          "popOpen": false
+        }
+      },
+      "replayAfter": "Play the run again",
+      "headline": "You matched 0 of 3 checkable answers. Muse Spark 1.3 matched 0, Muse Spark Open 2.",
+      "marks": [
+        "1. How it endsThe run: throws Error: HTTP 429Youreturns a valuedidn't matchMuse Spark Openthrows (an Error or any other value)matchedMuse Spark 1.3returns a valuedidn't match",
+        "2. What it returnsThe run: can't check: the call threw, so it returned nothing?You\"https://example.com/orders\" (the same as argument 1)can't check?Muse Spark Openanother valuecan't check?Muse Spark 1.3\"https://example.com/orders\" (the same as argument 1)can't check",
+        "3. Calls to fetchThe run: 4 times (2 or more times)You0 times (never called)didn't matchMuse Spark Openoncedidn't matchMuse Spark 1.30 times (never called)didn't match",
+        "4. How long it takesThe run: 1,400 ms (more than 0 ms)You0 ms (no wait at all)didn't matchMuse Spark Openmore than 0 msmatchedMuse Spark 1.30 ms (no wait at all)didn't match"
+      ]
+    },
+    "py light 1920x1080": {
+      "card": "cached / function · lines 6–17 · top-level (Atlas can call it) / def cached(ttl_seconds) / Calls no other part of this file. / A wrapper (decorator): it wraps get_user_plan. / Test this function / ×",
+      "wait": "Muse Wonder 1.0 (Meta) is writing tests for get_user_plan: 1 s so far (usually under a minute).Step 1 of 3: Muse Wonder reads your file and writes up to 3 tests aimed at its edges.The drawing stays live meanwhile: hover or click any part.Write my own test instead",
+      "cardDuringWait": "get_user_plan",
+      "firstTestMs": 6249,
+      "test": "The test: Atlas calls get_user_plan(1), then calls get_user_plan(1): 2 calls in a row on the same loaded file, so anything the code keeps between calls (a cache, a counter) carries over. If an earlier call throws, Atlas notes it and still makes the next. The questions are about the 2nd (last) call; call counts are totals over all 2 calls.",
+      "list": "Pick a test for get_user_planAtlas calls get_user_plan(True). Use this test EditAtlas calls get_user_plan(1). Use this test EditAtlas calls get_user_plan(1), then calls get_user_plan(1): 2 calls in a row on the same loaded file, so anything the code keeps between calls (a cache, a counter) carries over. If an earlier call throws, Atlas notes it and still makes the next. The questions are about the 2nd (last) call; call counts are totals over all 2 calls. Use this test EditWrite your own testBack to the quiz",
+      "typedHint": "Atlas reads it as \"pro\".",
+      "play": {
+        "ms": 8059,
+        "frames": 75,
+        "maxLampsLit": 0,
+        "maxPartsLit": 4,
+        "needlePositions": 9,
+        "chipStates": 6,
+        "litTogether": [
+          "cached + get_user_plan",
+          "get_user_plan"
+        ],
+        "replayLabelsWhilePlaying": [
+          "Playing the run…"
+        ],
+        "firstChip": {
+          "ms": 311,
+          "popOpen": false
+        }
+      },
+      "replayAfter": "Play the run again",
+      "headline": "You matched 3 of 3 checkable answers. Muse Spark 1.3 matched 2, Muse Spark Open 1.",
+      "marks": [
+        "1. How it endsThe run: returns a valueYoureturns a valuematchedMuse Spark Openthrows (an Error or any other value)didn't matchMuse Spark 1.3returns a valuematched",
+        "2. What it returnsThe run: \"pro\" (another value)Youtyped \"pro\"matchedMuse Spark Openanother valuematchedMuse Spark 1.31 (the same as argument 1 of the last call)didn't match",
+        "3. How long it takesThe run: 0 ms (no wait at all)You0 ms (no wait at all)matchedMuse Spark Openmore than 0 msdidn't matchMuse Spark 1.30 ms (no wait at all)matched"
+      ],
+      "claim": "People expect get_user_plan to read the database on every call; the second call within 60 s comes from the cache in 0 ms, and the cache's clock starts before the slow read. (mocked for the U3 click-through: no model was called)",
+      "claimWait": "This test checks Muse Wonder's sentence: “People expect get_user_plan to read the database on every call; the second call within 60 s comes from the cache in 0 ms, and the cache's clock starts before the slow read. (mocked for the U3 click-through: no model was called)”Muse Wonder 1.0 (Meta) is writing tests for get_user_plan: 0 s so far (usually under a minute).Step 1 of 3: Muse Wonder reads your file and writes up to 3 tests aimed at its edges.The drawing stays live meanwhile: hover or click any part.Write my own test instead",
+      "claimFacts": "What the run shows about this claim: you decideMuse Wonder 1.0 said, before the first run:People expect get_user_plan to read the database on every call; the second call within 60 s comes from the cache in 0 ms, and the cache's clock starts before the slow read. (mocked for the U3 click-through: no model was called)What this run measured (plain code):How it ends: returns a valueWhat it returns: \"pro\" (another value)How long it takes: 500 ms (more than 0 ms)Atlas does not say whether the sentence holds. Neither an AI nor plain code may decide that; compare the two yourself."
+    },
+    "py dark 1920x1080": {
+      "card": "cached / function · lines 6–17 · top-level (Atlas can call it) / def cached(ttl_seconds) / Calls no other part of this file. / A wrapper (decorator): it wraps get_user_plan. / Test this function / ×",
+      "wait": "Muse Wonder 1.0 (Meta) is writing tests for get_user_plan: 1 s so far (usually under a minute).Step 1 of 3: Muse Wonder reads your file and writes up to 3 tests aimed at its edges.The drawing stays live meanwhile: hover or click any part.Write my own test instead",
+      "cardDuringWait": "get_user_plan",
+      "firstTestMs": 6230,
+      "test": "The test: Atlas calls get_user_plan(1), then calls get_user_plan(1): 2 calls in a row on the same loaded file, so anything the code keeps between calls (a cache, a counter) carries over. If an earlier call throws, Atlas notes it and still makes the next. The questions are about the 2nd (last) call; call counts are totals over all 2 calls.",
+      "list": "Pick a test for get_user_planAtlas calls get_user_plan(True). Use this test EditAtlas calls get_user_plan(1). Use this test EditAtlas calls get_user_plan(1), then calls get_user_plan(1): 2 calls in a row on the same loaded file, so anything the code keeps between calls (a cache, a counter) carries over. If an earlier call throws, Atlas notes it and still makes the next. The questions are about the 2nd (last) call; call counts are totals over all 2 calls. Use this test EditWrite your own testBack to the quiz",
+      "play": {
+        "ms": 8533,
+        "frames": 80,
+        "maxLampsLit": 0,
+        "maxPartsLit": 4,
+        "needlePositions": 10,
+        "chipStates": 6,
+        "litTogether": [
+          "cached + get_user_plan",
+          "get_user_plan"
+        ],
+        "replayLabelsWhilePlaying": [
+          "Playing the run…"
+        ],
+        "firstChip": {
+          "ms": 723,
+          "popOpen": false
+        }
+      },
+      "replayAfter": "Play the run again",
+      "headline": "You matched 2 of 3 checkable answers. Muse Spark 1.3 matched 2, Muse Spark Open 1.",
+      "marks": [
+        "1. How it endsThe run: returns a valueYoureturns a valuematchedMuse Spark Openthrows (an Error or any other value)didn't matchMuse Spark 1.3returns a valuematched",
+        "2. What it returnsThe run: \"pro\" (another value)You1 (the same as argument 1 of the last call)didn't matchMuse Spark Openanother valuematchedMuse Spark 1.31 (the same as argument 1 of the last call)didn't match",
+        "3. How long it takesThe run: 0 ms (no wait at all)You0 ms (no wait at all)matchedMuse Spark Openmore than 0 msdidn't matchMuse Spark 1.30 ms (no wait at all)matched"
+      ]
+    },
+    "ts light 1366x768": {
+      "card": "fetchPage / function · lines 3–11 / async function fetchPage<T>(url: string, cursor: string | null, attempt = 0): Promise<Page<T>> / Calls no other part of this file. Called by fetchAllOrders. / Calls itself (line 7): it runs again from the top, for example to retry. / Atlas can only call exported functions, and fetchPage is not exported. It runs when fetchAllOrders calls it, so test that one to see it work. / ×",
+      "wait": "Muse Wonder 1.0 (Meta) is writing tests for fetchAllOrders: 1 s so far (usually under a minute).Step 1 of 3: Muse Wonder reads your file and writes up to 3 tests aimed at its edges.The drawing stays live meanwhile: hover or click any part.Write my own test instead",
+      "cardDuringWait": "fetchAllOrders",
+      "firstTestMs": 6231,
+      "test": "The test: Atlas calls fetchAllOrders(\"https://example.com/orders\"). Atlas's fake fetch (in place of the network, which stays blocked) answers 429 with {} on call 1; every later call answers 429 with {} too.",
+      "play": {
+        "ms": 8099,
+        "frames": 76,
+        "maxLampsLit": 1,
+        "maxPartsLit": 24,
+        "needlePositions": 24,
+        "chipStates": 6,
+        "litTogether": [
+          "fetchAllOrders",
+          "fetchAllOrders + fetchAllOrders->fetchPage + fetchPage + fetchPage=>stand-in fetch"
+        ],
+        "replayLabelsWhilePlaying": [
+          "Playing the run…"
+        ],
+        "firstChip": {
+          "ms": 311,
+          "popOpen": false
+        }
+      },
+      "replayAfter": "Play the run again",
+      "headline": "You matched 0 of 3 checkable answers. Muse Spark 1.3 matched 0, Muse Spark Open 2.",
+      "marks": [
+        "1. How it endsThe run: throws Error: HTTP 429Youreturns a valuedidn't matchMuse Spark Openthrows (an Error or any other value)matchedMuse Spark 1.3returns a valuedidn't match",
+        "2. What it returnsThe run: can't check: the call threw, so it returned nothing?You\"https://example.com/orders\" (the same as argument 1)can't check?Muse Spark Openanother valuecan't check?Muse Spark 1.3\"https://example.com/orders\" (the same as argument 1)can't check",
+        "3. Calls to fetchThe run: 4 times (2 or more times)You0 times (never called)didn't matchMuse Spark Openoncedidn't matchMuse Spark 1.30 times (never called)didn't match",
+        "4. How long it takesThe run: 1,400 ms (more than 0 ms)You0 ms (no wait at all)didn't matchMuse Spark Openmore than 0 msmatchedMuse Spark 1.30 ms (no wait at all)didn't match"
+      ]
+    },
+    "py light 1366x768": {
+      "card": "cached / function · lines 6–17 · top-level (Atlas can call it) / def cached(ttl_seconds) / Calls no other part of this file. / A wrapper (decorator): it wraps get_user_plan. / Test this function / ×",
+      "wait": "Muse Wonder 1.0 (Meta) is writing tests for get_user_plan: 1 s so far (usually under a minute).Step 1 of 3: Muse Wonder reads your file and writes up to 3 tests aimed at its edges.The drawing stays live meanwhile: hover or click any part.Write my own test instead",
+      "cardDuringWait": "get_user_plan",
+      "firstTestMs": 6211,
+      "test": "The test: Atlas calls get_user_plan(1), then calls get_user_plan(1): 2 calls in a row on the same loaded file, so anything the code keeps between calls (a cache, a counter) carries over. If an earlier call throws, Atlas notes it and still makes the next. The questions are about the 2nd (last) call; call counts are totals over all 2 calls.",
+      "list": "Pick a test for get_user_planAtlas calls get_user_plan(True). Use this test EditAtlas calls get_user_plan(1). Use this test EditAtlas calls get_user_plan(1), then calls get_user_plan(1): 2 calls in a row on the same loaded file, so anything the code keeps between calls (a cache, a counter) carries over. If an earlier call throws, Atlas notes it and still makes the next. The questions are about the 2nd (last) call; call counts are totals over all 2 calls. Use this test EditWrite your own testBack to the quiz",
+      "play": {
+        "ms": 8484,
+        "frames": 81,
+        "maxLampsLit": 0,
+        "maxPartsLit": 4,
+        "needlePositions": 9,
+        "chipStates": 6,
+        "litTogether": [
+          "cached + get_user_plan",
+          "get_user_plan"
+        ],
+        "replayLabelsWhilePlaying": [
+          "Playing the run…"
+        ],
+        "firstChip": {
+          "ms": 713,
+          "popOpen": false
+        }
+      },
+      "replayAfter": "Play the run again",
+      "headline": "You matched 2 of 3 checkable answers. Muse Spark 1.3 matched 2, Muse Spark Open 1.",
+      "marks": [
+        "1. How it endsThe run: returns a valueYoureturns a valuematchedMuse Spark Openthrows (an Error or any other value)didn't matchMuse Spark 1.3returns a valuematched",
+        "2. What it returnsThe run: \"pro\" (another value)You1 (the same as argument 1 of the last call)didn't matchMuse Spark Openanother valuematchedMuse Spark 1.31 (the same as argument 1 of the last call)didn't match",
+        "3. How long it takesThe run: 0 ms (no wait at all)You0 ms (no wait at all)matchedMuse Spark Openmore than 0 msdidn't matchMuse Spark 1.30 ms (no wait at all)matched"
+      ]
+    }
+  },
+  "errors": [],
+  "bad": []
+}

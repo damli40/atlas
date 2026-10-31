@@ -1,0 +1,59 @@
+{
+  "rows": [
+    {
+      "effort": "low",
+      "file": "orders.ts",
+      "seconds": 7.5,
+      "ok": true,
+      "proposed": 3,
+      "allowed": 3,
+      "twoCall": 0,
+      "refused": [],
+      "completionTokens": 1268,
+      "usd": 0.031064
+    },
+    {
+      "effort": "low",
+      "file": "plan_cache.py",
+      "seconds": 9.3,
+      "ok": true,
+      "proposed": 3,
+      "allowed": 1,
+      "twoCall": 1,
+      "refused": [
+        "the waits between calls add up to 59600 ms, which is not less than Atlas's watch limit (30000 ms): the last call could n",
+        "the waits between calls add up to 61000 ms, which is not less than Atlas's watch limit (30000 ms): the last call could n"
+      ],
+      "completionTokens": 1247,
+      "usd": 0.030416
+    },
+    {
+      "effort": "minimal",
+      "file": "orders.ts",
+      "seconds": 6.5,
+      "ok": true,
+      "proposed": 3,
+      "allowed": 3,
+      "twoCall": 0,
+      "refused": [],
+      "completionTokens": 897,
+      "usd": 0.023644
+    },
+    {
+      "effort": "minimal",
+      "file": "plan_cache.py",
+      "seconds": 5.1,
+      "ok": true,
+      "proposed": 3,
+      "allowed": 1,
+      "twoCall": 1,
+      "refused": [
+        "the waits between calls add up to 59700 ms, which is not less than Atlas's watch limit (30000 ms): the last call could n",
+        "the waits between calls add up to 61000 ms, which is not less than Atlas's watch limit (30000 ms): the last call could n"
+      ],
+      "completionTokens": 618,
+      "usd": 0.017836
+    }
+  ],
+  "spentUsd": 0.10296000000000001
+}
