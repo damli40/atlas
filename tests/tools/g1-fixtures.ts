@@ -38,6 +38,8 @@ export interface BuildOpts {
   ownerReserve?: number;
   /** Pretend the sandbox is Modal (it still runs on this machine's local sandbox; the cost is Modal's estimate). */
   modal?: boolean;
+  /** L1: the pretend Modal also reports a Modal runtime, as the real one does, so its runs make proof files that verify. */
+  modalRuntime?: boolean;
   modalStartsPerDay?: number;
   evmRunsPerDay?: number;
   callsPerHour?: number;
@@ -90,7 +92,11 @@ export function build(o: BuildOpts = {}) {
       return { ok: true, finishReason: "stop", usage, content: a.role === "investigator" ? WONDER_ANSWER : SPARK_ANSWER };
     });
   const raw: Executor = o.modal
-    ? { kind: "modal", fingerprint: "g1-test-modal", exec: (r) => (spent.execs++, localExecutor.exec(r)) }
+    ? { kind: "modal", fingerprint: "g1-test-modal", exec: async (r) => {
+        spent.execs++;
+        const out = await localExecutor.exec(r);
+        return o.modalRuntime ? { ...out, runtime: { executor: "modal" as const, node: "test", image: "test" } as never } : out;
+      } }
     : { kind: "local", exec: (r) => (spent.execs++, localExecutor.exec(r)) };
   const evmRun =
     o.evmRun ??
