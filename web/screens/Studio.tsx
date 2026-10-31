@@ -19,6 +19,7 @@ import { literal, parseTyped } from "../../src/literal";
 import { WONDER_DISPLAY, BET_WORDS, RESULT_WORDS, STAGE_WORDS, betterByRole } from "../../src/paste-words";
 import type { Mark } from "../machines/bench/play";
 import { pickDefaultTest, type CodeContext } from "../../src/default-test";
+import { keptState } from "../../src/code-facts";
 import { LIBRARY_WORDS } from "../../src/network-fake";
 import { CALL_DEFAULT_WATCH_LIMIT_MS } from "../../src/gate";
 import { ProofCardPage } from "./ProofCard";
@@ -55,6 +56,16 @@ export function defaultProposal<P extends { gate: { allowed: boolean }; params: 
   // U3: the rule prefers a test that hits an edge, read from the file's text (a second call on a cache, the Nth failure).
   const i = pickDefaultTest(allowed.map((p) => p.params as CallTest), code);
   return i >= 0 ? allowed[i] : undefined;
+}
+
+/**
+ * U3: the test a "Test this claim" round opens on: Wonder's first allowed test (the one aimed at the sentence), except
+ * that on code keeping state between calls a single call cannot show the state working, so a two-call test comes first.
+ */
+export function claimProposal<P extends { gate: { allowed: boolean }; params: unknown }>(proposals: readonly P[], code?: CodeContext): P | undefined {
+  const allowed = proposals.filter((p) => p.gate.allowed);
+  const twoCalls = code && keptState(code.source, code.language).length > 0 ? allowed.find((p) => Array.isArray((p.params as CallTest).calls)) : undefined;
+  return twoCalls ?? allowed[0];
 }
 
 /** U2: the code boxes whose own lines wait (a timer or a sleep), read from the file's text by plain code. */
@@ -218,7 +229,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       const lang = pasted?.target.language ?? pasted?.language.chosen;
       // U2 (D53) / U3: the default is the plain-code rule's pick (src/default-test.ts); "Test this claim" opens on
       // Wonder's first allowed test, the one aimed at the sentence.
-      const first = opts.pick === "list" ? undefined : opts.pick === "first" ? p.proposals.find((x) => x.gate.allowed) : defaultProposal(p.proposals, lang ? { source: readText, language: lang } : undefined);
+      const first = opts.pick === "list" ? undefined : opts.pick === "first" ? claimProposal(p.proposals, lang ? { source: readText, language: lang } : undefined) : defaultProposal(p.proposals, lang ? { source: readText, language: lang } : undefined);
       if (first) await start(() => api.experimentFromProposal(target, first.id, { quiz: true }));
       else setChanging(true);
     } catch (e) {

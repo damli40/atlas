@@ -39,7 +39,7 @@ export const PROPOSE_INSTRUCTION =
 
 /** U3: the extra instruction when plain code finds state kept between calls (src/code-facts.ts keptState). */
 export const STATEFUL_INSTRUCTION = (where: string) =>
-  `This code keeps state between calls (${where}). Make at least one experiment a two-call test with "calls": the same call twice on the same loaded file (to see the state work, e.g. a cache hit), or with "waitMs" before the second call past any expiry; its last entry must equal the experiment's own exportName and args.`;
+  `This code keeps state between calls (${where}). Make at least one experiment a two-call test with "calls": the same call twice on the same loaded file (to see the state work, e.g. a cache hit), or with "waitMs" before the second call past any expiry (then set "watchLimitMs" above the total wait, because Atlas's default watch limit is 30000 ms); its last entry must equal the experiment's own exportName and args.`;
 
 /** U2 (D53): the extra instruction when the code calls the network. */
 export const NETWORK_INSTRUCTION = (libs: string) =>
@@ -183,7 +183,8 @@ export async function runProposer(input: ProposerInput, deps: ProposerDeps = {})
   const messages = buildProposerMessages(input);
   let lastSafe = "no answer";
   for (let attempt = 1; attempt <= 2; attempt++) {
-    const res = await chat({ role: "investigator", model, messages: [...messages], json: true });
+    // U3 item 6: minimal reasoning: 5.1 to 6.5 s against 7.5 to 9.3 s at low, with as many valid tests (tests/evidence/U3).
+    const res = await chat({ role: "investigator", model, messages: [...messages], json: true, reasoningEffort: "minimal" });
     usage = addUsage(usage, res.usage);
     if (!res.ok) {
       say(`no usable answer (the model call failed: ${res.reason})`, res.usage);

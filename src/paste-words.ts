@@ -234,7 +234,7 @@ export const BET_WORDS = {
   typedBad: (py: boolean) => (py ? "That is not a value Atlas can read. Use quotes for text (\"pro\"), and True, False or None." : "That is not JSON. Use double quotes for text (\"pro\"), and true, false or null."),
   typedReads: (shown: string) => `Atlas reads it as ${shown}.`,
   /** U3 item 6: while Muse Wonder writes tests. */
-  waitHead: (fn: string, seconds: number) => `Muse Wonder 1.0 (Meta) is writing tests for ${fn}: ${seconds} s so far (it usually takes 10 to 60 s).`,
+  waitHead: (fn: string, seconds: number) => `Muse Wonder 1.0 (Meta) is writing tests for ${fn}: ${seconds} s so far (usually under a minute).`,
   waitAsking: "Step 1 of 3: Muse Wonder reads your file and writes up to 3 tests aimed at its edges.",
   waitChecked: (allowed: number, all: number) => `Step 2 of 3: plain code's gate checked ${all} ${all === 1 ? "test" : "tests"}: ${allowed} can run. Step 3 of 3: getting the questions ready.`,
   waitExplore: "The drawing stays live meanwhile: hover or click any part.",

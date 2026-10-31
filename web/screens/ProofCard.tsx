@@ -385,7 +385,7 @@ function ProofChange({ file, said }: { file: AtlasFile; said: Record<string, str
 /** U3 item 7: the proof card's plain words (the technical details are folded under techSummary). */
 const PROOF_WORDS = {
   judged: "Judged by plain code, not by an AI",
-  what: "What this card shows: each answer was sealed (locked with a fingerprint) before the code ran. Then Atlas ran the code once, and plain code compared each answer with what the run measured: matched, didn't match, or can't check.",
+  what: "What this card shows: each answer was sealed (locked with a fingerprint) before the code ran. Then Atlas ran the code, and plain code compared each answer with what the run measured: matched, didn't match, or can't check.",
   techSummary: "Technical details: the judge's file, the code's fingerprint (sha256), the seed, the control run and the sealed hashes",
 } as const;
 

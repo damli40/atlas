@@ -386,7 +386,12 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
   // U3 item 7: after any label changes (a chip, the marks, a zoom), move labels off cables and boxes.
   useLayoutEffect(() => {
     if (!rootRef.current || !svgReady) return;
-    placeLabels(rootRef.current, view.s);
+    // Placement only tidies labels: if a browser lacks what it measures with, labels stay at their anchors and the page lives.
+    try {
+      placeLabels(rootRef.current, view.s);
+    } catch {
+      rootRef.current.setAttribute("data-labels-stuck", "not measured");
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chips, marksOn, clockMs, anchors, view.s, view.x, view.y, extraMarks, svgReady, side, after?.token, dialScale]);
 
