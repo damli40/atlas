@@ -37,6 +37,9 @@ import { plural } from "../../src/words";
 import type { BetHandoff } from "./Explorer";
 import type { PasteLabelsAnswer } from "../api";
 import { lineSpan } from "../../src/words";
+import type { Confidence } from "../../src/types";
+import { FeltRecord, FeltRoundLine, HowSurePicker } from "./FeltPanel";
+import { FELT_WORDS } from "../../src/paste-words";
 
 type Lang = "js" | "ts" | "py";
 const FILE_NAME: Record<Lang, string> = { js: "pasted.js", ts: "pasted.ts", py: "pasted.py" };
@@ -118,6 +121,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const [exp, setExp] = useState<ExperimentAnswer | null>(null);
   const [picked, setPicked] = useState<Record<string, string>>({});
   const [typed, setTyped] = useState<Record<string, string>>({});
+  const [confidence, setConfidence] = useState<Confidence | null>(null);
   const [wholeTest, setWholeTest] = useState(false);
   const [sealed, setSealed] = useState<ShownBet[]>([]);
   const [result, setResult] = useState<RunAnswer | null>(null);
@@ -194,6 +198,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     setExp(null);
     setPicked({});
     setTyped({});
+    setConfidence(null);
     setSealed([]);
     setResult(null);
     setClaim(null);
@@ -338,7 +343,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
         setError(BET_WORDS.typedBad(lang === "py"));
         return;
       }
-      setSealed(await api.bets(exp.experiment.id, out.answers));
+      setSealed(await api.bets(exp.experiment.id, out.answers, confidence));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -503,9 +508,17 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           title={title}
           side={open}
           onPlayed={() => setPlayed((n) => n + 1)}
-          headnote={claimRound && after ? <ClaimFacts sentence={claimRound.sentence} marks={after.marks} /> : null}
+          headnote={
+            after && result ? (
+              <>
+                <FeltRoundLine bets={result.bets} verdicts={result.verdicts} />
+                {claimRound && <ClaimFacts sentence={claimRound.sentence} marks={after.marks} />}
+              </>
+            ) : null
+          }
           footnote={
-            claimRound ? null : claim || nextTries.length ? (
+            <>
+            {claimRound ? null : claim || nextTries.length ? (
               <>
                 {claim && (
                   <div className="u1-claim" data-testid="u1-claim">
@@ -528,7 +541,9 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                   </div>
                 )}
               </>
-            ) : null
+            ) : null}
+            {result?.track && ("error" in result.track ? <p className="u1-sub">{FELT_WORDS.recordNotSaved(result.track.error)}</p> : <FeltRecord record={result.track.after} />)}
+            </>
           }
           {...(!sealed.length ? { onTestFunction: chooseFunction } : {})}
         >
@@ -692,11 +707,12 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                       <button type="button" className="u1-btn u1-primary" onClick={seal} disabled={busy !== null} data-testid="u1-seal">
                         {BET_WORDS.seal}
                       </button>
-                      <p className="u1-sub">{BET_WORDS.untapped}</p>
+                      <HowSurePicker value={confidence} onChange={setConfidence} disabled={busy !== null} hint={false} />
+                      <p className="u1-sub">{`${BET_WORDS.untapped} ${FELT_WORDS.pickerHint}`}</p>
                     </div>
                   ) : (
                     <p className="u1-status" role="status" data-testid="u1-sealed">
-                      {`Sealed ${plural(sealed.length, "answer")}. ${busy ?? (models.thinking ? "Waiting for the AIs to seal theirs…" : "")}`}
+                      {`Sealed ${plural(sealed.length, "answer")}. ${confidence ? `${FELT_WORDS.sealedSaid(confidence)} ` : ""}${busy ?? (models.thinking ? "Waiting for the AIs to seal theirs…" : "")}`}
                     </p>
                   )}
                   {sealed.length > 0 && !result && error && !busy && (

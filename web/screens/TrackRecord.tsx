@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import { TRACK_WORDS, recordWords, typeLineWords, type TrackRecord } from "../../src/track-record";
 import type { Api, TrackAnswer } from "../api";
+import { FeltRecord } from "./FeltPanel";
 
 /** One record as a list (also used by the proof card for "your record before this round"). */
 export function RecordView({ record, testId }: { record: TrackRecord; testId?: string }) {
@@ -22,6 +23,7 @@ export function RecordView({ record, testId }: { record: TrackRecord; testId?: s
         {TRACK_WORDS.counted(record.counted, record.rounds)}
         {record.excludedRepeats > 0 ? ` ${TRACK_WORDS.repeats(record.excludedRepeats)}` : ""}
       </p>
+      <FeltRecord record={record} />
     </div>
   );
 }

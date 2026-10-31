@@ -263,6 +263,36 @@ export const STAGE_WORDS = {
   deviceCalledBy: (by: readonly { part: string; lines: readonly number[] }[]) => `Called by ${by.map((b) => `${b.part} (${lineList(b.lines)})`).join(" and ")}. The cable on the drawing joins it to ${by.length === 1 ? "that function" : "those functions"} only.`,
 } as const;
 
+// ---------- X4 (D56): how sure the person said they were, and whether the test scripted a failure ----------
+// Counts of what happened. No sentence here may claim anything about what a person understands (tests/unit/x4-*.test.ts).
+
+/** A number of answers: "1 answer", "2 answers". */
+const answersWord = (k: number) => (k === 1 ? "1 answer" : `${k} answers`);
+
+export const FELT_WORDS = {
+  pickerLabel: "How sure are you overall?",
+  pickerHint: "“How sure” is optional, and sealed with your answers.",
+  sealedSaid: (level: string) => `You said '${level}'.`,
+  roundMatched: (level: string, matched: number, checkable: number) => `You said '${level}' and matched ${matched} of ${checkable}.`,
+  roundNone: (level: string) => `You said '${level}'. None of your answers could be checked.`,
+  roundCantCheck: (k: number) => `${answersWord(k)} couldn't be checked.`,
+  /** The proof card: what is on file, whatever the counts. */
+  proofSaid: (level: string) => `Before the run, the person said '${level}' overall. It is sealed with their answers.`,
+  recordHeading: "How sure you said you were, and what the runs did",
+  levelNone: (level: string) => `You said '${level}' on no rounds.`,
+  levelMatched: (level: string, rounds: number, matched: number, n: number, percent: number | null) =>
+    `You said '${level}' on ${rounds === 1 ? "1 round" : `${rounds} rounds`} and matched ${matched} of ${n}${percent === null ? "" : ` (${percent}%)`}.`,
+  levelUnchecked: (level: string, rounds: number) => `You said '${level}' on ${rounds === 1 ? "1 round" : `${rounds} rounds`}. None of those answers could be checked.`,
+  levelsEmpty: "You have not said how sure you were on any round yet.",
+  paths: (nothingMatched: number, nothingN: number, somethingMatched: number, somethingN: number) => `When nothing failed you matched ${nothingMatched} of ${nothingN}. When something failed, ${somethingMatched} of ${somethingN}.`,
+  pathsWait: (min: number, nothingN: number, somethingN: number) => `The line comparing tests where nothing failed with tests where something failed appears once each side has at least ${min} answers. So far: ${nothingN} when nothing failed, ${somethingN} when something failed.`,
+  pathsMeaning: "“Something failed” means the test scripts a stand-in or the fake network to throw, answer with an error status, or never answer. Plain code reads that from the test before it runs.",
+  pathsCantCheck: (k: number) => `${answersWord(k)} that couldn't be checked ${k === 1 ? "is" : "are"} not counted in that line.`,
+  pathsUntagged: (k: number) => `${answersWord(k)} ${k === 1 ? "is" : "are"} not in that line: ${k === 1 ? "it comes" : "they come"} from a run on a chain, where Atlas scripts nothing, or from before Atlas kept this.`,
+  luck: "An answer that matched can still be luck. These are counts of what happened, and nothing more.",
+  recordNotSaved: (reason: string) => `Your record could not be updated: ${reason}`,
+} as const;
+
 /** "line 4", "lines 4 and 9", "lines 4, 9 and 12". */
 export function lineList(lines: readonly number[]): string {
   const l = [...lines];

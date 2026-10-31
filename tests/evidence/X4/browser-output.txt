@@ -1,0 +1,79 @@
+PASS nothing is preselected 1920x1080 light
+PASS the picker is in view and clickable 1920x1080 light: {"answers":16,"hidden":[],"feltHidden":0,"feltCovered":0,"bar":110,"viewport":"1920x1080","ok":true,"name":"1920x1080 light"}
+answers hidden behind the taller seal bar 1920x1080 light: 0 of 16 (seal bar 110 px)
+PASS every answer visible without scrolling 1920x1080 light: []
+PASS axe quiz 1920x1080 light: 0 violations 
+PASS overlap quiz 1920x1080 light: 39 text boxes, 0 overlapping, 0 outside
+PASS the tap selects 1920x1080 light
+PASS axe quiz with the tap selected 1920x1080 light: 0 violations 
+PASS the verdict's line 1920x1080 light: You said 'sure'. None of your answers could be checked.
+PASS the record is on the verdict 1920x1080 light
+PASS axe marked 1920x1080 light: 0 violations 
+PASS overlap marked 1920x1080 light: 84 text boxes, 0 overlapping, 0 outside
+PASS nothing is preselected 1366x768 light
+PASS the picker is in view and clickable 1366x768 light: {"answers":16,"hidden":[],"feltHidden":0,"feltCovered":0,"bar":110,"viewport":"1366x768","ok":true,"name":"1366x768 light"}
+answers hidden behind the taller seal bar 1366x768 light: 0 of 16 (seal bar 110 px)
+PASS every answer visible without scrolling 1366x768 light: []
+PASS axe quiz 1366x768 light: 0 violations 
+PASS overlap quiz 1366x768 light: 39 text boxes, 0 overlapping, 0 outside
+PASS the tap selects 1366x768 light
+PASS axe quiz with the tap selected 1366x768 light: 0 violations 
+PASS the verdict's line 1366x768 light: You said 'sure'. None of your answers could be checked.
+PASS the record is on the verdict 1366x768 light
+PASS axe marked 1366x768 light: 0 violations 
+PASS overlap marked 1366x768 light: 84 text boxes, 0 overlapping, 0 outside
+PASS nothing is preselected 1366x768 dark
+PASS the picker is in view and clickable 1366x768 dark: {"answers":16,"hidden":[],"feltHidden":0,"feltCovered":0,"bar":110,"viewport":"1366x768","ok":true,"name":"1366x768 dark"}
+answers hidden behind the taller seal bar 1366x768 dark: 0 of 16 (seal bar 110 px)
+PASS every answer visible without scrolling 1366x768 dark: []
+PASS axe quiz 1366x768 dark: 0 violations 
+PASS overlap quiz 1366x768 dark: 39 text boxes, 0 overlapping, 0 outside
+PASS the tap selects 1366x768 dark
+PASS axe quiz with the tap selected 1366x768 dark: 0 violations 
+PASS the verdict's line 1366x768 dark: You said 'sure'. None of your answers could be checked.
+PASS the record is on the verdict 1366x768 dark
+PASS axe marked 1366x768 dark: 0 violations 
+PASS overlap marked 1366x768 dark: 84 text boxes, 0 overlapping, 0 outside
+PASS nothing is preselected 390x844 light
+PASS the picker is in view and clickable 390x844 light: {"answers":16,"hidden":["can't tell","0 ms (no wait at all)","more than 0 ms","can't tell"],"feltHidden":0,"feltCovered":0,"bar":170,"viewport":"390x844","ok":true,"name":"390x844 light"}
+answers hidden behind the taller seal bar 390x844 light: 4 of 16 (seal bar 170 px)
+PASS axe quiz 390x844 light: 0 violations 
+PASS overlap quiz 390x844 light: 47 text boxes, 0 overlapping, 0 outside
+PASS no sideways scroll quiz 390x844 light: 390 vs 390
+PASS the tap selects 390x844 light
+PASS axe quiz with the tap selected 390x844 light: 0 violations 
+PASS the verdict's line 390x844 light: You said 'sure'. None of your answers could be checked.
+PASS the record is on the verdict 390x844 light
+PASS axe marked 390x844 light: 0 violations 
+PASS overlap marked 390x844 light: 82 text boxes, 0 overlapping, 0 outside
+PASS no sideways scroll marked 390x844 light: 390 vs 390
+PASS nothing is preselected 390x844 dark
+PASS the picker is in view and clickable 390x844 dark: {"answers":16,"hidden":["can't tell","0 ms (no wait at all)","more than 0 ms","can't tell"],"feltHidden":0,"feltCovered":0,"bar":170,"viewport":"390x844","ok":true,"name":"390x844 dark"}
+answers hidden behind the taller seal bar 390x844 dark: 4 of 16 (seal bar 170 px)
+PASS axe quiz 390x844 dark: 0 violations 
+PASS overlap quiz 390x844 dark: 47 text boxes, 0 overlapping, 0 outside
+PASS no sideways scroll quiz 390x844 dark: 390 vs 390
+PASS the tap selects 390x844 dark
+PASS axe quiz with the tap selected 390x844 dark: 0 violations 
+PASS the verdict's line 390x844 dark: You said 'sure'. None of your answers could be checked.
+PASS the record is on the verdict 390x844 dark
+PASS axe marked 390x844 dark: 0 violations 
+PASS overlap marked 390x844 dark: 82 text boxes, 0 overlapping, 0 outside
+PASS no sideways scroll marked 390x844 dark: 390 vs 390
+questions in this quiz: 4
+clicks, 3 answers + the tap: 6
+PASS paste to verdict stays at 6 clicks or fewer with 3 answers and the tap: 6
+line: You said 'think so' and matched 0 of 2. 2 answers couldn't be checked.
+PASS the proof card shows the sealed tap
+clicks, every answer and no tap: 6
+PASS no tap: every answer stays at 6 clicks or fewer: 6
+PASS no tap: the verdict has no 'You said' line
+PASS no tap: the record says so: How sure you said you were, and what the runs didYou have not said how sure you were on any round yet.The line comparing
+clicks, every answer and the tap (the most a person can do on this quiz): 7
+clicks, the fewest possible (toggle + seal): 2
+after round 1: The line comparing tests where nothing failed with tests where something failed appears once each side has at least 3 answers. So far: 0 when nothing failed, 3 when something failed. “Something failed
+PASS under 3 answers on a side: the comparison stays hidden, with the note
+rounds in this check: 1. The line itself, with real counts, is checked in tests/unit/x4-felt.test.ts.
+
+Totals: axe 15 runs, 0 violations · overlap 10 runs, 0 hits · 390 px sideways-scroll checks 4, 0 failed
+ALL PASS

@@ -97,7 +97,7 @@ import { FIXTURE_FILE, FIXTURE_FINDING_LABEL, fixtureContextRange, fixtureFindin
 import { INVESTIGATOR_FALLBACK_MODEL, INVESTIGATOR_MODEL, runInvestigator, type InvestigatorFile } from "./meta/roles/investigator";
 import { fetchGithubPr, type GithubPrTarget } from "./targets/github";
 import { CALL_DEFAULT_WATCH_LIMIT_MS, SWEEP_GATE_CONTEXT, gate, type GateContext, type Question } from "../src/gate";
-import type { AtlasFile, Bet, BettorSlot, Experiment, Finding, Run, RunAttempt, Target, Verdict } from "../src/types";
+import type { AtlasFile, Bet, BettorSlot, Experiment, ExperimentShape, Finding, Run, RunAttempt, Target, Verdict } from "../src/types";
 import type { Executor } from "../runners/runner";
 import { localExecutor } from "../runners/executor/local";
 import { AgentEventError, createAgentLog, oneLine, sessionEmitter, type AgentLog } from "./log/agentlog";
@@ -1325,6 +1325,12 @@ export function createApp(opts: AppOptions = {}) {
       return c.json({ error: `bets on ${experimentId} are closed: ${when}, so this bet was not sealed` }, 409);
     }
     if (round.bets.length + wanted.length > MAX_BETS) return c.json({ error: `an experiment takes at most ${MAX_BETS} bets` }, 409);
+    // X4 (D56): "How sure are you overall?" is one answer per round. A later request may leave it out (it keeps the
+    // round's), but may not change it or add one to answers already sealed without it.
+    const asked = many.success ? many.data.confidence : one!.data!.confidence;
+    const earlier = round.bets.find((b) => b.who === "human");
+    if (earlier && asked !== undefined && earlier.confidence !== asked) return c.json({ error: `your answers on ${experimentId} are already sealed ${earlier.confidence ? `with "${earlier.confidence}"` : "without saying how sure you were"}; that cannot change, so this bet was not sealed` }, 409);
+    const confidence = asked ?? earlier?.confidence;
 
     // Check EVERY answer before sealing any: one refused answer means nothing is sealed.
     const all = [...round.questions, ...round.extraQuestions];
@@ -1347,7 +1353,7 @@ export function createApp(opts: AppOptions = {}) {
     }
 
     const sealedAt = new Date(); // one server time for the whole request
-    const sealed = checked.map((x) => sealHumanBet(round, x.question, x.answer, sealedAt)); // server clock, server nonce
+    const sealed = checked.map((x) => sealHumanBet(round, x.question, x.answer, sealedAt, confidence)); // server clock, server nonce
     round.bets.push(...sealed);
     betStore.touch(sessionId);
     roundLog(sessionEmitter(agentLog, sessionId)).humanBets(sealed);
@@ -1395,7 +1401,7 @@ export function createApp(opts: AppOptions = {}) {
     try {
       const r = await runRound(sessionId, round);
       // X3 (D27): the person's judged bets go into their track record (plain code; never the code itself).
-      if (r.status === 200) Object.assign(r.body, { track: recordRound(personOf(c, sessionId), r.body) });
+      if (r.status === 200) Object.assign(r.body, { track: recordRound(personOf(c, sessionId), r.body, experiment.params) });
       return c.json(r.body, r.status);
     } catch (e) {
       // Final review S2: the run did not finish. Nothing was judged; the experiment and its sealed bets stay,
@@ -1411,14 +1417,14 @@ export function createApp(opts: AppOptions = {}) {
    * X3 (D27): adds the person's judged bets of one finished round to their track record. Returns their record before
    * and after this round. A store that cannot write never changes the run's answer: the reason is returned instead.
    */
-  function recordRound(person: Person, body: Record<string, unknown>): { person: Person["kind"]; before: TrackRecord; after: TrackRecord } | { error: string } {
+  function recordRound(person: Person, body: Record<string, unknown>, params: ExperimentShape): { person: Person["kind"]; before: TrackRecord; after: TrackRecord } | { error: string } {
     try {
       const run = body.run as Run | undefined;
       const bets = body.bets as Bet[] | undefined;
       const verdicts = body.verdicts as Verdict[] | undefined;
       const before = recordOf(person);
       if (!run || !bets || !verdicts) return { person: person.kind, before, after: before };
-      trackStore.add(person, entriesFromRound(bets, verdicts, run));
+      trackStore.add(person, entriesFromRound(bets, verdicts, run, params));
       return { person: person.kind, before, after: recordOf(person) };
     } catch (e) {
       return { error: `the track record could not be saved: ${e instanceof Error ? e.message : String(e)}` };

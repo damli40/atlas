@@ -20,6 +20,7 @@ import { existsSync, readdirSync, readFileSync, statSync, unlinkSync } from "nod
 import { join } from "node:path";
 import { ensureDir, writePrivate } from "./access/store";
 import { QUESTION_TYPES, type TrackEntry } from "../src/track-record";
+import { CONFIDENCE_LEVELS, FAILURE_PATHS } from "../src/felt";
 
 export const MAX_ENTRIES_PER_PERSON = 1_000;
 export const MAX_PEOPLE = 2_000;
@@ -59,7 +60,10 @@ function cleanEntry(e: unknown): TrackEntry | null {
   if (typeof x.repeat !== "boolean") return null;
   if (x.side !== undefined && x.side !== "under" && x.side !== "over") return null;
   if (typeof x.at !== "string" || Number.isNaN(Date.parse(x.at))) return null;
-  return { runId: x.runId, betId: x.betId, sealedHash: x.sealedHash, type: x.type as TrackEntry["type"], outcome: x.outcome as TrackEntry["outcome"], repeat: x.repeat, ...(x.side ? { side: x.side as "under" | "over" } : {}), at: x.at };
+  // X4 (D56): absent on entries written before X4; anything else that is not one of the known values is refused.
+  if (x.confidence !== undefined && !(CONFIDENCE_LEVELS as readonly unknown[]).includes(x.confidence)) return null;
+  if (x.path !== undefined && !(FAILURE_PATHS as readonly unknown[]).includes(x.path)) return null;
+  return { runId: x.runId, betId: x.betId, sealedHash: x.sealedHash, type: x.type as TrackEntry["type"], outcome: x.outcome as TrackEntry["outcome"], repeat: x.repeat, ...(x.side ? { side: x.side as "under" | "over" } : {}), at: x.at, ...(x.confidence ? { confidence: x.confidence as NonNullable<TrackEntry["confidence"]> } : {}), ...(x.path ? { path: x.path as NonNullable<TrackEntry["path"]> } : {}) };
 }
 
 function merged(old: readonly TrackEntry[], more: readonly TrackEntry[]): TrackEntry[] {

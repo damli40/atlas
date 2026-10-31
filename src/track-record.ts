@@ -20,7 +20,9 @@
 // Wording rule (D27, "never framed as teaching"): the record says where guesses matched what the code did. It
 // never says learn, teach, score, skill, right or wrong (a test reads every sentence here).
 
-import type { Bet, Outcome, Run, Verdict } from "./types";
+import type { Bet, Confidence, ExperimentShape, Outcome, Run, Verdict } from "./types";
+import { CONFIDENCE_LEVELS, failurePathOf, type FailurePath } from "./felt";
+import { FELT_WORDS } from "./paste-words";
 import { verifySeal } from "./seal";
 import { SETTLE_FIELD } from "./units";
 
@@ -50,6 +52,10 @@ export interface TrackEntry {
   side?: "under" | "over";
   /** When the run finished (server clock). */
   at: string;
+  /** X4 (D56): what the person said when they sealed this round, read from the sealed bet. Absent when they said nothing. */
+  confidence?: Confidence;
+  /** X4 (D56): whether the test scripted a failure (src/felt.ts). Absent on a chain run and on entries from before X4. */
+  path?: FailurePath;
 }
 
 const numberOf = (v: unknown): number | undefined => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
@@ -58,8 +64,9 @@ const numberOf = (v: unknown): number | undefined => (typeof v === "number" && N
  * The person's entries from one finished round: their bets (who "human") whose seal still verifies, each with the
  * verdict the judge gave it on this run. A bet with no verdict, or a group no question type covers, is not kept.
  */
-export function entriesFromRound(bets: readonly Bet[], verdicts: readonly Verdict[], run: Pick<Run, "id" | "finishedAt">): TrackEntry[] {
+export function entriesFromRound(bets: readonly Bet[], verdicts: readonly Verdict[], run: Pick<Run, "id" | "finishedAt">, params?: ExperimentShape): TrackEntry[] {
   const out: TrackEntry[] = [];
+  const path = failurePathOf(params);
   for (const b of bets) {
     if (b.who !== "human") continue;
     const type = questionTypeOf(b.measures);
@@ -72,7 +79,7 @@ export function entriesFromRound(bets: readonly Bet[], verdicts: readonly Verdic
       const seen = numberOf(v.observed);
       if (seen !== undefined && b.answer.value !== seen) side = b.answer.value < seen ? "under" : "over";
     }
-    out.push({ runId: run.id, betId: b.id, sealedHash: b.sealedHash, type, outcome: v.outcome, repeat: b.repeat === true, ...(side ? { side } : {}), at: run.finishedAt });
+    out.push({ runId: run.id, betId: b.id, sealedHash: b.sealedHash, type, outcome: v.outcome, repeat: b.repeat === true, ...(side ? { side } : {}), at: run.finishedAt, ...(b.confidence ? { confidence: b.confidence } : {}), ...(path ? { path } : {}) });
   }
   return out;
 }
@@ -98,17 +105,92 @@ export interface TrackRecord {
   excludedRepeats: number;
   /** Distinct runs the counted bets come from. */
   rounds: number;
+  /** X4 (D56): by how sure the person said they were, and by whether the test scripted a failure. */
+  felt: FeltCounts;
+}
+
+/** Answers at one "how sure" level. `n` is what plain code could compare with a run (matched + didn't match). */
+export interface LevelLine {
+  level: Confidence;
+  /** Distinct rounds at this level. */
+  rounds: number;
+  n: number;
+  matched: number;
+  cantCheck: number;
+}
+/** Answers on one side of "nothing failed" / "something failed". */
+export interface PathLine {
+  n: number;
+  matched: number;
+  cantCheck: number;
+}
+export interface FeltCounts {
+  /** All three levels, always in the same order. */
+  levels: LevelLine[];
+  nothingFailed: PathLine;
+  somethingFailed: PathLine;
+  /** Counted answers with no tag: from a chain run, or from before X4. */
+  untagged: number;
+}
+
+function feltCounts(counted: readonly TrackEntry[]): FeltCounts {
+  const side = (path: FailurePath): PathLine => {
+    const es = counted.filter((e) => e.path === path);
+    const matched = es.filter((e) => e.outcome === "matched").length;
+    const cantCheck = es.filter((e) => e.outcome === "cant_check").length;
+    return { n: es.length - cantCheck, matched, cantCheck };
+  };
+  return {
+    levels: CONFIDENCE_LEVELS.map((level) => {
+      const es = counted.filter((e) => e.confidence === level);
+      const cantCheck = es.filter((e) => e.outcome === "cant_check").length;
+      return { level, rounds: new Set(es.map((e) => e.runId)).size, n: es.length - cantCheck, matched: es.filter((e) => e.outcome === "matched").length, cantCheck };
+    }),
+    nothingFailed: side("nothing failed"),
+    somethingFailed: side("something failed"),
+    untagged: counted.filter((e) => e.path === undefined).length,
+  };
+}
+
+/** D56: at a "how sure" level, no percentage under this many rounds. */
+export const LEVEL_PERCENT_MIN_ROUNDS = 10;
+/** The "nothing failed / something failed" line stays hidden until each side has this many answers. */
+export const PATH_MIN_ANSWERS = 3;
+
+/** One level as a sentence. A percentage only at LEVEL_PERCENT_MIN_ROUNDS rounds or more. */
+export function levelWords(l: LevelLine): string {
+  if (l.rounds === 0) return FELT_WORDS.levelNone(l.level);
+  if (l.n === 0) return FELT_WORDS.levelUnchecked(l.level, l.rounds);
+  return FELT_WORDS.levelMatched(l.level, l.rounds, l.matched, l.n, l.rounds >= LEVEL_PERCENT_MIN_ROUNDS ? Math.round((l.matched / l.n) * 100) : null);
+}
+
+/** The sentences of the "how sure" part: one per level, or one saying none was given. */
+export function levelsWords(f: FeltCounts): string[] {
+  return f.levels.every((l) => l.rounds === 0) ? [FELT_WORDS.levelsEmpty] : f.levels.map(levelWords);
+}
+
+/** The comparison line, or the note saying why it is still hidden, then what may be missing from it. */
+export function pathWords(f: FeltCounts): { line: string | null; notes: string[] } {
+  const { nothingFailed: a, somethingFailed: b, untagged } = f;
+  const ready = a.n >= PATH_MIN_ANSWERS && b.n >= PATH_MIN_ANSWERS;
+  const cant = a.cantCheck + b.cantCheck;
+  return {
+    line: ready ? FELT_WORDS.paths(a.matched, a.n, b.matched, b.n) : null,
+    notes: [...(ready ? [] : [FELT_WORDS.pathsWait(PATH_MIN_ANSWERS, a.n, b.n)]), ...(ready && cant > 0 ? [FELT_WORDS.pathsCantCheck(cant)] : []), ...(untagged > 0 ? [FELT_WORDS.pathsUntagged(untagged)] : [])],
+  };
 }
 
 export function trackRecordOf(entries: readonly TrackEntry[]): TrackRecord {
   const lines = new Map<QuestionType, TypeLine>();
   let excludedRepeats = 0;
   const runs = new Set<string>();
+  const counted: TrackEntry[] = [];
   for (const e of entries) {
     if (e.repeat) {
       excludedRepeats++;
       continue;
     }
+    counted.push(e);
     runs.add(e.runId);
     let l = lines.get(e.type);
     if (!l) {
@@ -124,7 +206,7 @@ export function trackRecordOf(entries: readonly TrackEntry[]): TrackRecord {
     } else l.cantCheck++;
   }
   const ordered = QUESTION_TYPES.map((t) => lines.get(t)).filter((l): l is TypeLine => l !== undefined);
-  return { lines: ordered, counted: ordered.reduce((n, l) => n + l.n, 0), excludedRepeats, rounds: runs.size };
+  return { lines: ordered, counted: ordered.reduce((n, l) => n + l.n, 0), excludedRepeats, rounds: runs.size, felt: feltCounts(counted) };
 }
 
 /** The record from the entries that came before the first entry of `runId` (null when that run is not in them). */
@@ -170,7 +252,8 @@ export const TRACK_WORDS = {
 
 /** Every sentence a record can show (for the wording test). */
 export function recordWords(r: TrackRecord): string[] {
-  return [...r.lines.map(typeLineWords), TRACK_WORDS.counted(r.counted, r.rounds), ...(r.excludedRepeats > 0 ? [TRACK_WORDS.repeats(r.excludedRepeats)] : [])];
+  const p = pathWords(r.felt);
+  return [...r.lines.map(typeLineWords), TRACK_WORDS.counted(r.counted, r.rounds), ...(r.excludedRepeats > 0 ? [TRACK_WORDS.repeats(r.excludedRepeats)] : []), ...levelsWords(r.felt), ...(p.line ? [p.line] : []), ...p.notes];
 }
 
 /** The groups where the person's bets most often didn't match: at least one "didn't match", most first, at most 3. */

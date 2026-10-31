@@ -199,7 +199,7 @@ export function sha256Hex(text: string): string {
 
 export type BetToSeal = Omit<Bet, "id" | "nonce" | "sealedAt" | "sealedHash"> & { id?: string };
 
-type SealedFields = Pick<Bet, "who" | "experimentId" | "question" | "measures" | "answer" | "nonce" | "sealedAt" | "rationale" | "repeat">;
+type SealedFields = Pick<Bet, "who" | "experimentId" | "question" | "measures" | "answer" | "nonce" | "sealedAt" | "rationale" | "repeat" | "confidence">;
 
 function sealPayload(bet: SealedFields) {
   return {
@@ -213,6 +213,8 @@ function sealPayload(bet: SealedFields) {
     ...(bet.rationale !== undefined ? { rationale: bet.rationale } : {}),
     // Added E3 review r2 M2: sealed too, so a bet cannot be relabelled as a first look after the fact.
     ...(bet.repeat === true ? { repeat: true } : {}),
+    // Added X4 (D56): sealed when the person tapped it. A bet without one hashes exactly as it did before X4.
+    ...(bet.confidence !== undefined ? { confidence: bet.confidence } : {}),
   };
 }
 

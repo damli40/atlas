@@ -28,6 +28,8 @@ import { PASTE_EXAMPLE } from "../paste-example";
 import type { BetHandoff } from "./Explorer";
 import { ErrorNotice } from "./ErrorNotice";
 import { TrackRecordPanel } from "./TrackRecord";
+import { FeltRoundLine, HowSurePicker } from "./FeltPanel";
+import type { Confidence } from "../../src/types";
 import { FailureLabels, FL_WORDS } from "./FailureLabels";
 import type { PasteLabelsAnswer } from "../api";
 
@@ -47,6 +49,7 @@ export function PasteFlow({ api, onRoundOpen, handoff = null, onHandoffUsed }: {
   const [refused, setRefused] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [sealed, setSealed] = useState<ShownBet[]>([]);
+  const [confidence, setConfidence] = useState<Confidence | null>(null);
   const [claim, setClaim] = useState<{ display: string; claim: string } | null>(null);
   const [result, setResult] = useState<RunAnswer | null>(null);
   const [running, setRunning] = useState(false);
@@ -224,7 +227,7 @@ export function PasteFlow({ api, onRoundOpen, handoff = null, onHandoffUsed }: {
         }
       }
       if (toSend.length === 0) throw new Error(W.needAnswer);
-      setSealed(await api.bets(exp.experiment.id, toSend));
+      setSealed(await api.bets(exp.experiment.id, toSend, confidence));
     });
 
   const run = async () => {
@@ -261,6 +264,7 @@ export function PasteFlow({ api, onRoundOpen, handoff = null, onHandoffUsed }: {
     setRefused(null);
     setAnswers({});
     setSealed([]);
+    setConfidence(null);
     setClaim(null);
     setResult(null);
     setRunFailed(null);
@@ -435,9 +439,12 @@ export function PasteFlow({ api, onRoundOpen, handoff = null, onHandoffUsed }: {
             ))}
           </fieldset>
           {sealed.length === 0 && (
-            <button type="button" className="primary" onClick={seal} disabled={busy} data-testid="seal">
-              {W.sealButton}
-            </button>
+            <div className="row">
+              <button type="button" className="primary" onClick={seal} disabled={busy} data-testid="seal">
+                {W.sealButton}
+              </button>
+              <HowSurePicker value={confidence} onChange={setConfidence} disabled={busy} />
+            </div>
           )}
         </section>
       )}
@@ -464,6 +471,7 @@ export function PasteFlow({ api, onRoundOpen, handoff = null, onHandoffUsed }: {
       )}
 
       {result && exp && <VerdictScreen shown={sealed} typed={answers} modelShown={[]} modelName={null} models={verdictColumns(models.slots)} result={result} questionText={(q) => shortQuestionFor(q, exp.experiment.params, exp.experiment.target.language)} heading={W.verdictHeading} />}
+      {result && <FeltRoundLine bets={result.bets} verdicts={result.verdicts} />}
       {result?.proof && !result.proof.ok && (
         // E3 review r3 M1: never silent. The verdicts above say whether they stand.
         <section className="card" aria-label="proof card">
