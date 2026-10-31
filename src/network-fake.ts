@@ -79,10 +79,18 @@ export function networkFakeWords(f: NetworkFake, canonical: (v: JsonValue) => st
     else groups.push({ from: i + 1, to: i + 1, words });
   });
   const parts = groups.map((g) => `${g.words} on call${g.from === g.to ? ` ${g.from}` : `s ${g.from}–${g.to}`}`);
-  const after = f.then === "repeat_last" ? `every later call ${groups[groups.length - 1]!.words} too` : "any later call throws AtlasStandInExhausted";
+  const after = f.then === "repeat_last" ? `every later call ${groups[groups.length - 1]!.words} too` : exhaustedPlain(f.calls.length);
   const name = LIBRARY_WORDS[f.replaces];
   const never = f.calls.some((s) => s.do === "never_answer") ? ` ${NEVER_ANSWER_WORDS[f.replaces]}` : "";
   return `Atlas's fake ${name} (in place of the network, which stays blocked) ${parts.join(", then ")}; ${after}.${never}`;
+}
+
+/** U3: "any 4th or later call fails (no answer is scripted for it)" (the same words as src/gate.ts exhaustedWords). */
+function exhaustedPlain(steps: number): string {
+  const n = steps + 1;
+  const t = n % 100;
+  const suffix = t >= 11 && t <= 13 ? "th" : n % 10 === 1 ? "st" : n % 10 === 2 ? "nd" : n % 10 === 3 ? "rd" : "th";
+  return `any ${n}${suffix} or later call fails (no answer is scripted for it)`;
 }
 
 /** The scripted step for call n (1-based), or undefined when the fake has none left (throw_exhausted). */
@@ -99,7 +107,7 @@ export interface NetworkUse {
 }
 
 /** Removes comments and string contents (keeps line breaks), so a word in a string or comment is not read as code. */
-function codeOnly(src: string, language: "js" | "ts" | "py"): string {
+export function codeOnly(src: string, language: "js" | "ts" | "py"): string {
   let out = "";
   let i = 0;
   const py = language === "py";

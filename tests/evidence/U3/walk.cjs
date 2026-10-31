@@ -1,0 +1,92 @@
+// U3 cold walkthrough, live: paste a file, click a part, open the bet, answer, seal, watch the run, open the proof card,
+// test Muse Wonder's sentence. Real models (live-server.ts). A log and a screenshot per step, at 1366x768.
+// Usage: PW=<playwright-core> node tests/evidence/U3/walk.cjs <pageUrl> <codeFile> <lang> <outDir> <chromium>
+const { chromium } = require(process.env.PW || "playwright-core");
+const fs = require("fs");
+const path = require("path");
+const [url, codeFile, lang, out, exe] = process.argv.slice(2);
+fs.mkdirSync(out, { recursive: true });
+const log = [];
+const say = (...a) => {
+  const l = a.join(" ");
+  log.push(l);
+  console.log(l);
+};
+const flat = (s) => s.replace(/\s*\n\s*/g, " / ");
+(async () => {
+  const browser = await chromium.launch({ executablePath: exe });
+  const ctx = await browser.newContext({ viewport: { width: 1366, height: 768 }, colorScheme: "dark" });
+  const page = await ctx.newPage();
+  page.on("pageerror", (e) => say("[pageerror]", e.message));
+  page.on("response", (r) => r.status() >= 400 && say("[http]", r.status(), r.url().replace(/^https?:\/\/[^/]+/, "")));
+  const shot = (n) => page.screenshot({ path: path.join(out, `${n}.png`) });
+  await page.goto(url, { waitUntil: "networkidle" });
+  await page.getByTestId("u1-code").fill(fs.readFileSync(codeFile, "utf8"));
+  await page.getByTestId("u1-lang").selectOption(lang);
+  const t0 = Date.now();
+  await page.getByTestId("u1-draw").click();
+  await page.waitForSelector(".u1-svg svg");
+  say("drawing appeared after ms:", Date.now() - t0);
+  await page.waitForTimeout(800);
+  await shot("1-drawn");
+  const hits = await page.$$eval("[data-hit]", (e) => e.map((x) => x.getAttribute("data-hit")));
+  say("boxes:", hits.join(", "));
+  const b = await page.locator(`[data-hit="${hits[0]}"]`).first().boundingBox();
+  await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+  await page.waitForTimeout(300);
+  say("click card:", flat(await page.getByTestId("part-card").innerText()));
+  await page.locator('[data-testid="part-card"] .u1-close').click().catch(() => null);
+  const tw = Date.now();
+  await page.getByTestId("u1-bet-toggle").click();
+  await page.waitForTimeout(1200);
+  await shot("2-waiting");
+  await page.getByTestId("u1-seal").waitFor({ timeout: 300000 }).catch(async () => say("no quiz:", flat(await page.locator(".u1-pop").innerText())));
+  say("first test ready after s:", (Date.now() - tw) / 1000);
+  await page.waitForTimeout(500);
+  await shot("3-quiz");
+  say("test:", await page.getByTestId("u1-test").innerText());
+  say("cables:", (await page.$$eval("[data-line]", (e) => [...new Set(e.map((x) => x.getAttribute("data-line")))])).join(", "));
+  await page.getByTestId("u1-change").click();
+  await page.waitForTimeout(200);
+  say("all tests:", flat(await page.getByTestId("u1-tests").innerText()));
+  await shot("3b-tests");
+  await page.getByText("Back to the quiz").click();
+  const groups = page.locator(".u1-opts");
+  for (let i = 0; i < (await groups.count()); i++) await groups.nth(i).getByRole("radio").first().click();
+  await page.getByTestId("u1-seal").click();
+  await page.waitForSelector('[data-phase="playing"]', { timeout: 300000 });
+  await page.waitForTimeout(3000);
+  await shot("4-playing");
+  await page.waitForSelector('[data-phase="marked"]', { timeout: 60000 });
+  await page.waitForTimeout(500);
+  await shot("5-marked");
+  say("headline:", await page.getByTestId("u1-headline").innerText());
+  say("marks:", flat(await page.getByTestId("mark-list").innerText()).slice(0, 1400));
+  await page.getByTestId("u1-proof").click().catch(() => say("no proof button"));
+  await page.waitForTimeout(1200);
+  await shot("6-proof");
+  await page.getByRole("button", { name: "Close the proof card" }).click().catch(() => null);
+  if (await page.getByTestId("u1-test-claim").count()) {
+    say("claim:", await page.locator('[data-testid="u1-claim"] q').innerText());
+    await page.getByTestId("u1-test-claim").click();
+    const tc = Date.now();
+    await page.waitForTimeout(1000);
+    await shot("7-claim-wait");
+    await page.getByTestId("u1-seal").waitFor({ timeout: 300000 }).catch(() => null);
+    say("claim test ready after s:", (Date.now() - tc) / 1000);
+    say("claim test:", await page.getByTestId("u1-test").innerText().catch(() => "(no test)"));
+    for (let i = 0; i < (await groups.count()); i++) await groups.nth(i).getByRole("radio").first().click();
+    await page.getByTestId("u1-seal").click().catch(() => null);
+    await page.waitForSelector('[data-phase="marked"]', { timeout: 300000 }).catch(() => null);
+    await page.waitForTimeout(600);
+    await shot("8-claim-facts");
+    say("claim facts:", flat(await page.getByTestId("u1-claim-facts").innerText().catch(() => "(none)")));
+    say("test-claim button after:", await page.getByTestId("u1-test-claim").count());
+  }
+  fs.writeFileSync(path.join(out, "walk-log.txt"), `${log.join("\n")}\n`);
+  await browser.close();
+})().catch((e) => {
+  say("FAILED:", e.message.split("\n")[0]);
+  fs.writeFileSync(path.join(out, "walk-log.txt"), `${log.join("\n")}\n`);
+  process.exit(1);
+});

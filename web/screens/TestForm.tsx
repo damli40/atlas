@@ -14,6 +14,11 @@ export type ArgForm =
 export interface TestFormState {
   args: ArgForm[];
   watchLimitMs: string;
+  /**
+   * U3: what the form cannot edit but an edited test keeps unchanged: the fake network and a sequence's earlier calls
+   * (the form edits the LAST call's arguments; before U3 these were silently dropped on "Edit").
+   */
+  kept?: { network?: unknown; earlier?: unknown[]; lastWaitMs?: number };
 }
 
 const rec = (x: unknown): Record<string, unknown> => (x && typeof x === "object" && !Array.isArray(x) ? (x as Record<string, unknown>) : {});
@@ -23,7 +28,11 @@ const asText = (v: unknown) => (v === undefined ? "" : JSON.stringify(v));
 export function formFromParams(params: unknown): TestFormState {
   const p = rec(params);
   const args = Array.isArray(p.args) ? p.args : [];
+  const calls = Array.isArray(p.calls) && p.calls.length > 1 ? p.calls : null;
+  const lastWait = calls ? rec(calls[calls.length - 1]).waitMs : undefined;
+  const kept = p.network !== undefined || calls ? { ...(p.network !== undefined ? { network: p.network } : {}), ...(calls ? { earlier: calls.slice(0, -1), ...(typeof lastWait === "number" ? { lastWaitMs: lastWait } : {}) } : {}) } : undefined;
   return {
+    ...(kept ? { kept } : {}),
     watchLimitMs: typeof p.watchLimitMs === "number" ? String(p.watchLimitMs) : "",
     args: args.map((a0): ArgForm => {
       const a = rec(a0);
@@ -79,7 +88,10 @@ export function paramsFromForm(exportName: string, f: TestFormState): { ok: true
   }
   const w = f.watchLimitMs.trim();
   if (w !== "" && !/^\d+$/.test(w)) return { ok: false, reason: W.formWatchNotWhole };
-  return { ok: true, params: { shape: "call-function", exportName, args, ...(w !== "" ? { watchLimitMs: Number(w) } : {}) } };
+  const k = f.kept;
+  // U3: the edited call is the sequence's last call; the earlier calls and the fake network are kept as they were.
+  const calls = k?.earlier?.length ? [...k.earlier, { exportName, args, ...(k.lastWaitMs ? { waitMs: k.lastWaitMs } : {}) }] : null;
+  return { ok: true, params: { shape: "call-function", exportName, args, ...(w !== "" ? { watchLimitMs: Number(w) } : {}), ...(k?.network !== undefined ? { network: k.network } : {}), ...(calls ? { calls } : {}) } };
 }
 
 export const emptyForm = (): TestFormState => ({ args: [], watchLimitMs: "" });
@@ -102,6 +114,7 @@ export function TestForm({ exportName, initial, onSubmit, busy, note }: { export
         {W.formHint} {W.formCallsOnce(exportName)}
       </p>
       {note && <p className="small label">{note}</p>}
+      {f.kept && <p className="small label" data-testid="form-kept">{W.formKept(f.kept.network !== undefined, f.kept.earlier?.length ?? 0)}</p>}
       <fieldset disabled={busy}>
         <legend className="small">{W.formArgs}</legend>
         {f.args.map((a, i) => (

@@ -178,7 +178,8 @@ describe("questions: written by plain code from the shape", () => {
       'Atlas calls parseAmount("1,5", fetchRate). fetchRate (async) throws TimeoutError ("slow") on call 1, then returns 42 on call 2; every later call returns 42 too.',
     );
     const ex = describeCall(call({ args: [{ kind: "stand-in", name: "f", async: false, then: "throw_exhausted", calls: [{ do: "return", value: 1 }, { do: "return", value: 1 }, { do: "return", value: 2 }] }] }));
-    expect(ex).toBe("Atlas calls parseAmount(f). f returns 1 on calls 1–2, then returns 2 on call 3; any later call throws AtlasStandInExhausted.");
+    // U3: plain words in place of the internal error name.
+    expect(ex).toBe("Atlas calls parseAmount(f). f returns 1 on calls 1–2, then returns 2 on call 3; any 4th or later call fails (no answer is scripted for it).");
   });
   it("asks about outcome, returnedJson, virtualMs and each stand-in's calls, with the right answer kinds", () => {
     const qs = questionsFor(call());

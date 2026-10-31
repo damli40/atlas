@@ -80,6 +80,90 @@ function useFigure(model: BenchModel): Built {
   return built;
 }
 
+/**
+ * U3 item 7: result labels (run chips, pinned answers, failure labels) never sit on a cable, a box or an engraved
+ * label. Each label is tried at its anchor, then at growing distances around it, and takes the first spot where none
+ * of its area touches a cable (points sampled along every cable), a box (the box's own outline), the drawing's text or
+ * a label already placed. Measured on screen, so it holds at any zoom. Returns how many labels found no free spot.
+ */
+export function placeLabels(root: HTMLElement, scale: number): number {
+  const svg = root.querySelector<SVGSVGElement>(".u1-svg svg");
+  if (!svg) return 0;
+  const stage = root.getBoundingClientRect();
+  const pts: { x: number; y: number }[] = [];
+  for (const p of svg.querySelectorAll<SVGGeometryElement>("[data-line] path, path[data-line]")) {
+    let len = 0;
+    try {
+      len = p.getTotalLength();
+    } catch {
+      continue;
+    }
+    const m = p.getScreenCTM();
+    if (!m) continue;
+    for (let d = 0; d <= len; d += 3) {
+      const q = p.getPointAtLength(d);
+      const sp = new DOMPoint(q.x, q.y).matrixTransform(m);
+      pts.push({ x: sp.x, y: sp.y });
+    }
+  }
+  const hits = [...svg.querySelectorAll<SVGGeometryElement>("[data-hit]")].map((h) => ({ h, inv: h.getScreenCTM()?.inverse() ?? null }));
+  const texts = [...svg.querySelectorAll("text")].map((t) => t.getBoundingClientRect()).filter((b) => b.width > 1);
+  // Panels over the stage (the judged answers, the bet pop-up, a part's card, the buttons) hide what is under them.
+  for (const panel of document.querySelectorAll(".u1-marks, .u1-pop, .u1-card, .u1-actions, .u1-zoom, .u1-bet")) {
+    const b = panel.getBoundingClientRect();
+    if (b.width > 1) texts.push(b);
+  }
+  const placed: { left: number; right: number; top: number; bottom: number }[] = [];
+  const meet = (a: { left: number; right: number; top: number; bottom: number }, b: { left: number; right: number; top: number; bottom: number }, pad = 2) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > -pad && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > -pad;
+  const clear = (r: { left: number; right: number; top: number; bottom: number }) => {
+    if (r.left < stage.left + 4 || r.right > stage.right - 4 || r.top < stage.top + 40 || r.bottom > stage.bottom - 60) return false;
+    if (placed.some((p) => meet(p, r, 4))) return false;
+    if (texts.some((t) => meet(t, r))) return false;
+    for (const q of pts) if (q.x > r.left - 3 && q.x < r.right + 3 && q.y > r.top - 3 && q.y < r.bottom + 3) return false;
+    for (let y = r.top; y <= r.bottom; y += 5)
+      for (let x = r.left; x <= r.right; x += 6)
+        for (const { h, inv } of hits) {
+          if (!inv) continue;
+          const u = new DOMPoint(x, y).matrixTransform(inv);
+          try {
+            if (h.isPointInFill(u)) return false;
+          } catch {
+            /* a shape the browser cannot test is not an obstacle */
+          }
+        }
+    return true;
+  };
+  let stuck = 0;
+  const els = [...root.querySelectorAll<HTMLElement>(".u1-chip[data-run], .u1-pins, .u1-chip-label")].filter((e) => e.offsetParent !== null);
+  for (const el of els) {
+    // The CSS `translate` property moves the label on top of its own CSS transform (which centres it on its anchor).
+    el.style.translate = "";
+    const b = el.getBoundingClientRect();
+    let best: [number, number] | null = null;
+    outer: for (let ring = 0; ring <= 18; ring++) {
+      const dist = ring * 14;
+      const steps = ring === 0 ? 1 : 16;
+      for (let i = 0; i < steps; i++) {
+        const a = (i / steps) * Math.PI * 2;
+        const dx = Math.round(Math.cos(a) * dist * 1.6);
+        const dy = Math.round(-Math.sin(a) * dist);
+        if (clear({ left: b.left + dx, right: b.right + dx, top: b.top + dy, bottom: b.bottom + dy })) {
+          best = [dx, dy];
+          break outer;
+        }
+      }
+    }
+    if (!best) {
+      stuck++;
+      best = [0, 0];
+    }
+    el.style.translate = best[0] || best[1] ? `${best[0] / scale}px ${best[1] / scale}px` : "";
+    placed.push({ left: b.left + best[0], right: b.right + best[0], top: b.top + best[1], bottom: b.bottom + best[1] });
+  }
+  root.setAttribute("data-labels-stuck", String(stuck));
+  return stuck;
+}
+
 /** Run data for the drawing. Passed only after the bets are sealed and the run answered. */
 export interface After {
   /** Changes on every play (so "Play again" restarts). */
@@ -115,6 +199,10 @@ export interface BenchStageProps {
   side?: boolean;
   /** Words under the judged answers (e.g. Muse Wonder's sentence, shown only after the run). */
   footnote?: ReactNode;
+  /** U3 item 7: called when a replay reaches its end state (the page then offers "Play the run again"). */
+  onPlayed?: () => void;
+  /** U3 item 5: words ABOVE the judged answers (a "Test this claim" round's sentence beside the facts). */
+  headnote?: ReactNode;
 }
 
 /** U2: about how long the steps of one replay take together (ms of real time), before the intro and the end. */
@@ -128,7 +216,9 @@ export function roundUp(ms: number): number {
   return 10 * p;
 }
 
-export function BenchStage({ model, theme, after = null, onTestFunction, title, children, extraMarks = [], side = false, footnote = null }: BenchStageProps) {
+export function BenchStage({ model, theme, after = null, onTestFunction, title, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null }: BenchStageProps) {
+  const playedRef = useRef(onPlayed);
+  playedRef.current = onPlayed;
   const dark = useDarkScheme();
   const still = useReducedMotion();
   const shown = theme ?? (dark ? "dark" : "light");
@@ -181,9 +271,10 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
     const el = svgHost.current?.querySelector(`[data-lamp="${attr(id)}"]`);
     if (el) el.toggleAttribute("data-on", on);
   };
-  const lineLit = (id: string | null, on: boolean) => {
-    if (!id) return;
-    for (const el of svgHost.current?.querySelectorAll(`[data-line="${attr(id)}"]`) ?? []) el.classList.toggle("u1-live", on);
+  const lineLit = (ids: string | null, on: boolean) => {
+    if (!ids) return;
+    // U3: a step may light several cables (the whole certain call path), one id per line.
+    for (const id of ids.split("\n")) for (const el of svgHost.current?.querySelectorAll(`[data-line="${attr(id)}"]`) ?? []) el.classList.toggle("u1-live", on);
   };
 
   // The run, played on the drawing. Without `after`: the rest state (lamps off, needle at 0, no chips, no marks).
@@ -219,6 +310,7 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
         setClockMs(script.dialEndMs);
       }
       setMarksOn(true);
+      playedRef.current?.();
     };
     if (still || script.notShown !== null) {
       endState();
@@ -244,16 +336,20 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
     };
     const steps = script.steps;
     const stepMs = Math.round(Math.min(2400, Math.max(260, PLAY_TOTAL_MS / Math.max(1, steps.length))));
-    const START = 300;
+    // U3 item 7: the first step waits until the pop-up has slid away, so the whole play is seen.
+    const START = 700;
     // Step 0: Atlas calls the function (it lights; the clock reads 0 ms).
+    // U3: a decorator's wrapper runs whenever the decorated function is called, so it lights with it.
+    const testedPart = model.tested ? model.parts[model.tested] : undefined;
+    const entry = model.tested ? [model.tested, ...(testedPart?.kind === "code" ? (testedPart.wrappedBy ?? []) : [])] : [];
     later(START, () => {
       if (model.tested) {
-        partsLit([model.tested], true);
+        partsLit(entry, true);
         setChips({ [model.tested]: `Atlas calls ${model.tested}` });
       }
       setClockMs(0);
     });
-    later(START + INTRO_MS - 120, () => model.tested && partsLit([model.tested], false));
+    later(START + INTRO_MS - 120, () => model.tested && partsLit(entry, false));
     steps.forEach((s, i) => {
       const t0 = START + INTRO_MS + i * stepMs;
       later(t0, () => {
@@ -286,6 +382,18 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [after?.token, svgReady, still]);
+
+  // U3 item 7: after any label changes (a chip, the marks, a zoom), move labels off cables and boxes.
+  useLayoutEffect(() => {
+    if (!rootRef.current || !svgReady) return;
+    // Placement only tidies labels: if a browser lacks what it measures with, labels stay at their anchors and the page lives.
+    try {
+      placeLabels(rootRef.current, view.s);
+    } catch {
+      rootRef.current.setAttribute("data-labels-stuck", "not measured");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chips, marksOn, clockMs, anchors, view.s, view.x, view.y, extraMarks, svgReady, side, after?.token, dialScale]);
 
   // ---- pan and zoom ----
   const drag = useRef<{ x: number; y: number; vx: number; vy: number; moved: boolean; pointers: Map<number, { x: number; y: number }>; pinch: number | null } | null>(null);
@@ -464,7 +572,7 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
           Fit
         </button>
       </div>
-      {after && marksOn && <MarkList marks={after.marks} focus={focusMark} onFocus={setFocusMark} footnote={footnote} />}
+      {after && marksOn && <MarkList marks={after.marks} focus={focusMark} onFocus={setFocusMark} footnote={footnote} headnote={headnote} />}
       {children}
     </div>
   );
@@ -530,13 +638,14 @@ export function sharedReason(marks: readonly Mark[]): string | null {
   return all[0]!.slice("can't check: ".length);
 }
 
-function MarkList({ marks, focus, onFocus, footnote }: { marks: readonly Mark[]; focus: string | null; onFocus: (m: string | null) => void; footnote: ReactNode }) {
+function MarkList({ marks, focus, onFocus, footnote, headnote }: { marks: readonly Mark[]; focus: string | null; onFocus: (m: string | null) => void; footnote: ReactNode; headnote: ReactNode }) {
   const same = sharedReason(marks);
   return (
     <section className="u1-marks" aria-label="How each answer was judged" data-testid="mark-list">
       <p className="u1-headline" data-testid="u1-headline">
         {headlineOf(marks)}
       </p>
+      {headnote}
       {same && (
         <p className="u1-samewhy" data-testid="u1-same-reason">
           {RESULT_WORDS.sameReason(same)}
@@ -585,10 +694,22 @@ function PartCard({ id, part, tested, hasTest, python, pinned, onTest, onClose, 
           <p className="u1-sub">{`${part.part.kind === "class" ? "class" : "function"} · ${lineSpan(part.part.lineStart, part.part.lineEnd)}${part.part.exported ? (python ? " · top-level (Atlas can call it)" : " · exported (Atlas can call it)") : ""}`}</p>
           {part.part.signature && <code className="u1-sig">{part.part.signature}</code>}
           <p>{part.callsTo.length ? `Calls ${part.callsTo.join(", ")}.` : "Calls no other part of this file."} {part.calledBy.length ? `Called by ${part.calledBy.join(", ")}.` : ""}</p>
+          {part.selfCalls?.length ? <p data-testid="card-self">{STAGE_WORDS.selfCalls(part.selfCalls)}</p> : null}
+          {part.devices?.map((d) => (
+            <p key={d.name} data-testid={`card-calls-${d.name}`}>
+              {STAGE_WORDS.callsDevice(d.name, d.network, d.lines)}
+            </p>
+          ))}
+          {part.wrappedBy?.length ? <p>{STAGE_WORDS.wrappedBy(part.wrappedBy)}</p> : null}
+          {part.wraps?.length ? <p>{STAGE_WORDS.wraps(part.wraps)}</p> : null}
           {tested === id ? <p className="u1-sub">{hasTest ? STAGE_WORDS.testCalls : STAGE_WORDS.willTest}</p> : part.part.exported && part.part.kind === "function" && onTest && canChange ? (
             <button type="button" className="u1-btn" onClick={() => onTest(id)} data-testid={`test-fn-${id}`}>
               Test this function
             </button>
+          ) : !part.part.exported && part.part.kind === "function" ? (
+            <p className="u1-sub" data-testid="card-not-callable">
+              {STAGE_WORDS.notCallable(id, part.calledBy, python)}
+            </p>
           ) : null}
         </>
       ) : part.kind === "device" ? (
@@ -601,6 +722,7 @@ function PartCard({ id, part, tested, hasTest, python, pinned, onTest, onClose, 
             ))}
           </ol>
           <p className="u1-sub">{`After that, ${part.then}.`}</p>
+          {part.calledBy?.length ? <p data-testid="card-called-by">{STAGE_WORDS.deviceCalledBy(part.calledBy)}</p> : part.noCable ? <p data-testid="card-no-cable">{part.noCable}</p> : null}
         </>
       ) : (
         <>

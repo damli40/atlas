@@ -121,8 +121,10 @@ export function judge(bet: Bet, run: Run, opts: { timingRule?: TimingRule | null
   //     judged on that: an option holding every time above W matched; one holding no time above W didn't match; any
   //     other option (one that holds some times above W but not all) stays can't check.
   if (opts.watchLimitRule !== false && bet.answer.kind === "quiz" && field === "virtualMs" && own(run.result.measured, "outcome") === "still_running_at_watch_limit") {
-    const w = watchLimitOf(run);
-    if (w !== null) {
+    // U3: in a sequence, the time asked about is the LAST call's own, which had run for W minus its start.
+    const limit = watchLimitOf(run);
+    const w = limit === null ? null : limit - lastCallStartOf(run);
+    if (w !== null && w >= 0) {
       const r = quizBeyondLimit(bet.answer.choice, bet.answer.options, w);
       if (r !== null) return { ...base, outcome: r ? "matched" : "not_matched", observed: `more than ${w} ms (still running at Atlas's watch limit)` };
     }
@@ -272,6 +274,19 @@ export function judge(bet: Bet, run: Run, opts: { timingRule?: TimingRule | null
 
 
 /** U2: the run's watch limit in virtual ms, from its own "start" trace event (written by the harness), or null. */
+/**
+ * U3: when the LAST call of a sequence started, in virtual ms (from its own trace: the start event names how many calls,
+ * and each call writes call_start). 0 for a single call or a file made before U3.
+ */
+export function lastCallStartOf(run: Pick<Run, "trace">): number {
+  const trace = Array.isArray(run.trace) ? run.trace : [];
+  const start = trace.find((t) => t && t.event === "start");
+  const n = start?.data && (start.data as Record<string, unknown>).calls;
+  if (typeof n !== "number" || n < 2) return 0;
+  const last = trace.find((t) => t && t.event === "call_start" && (t.data as Record<string, unknown> | undefined)?.n === n);
+  return last && typeof last.t === "number" ? last.t : 0;
+}
+
 export function watchLimitOf(run: Pick<Run, "trace">): number | null {
   const ev = Array.isArray(run.trace) ? run.trace.find((t) => t && t.event === "start") : undefined;
   const w = ev?.data && (ev.data as Record<string, unknown>).watchLimitMs;

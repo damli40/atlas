@@ -218,7 +218,25 @@ async function main(): Promise<void> {
         markWholeRun(notAFunctionReason(r.exportName, kindOf(fn)));
         break;
       }
-      const res = await runCall(fn, r);
+      // U3: a sequence names a function for each call; each must be an exported function too.
+      const sequenceFns: unknown[] = [];
+      let missing = false;
+      for (const c of r.sequence ?? []) {
+        const cd = ObjectGetOwnPropertyDescriptor(mod, c.exportName);
+        if (!cd) {
+          markWholeRun(missingExportReason(c.exportName));
+          missing = true;
+          break;
+        }
+        if (typeof cd.value !== "function") {
+          markWholeRun(notAFunctionReason(c.exportName, kindOf(cd.value)));
+          missing = true;
+          break;
+        }
+        append(sequenceFns, cd.value);
+      }
+      if (missing) break;
+      const res = await runCall(fn, r, r.sequence ? { sequenceFns } : {});
       if (builtinsChanged() !== null || wholeRun() !== null) break;
       const one = record<NonNullable<CallWorkerResponse["runs"]>[number]>();
       put(one, "id", r.id);

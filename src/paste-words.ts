@@ -14,6 +14,8 @@ export const WONDER_MODEL = "muse-wonder-1.0";
 export const WONDER_DISPLAY = "Muse Wonder 1.0 (muse-wonder-1.0)";
 
 export const PASTE_WORDS = {
+  /** U3: what an edited test keeps that the form cannot edit. */
+  formKept: (network: boolean, earlier: number) => `Kept as the test had ${[network ? "its fake network" : "", earlier ? `its ${earlier === 1 ? "earlier call" : `${earlier} earlier calls`} (the form edits the last call)` : ""].filter(Boolean).join(" and ")}; the test's sentence shows them.`,
   modeButton: "Paste your own code",
   heading: "1. Paste one file",
   // R1: Python runs too (E2/E4). A language this server cannot run is labelled "(coming)" in the picker.
@@ -222,13 +224,51 @@ export const BET_WORDS = {
   seen: "What every bettor sees (you and both AIs get exactly this text)",
   leftOut: (n: number) => `${n} ${n === 1 ? "test" : "tests"} Atlas couldn't run ${n === 1 ? "was" : "were"} left out.`,
   pickFor: (fn: string) => `Pick a test for ${fn}`,
+  /** U3 item 4: the folded conditions (the same facts are in the bettor text; this only folds them on screen). */
+  howRuns: "How Atlas runs it",
+  testWhole: "show the whole test",
+  testShort: "show less",
+  /** U3 item 4: the typed returned value, next to the options. */
+  typedLabel: "Or type the exact value it returns",
+  typedHint: (py: boolean) => (py ? 'Write it as Python or JSON, e.g. "pro", 42, True, None, [1, 2]. Matched only when it is exactly the returned value.' : 'Write it as JSON, e.g. "pro", 42, true, null, [1, 2]. Matched only when it is exactly the returned value.'),
+  typedBad: (py: boolean) => (py ? "That is not a value Atlas can read. Use quotes for text (\"pro\"), and True, False or None." : "That is not JSON. Use double quotes for text (\"pro\"), and true, false or null."),
+  typedReads: (shown: string) => `Atlas reads it as ${shown}.`,
+  /** U3 item 6: while Muse Wonder writes tests. */
+  waitHead: (fn: string, seconds: number) => `Muse Wonder 1.0 (Meta) is writing tests for ${fn}: ${seconds} s so far (usually under a minute).`,
+  waitAsking: "Step 1 of 3: Muse Wonder reads your file and writes up to 3 tests aimed at its edges.",
+  waitChecked: (allowed: number, all: number) => `Step 2 of 3: plain code's gate checked ${all} ${all === 1 ? "test" : "tests"}: ${allowed} can run. Step 3 of 3: getting the questions ready.`,
+  waitExplore: "The drawing stays live meanwhile: hover or click any part.",
+  writeOwnNow: "Write my own test instead",
+  /** U3: Muse Wonder wrote no test this time; why, in the server's words. */
+  noTests: (reason: string) => `Muse Wonder wrote no test this time (${reason}). You can write your own below.`,
 } as const;
 
 export const STAGE_WORDS = {
   testCalls: "This is the function the test calls.",
+  /** U3 item 7: why a clicked function cannot be the one Atlas tests. */
+  notCallable: (name: string, calledBy: readonly string[], python: boolean) =>
+    `Atlas can only call ${python ? "top-level" : "exported"} functions, and ${name} is not ${python ? "one" : "exported"}.${calledBy.length ? ` It runs when ${calledBy.join(" or ")} calls it, so test ${calledBy.length === 1 ? "that one" : "one of those"} to see it work.` : ""}`,
+  /** U3 item 7: the replay button: "again" only after the first play has ended. */
+  playing: "Playing the run…",
+  playAgain: "Play the run again",
   willTest: "Atlas tests this function when you bet.",
   fakeNetwork: (name: string) => `Atlas installs this in place of ${name}; the real network stays blocked. Scripted by the test:`,
+  /** U3: the card of a part that calls itself. */
+  selfCalls: (lines: readonly number[]) => `Calls itself (${lineList(lines)}): it runs again from the top, for example to retry.`,
+  /** U3: the card of a part whose own lines call a device. */
+  callsDevice: (name: string, network: boolean, lines: readonly number[]) => (network ? `Calls ${name} (${lineList(lines)}); in this test that is Atlas's fake network.` : `Calls ${name} (${lineList(lines)}), the stand-in Atlas passes in.`),
+  wrappedBy: (by: readonly string[]) => `Wrapped by ${by.join(", ")} (the @ line above it): every call to it runs ${by.length === 1 ? "that wrapper" : "those wrappers"} first.`,
+  wraps: (what: readonly string[]) => `A wrapper (decorator): it wraps ${what.join(", ")}.`,
+  /** U3: the card of a device: who calls it. */
+  deviceCalledBy: (by: readonly { part: string; lines: readonly number[] }[]) => `Called by ${by.map((b) => `${b.part} (${lineList(b.lines)})`).join(" and ")}. The cable on the drawing joins it to ${by.length === 1 ? "that function" : "those functions"} only.`,
 } as const;
+
+/** "line 4", "lines 4 and 9", "lines 4, 9 and 12". */
+export function lineList(lines: readonly number[]): string {
+  const l = [...lines];
+  if (l.length === 1) return `line ${l[0]}`;
+  return `lines ${l.slice(0, -1).join(", ")} and ${l[l.length - 1]}`;
+}
 
 export const RESULT_WORDS = {
   /** "You matched 2 of 3 checkable answers. Muse Spark 1.3 matched 3, Muse Spark Open 2." */
@@ -247,6 +287,12 @@ export const RESULT_WORDS = {
   seeAbove: "can't check (the reason is above)",
   testClaim: "Test this claim",
   testClaimBusy: `${WONDER_ROLE}, is writing a test for this sentence…`,
+  /** U3 item 5: the sentence a "Test this claim" round tests, and its result beside the measured facts. */
+  testingSentence: (s: string) => `This test checks Muse Wonder's sentence: “${s}”`,
+  claimFactsHeading: "What the run shows about this claim: you decide",
+  claimSaid: "Muse Wonder 1.0 said, before the first run:",
+  claimMeasured: "What this run measured (plain code):",
+  claimYouDecide: "Atlas does not say whether the sentence holds. Neither an AI nor plain code may decide that; compare the two yourself.",
   nextTry: "Next things to try, found in this code:",
   proofTitle: "Proof card",
   closeProof: "Close the proof card",

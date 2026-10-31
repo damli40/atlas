@@ -249,7 +249,7 @@ export const atlasFileSchema = z
   .object({
     version: z.literal(1),
     // R2 review round 1: the rules the file was made under; absent = before R2.
-    rules: z.object({ timing: z.literal("d46"), conditions: z.literal("r2"), watchLimit: z.literal("u2").optional() }).strict().optional(),
+    rules: z.object({ timing: z.literal("d46"), conditions: z.literal("r2"), watchLimit: z.literal("u2").optional(), literals: z.literal("u3").optional() }).strict().optional(),
     target: targetSchema,
     codeSha256: sha,
     forkBlock: z.number().int().positive().optional(),
@@ -554,7 +554,13 @@ export function callRunAgreesWithItsTrace(r: Run): string[] {
   // Review m7: only when the trace itself says why (the second run differed: clock_differs / twin_differs).
   const timeNotReported =
     Object.prototype.hasOwnProperty.call(r.result.notMeasured, "virtualMs") && !("virtualMs" in m) && r.trace.some((t) => (t.event === "clock_differs" || t.event === "twin_differs") && Array.isArray(asRecord(t.data).fields) && (asRecord(t.data).fields as unknown[]).includes("virtualMs"));
-  if ((end.event === "returned" || end.event === "threw") && !timeNotReported && m.virtualMs !== end.t) out.push(`measured virtualMs is ${JSON.stringify(m.virtualMs ?? null)}, but its trace settles at ${end.t}`);
+  // U3: in a sequence, virtualMs is the last call's own time: from its call_start to the ending.
+  const seqStart = r.trace.find((t) => t.event === "start");
+  const nCalls = asRecord(seqStart?.data).calls;
+  const lastStart = typeof nCalls === "number" && nCalls > 1 ? r.trace.find((t) => t.event === "call_start" && asRecord(t.data).n === nCalls) : undefined;
+  if (typeof nCalls === "number" && nCalls > 1 && !lastStart && "outcome" in m) out.push(`its trace says the last of ${nCalls} calls never started, but it measured an outcome`);
+  const fromT = lastStart ? lastStart.t : 0;
+  if ((end.event === "returned" || end.event === "threw") && !timeNotReported && m.virtualMs !== end.t - fromT) out.push(`measured virtualMs is ${JSON.stringify(m.virtualMs ?? null)}, but its trace settles at ${end.t}${fromT ? `, ${end.t - fromT} ms after the last call started at ${fromT}` : ""}`);
   if (end.event !== "returned" && end.event !== "threw" && "virtualMs" in m) out.push("measured virtualMs is set, but the call did not settle");
   const counts = new Map<string, number>();
   for (const t of r.trace) if (t.event === "stand_in_call") counts.set(String(asRecord(t.data).name), (counts.get(String(asRecord(t.data).name)) ?? 0) + 1);
@@ -629,7 +635,9 @@ export const MAX_FILE_DEPTH = 200;
  * becomes { ok: false } with the reason. Verify RE-JUDGES the stored run with plain code; it does not re-run it.
  */
 /** R2 review round 1: the rules a file made today is made under (buildAtlasFile writes them). */
-export const CURRENT_RULES = { timing: TIMING_RULE, conditions: CONDITIONS_RULE, watchLimit: "u2" } as const;
+export const CURRENT_RULES = { timing: TIMING_RULE, conditions: CONDITIONS_RULE, watchLimit: "u2", literals: "u3" } as const;
+/** U3: a file whose rules say literals "u3" wrote its call sentences and quiz options in the code's own language. */
+export const literalsLanguageOf = (file: { rules?: { literals?: string }; target: { language?: "js" | "ts" | "py" } }) => (file.rules?.literals === "u3" ? file.target.language : undefined);
 /** U2 (D53): a file whose rules say watchLimit "u2" judges timing options of a call still running at the watch limit. */
 export const watchLimitRuleOf = (file: { rules?: { watchLimit?: string } }) => file.rules?.watchLimit === "u2";
 
@@ -728,7 +736,7 @@ function verifyAtlasFileChecked(raw: unknown): Verification {
       const exp = file.experiments.find((e) => e.id === b.experimentId);
       let want: unknown = null;
       try {
-        want = quizQuestionsFor(exp?.params).find((q) => q.measures === b.measures)?.quiz ?? null;
+        want = quizQuestionsFor(exp?.params, undefined, literalsLanguageOf(file)).find((q) => q.measures === b.measures)?.quiz ?? null;
       } catch {
         want = null;
       }

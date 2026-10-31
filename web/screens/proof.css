@@ -105,3 +105,8 @@ main.proof-page { max-width: none; margin: 0; min-height: 100vh; padding: 24px 1
 /* X3 (D27): the proof card, then "your record before this round" under it. */
 .proof-stack { display: flex; flex-direction: column; align-items: center; gap: 16px; width: 100%; min-width: 0; }
 .proof-record { width: 100%; max-width: 760px; margin: 0; }
+/* U3 item 7: plain words first; the technical details fold. */
+.pc-plain { margin: 0 0 18px; max-width: 72ch; line-height: 1.5; }
+.pc-tech { margin: 18px 0; }
+.pc-tech > summary { cursor: pointer; font-weight: 600; }
+.pc-tech[open] > summary { margin-bottom: 10px; }

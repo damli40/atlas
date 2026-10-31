@@ -415,7 +415,7 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
         // E3 review minor 2: hidden characters in a reason are shown as escapes.
         gate: p.gate.allowed ? p.gate : { allowed: false as const, reason: visibleText(p.gate.reason) },
         // Plain code's description of what the test does (only for an allowed test: refused params may not be readable).
-        ...(p.gate.allowed ? { says: describeCall(p.params as Extract<ExperimentShape, { shape: "call-function" }>) } : {}),
+        ...(p.gate.allowed ? { says: describeCall(p.params as Extract<ExperimentShape, { shape: "call-function" }>, entry.target.language) } : {}),
       }));
       return c.json({
         ok: r.ok,

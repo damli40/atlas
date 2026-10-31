@@ -1,0 +1,207 @@
+PASS the landing page says "bet": Paste one file. Atlas draws its functions and how they call each other. Then, if you like, bet on what it will do: Atlas runs it and shows whether your bet matched.
+PASS the paste box is set in a code font: ui-monospace, "SF Mono", Menlo, Consolas, monospace
+PASS axe landing ts light 1920x1080: 0 violations  (31 rules passed)
+PASS before-bet rule rest ts light 1920x1080: {"phase":"rest","runEls":0,"litLamps":0,"liveParts":0,"marks":0}
+PASS the drawing's cables are exactly the code's at rest ts light 1920x1080: fetchAllOrders->fetchPage
+PASS screen-reader text in plain words ts light 1920x1080: A drawing of pasted.ts: 2 functions and classes, each a box (a taller box has more lines), named on its front. Lines join them: fetchAllOrders calls fetchPage; 
+PASS axe rest ts light 1920x1080: 0 violations  (32 rules passed)
+PASS a mouse click pins fetchPage's card ts light 1920x1080: fetchPage / function · lines 3–11 / async function fetchPage<T>(url: string, cursor: string | null, attempt = 0): Promise<Page<T>> / Calls no other part of this file. Called by fetchAllOrders. / Calls itself (line 7): it
+PASS fetchPage's card says it calls itself, and why it cannot be the tested function ts light 1920x1080
+PASS Wonder's wait shows seconds, the step and "Write my own test instead" at once ts light 1920x1080: Muse Wonder 1.0 (Meta) is writing tests for fetchAllOrders: 1 s so far (usually under a minute).Step 1 of 3: Muse Wonder reads your file and writes up to 3 tests aimed at its edges.The drawing stays live meanwhile: hover or click any part.Write my own test instead
+PASS the drawing stays explorable while Wonder writes ts light 1920x1080: fetchAllOrders
+PASS before-bet rule bet open ts light 1920x1080: {"phase":"rest","runEls":0,"litLamps":0,"liveParts":0,"marks":0}
+PASS the drawing's cables are exactly the code's with the test ts light 1920x1080: fetchAllOrders->fetchPage, fetchPage=>stand-in fetch
+test (ts light 1920x1080): The test: Atlas calls fetchAllOrders("https://example.com/orders"). Atlas's fake fetch (in place of the network, which stays blocked) answers 429 with {} on call 1; every later call answers 429 with {} too.
+PASS the default test hits the retry limit (429 on every call) ts light 1920x1080
+PASS no internal error names in the pop-up ts light 1920x1080
+PASS questions first; the conditions fold into a closed "How Atlas runs it" and stay in the bettor text ts light 1920x1080: {"open":false,"summary":"How Atlas runs it","after":true,"inText":true}
+PASS every answer visible without scrolling ts light 1920x1080: {"answers":16,"hidden":[],"covered":[],"popTop":308,"sealBarTop":869,"viewport":"1920x1080"}
+PASS axe bet open ts light 1920x1080: 0 violations  (39 rules passed)
+PASS overlap bet open ts light 1920x1080: 34 text boxes, 0 overlapping pairs, 0 outside
+PASS the run plays visibly ts light 1920x1080: ms 8276, frames 77, needle positions 27, chip states 6
+PASS no "Play the run again" before the first play ends ts light 1920x1080: Playing the run…
+PASS the play starts after the pop-up has closed ts light 1920x1080: {"ms":443,"popOpen":false}
+PASS a fetch call lights fetchAllOrders, fetchPage and both cables ts light 1920x1080: fetchAllOrders || fetchAllOrders + fetchAllOrders->fetchPage + fetchPage + fetchPage=>stand-in fetch
+PASS "Play the run again" after the first play ts light 1920x1080
+marks (ts light 1920x1080): 1. How it endsThe run: throws Error: HTTP 429Youreturns a valuedidn't matchMuse Spark Openthrows (an Error or any other value)matchedMuse Spark 1.3returns a valuedidn't match | 2. What it returnsThe run: can't check: the call threw, so it returned nothing?You"https://example.com/orders" (the same as argument 1)can't check?Muse Spark Openanother valuecan't check?Muse Spark 1.3"https://example.com/orders" (the same as argument 1)can't check | 3. Calls to fetchThe run: 4 times (2 or more times)You0 times (never called)didn't matchMuse Spark Openoncedidn't matchMuse Spark 1.30 times (never called)didn't match | 4. How long it takesThe run: 1,400 ms (more than 0 ms)You0 ms (no wait at all)didn't matchMuse Spark Openmore than 0 msmatchedMuse Spark 1.30 ms (no wait at all)didn't match
+PASS labels clear of cables, boxes and text marked ts light 1920x1080: 7 labels, 3574 cable points, 4 boxes, 0 touching; no free spot for 0
+PASS axe marked ts light 1920x1080: 0 violations  (37 rules passed)
+PASS overlap marked list ts light 1920x1080: 69 text boxes, 0 overlapping pairs, 0 outside
+PASS proof card: plain words first, judge file / sha256 / seed folded ts light 1920x1080: {"plain":"What this card shows: each answer was sealed (locked with a fingerprint) before ","techOpen":false,"plainBeforeTech":true,"sha256Folded":true,"firstQuestion":"how it ends"}
+PASS axe proof panel ts light 1920x1080: 0 violations  (45 rules passed)
+PASS the sentence being tested is shown while the test is written ts light 1920x1080
+PASS the quiz says which sentence its test checks ts light 1920x1080
+PASS after the claim's test: the sentence beside the measured facts, "you decide" ts light 1920x1080: What the run shows about this claim: you decideMuse Wonder 1.0 said, before the first run:People expect fetchAllOrders to return every order or fail loudly; it silently stops after maxPages pages and gives up on a 4th 429 with a bare "HTTP 429". (mocked for the U3 click-through: no model was called)
+PASS the same "Test this claim" button is not offered again ts light 1920x1080
+PASS labels clear of cables, boxes and text claim marked ts light 1920x1080: 7 labels, 3574 cable points, 4 boxes, 0 touching; no free spot for 0
+PASS axe claim facts ts light 1920x1080: 0 violations  (37 rules passed)
+PASS overlap claim facts list ts light 1920x1080: 94 text boxes, 0 overlapping pairs, 0 outside
+PASS before-bet rule rest ts dark 1920x1080: {"phase":"rest","runEls":0,"litLamps":0,"liveParts":0,"marks":0}
+PASS the drawing's cables are exactly the code's at rest ts dark 1920x1080: fetchAllOrders->fetchPage
+PASS screen-reader text in plain words ts dark 1920x1080: A drawing of pasted.ts: 2 functions and classes, each a box (a taller box has more lines), named on its front. Lines join them: fetchAllOrders calls fetchPage; 
+PASS axe rest ts dark 1920x1080: 0 violations  (32 rules passed)
+PASS a mouse click pins fetchPage's card ts dark 1920x1080: fetchPage / function · lines 3–11 / async function fetchPage<T>(url: string, cursor: string | null, attempt = 0): Promise<Page<T>> / Calls no other part of this file. Called by fetchAllOrders. / Calls itself (line 7): it
+PASS fetchPage's card says it calls itself, and why it cannot be the tested function ts dark 1920x1080
+PASS Wonder's wait shows seconds, the step and "Write my own test instead" at once ts dark 1920x1080: Muse Wonder 1.0 (Meta) is writing tests for fetchAllOrders: 1 s so far (usually under a minute).Step 1 of 3: Muse Wonder reads your file and writes up to 3 tests aimed at its edges.The drawing stays live meanwhile: hover or click any part.Write my own test instead
+PASS the drawing stays explorable while Wonder writes ts dark 1920x1080: fetchAllOrders
+PASS before-bet rule bet open ts dark 1920x1080: {"phase":"rest","runEls":0,"litLamps":0,"liveParts":0,"marks":0}
+PASS the drawing's cables are exactly the code's with the test ts dark 1920x1080: fetchAllOrders->fetchPage, fetchPage=>stand-in fetch
+test (ts dark 1920x1080): The test: Atlas calls fetchAllOrders("https://example.com/orders"). Atlas's fake fetch (in place of the network, which stays blocked) answers 429 with {} on call 1; every later call answers 429 with {} too.
+PASS the default test hits the retry limit (429 on every call) ts dark 1920x1080
+PASS no internal error names in the pop-up ts dark 1920x1080
+PASS questions first; the conditions fold into a closed "How Atlas runs it" and stay in the bettor text ts dark 1920x1080: {"open":false,"summary":"How Atlas runs it","after":true,"inText":true}
+PASS every answer visible without scrolling ts dark 1920x1080: {"answers":16,"hidden":[],"covered":[],"popTop":308,"sealBarTop":869,"viewport":"1920x1080"}
+PASS axe bet open ts dark 1920x1080: 0 violations  (39 rules passed)
+PASS overlap bet open ts dark 1920x1080: 34 text boxes, 0 overlapping pairs, 0 outside
+PASS the run plays visibly ts dark 1920x1080: ms 8088, frames 76, needle positions 23, chip states 6
+PASS no "Play the run again" before the first play ends ts dark 1920x1080: Playing the run…
+PASS the play starts after the pop-up has closed ts dark 1920x1080: {"ms":314,"popOpen":false}
+PASS a fetch call lights fetchAllOrders, fetchPage and both cables ts dark 1920x1080: fetchAllOrders || fetchAllOrders + fetchAllOrders->fetchPage + fetchPage + fetchPage=>stand-in fetch
+PASS "Play the run again" after the first play ts dark 1920x1080
+marks (ts dark 1920x1080): 1. How it endsThe run: throws Error: HTTP 429Youreturns a valuedidn't matchMuse Spark Openthrows (an Error or any other value)matchedMuse Spark 1.3returns a valuedidn't match | 2. What it returnsThe run: can't check: the call threw, so it returned nothing?You"https://example.com/orders" (the same as argument 1)can't check?Muse Spark Openanother valuecan't check?Muse Spark 1.3"https://example.com/orders" (the same as argument 1)can't check | 3. Calls to fetchThe run: 4 times (2 or more times)You0 times (never called)didn't matchMuse Spark Openoncedidn't matchMuse Spark 1.30 times (never called)didn't match | 4. How long it takesThe run: 1,400 ms (more than 0 ms)You0 ms (no wait at all)didn't matchMuse Spark Openmore than 0 msmatchedMuse Spark 1.30 ms (no wait at all)didn't match
+PASS labels clear of cables, boxes and text marked ts dark 1920x1080: 7 labels, 3574 cable points, 4 boxes, 0 touching; no free spot for 0
+PASS axe marked ts dark 1920x1080: 0 violations  (37 rules passed)
+PASS overlap marked list ts dark 1920x1080: 69 text boxes, 0 overlapping pairs, 0 outside
+PASS proof card: plain words first, judge file / sha256 / seed folded ts dark 1920x1080: {"plain":"What this card shows: each answer was sealed (locked with a fingerprint) before ","techOpen":false,"plainBeforeTech":true,"sha256Folded":true,"firstQuestion":"how it ends"}
+PASS axe proof panel ts dark 1920x1080: 0 violations  (45 rules passed)
+PASS before-bet rule rest py light 1920x1080: {"phase":"rest","runEls":0,"litLamps":0,"liveParts":0,"marks":0}
+PASS the drawing's cables are exactly the code's at rest py light 1920x1080: get_user_plan->cached
+PASS screen-reader text in plain words py light 1920x1080: A drawing of pasted.py: 2 functions and classes, each a box (a taller box has more lines), named on its front. Lines join them: get_user_plan is wrapped by cach
+PASS axe rest py light 1920x1080: 0 violations  (32 rules passed)
+PASS a mouse click pins cached's card py light 1920x1080: cached / function · lines 6–17 · top-level (Atlas can call it) / def cached(ttl_seconds) / Calls no other part of this file. / A wrapper (decorator): it wraps get_user_plan. / Test this function / ×
+PASS Wonder's wait shows seconds, the step and "Write my own test instead" at once py light 1920x1080: Muse Wonder 1.0 (Meta) is writing tests for get_user_plan: 1 s so far (usually under a minute).Step 1 of 3: Muse Wonder reads your file and writes up to 3 tests aimed at its edges.The drawing stays live meanwhile: hover or click any part.Write my own test instead
+PASS the drawing stays explorable while Wonder writes py light 1920x1080: get_user_plan
+PASS before-bet rule bet open py light 1920x1080: {"phase":"rest","runEls":0,"litLamps":0,"liveParts":0,"marks":0}
+PASS the drawing's cables are exactly the code's with the test py light 1920x1080: get_user_plan->cached
+test (py light 1920x1080): The test: Atlas calls get_user_plan(1), then calls get_user_plan(1): 2 calls in a row on the same loaded file, so anything the code keeps between calls (a cache, a counter) carries over. If an earlier call throws, Atlas notes it and still makes the next. The questions are about the 2nd (last) call; call counts are totals over all 2 calls.
+PASS the default test calls the cache twice py light 1920x1080
+PASS no internal error names in the pop-up py light 1920x1080
+PASS questions first; the conditions fold into a closed "How Atlas runs it" and stay in the bettor text py light 1920x1080: {"open":false,"summary":"How Atlas runs it","after":true,"inText":true}
+PASS every answer visible without scrolling py light 1920x1080: {"answers":12,"hidden":[],"covered":[],"popTop":347,"sealBarTop":869,"viewport":"1920x1080"}
+PASS axe bet open py light 1920x1080: 0 violations  (39 rules passed)
+PASS overlap bet open py light 1920x1080: 30 text boxes, 0 overlapping pairs, 0 outside
+PASS Python values read as Python in the test list py light 1920x1080: Pick a test for get_user_planAtlas calls get_user_plan(True). Use this test EditAtlas calls get_user_plan(1). Use this test EditAtlas calls get_user_plan(1), then calls get_user_plan(1): 2 calls in a 
+PASS "Write your own test" and "Back to the quiz" have space between them py light 1920x1080: 18px
+PASS a typed value is read back in the code's spelling py light 1920x1080: Atlas reads it as "pro".
+PASS the run plays visibly py light 1920x1080: ms 8059, frames 75, needle positions 9, chip states 6
+PASS no "Play the run again" before the first play ends py light 1920x1080: Playing the run…
+PASS the play starts after the pop-up has closed py light 1920x1080: {"ms":311,"popOpen":false}
+PASS calling the decorated function lights its decorator too py light 1920x1080: cached + get_user_plan || get_user_plan
+PASS "Play the run again" after the first play py light 1920x1080
+marks (py light 1920x1080): 1. How it endsThe run: returns a valueYoureturns a valuematchedMuse Spark Openthrows (an Error or any other value)didn't matchMuse Spark 1.3returns a valuematched | 2. What it returnsThe run: "pro" (another value)Youtyped "pro"matchedMuse Spark Openanother valuematchedMuse Spark 1.31 (the same as argument 1 of the last call)didn't match | 3. How long it takesThe run: 0 ms (no wait at all)You0 ms (no wait at all)matchedMuse Spark Openmore than 0 msdidn't matchMuse Spark 1.30 ms (no wait at all)matched
+PASS the typed value is sealed and judged py light 1920x1080
+PASS labels clear of cables, boxes and text marked py light 1920x1080: 5 labels, 1194 cable points, 3 boxes, 0 touching; no free spot for 0
+PASS axe marked py light 1920x1080: 0 violations  (36 rules passed)
+PASS overlap marked list py light 1920x1080: 53 text boxes, 0 overlapping pairs, 0 outside
+PASS proof card: plain words first, judge file / sha256 / seed folded py light 1920x1080: {"plain":"What this card shows: each answer was sealed (locked with a fingerprint) before ","techOpen":false,"plainBeforeTech":true,"sha256Folded":true,"firstQuestion":"how it ends"}
+PASS axe proof panel py light 1920x1080: 0 violations  (45 rules passed)
+PASS the sentence being tested is shown while the test is written py light 1920x1080
+PASS the quiz says which sentence its test checks py light 1920x1080
+PASS after the claim's test: the sentence beside the measured facts, "you decide" py light 1920x1080: What the run shows about this claim: you decideMuse Wonder 1.0 said, before the first run:People expect get_user_plan to read the database on every call; the second call within 60 s comes from the cache in 0 ms, and the cache's clock starts before the slow read. (mocked for the U3 click-through: no 
+PASS the same "Test this claim" button is not offered again py light 1920x1080
+PASS labels clear of cables, boxes and text claim marked py light 1920x1080: 5 labels, 1194 cable points, 3 boxes, 0 touching; no free spot for 0
+PASS axe claim facts py light 1920x1080: 0 violations  (37 rules passed)
+PASS overlap claim facts list py light 1920x1080: 75 text boxes, 0 overlapping pairs, 0 outside
+PASS before-bet rule rest py dark 1920x1080: {"phase":"rest","runEls":0,"litLamps":0,"liveParts":0,"marks":0}
+PASS the drawing's cables are exactly the code's at rest py dark 1920x1080: get_user_plan->cached
+PASS screen-reader text in plain words py dark 1920x1080: A drawing of pasted.py: 2 functions and classes, each a box (a taller box has more lines), named on its front. Lines join them: get_user_plan is wrapped by cach
+PASS axe rest py dark 1920x1080: 0 violations  (32 rules passed)
+PASS a mouse click pins cached's card py dark 1920x1080: cached / function · lines 6–17 · top-level (Atlas can call it) / def cached(ttl_seconds) / Calls no other part of this file. / A wrapper (decorator): it wraps get_user_plan. / Test this function / ×
+PASS Wonder's wait shows seconds, the step and "Write my own test instead" at once py dark 1920x1080: Muse Wonder 1.0 (Meta) is writing tests for get_user_plan: 1 s so far (usually under a minute).Step 1 of 3: Muse Wonder reads your file and writes up to 3 tests aimed at its edges.The drawing stays live meanwhile: hover or click any part.Write my own test instead
+PASS the drawing stays explorable while Wonder writes py dark 1920x1080: get_user_plan
+PASS before-bet rule bet open py dark 1920x1080: {"phase":"rest","runEls":0,"litLamps":0,"liveParts":0,"marks":0}
+PASS the drawing's cables are exactly the code's with the test py dark 1920x1080: get_user_plan->cached
+test (py dark 1920x1080): The test: Atlas calls get_user_plan(1), then calls get_user_plan(1): 2 calls in a row on the same loaded file, so anything the code keeps between calls (a cache, a counter) carries over. If an earlier call throws, Atlas notes it and still makes the next. The questions are about the 2nd (last) call; call counts are totals over all 2 calls.
+PASS the default test calls the cache twice py dark 1920x1080
+PASS no internal error names in the pop-up py dark 1920x1080
+PASS questions first; the conditions fold into a closed "How Atlas runs it" and stay in the bettor text py dark 1920x1080: {"open":false,"summary":"How Atlas runs it","after":true,"inText":true}
+PASS every answer visible without scrolling py dark 1920x1080: {"answers":12,"hidden":[],"covered":[],"popTop":347,"sealBarTop":869,"viewport":"1920x1080"}
+PASS axe bet open py dark 1920x1080: 0 violations  (39 rules passed)
+PASS overlap bet open py dark 1920x1080: 30 text boxes, 0 overlapping pairs, 0 outside
+PASS Python values read as Python in the test list py dark 1920x1080: Pick a test for get_user_planAtlas calls get_user_plan(True). Use this test EditAtlas calls get_user_plan(1). Use this test EditAtlas calls get_user_plan(1), then calls get_user_plan(1): 2 calls in a 
+PASS "Write your own test" and "Back to the quiz" have space between them py dark 1920x1080: 18px
+PASS the run plays visibly py dark 1920x1080: ms 8533, frames 80, needle positions 10, chip states 6
+PASS no "Play the run again" before the first play ends py dark 1920x1080: Playing the run…
+PASS the play starts after the pop-up has closed py dark 1920x1080: {"ms":723,"popOpen":false}
+PASS calling the decorated function lights its decorator too py dark 1920x1080: cached + get_user_plan || get_user_plan
+PASS "Play the run again" after the first play py dark 1920x1080
+marks (py dark 1920x1080): 1. How it endsThe run: returns a valueYoureturns a valuematchedMuse Spark Openthrows (an Error or any other value)didn't matchMuse Spark 1.3returns a valuematched | 2. What it returnsThe run: "pro" (another value)You1 (the same as argument 1 of the last call)didn't matchMuse Spark Openanother valuematchedMuse Spark 1.31 (the same as argument 1 of the last call)didn't match | 3. How long it takesThe run: 0 ms (no wait at all)You0 ms (no wait at all)matchedMuse Spark Openmore than 0 msdidn't matchMuse Spark 1.30 ms (no wait at all)matched
+PASS labels clear of cables, boxes and text marked py dark 1920x1080: 5 labels, 1194 cable points, 3 boxes, 0 touching; no free spot for 0
+PASS axe marked py dark 1920x1080: 0 violations  (36 rules passed)
+PASS overlap marked list py dark 1920x1080: 54 text boxes, 0 overlapping pairs, 0 outside
+PASS proof card: plain words first, judge file / sha256 / seed folded py dark 1920x1080: {"plain":"What this card shows: each answer was sealed (locked with a fingerprint) before ","techOpen":false,"plainBeforeTech":true,"sha256Folded":true,"firstQuestion":"how it ends"}
+PASS axe proof panel py dark 1920x1080: 0 violations  (45 rules passed)
+PASS before-bet rule rest ts light 1366x768: {"phase":"rest","runEls":0,"litLamps":0,"liveParts":0,"marks":0}
+PASS the drawing's cables are exactly the code's at rest ts light 1366x768: fetchAllOrders->fetchPage
+PASS screen-reader text in plain words ts light 1366x768: A drawing of pasted.ts: 2 functions and classes, each a box (a taller box has more lines), named on its front. Lines join them: fetchAllOrders calls fetchPage; 
+PASS axe rest ts light 1366x768: 0 violations  (32 rules passed)
+PASS a mouse click pins fetchPage's card ts light 1366x768: fetchPage / function · lines 3–11 / async function fetchPage<T>(url: string, cursor: string | null, attempt = 0): Promise<Page<T>> / Calls no other part of this file. Called by fetchAllOrders. / Calls itself (line 7): it
+PASS fetchPage's card says it calls itself, and why it cannot be the tested function ts light 1366x768
+PASS Wonder's wait shows seconds, the step and "Write my own test instead" at once ts light 1366x768: Muse Wonder 1.0 (Meta) is writing tests for fetchAllOrders: 1 s so far (usually under a minute).Step 1 of 3: Muse Wonder reads your file and writes up to 3 tests aimed at its edges.The drawing stays live meanwhile: hover or click any part.Write my own test instead
+PASS the drawing stays explorable while Wonder writes ts light 1366x768: fetchAllOrders
+PASS before-bet rule bet open ts light 1366x768: {"phase":"rest","runEls":0,"litLamps":0,"liveParts":0,"marks":0}
+PASS the drawing's cables are exactly the code's with the test ts light 1366x768: fetchAllOrders->fetchPage, fetchPage=>stand-in fetch
+test (ts light 1366x768): The test: Atlas calls fetchAllOrders("https://example.com/orders"). Atlas's fake fetch (in place of the network, which stays blocked) answers 429 with {} on call 1; every later call answers 429 with {} too.
+PASS the default test hits the retry limit (429 on every call) ts light 1366x768
+PASS no internal error names in the pop-up ts light 1366x768
+PASS questions first; the conditions fold into a closed "How Atlas runs it" and stay in the bettor text ts light 1366x768: {"open":false,"summary":"How Atlas runs it","after":true,"inText":true}
+PASS every answer visible without scrolling ts light 1366x768: {"answers":16,"hidden":[],"covered":[],"popTop":58,"sealBarTop":618,"viewport":"1366x768"}
+PASS axe bet open ts light 1366x768: 0 violations  (40 rules passed)
+PASS overlap bet open ts light 1366x768: 34 text boxes, 0 overlapping pairs, 0 outside
+PASS the run plays visibly ts light 1366x768: ms 8099, frames 76, needle positions 24, chip states 6
+PASS no "Play the run again" before the first play ends ts light 1366x768: Playing the run…
+PASS the play starts after the pop-up has closed ts light 1366x768: {"ms":311,"popOpen":false}
+PASS a fetch call lights fetchAllOrders, fetchPage and both cables ts light 1366x768: fetchAllOrders || fetchAllOrders + fetchAllOrders->fetchPage + fetchPage + fetchPage=>stand-in fetch
+PASS "Play the run again" after the first play ts light 1366x768
+marks (ts light 1366x768): 1. How it endsThe run: throws Error: HTTP 429Youreturns a valuedidn't matchMuse Spark Openthrows (an Error or any other value)matchedMuse Spark 1.3returns a valuedidn't match | 2. What it returnsThe run: can't check: the call threw, so it returned nothing?You"https://example.com/orders" (the same as argument 1)can't check?Muse Spark Openanother valuecan't check?Muse Spark 1.3"https://example.com/orders" (the same as argument 1)can't check | 3. Calls to fetchThe run: 4 times (2 or more times)You0 times (never called)didn't matchMuse Spark Openoncedidn't matchMuse Spark 1.30 times (never called)didn't match | 4. How long it takesThe run: 1,400 ms (more than 0 ms)You0 ms (no wait at all)didn't matchMuse Spark Openmore than 0 msmatchedMuse Spark 1.30 ms (no wait at all)didn't match
+PASS labels clear of cables, boxes and text marked ts light 1366x768: 7 labels, 3574 cable points, 4 boxes, 0 touching; no free spot for 0
+PASS axe marked ts light 1366x768: 0 violations  (37 rules passed)
+PASS overlap marked list ts light 1366x768: 69 text boxes, 0 overlapping pairs, 0 outside
+PASS proof card: plain words first, judge file / sha256 / seed folded ts light 1366x768: {"plain":"What this card shows: each answer was sealed (locked with a fingerprint) before ","techOpen":false,"plainBeforeTech":true,"sha256Folded":true,"firstQuestion":"how it ends"}
+PASS axe proof panel ts light 1366x768: 0 violations  (45 rules passed)
+PASS before-bet rule rest py light 1366x768: {"phase":"rest","runEls":0,"litLamps":0,"liveParts":0,"marks":0}
+PASS the drawing's cables are exactly the code's at rest py light 1366x768: get_user_plan->cached
+PASS screen-reader text in plain words py light 1366x768: A drawing of pasted.py: 2 functions and classes, each a box (a taller box has more lines), named on its front. Lines join them: get_user_plan is wrapped by cach
+PASS axe rest py light 1366x768: 0 violations  (32 rules passed)
+PASS a mouse click pins cached's card py light 1366x768: cached / function · lines 6–17 · top-level (Atlas can call it) / def cached(ttl_seconds) / Calls no other part of this file. / A wrapper (decorator): it wraps get_user_plan. / Test this function / ×
+PASS Wonder's wait shows seconds, the step and "Write my own test instead" at once py light 1366x768: Muse Wonder 1.0 (Meta) is writing tests for get_user_plan: 1 s so far (usually under a minute).Step 1 of 3: Muse Wonder reads your file and writes up to 3 tests aimed at its edges.The drawing stays live meanwhile: hover or click any part.Write my own test instead
+PASS the drawing stays explorable while Wonder writes py light 1366x768: get_user_plan
+PASS before-bet rule bet open py light 1366x768: {"phase":"rest","runEls":0,"litLamps":0,"liveParts":0,"marks":0}
+PASS the drawing's cables are exactly the code's with the test py light 1366x768: get_user_plan->cached
+test (py light 1366x768): The test: Atlas calls get_user_plan(1), then calls get_user_plan(1): 2 calls in a row on the same loaded file, so anything the code keeps between calls (a cache, a counter) carries over. If an earlier call throws, Atlas notes it and still makes the next. The questions are about the 2nd (last) call; call counts are totals over all 2 calls.
+PASS the default test calls the cache twice py light 1366x768
+PASS no internal error names in the pop-up py light 1366x768
+PASS questions first; the conditions fold into a closed "How Atlas runs it" and stay in the bettor text py light 1366x768: {"open":false,"summary":"How Atlas runs it","after":true,"inText":true}
+PASS every answer visible without scrolling py light 1366x768: {"answers":12,"hidden":[],"covered":[],"popTop":58,"sealBarTop":580,"viewport":"1366x768"}
+PASS axe bet open py light 1366x768: 0 violations  (40 rules passed)
+PASS overlap bet open py light 1366x768: 30 text boxes, 0 overlapping pairs, 0 outside
+PASS Python values read as Python in the test list py light 1366x768: Pick a test for get_user_planAtlas calls get_user_plan(True). Use this test EditAtlas calls get_user_plan(1). Use this test EditAtlas calls get_user_plan(1), then calls get_user_plan(1): 2 calls in a 
+PASS "Write your own test" and "Back to the quiz" have space between them py light 1366x768: 18px
+PASS the run plays visibly py light 1366x768: ms 8484, frames 81, needle positions 9, chip states 6
+PASS no "Play the run again" before the first play ends py light 1366x768: Playing the run…
+PASS the play starts after the pop-up has closed py light 1366x768: {"ms":713,"popOpen":false}
+PASS calling the decorated function lights its decorator too py light 1366x768: cached + get_user_plan || get_user_plan
+PASS "Play the run again" after the first play py light 1366x768
+marks (py light 1366x768): 1. How it endsThe run: returns a valueYoureturns a valuematchedMuse Spark Openthrows (an Error or any other value)didn't matchMuse Spark 1.3returns a valuematched | 2. What it returnsThe run: "pro" (another value)You1 (the same as argument 1 of the last call)didn't matchMuse Spark Openanother valuematchedMuse Spark 1.31 (the same as argument 1 of the last call)didn't match | 3. How long it takesThe run: 0 ms (no wait at all)You0 ms (no wait at all)matchedMuse Spark Openmore than 0 msdidn't matchMuse Spark 1.30 ms (no wait at all)matched
+PASS labels clear of cables, boxes and text marked py light 1366x768: 5 labels, 1194 cable points, 3 boxes, 0 touching; no free spot for 0
+PASS axe marked py light 1366x768: 0 violations  (37 rules passed)
+PASS overlap marked list py light 1366x768: 54 text boxes, 0 overlapping pairs, 0 outside
+PASS proof card: plain words first, judge file / sha256 / seed folded py light 1366x768: {"plain":"What this card shows: each answer was sealed (locked with a fingerprint) before ","techOpen":false,"plainBeforeTech":true,"sha256Folded":true,"firstQuestion":"how it ends"}
+PASS axe proof panel py light 1366x768: 0 violations  (45 rules passed)
+PASS "Write my own test instead" opens the form at once (222 ms, Wonder still writing: true); Wonder's tests then wait in the list (3) and do not replace the form
+PASS 390px entry light: scrollWidth 390 vs 390
+PASS 390px rest light: scrollWidth 390 vs 390
+PASS 390px bet open light: scrollWidth 390 vs 390
+PASS overlap bet open 390 light: 36 text boxes, 0 overlapping pairs, 0 outside
+PASS 390px marked light: scrollWidth 390 vs 390
+PASS overlap marked 390 light: 52 text boxes, 0 overlapping pairs, 0 outside
+PASS 390px entry dark: scrollWidth 390 vs 390
+PASS 390px rest dark: scrollWidth 390 vs 390
+PASS 390px bet open dark: scrollWidth 390 vs 390
+PASS overlap bet open 390 dark: 36 text boxes, 0 overlapping pairs, 0 outside
+PASS 390px marked dark: scrollWidth 390 vs 390
+PASS overlap marked 390 dark: 52 text boxes, 0 overlapping pairs, 0 outside
+PASS reduced motion: the end state shows at once, no lamp ever lit (0), replay offered
+PASS page errors: 0
+PASS no 404 responses (all failed responses: none)
+ALL CHECKS PASSED

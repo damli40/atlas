@@ -1,0 +1,47 @@
+
+ RUN  v5.0.5 <repo>
+
+ ❯ tests/unit/bench-order.test.ts (35 tests | 1 failed) 10365ms
+   ❯ bench/models: registered first, alone, never edited; results append-only (9)
+     × (h) after the first result, every change to the scoring code adds an entry to bench/TOOLING-CHANGES.md in the same commit 118ms
+(node:74725) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:76109) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:77332) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:77442) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:77532) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:77710) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:77763) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:77768) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:78227) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:78398) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/unit/bench-order.test.ts > bench/models: registered first, alone, never edited; results append-only > (h) after the first result, every change to the scoring code adds an entry to bench/TOOLING-CHANGES.md in the same commit
+AssertionError: commit 7cb133e changes bench/models's scoring code without an entry in bench/TOOLING-CHANGES.md: expected [ 'bench/models/run.ts', …(16) ] to include 'bench/TOOLING-CHANGES.md'
+ ❯ tests/unit/bench-order.test.ts:166:124
+    164|       for (const c of later) {
+    165|         const files = git("show", "--name-only", "--format=", c).split…
+    166|         expect(files, `commit ${c.slice(0, 7)} changes bench/${b.name}…
+       |                                                                                                                            ^
+    167|       }
+    168|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 135 passed | 2 skipped (138)
+      Tests  1 failed | 2139 passed | 35 skipped (2175)
+   Start at  21:07:17
+   Duration  212.61s (tests 91%, import 9%)
+

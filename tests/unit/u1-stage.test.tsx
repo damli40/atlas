@@ -11,7 +11,7 @@ import { createApp } from "../../server/app";
 import { createModelBudget } from "../../server/meta/budget";
 import { App } from "../../web/App";
 import { createApi } from "../../web/api";
-import { answersToSend, defaultFunction } from "../../web/screens/Studio";
+import { answersToSend, claimProposal, defaultFunction } from "../../web/screens/Studio";
 import { U1_EXAMPLE } from "../../web/u1-example";
 import { fileOutline } from "../../src/file-outline";
 import { quizQuestionsFor } from "../../src/quiz";
@@ -74,7 +74,17 @@ describe("U1 drawing-first screen", () => {
     const o = fileOutline(U1_EXAMPLE, "ts");
     expect(defaultFunction(o, [{ name: "fetchWithRetry" }, { name: "getPrice" }])).toBe("fetchWithRetry");
     const qs = quizQuestionsFor(U1_TEST);
-    expect(answersToSend(qs, { outcome: "a", virtualMs: "can't tell" }).map((a) => a.answer.kind)).toEqual(["quiz", "declined", "declined", "declined"]);
+    // U3: a claim round on code that keeps state opens on a two-call test; otherwise on Wonder's first allowed test.
+    const one = { gate: { allowed: true }, params: { args: [] } };
+    const two = { gate: { allowed: true }, params: { args: [], calls: [{}, {}] } };
+    expect(claimProposal([one, two], { source: "cache = {}\n", language: "py" })).toBe(two);
+    expect(claimProposal([one, two], { source: "x = 1\n", language: "py" })).toBe(one);
+    const sent = answersToSend(qs, { outcome: "a", virtualMs: "can't tell" });
+    expect(sent.ok && sent.answers.map((a) => a.answer.kind)).toEqual(["quiz", "declined", "declined", "declined"]);
+    // U3: a typed returned value is a json answer; one that does not read is refused before sealing.
+    const typed = answersToSend(qs, { returnedJson: "a" }, { returnedJson: '{"ok": true}' });
+    expect(typed.ok && typed.answers.find((a) => a.measures === "returnedJson")!.answer).toEqual({ kind: "json", value: { ok: true } });
+    expect(answersToSend(qs, {}, { returnedJson: "{nope" })).toEqual({ ok: false, measures: "returnedJson" });
   });
 
   it("before sealing the stage draws structure only; after sealing the run plays and the quiz is marked", async () => {

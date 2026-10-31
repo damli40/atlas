@@ -65,3 +65,10 @@ in the same commit. `tests/unit/bench-order.test.ts` checks this. Earlier entrie
   the end, when the run's own usage log in `results/` makes git report changes. The first live result
   (`results/2026-10-28.json`) recorded `dirty: true` for that reason only; the order test names it, and its tooling
   hashes are checked as for any result.
+
+## 2026-10-29: U3 keeps bench M's registered words while the screens' words change
+
+- `bench/models/run.ts`: E3's builder now asks `questionsFor` and `pastedBetContext` for the words as of E3
+  (`wordsAsOf: "e3"`): values written as JSON and "any later call throws AtlasStandInExhausted". The screens moved to
+  the code's own literals (Python's True) and plain words ("any 4th or later call fails"); bench M's prompts do not
+  change (D51), and its prompt-freeze test still matches the committed dry run prompt for prompt. Scoring unchanged.

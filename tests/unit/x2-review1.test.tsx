@@ -103,7 +103,8 @@ describe("B3: decks are the real folders, whatever a part spans", () => {
     for (const d of m.decks) for (const s of d.slots) if (s.kind === "box") for (const sl of s.slices) expect(folderOf(sl.path)).toBe(d.folder);
     const fig = buildFigure(m);
     expect(fig.stats).toMatchObject({ decks: 6, files: 12, trays: 12, boxes: 13 + 5 });
-    expect(fig.svg).toContain("6 folder decks, trays for 12 files, and 13 parts whose lines plain code confirmed, drawn as 18 instrument boxes (1 part spanning folders get one box per folder)");
+    // U3 item 7: the screen-reader label is in plain words now (no "skid", no "tag collars").
+    expect(fig.svg).toContain("6 folders, 12 files and 13 parts, each part drawn as a box (1 part spanning folders get one box per folder)");
     expect([...fig.svg.matchAll(/data-hit="([^"]*)"/g)]).toHaveLength(13);
   }, 120_000);
 });

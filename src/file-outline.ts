@@ -23,8 +23,12 @@ export interface FileJoin {
   id: string;
   from: string;
   to: string;
-  /** "calls" (a call or `new`), or "uses" (any other reference, e.g. passing the function along). */
-  kind: "calls" | "uses";
+  /**
+   * "calls" (a call or `new`), "uses" (any other reference, e.g. passing the function along), or U3 "wraps": `from` is
+   * decorated by `to` (an `@to` line above it), so a call to `from` runs `to`'s wrapper first. A decorator is not a call
+   * made by `from`'s own lines, so it is never drawn as one.
+   */
+  kind: "calls" | "uses" | "wraps";
   lines: number[];
 }
 export interface FileOutline {
@@ -32,6 +36,8 @@ export interface FileOutline {
   joins: FileJoin[];
   /** Why the outline is empty or partial, in plain words (parser notes). */
   notes: string[];
+  /** U3: parts whose own lines call themselves (recursion), with those lines. A self-call is not a join between parts. */
+  selfCalls?: { name: string; lines: number[] }[];
 }
 
 /** At most this many parts are kept (the drawing's limit is 40). */
@@ -58,18 +64,33 @@ export function fileOutline(source: string, language: "js" | "ts" | "py"): FileO
   const names = new Set(parts.map((p) => p.name));
   const enclosing = (line: number) => parts.find((p) => p.lineStart <= line && line <= p.lineEnd);
   const byId = new Map<string, FileJoin>();
+  const self = new Map<string, number[]>();
+  // U3: a decorator line (`@name` or `@name(...)`, the first thing on its line) wraps the part below it; it is not a
+  // call made by that part's own lines.
+  const textLines = source.split(/\r\n|\r|\n|\u2028|\u2029/);
+  const isDecoratorLine = (line: number) => /^\s*@/.test(textLines[line - 1] ?? "");
   for (const c of parsed.calls) {
     if (!c.own || !names.has(c.local)) continue;
     const from = enclosing(c.line);
-    if (!from || from.name === c.local) continue; // a part's own name inside itself (recursion) is not a join between parts
-    const kind = c.form === "call" || c.form === "new" ? "calls" : "uses";
+    if (!from) continue;
+    if (from.name === c.local) {
+      // A part's own name inside itself (recursion) is not a join between parts; a CALL of it is a self-call (U3).
+      if ((c.form === "call" || c.form === "new") && !isDecoratorLine(c.line)) {
+        const l = self.get(from.name) ?? [];
+        if (!l.includes(c.line)) l.push(c.line);
+        self.set(from.name, l);
+      }
+      continue;
+    }
+    const kind = isDecoratorLine(c.line) && from.lineStart <= c.line ? "wraps" : c.form === "call" || c.form === "new" ? "calls" : "uses";
     const id = `${from.name}->${c.local}`;
     const j = byId.get(id);
     if (j) {
-      if (kind === "calls") j.kind = "calls";
+      if (kind === "calls" || (kind === "wraps" && j.kind === "uses")) j.kind = kind;
       if (!j.lines.includes(c.line)) j.lines.push(c.line);
     } else byId.set(id, { id, from: from.name, to: c.local, kind, lines: [c.line] });
   }
   const joins = [...byId.values()].map((j) => ({ ...j, lines: [...j.lines].sort((a, b) => a - b) })).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  return { parts, joins, notes };
+  const selfCalls = [...self.entries()].map(([name, lines]) => ({ name, lines: [...lines].sort((a, b) => a - b) })).sort((a, b) => (a.name < b.name ? -1 : 1));
+  return { parts, joins, notes, ...(selfCalls.length ? { selfCalls } : {}) };
 }

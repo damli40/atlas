@@ -12,18 +12,66 @@ import type { Question } from "../../../src/gate";
 import { timelineModel } from "../calltimeline/model";
 import { notShownAsFact } from "../../../src/trust";
 import { optionHolding, quizChoiceLabel, CANT_TELL } from "../../../src/quiz";
-import { canonicalJson } from "../../../src/seal";
+import { literal, literalOfJsonText } from "../../../src/literal";
 import { visibleText } from "../../../src/gate";
 import { modelDisplay } from "../../../src/claimants";
 import { CLOCK_ID, deviceId, type CallTest } from "./model";
 import { networkStepFor, networkStepWords } from "../../../src/network-fake";
-import { watchLimitOf } from "../../../src/judge";
+import { lastCallStartOf, watchLimitOf } from "../../../src/judge";
+import { certainPath } from "../../../src/call-sites";
+import type { FileOutline } from "../../../src/file-outline";
+
+/**
+ * U3: what plain code knows about who calls what, for lighting the call path during the replay: the file's joins and,
+ * per device id, the parts whose own lines call it (model.ts). Without it, only the function under test lights.
+ */
+export interface Wiring {
+  outline: Pick<FileOutline, "joins">;
+  callers: Record<string, string[]>;
+  /** U3: the code's language, so scripted values read as that language writes them (Python's True, not true). */
+  language?: "js" | "ts" | "py";
+}
+
+/** The parts and joins certainly running when `device` is called during a call of `tested`, and what is not certain. */
+export function callPath(wiring: Wiring | undefined, tested: string | null, device: string | null): { parts: string[]; lines: string[]; unsure: string | null } {
+  if (!tested) return { parts: [], lines: [], unsure: null };
+  const wrappers = (wiring?.outline.joins ?? []).filter((j) => j.kind === "wraps" && j.from === tested).map((j) => j.to);
+  const base = [tested, ...wrappers];
+  if (!device || !wiring) return { parts: base, lines: [], unsure: null };
+  const callers = wiring.callers[device] ?? [];
+  if (callers.length === 0) return { parts: base, lines: [], unsure: "plain code found no line that calls it directly" };
+  if (callers.length > 1) {
+    // The trace says THAT the device was called, not from which part: only what every route shares is lit.
+    const routes = callers.map((c) => certainPath(wiring.outline, tested, c)?.parts ?? [tested]);
+    const common = routes[0]!.filter((p) => routes.every((r) => r.includes(p)));
+    return { parts: [...new Set([...base, ...common])], lines: [], unsure: `plain code can't tell whether ${callers.slice(0, -1).join(", ")} or ${callers[callers.length - 1]} made this call` };
+  }
+  const caller = callers[0]!;
+  const path = certainPath(wiring.outline, tested, caller);
+  if (!path) return { parts: [...new Set([...base, caller])], lines: [`${caller}=>${device}`], unsure: null };
+  return { parts: [...new Set([...base, ...path.parts])], lines: [...path.joins, `${caller}=>${device}`], unsure: null };
+}
+
+/** U3: the parts certainly waiting when the clock jumps: the chain from the tested function to the deepest waiting part. */
+export function waitPath(wiring: Wiring | undefined, tested: string | null, waitParts: readonly string[]): string[] {
+  if (!tested) return [...waitParts];
+  if (waitParts.length === 0) return [tested];
+  if (!wiring) return [...new Set([tested, ...waitParts])];
+  for (const w of waitParts) {
+    const p = certainPath(wiring.outline, tested, w);
+    if (p && waitParts.every((x) => p.parts.includes(x) || x === tested)) return p.parts;
+  }
+  return [tested];
+}
 
 export interface PlayStep {
   /** Virtual ms of the step. */
   at: number;
-  /** "call": a stand-in or the network fake was called; "wait": the clock jumped (a wait ended); "end": the call ended. */
-  kind: "call" | "wait" | "end";
+  /**
+   * "call": a stand-in or the network fake was called; "wait": the clock jumped (a wait ended); "end": the call ended;
+   * U3 "turn": in a sequence, Atlas starts call n, or an earlier call ended (display only, never judged).
+   */
+  kind: "call" | "wait" | "end" | "turn";
   /** The device whose lamp lights (a call), or null. */
   device: string | null;
   line: string | null;
@@ -47,8 +95,9 @@ export interface Script {
   atLimit?: boolean;
 }
 
-const stepText = (s: StandInStep | undefined): string =>
-  !s ? "throws AtlasStandInExhausted (no scripted answer left)" : s.do === "return" ? `returns ${short(canonicalJson(s.value))}${s.afterMs ? ` after ${s.afterMs.toLocaleString("en-US")} ms` : ""}` : s.do === "throw" ? `throws ${visibleText(s.errorName)}` : "never answers";
+const stepText = (s: StandInStep | undefined, language?: "js" | "ts" | "py"): string =>
+  !s ? "fails: no answer is scripted for this call" : s.do === "return" ? `returns ${short(literal(s.value, language))}${s.afterMs ? ` after ${s.afterMs.toLocaleString("en-US")} ms` : ""}` : s.do === "throw" ? `throws ${visibleText(s.errorName)}` : "never answers";
+const clip = (s: string) => short(s);
 const short = (s: string) => {
   const v = visibleText(s);
   return v.length > 32 ? `${v.slice(0, 31)}…` : v;
@@ -77,7 +126,7 @@ export const MAX_PLAY_STEPS = 40;
  * light when the clock jumps. Every step comes from the run's own trace; the test gives only the words of a scripted
  * answer.
  */
-export function playScript(run: Run, test: CallTest, tested: string | null, waitParts: readonly string[] = []): Script {
+export function playScript(run: Run, test: CallTest, tested: string | null, waitParts: readonly string[] = [], wiring?: Wiring): Script {
   const tl = timelineModel(run);
   const empty: Script = { notShown: tl.notShown, steps: [], totals: {}, dialEndMs: null, ending: null };
   if (tl.notShown !== null) return empty;
@@ -96,13 +145,16 @@ export function playScript(run: Run, test: CallTest, tested: string | null, wait
       if (c.answer === "no_answer_seen") said = "no answer before Atlas stopped watching";
       else if (net) {
         const step = networkStepFor(net, c.n);
-        said = step ? networkStepWords(step, canonicalJson) : "throws AtlasStandInExhausted (no scripted answer left)";
+        said = step ? networkStepWords(step, (v) => literal(v, wiring?.language)) : "fails: no answer is scripted for this call";
         if (step?.do === "never_answer" && c.answer === "threw") said = `never answers; the code gave up${c.errorName ? ` (${c.errorName})` : ""}`;
       } else {
         const step = scripted ? (c.n <= scripted.calls.length ? scripted.calls[c.n - 1] : scripted.then === "repeat_last" ? scripted.calls[scripted.calls.length - 1] : undefined) : undefined;
-        said = stepText(step);
+        said = stepText(step, wiring?.language);
       }
-      calls.push({ at: c.t, kind: "call", device: id, line: tested ? `${tested}=>${id}` : null, parts: tested ? [tested] : [], call: c.n, words: `${lane.name} call ${c.n}: ${short(said).length < said.length ? said.slice(0, 60) : said}` });
+      // U3: every part certainly on the call's path lights, and only the cables the code has; what plain code cannot
+      // tell (which of two callers made it) is said, not guessed.
+      const path = callPath(wiring, tested, id);
+      calls.push({ at: c.t, kind: "call", device: id, line: path.lines.length ? path.lines.join("\n") : null, parts: path.parts, call: c.n, words: `${lane.name} call ${c.n}: ${short(said).length < said.length ? said.slice(0, 60) : said}${path.unsure ? ` (${path.unsure})` : ""}` });
     }
     const n = Number(measured[`calls:${lane.name}`]);
     totals[id] = `${n.toLocaleString("en-US")} ${n === 1 ? "call" : "calls"}`;
@@ -126,22 +178,47 @@ export function playScript(run: Run, test: CallTest, tested: string | null, wait
     .map((t) => {
       const dev = answeredBy.get(t);
       return dev
-        ? { at: t, kind: "wait" as const, device: dev.device, line: tested ? `${tested}=>${dev.device}` : null, parts: [], call: 0, words: dev.words }
-        : { at: t, kind: "wait" as const, device: null, line: null, parts: waitParts.length ? [...waitParts] : tested ? [tested] : [], call: 0, words: `waits until ${t.toLocaleString("en-US")} ms` };
+        ? (() => {
+            const path = callPath(wiring, tested, dev.device);
+            return { at: t, kind: "wait" as const, device: dev.device, line: path.lines.length ? path.lines.join("\n") : null, parts: path.parts, call: 0, words: dev.words };
+          })()
+        : { at: t, kind: "wait" as const, device: null, line: null, parts: waitPath(wiring, tested, waitParts), call: 0, words: `waits until ${t.toLocaleString("en-US")} ms` };
     });
   const room = Math.max(0, MAX_PLAY_STEPS - calls.length);
   if (waits.length > room) {
     const k = Math.ceil(waits.length / Math.max(1, room));
     waits = waits.filter((_, i) => i % k === k - 1 || i === waits.length - 1).slice(-Math.max(1, room));
   }
-  const steps = [...calls, ...waits].sort((a, b) => a.at - b.at || (a.kind === b.kind ? a.call - b.call : a.kind === "wait" ? -1 : 1));
+  // U3: a sequence's own moments: each call starting, and how each earlier call ended (from the run's trace).
+  const turns: PlayStep[] = [];
+  const total = (run.trace ?? []).find((e) => e.event === "start")?.data as { calls?: unknown } | undefined;
+  const nCalls = typeof total?.calls === "number" ? total.calls : 0;
+  if (nCalls > 1) {
+    for (const e of run.trace ?? []) {
+      const d = (e.data ?? {}) as { n?: unknown; exportName?: unknown; type?: unknown; json?: unknown; name?: unknown };
+      if (typeof d.n !== "number") continue;
+      const fn = typeof d.exportName === "string" ? d.exportName : tested;
+      const parts = fn ? callPath(wiring, fn, null).parts : [];
+      if (e.event === "call_start") turns.push({ at: e.t, kind: "turn", device: null, line: null, parts, call: d.n, words: `Atlas makes call ${d.n} of ${nCalls}${fn ? `: ${fn}` : ""}` });
+      else if (e.event === "call_returned") turns.push({ at: e.t, kind: "turn", device: null, line: null, parts: [], call: d.n, words: `call ${d.n} returned${typeof d.json === "string" ? ` ${short(literalOfJsonText(d.json, wiring?.language))}` : ` a ${String(d.type)}`}` });
+      else if (e.event === "call_threw") turns.push({ at: e.t, kind: "turn", device: null, line: null, parts: [], call: d.n, words: `call ${d.n} threw${typeof d.name === "string" ? ` ${visibleText(d.name)}` : ` a ${String(d.type)}`}; Atlas makes the next call` });
+    }
+  }
+  // A clock jump that ends exactly when Atlas starts the next call is Atlas's own wait between calls, not the code's.
+  const startTimes = new Set(turns.filter((t) => t.words.startsWith("Atlas makes") && (test.calls?.[t.call - 1]?.waitMs ?? 0) > 0).map((t) => t.at));
+  for (const t of turns) if (t.words.startsWith("Atlas makes") && (test.calls?.[t.call - 1]?.waitMs ?? 0) > 0) t.words += ` (after Atlas's scripted wait of ${test.calls![t.call - 1]!.waitMs!.toLocaleString("en-US")} ms)`;
+  if (startTimes.size) waits = waits.filter((w) => !(startTimes.has(w.at) && w.device === null));
+  const kindOrder = { turn: 0, wait: 1, call: 2, end: 3 } as const;
+  const steps = [...turns, ...calls, ...waits].sort((a, b) => a.at - b.at || (a.kind === b.kind ? a.call - b.call : kindOrder[a.kind] - kindOrder[b.kind]));
   const outcome = has("outcome") ? measured.outcome : null;
   const atLimit = outcome === "still_running_at_watch_limit" && tl.end?.kind === "still_running";
-  const dialEndMs = has("virtualMs") && typeof measured.virtualMs === "number" ? measured.virtualMs : atLimit && tl.end && "t" in tl.end ? tl.end.t : null;
+  // U3: in a sequence the measured time is the last call's own; the dial shows the whole run's clock, so it adds the
+  // moment the last call started.
+  const dialEndMs = has("virtualMs") && typeof measured.virtualMs === "number" ? measured.virtualMs + lastCallStartOf(run) : atLimit && tl.end && "t" in tl.end ? tl.end.t : null;
   let ending = has("outcome") ? tl.readout : null;
   if (ending && outcome === "threw") {
     const w = thrownWords(run);
-    if (w) ending = `threw ${w}${typeof measured.virtualMs === "number" ? ` at ${measured.virtualMs.toLocaleString("en-US")} ms` : ""}`;
+    if (w) ending = `threw ${w}${typeof measured.virtualMs === "number" ? ` at ${(measured.virtualMs + lastCallStartOf(run)).toLocaleString("en-US")} ms` : ""}`;
   }
   if (ending !== null) steps.push({ at: dialEndMs ?? steps[steps.length - 1]?.at ?? 0, kind: "end", device: null, line: null, parts: tested ? [tested] : [], call: 0, words: ending });
   return { notShown: null, steps, totals, dialEndMs, ending, ...(atLimit ? { atLimit: true } : {}) };
@@ -174,7 +251,7 @@ export function anchorOf(measures: string, tested: string | null): string {
 }
 
 /** One mark per quiz question: the measured option, and each bettor's pick and verdict (plain code's). */
-export function marksOf(questions: readonly Question[], bets: readonly Bet[], verdicts: readonly Verdict[], run: Run, tested: string | null): Mark[] {
+export function marksOf(questions: readonly Question[], bets: readonly Bet[], verdicts: readonly Verdict[], run: Run, tested: string | null, language?: "js" | "ts" | "py"): Mark[] {
   // Review M3: a run that may not be shown as fact states no value on any mark.
   const notShown = notShownAsFact(run);
   return questions.map((q) => {
@@ -183,7 +260,11 @@ export function marksOf(questions: readonly Question[], bets: readonly Bet[], ve
     const holder = observed !== undefined && run.controlPassed === true && q.quiz ? optionHolding(q.quiz, q.unit, observed) : null;
     let measured = notShown !== null ? `can't check: ${notShown}` : run.controlPassed !== true ? "can't check: the run is not trusted" : observed === undefined ? `can't check: ${why ?? "not measured"}` : holder ? holder.label : String(observed);
     // U2: "another value" says which value ("[2,4,6] (another value)").
-    if (notShown === null && holder && holder.match.kind === "json-other" && typeof observed === "string") measured = `${visibleText(observed).length > 60 ? `${visibleText(observed).slice(0, 59)}…` : visibleText(observed)} (${holder.label})`;
+    if (notShown === null && holder && holder.match.kind === "json-other" && typeof observed === "string") {
+      // U3: the value as the code's language writes it (display only; the judge compared the JSON text).
+      const v = visibleText(literalOfJsonText(observed, language));
+      measured = `${v.length > 60 ? `${v.slice(0, 59)}…` : v} (${holder.label})`;
+    }
     // U2: a count or a time says its own number too, then the option that holds it ("4 times: 2 or more times").
     if (notShown === null && holder && typeof observed === "number" && (q.unit === "count" || q.unit === "ms")) {
       const said = q.unit === "count" ? `${observed.toLocaleString("en-US")} ${observed === 1 ? "time" : "times"}` : `${observed.toLocaleString("en-US")} ms`;
@@ -196,14 +277,16 @@ export function marksOf(questions: readonly Question[], bets: readonly Bet[], ve
     }
     // U2: a call still running at the watch limit took longer than the limit.
     if (notShown === null && q.measures === "virtualMs" && observed === undefined && run.result.measured.outcome === "still_running_at_watch_limit") {
-      const w = watchLimitOf(run);
+      const limit = watchLimitOf(run);
+      const w = limit === null ? null : limit - lastCallStartOf(run);
       if (w !== null) measured = `more than ${w.toLocaleString("en-US")} ms (still running when Atlas stopped watching)`;
     }
     const picks = bets
       .filter((b) => b.measures === q.measures)
       .map((b) => {
         const v = verdicts.find((x) => x.betId === b.id);
-        const pick = b.answer.kind === "quiz" ? quizChoiceLabel(b.answer.options, b.answer.choice) : b.answer.kind === "declined" ? CANT_TELL : "an answer";
+        // U3: a typed returned value reads as the code's language writes it.
+        const pick = b.answer.kind === "quiz" ? quizChoiceLabel(b.answer.options, b.answer.choice) : b.answer.kind === "declined" ? CANT_TELL : b.answer.kind === "json" ? `typed ${clip(literal(b.answer.value, language))}` : "an answer";
         return { who: b.who, name: b.who === "human" ? "You" : modelDisplay(b.who.slice(6)), pick, outcome: v?.outcome ?? "cant_check", ...(v?.reason ? { reason: v.reason } : {}) };
       })
       .sort((a, b) => (a.who === "human" ? -1 : b.who === "human" ? 1 : a.who < b.who ? -1 : 1));

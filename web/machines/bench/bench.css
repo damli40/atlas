@@ -195,3 +195,44 @@
 .u1-pins[data-beside]{transform:translate(12px,-50%);align-items:flex-start}
 /* U2: while the bet pop-up is open, the corner readout under it steps aside */
 .u1-root[data-pop] [data-corner="readout"]{visibility:hidden}
+/* U3 item 4: the typed returned value (a code font), and the folded "How Atlas runs it". */
+.u1-typed{display:grid;gap:4px;margin-top:8px}
+.u1-typed label{font-size:12.5px;color:var(--anatomy-text)}
+.u1-typed-in{width:100%;padding:6px 10px;border-radius:8px;border:1px solid var(--anatomy-lo);background:var(--anatomy-page);color:var(--anatomy-strong);font:13px/1.4 var(--anatomy-mono,ui-monospace,"SF Mono",Menlo,Consolas,monospace)}
+.u1-typed-in:focus-visible{outline:2px solid var(--anatomy-strong);outline-offset:2px}
+.u1-typed .u1-sub{margin:0}
+.u1-how .u1-explain{margin-top:6px}
+/* U3 item 7: the paste box is code, so it is set in a code font even where the drawing's tokens are not loaded. */
+.u1-entry .u1-code,.u1-entry .u1-code::placeholder{font-family:var(--anatomy-mono,ui-monospace,"SF Mono",Menlo,Consolas,monospace)}
+/* U3 items 5-7 */
+.u1-linkrow{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;margin-top:10px}
+.u1-wait{display:grid;gap:6px;margin:4px 0 8px}
+.u1-wait .u1-status,.u1-wait .u1-sub{margin:0}
+.u1-wait .u1-btn{justify-self:start;margin-top:4px}
+.u1-claim-tested{margin:0 0 6px;font-style:italic}
+.u1-claimfacts{margin-top:14px;padding-top:12px;border-top:1px solid var(--anatomy-faint)}
+.u1-claimfacts h3{margin:0 0 8px;font-size:14px;color:var(--anatomy-strong)}
+.u1-claimfacts-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.u1-claimfacts-cols q{display:block;color:var(--anatomy-strong);overflow-wrap:anywhere}
+.u1-claimfacts ul{margin:0;padding-left:16px;display:grid;gap:4px;font-size:12.5px;overflow-wrap:anywhere}
+.u1-claimfacts p{margin:0 0 4px}
+@media (max-width:640px){.u1-claimfacts-cols{grid-template-columns:1fr}}
+/* U3 item 4: the quiz fits a 1366×768 screen: a wider, taller pop-up, tighter options, the test sentence clamped to
+   three lines (with "show the whole test"), the typed value on one row, and the seal bar pinned to the bottom. */
+.u1-pop{width:min(580px,calc(100vw - 32px));max-height:calc(100vh - 128px);padding:14px 16px 0}
+@media (min-width:701px){.u1-root[data-side] .u1-pan{right:min(600px,44%)}}
+.u1-test-clamp{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.u1-pop .u1-test{font-size:13.5px;line-height:1.45}
+.u1-testrow{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:2px 0 0}
+.u1-quiz{margin:10px 0;gap:10px}
+.u1-pop .u1-q{margin:0 0 4px;font-size:13.5px}
+.u1-opts{gap:5px}
+/* (.u1-shell button/input set font: inherit, which outranks a single class: these rules use two) */
+.u1-pop .u1-opt{padding:3px 10px;font-size:12.5px;line-height:1.35}
+.u1-typed{grid-template-columns:auto minmax(0,1fr);align-items:center;gap:4px 8px;margin-top:6px}
+.u1-typed .u1-sub{grid-column:1 / -1}
+.u1-typed .u1-typed-in{padding:4px 8px;font:12.5px/1.4 var(--anatomy-mono,ui-monospace,"SF Mono",Menlo,Consolas,monospace)}
+.u1-sealbar{position:sticky;bottom:0;display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 -16px;padding:10px 16px 12px;background:var(--anatomy-card);border-top:1px solid var(--anatomy-faint);z-index:1}
+.u1-sealbar .u1-sub{margin:0;font-size:12px}
+.u1-pop > :last-child:not(.u1-sealbar){margin-bottom:14px}
+.u1-typed .u1-sub:empty{display:none}

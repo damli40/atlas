@@ -193,7 +193,8 @@ export interface AnswerProblem {
 function checkAnswer(q: Question, a: BetAnswer): AnswerProblem | undefined {
   const on = `bet on "${q.measures}"`;
   if (a.kind === "declined") return undefined;
-  if (a.kind !== q.kind) return { full: `${on} must be kind "${q.kind}" (or "declined"); got "${a.kind}"`, safe: `${on}: the answer is not of the question's kind` };
+  // U3 item 4: a quiz question on the returned value also takes a typed value (a json answer), as for the person.
+  if (a.kind !== q.kind && !(a.kind === "json" && q.kind === "quiz" && q.allowsTyped === true)) return { full: `${on} must be kind "${q.kind}" (or "declined"); got "${a.kind}"`, safe: `${on}: the answer is not of the question's kind` };
   switch (a.kind) {
     case "integer":
       if (!Number.isSafeInteger(a.value) || a.value < 0) return { full: `${on} must be a whole number of 0 or more; got ${a.value}`, safe: `${on}: ${q.measures} must be a whole number` };

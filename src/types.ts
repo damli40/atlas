@@ -117,6 +117,14 @@ export type ExperimentShape =
        * calls are counted like a stand-in's, as `calls:<replaces>`.
        */
       network?: NetworkFake;
+      /**
+       * U3: two or three calls on the SAME loaded file, in order (state such as a cache carries over; nothing is reset
+       * between them). The last entry must be exactly exportName + args, the call the questions are about. Atlas makes
+       * each call after the previous one returned or threw (a throw is noted and the next call is still made), after the
+       * entry's `waitMs` of virtual time. Stand-in and network counts are totals over every call; the time asked about
+       * is the last call's own.
+       */
+      calls?: SequenceCall[];
     }
   // EVM runner
   | { shape: "price-read"; markets: string[] }                                   // read getUnderlyingPrice at the fork block
@@ -138,6 +146,12 @@ export type ArgSpec =
       /** After the last step: do the last step again, or throw (AtlasStandInExhausted). */
       then: "repeat_last" | "throw_exhausted";
     };
+/** U3: one call of a sequence. `waitMs`: virtual ms Atlas waits before making this call (not on the first call). */
+export interface SequenceCall {
+  exportName: string;
+  args: ArgSpec[];
+  waitMs?: number;
+}
 /** U2 (D53): the network library a fake replaces. */
 export type NetworkLibrary = "fetch" | "requests" | "urllib" | "httpx";
 /** U2 (D53): a scripted fake network. Same contract as a stand-in: steps in call order, then repeat_last or throw_exhausted. */
@@ -305,6 +319,8 @@ export interface AtlasRules {
   conditions: "r2";
   /** U2 (D53): timing options of a call still running at the watch limit are judged as "more than the limit". */
   watchLimit?: "u2";
+  /** U3: call sentences and quiz options write values in the code's own language (Python's True, not true). */
+  literals?: "u3";
 }
 
 export interface AtlasFile {
