@@ -128,7 +128,7 @@ export function outlineChart(input: OutlineChartInput): RenderSpec {
     if (j.status === "model-only") {
       edges.push({ id: `join:${j.id}`, from: `part:${j.from}`, to: `part:${j.to}`, words: "Wonder says so; plain code could not check it", kind: "dashed-note", provenance: "wonder-words" });
     } else {
-      const words = j.typeOnly ? "types only" : j.kind === "data" ? "shares data" : j.kind;
+      const words = j.typeOnly ? "types only" : j.kind === "data" ? "shares data, direction not checked" : j.kind;
       edges.push({ id: `join:${j.id}`, from: `part:${j.from}`, to: `part:${j.to}`, words, kind: "thread", provenance: "plain-code" });
     }
   }

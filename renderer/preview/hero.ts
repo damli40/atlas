@@ -42,7 +42,7 @@ h1{margin:0;font-weight:400;font-size:clamp(38px,3.7vw,68px);letter-spacing:.012
 .tag span{position:relative;padding:0 22px;line-height:56px;white-space:nowrap}
 .tag:hover,.tag:focus-visible{transform:translateY(-3px) rotate(-.5deg)}
 .tag:focus-visible span{text-decoration:underline;text-underline-offset:4px}
-.tag.chosen{transform:none}
+.tag.chosen{transition:transform .42s cubic-bezier(.5,.05,.2,1)}
 .tag.gone{opacity:0;pointer-events:none}
 .tag-pin{visibility:hidden}
 .tag.chosen .tag-pin{visibility:visible}
@@ -55,7 +55,7 @@ h1{margin:0;font-weight:400;font-size:clamp(38px,3.7vw,68px);letter-spacing:.012
 #structure{left:39vw;top:6vh;width:58vw;height:88vh}
 #path{left:44vw;top:2.5vh;width:53vw;height:95vh;opacity:0;pointer-events:none}
 #hero[data-stage="run"] #path,#hero[data-stage="verdict"] #path{opacity:1;pointer-events:auto}
-#hero[data-stage="run"] #structure,#hero[data-stage="verdict"] #structure{transform:translate(-33vw,44vh) scale(.5);pointer-events:none}
+#hero[data-stage="run"] #structure,#hero[data-stage="verdict"] #structure{transform:translate(-37.6vw,44vh) scale(.5);pointer-events:none}
 #hero[data-stage="run"] #structure .rr-captions,#hero[data-stage="verdict"] #structure .rr-captions{opacity:0;transition:opacity .4s}
 .foot{position:absolute;left:clamp(24px,5vw,96px);bottom:clamp(10px,2.4vh,24px);margin:0;font-style:italic;font-size:14px;color:var(--rr-soft);opacity:0;transition:opacity .6s;z-index:3;max-width:min(560px,calc(100vw - 48px))}
 #hero[data-stage="verdict"] .foot{opacity:1}
@@ -66,9 +66,11 @@ h1{margin:0;font-weight:400;font-size:clamp(38px,3.7vw,68px);letter-spacing:.012
 .bet{margin-top:16px}.verdict{margin-top:12px}
 #structure{left:0;top:178px;width:100vw;height:calc(100vh - 178px)}
 #hero[data-stage="bet"] #structure{transform:translateY(calc(100vh - 460px)) scale(.62);transform-origin:50% 0}
-#path{left:0;top:150px;width:100vw;height:calc(100vh - 150px)}
+#path{left:0;width:100vw}
 #hero[data-stage="run"] #structure,#hero[data-stage="verdict"] #structure{transform:none;opacity:0}
-#hero[data-stage="verdict"] #path{top:230px;height:calc(100vh - 230px)}
+#hero[data-stage="run"] .bet{display:none}
+#path{top:128px;height:calc(100vh - 128px)}
+#hero[data-stage="verdict"] #path{top:206px;height:calc(100vh - 206px)}
 .opts{gap:6px 8px}.tag{font-size:16px;height:46px}.tag span{line-height:46px;padding:0 14px}
 .again{margin-top:6px;font-size:16px}
 .foot{display:none}
@@ -85,7 +87,8 @@ const $ = (id: string) => document.getElementById(id)!;
 const paper = $("paper");
 paper.innerHTML = `${paperTile("hero", "hero-paper")}<rect class="rr-sheet" width="100%" height="100%"/><rect width="100%" height="100%" fill="url(#hero-paper)"/>`;
 
-const betDrawn = drawSpec(hero.bet);
+const narrow = innerWidth < 760;
+const betDrawn = drawSpec(hero.bet, { narrow });
 const structure: Mounted = mountDrawing($("structure"), betDrawn, hero.bet, { theme, maxScale: 1.2, pan: false, ...(reducedMotion ? { reducedMotion } : {}) });
 $("structure").style.touchAction = "manipulation";
 let pathMount: Mounted | null = null;
@@ -139,6 +142,12 @@ async function choose(id: string) {
     el.classList.toggle("chosen", el.dataset.option === id);
     el.classList.toggle("gone", el.dataset.option !== id);
     el.disabled = true;
+    if (el.dataset.option === id) {
+      // The kept answer slides to the head of the row, under the question.
+      const a = $("opts").getBoundingClientRect();
+      const r = el.getBoundingClientRect();
+      el.style.transform = `translate(${a.left - r.left}px,${a.top - r.top}px)`;
+    }
   }
   const choice = hero.byOption[id]!;
   $("bet").classList.add("sealed");
@@ -149,11 +158,12 @@ async function choose(id: string) {
 async function playRun(id: string, choice: HeroData["byOption"][string]) {
   $("sub").textContent = "what happened, step by step. Every line is measured.";
   main.dataset.stage = "run";
-  const drawn = drawSpec(choice.spec);
+  const drawn = drawSpec(choice.spec, { narrow });
   pathMount = mountDrawing($("path"), drawn, choice.spec, {
     theme,
     maxScale: 1.1,
     minScale: 0.66,
+    hover: false,
     onStep: (s: SpecStep) => {
       if (s.device === "clock") void structure.player?.sweep(CLOCK_NODE, s.ms);
       else if (s.device) void structure.player?.flash(deviceNodeId(s.device), 700);
@@ -194,6 +204,7 @@ $("again").addEventListener("click", () => {
   $("bet").classList.remove("sealed");
   for (const el of $("opts").querySelectorAll<HTMLButtonElement>(".tag")) {
     el.classList.remove("chosen", "gone");
+    el.style.transform = "";
     el.disabled = false;
   }
   structure.player?.resume();

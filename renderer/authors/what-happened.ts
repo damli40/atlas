@@ -125,7 +125,7 @@ export function pathItems(input: WhatHappenedInput): { items: PathItem[]; notes:
       const name = str(own(measured, "thrownName")) ?? str(own(measured, "thrown"))?.split(":")[0] ?? null;
       return { kind: "end", words: `threw${name ? ` ${clip(name, 36)}` : ""}${at}`, t: v, good: false };
     }
-    if (outcome === "never_settled" || outcome === "pending") return { kind: "end", words: "never finished: nothing was left to wake it", t: null, good: false };
+    if (outcome === "never_settled" || outcome === "pending") return { kind: "end", words: "still waiting when Atlas stopped: nothing was left to wake it", t: null, good: false };
     if (outcome === "still_running_at_watch_limit" || outcome === "stopped") return { kind: "end", words: "still running when Atlas stopped watching", t: null, good: false };
     return { kind: "stop", words: `Atlas can't say how it ended: ${str(own(notMeasured, "outcome")) ?? "the run recorded no ending"}` };
   };
@@ -410,6 +410,6 @@ export function retryDemo(input: Omit<WhatHappenedInput, "preExisting" | "title"
     ...input,
     title: "withRpcRetry",
     kicker: "the retry demo",
-    preExisting: input.preExisting ?? "Pre-existing: withRpcRetry was written before the hackathon (listed in PRE-EXISTING.md). Atlas checks it; it is not part of Atlas. This run replays from a saved file.",
+    preExisting: `${input.preExisting ?? "Pre-existing: withRpcRetry was written before the hackathon (listed in PRE-EXISTING.md). Atlas checks it; it is not part of Atlas. This run replays from a saved file."}${input.run.result?.measured?.outcome === "pending" || input.run.result?.measured?.outcome === "never_settled" ? " In production, viem's 10 s default caps this at about 62 s." : ""}`,
   });
 }

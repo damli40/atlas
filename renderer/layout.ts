@@ -59,7 +59,9 @@ function measureNode(n: SpecNode): Measured {
   if (n.kind === "clock") return { node: n, w: (tw + CLOCK_R + 16) * 2, h: Math.max(CLOCK_R * 2 + 8, lines.length * LINE.node + 8), face: "regular", size: TYPE.node, lines };
   if (n.kind === "device") return { node: n, w: tw + 84, h: lines.length * LINE.node + 44, face: "regular", size: TYPE.node, lines };
   if (n.kind === "deck") return { node: n, w: tw + 66, h: lines.length * LINE.node + 46, face: "regular", size: TYPE.node, lines };
-  return { node: n, w: Math.max(150, tw + 64), h: lines.length * LINE.node + 54, face: "regular", size: TYPE.node, lines };
+  // The tiny red words sit left of the pin, so a ticket is wide enough for them to clear it.
+  const smallW = n.small ? textWidth(cleanWords(n.small).slice(0, 40), TYPE.small, "regular") : 0;
+  return { node: n, w: Math.max(150, tw + 64, Math.min(320, (smallW + 11 + 16) * 2)), h: lines.length * LINE.node + 54, face: "regular", size: TYPE.node, lines };
 }
 
 const ATTR = (tag: string, name: string): string | undefined => new RegExp(`\\s${name}="([^"]*)"`).exec(tag)?.[1];
@@ -154,8 +156,14 @@ function shiftBlock(b: TextBlock, dx: number, dy: number) {
   b.box = { x0: b.box.x0 + dx, x1: b.box.x1 + dx, y0: b.box.y0 + dy, y1: b.box.y1 + dy };
 }
 
+export interface LayoutOptions {
+  /** A phone: the title sits above the chart, smaller, and words beside things wrap sooner. */
+  narrow?: boolean;
+}
+
 /** Lays a valid spec out. Throws OverBudget past the limits, or if pele's output cannot be read completely. */
-export function layOut(spec: RenderSpec): Scene {
+export function layOut(spec: RenderSpec, o: LayoutOptions = {}): Scene {
+  const narrow = o.narrow === true;
   if (spec.nodes.length > LAYOUT_LIMITS.nodes) throw new OverBudget(`${spec.nodes.length} parts is more than the drawing's limit of ${LAYOUT_LIMITS.nodes}`);
   if (spec.edges.length > LAYOUT_LIMITS.edges) throw new OverBudget(`${spec.edges.length} lines is more than the drawing's limit of ${LAYOUT_LIMITS.edges}`);
   let work = 0;
@@ -289,7 +297,7 @@ export function layOut(spec: RenderSpec): Scene {
       textX = cx - 11;
     }
     const text = block("node", m.face, m.size, m.lines, textX, top, lh, n.id, align);
-    const small = n.small && n.kind === "ticket" ? block("small", "regular", TYPE.small, [wrapWords(cleanWords(n.small), box.x1 - box.x0 - 30, TYPE.small, "regular", 1)[0]!], box.x0 + 11, box.y0 + 3, 14, n.id) : null;
+    const small = n.small && n.kind === "ticket" ? block("small", "regular", TYPE.small, [wrapWords(cleanWords(n.small), (box.x1 - box.x0) / 2 - 11 - 13, TYPE.small, "regular", 1)[0]!], box.x0 + 11, box.y0 + 3, 14, n.id) : null;
     const sourceWords = (n.sourceLines ?? []).map((s) => `${s.path ? `${cleanWords(s.path)} ` : ""}line${s.lineEnd > s.lineStart ? "s" : ""} ${s.lineStart}${s.lineEnd > s.lineStart ? `-${s.lineEnd}` : ""}`).join(", ");
     return {
       id: n.id,
@@ -460,7 +468,7 @@ export function layOut(spec: RenderSpec): Scene {
   const marks: SceneMark[] = spec.marks.map((m) => {
     const node = nodeById.get(m.on)!;
     const text = cleanWords(`${m.who}${m.words ? `${m.kind === "cant-check" ? ": " : " "}${m.words}` : ""}`);
-    const lines = wrapWords(text, 300, TYPE.mark, "italic", 6);
+    const lines = wrapWords(text, narrow ? 150 : 300, TYPE.mark, "italic", narrow ? 8 : 6);
     const w = Math.max(...lines.map((l) => textWidth(l, TYPE.mark, "italic")));
     const h = lines.length * LINE.mark;
     const cy = (node.box.y0 + node.box.y1) / 2 - h / 2;
@@ -507,9 +515,10 @@ export function layOut(spec: RenderSpec): Scene {
   }
   const chartW = x1 - x0;
   const kicker = spec.kicker ? block("kicker", "regular", TYPE.kicker, [wrapWords(cleanWords(spec.kicker), 520, TYPE.kicker, "regular", 1)[0]!], 0, 0, 24) : null;
-  const titleLines = spec.title ? wrapWords(cleanWords(spec.title), 640, TYPE.title, "regular", 2) : [];
-  const title = titleLines.length ? block("title", "regular", TYPE.title, titleLines, 0, 0, 78) : null;
-  const subtitle = spec.subtitle ? block("subtitle", "italic", TYPE.subtitle, wrapWords(cleanWords(spec.subtitle), 620, TYPE.subtitle, "italic", 2), 0, 0, 30) : null;
+  const titleSize = narrow ? 44 : TYPE.title;
+  const titleLines = spec.title ? wrapWords(cleanWords(spec.title), narrow ? Math.max(340, chartW) : 640, titleSize, "regular", 2) : [];
+  const title = titleLines.length ? block("title", "regular", titleSize, titleLines, 0, 0, titleSize * 1.18) : null;
+  const subtitle = spec.subtitle ? block("subtitle", "italic", TYPE.subtitle, wrapWords(cleanWords(spec.subtitle), narrow ? Math.max(340, chartW) : 620, TYPE.subtitle, "italic", 3), 0, 0, 30) : null;
   const stack = [kicker, title, subtitle].filter((b): b is TextBlock => b !== null);
   let stackH = 0;
   let stackW = 0;
@@ -525,7 +534,10 @@ export function layOut(spec: RenderSpec): Scene {
   let originY = y0;
   if (stack.length > 0) {
     const tryAt = { x0: x0, y0: y0, x1: x0 + stackW, y1: y0 + stackH };
-    if (free(tryAt)) {
+    if (narrow) {
+      originX = x0;
+      originY = y0 - stackH - 26;
+    } else if (free(tryAt)) {
       originX = x0;
     } else {
       const beside = { x0: x0 - stackW - 56, y0, x1: x0 - 56, y1: y0 + stackH };
@@ -542,7 +554,7 @@ export function layOut(spec: RenderSpec): Scene {
   }
   const captions: TextBlock[] = [];
   let capY = y1 + 26;
-  const capW = Math.max(460, Math.min(x1 - x0, 880));
+  const capW = narrow ? Math.max(340, x1 - x0) : Math.max(460, Math.min(x1 - x0, 880));
   for (const c of spec.captions) {
     const lines = wrapWords(cleanWords(c.words), capW, TYPE.caption, "italic", 5);
     const b = block("caption", "italic", TYPE.caption, lines, x0, capY, LINE.caption);

@@ -18,6 +18,8 @@ export interface MountOptions extends PlayerOptions {
   minScale?: number;
   onSelect?: (nodeId: string) => void;
   pan?: boolean;
+  /** Hovering a part quiets what it is not joined to. Off while a drawing is telling a story. */
+  hover?: boolean;
 }
 
 export interface Mounted {
@@ -56,8 +58,8 @@ export function mountDrawing(host: HTMLElement, drawn: Drawn, spec: RenderSpec, 
     const contain = Math.min(W / scene.width, H / scene.height);
     const k = Math.min(o.maxScale ?? 1.15, Math.max(contain, Math.min(o.minScale ?? 0.62, W / Math.min(scene.width, 500))));
     state.k = k;
-    // Centre what fits; start at the top of what doesn't.
-    state.x = (scene.width - W / k) / 2;
+    // Centre what fits; start at the top left of what doesn't, where the title is.
+    state.x = scene.width * k <= W ? (scene.width - W / k) / 2 : 0;
     state.y = scene.height * k <= H ? (scene.height - H / k) / 2 : 0;
     apply();
   };
@@ -89,6 +91,7 @@ export function mountDrawing(host: HTMLElement, drawn: Drawn, spec: RenderSpec, 
   };
   const nodeOf = (t: EventTarget | null) => (t as Element | null)?.closest?.("[data-node]") as SVGGElement | null;
   on(host, "pointerover", (e) => {
+    if (o.hover === false || e.pointerType !== "mouse") return;
     const n = nodeOf(e.target);
     near(n ? idFromAttr(n.dataset.node!) : null);
   });

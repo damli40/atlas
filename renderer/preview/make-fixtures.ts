@@ -1,6 +1,6 @@
 // R3: records the fetch-with-retry run the preview and the hero use, with Atlas's own local runner. No model is asked.
 // The code is the same file the U2 walkthrough used; the fake network is a test Atlas would offer (fails twice, then 200).
-//   npx tsx renderer/preview/make-fixtures.ts
+//   npx tsx renderer/preview/make-fixtures.ts [--record]
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -18,13 +18,15 @@ const experiment = (id: string, calls: NonNullable<Extract<Experiment["params"],
   proposedBy: { role: "human" },
   gate: { allowed: true },
 });
-const ctl = (await runCallControl()).run;
+// The recorded runs stay as they are (their ids are random); pass --record to run them again.
+const recording = process.argv.includes("--record");
+const ctl = recording ? (await runCallControl()).run : null;
 const cases: [string, Experiment][] = [
   ["fails-twice-then-200", experiment("r3-fails-twice", [{ do: "respond", status: 503, body: { error: "busy" } }, { do: "respond", status: 503, body: { error: "busy" } }, { do: "respond", status: 200, body: { price: 42 } }])],
   ["always-500", experiment("r3-always-500", [{ do: "respond", status: 500, body: {} }])],
 ];
-for (const [name, exp] of cases) {
-  const run = await runCallExperiment(exp, ctl);
+for (const [name, exp] of recording ? cases : []) {
+  const run = await runCallExperiment(exp, ctl!);
   writeFileSync(join(dir, `fetch-with-retry.${name}.run.json`), JSON.stringify({ experiment: exp, run }, null, 1) + "\n");
   console.log(name, JSON.stringify(run.result.measured), JSON.stringify(run.result.notMeasured), run.trace.map((e) => `${e.t}:${e.event}`).join(" "));
 }

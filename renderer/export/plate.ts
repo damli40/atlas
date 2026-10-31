@@ -171,7 +171,17 @@ export async function drawPlate(spec: RenderSpec, o: PlateOptions): Promise<Scen
     const b = n.box;
     const cx = mm((b.x0 + b.x1) / 2);
     const cy = mm((b.y0 + b.y1) / 2);
-    if (m.kind === "didnt-match") P.outline([D.ell(cx, cy, mm((b.x1 - b.x0) / 2 + 30), mm((b.y1 - b.y0) / 2 + 26))], { nib: 0.44, color: "#b93a30" });
+    const ring = (extra: number): Pt[] => {
+      const rx = mm((b.x1 - b.x0) / 2 + 17 + extra);
+      const ry = mm((b.y1 - b.y0) / 2 + 17 + extra);
+      const sg = (v: number) => Math.sign(v) * Math.abs(v) ** 0.66;
+      return Array.from({ length: 72 }, (_, i) => [cx + sg(Math.cos((i / 72) * Math.PI * 2)) * rx, cy + sg(Math.sin((i / 72) * Math.PI * 2)) * ry] as Pt);
+    };
+    if (m.kind === "didnt-match") P.outline([ring(0)], { nib: 0.44, color: "#b93a30" });
+    if (m.kind === "cant-check") {
+      const d = resample([...ring(9), ring(9)[0]!], 1.5);
+      for (let i = 0; i + 1 < d.length; i += 2) P.ink([d[i], d[i + 1]], { nib: 0.16, color: "#5d5650" });
+    }
     if (m.kind === "matched") P.ink([[mm(b.x1) - 1.6, mm(b.y0) + 0.4], [mm(b.x1) - 0.6, mm(b.y0) + 1.8], [mm(b.x1) + 2.2, mm(b.y0) - 2.2]], { nib: 0.5, color: "#5f8fb0" });
     words(P, Lt, m.words, m.kind === "didnt-match" ? RED : INK);
   }

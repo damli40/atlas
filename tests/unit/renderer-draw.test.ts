@@ -156,3 +156,17 @@ describe("R3 words", () => {
     for (const l of wrapWords("x".repeat(300), 100, 18, "regular", 3)) expect(textWidth(l, 18, "regular")).toBeLessThanOrEqual(100);
   });
 });
+
+describe("R3 the pencil export (Node only, optional)", () => {
+  it("draws a saved spec to a PNG, and refuses a spec that may not be drawn", async () => {
+    const { drawPlate } = await import("../../renderer/export/plate");
+    const { mkdtempSync, statSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const out = join(mkdtempSync(join(tmpdir(), "r3-")), "plate.png");
+    await drawPlate(data.specs.chart, { out, ppm: 3 });
+    expect(statSync(out).size).toBeGreaterThan(5000);
+    await expect(drawPlate(shell({ notShown: "no" }), { out })).rejects.toThrow(/nothing may be drawn/);
+    await expect(drawPlate(shell({ nodes: [ticket("a")], marks: [{ on: "a", kind: "matched", who: "you" }] }), { out })).rejects.toThrow(/may not be drawn/);
+  }, 60_000);
+});

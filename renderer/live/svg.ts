@@ -265,10 +265,10 @@ function markSvg(m: SceneMark, node: SceneNode, seed: string): string {
   if (m.kind === "matched") {
     const x = b.x1 + 6;
     const y = b.y0 + 6;
-    const tick = handLine([[x - 9, y + 2], [x - 3, y + 9], [x + 11, y - 11]], R, { bow: 0.2, tremor: 0.4, smooth: 1, step: 2 });
+    const tick = handLine([[x - 14, y + 1], [x - 5, y + 12], [x + 17, y - 18]], R, { bow: 0.2, tremor: 0.4, smooth: 1.2, step: 2 });
     art =
-      `<path class="rr-mark-tick" d="${ribbon(tick, 3, R, { taper: true })}"/><path class="rr-mark-spine" d="${linePath(tick)}"/>` +
-      [[x + 19, y - 14, 4], [x + 25, y + 4, 2.8], [x + 4, y - 22, 3.1]].map(([sx, sy, r]) => `<path class="rr-spark" d="M${n1(sx! - r!)} ${n1(sy!)}H${n1(sx! + r!)}M${n1(sx!)} ${n1(sy! - r!)}V${n1(sy! + r!)}"/>`).join("");
+      `<path class="rr-mark-tick" d="${ribbon(tick, 4.2, R, { taper: true })}"/><path class="rr-mark-spine" d="${linePath(tick)}"/>` +
+      [[x + 27, y - 21, 5.4], [x + 33, y + 3, 3.8], [x + 5, y - 32, 4.2]].map(([sx, sy, r]) => `<path class="rr-spark" d="M${n1(sx! - r!)} ${n1(sy!)}H${n1(sx! + r!)}M${n1(sx!)} ${n1(sy! - r!)}V${n1(sy! + r!)}"/>`).join("");
   } else if (m.kind === "didnt-match") {
     // A rounded ring (a superellipse), so it clears the ticket's corners without growing huge; a little past where it began.
     const pts: Pt[] = [];

@@ -102,6 +102,11 @@ export function checkDrawing(spec: RenderSpec, scene: Scene, svg: string): strin
       if (hit(boxes[i]!.box, boxes[j]!.box)) out.push(`two words overlap: ${JSON.stringify(boxes[i]!.b.lines[0]?.text)} and ${JSON.stringify(boxes[j]!.b.lines[0]?.text)}`);
     }
   }
+  for (const n of scene.nodes) {
+    if (!n.small) continue;
+    const pin = { x0: n.pivot[0] - 9, x1: n.pivot[0] + 9, y0: n.pivot[1] - 9, y1: n.pivot[1] + 9 };
+    for (const box of lineBoxes(n.small)) if (hit(box, pin)) out.push(`the small words on ${JSON.stringify(n.id)} sit under its pin`);
+  }
   for (const { b, box } of boxes) {
     for (const n of scene.nodes) {
       const own = (b.role === "node" || b.role === "small") && b.owner === n.id;

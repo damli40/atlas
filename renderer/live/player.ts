@@ -30,6 +30,7 @@ export class Player {
   readonly marks: { el: SVGGElement; on: string; kind: string }[] = [];
   private active = new Set<Animation>();
   private skipping = false;
+  private busy = 0;
   private instant: boolean;
 
   constructor(
@@ -54,8 +55,9 @@ export class Player {
     return this.instant || this.skipping;
   }
 
-  /** Jump to the end of everything running and queued. */
+  /** Jump to the end of everything running and queued. A click on a drawing at rest does nothing. */
   skip(): void {
+    if (this.busy === 0 && this.active.size === 0) return;
     this.skipping = true;
     for (const a of [...this.active]) {
       try {
@@ -265,6 +267,8 @@ export class Player {
 
   /** The way in for a chart: tickets pinned in layout order, threads drawn from each to each. */
   async entrance(): Promise<void> {
+    this.busy++;
+    this.resume();
     this.hide();
     const order = [...this.scene.nodes].sort((a, b) => a.box.y0 - b.box.y0 || a.box.x0 - b.box.x0);
     const big = order.length > 16 || this.scene.edges.length > 24;
@@ -286,6 +290,7 @@ export class Player {
     }
     if (big) await this.rest(900);
     this.showCaptions();
+    this.busy--;
   }
 
   showCaptions(): void {
@@ -296,15 +301,18 @@ export class Player {
   async playStep(i: number): Promise<void> {
     const step = this.spec.steps[i];
     if (!step) return;
+    this.busy++;
     this.o.onStep?.(step, i);
     await Promise.all(step.edges.map((e) => this.drawThread(e)));
     await Promise.all(step.nodes.map((n) => this.settle(n)));
     if (step.beat === "wait") await Promise.all(step.nodes.map((n) => this.sweep(n, step.ms)));
     await this.rest(step.beat === "end" ? 260 : 90);
+    this.busy--;
   }
 
   /** A whole run, step by step. */
   async playSteps(): Promise<void> {
+    this.resume();
     this.hide({ nodes: this.spec.steps.flatMap((s) => s.nodes), edges: this.spec.steps.flatMap((s) => s.edges) });
     for (let i = 0; i < this.spec.steps.length; i++) await this.playStep(i);
   }
@@ -315,6 +323,12 @@ export class Player {
    * the words are written: a clear, calm moment, with no shake and no alarm. Can't check: a dashed ring and the reason.
    */
   async landMark(m: SpecMark): Promise<void> {
+    this.busy++;
+    await this.landMarkInner(m);
+    this.busy--;
+  }
+
+  private async landMarkInner(m: SpecMark): Promise<void> {
     const found = this.marks.find((x) => x.on === m.on && x.kind === m.kind);
     if (!found) return;
     const el = found.el;

@@ -20,7 +20,7 @@ export function listHtml(spec: RenderSpec, reason: string): string {
   return `<div class="rr-list"><h2>${esc(cleanWords(spec.title ?? "The list"))}</h2><p>Showing the list: ${esc(reason)}.</p><ul>${nodes}</ul>${edges ? `<ul>${edges}</ul>` : ""}</div>`;
 }
 
-export function drawSpec(spec: RenderSpec, o: { now?: () => number } = {}): Drawn {
+export function drawSpec(spec: RenderSpec, o: { now?: () => number; narrow?: boolean } = {}): Drawn {
   const now = o.now ?? (() => (typeof performance !== "undefined" ? performance.now() : 0));
   const t0 = now();
   assertSpec(spec);
@@ -29,7 +29,7 @@ export function drawSpec(spec: RenderSpec, o: { now?: () => number } = {}): Draw
     return { kind: "not-shown", words, html: `<div class="rr-list"><h2>${esc(cleanWords(spec.title ?? "Nothing to draw"))}</h2><p>${esc(words)}</p></div>`, ms: now() - t0 };
   }
   try {
-    const scene = layOut(spec);
+    const scene = layOut(spec, { narrow: o.narrow === true });
     const svg = sceneToSvg(scene, spec);
     return { kind: "drawing", svg, scene, ms: now() - t0 };
   } catch (e) {
