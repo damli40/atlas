@@ -118,6 +118,7 @@ export function ExplorerMachine({ model, onBet, betUnavailable, betBusy = null, 
             <p className="r-ex-readout" data-readout="">{readout}</p>
           </div>
         )}
+        <p className="r-ex-pan" data-testid="r-pan-hint">drag to move, pinch to zoom</p>
         <p className="r-ex-caption" data-testid="explorer-caption">{`Drawn only from Atlas's checked outline of ${model.source}${model.commit ? ` at commit ${model.commit.slice(0, 7)}` : ""} (${plural(model.files.length, "file")}). Muse Wonder (${model.model}) proposed the parts and wrote every name and purpose; plain code checked them against the files and found the joins. "Lines confirmed" means the lines exist where Wonder said; it does not mean Wonder's sentence about a part is true.`}</p>
       </div>
       <div className="ex-aside">

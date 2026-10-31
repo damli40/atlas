@@ -89,6 +89,8 @@ describe("R3 boundaries", () => {
     } catch {
       hits = ""; // git grep exits 1 when nothing matches
     }
-    expect(hits).toBe("");
+    // One door only, loaded on request and guarded, so a server without the package still starts.
+    expect(hits.split("\n").filter(Boolean)).toEqual(["server/pencil.ts"]);
+    expect(readFileSync(join(root, "server/pencil.ts"), "utf8")).toMatch(/await import\("\.\.\/renderer\/export\/plate"\)/);
   });
 });

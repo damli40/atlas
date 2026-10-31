@@ -282,6 +282,11 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
     sweep: (target: Target, params: unknown) => post<SweepAnswer>("/sweeps", { target: { ref: target.ref, codeSha256: target.codeSha256 }, params }),
     /** D06-03: a round's .atlas.json, as the server kept it. */
     proof: (runId: string) => get<AtlasFile>(`/proofs/${encodeURIComponent(runId)}`),
+    /** R3: the proof's path in pencil as an image address, or null where this server has no pencil engine. */
+    pencil: async (runId: string): Promise<string | null> => {
+      const r = await fetchFn(`${base}/proofs/${encodeURIComponent(runId)}/pencil.png`, { method: "GET", headers: { ...(session ? { [SESSION_HEADER]: session } : {}), [BROWSER_HEADER]: browserId() } });
+      return r.status === 200 ? URL.createObjectURL(await r.blob()) : null;
+    },
     /** D06-03: re-run a round from its .atlas.json (same seed, or same fork block) and compare `measured`. */
     replay: (runId: string) => get<ReplayAnswer>(`/replay/${encodeURIComponent(runId)}`),
     /** The session id the server handed back (null before the first answer). */

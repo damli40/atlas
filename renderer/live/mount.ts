@@ -30,6 +30,8 @@ export interface Mounted {
   view(): { x: number; y: number; k: number };
   /** Keep this part and its joins lit (a picked part), or null. */
   pick(id: string | null): void;
+  /** The drawing's own size in px, for a host that should grow to show all of it. */
+  size(): { w: number; h: number };
   /** True when the drawing is wider or taller than its host at the fit, so a phone needs to pan. */
   needsPan(): boolean;
 }
@@ -40,7 +42,7 @@ export function mountDrawing(host: HTMLElement, drawn: Drawn, spec: RenderSpec, 
   host.dataset.theme = o.theme ?? "light";
   if (drawn.kind !== "drawing") {
     host.innerHTML = drawn.html;
-    return { player: null, fit() {}, setTheme: (t) => void (host.dataset.theme = t), destroy: () => void (host.innerHTML = ""), view: () => ({ x: 0, y: 0, k: 1 }), pick() {}, needsPan: () => false };
+    return { player: null, fit() {}, setTheme: (t) => void (host.dataset.theme = t), destroy: () => void (host.innerHTML = ""), view: () => ({ x: 0, y: 0, k: 1 }), pick() {}, needsPan: () => false, size: () => ({ w: 0, h: 0 }) };
   }
   // The text was escaped and no script, link or foreign object was written (renderer/check.ts proves it for hostile names).
   host.innerHTML = drawn.svg;
@@ -222,6 +224,7 @@ export function mountDrawing(host: HTMLElement, drawn: Drawn, spec: RenderSpec, 
       picked = id;
       near(id);
     },
+    size: () => ({ w: scene.width, h: scene.height }),
     needsPan: () => scene.width * state.k > host.clientWidth + 2 || scene.height * state.k > host.clientHeight + 2,
   };
 }

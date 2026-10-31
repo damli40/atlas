@@ -85,6 +85,7 @@ import { createModelBudget, type ModelBudget } from "./meta/budget";
 import { principalClientKey, runAs } from "./access/context";
 import { createShareLimit, DEFAULT_GITHUB_SHARES, type ShareLimit } from "./access/shares";
 import { cleanRecord, type RefusalWriter } from "./proofs/refusals";
+import { pencilPng } from "./pencil";
 import { checkAnswer, createBetStore, humanBetBody, humanBetsBody, MAX_BETS, MAX_EXPERIMENTS, modelSlotsOf, modelSlotView, modelSlotViews, newExperimentId, newRound, publicBet, sealedAfter, sealHumanBet, type BetStore, type ModelSlot, type Round } from "./bets";
 import type { ChatArgs, ChatResult } from "./meta/client";
 import { CLAIMANT_MODEL } from "./meta/roles/claimant";
@@ -1896,6 +1897,15 @@ export function createApp(opts: AppOptions = {}) {
     const owner = pastedOwners.get(c.req.param("runId"));
     if (file.target.kind === "pasted" && (owner === undefined || c.req.header("x-atlas-session") !== owner)) return c.json(withheldSource(file));
     return c.json(file);
+  });
+
+  // R3 phase 2: the proof's path in pencil, where the optional engine is installed; 204 where it is not (not an error).
+  app.get("/proofs/:runId/pencil.png", async (c) => {
+    const file = proofOf(c.req.param("runId"));
+    if (!file) return c.json({ error: `no .atlas.json for run ${c.req.param("runId")}` }, 404);
+    const png = await pencilPng(c.req.param("runId"), file).catch(() => null);
+    if (!png) return c.body(null, 204);
+    return new Response(png as BodyInit, { headers: { "content-type": "image/png", "cache-control": "no-store" } });
   });
 
   /**

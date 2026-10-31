@@ -18,6 +18,7 @@ import { AFTER_LABEL, BEFORE_LABEL, CHANGE_CAPTION, theoryCaptions } from "../..
 import { targetName } from "../../src/target-name";
 import { shortQuestionFor, LANGUAGE_NAME } from "../../src/paste-context";
 import { RunPath } from "../drawing/RunPath";
+import { MoonwellDrawing } from "../drawing/MoonwellDrawing";
 import { PASTE_WORDS } from "../../src/paste-words";
 import { ConditionsLine } from "./Conditions";
 import { RecordBefore } from "./TrackRecord";
@@ -39,6 +40,30 @@ export function ProofLink({ runId }: { runId: string }) {
 }
 
 /** The card on its own page (`?proof=<runId>`): fetches the file, then draws it. */
+/** R3 phase 2: the same path in the pencil engine, on request; where the server has no engine, it says so. */
+function PencilImage({ api, runId }: { api: Pick<Api, "pencil">; runId: string }) {
+  const [state, setState] = useState<{ kind: "idle" | "busy" | "none" } | { kind: "ok"; src: string }>({ kind: "idle" });
+  if (state.kind === "ok") return <img className="pc-pencil" src={state.src} alt="The same path, drawn by the pencil engine" data-testid="pc-pencil-img" />;
+  return (
+    <p className="pc-small">
+      <button
+        type="button"
+        className="u1-link"
+        disabled={state.kind === "busy"}
+        onClick={async () => {
+          setState({ kind: "busy" });
+          const src = await api.pencil(runId).catch(() => null);
+          setState(src ? { kind: "ok", src } : { kind: "none" });
+        }}
+        data-testid="pc-pencil"
+      >
+        {state.kind === "busy" ? "drawing in pencil…" : "draw this in pencil"}
+      </button>{" "}
+      {state.kind === "none" ? <span data-testid="pc-pencil-none">This server has no pencil engine; the drawing above is the same chart.</span> : null}
+    </p>
+  );
+}
+
 export function ProofCardPage({ api, runId, embedded = false }: { api: Api; runId: string; embedded?: boolean }) {
   const [file, setFile] = useState<AtlasFile | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -208,6 +233,21 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
         // E3: the call timeline, drawn from the file's own run (the same component as the round's screen).
         <section className="pc-machine" aria-label="call timeline" data-testid="pc-call-timeline">
           <RunPath run={file.runs[0]} experiment={file.experiments[0]} bets={file.bets} verdicts={file.verdicts} still testid="pc-path" />
+          {api && <PencilImage api={api} runId={file.runs[0].id} />}
+        </section>
+      )}
+
+      {/* R3 phase 2: the retry demo's and Moonwell's cards carry their drawing too. */}
+      {!call && file.runs[0]?.runner === "ts" && (
+        <section className="pc-machine" aria-label="what happened" data-testid="pc-retry">
+          <RunPath run={file.runs[0]} experiment={file.experiments[0]} bets={file.bets} verdicts={file.verdicts} still retry testid="pc-path" />
+          {api && <PencilImage api={api} runId={file.runs[0].id} />}
+        </section>
+      )}
+      {!call && file.runs[0]?.runner === "evm" && (
+        <section className="pc-machine" aria-label="the price flow" data-testid="pc-moonwell">
+          <MoonwellDrawing run={file.runs[0]} bets={file.bets} verdicts={file.verdicts} captions={file.captions} still />
+          {api && <PencilImage api={api} runId={file.runs[0].id} />}
         </section>
       )}
 

@@ -22,6 +22,14 @@ export interface RunPathProps {
   testid?: string;
 }
 
+/** The height at which the whole drawing shows at the width the page gives it. */
+export function sizedHeight(m: Mounted, narrow: boolean): number {
+  const { w, h } = m.size();
+  if (h === 0) return 200;
+  const room = narrow ? Math.min(typeof window === "undefined" ? 390 : window.innerWidth, 720) : Math.min(1100, w);
+  return Math.ceil(h * Math.min(1, room / Math.max(1, w)));
+}
+
 export function RunPath({ run, experiment, bets = [], verdicts = [], title, kicker, still = false, retry = false, testid = "run-path" }: RunPathProps) {
   const dark = useDarkScheme();
   const reduced = useReducedMotion();
@@ -54,10 +62,14 @@ export function RunPath({ run, experiment, bets = [], verdicts = [], title, kick
       p.skip();
     };
   }, [m, token, still, spec]);
-  const height = spec.notShown !== undefined ? undefined : Math.max(320, Math.min(760, 130 + spec.nodes.length * 118));
+  // The sheet grows to show the whole path at the drawing's own size (a page scrolls; a path should not need panning here).
+  const [height, setHeight] = useState<number | null>(null);
   return (
     <section className="r-runpath" data-testid={testid}>
-      <Drawing spec={spec} theme={dark ? "dark" : "light"} className="r-runpath-sheet" style={{ height: height ?? 180 }} hover={false} pan={!still} {...(reduced ? { reducedMotion: true } : {})} onMount={(x) => setM(x)} maxScale={1} />
+      <Drawing spec={spec} theme={dark ? "dark" : "light"} className="r-runpath-sheet" style={{ height: height ?? 240 }} hover={false} pan={false} {...(reduced ? { reducedMotion: true } : {})} onMount={(x, narrow) => {
+          setM(x);
+          if (x) setHeight(sizedHeight(x, narrow));
+        }} maxScale={1} minScale={0.3} />
       {!still && m?.player && spec.steps.length > 0 && (
         <button type="button" className="r-again" onClick={() => setToken((t) => t + 1)} data-testid="run-path-again">
           play it again

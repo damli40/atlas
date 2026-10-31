@@ -8,6 +8,9 @@
 .u1-bar{border:0;background:transparent;padding:14px clamp(16px,5vw,96px) 0}
 .u1-mark{font-weight:400;font-size:18px;letter-spacing:.02em}
 
+body{background:#f5f1e7}
+@media (prefers-color-scheme:dark){body{background:#211d1a}}
+
 /* ---- the first screen: as quiet as a sheet of paper ---- */
 .u1-entry{max-width:760px;padding:clamp(20px,9vh,110px) 20px 40px}
 .u1-entry h1{font-weight:400;font-size:clamp(38px,5.2vw,74px);letter-spacing:.01em;line-height:1.08;margin:0 0 14px}
@@ -26,7 +29,7 @@
 .u1-file input{font-size:14px;color:var(--anatomy-text)}
 .u1-file input::file-selector-button{font:inherit;background:transparent;border:1.1px solid var(--anatomy-strong);border-radius:2px;padding:6px 12px;margin-right:10px;color:var(--anatomy-strong);cursor:pointer}
 .u1-models{background:transparent;border:0;padding:6px 0;margin:10px 0}
-.u1-sealbar{background:transparent!important;border:0!important;position:static!important;padding:6px 0!important}
+.u1-sealbar{background:transparent!important;border:0!important;position:static!important;padding:6px 0!important;margin:0!important}
 .u1-who-bets{background:transparent;border:1px solid var(--anatomy-lo);border-radius:2px}
 .u1-typed-in{background:transparent;border:1px solid var(--anatomy-lo);border-radius:2px;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace!important;letter-spacing:0!important}
 
@@ -40,13 +43,13 @@
 .r-viewport{position:absolute;transform-origin:0 0;transition:transform .95s cubic-bezier(.6,.02,.2,1),opacity .55s ease;outline:none}
 .rr-host.r-sheet{position:absolute;inset:0;background:transparent}
 .r-sheet .rr>rect:first-of-type{fill:transparent}
-.r-chart{left:39vw;top:0;width:59vw;height:100%}
-.u1-root[data-stage="run"] .r-chart,.u1-root[data-stage="verdict"] .r-chart{transform:translate(-37.5vw,48%) scale(.47);pointer-events:none}
+.r-chart{left:max(39vw,710px);top:0;width:calc(100vw - max(39vw,710px) - 14px);height:100%}
+.u1-root[data-stage="run"] .r-chart,.u1-root[data-stage="verdict"] .r-chart{transform:translate(calc(5vw - max(39vw,710px)),48%) scale(.47);pointer-events:none}
 .u1-root[data-stage="verdict"] .r-chart{opacity:0}
 .u1-root[data-stage="run"] .r-chart .rr-captions{opacity:0;transition:opacity .4s}
-.r-path{left:43vw;top:0;width:55vw;height:100%}
+.r-path{left:max(43vw,670px);top:0;width:calc(100vw - max(43vw,670px) - 14px);height:100%}
 .r-step{position:absolute;left:clamp(20px,5vw,96px);top:clamp(180px,27vh,280px);margin:0;width:min(560px,calc(100vw - 40px));font-style:italic;font-size:clamp(18px,1.4vw,25px);line-height:1.35;min-height:1.4em;z-index:3;pointer-events:none;color:var(--anatomy-strong)}
-.r-pan-hint{position:absolute;right:12px;top:8px;margin:0;font-style:italic;font-size:13px;color:var(--anatomy-text);z-index:3;pointer-events:none}
+.r-pan-hint{position:absolute;right:14px;bottom:70px;margin:0;font-style:italic;font-size:13px;color:var(--anatomy-text);z-index:3;pointer-events:none}
 .u1-notice{position:absolute;inset:auto 0 40% 0;text-align:center;font-style:italic}
 
 /* the bet: under the title, no box round it */
@@ -101,25 +104,27 @@
 /* a path or a price flow inside an older screen */
 .r-runpath,.r-moonwell{position:relative;margin:16px 0;background:var(--anatomy-page);border-top:1px solid var(--anatomy-faint);padding-top:6px}
 .rr-host.r-runpath-sheet{position:relative;background:transparent}
-.rr-host.r-moonwell-sheet{position:relative;background:transparent;height:clamp(420px,64vh,680px)}
-.r-again{position:absolute;right:8px;top:12px;background:none;border:0;font:italic 14.5px "Atlas Besley",Georgia,serif;color:var(--anatomy-text);text-decoration:underline;cursor:pointer}
+.rr-host.r-moonwell-sheet{position:relative;background:transparent}
+.r-again{position:absolute;right:8px;top:12px;background:none!important;border:0!important;font:italic 14.5px "Atlas Besley",Georgia,serif;color:var(--anatomy-text);text-decoration:underline;cursor:pointer}
 .pc-machine .r-runpath{margin:0}
+.rr-host.r-runpath-sheet,.rr-host.r-moonwell-sheet{overflow:hidden}
+.pc-pencil{display:block;max-width:100%;height:auto;margin-top:8px}
 
 @media (max-width:760px){
   .r-head{top:6px;left:14px;width:calc(100vw - 28px)}
   .r-kick{font-size:13px;margin-bottom:0}
   .r-name{font-size:30px}
   .r-sub{margin-top:3px;font-size:15px}
-  .r-chart{left:0;top:110px;width:100vw;height:calc(100% - 170px)}
-  .u1-root[data-pop] .r-chart{opacity:.18;pointer-events:none}
+  .r-chart{left:0;top:110px;width:100vw;height:calc(100% - 170px);transform:none}
+  .u1-root[data-pop] .r-chart{visibility:hidden}
   .u1-root[data-stage="run"] .r-chart,.u1-root[data-stage="verdict"] .r-chart{transform:none;opacity:0}
   .r-path{left:0;top:112px;width:100vw;height:calc(100% - 112px)}
-  .u1-root[data-stage="verdict"] .r-path{top:46%;height:54%}
+  .u1-root[data-stage="verdict"] .r-path{top:42%;height:calc(58% - 52px)}
   .r-step{top:82px;left:14px;font-size:15px;width:calc(100vw - 28px)}
   .u1-bet{left:14px;top:auto;bottom:10px;width:calc(100vw - 28px);max-width:none}
   .u1-bet:has(.u1-pop){top:100px;bottom:0;background:var(--anatomy-page)}
   .u1-pop{max-height:calc(100vh - 230px);margin-top:10px}
-  .u1-marks{left:14px;top:92px;width:calc(100vw - 28px);max-height:calc(46% - 96px)}
+  .u1-marks{left:14px;top:92px;width:calc(100vw - 28px);max-height:calc(42% - 96px)}
   .u1-headline{font-size:19px;margin-bottom:6px}
   .u1-actions{left:14px;bottom:6px;right:14px;overflow-x:auto}
   .u1-card{left:8px;right:8px;top:auto;bottom:60px;width:auto;max-height:44%;overflow:auto}
@@ -127,3 +132,6 @@
   .r-ex-stage{height:62vh}
 }
 @media (prefers-reduced-motion:reduce){.r-viewport,.u1-btn,.u1-opt{transition:none}}
+
+.r-ex-pan{display:none;margin:2px 0 0;font-style:italic;font-size:13px;color:var(--anatomy-text)}
+@media (max-width:760px){.r-ex-pan{display:block}}

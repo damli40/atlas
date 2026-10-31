@@ -15,6 +15,8 @@
 !runners
 !src
 !web
+# R3 (D55): the page and the proof image import the renderer
+!renderer
 !contracts
 !proofs
 # the known-case checks read these at run time (runners/ts/control.ts); the page imports one outline fixture
@@ -27,6 +29,7 @@
 
 # never, even inside the folders above
 **/node_modules
+renderer/preview/dist
 **/.env
 **/.env.*
 **/*.key
