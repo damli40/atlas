@@ -28,6 +28,12 @@ can tell it apart. Anything on this list that appears on screen carries a
 - Anatomy skill (github.com/wheresryan22/anatomy, MIT): a design method and SVG kit for
   isometric figures. Its kit files are copied into web/machines/iso/ with the license.
   The two Atlas machines (retry machine, price pipe) are built during the hackathon.
+- statechart-art (github.com/damli40/statechart-art, MIT, Copyright (c) 2026 Kevin T. Ngo; upstream commit
+  09c959c79e25767cc34a5beddf3df234b085636e), reused in renderer/ during the hackathon (R3, D55). Technique only: none
+  of its pictures, characters, boba scene, TLA+ models or Kevin fonts are copied. See renderer/NOTICE.md for every file.
+- pele 1.12.0 (github.com/obsidianmd/pele, MIT, Copyright (c) 2026 kepano): Mermaid layout for the renderer.
+- Besley (SIL OFL 1.1, The Besley Project Authors), via @fontsource/besley 5.3.0: the drawing's serif and italic,
+  self-hosted in renderer/fonts/ with its licence. @napi-rs/canvas 1.0.13 (MIT): exported images only, dev dependency.
 - Foundry 1.8.6, Node 25, pnpm, Vite, React, Hono, zod, vitest, viem.
 - Meta Model API, Muse Code CLI 1.4.13, Baseten (Muse Spark Open), optionally Modal.
 
