@@ -500,6 +500,46 @@ describe("L1 the whole run says can't check: the loop stops and says why", () =>
   });
 });
 
+describe("L1 U3's two-call tests (code that keeps state)", () => {
+  const keeps = (second: string) => `let seen = 0;
+export function hit() {
+  seen++;
+  return ${second};
+}
+`;
+  it("the same two calls run again on the changed code, and the proof verifies", async () => {
+    const { app } = makeApp();
+    const c = client(app);
+    const p = await c.post("/paste", { code: keeps("1") });
+    const target = { ref: p.json.target.ref, codeSha256: p.json.target.codeSha256 };
+    const params = { shape: "call-function", exportName: "hit", args: [], calls: [{ exportName: "hit", args: [] }, { exportName: "hit", args: [] }] };
+    const e = await c.post("/experiments", { target, params });
+    expect(e.status).toBe(200);
+    const id = e.json.experiment.id as string;
+    const b = await c.post("/bets", { experimentId: id, who: "human", bets: [{ measures: "returnedJson", answer: { kind: "json", value: 2 } }] });
+    expect(b.status).toBe(200);
+    const r = await c.post("/runs", { experimentId: id });
+    expect(r.status).toBe(200);
+    expect(r.json.run.result.measured.returnedJson).toBe("1"); // the second call returned 1, so the bet of 2 didn't match
+    expect(r.json.verdicts.find((v: { betId: string }) => v.betId === r.json.bets.find((x: { who: string }) => x.who === "human").id).outcome).toBe("not_matched");
+    expect((await c.post("/loop/choose", { experimentId: id, typed: LOOP_PHRASE })).status).toBe(200);
+    const again = await c.post("/loop/rerun", { experimentId: id, code: keeps("seen") });
+    expect(again.status).toBe(200);
+    expect(again.json.try.measured.returnedJson).toBe("2");
+    expect(again.json.stopped.reason).toBe("all_matched");
+    const file = await proofAs(app, r.json.run.id, c.session()!);
+    const v = verifyAtlasFile(file);
+    expect(v.ok ? [] : v.problems).toEqual([]);
+    expect(file.loop!.tries[0]!.run!.seed).toBe(file.runs[0]!.seed);
+    // A tampered fact on a two-call try fails too.
+    const bad = JSON.parse(JSON.stringify(file)) as AtlasFile;
+    bad.loop!.tries[0]!.run!.result.measured.returnedJson = "1";
+    const { fingerprint: _f, ...rest } = bad.loop!;
+    bad.loop!.fingerprint = loopFingerprint(rest);
+    expect(verifyAtlasFile(bad).ok).toBe(false);
+  });
+});
+
 describe("L1 the awkward ends", () => {
   it("a first run that is 'can't check' as a whole offers nothing and cannot be chosen", async () => {
     const { app } = makeApp();
