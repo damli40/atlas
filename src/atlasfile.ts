@@ -44,6 +44,8 @@ import { CALL_DEFAULT_WATCH_LIMIT_MS } from "./gate";
 import { lineSpan } from "./words";
 import { pastedTargetProblems } from "./pasted-code";
 import { outlineSectionProblems } from "./outline/section";
+import { pastedRef } from "./pasted-code";
+import { LOOP_CAPTION, LOOP_MAX_TRIES, isBudgetReason, isLoopPhrase, lineChanges, loopFingerprint, loopStopOf, targetBetsOf } from "./loop";
 export { LEVEL2_CAPTION, level1Caption };
 /** M7: the two halves of the "chosen line" caption. Each half is earned from the file's findings (chosenLineCaptions). */
 export const CBETH_PICKED_BY_PERSON = "the cbETH line was picked by a person";
@@ -229,6 +231,31 @@ const agentEventSchema = z
   })
   .strict();
 
+// L1 (D57): the retry loop. Everything in it is recomputed by loopProblems below.
+const lineCountSchema = z.object({ added: z.number().int().nonnegative(), removed: z.number().int().nonnegative() }).strict();
+const loopTrySchema = z
+  .object({
+    try: z.number().int().positive(),
+    codeSha256: sha,
+    source: z.string(),
+    changes: lineCountSchema.extend({ lines: z.array(z.object({ tag: z.enum(["+", "-"]), line: z.number().int().positive(), text: z.string() }).strict()) }).strict(),
+    sinceBet: lineCountSchema,
+    run: runSchema.optional(),
+    verdicts: z.array(verdictSchema).optional(),
+    didNotFinish: z.object({ reason: z.string().min(1).max(500), startedAt: iso, stoppedAt: iso, budget: z.boolean() }).strict().optional(),
+  })
+  .strict();
+const loopSchema = z
+  .object({
+    choice: z.object({ typed: z.string().min(1).max(100), chosenAt: iso, fromRunId: z.string().min(1) }).strict(),
+    targetBets: z.array(z.object({ betId: z.string().min(1), sealedHash: sha }).strict()).min(1),
+    maxTries: z.literal(LOOP_MAX_TRIES),
+    tries: z.array(loopTrySchema).max(LOOP_MAX_TRIES),
+    stopped: z.object({ reason: z.enum(["all_matched", "cap", "budget", "cant_check", "nothing_left"]), says: z.string().min(1) }).strict().optional(),
+    fingerprint: sha,
+  })
+  .strict();
+
 const nstr = z.string().nullable();
 const falseAlarmRowSchema = z
   .object({
@@ -304,6 +331,8 @@ export const atlasFileSchema = z
       .array(z.object({ attempt: z.number().int().positive(), startedAt: iso, stoppedAt: iso, reason: z.string().min(1).max(500) }).strict())
       .max(20)
       .optional(),
+    // L1 (D57): the person's choice and every re-run of the same test toward their sealed answers.
+    loop: loopSchema.optional(),
     captions: z.array(z.string().min(1)).min(1),
     createdAt: iso,
     // X1: the code explorer's outline (src/outline/section.ts checks it, recomputing everything from its file texts).
@@ -320,11 +349,12 @@ export function sameJson(a: unknown, b: unknown): boolean {
 }
 
 /** The captions a file of this kind must carry (plain code decides, from the target and the runs). */
-export function requiredCaptions(file: Pick<AtlasFile, "target" | "experiments" | "runs">): string[] {
+export function requiredCaptions(file: Pick<AtlasFile, "target" | "experiments" | "runs"> & Partial<Pick<AtlasFile, "loop">>): string[] {
   const out: string[] = [];
   const pre = preExistingCaption(file.target);
   if (pre) out.push(pre);
   if (file.target.kind === "pasted") out.push(PASTED_CAPTION);
+  if (file.loop) out.push(LOOP_CAPTION);
   for (const run of file.runs) {
     if (run.runner !== "evm") continue;
     const exp = file.experiments.find((e) => e.id === run.experimentId);
@@ -789,6 +819,7 @@ function verifyAtlasFileChecked(raw: unknown): Verification {
   }
   for (const p of findingProblems(file)) say(p);
   for (const p of changeProblems(file)) say(`change: ${p}`);
+  for (const p of loopProblems(file)) say(`loop: ${p}`);
   // X1: the outline is re-judged without any model: code map and verified outline rebuilt from the stored file texts.
   if (file.outline !== undefined) for (const p of outlineSectionProblems(file.outline)) say(`outline: ${p}`);
   const required = requiredCaptions(file);
@@ -984,6 +1015,83 @@ function changedCodeSha256(file: AtlasFile, runner: "ts" | "evm", diff: DiffFile
   } catch {
     return { ok: false, reason: "absent" };
   }
+}
+
+// ---------- the retry loop (L1, D57) ----------
+
+/**
+ * Recomputes everything about the loop from the file itself: the person's words, which bets are the target, each try's
+ * code fingerprint, changed lines, same experiment and seed, its facts against its trace, every verdict (src/judge.ts
+ * again), the stop and its sentence, and the fingerprint over the whole loop. It does not re-run anything, and the file
+ * is not signed: someone who rebuilds a try's trace, facts and verdicts and recomputes the fingerprint is caught only by
+ * running that try's code again.
+ */
+export function loopProblems(file: AtlasFile): string[] {
+  const loop = file.loop;
+  if (!loop) return [];
+  const out: string[] = [];
+  const say = (p: string) => out.push(p);
+  const { fingerprint, ...hashed } = loop;
+  if (loopFingerprint(hashed) !== fingerprint) say("its fingerprint is not the hash of its contents, so it was edited after Atlas wrote it");
+  const run0 = file.runs[0]!;
+  const exp = file.experiments[0]!;
+  if (file.target.kind !== "pasted" || exp.params.shape !== "call-function") say("only a pasted call-function round has a loop");
+  if (!isLoopPhrase(loop.choice.typed)) say("the person's words are not the phrase that chooses the target");
+  if (loop.choice.fromRunId !== run0.id) say(`it was chosen after run ${loop.choice.fromRunId}, not after runs[0] (${run0.id})`);
+  if (Date.parse(loop.choice.chosenAt) < Date.parse(run0.finishedAt)) say("the person's choice is timed before the run it answers finished");
+  if (!sameJson(loop.targetBets, targetBetsOf(file.bets))) say("its target is not exactly the person's sealed answers");
+  if (!loop.targetBets.some((t) => file.verdicts.find((v) => v.betId === t.betId)?.outcome === "not_matched")) say("none of the person's answers didn't match, so there was nothing to aim for");
+  let previous = file.target.source ?? "";
+  let clock = Date.parse(loop.choice.chosenAt);
+  const measured = new Set<string>([file.codeSha256]);
+  loop.tries.forEach((t, i) => {
+    const name = `try ${t.try}`;
+    if (t.try !== i + 1) say(`${name} is number ${i + 1} in the file`);
+    for (const p of pastedTargetProblems({ kind: "pasted", ref: pastedRef(t.codeSha256), codeSha256: t.codeSha256, ...(file.target.language ? { language: file.target.language } : {}), source: t.source })) say(`${name}: ${p}`);
+    if (!sameJson(lineChanges(previous, t.source), t.changes)) say(`${name}: its changed lines are not the difference between its code and the version before it`);
+    const since = lineChanges(file.target.source ?? "", t.source);
+    if (t.sinceBet.added !== since.added || t.sinceBet.removed !== since.removed) say(`${name}: its size since the bet is not what its code gives`);
+    previous = t.source;
+    if (t.didNotFinish) {
+      if (t.run || t.verdicts) say(`${name} says it did not finish, but it holds a run or verdicts`);
+      if (t.didNotFinish.budget !== isBudgetReason(t.didNotFinish.reason)) say(`${name}: whether it stopped for money is not what its reason says`);
+      if (Date.parse(t.didNotFinish.startedAt) < clock || Date.parse(t.didNotFinish.stoppedAt) < Date.parse(t.didNotFinish.startedAt)) say(`${name}: its times are out of order`);
+      clock = Date.parse(t.didNotFinish.stoppedAt);
+      return;
+    }
+    const r = t.run;
+    if (!r || !t.verdicts) return void say(`${name} has neither a run with verdicts nor a reason it did not finish`);
+    if (measured.has(t.codeSha256)) say(`${name} measured code that was already measured`);
+    measured.add(t.codeSha256);
+    if (r.codeSha256 !== t.codeSha256) say(`${name}: its run ran code ${r.codeSha256.slice(0, 12)}…, not this try's`);
+    if (r.experimentId !== exp.id || r.runner !== run0.runner) say(`${name}: its run is not the same experiment on the same runner`);
+    if (r.seed === undefined || r.seed !== run0.seed) say(`${name}: its run used seed ${r.seed}, not the original ${run0.seed}`);
+    if (Date.parse(r.startedAt) < clock || Date.parse(r.finishedAt) < Date.parse(r.startedAt)) say(`${name}: its run's times are out of order`);
+    clock = Date.parse(r.finishedAt);
+    if (r.replayOf) say(`${name}: a loop run does not name a replay`);
+    for (const p of callRunAgreesWithItsTrace(r)) say(`${name}: ${p}`);
+    for (const p of callRunControlProblems(r)) say(`${name}: ${p}`);
+    for (const p of callRunPinProblems(r, file.target.language ?? "js", file.rules ?? null)) say(`${name}: ${p}`);
+    if (t.verdicts.length !== file.bets.length) say(`${name} does not hold one verdict per sealed bet`);
+    for (const b of file.bets) {
+      if (!(Date.parse(b.sealedAt) < Date.parse(r.startedAt))) say(`${name}: bet ${b.id} was not sealed before its run started`);
+      const v = t.verdicts.find((x) => x.betId === b.id);
+      if (!v) say(`${name}: bet ${b.id} has no verdict`);
+      else if (!sameJson(judge(b, r, { timingRule: timingRuleOf(file), watchLimitRule: watchLimitRuleOf(file) }), v)) say(`${name}: the verdict on bet ${b.id} is not what src/judge.ts gives (stored ${v.outcome})`);
+    }
+  });
+  const stop = loopStopOf(loop.tries, loop.targetBets, loop.maxTries);
+  if (!sameJson(stop, loop.stopped ?? null)) say(`it says it ${loop.stopped ? `stopped (${loop.stopped.reason})` : "did not stop"}, but its tries give ${stop ? `a stop (${stop.reason})` : "no stop"}`);
+  if (!file.captions.includes(LOOP_CAPTION)) say("the file does not carry the loop's caption");
+  return out;
+}
+
+/** Puts the loop in a round's file (the caption comes with it), then verifies the whole file again. Throws when it does not verify. */
+export function withLoop(file: AtlasFile, loop: NonNullable<AtlasFile["loop"]>): AtlasFile {
+  const next: AtlasFile = { ...file, loop, captions: [...new Set([...file.captions, LOOP_CAPTION])] };
+  const v = verifyAtlasFile(JSON.parse(JSON.stringify(next)));
+  if (!v.ok) throw new Error(`the .atlas.json with its loop does not verify: ${v.problems.join("; ")}`);
+  return v.file;
 }
 
 /** Add a change and its replay to a round's file, then verify the whole file again. Throws when it does not verify. */
