@@ -110,16 +110,17 @@ export async function e3Builder(): Promise<PromptBuilder | null> {
   }
   const bets = (await import("../../server/meta/roles/claimant-bets.ts")) as unknown as Record<string, unknown>;
   const gate = await import("../../src/gate.ts");
-  const pastedBetContext = ctx.pastedBetContext as (i: { experiment: Experiment; questions: readonly Question[]; exportLine?: number }) => string;
+  const pastedBetContext = ctx.pastedBetContext as (i: { experiment: Experiment; questions: readonly Question[]; exportLine?: number; wordsAsOf?: "e3" }) => string;
   const buildBetOnlyMessages = bets.buildBetOnlyMessages as (i: Record<string, unknown>) => ChatMessageLike[];
   if (typeof pastedBetContext !== "function" || typeof buildBetOnlyMessages !== "function") return null;
   const { exportedFunctionsFor } = await import("../../src/pasted-code.ts");
   return {
     name: "e3",
-    questions: (params) => gate.questionsFor(params),
+    // U3: the registered prompts are frozen (D51), so the sentences are written as they were when they were registered.
+    questions: (params) => gate.questionsFor(params, { wordsAsOf: "e3" }),
     messages: (f, exp, questions) => {
       const exportLine = exportedFunctionsFor(f.source, f.language).find((e) => e.name === (exp.params as { exportName: string }).exportName)?.line;
-      const seenContext = pastedBetContext({ experiment: exp, questions, ...(exportLine ? { exportLine } : {}) });
+      const seenContext = pastedBetContext({ experiment: exp, questions, ...(exportLine ? { exportLine } : {}), wordsAsOf: "e3" });
       return buildBetOnlyMessages({ experiment: exp, questions, seenContext, seenInstruction: null, finding: { verified: true }, fileText: "", gateContext: {} });
     },
   };

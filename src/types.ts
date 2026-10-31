@@ -305,6 +305,8 @@ export interface AtlasRules {
   conditions: "r2";
   /** U2 (D53): timing options of a call still running at the watch limit are judged as "more than the limit". */
   watchLimit?: "u2";
+  /** U3: call sentences and quiz options write values in the code's own language (Python's True, not true). */
+  literals?: "u3";
 }
 
 export interface AtlasFile {

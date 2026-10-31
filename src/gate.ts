@@ -15,6 +15,7 @@
 import { TIMING_TOLERANCE_PCT, matchRuleWords } from "./timing-rule";
 import type { ArgSpec, BetAnswer, ExperimentShape, JsonValue, NetworkLibrary, QuizOption, StandInStep } from "./types";
 import { canonicalJson } from "./seal";
+import { literal, literalProblem, shortLiteral, type CodeLanguage } from "./literal";
 import { LIBRARY_LANGUAGE, LIBRARY_WORDS, NETWORK_ERRORS, NETWORK_LIBRARIES, networkFakeWords } from "./network-fake";
 import { CALL_OUTCOME_OPTIONS, OUTCOME_OPTIONS, SETTLE_FIELD, STAND_IN_CALLS_PREFIX, measuredUnit, type MeasuredUnit } from "./units";
 
@@ -44,6 +45,11 @@ export interface GateContext {
   exportNames?: readonly string[];
   /** U2 (D53): the pasted file's language. When set, a network fake must replace a library of this language. */
   language?: "js" | "ts" | "py";
+  /**
+   * U3: write the question sentences exactly as before U3 (values as JSON, "throws AtlasStandInExhausted"). Only bench M
+   * uses it: its registered prompts are frozen (D51), so its text must not change with the screens' wording.
+   */
+  wordsAsOf?: "e3";
 }
 
 /**
@@ -475,6 +481,20 @@ export function gate(params: unknown, ctx: GateContext = {}): GateDecision {
     for (const c of (params.network as { calls: Record<string, unknown>[] }).calls) chars += c.do === "respond" ? visibleText(canonicalJson(c.body as JsonValue)).length : c.do === "throw" ? visibleText(String(c.errorName)).length + visibleText(String(c.message)).length : 0;
     if (chars > BOUNDS.argsJsonChars) return refuse(`the texts in args and network (JSON values, names and messages, with hidden characters written as escapes) are ${chars} characters; the limit is ${BOUNDS.argsJsonChars}`);
   }
+  if (name === "call-function") {
+    // U3 item 3: every value a bettor reads is written in the code's language; a value that has no literal there that
+    // Atlas would pass unchanged is refused, never shown in a form that is not what runs.
+    const values: JsonValue[] = [];
+    for (const a of params.args as ArgSpec[]) {
+      if (a.kind === "json") values.push(a.value);
+      else for (const c of a.calls) if (c.do === "return") values.push(c.value);
+    }
+    if (isRecord(params.network)) for (const c of (params.network as { calls: Record<string, unknown>[] }).calls) if (c.do === "respond") values.push(c.body as JsonValue);
+    for (const v of values) {
+      const why = literalProblem(v, ctx.language);
+      if (why) return refuse(why);
+    }
+  }
   // A deep copy through JSON: every allowed field is plain JSON by now.
   return { allowed: true, params: JSON.parse(JSON.stringify(params)) as ExperimentShape };
 }
@@ -506,16 +526,26 @@ export function visibleText(s: string): string {
   return s.replace(HIDDEN_CHARS, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
 }
 
-/** JSON as it appears in a question: compact, and cut at 60 characters with "…" (the full value is in the experiment). */
-function shortJson(v: JsonValue): string {
-  const s = canonicalJson(v);
-  return s.length > 60 ? `${s.slice(0, 59)}…` : s;
+/**
+ * A value as it appears in a question: compact, cut at 60 characters with "…" (the full value is in the experiment).
+ * U3: written as the code's language writes it (Python's True / None, not JSON's true / null).
+ */
+function shortJson(v: JsonValue, language?: CodeLanguage): string {
+  return shortLiteral(v, language);
 }
 
-function stepWords(step: StandInStep): string {
+/** U3: "any 4th or later call fails" (no answer is scripted for it), in place of the internal error name. */
+export function exhaustedWords(steps: number): string {
+  const n = steps + 1;
+  const t = n % 100;
+  const suffix = t >= 11 && t <= 13 ? "th" : n % 10 === 1 ? "st" : n % 10 === 2 ? "nd" : n % 10 === 3 ? "rd" : "th";
+  return `any ${n}${suffix} or later call fails (no answer is scripted for it)`;
+}
+
+function stepWords(step: StandInStep, language?: CodeLanguage): string {
   switch (step.do) {
     case "return":
-      return `returns ${shortJson(step.value)}${step.afterMs ? ` after ${step.afterMs} ms` : ""}`;
+      return `returns ${shortJson(step.value, language)}${step.afterMs ? ` after ${step.afterMs} ms` : ""}`;
     case "throw":
       return `throws ${step.errorName}${step.message ? ` ("${step.message.length > 60 ? `${step.message.slice(0, 59)}…` : step.message}")` : ""}`;
     case "never_settle":
@@ -524,30 +554,31 @@ function stepWords(step: StandInStep): string {
 }
 
 /** "fetchRate (async) throws TimeoutError on call 1, then returns 42 on calls 2–3; any later call does the same as the last." */
-function standInWords(a: Extract<ArgSpec, { kind: "stand-in" }>): string {
+function standInWords(a: Extract<ArgSpec, { kind: "stand-in" }>, language?: CodeLanguage, asOf?: "e3"): string {
   const groups: { from: number; to: number; words: string }[] = [];
   a.calls.forEach((step, i) => {
-    const words = stepWords(step);
+    const words = stepWords(step, language);
     const last = groups[groups.length - 1];
     if (last && last.words === words) last.to = i + 1;
     else groups.push({ from: i + 1, to: i + 1, words });
   });
   const parts = groups.map((g) => `${g.words} on call${g.from === g.to ? ` ${g.from}` : `s ${g.from}–${g.to}`}`);
-  const after = a.then === "repeat_last" ? `every later call ${groups[groups.length - 1]!.words.replace(/^returns/, "returns").trim()} too` : "any later call throws AtlasStandInExhausted";
+  const after = a.then === "repeat_last" ? `every later call ${groups[groups.length - 1]!.words.replace(/^returns/, "returns").trim()} too` : asOf === "e3" ? "any later call throws AtlasStandInExhausted" : exhaustedWords(a.calls.length);
   return `${a.name}${a.async ? " (async)" : ""} ${parts.join(", then ")}; ${after}.`;
 }
 
 /** The sentence every call-function question starts with: what Atlas will call, and what each stand-in does. */
-export function describeCall(params: Extract<ExperimentShape, { shape: "call-function" }>): string {
-  const args = params.args.map((a) => (a.kind === "json" ? shortJson(a.value) : a.name)).join(", ");
-  const standIns = params.args.filter((a): a is Extract<ArgSpec, { kind: "stand-in" }> => a.kind === "stand-in").map(standInWords);
-  const net = params.network ? [networkFakeWords(params.network, canonicalJson)] : [];
+export function describeCall(params: Extract<ExperimentShape, { shape: "call-function" }>, language?: CodeLanguage, asOf?: "e3"): string {
+  if (asOf === "e3") language = undefined;
+  const args = params.args.map((a) => (a.kind === "json" ? shortJson(a.value, language) : a.name)).join(", ");
+  const standIns = params.args.filter((a): a is Extract<ArgSpec, { kind: "stand-in" }> => a.kind === "stand-in").map((a) => standInWords(a, language, asOf));
+  const net = params.network ? [networkFakeWords(params.network, (v) => literal(v, language))] : [];
   return visibleText([`Atlas calls ${params.exportName}(${args}).`, ...standIns, ...net].join(" "));
 }
 
 /** The questions about one call-function experiment, every text written here. */
-function callFunctionQuestions(params: Extract<ExperimentShape, { shape: "call-function" }>): Question[] {
-  const d = describeCall(params);
+function callFunctionQuestions(params: Extract<ExperimentShape, { shape: "call-function" }>, language?: CodeLanguage, asOf?: "e3"): Question[] {
+  const d = describeCall(params, language, asOf);
   const fn = visibleText(params.exportName);
   const out: Question[] = [
     q("outcome", `${d} What does ${fn} do?`, "enum", { options: CALL_OUTCOME_OPTIONS }),
@@ -606,7 +637,7 @@ export function questionsFor(params: ExperimentShape, ctx: GateContext = {}): Qu
       return markets.map((m) => q(`priceUsd1e18:${m}`, priceQuestion(m, after), "number", { tolerancePct: PRICE_TOLERANCE_PCT }));
     }
     case "call-function":
-      return callFunctionQuestions(params);
+      return callFunctionQuestions(params, ctx.language, ctx.wordsAsOf);
     case "concurrency-sweep":
     case "liquidatable-at-price":
       return [];

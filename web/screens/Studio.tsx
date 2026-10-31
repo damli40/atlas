@@ -310,8 +310,9 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     if (!result || !exp || !test || sealed.length === 0 || result.run.experimentId !== exp.experiment.id) return null;
     const tested = model?.tested ?? null;
     const callers = Object.fromEntries(Object.entries(model?.parts ?? {}).flatMap(([id, p]) => (p.kind === "device" ? [[id, (p.calledBy ?? []).map((c) => c.part)]] : [])));
-    const wiring = pasted?.outline ? { outline: pasted.outline, callers } : undefined;
-    return { token: plays, script: playScript(result.run, test, tested, waitingParts(readText, pasted?.outline), wiring), marks: marksOf(exp.questions, result.bets, result.verdicts, result.run, tested), dialFullMs: fullMs };
+    const language = pasted?.target.language ?? pasted?.language.chosen;
+    const wiring = pasted?.outline ? { outline: pasted.outline, callers, ...(language ? { language } : {}) } : undefined;
+    return { token: plays, script: playScript(result.run, test, tested, waitingParts(readText, pasted?.outline), wiring), marks: marksOf(exp.questions, result.bets, result.verdicts, result.run, tested, language), dialFullMs: fullMs };
   }, [result, exp, test, sealed, plays, model, fullMs, readText, pasted]);
 
   // U2 (D53, "Test this claim"): Muse Wonder writes tests aimed at its own sentence (shown only after this run, D18);
@@ -578,7 +579,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                     {exp.questions.map((q) => (
                       <li key={q.measures}>
                         <p className="u1-q" id={`q-${q.measures}`}>
-                          {shortQuestionFor(q.text, exp.experiment.params)}
+                          {shortQuestionFor(q.text, exp.experiment.params, exp.experiment.target.language)}
                         </p>
                         <div className="u1-opts" role="radiogroup" aria-labelledby={`q-${q.measures}`}>
                           {[...(q.quiz ?? []).map((o) => ({ id: o.id, label: o.label })), { id: CANT_TELL, label: CANT_TELL }].map((o) => (

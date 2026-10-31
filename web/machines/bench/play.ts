@@ -12,7 +12,7 @@ import type { Question } from "../../../src/gate";
 import { timelineModel } from "../calltimeline/model";
 import { notShownAsFact } from "../../../src/trust";
 import { optionHolding, quizChoiceLabel, CANT_TELL } from "../../../src/quiz";
-import { canonicalJson } from "../../../src/seal";
+import { literal, literalOfJsonText } from "../../../src/literal";
 import { visibleText } from "../../../src/gate";
 import { modelDisplay } from "../../../src/claimants";
 import { CLOCK_ID, deviceId, type CallTest } from "./model";
@@ -28,6 +28,8 @@ import type { FileOutline } from "../../../src/file-outline";
 export interface Wiring {
   outline: Pick<FileOutline, "joins">;
   callers: Record<string, string[]>;
+  /** U3: the code's language, so scripted values read as that language writes them (Python's True, not true). */
+  language?: "js" | "ts" | "py";
 }
 
 /** The parts and joins certainly running when `device` is called during a call of `tested`, and what is not certain. */
@@ -90,8 +92,8 @@ export interface Script {
   atLimit?: boolean;
 }
 
-const stepText = (s: StandInStep | undefined): string =>
-  !s ? "throws AtlasStandInExhausted (no scripted answer left)" : s.do === "return" ? `returns ${short(canonicalJson(s.value))}${s.afterMs ? ` after ${s.afterMs.toLocaleString("en-US")} ms` : ""}` : s.do === "throw" ? `throws ${visibleText(s.errorName)}` : "never answers";
+const stepText = (s: StandInStep | undefined, language?: "js" | "ts" | "py"): string =>
+  !s ? "fails: no answer is scripted for this call" : s.do === "return" ? `returns ${short(literal(s.value, language))}${s.afterMs ? ` after ${s.afterMs.toLocaleString("en-US")} ms` : ""}` : s.do === "throw" ? `throws ${visibleText(s.errorName)}` : "never answers";
 const short = (s: string) => {
   const v = visibleText(s);
   return v.length > 32 ? `${v.slice(0, 31)}…` : v;
@@ -139,11 +141,11 @@ export function playScript(run: Run, test: CallTest, tested: string | null, wait
       if (c.answer === "no_answer_seen") said = "no answer before Atlas stopped watching";
       else if (net) {
         const step = networkStepFor(net, c.n);
-        said = step ? networkStepWords(step, canonicalJson) : "throws AtlasStandInExhausted (no scripted answer left)";
+        said = step ? networkStepWords(step, (v) => literal(v, wiring?.language)) : "fails: no answer is scripted for this call";
         if (step?.do === "never_answer" && c.answer === "threw") said = `never answers; the code gave up${c.errorName ? ` (${c.errorName})` : ""}`;
       } else {
         const step = scripted ? (c.n <= scripted.calls.length ? scripted.calls[c.n - 1] : scripted.then === "repeat_last" ? scripted.calls[scripted.calls.length - 1] : undefined) : undefined;
-        said = stepText(step);
+        said = stepText(step, wiring?.language);
       }
       // U3: every part certainly on the call's path lights, and only the cables the code has; what plain code cannot
       // tell (which of two callers made it) is said, not guessed.
@@ -223,7 +225,7 @@ export function anchorOf(measures: string, tested: string | null): string {
 }
 
 /** One mark per quiz question: the measured option, and each bettor's pick and verdict (plain code's). */
-export function marksOf(questions: readonly Question[], bets: readonly Bet[], verdicts: readonly Verdict[], run: Run, tested: string | null): Mark[] {
+export function marksOf(questions: readonly Question[], bets: readonly Bet[], verdicts: readonly Verdict[], run: Run, tested: string | null, language?: "js" | "ts" | "py"): Mark[] {
   // Review M3: a run that may not be shown as fact states no value on any mark.
   const notShown = notShownAsFact(run);
   return questions.map((q) => {
@@ -232,7 +234,11 @@ export function marksOf(questions: readonly Question[], bets: readonly Bet[], ve
     const holder = observed !== undefined && run.controlPassed === true && q.quiz ? optionHolding(q.quiz, q.unit, observed) : null;
     let measured = notShown !== null ? `can't check: ${notShown}` : run.controlPassed !== true ? "can't check: the run is not trusted" : observed === undefined ? `can't check: ${why ?? "not measured"}` : holder ? holder.label : String(observed);
     // U2: "another value" says which value ("[2,4,6] (another value)").
-    if (notShown === null && holder && holder.match.kind === "json-other" && typeof observed === "string") measured = `${visibleText(observed).length > 60 ? `${visibleText(observed).slice(0, 59)}…` : visibleText(observed)} (${holder.label})`;
+    if (notShown === null && holder && holder.match.kind === "json-other" && typeof observed === "string") {
+      // U3: the value as the code's language writes it (display only; the judge compared the JSON text).
+      const v = visibleText(literalOfJsonText(observed, language));
+      measured = `${v.length > 60 ? `${v.slice(0, 59)}…` : v} (${holder.label})`;
+    }
     // U2: a count or a time says its own number too, then the option that holds it ("4 times: 2 or more times").
     if (notShown === null && holder && typeof observed === "number" && (q.unit === "count" || q.unit === "ms")) {
       const said = q.unit === "count" ? `${observed.toLocaleString("en-US")} ${observed === 1 ? "time" : "times"}` : `${observed.toLocaleString("en-US")} ms`;

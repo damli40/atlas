@@ -109,7 +109,7 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
   const exp0 = file.experiments[0];
   const call = exp0?.params.shape === "call-function" ? exp0.params : undefined;
   const title = call && file.target.kind === "pasted" ? `${call.exportName} · pasted ${file.target.language ? LANGUAGE_NAME[file.target.language] : "code"}` : targetName(card.target);
-  const caption = (q: string) => shortQuestionFor(q, exp0?.params);
+  const caption = (q: string) => shortQuestionFor(q, exp0?.params, file.target.language);
   const fp = (h: string) => `${h.slice(0, 12)}…${h.slice(-6)}`;
 
   return (

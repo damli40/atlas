@@ -214,12 +214,12 @@ export function PasteFlow({ api, onRoundOpen, handoff = null, onHandoffUsed }: {
           try {
             v = JSON.parse(raw);
           } catch {
-            throw new Error(W.needJson(shortQuestionFor(q.text, exp.experiment.params)));
+            throw new Error(W.needJson(shortQuestionFor(q.text, exp.experiment.params, exp.experiment.target.language)));
           }
           toSend.push({ measures: q.measures, answer: { kind: "json", value: v } });
         } else {
           const n = Number(raw);
-          if (!Number.isFinite(n) || n < 0 || (q.kind === "integer" && !Number.isSafeInteger(n))) throw new Error(W.needNumber(shortQuestionFor(q.text, exp.experiment.params), answerHow(q)));
+          if (!Number.isFinite(n) || n < 0 || (q.kind === "integer" && !Number.isSafeInteger(n))) throw new Error(W.needNumber(shortQuestionFor(q.text, exp.experiment.params, exp.experiment.target.language), answerHow(q)));
           toSend.push({ measures: q.measures, answer: q.kind === "integer" ? { kind: "integer", value: n } : { kind: "number", value: n } });
         }
       }
@@ -420,7 +420,7 @@ export function PasteFlow({ api, onRoundOpen, handoff = null, onHandoffUsed }: {
           <fieldset disabled={sealed.length > 0 || busy}>
             {exp.questions.map((q) => (
               <div key={q.measures} className="question">
-                <label htmlFor={`bet-${q.measures}`}>{shortQuestionFor(q.text, exp.experiment.params)}</label>
+                <label htmlFor={`bet-${q.measures}`}>{shortQuestionFor(q.text, exp.experiment.params, exp.experiment.target.language)}</label>
                 <QuestionInput q={q} value={answers[q.measures] ?? ""} onChange={(v) => setAnswers((a) => ({ ...a, [q.measures]: v }))} />
                 <p className="muted small">
                   {answerHow(q)}
@@ -463,7 +463,7 @@ export function PasteFlow({ api, onRoundOpen, handoff = null, onHandoffUsed }: {
         </section>
       )}
 
-      {result && exp && <VerdictScreen shown={sealed} typed={answers} modelShown={[]} modelName={null} models={verdictColumns(models.slots)} result={result} questionText={(q) => shortQuestionFor(q, exp.experiment.params)} heading={W.verdictHeading} />}
+      {result && exp && <VerdictScreen shown={sealed} typed={answers} modelShown={[]} modelName={null} models={verdictColumns(models.slots)} result={result} questionText={(q) => shortQuestionFor(q, exp.experiment.params, exp.experiment.target.language)} heading={W.verdictHeading} />}
       {result?.proof && !result.proof.ok && (
         // E3 review r3 M1: never silent. The verdicts above say whether they stand.
         <section className="card" aria-label="proof card">

@@ -249,7 +249,7 @@ export const atlasFileSchema = z
   .object({
     version: z.literal(1),
     // R2 review round 1: the rules the file was made under; absent = before R2.
-    rules: z.object({ timing: z.literal("d46"), conditions: z.literal("r2"), watchLimit: z.literal("u2").optional() }).strict().optional(),
+    rules: z.object({ timing: z.literal("d46"), conditions: z.literal("r2"), watchLimit: z.literal("u2").optional(), literals: z.literal("u3").optional() }).strict().optional(),
     target: targetSchema,
     codeSha256: sha,
     forkBlock: z.number().int().positive().optional(),
@@ -629,7 +629,9 @@ export const MAX_FILE_DEPTH = 200;
  * becomes { ok: false } with the reason. Verify RE-JUDGES the stored run with plain code; it does not re-run it.
  */
 /** R2 review round 1: the rules a file made today is made under (buildAtlasFile writes them). */
-export const CURRENT_RULES = { timing: TIMING_RULE, conditions: CONDITIONS_RULE, watchLimit: "u2" } as const;
+export const CURRENT_RULES = { timing: TIMING_RULE, conditions: CONDITIONS_RULE, watchLimit: "u2", literals: "u3" } as const;
+/** U3: a file whose rules say literals "u3" wrote its call sentences and quiz options in the code's own language. */
+export const literalsLanguageOf = (file: { rules?: { literals?: string }; target: { language?: "js" | "ts" | "py" } }) => (file.rules?.literals === "u3" ? file.target.language : undefined);
 /** U2 (D53): a file whose rules say watchLimit "u2" judges timing options of a call still running at the watch limit. */
 export const watchLimitRuleOf = (file: { rules?: { watchLimit?: string } }) => file.rules?.watchLimit === "u2";
 
@@ -728,7 +730,7 @@ function verifyAtlasFileChecked(raw: unknown): Verification {
       const exp = file.experiments.find((e) => e.id === b.experimentId);
       let want: unknown = null;
       try {
-        want = quizQuestionsFor(exp?.params).find((q) => q.measures === b.measures)?.quiz ?? null;
+        want = quizQuestionsFor(exp?.params, undefined, literalsLanguageOf(file)).find((q) => q.measures === b.measures)?.quiz ?? null;
       } catch {
         want = null;
       }

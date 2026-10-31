@@ -36,10 +36,11 @@ export const LANGUAGE_NAME = { js: "JavaScript", ts: "TypeScript", py: "Python" 
  * A call-function question without its call description (which the screens show once, not on every question).
  * Any other question, or one that does not start with the description, is returned as it is.
  */
-export function shortQuestionFor(text: string, params: ExperimentShape | undefined): string {
+export function shortQuestionFor(text: string, params: ExperimentShape | undefined, language?: "js" | "ts" | "py"): string {
   if (!params || params.shape !== "call-function") return text;
-  const said = describeCall(params);
-  return text.startsWith(said) ? text.slice(said.length).trimStart() : text;
+  // U3: the call is written in the code's language; a file made before U3 wrote it as JSON, so both are tried.
+  for (const said of [describeCall(params, language), describeCall(params)]) if (text.startsWith(said)) return text.slice(said.length).trimStart();
+  return text;
 }
 
 /** The test as the bet screen and every bettor see it, in full: canonical JSON (sorted keys), hidden characters escaped. */
@@ -82,6 +83,8 @@ export interface PastedContextInput {
    * labelsForBettors), shown to every bettor before betting: the person's page and both betting models get these bytes.
    */
   labels?: readonly string[];
+  /** U3: bench M only: the call sentence exactly as before U3 (its registered prompts are frozen, D51). */
+  wordsAsOf?: "e3";
 }
 
 /**
@@ -132,7 +135,7 @@ export function pastedBetHead(input: PastedContextInput & { repeatOf?: string })
   const lineCount = pastedLines(t.source).length;
   const lang = t.language ? LANGUAGE_NAME[t.language] : "code";
   const mark = input.exportLine ?? 0;
-  const said = describeCall(call);
+  const said = describeCall(call, t.language, input.wordsAsOf);
   return [
     `Code: one pasted ${lang} file, ${plural(lineCount, "line")}, fingerprint ${t.codeSha256.slice(0, 12)}…`,
     call.network

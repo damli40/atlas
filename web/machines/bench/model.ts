@@ -14,7 +14,7 @@ import type { FileOutline, FilePart } from "../../../src/file-outline";
 import type { ExperimentShape, StandInStep } from "../../../src/types";
 import type { ExplorerModel } from "../explorer/model";
 import { visibleText } from "../../../src/gate";
-import { canonicalJson } from "../../../src/seal";
+import { literal } from "../../../src/literal";
 import { networkStepWords, LIBRARY_WORDS } from "../../../src/network-fake";
 import { networkCallSites, standInCallSites, type CallSite } from "../../../src/call-sites";
 
@@ -91,8 +91,8 @@ export const ordinal = (n: number): string => {
   return `${n.toLocaleString("en-US")}${s}`;
 };
 
-const stepWords = (s: StandInStep): string =>
-  s.do === "return" ? `returns ${short(canonicalJson(s.value))}${s.afterMs ? ` after ${s.afterMs.toLocaleString("en-US")} ms` : ""}` : s.do === "throw" ? `throws ${visibleText(s.errorName)}` : "never answers";
+const stepWords = (s: StandInStep, language?: "js" | "ts" | "py"): string =>
+  s.do === "return" ? `returns ${short(literal(s.value, language))}${s.afterMs ? ` after ${s.afterMs.toLocaleString("en-US")} ms` : ""}` : s.do === "throw" ? `throws ${visibleText(s.errorName)}` : "never answers";
 const short = (s: string) => {
   const v = visibleText(s);
   return v.length > 40 ? `${v.slice(0, 39)}…` : v;
@@ -152,7 +152,7 @@ export function benchModel(input: BenchInput): BenchModel {
         kind: "device",
         name: s.name,
         async: s.async,
-        steps: s.calls.map(stepWords),
+        steps: s.calls.map((c) => stepWords(c, input.language)),
         then: thenWords(s.then, s.calls.length),
         calledBy: sites,
         argument: index + 1,
@@ -173,7 +173,7 @@ export function benchModel(input: BenchInput): BenchModel {
           name: nf.replaces,
           async: true,
           network: true,
-          steps: nf.calls.map((c) => networkStepWords(c, canonicalJson)),
+          steps: nf.calls.map((c) => networkStepWords(c, (v) => literal(v, input.language))),
           then: thenWords(nf.then, nf.calls.length),
           calledBy: sites,
           ...(sites.length === 0 ? { noCable: `Plain code found no function in this file whose own lines call ${LIBRARY_WORDS[nf.replaces]}, so no cable is drawn.` } : {}),
