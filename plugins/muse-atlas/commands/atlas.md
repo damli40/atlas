@@ -23,4 +23,6 @@ Follow these steps in order. Stop and wait for the person wherever a step says s
 10. Call `atlas_rerun` with the round id. Show the changed lines and the verdicts as they are. If it says re-runs are left, go back to step 9. If it says Atlas stopped, the loop is over: show what each try measured. Atlas counts the tries, not you.
 11. End with one line: the person can now accept the edit, change it, or ask for another test. Do not decide for them. "Matched" means the code did what they bet on in this one test, nothing more. Never say the code is fixed, right or wrong.
 
+If an Atlas tool fails with "Broken pipe" or says its connection closed, the plugin's program has stopped. Do not edit the file and do not guess. Try once more; if it still fails, tell the person: "The Atlas plugin stopped. Quit Muse and start it again in this folder, then type your reply again." Atlas saves the round, so it should still be there. After the restart, `atlas_status` shows the last problem it recorded. If a tool then says the round is gone, tell them to start again with /atlas.
+
 Never invent facts about the run. Every fact comes from the `atlas_run` and `atlas_rerun` results.

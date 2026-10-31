@@ -30,6 +30,7 @@ import type { AtlasAnswer, AtlasClient } from "./atlas-client.ts";
 import { BUDGET_WORDS } from "./atlas-client.ts";
 import type { AtlasConfig } from "./config.ts";
 import { parseTypedAnswer, toServerAnswer, type QuestionView } from "./bet-parse.ts";
+import type { RoundStore, RuntimeLog } from "./round-store.ts";
 
 export const MAX_FILE_BYTES = 64 * 1024; // the server's limit (src/pasted-code.ts PASTED_MAX_BYTES)
 /** M3: a seal sooner than this after the questions were shown did not come from a person reading them. */
@@ -97,7 +98,7 @@ interface FileEntry {
   sha256: string;
   readAt: string;
 }
-interface RoundEntry {
+export interface RoundEntry {
   path: string;
   sha256: string;
   readAt: string;
@@ -122,6 +123,10 @@ export interface ToolDeps {
   now?: () => number;
   /** The home folder Muse must not use as its workspace. Injected in tests. */
   home?: string;
+  /** L1: keeps rounds across a restart of this program. Absent: they stay in memory. */
+  store?: RoundStore<RoundEntry> | null;
+  /** L1: what happened to this program, for atlas_status. */
+  log?: RuntimeLog;
 }
 
 /** The server's visibleText rule (src/gate.ts): hidden and control characters become \uXXXX escapes. */
@@ -147,7 +152,17 @@ export function createTools(deps: ToolDeps) {
   const { client, config } = deps;
   const now = deps.now ?? Date.now;
   const files = new Map<string, FileEntry>();
-  const rounds = new Map<string, RoundEntry>();
+  const saved = deps.store?.load();
+  const rounds = new Map<string, RoundEntry>(Object.entries(saved?.rounds ?? {}));
+  const restored = rounds.size;
+  const persist = () => deps.store?.save(client.session(), rounds);
+
+  /** L1: said when this program holds no record of the round: what was lost, and what the person can do. */
+  const lostRound = (id: string) =>
+    `there is no round ${visible(id)} in this Muse session. This program has no record of it, so it was probably restarted${deps.store ? " and the round was not among the saved ones" : ", and with no plugin data folder it cannot save rounds"}. Nothing ran and nothing changed. Tell the person, and start again with /atlas and the file: sealed bets are not re-used.`;
+  /** L1: the server no longer holds it (it restarted, or the code's 2 hours are over). Its sealed bets cannot be judged now. */
+  const serverLost = (id: string, a: Extract<AtlasAnswer<unknown>, { ok: false }>) =>
+    a.status === 404 ? fail(`${DATA_NOTE}\nThe Atlas server no longer holds round ${visible(id)}: it was restarted, or the time it keeps pasted code ran out. Nothing ran. The round's sealed bets cannot be used again, so tell the person and start again with /atlas and the file. (The server said: ${quoteLine(a.reason)})`) : null;
 
   function workspaceRoot(): string {
     return realpathSync(deps.workspace ?? process.cwd());
@@ -281,6 +296,7 @@ export function createTools(deps: ToolDeps) {
     if (!isObj(e.experiment) || !isStr(e.experiment.id) || !/^[A-Za-z0-9_-]{1,64}$/.test(e.experiment.id) || !Array.isArray(e.questions) || !e.questions.every(questionOk) || (e.seenContext !== undefined && !isStr(e.seenContext))) return notAtlas("POST /experiments");
     const id = e.experiment.id;
     rounds.set(id, { path: entry.path, sha256: entry.sha256, readAt: entry.readAt, exportName: isStr(e.experiment.params?.exportName) ? e.experiment.params.exportName : "", questions: e.questions, openedAt: now() });
+    persist();
     // M3: a tag the file cannot know, so text inside the file can never close the bettor block early.
     const tag = randomBytes(6).toString("hex");
     const lines = [
@@ -311,7 +327,7 @@ export function createTools(deps: ToolDeps) {
   async function sealBet(args: { experiment_id?: unknown; answers?: unknown }): Promise<ToolText> {
     const id = String(args.experiment_id ?? "");
     const round = rounds.get(id);
-    if (!round) return fail(`there is no open round ${visible(id)}; call atlas_start_round first`);
+    if (!round) return fail(`there is no open round ${visible(id)}; call atlas_start_round first. If the person already saw its questions, ${lostRound(id)}`);
     // M3: no person reads the bettor text and answers within 2 s; an agent following an instruction in the file does.
     const waited = now() - round.openedAt;
     if (waited < MIN_SEAL_DELAY_MS) {
@@ -333,7 +349,7 @@ export function createTools(deps: ToolDeps) {
     }
     type Sealed = { bets: { measures: string; sealedHash: string; sealedAt: string }[] };
     const r = await client.post<Sealed>("/bets", { experimentId: id, who: "human", bets });
-    if (!r.ok) return failFrom(r, "Atlas did not seal the bet");
+    if (!r.ok) return serverLost(id, r) ?? failFrom(r, "Atlas did not seal the bet");
     if (!Array.isArray(r.json.bets) || !r.json.bets.every((b) => isObj(b) && isStr(b.measures) && isStr(b.sealedHash) && isStr(b.sealedAt))) return notAtlas("POST /bets");
     return {
       text: [
@@ -349,7 +365,7 @@ export function createTools(deps: ToolDeps) {
   async function run(args: { experiment_id?: unknown }): Promise<ToolText> {
     const id = String(args.experiment_id ?? "");
     const round = rounds.get(id);
-    if (!round) return fail(`there is no round ${visible(id)} in this Muse session`);
+    if (!round) return fail(lostRound(id));
     const stale = staleReason(round.path, round.sha256, round.readAt);
     if (stale) return fail(`Nothing ran: ${stale}`);
     // M1: one limit for the whole tool; each request gets what is left of it.
@@ -367,7 +383,7 @@ export function createTools(deps: ToolDeps) {
       proof?: { ok: boolean; runId: string };
     };
     const r = await client.post<RunAns>("/runs", { experimentId: id }, { timeoutMs: left() });
-    if (!r.ok) return r.kind === "unreachable" && left() <= 0 ? tooLong() : failFrom(r, "The run did not happen");
+    if (!r.ok) return r.kind === "unreachable" && left() <= 0 ? tooLong() : serverLost(id, r) ?? failFrom(r, "The run did not happen");
     const a = r.json;
     if (
       !isObj(a.run) || !isStr(a.run.id) || typeof a.run.controlPassed !== "boolean" || !isObj(a.run.result) || !isObj(a.run.result.measured) ||
@@ -419,6 +435,7 @@ export function createTools(deps: ToolDeps) {
             const v = verdicts.find((x) => x.betId === b.id)!;
             return { measures: b.measures, question: quoteLine(b.question), said: visible(JSON.stringify(b.answer.value)), did: visible(typeof v.observed === "string" && b.measures === "returnedJson" ? v.observed : JSON.stringify(v.observed)) };
           });
+    persist();
     if (round.offer.length > 0) {
       lines.push(
         "",
@@ -434,7 +451,7 @@ export function createTools(deps: ToolDeps) {
   async function chooseTarget(args: { experiment_id?: unknown; typed?: unknown }): Promise<ToolText> {
     const id = String(args.experiment_id ?? "");
     const round = rounds.get(id);
-    if (!round) return fail(`there is no round ${visible(id)} in this Muse session`);
+    if (!round) return fail(lostRound(id));
     if (round.ranAt === undefined) return fail("Nothing was chosen: this round has not run yet. Call atlas_run first.");
     if (!round.offer || round.offer.length === 0) return fail("Nothing was chosen: none of the person's answers didn't match on a run that measured something, so there is nothing to aim for.");
     const waited = now() - round.ranAt;
@@ -443,9 +460,10 @@ export function createTools(deps: ToolDeps) {
     if (!isLoopPhrase(args.typed)) return fail(`Nothing was chosen: "${visible(args.typed.trim().slice(0, 80))}" is not the choice. Only the person's own words "${LOOP_PHRASE}" choose this, so do not edit toward their answers. Ask them.`);
     type Chosen = { maxTries: number; triesLeft: number };
     const r = await client.post<Chosen>("/loop/choose", { experimentId: id, typed: args.typed });
-    if (!r.ok) return failFrom(r, "Atlas did not record the choice");
+    if (!r.ok) return serverLost(id, r) ?? failFrom(r, "Atlas did not record the choice");
     if (typeof r.json.maxTries !== "number" || typeof r.json.triesLeft !== "number") return notAtlas("POST /loop/choose");
     round.chosen = true;
+    persist();
     return {
       text: [
         DATA_NOTE,
@@ -462,7 +480,7 @@ export function createTools(deps: ToolDeps) {
   async function rerun(args: { experiment_id?: unknown }): Promise<ToolText> {
     const id = String(args.experiment_id ?? "");
     const round = rounds.get(id);
-    if (!round) return fail(`there is no round ${visible(id)} in this Muse session`);
+    if (!round) return fail(lostRound(id));
     if (!round.chosen) return fail(`Nothing ran: the person has not chosen their sealed answers as the target. Only their own words "${LOOP_PHRASE}" do that.`);
     // Always the round's own file, never a path the agent names, with the same guards as the first read.
     const f = readWorkspaceFile(round.path);
@@ -478,7 +496,7 @@ export function createTools(deps: ToolDeps) {
       proof?: { ok: boolean; reason?: string };
     };
     const r = await client.post<Ans>("/loop/rerun", { experimentId: id, code: f.code }, { timeoutMs: RUN_LIMIT_MS });
-    if (!r.ok) return failFrom(r, "The re-run did not happen");
+    if (!r.ok) return serverLost(id, r) ?? failFrom(r, "The re-run did not happen");
     const a = r.json;
     const facts = (m: Record<string, unknown> | undefined) => Object.entries(m ?? {}).map(([k, v]) => `${quoteLine(k)} = ${visible(JSON.stringify(v))}`).join("; ") || "nothing";
     if (!Array.isArray(a.tries) || !a.tries.every((t) => isObj(t) && typeof t.try === "number" && isStr(t.codeSha256)) || !isObj(a.try) || typeof a.try.try !== "number" || !isStr(a.try.codeSha256) || !Array.isArray(a.try.lines) || !Array.isArray(a.bets) || typeof a.maxTries !== "number" || typeof a.triesLeft !== "number") return notAtlas("POST /loop/rerun");
@@ -529,6 +547,9 @@ export function createTools(deps: ToolDeps) {
   async function status(): Promise<ToolText> {
     const h = await client.get<{ ok: boolean }>("/health", { timeoutMs: 15_000 });
     const lines = [`Atlas server: ${config.url} (from ${config.from.url}). Invite code: ${config.invite ? `set (from ${config.from.invite})` : "not set"}. Bettors besides you: ${config.claimant ?? "the server's default (Muse Spark 1.3)"}.`];
+    if (restored > 0) lines.push(`Rounds carried over from before this program last restarted: ${restored}.`);
+    const problem = deps.log?.lastProblem();
+    if (problem) lines.push(`Last problem this plugin recorded: ${quoteLine(problem)}`);
     if (!h.ok) return fail([...lines, `It does not answer: ${quoteLine(h.reason)}`].join("\n"));
     const langs = await client.get<{ languages: { language: string; name: string; runnable: boolean }[]; executor: string; privacy: string }>("/paste/languages", { timeoutMs: 15_000 });
     if (langs.ok && Array.isArray(langs.json.languages)) {
