@@ -95,13 +95,13 @@ These runs also found a real bug: Wonder wrote expiry tests without raising the 
 
 | Check | Result | Where |
 |---|---|---|
-| Browser click-through, final code, mocked models: 6 full rounds (TS and Python; light, dark, 1366×768), own-test-during-wait, 390 px, reduced motion | SUITE_BROWSER | `screens/browser-output.txt`, `screens/checks.json` |
-| axe-core | SUITE_AXE | same |
-| HTML text overlap; labels over the drawing | SUITE_OVERLAP | same |
+| Browser click-through, mocked models, on the code just before one last guard (label placement inside a try/catch; the suite ran after it): 6 full rounds (TS and Python; light, dark, 1366×768), own-test-during-wait, 390 px, reduced motion | **ALL CHECKS PASSED** (194 PASS lines) | `screens/browser-output.txt`, `screens/checks.json` |
+| axe-core | **0 violations** in all 27 runs (landing, rest, bet, marked, proof, claim facts) | same |
+| HTML text overlap; labels over the drawing | **0** text overlaps in all 18 runs; **0** labels touching a cable, box or engraved text in all 8 runs | same |
 | 390 px: no page scroll on entry, rest, bet, marked; light and dark | pass | same, `screens/phone-*.png` |
-| Full suite ×3 | SUITE_FULL | `full-suite-1..3.txt` |
-| tsc | SUITE_TSC | `tsc-output.txt` |
-| no-local-paths | SUITE_PATHS | in the full suite |
+| Full suite ×3 | **2,139 passed, 1 failed, 35 skipped**, the same ×3. The failure is `bench-order (h)`, explained below | `full-suite-1..3.txt` |
+| tsc | exit 0 | `tsc-output.txt` |
+| no-local-paths | pass | in the full suite |
 
 **One test fails on this branch on purpose until the merge:** `bench-order (h)`. Commit 7cb133e changed `bench/models/run.ts`, and its log entry is in the next commit, 09dcfc7, because a hook blocked `git commit --amend`. Fold those two into one commit at merge. SUITE_FOLD
 

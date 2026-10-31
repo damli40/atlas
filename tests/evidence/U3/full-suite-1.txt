@@ -1,5 +1,5 @@
 
- RUN  v5.0.5 /Users/Admin/Documents/Atlas-wt/u3-journey
+ RUN  v5.0.5 <repo>
 
  ❯ tests/unit/bench-order.test.ts (35 tests | 1 failed) 7898ms
    ❯ bench/models: registered first, alone, never edited; results append-only (9)
