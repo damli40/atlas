@@ -1,0 +1,288 @@
+{
+ "experiment": {
+  "id": "r3-fails-twice",
+  "target": {
+   "kind": "pasted",
+   "ref": "pasted:3795284f5705",
+   "codeSha256": "3795284f570547b4e269cb27dbc81315c904ed4dd5a5b6cbb1e751f47ace8b3f",
+   "language": "ts",
+   "source": "const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));\n\nexport async function fetchWithRetry(url: string, opts: RequestInit = {}, retries = 3): Promise<any> {\n  let lastErr: unknown;\n  for (let attempt = 0; attempt <= retries; attempt++) {\n    try {\n      const controller = new AbortController();\n      const timer = setTimeout(() => controller.abort(), 5000);\n      const res = await fetch(url, { ...opts, signal: controller.signal });\n      clearTimeout(timer);\n      if (res.status === 429 || res.status >= 500) {\n        throw new Error(`retryable status ${res.status}`);\n      }\n      if (!res.ok) return null;\n      return await res.json();\n    } catch (err) {\n      lastErr = err;\n      const backoff = 2 ** attempt * 200 + Math.random() * 100;\n      await sleep(backoff);\n    }\n  }\n  throw lastErr;\n}\n"
+  },
+  "runner": "ts",
+  "params": {
+   "shape": "call-function",
+   "exportName": "fetchWithRetry",
+   "args": [
+    {
+     "kind": "json",
+     "value": "https://example.test/price"
+    }
+   ],
+   "network": {
+    "replaces": "fetch",
+    "calls": [
+     {
+      "do": "respond",
+      "status": 503,
+      "body": {
+       "error": "busy"
+      }
+     },
+     {
+      "do": "respond",
+      "status": 503,
+      "body": {
+       "error": "busy"
+      }
+     },
+     {
+      "do": "respond",
+      "status": 200,
+      "body": {
+       "price": 42
+      }
+     }
+    ],
+    "then": "repeat_last"
+   }
+  },
+  "proposedBy": {
+   "role": "human"
+  },
+  "gate": {
+   "allowed": true
+  }
+ },
+ "run": {
+  "id": "PBugC4G5C8",
+  "experimentId": "r3-fails-twice",
+  "runner": "ts",
+  "executor": "local",
+  "codeSha256": "3795284f570547b4e269cb27dbc81315c904ed4dd5a5b6cbb1e751f47ace8b3f",
+  "seed": "20260101",
+  "timeZone": "UTC",
+  "locale": "en-US",
+  "conditions": [
+   {
+    "kind": "randomness",
+    "says": "This code used randomness (Math.random, crypto random values, Python's random, uuid or secrets). Atlas pins it to seed 20260101, so the random values are the ones that seed gives, the same on every Atlas run, not the ones your machine would give."
+   }
+  ],
+  "twin": {
+   "trace": [
+    {
+     "t": 0,
+     "event": "start",
+     "data": {
+      "exportName": "fetchWithRetry",
+      "args": 1,
+      "watchLimitMs": 30000
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_call",
+     "data": {
+      "name": "fetch",
+      "n": 1
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_returns",
+     "data": {
+      "name": "fetch",
+      "n": 1
+     }
+    },
+    {
+     "t": 263,
+     "event": "stand_in_call",
+     "data": {
+      "name": "fetch",
+      "n": 2
+     }
+    },
+    {
+     "t": 263,
+     "event": "stand_in_returns",
+     "data": {
+      "name": "fetch",
+      "n": 2
+     }
+    },
+    {
+     "t": 710,
+     "event": "stand_in_call",
+     "data": {
+      "name": "fetch",
+      "n": 3
+     }
+    },
+    {
+     "t": 710,
+     "event": "stand_in_returns",
+     "data": {
+      "name": "fetch",
+      "n": 3
+     }
+    },
+    {
+     "t": 710,
+     "event": "returned",
+     "data": {
+      "type": "object"
+     }
+    },
+    {
+     "t": 710,
+     "event": "clock_moves",
+     "data": {
+      "at": [
+       263,
+       710
+      ]
+     }
+    },
+    {
+     "t": 710,
+     "event": "conditions",
+     "data": {
+      "kinds": [
+       "randomness"
+      ]
+     }
+    }
+   ],
+   "result": {
+    "measured": {
+     "outcome": "returned",
+     "virtualMs": 710,
+     "returnedType": "object",
+     "returnedJson": "{\"price\":42}",
+     "calls:fetch": 3
+    },
+    "notMeasured": {
+     "thrownName": "the call returned, so nothing was thrown",
+     "thrownMessage": "the call returned, so nothing was thrown"
+    }
+   }
+  },
+  "startedAt": "2026-10-31T20:05:06.126Z",
+  "finishedAt": "2026-10-31T20:05:06.789Z",
+  "trace": [
+   {
+    "t": 0,
+    "event": "start",
+    "data": {
+     "exportName": "fetchWithRetry",
+     "args": 1,
+     "watchLimitMs": 30000
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_call",
+    "data": {
+     "name": "fetch",
+     "n": 1
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_returns",
+    "data": {
+     "name": "fetch",
+     "n": 1
+    }
+   },
+   {
+    "t": 263,
+    "event": "stand_in_call",
+    "data": {
+     "name": "fetch",
+     "n": 2
+    }
+   },
+   {
+    "t": 263,
+    "event": "stand_in_returns",
+    "data": {
+     "name": "fetch",
+     "n": 2
+    }
+   },
+   {
+    "t": 710,
+    "event": "stand_in_call",
+    "data": {
+     "name": "fetch",
+     "n": 3
+    }
+   },
+   {
+    "t": 710,
+    "event": "stand_in_returns",
+    "data": {
+     "name": "fetch",
+     "n": 3
+    }
+   },
+   {
+    "t": 710,
+    "event": "returned",
+    "data": {
+     "type": "object"
+    }
+   },
+   {
+    "t": 710,
+    "event": "clock_moves",
+    "data": {
+     "at": [
+      263,
+      710
+     ]
+    }
+   },
+   {
+    "t": 710,
+    "event": "conditions",
+    "data": {
+     "kinds": [
+      "randomness"
+     ]
+    }
+   },
+   {
+    "t": 710,
+    "event": "call_checks",
+    "data": {
+     "harnessSha256": "79151171257dee924d634b17d55fdca72900356d4262fd78d00c3e1e563beb49",
+     "controlRunId": "0EKnT-meNJ",
+     "controlPassed": true,
+     "controlFinishedAt": "2026-10-31T20:05:06.126Z",
+     "runtime": {
+      "executor": "local",
+      "node": "v25.8.1"
+     }
+    }
+   }
+  ],
+  "result": {
+   "measured": {
+    "outcome": "returned",
+    "virtualMs": 710,
+    "returnedType": "object",
+    "returnedJson": "{\"price\":42}",
+    "calls:fetch": 3
+   },
+   "notMeasured": {
+    "thrownName": "the call returned, so nothing was thrown",
+    "thrownMessage": "the call returned, so nothing was thrown"
+   }
+  },
+  "controlPassed": true,
+  "controlRunId": "0EKnT-meNJ"
+ }
+}
