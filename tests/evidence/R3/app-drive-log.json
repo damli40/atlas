@@ -1,0 +1,384 @@
+{
+ "checks": [
+  {
+   "name": "axe 0: studio-ts-1920 entry",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "overlap 0: studio-ts-1920 entry",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "studio-ts-1920: nothing from a run before sealing",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "axe 0: studio-ts-1920 chart",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "overlap 0: studio-ts-1920 chart",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "axe 0: studio-ts-1920 bet",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "overlap 0: studio-ts-1920 bet",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "studio-ts-1920: X4's how-sure picker is in the pop-up",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "studio-ts-1920: the run is playing, some steps still to come",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "studio-ts-1920: clicks paste→verdict ≤ 6",
+   "ok": true,
+   "more": "5 (with the paste box filled by the \"Draw it\" button; a real paste needs one fewer)"
+  },
+  {
+   "name": "axe 0: studio-ts-1920 verdict",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "overlap 0: studio-ts-1920 verdict",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "studio-ts-1920: a part's words on the path",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "axe 0: studio-py-1920-dark entry",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "overlap 0: studio-py-1920-dark entry",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "studio-py-1920-dark: nothing from a run before sealing",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "axe 0: studio-py-1920-dark chart",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "overlap 0: studio-py-1920-dark chart",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "axe 0: studio-py-1920-dark bet",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "overlap 0: studio-py-1920-dark bet",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "studio-py-1920-dark: X4's how-sure picker is in the pop-up",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "studio-py-1920-dark: the run is playing, some steps still to come",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "studio-py-1920-dark: clicks paste→verdict ≤ 6",
+   "ok": true,
+   "more": "5 (with the paste box filled by the \"Draw it\" button; a real paste needs one fewer)"
+  },
+  {
+   "name": "axe 0: studio-py-1920-dark verdict",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "overlap 0: studio-py-1920-dark verdict",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "studio-py-1920-dark: a part's words on the path",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "axe 0: studio-ts-1366 entry",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "overlap 0: studio-ts-1366 entry",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "studio-ts-1366: nothing from a run before sealing",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "axe 0: studio-ts-1366 chart",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "overlap 0: studio-ts-1366 chart",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "axe 0: studio-ts-1366 bet",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "overlap 0: studio-ts-1366 bet",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "studio-ts-1366: X4's how-sure picker is in the pop-up",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "studio-ts-1366: the run is playing, some steps still to come",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "studio-ts-1366: clicks paste→verdict ≤ 6",
+   "ok": true,
+   "more": "5 (with the paste box filled by the \"Draw it\" button; a real paste needs one fewer)"
+  },
+  {
+   "name": "axe 0: studio-ts-1366 verdict",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "overlap 0: studio-ts-1366 verdict",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "studio-ts-1366: a part's words on the path",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "axe 0: studio-py-390 entry",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "overlap 0: studio-py-390 entry",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "no sideways page scroll: studio-py-390 entry",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "studio-py-390: nothing from a run before sealing",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "axe 0: studio-py-390 chart",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "overlap 0: studio-py-390 chart",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "no sideways page scroll: studio-py-390 chart",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "studio-py-390: a pan hint when the chart is wider than the phone, or none needed",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "axe 0: studio-py-390 bet",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "overlap 0: studio-py-390 bet",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "studio-py-390: X4's how-sure picker is in the pop-up",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "studio-py-390: the run is playing, some steps still to come",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "studio-py-390: clicks paste→verdict ≤ 6",
+   "ok": true,
+   "more": "5 (with the paste box filled by the \"Draw it\" button; a real paste needs one fewer)"
+  },
+  {
+   "name": "axe 0: studio-py-390 verdict",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "overlap 0: studio-py-390 verdict",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "no sideways page scroll: studio-py-390 verdict",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "studio-py-390: a part's words on the path",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "axe 0: proof card",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "the pencil image, or a plain sentence where the engine is absent",
+   "ok": true,
+   "more": "image"
+  },
+  {
+   "name": "a click skips the run to its end",
+   "ok": true,
+   "more": "23 ms"
+  },
+  {
+   "name": "reduced motion: the chart is there at once",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "reduced motion: the verdict arrives finished",
+   "ok": true,
+   "more": "789 ms"
+  },
+  {
+   "name": "axe 0: explorer",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "overlap 0: explorer",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "the explorer: threads only where plain code found the join",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "Bet on this part opens the studio on that function",
+   "ok": true,
+   "more": "redactSecret"
+  },
+  {
+   "name": "no sideways page scroll: explorer",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "the retry demo says the code is pre-existing",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "the retry demo never says hangs or hammers",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "axe 0: retry demo",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "Moonwell: $1.12 and the reference $2,206.68, only from the run",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "Moonwell: the allowed wording",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "axe 0: Moonwell",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "axe 0: proof card, moonwell",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "axe 0: proof card, retry",
+   "ok": true,
+   "more": ""
+  }
+ ],
+ "studio-ts-1920-chartStartsMs": 104,
+ "studio-ts-1920-clicks": 5,
+ "studio-py-1920-dark-chartStartsMs": 67,
+ "studio-py-1920-dark-clicks": 5,
+ "studio-ts-1366-chartStartsMs": 61,
+ "studio-ts-1366-clicks": 5,
+ "studio-py-390-chartStartsMs": 68,
+ "studio-py-390-clicks": 5,
+ "skipMs": 23,
+ "failures": []
+}

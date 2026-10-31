@@ -1,12 +1,11 @@
-Full suite, run 1 (machine under load from other work; load average about 26):
- FAIL  tests/unit/call-function.test.ts > time > a zero-delay timer loop that never ends: the step limit stops it, the outcome is not claimed
- FAIL  tests/unit/day-gate.test.ts > D01-08 day gate: six known cases end to end > every oracle bet matched; the off bet didn't match; the unmeasured bet can't be checked; under 5 s
- Test Files  2 failed | 134 passed | 2 skipped (138)
-      Tests  2 failed | 2165 passed | 35 skipped (2202)
-The two failures re-run alone: passed (72 passed in those files).
-
+Full suite, run 1:
+ Test Files  142 passed | 2 skipped (144)
+      Tests  2282 passed | 35 skipped (2317)
 Full suite, run 2:
- Test Files  136 passed | 2 skipped (138)
-      Tests  2167 passed | 35 skipped (2202)
+ Test Files  142 passed | 2 skipped (144)
+      Tests  2282 passed | 35 skipped (2317)
+Full suite, run 3:
+ Test Files  142 passed | 2 skipped (144)
+      Tests  2282 passed | 35 skipped (2317)
 
 tsc --noEmit: exit 0
