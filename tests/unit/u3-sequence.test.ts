@@ -9,6 +9,9 @@ import { quizQuestionsFor } from "../../src/quiz";
 import { makePastedTarget } from "../../src/pasted-code";
 import { pyTopLevelFunctions } from "../../src/pasted-python";
 import { runPyCallControl, runPyCallExperiment } from "../../runners/py/py-runner";
+import { buildAtlasFile, verifyAtlasFile } from "../../src/atlasfile";
+import { judge } from "../../src/judge";
+import { sealBet } from "../../src/seal";
 import { runCallControl, runCallExperiment } from "../../runners/ts/call-runner";
 import { findPython } from "../../runners/executor/sandbox-exec-python";
 import type { ArgSpec, Experiment, ExperimentShape, Run } from "../../src/types";
@@ -107,6 +110,23 @@ describe.skipIf(!HAVE_PYTHON)("U3 sequences: Python, the walkthrough's cache", (
     ]);
   }, 60_000);
 
+  it("a sequence's proof file verifies, its time measured from the last call's start; a quiz time bet is judged on it", async () => {
+    const exp = experiment(PLAN, "py", twice("get_user_plan", [j(1)]));
+    const q = quizQuestionsFor(exp.params, ["get_user_plan"], "py").find((x) => x.measures === "virtualMs")!;
+    const b = sealBet({ who: "human", experimentId: exp.id, question: q.text, measures: "virtualMs", answer: { kind: "quiz", choice: "a", options: [...q.quiz!] } });
+    await new Promise((res) => setTimeout(res, 5));
+    const r = await runPyCallExperiment(exp, control);
+    expect(q.quiz![0]!.label).toBe("0 ms (no wait at all)");
+    expect(judge(b, r).outcome).toBe("matched");
+    const file = buildAtlasFile({ target: exp.target, experiment: exp, bets: [b], run: r, verdicts: [judge(b, r)], agentLog: [], createdAt: new Date().toISOString() });
+    const v = verifyAtlasFile(JSON.parse(JSON.stringify(file)));
+    expect(v.ok ? [] : v.problems).toEqual([]);
+    // Tampering with the time is caught: the trace says the 2nd call started at 500 and ended at 500.
+    const bad = JSON.parse(JSON.stringify(file));
+    bad.runs[0].result.measured.virtualMs = 500;
+    expect(verifyAtlasFile(bad).ok).toBe(false);
+  }, 60_000);
+
   it("wait past the TTL between the calls: the 2nd call loads again and takes 500 ms", async () => {
     const r = await runPyCallExperiment(experiment(PLAN, "py", twice("get_user_plan", [j(1)], 61_000, 120_000)), control);
     expect(r.result.measured).toMatchObject({ outcome: "returned", returnedJson: '"pro"', virtualMs: 500 });
@@ -181,6 +201,9 @@ describe("U3 item 2: the default test hits an edge (plain-code rule)", () => {
     const limit429: Call = { ...twice429, network: fake(4) };
     const code = { source: ORDERS, language: "ts" as const };
     expect(pickDefaultTest([twice429, limit429], code)).toBe(1);
+    // A fake that repeats its 429 fails on every call: it reaches the limit too, and beats "429 twice then 200".
+    const forever: Call = { ...twice429, network: { replaces: "fetch", then: "repeat_last", calls: [{ do: "respond", status: 429, body: {} }] } };
+    expect(pickDefaultTest([twice429, forever], code)).toBe(1);
     expect(interestScoreWhy(limit429, code).edges).toContain("fails as many times as the code's limit");
     // A truncation: the fake keeps saying there is a next page while the test passes a page limit.
     const pages: Call = { shape: "call-function", exportName: "fetchAllOrders", args: [j("https://example.com/orders"), j(2)], network: { replaces: "fetch", then: "repeat_last", calls: [{ do: "respond", status: 200, body: { items: [{ id: "o1" }], nextCursor: "c2" } }] } };
@@ -229,5 +252,23 @@ describe("U3 sequences on the drawing and in the form", () => {
     const r = paramsFromForm("f", f);
     expect(r.ok && r.params).toEqual({ shape: "call-function", exportName: "f", args: [j(2)], network: t.network, calls: [t.calls![0], { exportName: "f", args: [j(2)], waitMs: 50 }] });
     expect(gate(r.ok ? r.params : null, { exportNames: ["f"] }).allowed).toBe(true);
+  });
+});
+
+import { lastCallStartOf, quizBeyondLimit } from "../../src/judge";
+
+describe("U3 sequences: a last call still running at the watch limit", () => {
+  it("has run for the limit minus its own start, and timing options are judged on that", () => {
+    const run = { trace: [{ t: 0, event: "start", data: { watchLimitMs: 3000, calls: 2 } }, { t: 0, event: "call_start", data: { n: 1 } }, { t: 1000, event: "call_start", data: { n: 2 } }, { t: 3000, event: "still_running_at_watch_limit" }] } as unknown as Run;
+    expect(lastCallStartOf(run)).toBe(1000);
+    expect(lastCallStartOf({ trace: [{ t: 0, event: "start", data: { watchLimitMs: 3000 } }] } as unknown as Run)).toBe(0);
+    const options = [
+      { id: "a", label: "0 ms", match: { kind: "ms" as const, min: 0, max: 0, minOpen: false, maxOpen: false } },
+      { id: "b", label: "more than 0 ms, less than 2,500 ms", match: { kind: "ms" as const, min: 0, max: 2500, minOpen: true, maxOpen: true } },
+      { id: "c", label: "more than 2,500 ms", match: { kind: "ms" as const, min: 2500, max: null, minOpen: true, maxOpen: false } },
+    ];
+    // The last call has run for 2,000 ms: "more than 2,500" holds some of those times, so it stays can't check (null).
+    expect(quizBeyondLimit("c", options, 3000 - lastCallStartOf(run))).toBeNull();
+    expect(quizBeyondLimit("a", options, 3000 - lastCallStartOf(run))).toBe(false);
   });
 });

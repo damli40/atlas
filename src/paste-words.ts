@@ -239,10 +239,15 @@ export const BET_WORDS = {
   waitChecked: (allowed: number, all: number) => `Step 2 of 3: plain code's gate checked ${all} ${all === 1 ? "test" : "tests"}: ${allowed} can run. Step 3 of 3: getting the questions ready.`,
   waitExplore: "The drawing stays live meanwhile: hover or click any part.",
   writeOwnNow: "Write my own test instead",
+  /** U3: Muse Wonder wrote no test this time; why, in the server's words. */
+  noTests: (reason: string) => `Muse Wonder wrote no test this time (${reason}). You can write your own below.`,
 } as const;
 
 export const STAGE_WORDS = {
   testCalls: "This is the function the test calls.",
+  /** U3 item 7: why a clicked function cannot be the one Atlas tests. */
+  notCallable: (name: string, calledBy: readonly string[], python: boolean) =>
+    `Atlas can only call ${python ? "top-level" : "exported"} functions, and ${name} is not ${python ? "one" : "exported"}.${calledBy.length ? ` It runs when ${calledBy.join(" or ")} calls it, so test ${calledBy.length === 1 ? "that one" : "one of those"} to see it work.` : ""}`,
   /** U3 item 7: the replay button: "again" only after the first play has ended. */
   playing: "Playing the run…",
   playAgain: "Play the run again",

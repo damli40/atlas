@@ -7,8 +7,9 @@
 //   Edges (U3):
 //   +4  a second call on code that keeps state between calls (a cache, a counter): the only way to see it work
 //   +2  ...with a wait between the calls (an expiry: the TTL runs out)
-//   +3  the Nth failure: a device fails exactly L or L+1 times in a row from its first call, where L is a small limit
-//       the code compares against or defaults to (`attempt < 3`, `retries = 3`): the retry limit is reached
+//   +4  the Nth failure: a device fails at least L times in a row from its first call (a fake that repeats a failure
+//       fails on every call), where L is a small limit the code compares against or defaults to (`attempt < 3`,
+//       `retries = 3`): the retry limit is reached, and what the code does then is the edge
 //   +2  a truncation: the fake keeps answering "there is another page" (a next / cursor / more field that is not null)
 //       while the test passes a page or item limit the code uses
 //   The interesting paths (U2):
@@ -28,6 +29,8 @@ import { keptState, smallLimits, type Lang } from "./code-facts";
 
 type CallShape = Extract<ExperimentShape, { shape: "call-function" }>;
 type Step = { kind: "ok" | "fail" | "never"; wait: boolean; more?: boolean };
+/** A device's steps, and whether its last step repeats forever (then a failing last step fails on every later call). */
+type Device = Step[] & { repeats?: boolean };
 
 /** What the score may read about the file: its text and language (absent: only the test is read). */
 export interface CodeContext {
@@ -56,14 +59,14 @@ function allArgs(t: CallShape) {
   return out;
 }
 
-function stepsOf(t: CallShape): Step[][] {
-  const out: Step[][] = [];
+function stepsOf(t: CallShape): Device[] {
+  const out: Device[] = [];
   for (const a of allArgs(t)) {
     if (a.kind !== "stand-in") continue;
-    out.push(a.calls.map((c) => (c.do === "return" ? { kind: "ok", wait: (c.afterMs ?? 0) > 0, more: saysMore(c.value) } : c.do === "throw" ? { kind: "fail", wait: false } : { kind: "never", wait: false })));
+    out.push(Object.assign(a.calls.map((c): Step => (c.do === "return" ? { kind: "ok", wait: (c.afterMs ?? 0) > 0, more: saysMore(c.value) } : c.do === "throw" ? { kind: "fail", wait: false } : { kind: "never", wait: false })), { repeats: a.then === "repeat_last" }));
   }
   if (t.network) {
-    out.push(t.network.calls.map((c) => (c.do === "respond" ? { kind: c.status >= 400 ? "fail" : "ok", wait: (c.afterMs ?? 0) > 0, more: c.status < 400 && saysMore(c.body) } : c.do === "throw" ? { kind: "fail", wait: false } : { kind: "never", wait: false })));
+    out.push(Object.assign(t.network.calls.map((c): Step => (c.do === "respond" ? { kind: c.status >= 400 ? "fail" : "ok", wait: (c.afterMs ?? 0) > 0, more: c.status < 400 && saysMore(c.body) } : c.do === "throw" ? { kind: "fail", wait: false } : { kind: "never", wait: false })), { repeats: t.network.then === "repeat_last" }));
   }
   return out;
 }
@@ -98,11 +101,12 @@ export function interestScoreWhy(test: CallShape, code?: CodeContext): { score: 
   if (limits.length) {
     const leading = devices.map((steps) => {
       let k = 0;
-      while (k < steps.length && steps[k]!.kind !== "ok") k++;
-      return k;
+      while (k < steps.length && steps[k]!.kind === "fail") k++;
+      return k === steps.length && k > 0 && steps.repeats ? Infinity : k;
     });
-    if (leading.some((k) => k > 0 && limits.some((l) => k === l || k === l + 1))) {
-      score += 3;
+    const smallest = Math.min(...limits);
+    if (leading.some((k) => k > 0 && k >= smallest)) {
+      score += 4;
       edges.push("fails as many times as the code's limit");
     }
     const intArgs = test.args.flatMap((a) => (a.kind === "json" && typeof a.value === "number" && Number.isInteger(a.value) && a.value >= 1 && a.value <= 20 ? [a.value] : []));

@@ -17,7 +17,7 @@ import { visibleText } from "../../../src/gate";
 import { modelDisplay } from "../../../src/claimants";
 import { CLOCK_ID, deviceId, type CallTest } from "./model";
 import { networkStepFor, networkStepWords } from "../../../src/network-fake";
-import { watchLimitOf } from "../../../src/judge";
+import { lastCallStartOf, watchLimitOf } from "../../../src/judge";
 import { certainPath } from "../../../src/call-sites";
 import type { FileOutline } from "../../../src/file-outline";
 
@@ -212,11 +212,13 @@ export function playScript(run: Run, test: CallTest, tested: string | null, wait
   const steps = [...turns, ...calls, ...waits].sort((a, b) => a.at - b.at || (a.kind === b.kind ? a.call - b.call : kindOrder[a.kind] - kindOrder[b.kind]));
   const outcome = has("outcome") ? measured.outcome : null;
   const atLimit = outcome === "still_running_at_watch_limit" && tl.end?.kind === "still_running";
-  const dialEndMs = has("virtualMs") && typeof measured.virtualMs === "number" ? measured.virtualMs : atLimit && tl.end && "t" in tl.end ? tl.end.t : null;
+  // U3: in a sequence the measured time is the last call's own; the dial shows the whole run's clock, so it adds the
+  // moment the last call started.
+  const dialEndMs = has("virtualMs") && typeof measured.virtualMs === "number" ? measured.virtualMs + lastCallStartOf(run) : atLimit && tl.end && "t" in tl.end ? tl.end.t : null;
   let ending = has("outcome") ? tl.readout : null;
   if (ending && outcome === "threw") {
     const w = thrownWords(run);
-    if (w) ending = `threw ${w}${typeof measured.virtualMs === "number" ? ` at ${measured.virtualMs.toLocaleString("en-US")} ms` : ""}`;
+    if (w) ending = `threw ${w}${typeof measured.virtualMs === "number" ? ` at ${(measured.virtualMs + lastCallStartOf(run)).toLocaleString("en-US")} ms` : ""}`;
   }
   if (ending !== null) steps.push({ at: dialEndMs ?? steps[steps.length - 1]?.at ?? 0, kind: "end", device: null, line: null, parts: tested ? [tested] : [], call: 0, words: ending });
   return { notShown: null, steps, totals, dialEndMs, ending, ...(atLimit ? { atLimit: true } : {}) };
@@ -275,7 +277,8 @@ export function marksOf(questions: readonly Question[], bets: readonly Bet[], ve
     }
     // U2: a call still running at the watch limit took longer than the limit.
     if (notShown === null && q.measures === "virtualMs" && observed === undefined && run.result.measured.outcome === "still_running_at_watch_limit") {
-      const w = watchLimitOf(run);
+      const limit = watchLimitOf(run);
+      const w = limit === null ? null : limit - lastCallStartOf(run);
       if (w !== null) measured = `more than ${w.toLocaleString("en-US")} ms (still running when Atlas stopped watching)`;
     }
     const picks = bets

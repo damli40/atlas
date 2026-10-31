@@ -554,7 +554,13 @@ export function callRunAgreesWithItsTrace(r: Run): string[] {
   // Review m7: only when the trace itself says why (the second run differed: clock_differs / twin_differs).
   const timeNotReported =
     Object.prototype.hasOwnProperty.call(r.result.notMeasured, "virtualMs") && !("virtualMs" in m) && r.trace.some((t) => (t.event === "clock_differs" || t.event === "twin_differs") && Array.isArray(asRecord(t.data).fields) && (asRecord(t.data).fields as unknown[]).includes("virtualMs"));
-  if ((end.event === "returned" || end.event === "threw") && !timeNotReported && m.virtualMs !== end.t) out.push(`measured virtualMs is ${JSON.stringify(m.virtualMs ?? null)}, but its trace settles at ${end.t}`);
+  // U3: in a sequence, virtualMs is the last call's own time: from its call_start to the ending.
+  const seqStart = r.trace.find((t) => t.event === "start");
+  const nCalls = asRecord(seqStart?.data).calls;
+  const lastStart = typeof nCalls === "number" && nCalls > 1 ? r.trace.find((t) => t.event === "call_start" && asRecord(t.data).n === nCalls) : undefined;
+  if (typeof nCalls === "number" && nCalls > 1 && !lastStart && "outcome" in m) out.push(`its trace says the last of ${nCalls} calls never started, but it measured an outcome`);
+  const fromT = lastStart ? lastStart.t : 0;
+  if ((end.event === "returned" || end.event === "threw") && !timeNotReported && m.virtualMs !== end.t - fromT) out.push(`measured virtualMs is ${JSON.stringify(m.virtualMs ?? null)}, but its trace settles at ${end.t}${fromT ? `, ${end.t - fromT} ms after the last call started at ${fromT}` : ""}`);
   if (end.event !== "returned" && end.event !== "threw" && "virtualMs" in m) out.push("measured virtualMs is set, but the call did not settle");
   const counts = new Map<string, number>();
   for (const t of r.trace) if (t.event === "stand_in_call") counts.set(String(asRecord(t.data).name), (counts.get(String(asRecord(t.data).name)) ?? 0) + 1);

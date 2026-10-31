@@ -713,6 +713,11 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
               {changing && target && fn && (
                 <div data-testid="u1-tests">
                   <p className="u1-k">{BET_WORDS.pickFor(fn)}</p>
+                  {proposals && !proposals.ok && proposals.reason && (
+                    <p className="u1-sub" role="note" data-testid="u1-no-tests">
+                      {BET_WORDS.noTests(proposals.reason)}
+                    </p>
+                  )}
                   {busy && (
                     <p className="u1-status" role="status">
                       {busy}

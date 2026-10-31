@@ -55,6 +55,6 @@ export const mockChat = async (a: ChatArgs): Promise<ChatResult> => {
   return { ok: true, finishReason: "stop", usage, content: JSON.stringify({ bets: qs.map((m) => ({ measures: m, answer: { kind: "quiz", choice: letter }, rationale: MOCK })) }) };
 };
 
-const budget = createModelBudget({ spendCeilingUsd: 5 });
+const budget = createModelBudget({ spendCeilingUsd: 5, callsPerHour: 100_000 });
 const app = createApp({ modelBets: { chat: mockChat, budget, sparkOpen: { available: true } }, paste: { proposer: { chat: mockChat } } });
 serve({ fetch: app.fetch, port: Number(process.env.PORT ?? 18951) }, (i) => console.log(`U3 mock-model server on ${i.port}: every model call is mocked ($0)`));

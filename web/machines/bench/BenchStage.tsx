@@ -701,6 +701,10 @@ function PartCard({ id, part, tested, hasTest, python, pinned, onTest, onClose, 
             <button type="button" className="u1-btn" onClick={() => onTest(id)} data-testid={`test-fn-${id}`}>
               Test this function
             </button>
+          ) : !part.part.exported && part.part.kind === "function" ? (
+            <p className="u1-sub" data-testid="card-not-callable">
+              {STAGE_WORDS.notCallable(id, part.calledBy, python)}
+            </p>
           ) : null}
         </>
       ) : part.kind === "device" ? (
