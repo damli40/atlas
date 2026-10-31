@@ -1,0 +1,47 @@
+
+ RUN  v5.0.5 <repo>
+
+(node:12911) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ tests/unit/x3-server.test.ts (13 tests | 1 failed) 22200ms
+   ❯ X3 review round 1 on the server (4)
+     × M3: the reviewer's 61 KB paste: POST /paste/labels answers in under 50 ms 107ms
+(node:20850) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:23058) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:23074) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:23135) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:23322) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:23436) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:23788) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:24406) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:24405) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/unit/x3-server.test.ts > X3 review round 1 on the server > M3: the reviewer's 61 KB paste: POST /paste/labels answers in under 50 ms
+AssertionError: expected 65.83870799999931 to be less than 50
+ ❯ tests/unit/x3-server.test.ts:301:36
+    299|     const r = await c.post("/paste/labels", { target: t, exportName: "…
+    300|     expect(r.status).toBe(200);
+    301|     expect(performance.now() - t0).toBeLessThan(50);
+       |                                    ^
+    302|   });
+    303|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 139 passed | 2 skipped (142)
+      Tests  1 failed | 2240 passed | 35 skipped (2276)
+   Start at  23:11:29
+   Duration  294.65s (tests 89%, import 11%)
+
