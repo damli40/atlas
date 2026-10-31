@@ -8,8 +8,8 @@
 .u1-bar{border:0;background:transparent;padding:14px clamp(16px,5vw,96px) 0}
 .u1-mark{font-weight:400;font-size:18px;letter-spacing:.02em}
 
-body{background:#f5f1e7}
-@media (prefers-color-scheme:dark){body{background:#211d1a}}
+.u1-shell button,.u1-sheet button{letter-spacing:.01em}
+button{font-family:"Atlas Besley",Georgia,serif}
 
 /* ---- the first screen: as quiet as a sheet of paper ---- */
 .u1-entry{max-width:760px;padding:clamp(20px,9vh,110px) 20px 40px}
@@ -85,6 +85,7 @@ body{background:#f5f1e7}
 
 /* the code explorer */
 .ex-page{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,380px);gap:18px;align-items:start;background:var(--anatomy-page)}
+.u1-shell .u1-sheet main{padding-top:30px}
 .r-ex-form{margin:6px 0 14px;font-size:15.5px}
 .r-ex-form summary{cursor:pointer;font-size:clamp(20px,1.5vw,26px);margin-bottom:6px}
 .r-ex-form input{background:transparent;border:1px solid var(--anatomy-lo);border-radius:2px;color:var(--anatomy-strong)}

@@ -162,6 +162,7 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
         await p.playStep(i);
       }
       if (!live) return;
+      setStep(null);
       setMarksOn(true);
       for (const m of pathSpec.marks) if (live) await p.landMark(m);
       if (!live) return;

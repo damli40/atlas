@@ -436,7 +436,7 @@ export function whatHappened(input: WhatHappenedInput): RenderSpec {
   for (const m of marks) {
     const same = merged.find((x) => x.on === m.on && x.kind === m.kind);
     if (!same) merged.push({ ...m });
-    else same.words = `${same.words}; ${m.who} ${m.words}`;
+    else same.words = `${(same.words ?? "").replace(/\.$/, "")}; ${m.who} ${m.words}`;
   }
   const conditions = (input.run.conditions ?? []).map((c) => ({ words: c.says, provenance: "run" as const }));
   const captions = [

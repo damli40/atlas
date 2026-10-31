@@ -235,7 +235,7 @@ export function layOut(spec: RenderSpec, o: LayoutOptions = {}): Scene {
     body.push(`  ${from} ${e.kind === "thread" ? "-->" : "-.->"}${label} ${to}`);
   });
   const dense = spec.edges.length > 24;
-  const source = `---\nconfig:\n  flowchart:\n    rankSpacing: ${dense ? 56 : spec.marks.length ? 60 : 44}\n    nodeSpacing: ${dense ? 46 : 72}\n---\nflowchart ${direction}\n${body.join("\n")}\n`;
+  const source = `---\nconfig:\n  flowchart:\n    rankSpacing: ${dense ? 56 : new Set(spec.marks.map((m) => m.on)).size > 1 ? 80 : spec.marks.length ? 60 : 44}\n    nodeSpacing: ${dense ? 46 : 72}\n---\nflowchart ${direction}\n${body.join("\n")}\n`;
 
   // ---- pele ----
   let svg = "";
@@ -505,7 +505,9 @@ export function layOut(spec: RenderSpec, o: LayoutOptions = {}): Scene {
     let placed: TextBlock | null = null;
     for (let push = 0; push < 60 && !placed; push++) {
       for (const side of [1, -1]) {
-        const x = side > 0 ? node.box.x1 + 34 + push * 16 : node.box.x0 - 34 - w - push * 16;
+        // A matched mark's tick and sparks stand off the corner, so words start past them.
+        const clearance = spec.marks.some((o) => o.on === m.on && o.kind === "matched") ? 58 : 34;
+        const x = side > 0 ? node.box.x1 + clearance + push * 16 : node.box.x0 - 34 - w - push * 16;
         const b = { x0: x - 3, x1: x + w + 3, y0: cy - 3, y1: cy + h + 3 };
         if (side < 0 && x < -2000) continue;
         if (!clash(b)) {
