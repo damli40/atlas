@@ -176,7 +176,7 @@ ledger. Fake: the Meta models, and Muse (the test writes the file).
 
 ## Suite
 
-Full suite after the rebase onto main d453655, twice: three runs: [1](full-suite-1.txt) 0 failed, 2,241 passed; [2](full-suite-2-one-timing-failure.txt) **1 failed**, 2,240 passed; [3](full-suite-3.txt) 0 failed, 2,241 passed; 35 skipped each.
+Full suite after the rebase onto main d453655, three runs: [1](full-suite-1.txt) 0 failed, 2,241 passed; [2](full-suite-2-one-timing-failure.txt) **1 failed**, 2,240 passed; [3](full-suite-3.txt) 0 failed, 2,241 passed; 35 skipped each.
 The one failure is `x3-server.test.ts` "answers in under 50 ms", which measured 66 ms. It is an existing test that L1 does not touch, and it passed 3 times of 3 alone. It looks load-related, but I did not prove that. `tsc`: [tsc-output.txt](tsc-output.txt), exit 0. `no-local-paths` passes.
 
 **An earlier full run had 7 failures.** Four were mine and are fixed: the two new routes were missing from G1's route table, the
