@@ -1,5 +1,6 @@
 // Final review S3: FIRST, before any module reads process.env: the repo's .env (never printed).
 import "./load-env";
+import { rpcEnv } from "./load-rpc-env";
 import { serve } from "@hono/node-server";
 import { createApp, type AppOptions } from "./app";
 import { EXAMPLE_FUNCTION } from "./paste";
@@ -160,6 +161,7 @@ if (leftovers > 0) console.log(`deleted ${leftovers} leftover sandbox folder(s) 
 
 // Final review S3: which .env keys were read (names only, never values), and plain notes about this machine.
 if (dotEnv.loaded.length > 0) console.log(`.env: read ${dotEnv.loaded.join(", ")} (values not shown)`);
+if (rpcEnv.loaded.length > 0) console.log(`~/.config/atlas/rpc.env: read ${rpcEnv.loaded.join(", ")} (values not shown)`);
 for (const note of currentStartupNotes()) console.warn(`note: ${note}`);
 
 serve({ fetch: app.fetch, port }, (info) => {

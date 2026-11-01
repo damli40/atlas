@@ -541,7 +541,8 @@ export function createApp(opts: AppOptions = {}) {
   const evmRun = opts.evmRun ?? defaultEvmRun;
   // D63: whether a chain round could finish here. The real server asks this before it spends anything.
   const chainReady = () => !opts.checkChainFirst || opts.evmRun !== undefined || Boolean(process.env.BASE_RPC_URL);
-  const NO_CHAIN = "This server has no chain connection, so a new Moonwell run can't happen here. Nothing was spent. The saved result stays above.";
+  const NO_CHAIN = "This server has no chain connection, so a new Moonwell run can't happen here. Nothing was spent.";
+  const CHAIN_SILENT = "The chain connection did not answer, so a new Moonwell run can't happen right now. Nothing was spent.";
   // D22: one reader per app, so the facts are read once per fork block and reused by every later round.
   const readFacts: ((block: number) => Promise<MoonwellChainFacts>) | null =
     opts.chainFacts !== undefined
@@ -1949,6 +1950,21 @@ export function createApp(opts: AppOptions = {}) {
       return c.json({ error: "the saved Moonwell result is not on this server" }, 404);
     }
   });
+  // B1: asked before anything else on "Run it again", so a missing connection is said at once. One free read to the chain, which also
+  // catches a wrong address: having the setting is not the same as the chain answering. The address itself is never sent or logged.
+  app.get("/moonwell/ready", async (c) => {
+    if (!opts.checkChainFirst || opts.evmRun !== undefined) return c.json({ ready: true });
+    const url = process.env.BASE_RPC_URL;
+    if (!url) return c.json({ ready: false, words: NO_CHAIN });
+    try {
+      const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_chainId", params: [] }), signal: AbortSignal.timeout(5000) });
+      const a = (await r.json()) as { result?: string };
+      return c.json(a.result === "0x2105" ? { ready: true } : { ready: false, words: CHAIN_SILENT });
+    } catch {
+      return c.json({ ready: false, words: CHAIN_SILENT });
+    }
+  });
+
   // D60, D63: a public link must outlive a deploy. Proof files live in memory, and a pasted one goes after 2 hours with its source. So when
   // the person who ran a round asks, its card, without the file's text, is kept on the volume for 30 days. Nothing is kept unless asked.
   // The maker can delete it. Caps per client and in total keep this from starving what shares the volume: the ledger, invites, records.

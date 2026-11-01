@@ -406,11 +406,12 @@ if (late) {
 if (late) {
   const p = await open(`${BASE}/`);
   await p.click('[data-testid="u1-demos"]');
+  await p.click('[data-testid="u1-earlier"] summary');
   await p.click('[data-testid="mode-fixture"]');
   await p.waitForSelector('[data-testid="pre-existing"]', { timeout: 15000 });
   await p.getByRole("button", { name: /Show the questions|the questions/i }).first().click();
   await p.waitForSelector('[data-testid="bet-calls"]', { timeout: 30000 });
-  for (const s of await p.$$('select[data-testid^="bet-"]')) await s.selectOption({ index: 1 });
+  for (const s of await p.$$('[role="radiogroup"][data-testid^="bet-"]')) await (await s.$("button")).click();
   for (const i of await p.$$('input[type="number"][data-testid^="bet-"]')) await i.fill("5");
   await p.getByRole("button", { name: "Seal my bets" }).click();
   await p.waitForSelector('[data-testid="sealed-note"]', { timeout: 30000 });
@@ -461,13 +462,16 @@ if (late) {
   await shot(p, "moonwell-saved-1280");
   await p.setViewportSize({ width: 1440, height: 900 });
   await p.click('[data-testid="moonwell-run-again"]');
-  await p.fill('[data-testid="pr-link"]', "https://github.com/moonwell-fi/moonwell-contracts-v2/pull/578");
-  await p.locator('[data-testid="pr-link"]').press("Tab");
-  await p.locator('section[aria-label="pull request"] button').first().click();
+  // Run it again: the pull request is filled in and read at once.
   await p.waitForSelector('[data-testid="pr-target"]', { timeout: 15000 });
-  await p.locator('[data-testid="findings"] button').first().click();
-  await p.waitForSelector('[data-testid="findings-list"] button', { timeout: 15000 });
-  await p.locator('[data-testid="findings-list"] button').first().click();
+  say("Run it again fills in the Moonwell pull request", /pull\/578$/.test(await p.inputValue('[data-testid="pr-link"]')));
+  await wait(p, 400);
+  // The saved lines are chosen when the server can check them; if not, the Investigator's place is one click away.
+  if (await p.locator('[data-testid="findings"] button').first().isVisible().catch(() => false)) {
+    await p.locator('[data-testid="findings"] button').first().click();
+    await p.waitForSelector('[data-testid="findings-list"] button', { timeout: 15000 });
+    await p.locator('[data-testid="findings-list"] button').first().click();
+  }
   await p.getByRole("button", { name: "Show the question" }).click();
   await p.waitForSelector('[data-testid="bet-usd"]', { timeout: 15000 });
   await p.fill('[data-testid="bet-usd"]', "2200");

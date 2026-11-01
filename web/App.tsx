@@ -21,6 +21,7 @@ import { VerdictScreen } from "./screens/Verdict";
 import { ModelSlotCard } from "./screens/ModelPanel";
 import { FindingsPanel } from "./screens/Findings";
 import { MoonwellFlow } from "./screens/Moonwell";
+import { TrackRecordPanel } from "./screens/TrackRecord";
 import { ChangePanel } from "./screens/Change";
 import { AdversaryPanel } from "./screens/Adversary";
 import { LogStrip, useAgentEvents } from "./logstrip/LogStrip";
@@ -57,9 +58,9 @@ export function App({ api: given, start = "studio" }: { api?: Api; start?: Start
   return <Shell {...(given ? { api: given } : {})} />;
 }
 
-const DEMOS: { mode: Mode; words: string; note: string }[] = [
+/** D64: the older screens, under one fold. Still reachable, labels kept: the film and the proof links depend on them. */
+const EARLIER: { mode: Mode; words: string; note: string }[] = [
   { mode: "fixture", words: "The retry machine", note: "withRpcRetry (pre-existing code), bets and the retry machine" },
-  { mode: "pr", words: "The Moonwell pull request", note: "Solidity on a Base fork, the price pipe" },
   { mode: "scale", words: "Many callers at once", note: "the waves chart (a mechanism, not an outage)" },
   { mode: "paste", words: "The earlier paste screen", note: "forms and free answers, step by step" },
 ];
@@ -70,7 +71,7 @@ const DEMOS: { mode: Mode; words: string; note: string }[] = [
  */
 function Shell({ api: given }: { api?: Api }) {
   const studioApi = useMemo(() => given ?? createApi(undefined, undefined, { onSession: (s) => storeSession(PASTE_SESSION_KEY, s) }), [given]);
-  const [view, setView] = useState<"studio" | "explore" | Mode>("studio");
+  const [view, setView] = useState<"studio" | "explore" | "record" | Mode>("studio");
   const [handoff, setHandoff] = useState<BetHandoff | null>(null);
   const [exploreStart, setExploreStart] = useState<{ repo?: string; files?: FileList } | null>(null);
   const [exploreKey, setExploreKey] = useState(0);
@@ -89,6 +90,7 @@ function Shell({ api: given }: { api?: Api }) {
         if (!live || !i.sparkOpen.available) return;
         setClaimant("both");
         studioApi.setClaimant("both");
+        moonwellApi.setClaimant("both");
       },
       () => {},
     );
@@ -99,8 +101,20 @@ function Shell({ api: given }: { api?: Api }) {
   const pickClaimant = (m: ClaimantMode) => {
     setClaimant(m);
     studioApi.setClaimant(m);
+    moonwellApi.setClaimant(m);
   };
-  const demo = DEMOS.find((d) => d.mode === view);
+  const demo = EARLIER.find((d) => d.mode === view);
+  // Moonwell has its own session, and stays mounted once opened: going elsewhere must not lose a paid run.
+  const moonwellApi = useMemo(() => given ?? createApi(), [given]);
+  const [moonwellOpened, setMoonwellOpened] = useState(false);
+  const [recordOpened, setRecordOpened] = useState(0);
+  useEffect(() => {
+    if (view === "pr") setMoonwellOpened(true);
+    if (view === "record") setRecordOpened((n) => n + 1);
+  }, [view]);
+  const closeMenu = (e: { currentTarget: Element }) => {
+    (e.currentTarget.closest("details.u1-menu") as HTMLDetailsElement).open = false;
+  };
   const dark = useDarkScheme();
   return (
     <div className={`iso u1-shell${logOpen ? " u1-log-open" : ""}`} data-theme={dark ? undefined : "light"}>
@@ -115,16 +129,37 @@ function Shell({ api: given }: { api?: Api }) {
           <details className="u1-menu">
             <summary data-testid="u1-demos">Demos</summary>
             <ul>
-              {DEMOS.map((d) => (
-                <li key={d.mode}>
-                  <button type="button" onClick={(e) => { (e.currentTarget.closest("details") as HTMLDetailsElement).open = false; setView(d.mode); }} data-testid={`mode-${d.mode}`}>
-                    <span>{d.words}</span>
-                    <span className="u1-sub">{d.note}</span>
-                  </button>
-                </li>
-              ))}
+              <li>
+                <button type="button" onClick={(e) => { closeMenu(e); setView("pr"); }} data-testid="mode-pr">
+                  <span>The Moonwell pull request</span>
+                  <span className="u1-sub">Solidity on a Base fork, the price pipe</span>
+                </button>
+              </li>
+              <li className="u1-record-item">
+                <button type="button" onClick={(e) => { closeMenu(e); setView("record"); }}>
+                  <span>Your record</span>
+                </button>
+              </li>
+              <li>
+                <details className="u1-earlier" data-testid="u1-earlier">
+                  <summary>Earlier screens</summary>
+                  <ul>
+                    {EARLIER.map((d) => (
+                      <li key={d.mode}>
+                        <button type="button" onClick={(e) => { closeMenu(e); setView(d.mode); }} data-testid={`mode-${d.mode}`}>
+                          <span>{d.words}</span>
+                          <span className="u1-sub">{d.note}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              </li>
             </ul>
           </details>
+          <button type="button" className="u1-link u1-record-link" aria-pressed={view === "record"} onClick={() => setView("record")} data-testid="mode-record">
+            Your record
+          </button>
           <button type="button" className="u1-link" aria-expanded={logOpen} aria-controls="u1-log" onClick={() => setLogOpen((o) => !o)} data-testid="u1-log-toggle">
             {logOpen ? "Hide agent log" : "Agent log"}
           </button>
@@ -140,6 +175,16 @@ function Shell({ api: given }: { api?: Api }) {
             <ExplorerFlow key={exploreKey} api={studioApi} saved={savedOutline} onBet={(h) => { setHandoff(h); setView("studio"); }} {...(exploreStart?.repo ? { initialRepo: exploreStart.repo } : {})} {...(exploreStart?.files ? { initialFiles: exploreStart.files } : {})} />
           </section>
         )}
+        {(view === "pr" || moonwellOpened) && (
+          <section className="u1-sheet u1-moonwell" aria-label="The Moonwell pull request" hidden={view !== "pr"} data-testid="moonwell-sheet">
+            <MoonwellFlow api={moonwellApi} />
+          </section>
+        )}
+        {view === "record" && (
+          <section className="u1-sheet u1-record" aria-label="Your record" data-testid="record-sheet">
+            <TrackRecordPanel api={studioApi} refreshKey={recordOpened} />
+          </section>
+        )}
         {demo && (
           <section className="u1-sheet" aria-label={demo.words}>
             <Rounds key={demo.mode} initial={demo.mode} embedded />
@@ -147,7 +192,7 @@ function Shell({ api: given }: { api?: Api }) {
         )}
       </main>
       <aside id="u1-log" className="u1-log" hidden={!logOpen} aria-label="Agent log">
-        {logOpen && <LiveLogStrip api={studioApi} dropped={null} open onToggle={() => setLogOpen(false)} />}
+        {logOpen && <LiveLogStrip key={view === "pr" ? "pr" : "studio"} api={view === "pr" ? moonwellApi : studioApi} dropped={null} open onToggle={() => setLogOpen(false)} />}
       </aside>
       {roundOpen && <span hidden data-testid="u1-round-open" />}
     </div>
@@ -201,6 +246,7 @@ function Rounds({ api: given, initial = "fixture", embedded = false }: { api?: A
             <p className="muted">Know what your AI-written code does before you trust it.</p>
           </header>
         )}
+        {!embedded && (
         <nav className="switch" aria-label="what to test">
           <button type="button" className={mode === "fixture" ? "on" : undefined} aria-pressed={mode === "fixture"} onClick={() => setMode("fixture")}>
             withRpcRetry (TypeScript)
@@ -218,6 +264,7 @@ function Rounds({ api: given, initial = "fixture", embedded = false }: { api?: A
             Explore a codebase
           </button>
         </nav>
+        )}
         {mode !== "scale" && mode !== "explore" && <ClaimantToggle api={apiOf(mode)} mode={claimant} onMode={pickClaimant} locked={roundOpen[mode]} />}
         <WhyDroppedContext.Provider value={reportDropped}>
           {mode === "fixture" ? (

@@ -9,14 +9,14 @@ import { momentOfRows } from "../../src/moment";
 import { bettorNames } from "../../src/claimants";
 import { MomentView } from "../machines/bench/BenchStage";
 import { ProofLink } from "./ProofCard";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MOONWELL_FORK_BLOCKS, MOONWELL_LEVEL_CAPTION, MOONWELL_LEVEL_SAYS, MOONWELL_LICENCE_LINE, moonwellBetContext, type MoonwellLevel } from "../../src/bet-context";
 import { BET_INSTRUCTION, chainFactsLines, type ChainFactsResult } from "../../src/chain-facts";
 import type { Question } from "../../src/gate";
 import type { Finding } from "../../src/types";
 import { formatUsd1e18 } from "../../src/units";
 import { rowWords, tableCounts } from "../../src/falsealarm";
-import { didNotFinish, type Api, type FalseAlarmRow, type PrTarget, type RunAnswer, type ShownBet } from "../api";
+import { ApiError, didNotFinish, type Api, type FalseAlarmRow, type PrTarget, type RunAnswer, type ShownBet } from "../api";
 import { appliedFeedActions, forkEventsWarning, level2Header } from "../../src/captions";
 import { RunDidNotFinish } from "./Run";
 import { useModelSlots, verdictColumns } from "./Claimant";
@@ -51,6 +51,8 @@ const LEVELS = {
 type Level = MoonwellLevel;
 
 /** "https://github.com/o/r/pull/578", "github.com/o/r/pull/578/files" or "o/r#578" → "o/r#578". */
+const MOONWELL_PR_LINK = "https://github.com/moonwell-fi/moonwell-contracts-v2/pull/578";
+
 /** D60: the same moment as every other result: what was bet, and what the run read. */
 function MoonwellMoment({ result }: { result: RunAnswer }) {
   const card = proofCardModelRows(result);
@@ -74,13 +76,29 @@ function proofCardModelRows(result: RunAnswer, person = "You") {
 }
 
 /** D63: the menu opens the saved result, labelled as what it is. Running it again stays available. */
-function MoonwellSaved({ api, onRunAgain }: { api: Api; onRunAgain: () => void }) {
+function MoonwellSaved({ api, onRunAgain, onNew }: { api: Api; onRunAgain: (place?: Finding) => void; onNew: () => void }) {
   const [file, setFile] = useState<AtlasFile | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [cant, setCant] = useState<string | null>(null);
+  // B1: before any wait or spend. If this can't run here, the saved result stays on screen and the reason sits under the button.
+  const again = async () => {
+    setChecking(true);
+    setCant(null);
+    try {
+      const a = await api.moonwellReady();
+      if (a.ready) onRunAgain(file?.findings?.[0]);
+      else setCant(a.words ?? "A new Moonwell run can't happen here. Nothing was spent.");
+    } catch (e) {
+      setCant(e instanceof ApiError && e.status === 401 ? "A new Moonwell run needs an invite code. Nothing was spent." : `Atlas could not check for a chain connection, so nothing ran: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setChecking(false);
+    }
+  };
   useEffect(() => {
     let live = true;
     Promise.resolve()
       .then(() => api.moonwellSaved())
-      .then((f) => live && setFile(f), () => live && onRunAgain());
+      .then((f) => live && setFile(f), () => live && onNew());
     return () => {
       live = false;
     };
@@ -93,14 +111,17 @@ function MoonwellSaved({ api, onRunAgain }: { api: Api; onRunAgain: () => void }
   return (
     <section data-testid="moonwell-saved">
       <p className="m-saved-label" data-testid="moonwell-saved-label">{`A replay of a saved file: run ${file.runs[0].id}, at Base block ${file.runs[0].forkBlock ?? "?"}. Nothing ran just now.`}</p>
+      <div className="m-again">
+        <button type="button" className="primary" onClick={() => void again()} disabled={checking} data-testid="moonwell-run-again">
+          {checking ? "Checking for a chain connection…" : "Run it again"}
+        </button>
+        <span className="muted small">Your own bet on pull request #578, on a new fork. The AIs' bets are paid calls, asked only when you show the question.</span>
+      </div>
+      {cant && <p className="notice" role="alert" data-testid="moonwell-cant">{cant}</p>}
       <div className="m-split" data-testid="m-split">
         {moment && <div className="m-standalone"><MomentView moment={moment} stranger /></div>}
         <MoonwellDrawing run={file.runs[0]} bets={file.bets} verdicts={file.verdicts} captions={file.captions} still stranger />
       </div>
-      <button type="button" className="primary" onClick={onRunAgain} data-testid="moonwell-run-again">
-        Run it again
-      </button>
-      <span className="muted small"> Asks the AIs and forks the chain: paid calls. Atlas checks for a chain connection first.</span>
     </section>
   );
 }
@@ -116,7 +137,8 @@ const usd: FormatValue = (m, v) => (/^(priceUsd1e18|preApplyPriceUsd1e18|refUsd1
 const usdOf = (v: string | null) => (v === null ? "not read" : formatUsd1e18(BigInt(v)));
 
 export function MoonwellFlow({ api, onRoundOpen, direct = false }: { api: Api; onRoundOpen?: (open: boolean) => void; /** Straight to a new run, past the saved result. */ direct?: boolean }) {
-  const [link, setLink] = useState("");
+  // B1: the one pull request Atlas can run, already filled in.
+  const [link, setLink] = useState(MOONWELL_PR_LINK);
   // D63: the menu opens the saved result. A new run is a choice, with its cost said first.
   const [runAgain, setRunAgain] = useState(direct);
   const [target, setTarget] = useState<PrTarget | null>(null);
@@ -151,12 +173,19 @@ export function MoonwellFlow({ api, onRoundOpen, direct = false }: { api: Api; o
     }
   };
 
-  const read = () =>
+  const read = (place?: Finding) =>
     step(async () => {
       const ref = prRefFromLink(link);
       if (!ref) throw new Error("paste a pull request link like https://github.com/owner/repo/pull/123");
-      setTarget(await api.prTarget(ref));
+      const t = await api.prTarget(ref);
+      setTarget(t);
+      // The lines the saved run bet on, so the next thing on screen is the bet. Other places stay one click away.
+      if (place) setFinding(await api.pickLines(t, place.file, place.lineStart, place.lineEnd));
     });
+  const startAgain = (place?: Finding) => {
+    setRunAgain(true);
+    if (!target && !busy) void read(place);
+  };
 
   const ask = () =>
     step(async () => {
@@ -195,18 +224,29 @@ export function MoonwellFlow({ api, onRoundOpen, direct = false }: { api: Api; o
     }
   };
 
+  // The payoff is what the person was waiting for: it comes into view when it lands, above the details.
+  const payoff = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (result) payoff.current?.scrollIntoView?.({ block: "start" });
+  }, [result]);
   const q = questions[0];
   const m = result?.run.result.measured;
   const fileOf = (path: string) => target?.files.find((f) => f.path === path)?.text;
-  if (!runAgain) return <MoonwellSaved api={api} onRunAgain={() => setRunAgain(true)} />;
+  if (!runAgain) return <MoonwellSaved api={api} onRunAgain={startAgain} onNew={() => setRunAgain(true)} />;
   return (
     <>
+      {!direct && (
+        <button type="button" className="u1-link m-back" onClick={() => setRunAgain(false)} data-testid="moonwell-back">
+          ← The saved result
+        </button>
+      )}
       <section className="card" aria-label="pull request">
-        <h2>Paste a pull request link</h2>
+        <h2>The pull request</h2>
+        {busy && !target && <p className="running" role="status" data-testid="moonwell-reading">Reading pull request #578 from GitHub…</p>}
         <div className="row">
           <input data-testid="pr-link" className="link" type="text" placeholder="https://github.com/owner/repo/pull/123" value={link} disabled={!!target || busy} onChange={(e) => setLink(e.target.value)} />
           {!target && (
-            <button type="button" onClick={read} disabled={busy || link.trim() === ""}>
+            <button type="button" onClick={() => void read()} disabled={busy || link.trim() === ""}>
               Read it
             </button>
           )}
@@ -220,7 +260,13 @@ export function MoonwellFlow({ api, onRoundOpen, direct = false }: { api: Api; o
         )}
       </section>
 
-      {target && <FindingsPanel api={api} target={target} chosen={finding} onChoose={setFinding} locked={experimentId !== null} allowPick />}
+      {target && (
+        // One panel whether a place is chosen or not: it keeps what is open inside it.
+        <details className="m-place" data-testid="moonwell-place" open={finding === null || undefined}>
+          <summary>{finding ? `This round works on ${finding.file.split("/").pop()}, line ${finding.lineStart}. Choose another place` : "Choose a place in the code"}</summary>
+          <FindingsPanel api={api} target={target} chosen={finding} onChoose={setFinding} locked={experimentId !== null} allowPick />
+        </details>
+      )}
 
       {target && (
         <section className="card" aria-label="bet">
@@ -344,7 +390,7 @@ export function MoonwellFlow({ api, onRoundOpen, direct = false }: { api: Api; o
 
       {result && result.run.runner === "evm" && (
         // D60: the film's payoff frame: the moment beside the ring.
-        <div className="m-split" data-testid="m-split">
+        <div className="m-split" ref={payoff} data-testid="m-split">
           <MoonwellMoment result={result} />
           <MoonwellDrawing run={result.run} bets={result.bets} verdicts={result.verdicts} compact />
         </div>

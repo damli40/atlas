@@ -264,7 +264,8 @@ describe("X4 proof file: recorded, verified, tamper-evident", () => {
     expect(names.length).toBeGreaterThan(0);
     for (const n of names) {
       const f = JSON.parse(readFileSync(join(root, n), "utf8"));
-      expect(f.rules?.confidence, n).toBeUndefined();
+      // Round 4's real Moonwell run is from after X4, so it carries the marker. It must verify all the same.
+      if (!n.includes("moonwell-real")) expect(f.rules?.confidence, n).toBeUndefined();
       expect(verifyProblems(f), n).toEqual([]);
     }
   });

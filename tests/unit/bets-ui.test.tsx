@@ -75,7 +75,7 @@ describe("D02-04 bets UI: sealed hash before the run, checked by the browser aft
     await until(() => $('[data-testid="bet-calls"]') !== null, "the questions");
     act(() => setValue($('[data-testid="bet-calls"]') as HTMLInputElement, "5"));
     act(() => setValue($('[data-testid="bet-totalWaitMs"]') as HTMLInputElement, "12000"));
-    act(() => setValue($('[data-testid="bet-outcome"]') as HTMLSelectElement, "returns")); // a bet that will not match
+    act(() => ($('[data-testid="bet-outcome-returns"]') as HTMLButtonElement).click()); // a bet that will not match
 
     await act(async () => byText("button", "Seal my bets")!.click());
     await until(() => $('[data-testid="hash-outcome"]') !== null, "the sealed hashes");
@@ -99,7 +99,8 @@ describe("D02-04 bets UI: sealed hash before the run, checked by the browser aft
     for (const b of set) expect(b).not.toHaveProperty("nonce");
 
     // 2. Bet inputs are disabled after sealing.
-    for (const m of ["calls", "totalWaitMs", "outcome"]) expect(($(`[data-testid="bet-${m}"]`) as HTMLInputElement).disabled).toBe(true);
+    for (const m of ["calls", "totalWaitMs"]) expect(($(`[data-testid="bet-${m}"]`) as HTMLInputElement).disabled).toBe(true);
+    expect(($('[data-testid="bet-outcome-returns"]') as HTMLButtonElement).disabled).toBe(true);
     expect(byText("button", "Seal my bets")).toBeUndefined();
 
     // 3. Break it → the real run → verdicts.

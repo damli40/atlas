@@ -1,0 +1,11 @@
+{
+ "at": {
+  "pull request read": 6,
+  "question shown": 9,
+  "models sealed": 9,
+  "run finished": 14
+ },
+ "facts": "runW-PiIkHMZe · fork of Base at block 42194662 · chain 8453what ranLevel 2: fork one block before the proposal ran; the proposal's 14 oracle-feed actions appliedknown-case check firstpassed (WETH exact, USD stablecoins about $1)cbETH, read$1.12price sourcescbETH's read touched 1 price source (call trace). Observed, not part of the pre-registered rule: PASS-RULE.md counts sources only after a proposed change.",
+ "moment": "You bet$2,200The run1 cbETH read $1.12On this question: cbETH in dollarsYou$2,200didn't match",
+ "proofLink": "?proof=W-PiIkHMZe"
+}

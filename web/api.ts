@@ -286,6 +286,7 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
     sweep: (target: Target, params: unknown) => post<SweepAnswer>("/sweeps", { target: { ref: target.ref, codeSha256: target.codeSha256 }, params }),
     /** D06-03: a round's .atlas.json, as the server kept it. */
     proof: (runId: string) => get<AtlasFile>(`/proofs/${encodeURIComponent(runId)}`),
+    moonwellReady: () => get<{ ready: boolean; words?: string }>("/moonwell/ready"),
     proofViewer: (runId: string) => get<{ yours: boolean; keepsCards: boolean }>(`/proofs/${encodeURIComponent(runId)}/viewer`),
     /** D63: the saved Moonwell result the menu opens. */
     moonwellSaved: () => get<AtlasFile>("/moonwell/saved"),

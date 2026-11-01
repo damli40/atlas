@@ -40,10 +40,12 @@ export function ModelSlotCard({ slot, revealed }: { slot: ModelSlotView | null; 
             </b>{" "}
             <span className="muted">Its answers stay hidden until the run; only the hashes are shown now.</span>
           </p>
-          <ul className="seals">
+          <ul className="seals seals-quiet">
             {slot.sealed.map((b) => (
               <li key={b.id}>
-                {b.measures}: sealed at {b.sealedAt} · hash <ShortHash hash={b.sealedHash} testId={`model-hash-${b.measures}`} />
+                <span>{b.measures}</span>
+                <time dateTime={b.sealedAt}>{b.sealedAt.slice(11, 19)}</time>
+                <ShortHash hash={b.sealedHash} testId={`model-hash-${b.measures}`} />
               </li>
             ))}
           </ul>
