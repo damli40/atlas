@@ -38,7 +38,7 @@ export function runEnding(run: Pick<Run, "result" | "trace">): string | null {
   const total = counts.reduce((sum, [, v]) => sum + v, 0);
   const after = total === 0 ? "" : counts.length === 1 ? `, after ${total === 1 ? "1 call" : `${total.toLocaleString("en-US")} calls`} to ${clip(counts[0]![0].slice(6), 24)}` : `, after ${total.toLocaleString("en-US")} calls`;
   const seq = run.trace?.some((e) => e.event === "call_start" && (e.data as { n?: number } | undefined)?.n === 2);
-  const at = typeof m.virtualMs === "number" ? (seq ? ` ${ms(m.virtualMs)} into its last call` : ` at ${ms(m.virtualMs)}`) : "";
+  const at = typeof m.virtualMs === "number" && m.virtualMs > 0 ? (seq ? ` ${ms(m.virtualMs)} into its last call` : ` at ${ms(m.virtualMs)}`) : "";
   if (outcome === "returned") return `returned ${typeof m.returnedJson === "string" ? clip(m.returnedJson, 60) : "a value"}${at}${after}`;
   if (outcome === "threw") {
     const name = typeof m.thrownName === "string" ? m.thrownName : "an error";

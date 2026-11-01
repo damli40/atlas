@@ -164,7 +164,7 @@ export const CHANGE_WORDS = {
   sameCode: "Same code as a run you've already seen, apart from spaces or comments, so you may already know the answer.",
   claimAsking: "Asking Muse Wonder for a new test…",
   claimNoNew: "Muse Wonder's tests for this sentence are ones that have already run here, so there is nothing new to bet on.",
-  paidWonder: "Asks Muse Wonder, and the AI bettors answer the test it writes: paid AI calls.",
+  paidWonder: "Asks Muse Wonder and the AI bettors: paid AI calls.",
   earlyWonder: "Muse Wonder is writing a test for this code: a paid AI call.",
   paidAgain: "The first two start paid AI calls.",
   paidBets: "The AI bettors answer too: paid AI calls.",

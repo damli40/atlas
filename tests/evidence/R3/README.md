@@ -144,3 +144,12 @@ Plain words: the review found the drawing's account of the run was false on ordi
 - `journey-a/live-result.png`, `live-claim.png`: one live round with real models, $0.0653 (`journey-a/live-usage.json`).
 - Pencil: draws in its own process. Retry demo 2,025 ms; longest stall of the server's thread during it, 7 ms (it was 2,100 ms).
 - Real-run tests: `tests/unit/r3-wires`, `r3-truth-runs`, `r3-helpers`, `r3-pencil`, `r3-bench-verdict`, `r3-honesty-moved`.
+
+## The feel (D60) and the third run (D61)
+
+Plain words: the drawing stays handmade, and the tool around it became exact and fast. The third run was narrowed: it draws which of your helpers ran and in what order, never a value.
+
+- `design/moment-1440.png`, `design/moonwell-ring-1440.png`: the moment, and Moonwell's ring beside it.
+- `design/shots/`: every stage at 1440x900 and 1280x720. `design/shot.mjs`, `design/first.mjs` make them. Models mocked, sealed runs real; the mock's words are hidden with `U3_QUIET_MOCK`.
+- `hero-journey-v2.mp4`: the journey, 16 s. `journey-a/journey.json`: the speed numbers. `journey-a/live-*`: one live round, $0.0466.
+- The third run carries no signing key and is read through a strict reader; it reaches no verdict or proof (`tests/unit/r3-helpers.test.ts`, "D61").
