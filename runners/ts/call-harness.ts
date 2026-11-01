@@ -170,11 +170,10 @@ export interface ProbeWire {
   id: number;
   t: number;
   at: number;
-  json?: string;
 }
 /** What call-worker.ts prints after RESULT_MARKER and the per-run marker. Exactly one of runs / wholeRun / tampered. */
 export interface CallWorkerResponse {
-  runs?: ({ id: string; probes?: ProbeWire[] } & CallHarnessOutput)[];
+  runs?: ({ id: string; probes?: ProbeWire[]; probesCut?: number } & CallHarnessOutput)[];
   wholeRun?: string;
   tampered?: string;
   changed?: string;
@@ -1425,33 +1424,28 @@ function grownResources(before: Map<string, number>): string[] {
   return out;
 }
 
-// ---- R3: the third run's probes. Not installed for a sealed run. ----
+// ---- R3 (D61): the third run's probes. Not installed for a sealed run. Names and order only: no value is ever read. ----
 const PROBE_MAX = 5000;
-const PROBE_VALUE_MAX = 200;
 const probeEvents: ProbeWire[] = [];
+let probesCut = 0;
 let probePlace: (() => [number, number]) | null = null;
-/** What the probes reported. */
-export const probesSoFar = (): ProbeWire[] => probeEvents;
+/** What the probes reported, and how many past the cap were counted and not kept. */
+export const probesSoFar = (): { events: ProbeWire[]; cut: number } => ({ events: probeEvents, cut: probesCut });
 /** Defines the global the instrumented file calls. It gives back what it is given, whatever else happens. */
 export function installProbe(name: string): void {
   const probe = (k: number, id: number, v?: unknown) => {
-    try {
-      if (probePlace && probeEvents.length < PROBE_MAX) {
-        const [t, at] = probePlace();
-        const ev = record<ProbeWire>();
-        put(ev, "k", k);
-        put(ev, "id", id);
-        put(ev, "t", t);
-        put(ev, "at", at);
-        if (k === 1 && v !== undefined) {
-          const c = classifyReturned(v);
-          if ("json" in c && typeof c.json === "string" && c.json.length <= PROBE_VALUE_MAX) put(ev, "json", c.json);
-        }
-        append(probeEvents, ev);
-      }
-    } catch {
-      // A value that cannot be read gives the step no value; it never changes what the code does.
+    if (!probePlace) return v;
+    if (probeEvents.length >= PROBE_MAX) {
+      probesCut++;
+      return v;
     }
+    const [t, at] = probePlace();
+    const ev = record<ProbeWire>();
+    put(ev, "k", k);
+    put(ev, "id", id);
+    put(ev, "t", t);
+    put(ev, "at", at);
+    append(probeEvents, ev);
     return v;
   };
   Object.defineProperty(globalThis, name, { value: probe, enumerable: false, writable: false, configurable: false });

@@ -393,16 +393,36 @@ function callFactsOf(sf: ts.SourceFile, checker: ts.TypeChecker): CallFacts {
   // Which names are ever used (a nested function nobody refers to never runs), and which parameters are ever assigned.
   const used = new Map<ts.Symbol, number>();
   const assigned = new Set<ts.Symbol>();
+  // Any way a name is written makes it unsure: `x = …`, `[x] = …`, `({x} = …)`, `for (x of …)`. A name nothing binds counts too.
+  const rewrittenFree = new Set<string>();
+  const writesTo = (t: ts.Node): void => {
+    if (ts.isIdentifier(t)) {
+      const s = checker.getSymbolAtLocation(t);
+      if (s) assigned.add(s);
+      else rewrittenFree.add(t.text);
+    } else if (ts.isArrayLiteralExpression(t)) t.elements.forEach(writesTo);
+    else if (ts.isObjectLiteralExpression(t)) {
+      for (const p of t.properties) {
+        if (ts.isShorthandPropertyAssignment(p)) {
+          const v = checker.getShorthandAssignmentValueSymbol(p);
+          if (v) assigned.add(v);
+          else rewrittenFree.add(p.name.text);
+        }
+        else if (ts.isPropertyAssignment(p)) writesTo(p.initializer);
+        else if (ts.isSpreadAssignment(p)) writesTo(p.expression);
+      }
+    } else if (ts.isSpreadElement(t)) writesTo(t.expression);
+    else if (ts.isParenthesizedExpression(t)) writesTo(t.expression);
+    else if (ts.isBinaryExpression(t) && t.operatorToken.kind === ts.SyntaxKind.EqualsToken) writesTo(t.left);
+  };
   const count = (n: ts.Node): void => {
     if (ts.isIdentifier(n)) {
       const s = checker.getSymbolAtLocation(n);
       const isDeclName = (n.parent as { name?: ts.Node } | undefined)?.name === n && !ts.isPropertyAccessExpression(n.parent);
       if (s && !isDeclName) used.set(s, (used.get(s) ?? 0) + 1);
     }
-    if (ts.isBinaryExpression(n) && n.operatorToken.kind >= ts.SyntaxKind.FirstAssignment && n.operatorToken.kind <= ts.SyntaxKind.LastAssignment && ts.isIdentifier(n.left)) {
-      const s = checker.getSymbolAtLocation(n.left);
-      if (s) assigned.add(s);
-    }
+    if (ts.isBinaryExpression(n) && n.operatorToken.kind >= ts.SyntaxKind.FirstAssignment && n.operatorToken.kind <= ts.SyntaxKind.LastAssignment) writesTo(n.left);
+    if ((ts.isForOfStatement(n) || ts.isForInStatement(n)) && !ts.isVariableDeclarationList(n.initializer)) writesTo(n.initializer);
     if ((ts.isPrefixUnaryExpression(n) || ts.isPostfixUnaryExpression(n)) && ts.isIdentifier(n.operand) && (n.operator === ts.SyntaxKind.PlusPlusToken || n.operator === ts.SyntaxKind.MinusMinusToken)) {
       const s = checker.getSymbolAtLocation(n.operand);
       if (s) assigned.add(s);
@@ -474,7 +494,7 @@ function callFactsOf(sf: ts.SourceFile, checker: ts.TypeChecker): CallFacts {
       if (ts.isIdentifier(callee)) {
         const line = lineOf(n);
         if (unbound(callee)) {
-          if (reachable(n)) facts.freeCalls.push({ name: callee.text, line });
+          if (reachable(n) && !rewrittenFree.has(callee.text)) facts.freeCalls.push({ name: callee.text, line });
         } else {
           const p = paramOf(callee);
           if (p && p.index >= 0 && reachable(n)) facts.paramCalls.push({ ...p, line });

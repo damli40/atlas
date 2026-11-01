@@ -250,7 +250,11 @@ async function main(): Promise<void> {
       put(one, "id", r.id);
       put(one, "trace", res.trace);
       put(one, "result", res.result);
-      if (probeName !== undefined) put(one, "probes", probesSoFar());
+      if (probeName !== undefined) {
+        const seen = probesSoFar();
+        put(one, "probes", seen.events);
+        put(one, "probesCut", seen.cut);
+      }
       append(runs, one);
     }
   }

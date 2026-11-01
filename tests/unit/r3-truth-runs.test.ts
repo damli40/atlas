@@ -144,47 +144,61 @@ describe("R3 B3: the ring goes on the first step that really departs", () => {
   });
 });
 
-describe("R3 journey 1: helper steps on the path", () => {
+describe("D61: helper order on the path: names only, never a value, never a ring", () => {
   const CART = `function subtotal(items) {\n return items.length * 2750;\n}\nfunction applyCoupon(total) {\n return Math.round(total * 0.9);\n}\nconst shippingFor = (total) => (total > 5000 ? 0 : 599);\nexport function checkout(items) {\n const t = subtotal(items);\n const after = applyCoupon(t);\n return after + shippingFor(after);\n}\n`;
-  it("the path tells the story, and the ring goes on the step that moves away from the bet", async () => {
+  const CAPTION = "Helper order comes from a separate traced run, not the sealed ones. The code itself could change it.";
+  it("the path tells the order, says where it came from, and the ring is on the end, a measured step", async () => {
     const { run, experiment } = await realRun("js", CART, { exportName: "checkout", args: [{ kind: "json", value: ["a", "b"] }] });
     const helpers = await helperRun(experiment as never, run);
     if ("none" in helpers) throw new Error(helpers.none);
     const bets = [{ id: "b", who: "human" as const, measures: "returnedJson", answer: { kind: "json" as const, value: 5500 } }];
     const spec = whatHappened({ run, experiment, helpers, bets, verdicts: [{ betId: "b", outcome: "not_matched" }] });
-    expect(spec.nodes.map((n) => n.words)).toEqual(["subtotal → 5500", "applyCoupon → 4950", "shippingFor → 599", "returned 5549"]);
-    expect(spec.nodes.find((n) => n.id === spec.marks[0]!.on)!.words).toBe("applyCoupon → 4950");
-    expect(spec.captions.map((c) => c.words).join()).toMatch(/third run made only for this drawing/);
-  });
-  it("a bet no step produced parts at the end, and helper steps never claim more", async () => {
-    const { run, experiment } = await realRun("js", CART, { exportName: "checkout", args: [{ kind: "json", value: ["a", "b"] }] });
-    const helpers = await helperRun(experiment as never, run);
-    const bets = [{ id: "b", who: "human" as const, measures: "returnedJson", answer: { kind: "json" as const, value: 7 } }];
-    const spec = whatHappened({ run, experiment, helpers, bets, verdicts: [{ betId: "b", outcome: "not_matched" }] });
+    expect(spec.nodes.map((n) => n.words)).toEqual(["subtotal", "applyCoupon", "shippingFor", "returned 5549"]);
     expect(spec.nodes.find((n) => n.id === spec.marks[0]!.on)!.words).toBe("returned 5549");
+    expect(spec.captions.map((c) => c.words)).toContain(CAPTION);
+    expect(spec.nodes.map((n) => `${n.words} ${n.small ?? ""}`).join()).not.toMatch(/→|5500|4950|599\b/);
+    expect(JSON.stringify(spec)).not.toMatch(/matched the two sealed/);
   });
-  it("when the third run differs, the path has no helpers and a caption says why", async () => {
+  it("when the traced run differs, the path has no helpers and a caption says why, with no internals", async () => {
     const src = `function me() { return 1; }\nexport function a() { return me.toString().length; }\n`;
     const { run, experiment } = await realRun("js", src, { exportName: "a", args: [] });
     const helpers = await helperRun(experiment as never, run);
     const spec = whatHappened({ run, experiment, helpers });
     expect(spec.nodes.map((n) => n.words)).toEqual(["returned 27"]);
-    expect(spec.captions.map((c) => c.words).join()).toMatch(/went differently from the sealed run/);
+    const words = spec.captions.map((c) => c.words).join(" ");
+    expect(words).toMatch(/did not match the sealed run/);
+    expect(words).not.toMatch(/__atlasP|SyntaxError|sandbox/);
+    expect(words).not.toContain(CAPTION);
   });
   it("helpers mixed with stand-ins stay in the order they ran, with the wait between them", async () => {
     const src = `function total(x) {\n return x + 1;\n}\nexport async function a(load) {\n const v = await load();\n return total(v);\n}\n`;
     const { run, experiment } = await realRun("js", src, { exportName: "a", args: [si("load", [later(100, 4)])] });
     const helpers = await helperRun(experiment as never, run);
     const spec = whatHappened({ run, experiment, helpers });
-    expect(spec.nodes.map((n) => n.words)).toEqual(["called load", "waited 100 ms", "total → 5", "returned 5"]);
+    expect(spec.nodes.map((n) => n.words)).toEqual(["called load", "waited 100 ms", "total", "returned 5"]);
   });
-  it("a loop of helpers folds with exact counts", async () => {
-    const src = `function one(x) {\n return 1;\n}\nexport function a() {\n let s = 0;\n for (let i = 0; i < 100; i++) s += one(i);\n return s;\n}\n`;
+  it("N7: Python: a helper that ran before a delayed answer is drawn before it", async () => {
+    const src = `def h():\n    return 5\nasync def a(x):\n    p = x()\n    h()\n    return await p\n`;
+    const { run, experiment } = await realRun("py", src, { exportName: "a", args: [si("x", [later(300, 1)])] });
+    const helpers = await helperRun(experiment as never, run);
+    const spec = whatHappened({ run, experiment, helpers });
+    const w = spec.nodes.map((n) => n.words);
+    expect(w.indexOf("h")).toBeLessThan(w.findIndex((x) => /waited 300 ms/.test(x)));
+  });
+  it("M8: a loop of helpers folds by name with exact counts, and a cut list says at least", async () => {
+    const src = `function one(x) {\n return x;\n}\nexport function a() {\n let s = 0;\n for (let i = 0; i < 100; i++) s += one(i);\n return s;\n}\n`;
     const { run, experiment } = await realRun("js", src, { exportName: "a", args: [] });
     const helpers = await helperRun(experiment as never, run);
     const spec = whatHappened({ run, experiment, helpers });
+    expect(spec.nodes.length).toBeLessThan(4);
     expect(spec.nodes.map((n) => n.words).join()).toContain("one 100 times");
-    expect(specProblems(spec)).toEqual([]);
+    const many = `function one(x) {\n return x;\n}\nexport function a() {\n for (let i = 0; i < 3000; i++) one(i);\n return 1;\n}\n`;
+    const r2 = await realRun("js", many, { exportName: "a", args: [] });
+    const h2 = await helperRun(r2.experiment as never, r2.run);
+    const s2 = whatHappened({ run: r2.run, experiment: r2.experiment, helpers: h2 });
+    expect(s2.nodes.map((n) => n.words).join()).toContain("one at least 400 times");
+    expect(s2.captions.map((c) => c.words).join()).toMatch(/at least/);
+    expect(s2.captions.map((c) => c.words).join()).not.toMatch(/2,099|more were not drawn/);
   });
 });
 

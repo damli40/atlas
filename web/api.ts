@@ -204,7 +204,7 @@ export interface ReplayAnswer {
 }
 
 /** R3: what GET /runs/:id/helpers answers (server/helpers.ts). */
-export type HelperAnswer = { steps: HelperStep[]; more: number } | { none: string };
+export type HelperAnswer = { steps: HelperStep[]; cut: boolean } | { none: string };
 
 export class ApiError extends Error {
   constructor(

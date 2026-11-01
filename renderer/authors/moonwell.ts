@@ -26,6 +26,8 @@ export interface MoonwellInput {
   seed?: string;
   /** Where the run came from, only when the caller knows (review B5). */
   origin?: "this-run" | "proof-file";
+  /** D20's file: this run is from before the change, and the file's captions are about the re-run. The drawing says which it shows. */
+  beforeChange?: boolean;
 }
 
 const isUint = (v: unknown): v is string => typeof v === "string" && /^\d+$/.test(v);
@@ -36,7 +38,7 @@ export function moonwellFlow(input: MoonwellInput): RenderSpec {
     version: 1,
     stage: "after-run",
     seed: input.seed ?? `moonwell:${input.run.id}`,
-    kicker: "Moonwell, MIP-X43, replayed on a fork",
+    kicker: input.beforeChange ? "Moonwell, MIP-X43, on a fork, before the change" : "Moonwell, MIP-X43, replayed on a fork",
     title: `1 ${symbol}`,
     subtitle: "what the oracle reported, and how it got there",
     nodes: [],

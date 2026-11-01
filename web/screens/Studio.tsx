@@ -11,6 +11,7 @@
 // - Muse Wonder's test is a proposal: the gate decides. Its claim sentence is shown only after the run (D18).
 // - Verdicts are plain code's (src/judge.ts): matched / didn't match / can't check.
 
+import { PASTE_WORDS } from "../../src/paste-words";
 import EXAMPLE_OUTLINE from "../u1-example-outline.json";
 import { betView } from "../../renderer/authors/bet-view";
 import { Drawing } from "../drawing/Drawing";
@@ -122,16 +123,48 @@ function ExampleDrawing() {
   );
 }
 
+const W_REPEAT = (id: string) => PASTE_WORDS.repeatNote(id);
+
+/**
+ * The code with comments and spaces taken out, keeping strings as they are. A label's fingerprint only: it decides one sentence on
+ * the screen, never a seal, a verdict or a repeat mark. Good enough to be wrong only on the side of saying less.
+ */
+export function codeFingerprint(source: string, language: string | undefined): string {
+  let out = "";
+  const py = language === "py";
+  for (let i = 0; i < source.length; i++) {
+    const c = source[i]!;
+    if (c === '"' || c === "'" || (c === "`" && !py)) {
+      let j = i + 1;
+      while (j < source.length && source[j] !== c) j += source[j] === "\\" ? 2 : 1;
+      out += source.slice(i, j + 1);
+      i = j;
+    } else if (py ? c === "#" : c === "/" && source[i + 1] === "/") {
+      while (i < source.length && source[i] !== "\n") i++;
+      if (py && out !== "" && !out.endsWith("\n")) out += "\n";
+    } else if (!py && c === "/" && source[i + 1] === "*") {
+      const end = source.indexOf("*/", i + 2);
+      i = end < 0 ? source.length : end + 1;
+    } else if (py ? (c === " " || c === "\t") && out.slice(out.lastIndexOf("\n") + 1).trim() !== "" : /\s/.test(c)) {
+      continue;
+    } else if (py && c === "\n" && (out === "" || out.endsWith("\n"))) {
+      continue;
+    } else out += c;
+  }
+  return out;
+}
+
 const HELPER_WAIT_MS = 2500;
-const HELPER_TOO_SLOW = "Helper steps are not shown: the extra run made to see them took too long.";
+const HELPER_TOO_SLOW = "Helper order is not shown: the separate traced run took too long.";
 export const CHANGE_WORDS = {
   open: "Change the code and bet again",
   explain: "Same test, same questions. Your new answers are sealed before anything runs, and the new run is judged the same way.",
   go: "Draw the change and bet again",
   sameTest: "The same test, on your changed code. Bet again: nothing about this code has run yet.",
+  sameCode: "Same code as a run you've already seen, apart from spaces or comments, so you may already know the answer.",
   claimAsking: "Asking Muse Wonder for a new test…",
   claimNoNew: "Muse Wonder's tests for this sentence are ones that have already run here, so there is nothing new to bet on.",
-  paidWonder: "Asks Muse Wonder: a paid AI call.",
+  paidWonder: "Asks Muse Wonder, and the AI bettors answer the test it writes: paid AI calls.",
   earlyWonder: "Muse Wonder is writing a test for this code: a paid AI call.",
   paidAgain: "The first two start paid AI calls.",
   paidBets: "The AI bettors answer too: paid AI calls.",
@@ -232,6 +265,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const [claimNoNew, setClaimNoNew] = useState(false);
   // R3: the tests already run on this code: offering one again would show its answer.
   const ranTests = useRef(new Set<string>());
+  // The code and test pairs already run here, whatever the spaces and comments: only for the label on a changed round (M3).
+  const ranCodes = useRef(new Set<string>());
   // R3: the code's own steps for the drawing (a third run made after the sealed ones). Arrives with the result, or not at all.
   const [helpers, setHelpers] = useState<HelperAnswer | null>(null);
   useEffect(() => onRoundOpen?.(exp !== null && result === null), [exp, result, onRoundOpen]);
@@ -527,6 +562,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       async (r) => {
         if (g !== gen.current) return;
         ranTests.current.add(canonicalTest(exp.experiment.params));
+        ranCodes.current.add(`${codeFingerprint(readText, pasted?.target.language ?? undefined)}|${canonicalTest(exp.experiment.params)}`);
         // R3: the third run starts when the sealed runs end. Its steps join the drawing if they come quickly; the story never
         // waits long for them, and a page without them still shows everything that was measured.
         const steps = await Promise.race<HelperAnswer | null>([
@@ -543,7 +579,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
         setOpen(false);
         setBusy(null);
         // U3 item 5: a "Test this claim" round shows the sentence it tested beside the facts, not a new sentence to test.
-        if (!claimRound && (exp.experiment.proposedBy.role === "investigator" || exp.experiment.proposedBy.editedFrom)) api.claim(exp.experiment.id).then((c) => setClaim(c.claim), () => setClaim(null));
+        if (!claimRound && (exp.experiment.proposedBy.role === "investigator" || exp.experiment.proposedBy.editedFrom)) api.claim(exp.experiment.id).then((c) => g === gen.current && setClaim(c.claim), () => g === gen.current && setClaim(null));
       },
       (e: Error) => {
         if (g !== gen.current) return;
@@ -606,9 +642,14 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     setCode(text);
     const r = await read(text, language, want);
     if (!r?.runnable || (want && !r.exports.some((x) => x.name === want))) return;
-    setHandoffNote(CHANGE_WORDS.sameTest);
+    // What the note says must match what the bettors are told (D19): the server knows when this exact code and test already ran.
+    const seen = ranCodes.current.has(`${codeFingerprint(text, language)}|${canonicalTest(params)}`);
     setOpen(true);
-    await start(() => api.experiment(r.target, params, undefined, undefined, { quiz: true }));
+    await start(async () => {
+      const out = await api.experiment(r.target, params, undefined, undefined, { quiz: true });
+      setHandoffNote(out.repeatOf ? W_REPEAT(out.repeatOf) : seen ? CHANGE_WORDS.sameCode : CHANGE_WORDS.sameTest);
+      return out;
+    });
   };
   const anotherTest = async () => {
     reset();

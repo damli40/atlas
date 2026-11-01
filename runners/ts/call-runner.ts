@@ -111,15 +111,18 @@ function isRun(r: unknown): r is NonNullable<CallWorkerResponse["runs"]>[number]
 }
 
 /**
- * R3: the third run, for the drawing's helper steps only (server/helpers.ts). One run of already instrumented source, with
- * the same seed as the sealed runs. Nothing from it reaches a verdict or a proof file.
+ * D61: the third run, for the drawing's helper order only (server/helpers.ts). One run of already instrumented source, with the
+ * same seed as the sealed runs. It is untrusted by design: it runs with NO signing key (a fixed public value stands where the
+ * key goes), so there is nothing in that process worth stealing, and its answer is only ever read through a strict schema.
+ * Nothing from it reaches a verdict, a proof file or a sealed run.
  */
-export async function runProbedCall(exp: Experiment, instrumented: string, language: "js" | "ts", probe: string, o: { executor?: Executor; wallClockMs?: number; seed?: string } = {}): Promise<{ trace: TraceEvent[]; result: Run["result"]; probes: ProbeWire[] } | { reason: string }> {
+export const UNTRUSTED_RUN_KEY = "0".repeat(64);
+export async function runProbedCall(exp: Experiment, instrumented: string, language: "js" | "ts", probe: string, o: { executor?: Executor; wallClockMs?: number; seed?: string } = {}): Promise<{ trace: TraceEvent[]; result: Run["result"]; probes: unknown; probesCut: unknown } | { reason: string }> {
   if (exp.params.shape !== "call-function") return { reason: "only a call of a function has helper steps" };
-  const res = await runInSandbox(o.executor ?? localExecutor, instrumented, language, { runs: [{ ...runRequest(exp.id, exp.params), probe }], seed: o.seed ?? CALL_SEED }, o.wallClockMs ?? DEFAULT_WALL_CLOCK_MS);
+  const res = await runInSandbox(o.executor ?? localExecutor, instrumented, language, { runs: [{ ...runRequest(exp.id, exp.params), probe }], seed: o.seed ?? CALL_SEED, untrusted: true }, o.wallClockMs ?? DEFAULT_WALL_CLOCK_MS);
   if (!res.ok) return { reason: res.reason };
   const one = res.runs.find((r) => r.id === exp.id);
-  return one ? { trace: one.trace, result: one.result, probes: one.probes ?? [] } : { reason: "the sandbox returned no result" };
+  return one ? { trace: one.trace, result: one.result, probes: one.probes ?? [], probesCut: one.probesCut ?? 0 } : { reason: "the sandbox returned no result" };
 }
 
 /** HMAC-SHA256 of the result JSON under the run's key, as the worker writes it (call-worker.ts explains why). */
@@ -172,13 +175,14 @@ export function parseCallWorkerOutput(stdout: string, key: string, expectedIds?:
 }
 
 /** Runs the worker on `code` in the sandbox. */
-export async function runInSandbox(executor: Executor, code: string, language: "js" | "ts", request: Omit<CallWorkerRequest, "targetFile" | "seed" | "pins"> & { seed?: string }, wallClockMs: number): Promise<CallAnswer> {
+export async function runInSandbox(executor: Executor, code: string, language: "js" | "ts", request: Omit<CallWorkerRequest, "targetFile" | "seed" | "pins"> & { untrusted?: boolean; seed?: string }, wallClockMs: number): Promise<CallAnswer> {
   const answer = await sandboxAnswer(executor, code, language, request, wallClockMs);
   return answer.res?.runtime ? { ...answer.parsed, runtime: answer.res.runtime } : answer.parsed;
 }
 
-async function sandboxAnswer(executor: Executor, code: string, language: "js" | "ts", request: Omit<CallWorkerRequest, "targetFile" | "seed" | "pins"> & { seed?: string }, wallClockMs: number): Promise<{ parsed: CallAnswer; res?: Awaited<ReturnType<Executor["exec"]>> }> {
-  const key = randomBytes(32).toString("hex"); // fresh per run; sent on stdin only
+async function sandboxAnswer(executor: Executor, code: string, language: "js" | "ts", request: Omit<CallWorkerRequest, "targetFile" | "seed" | "pins"> & { untrusted?: boolean; seed?: string }, wallClockMs: number): Promise<{ parsed: CallAnswer; res?: Awaited<ReturnType<Executor["exec"]>> }> {
+  // Fresh per run, sent on stdin only. D61: an untrusted run has no key at all.
+  const key = request.untrusted ? UNTRUSTED_RUN_KEY : randomBytes(32).toString("hex");
   const targetFile = language === "ts" ? "target.ts" : "target.mjs";
   const files: Record<string, string> = {};
   for (const f of SANDBOX_FILES) files[f] = own(f);

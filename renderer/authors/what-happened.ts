@@ -62,8 +62,8 @@ export type PathItem =
   /** `dashed`: past a gap in the trace, so it is not joined to the path as if it followed. `open`: calls still out at this ending. */
   | { kind: "end"; words: string; t: number | null; good: boolean; dashed?: boolean; open?: string }
   | { kind: "stop"; words: string; cut?: boolean }
-  /** One of the code's own functions ran (from the third run). `value`: what it returned, as JSON text. */
-  | { kind: "helper"; name: string; t: number; value?: string; threw?: boolean; inner: number }
+  /** One of the code's own functions ran (from the traced run). The name only: never a value. */
+  | { kind: "helper"; name: string; t: number; threw?: boolean; inner: number }
   /** After the code ended: a call or an answer. Never part of the path's order of cause. */
   | { kind: "late"; words: string; t: number; keys: string[] }
   /** A sequence: Atlas makes call n of m. */
@@ -87,10 +87,10 @@ export interface WhatHappenedInput {
   /** Collapse loops past this many calls. */
   collapseOver?: number;
   /**
-   * R3: what the code's own helpers did, from a separate third run made only for this drawing (server/helpers.ts). Never
-   * from a sealed run, never in a verdict. `none`: why there are no helper steps, said in a caption.
+   * D61: which of the code's own helpers ran, in order, from a separate traced run made only for this drawing (server/helpers.ts).
+   * Names only, never values; never a ring; never in a verdict. `none`: why there are none, said in a caption.
    */
-  helpers?: { steps: readonly HelperStep[]; more: number } | { none: string };
+  helpers?: { steps: readonly HelperStep[]; cut?: boolean } | { none: string };
   /** Where the run came from, only when the caller knows. Absent: the drawing says nothing about it (review B5). */
   origin?: RunOrigin;
 }
@@ -239,18 +239,20 @@ export function pathItems(input: WhatHappenedInput): { items: PathItem[]; notes:
       if (!BOOKKEEPING.has(e.event) && e.event !== "start" && e.event !== "python") n++;
     }
   }
-  const helpersBefore = (place: number) => {
-    while (nextHelper < shownHelpers.length && shownHelpers[nextHelper]!.at <= place) {
+  // By when it happened first, and by place in the trace at the same moment: Python writes a delayed answer at its call, and
+  // inTimeOrder moves the answer, so a helper that ran before the answer stays before it (N7).
+  const helpersBefore = (t: number, place: number) => {
+    while (nextHelper < shownHelpers.length && (shownHelpers[nextHelper]!.t < t || (shownHelpers[nextHelper]!.t === t && shownHelpers[nextHelper]!.at <= place))) {
       const h = shownHelpers[nextHelper++]!;
       if (ended) continue;
       addGap(h.t);
-      items.push({ kind: "helper", name: h.name, t: h.t, inner: h.inner, ...(h.value !== undefined ? { value: h.value } : {}), ...(h.threw ? { threw: true } : {}) });
+      items.push({ kind: "helper", name: h.name, t: h.t, inner: h.inner, ...(h.threw ? { threw: true } : {}) });
     }
   };
 
   for (let idx = 0; idx <= lastKept; idx++) {
     const { e, raw } = events[idx]!;
-    if (!BOOKKEEPING.has(e.event) && e.event !== "start" && e.event !== "python" && e.event !== "trace_cut") helpersBefore(rawPlace.get(raw) ?? 0);
+    if (!BOOKKEEPING.has(e.event) && e.event !== "start" && e.event !== "python" && e.event !== "trace_cut") helpersBefore(e.t, rawPlace.get(raw) ?? 0);
     if (raw === divergeAt) {
       items.push({ kind: "stop", words: "the second run of this test went differently from here, so Atlas does not claim what came next" });
       break;
@@ -417,7 +419,7 @@ function foldSig(i: PathItem): string | null {
     case "answer":
       return `a|${i.name}|${i.words}`;
     case "helper":
-      return `h|${i.name}|${i.value ?? ""}|${i.threw ? 1 : 0}`;
+      return `h|${i.name}|${i.threw ? 1 : 0}`;
     case "wait":
       return i.cut ? null : `w|${i.ms === null ? "?" : ""}|${i.answerWords ?? ""}`;
     default:
@@ -429,7 +431,6 @@ const itemKeys = (i: PathItem): string[] => {
   if (i.kind === "call") return [`${i.name}:${i.n}`];
   if (i.kind === "together") return i.calls.map((c) => `${c.name}:${c.n}`);
   if (i.kind === "wait") return [`wait:${i.t}`];
-  if (i.kind === "helper") return [`helper:${i.name}:${i.t}:${i.value ?? ""}`];
   if (i.kind === "end") return ["end"];
   if (i.kind === "late") return i.keys;
   return [];
@@ -484,7 +485,7 @@ export function collapse(items: PathItem[], over: number, keep: Set<string> = ne
       }
       const round = span.slice(0, best.period);
       const pattern = round
-        .map((x) => (x.kind === "helper" ? `${x.name}${x.value !== undefined ? ` → ${x.value}` : ""}` : x.kind === "call" ? `${x.name}${x.answer ? ` ${x.answer}` : ""}` : x.kind === "together" ? `${names(unique(x.calls.map((c) => c.name)))} together` : x.kind === "answer" ? `${x.name} ${x.words}` : x.kind === "wait" && x.answerWords ? x.answerWords : ""))
+        .map((x) => (x.kind === "helper" ? x.name : x.kind === "call" ? `${x.name}${x.answer ? ` ${x.answer}` : ""}` : x.kind === "together" ? `${names(unique(x.calls.map((c) => c.name)))} together` : x.kind === "answer" ? `${x.name} ${x.words}` : x.kind === "wait" && x.answerWords ? x.answerWords : ""))
         .filter(Boolean)
         .join("; ");
       out.push({ kind: "cycle", rounds: Math.ceil(best.len / best.period), counts: [...counted].map(([name, count]) => ({ name, count })), t: (a as { t: number }).t, pattern, waits: waitRange, good: !span.some((x) => (x.kind === "call" || x.kind === "answer") && !x.good) });
@@ -531,9 +532,7 @@ const whoWords = (who: string) => (who === "human" ? "you" : who.replace(/^model
  * - A time ("how long it takes"): only the last call of a two-call test counts, because that is what is measured, and only
  *   steps up to its ending. The first step past the range; if none, the ending, where it finished sooner.
  * - A total wait: the wait that pushed the sum past the range; if none, the ending.
- * - What it returned, when the code's own steps are drawn: if one of them produced the value the bettor said, the step after
- *   it is where the run moved on from that answer. Otherwise the ending.
- * - How it ended: the ending.
+ * - How it ended, what it returned: the ending. A helper step is never a ring (D61): the ring goes on measured steps only.
  * - The step is past what Atlas kept, or the path has no ending: null.
  */
 export function partingKey(items: PathItem[], bet: Pick<Bet, "measures" | "answer">): string | null {
@@ -577,27 +576,11 @@ export function partingKey(items: PathItem[], bet: Pick<Bet, "measures" | "answe
     }
     return wasCut ? null : end;
   }
-  const saidValue = bet.answer.kind === "json" ? bet.answer.value : bet.answer.kind === "quiz" ? (() => {
-    const a = bet.answer as Extract<Bet["answer"], { kind: "quiz" }>;
-    const m = a.options.find((o) => o.id === a.choice)?.match;
-    return m?.kind === "json" ? m.value : undefined;
-  })() : undefined;
-  if (bet.measures === "returnedJson" && saidValue !== undefined) {
-    const said = JSON.stringify(saidValue);
-    let last = -1;
-    items.forEach((it, i) => {
-      if (it.kind === "helper" && it.value === said) last = i;
-    });
-    if (last >= 0) {
-      const stopAt = endAt >= 0 ? endAt : items.length;
-      for (let i = last + 1; i < stopAt; i++) {
-        const it = items[i]!;
-        if (it.kind === "helper" || it.kind === "call" || it.kind === "together") return itemKeys(it)[0]!;
-      }
-    }
-  }
   return end;
 }
+
+/** D61: said wherever helper steps show. */
+export const HELPER_CAPTION = "Helper order comes from a separate traced run, not the sealed ones. The code itself could change it.";
 
 export function whatHappened(input: WhatHappenedInput): RenderSpec {
   const base: RenderSpec = {
@@ -636,6 +619,7 @@ export function whatHappened(input: WhatHappenedInput): RenderSpec {
   /** The last node on the unbroken thread. Notes past the end, or past a gap in the trace, hang off it with a dashed line. */
   let threadEnd: string | null = null;
   const pathEdges: string[] = [];
+  const shownNames = new Set(helperList(input).map((h) => h.name));
   const add = (node: SpecNode, step: Omit<SpecStep, "id" | "nodes" | "edges" | "provenance">, off = false) => {
     nodes.push(node);
     const edgeIds: string[] = [];
@@ -659,7 +643,7 @@ export function whatHappened(input: WhatHappenedInput): RenderSpec {
       add({ id, kind: "ticket", words: `called ${clip(it.name, 30)}`, small: clip(small, 60), provenance: "run", pin: it.answer === null ? "ochre" : it.good ? "blue" : "red" }, { beat: "call", device: it.name, words: `called ${it.name}${it.answer ? `, ${it.answer}` : ""}` });
       if (it.answer) pendingWords = it.answer;
     } else if (it.kind === "helper") {
-      const words = `${clip(it.name, 30)}${it.threw ? " threw" : it.value !== undefined ? ` → ${clip(it.value, 30)}` : ""}`;
+      const words = `${clip(it.name, 30)}${it.threw ? " threw" : ""}`;
       add({ id, kind: "ticket", words, small: it.inner > 0 ? `your code, and ${grouped(it.inner)} call${it.inner === 1 ? "" : "s"} inside it` : "your code", provenance: "run", pin: it.threw ? "red" : "ochre" }, { beat: "call", words });
     } else if (it.kind === "together") {
       const nameList = names(unique(it.calls.map((c) => c.name)));
@@ -672,7 +656,9 @@ export function whatHappened(input: WhatHappenedInput): RenderSpec {
       add({ id, kind: "ticket", words: `called ${clip(it.name, 24)} ${grouped(it.count)} times`, small: `calls ${grouped(it.from)} to ${grouped(it.to)}`, provenance: "run", pin: it.good ? "blue" : "red" }, { beat: "call", device: it.name, words: `called ${it.name} ${it.count} times` });
       pendingWords = it.waits ? `each ${it.answer}, waits ${it.waits.min === it.waits.max ? `${grouped(it.waits.min)} ms` : `${grouped(it.waits.min)} to ${grouped(it.waits.max)} ms`}` : `each ${it.answer}`;
     } else if (it.kind === "cycle") {
-      const counts = it.counts.map((c) => `${clip(c.name, 18)} ${grouped(c.count)} times`);
+      // A list that was cut can only say "at least" about the names it holds (N5).
+      const helperCut = Boolean(input.helpers && "cut" in input.helpers && input.helpers.cut);
+      const counts = it.counts.map((c) => `${clip(c.name, 18)} ${helperCut && shownNames.has(c.name) ? "at least " : ""}${grouped(c.count)} times`);
       const words = `called ${names(counts)}`;
       add({ id, kind: "ticket", words: clip(words, 70), small: `the same pattern, ${grouped(it.rounds)} rounds`, provenance: "run", pin: it.good ? "blue" : "red" }, { beat: "call", device: it.counts[0]?.name ?? "the code", words: `${words}: ${it.rounds} rounds` });
       pendingWords = clip(`each round: ${it.pattern}${it.waits ? `; waits ${it.waits.min === it.waits.max ? `${grouped(it.waits.min)} ms` : `${grouped(it.waits.min)} to ${grouped(it.waits.max)} ms`}` : ""}`, 90);
@@ -749,7 +735,8 @@ export function whatHappened(input: WhatHappenedInput): RenderSpec {
   const captions = [
     { words: `Every step comes from run ${clip(input.run.id, 24)}'s trace. Atlas's clock is virtual: nothing waited for real.${originWords}`, provenance: "run" as const },
     ...(input.helpers && "none" in input.helpers ? [{ words: input.helpers.none, provenance: "run" as const }] : []),
-    ...(helperList(input).length ? [{ words: `Your code's own steps come from a third run made only for this drawing, and it matched the two sealed runs exactly. They count toward no verdict.${input.helpers && "more" in input.helpers && input.helpers.more > 0 ? ` ${grouped(input.helpers.more)} more were not drawn.` : ""}`, provenance: "run" as const }] : []),
+    ...(raw.some((i) => i.kind === "helper") ? [{ words: HELPER_CAPTION, provenance: "run" as const }] : []),
+    ...(input.helpers && "cut" in input.helpers && input.helpers.cut ? [{ words: "Atlas kept only the first part of the helper order, so its counts are \"at least\".", provenance: "run" as const }] : []),
     ...(overlapped ? [{ words: "Calls overlapped here. The drawing shows when each answer arrived; the trace does not say whether the code used it.", provenance: "run" as const }] : []),
     ...notes.map((words) => ({ words, provenance: "run" as const })),
     ...conditions,

@@ -48,7 +48,7 @@ const answerAll = async (p) => {
     await p.waitForTimeout(170);
   }
 };
-const flow = async (name, code, lang) => {
+const flow = async (name, code, lang, mustHaveHelpers = false) => {
   const p = await page();
   // paste → drawing
   await p.evaluate(() => (window.__t = performance.now()));
@@ -105,11 +105,11 @@ const flow = async (name, code, lang) => {
   const caps = await p.evaluate(() => document.querySelector('[data-testid="bench-path"]').textContent.replace(/\s+/g, " "));
   out[`${name} path`] = words;
   say(`${name}: reaches a verdict`, true, words.slice(0, 8).join(" | "));
-  say(`${name}: says the helper steps' source or why none`, /third run|Helper steps/.test(caps) || words.length > 0);
+  if (mustHaveHelpers) say(`${name}: the helper order is drawn, and its caption says where it came from`, /Helper order comes from a separate traced run/.test(caps) && words.some((w) => /your code/.test(w)), caps.slice(-160));
   await p.screenshot({ path: `${OUT}/${name}-result.png` });
   return p;
 };
-const ts = await flow("orders", ORDERS, "ts");
+const ts = await flow("orders", ORDERS, "ts", true);
 // Change the code and bet again
 await ts.waitForFunction(() => !document.querySelector('[data-testid="u1-replay"]')?.disabled, { timeout: 60000 });
 await ts.click('[data-testid="u1-change"]');
@@ -141,7 +141,7 @@ await c.waitForSelector('[data-testid="u1-seal"], [data-testid="u1-claim-none"]'
 const none = await c.$('[data-testid="u1-claim-none"]');
 say("claim: a different test opens, or the button goes away and the result stays", ran && (none ? (await c.$('[data-testid="mark-list"]')) !== null && !(await c.$('[data-testid="u1-test-claim"]')) : !(await c.$('[data-testid="mark-list"]'))), none ? "nothing new" : "a new test");
 await c.screenshot({ path: `${OUT}/claim.png` });
-await flow("plan", PLAN, "py");
+await flow("plan", PLAN, "py", true);
 // The example, from the first screen, with a machine's keys: the floor under a first-timer's time.
 {
   const p = await page();

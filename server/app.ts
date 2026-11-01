@@ -1536,7 +1536,7 @@ export function createApp(opts: AppOptions = {}) {
     // touch them; it counts toward this code's hourly allowance; nothing it finds reaches a verdict or a proof file.
     if (experiment.target.kind === "pasted" && experiment.params.shape === "call-function" && run.controlPassed) {
       const allowed = helperRunsByClient.take(principalClientKey() ?? sessionId);
-      helperStore.put(run.id, allowed.ok ? helperRun(experiment, run, { executor }).catch((e: Error) => ({ none: HELPER_WORDS.failed(e.message) })) : Promise.resolve({ none: HELPER_WORDS.limit(allowed.reason) }));
+      helperStore.put(run.id, allowed.ok ? helperRun(experiment, run, { executor }).catch(() => ({ none: HELPER_WORDS.failed })) : Promise.resolve({ none: HELPER_WORDS.limit(allowed.reason) }));
     }
     if (experiment.target.kind === "pasted") for (const d of paste.noteRoundChars(experiment.id, JSON.stringify(run).length, keepRound)) betStore.peek(d.sessionId)?.delete(d.experimentId);
     log.runner(experiment, run);
@@ -1971,7 +1971,7 @@ export function createApp(opts: AppOptions = {}) {
     const owner = pastedOwners.get(runId);
     if (owner === undefined || c.req.header("x-atlas-session") !== owner) return c.json({ none: HELPER_WORDS.notPasted });
     const answer = helperStore.get(runId);
-    return c.json(answer ? await answer : { none: HELPER_WORDS.notPasted });
+    return c.json(answer ? await answer : { none: HELPER_WORDS.gone });
   });
 
   // R3: the proof's path in pencil, where the optional engine is installed. Each reason it cannot be drawn has its own status and words.

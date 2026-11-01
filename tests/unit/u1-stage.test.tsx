@@ -103,6 +103,11 @@ describe("U1 drawing-first screen", () => {
     // the drawing's words before betting: names and plates only, no counts, times or endings
     // (the captions say what the test's script will do: that is the test, not a run)
     const svgClone = $(".u1-svg svg")!.cloneNode(true) as SVGElement;
+    // Captions and tooltips are checked apart: before sealing they hold only plain code's words about the code and the test's own
+    // script, and the step line is empty. A leak would be drawn in those places (M4).
+    const shownBefore = [...$('[data-testid="bench-stage"]')!.querySelectorAll(".rr-captions, title")].map((e) => e.textContent ?? "").join(" ");
+    expect(shownBefore).not.toMatch(/\b(threw|returned \S|waited \d|called \w+ \d|matched|parts ways|run [A-Za-z0-9_-]{8,}'s trace)\b/);
+    expect($('[data-testid="run-step"]')?.textContent ?? "").toBe("");
     svgClone.querySelectorAll(".rr-captions, title").forEach((x) => x.remove());
     const svgText = svgClone.textContent ?? "";
     expect(svgText).not.toMatch(/\d+\s*(ms|calls?)\b|returned|threw|matched/i);

@@ -248,7 +248,7 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
       )}
       {!call && file.runs[0]?.runner === "evm" && (
         <section className="pc-machine" aria-label="the price flow" data-testid="pc-moonwell">
-          <MoonwellDrawing run={file.runs[0]} bets={file.bets} verdicts={file.verdicts} captions={file.captions} still />
+          <MoonwellDrawing run={file.runs[0]} bets={file.bets} verdicts={file.verdicts} captions={[...new Set(file.captions)]} still {...(file.change ? { beforeChange: true } : {})} />
           {api && <PencilImage api={api} runId={file.runs[0].id} />}
         </section>
       )}

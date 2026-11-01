@@ -33,7 +33,7 @@ export const PENCIL_WORDS = {
   notDrawn: "This run has no drawing to put in pencil.",
   tooLong: (steps: number, max: number) => `This path has ${steps} steps; pencil draws up to ${max}. The drawing above is the same chart.`,
   busy: "The pencil is drawing something else. Try again in a moment.",
-  timedOut: (s: number) => `The pencil drawing was stopped after ${s} seconds. The drawing above is the same chart.`,
+  timedOut: (s: number) => `The pencil drawing was stopped after ${s} second${s === 1 ? "" : "s"}. The drawing above is the same chart.`,
   failed: "The pencil drawing failed. The drawing above is the same chart.",
 } as const;
 
@@ -101,7 +101,7 @@ export function createPencil(o: PencilOptions = {}) {
       if (drawing) return Promise.resolve({ kind: "busy", words: PENCIL_WORDS.busy });
       const allowed = o.take?.(client) ?? { ok: true as const };
       if (!allowed.ok) return Promise.resolve({ kind: "busy", words: allowed.reason });
-      const done = inChild(JSON.stringify(spec)).then((a) => {
+      const done = inChild(JSON.stringify(spec)).catch((): PencilAnswer => ({ kind: "failed", words: PENCIL_WORDS.failed })).then((a) => {
         drawing = null;
         if (a.kind === "ok") {
           if (cache.size >= KEPT) cache.delete(cache.keys().next().value!);

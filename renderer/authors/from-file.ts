@@ -17,11 +17,14 @@ export function specOfFile(file: Pick<AtlasFile, "runs" | "experiments" | "bets"
   const theory = theoryCaptions(file.change).map((words) => ({ words, provenance: "plain-code" as const }));
   const spec =
     run.runner === "evm"
-      ? moonwellFlow({ run, bets: file.bets, verdicts: file.verdicts, fileCaptions: file.captions, origin: "proof-file", seed })
+      ? moonwellFlow({ run, bets: file.bets, verdicts: file.verdicts, fileCaptions: file.captions, origin: "proof-file", seed, ...(file.change ? { beforeChange: true } : {}) })
       : experiment?.params.shape === "retry-scenario" || !experiment
         ? retryOrPlain(file, seed)
         : whatHappened({ run, experiment, bets: file.bets.filter((b) => b.who === "human"), verdicts: file.verdicts, origin: "proof-file", seed, title: "What happened" });
-  return theory.length ? { ...spec, captions: [...theory, ...spec.captions] } : spec;
+  if (!theory.length) return spec;
+  // The file's captions may hold the same words: once is enough.
+  const seen = new Set<string>();
+  return { ...spec, captions: [...theory, ...spec.captions].filter((c) => (seen.has(c.words) ? false : seen.add(c.words) && true)) };
 }
 
 function retryOrPlain(file: Pick<AtlasFile, "runs" | "experiments" | "bets" | "verdicts">, seed: string): RenderSpec {

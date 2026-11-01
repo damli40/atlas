@@ -1,5 +1,6 @@
-// R3 journey item 1: the third run. It records which of the file's own functions ran and what they returned (`subtotal → 5500`),
-// for the drawing only.
+// R3 journey item 1, narrowed by D61: the third run. It records which of the file's own functions ran, and in what order, for the
+// drawing only. Never a value. The run is untrusted by design: it carries no signing key, its answer is read through a strict schema,
+// and the code itself could change what it reports, which the caption says.
 //
 // The rule that makes this safe: measured facts stay unprobed. The two sealed runs run untouched and decide every verdict.
 // This third run starts after they have finished, so it cannot disturb them, and it feeds nothing but the drawing: not the
@@ -7,23 +8,26 @@
 // ended), the probes may have changed the code's behaviour, so no helper is shown and the words say why.
 
 import { randomBytes } from "node:crypto";
-import { helperSteps, type HelperStep, type ProbeEvent } from "../src/helper-steps";
+import { helperSteps, type HelperStep } from "../src/helper-steps";
 import { instrumentJs } from "../src/helpers/instrument-js";
 import { canonicalJson } from "../src/seal";
 import type { Experiment, Run, TraceEvent } from "../src/types";
 import type { Executor } from "../runners/runner";
+import { pythonExecutorFor } from "../runners/ts/control";
 import { runProbedCall } from "../runners/ts/call-runner";
 import { runProbedPyCall } from "../runners/py/py-runner";
 
-export type HelperAnswer = { steps: HelperStep[]; more: number } | { none: string };
+export type HelperAnswer = { steps: HelperStep[]; cut: boolean } | { none: string };
 
 export const HELPER_WORDS = {
-  different: (what: string) => `Helper steps are not shown: the extra run made to see them went differently from the sealed run (${what}), so it can't be trusted for this.`,
-  failed: (why: string) => `Helper steps are not shown: the extra run made to see them did not finish (${why}).`,
-  limit: (why: string) => `Helper steps are not shown: ${why}.`,
-  notPasted: "Helper steps are only drawn for pasted code.",
-  noParse: "Helper steps are not shown: Atlas could not add its probes to this file.",
-  unsharedRun: "Helper steps are not shown: the sealed run was not shown as fact.",
+  different: "Helper order is not shown: the separate traced run did not match the sealed run on what it measured or the steps it took.",
+  // Never the runner's own words: the copy that failed is Atlas's, not the person's code.
+  failed: "Helper order is not shown: Atlas's traced copy of this code did not finish. Your code and its sealed runs are not affected.",
+  limit: (why: string) => `Helper order is not shown: ${why}.`,
+  notPasted: "Helper order is only drawn for pasted code.",
+  gone: "Helper order is no longer available for this run.",
+  noParse: "Helper order is not shown: Atlas could not trace this file.",
+  unsharedRun: "Helper order is not shown: the sealed run was not shown as fact.",
 } as const;
 
 const BOOKKEEPING = new Set(["call_checks", "clock_moves", "conditions", "log", "control"]);
@@ -50,11 +54,11 @@ export async function helperRun(exp: Experiment, sealed: Run, o: { executor?: Ex
   if (exp.target.kind !== "pasted" || exp.params.shape !== "call-function") return { none: HELPER_WORDS.notPasted };
   if (!sealed.result || "wholeRun" in sealed.result.notMeasured) return { none: HELPER_WORDS.unsharedRun };
   const seed = sealed.seed && sealed.seed !== "none" ? { seed: sealed.seed } : {};
-  const opts = { ...(o.executor ? { executor: o.executor } : {}), ...(o.wallClockMs ? { wallClockMs: o.wallClockMs } : {}), ...seed };
   const source = exp.target.source;
   const language = exp.target.language;
   if (source === undefined || language === undefined) return { none: HELPER_WORDS.notPasted };
-  let third: { trace: TraceEvent[]; result: Run["result"]; probes: ProbeEvent[] } | { reason: string };
+  const opts = { ...(o.executor ? { executor: language === "py" ? pythonExecutorFor(o.executor) : o.executor } : {}), ...(o.wallClockMs ? { wallClockMs: o.wallClockMs } : {}), ...seed };
+  let third: { trace: TraceEvent[]; result: Run["result"]; probes: unknown; probesCut: unknown } | { reason: string };
   let names: string[] | undefined;
   if (language === "py") {
     third = await runProbedPyCall(exp, source, opts);
@@ -65,12 +69,13 @@ export async function helperRun(exp: Experiment, sealed: Run, o: { executor?: Ex
     names = done.names;
     third = await runProbedCall(exp, done.source, language, probe, opts);
   }
-  if ("reason" in third) return { none: HELPER_WORDS.failed(third.reason) };
-  const differs = differsFrom(sealed, third);
-  if (differs !== null) return { none: HELPER_WORDS.different(differs) };
+  if ("reason" in third) return { none: HELPER_WORDS.failed };
+  // A shape that is not what a run writes is treated like any other difference.
+  if (!Array.isArray(third.trace) || !third.result || typeof third.result.measured !== "object" || typeof third.result.notMeasured !== "object") return { none: HELPER_WORDS.different };
+  if (differsFrom(sealed, third) !== null) return { none: HELPER_WORDS.different };
   // Python's names come from the run, so they must at least be words of the file.
   const allowed = language === "py" ? (n: string) => n.split(".").every((part) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(part) && source.includes(part)) : undefined;
-  return helperSteps(third.probes, { ...(names ? { names } : {}), tested: testedNames(exp.params), trace: third.trace, ...(allowed ? { allowed } : {}) });
+  return helperSteps(third.probes, { ...(names ? { names } : {}), tested: testedNames(exp.params), trace: third.trace, ...(allowed ? { allowed } : {}), cut: third.probesCut });
 }
 
 /** What was started for each run, kept briefly: the page asks for it right after the run's answer. */

@@ -13,11 +13,11 @@ import type { Mounted } from "../../renderer/live/mount";
 const NO_BETS: readonly Bet[] = [];
 const NO_VERDICTS: readonly Verdict[] = [];
 
-export function MoonwellDrawing({ run, bets = NO_BETS, verdicts = NO_VERDICTS, theory, captions, still = false }: { run: Run; bets?: readonly Bet[]; verdicts?: readonly Verdict[]; /** D20: the words every screen must carry for a change wired "in theory". */ theory?: string[]; captions?: string[]; /** A proof card: the finished picture, no motion. */ still?: boolean }) {
+export function MoonwellDrawing({ run, bets = NO_BETS, verdicts = NO_VERDICTS, theory, captions, still = false, beforeChange = false }: { beforeChange?: boolean;  run: Run; bets?: readonly Bet[]; verdicts?: readonly Verdict[]; /** D20: the words every screen must carry for a change wired "in theory". */ theory?: string[]; captions?: string[]; /** A proof card: the finished picture, no motion. */ still?: boolean }) {
   const dark = useDarkScheme();
   const reduced = useReducedMotion();
   const spec = useMemo(() => {
-    const s = moonwellFlow({ run, bets: [...bets], verdicts: [...verdicts], origin: still ? "proof-file" : "this-run", ...(captions ? { fileCaptions: captions } : {}) });
+    const s = moonwellFlow({ run, bets: [...bets], verdicts: [...verdicts], origin: still ? "proof-file" : "this-run", ...(beforeChange ? { beforeChange: true } : {}), ...(captions ? { fileCaptions: captions } : {}) });
     return theory?.length ? { ...s, captions: [...theory.map((words) => ({ words, provenance: "plain-code" as const })), ...s.captions] } : s;
   }, [run, bets, verdicts, theory, captions]);
   const [height, setHeight] = useState<number | null>(null);

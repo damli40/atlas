@@ -2,8 +2,9 @@
 // functions ran and what they returned. Only that third run sees this text; the two sealed runs run the file untouched.
 //
 // Plain words: parse the file, and add text inside each named function, on the lines it already has (so line numbers hold):
-//   function f(a) { body; return x; }  becomes  function f(a) { P(0,id);try{ body; return P(1,id,(x)); P(1,id);}catch(e$){P(2,id);throw e$} }
-// P is a global only the third run's harness defines. P(1, id, x) gives back x, so the code gets exactly what it would have.
+//   function f(a) { body; return x; }  becomes  function f(a) { P(0,id);try{ body; return P(1,id,(x)); ;P(1,id);}catch(e$){P(2,id);throw e$} }
+// P is a global only the third run's harness defines. P(1, id, x) gives back x without reading it, so the code gets exactly what it
+// would have. It reports names and order, never a value (D61).
 // Skipped, and why:
 // - generators: their body runs in pieces, so "what it returned" is not one thing;
 // - getters and setters: reading a property is not a step a reader expects to see;
@@ -56,9 +57,9 @@ export function instrumentJs(source: string, language: "js" | "ts", probe: strin
     const isAsync = hasModifier(fn, ts.SyntaxKind.AsyncKeyword);
     const enter = isAsync ? 3 : 0;
     if (!ts.isBlock(fn.body)) {
-      // A concise arrow: the value is the whole body.
-      splices.push({ at: fn.body.getStart(sf), text: `${P}(1,${id},(${P}(${enter},${id}),(` });
-      splices.push({ at: fn.body.getEnd(), text: `)))` });
+      // A concise arrow becomes a block, so a throw through it is reported like any other.
+      splices.push({ at: fn.body.getStart(sf), text: `{${P}(${enter},${id});try{return ${P}(1,${id},(` });
+      splices.push({ at: fn.body.getEnd(), text: `))}catch(e$${id}){${P}(2,${id});throw e$${id}}}` });
       return;
     }
     const stmts = fn.body.statements;
@@ -66,7 +67,7 @@ export function instrumentJs(source: string, language: "js" | "ts", probe: strin
     while (firstAfterDirectives < stmts.length && ts.isExpressionStatement(stmts[firstAfterDirectives]!) && ts.isStringLiteral((stmts[firstAfterDirectives] as ts.ExpressionStatement).expression)) firstAfterDirectives++;
     const start = firstAfterDirectives > 0 ? stmts[firstAfterDirectives - 1]!.getEnd() : fn.body.getStart(sf) + 1;
     splices.push({ at: start, text: `${P}(${enter},${id});try{` });
-    splices.push({ at: fn.body.getEnd() - 1, text: `${P}(1,${id});}catch(e$${id}){${P}(2,${id});throw e$${id}}` });
+    splices.push({ at: fn.body.getEnd() - 1, text: `;${P}(1,${id});}catch(e$${id}){${P}(2,${id});throw e$${id}}` });
     const returns = (n: ts.Node): void => {
       if (isFunctionLike(n) || ts.isClassLike(n)) return;
       if (ts.isReturnStatement(n)) {

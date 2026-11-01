@@ -1,33 +1,18 @@
-// R3 journey item 1: from a third run's probes to the steps the drawing shows (`subtotal → 5500`). Pure.
+// R3 journey item 1, narrowed by D61: from a third run's probes to the steps the drawing shows: helper names and their order, never a
+// value. The third run is untrusted by design, so this is a strict reader: anything out of shape is dropped.
 //
 // Rules, in plain words:
 // - Measured facts stay unprobed: nothing here feeds a verdict or a proof file. These steps are for the drawing only.
 // - Only the helpers the tested function called directly are steps. What they call in turn is counted, not drawn, so a
 //   recursive function shows its top calls and a number, not a wall.
-// - A value is shown only if it is plain JSON and short. A promise, a generator, an object with getters: the name alone.
-// - The names come from Atlas's own table or are checked against the file's text; values go through the drawing's cleaning.
-
-export interface ProbeEvent {
-  /** 0 entered; 1 returned; 2 threw; 3 entered, and nothing stacks on it (async, generator): its step waits for its end. */
-  k: number;
-  /** Where the name is: an id into Atlas's table (JS), or the name itself (Python). */
-  id?: number;
-  name?: string;
-  t: number;
-  /** How many trace events came before this one. */
-  at: number;
-  json?: string;
-  /** A value was given. */
-  v?: boolean;
-}
+// - The names come from Atlas's own table (JS), or must be words of the file (Python).
+// - When the list was cut, it says so. A count is then "at least", never a guess at the rest.
 
 export interface HelperStep {
   name: string;
   t: number;
   /** The position among the run's non-bookkeeping trace events: this step came before that event. */
   at: number;
-  /** The value as JSON text, when plain and short. */
-  value?: string;
   threw?: boolean;
   /** Calls made inside this one, not drawn. */
   inner: number;
@@ -35,7 +20,7 @@ export interface HelperStep {
 
 const BOOKKEEPING = new Set(["call_checks", "clock_moves", "conditions", "log", "control", "python", "start"]);
 
-export const HELPER_LIMITS = { steps: 400, name: 60, value: 60 } as const;
+export const HELPER_LIMITS = { steps: 400, events: 5000, name: 60 } as const;
 
 /** A probe event's `at` counts every trace event; steps are placed among the ones the drawing reads. */
 const placeAmong = (trace: readonly { event: string }[]) => {
@@ -44,10 +29,14 @@ const placeAmong = (trace: readonly { event: string }[]) => {
   return (at: number) => before[Math.min(Math.max(0, at), trace.length)]!;
 };
 
-export function helperSteps(probes: readonly ProbeEvent[], o: { names?: readonly string[]; tested: readonly string[]; trace: readonly { event: string }[]; allowed?: (name: string) => boolean }): { steps: HelperStep[]; more: number } {
+const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+
+/** `probes` comes from the untrusted run: it is checked here, item by item. */
+export function helperSteps(probes: unknown, o: { names?: readonly string[]; tested: readonly string[]; trace: readonly { event: string }[]; allowed?: (name: string) => boolean; cut?: unknown }): { steps: HelperStep[]; cut: boolean } {
   const place = placeAmong(o.trace);
-  const nameOf = (p: ProbeEvent): string | null => {
-    const n = p.id !== undefined ? o.names?.[p.id] : p.name;
+  const list = Array.isArray(probes) ? probes.slice(0, HELPER_LIMITS.events) : [];
+  const nameOf = (p: { id?: unknown; name?: unknown }): string | null => {
+    const n = typeof p.id === "number" ? o.names?.[p.id] : p.name;
     if (typeof n !== "string" || n.length === 0 || n.length > HELPER_LIMITS.name) return null;
     if (o.allowed && !o.allowed(n)) return null;
     return n;
@@ -56,7 +45,7 @@ export function helperSteps(probes: readonly ProbeEvent[], o: { names?: readonly
   const stack: { name: string; inner: number }[] = [];
   const steps: HelperStep[] = [];
   const open: HelperStep[] = [];
-  let more = 0;
+  let cut = (Array.isArray(probes) && probes.length > HELPER_LIMITS.events) || (finite(o.cut) && o.cut > 0);
   /** Real helper frames above the tested function. The tested function's first frame does not count. */
   const depth = () => {
     let n = stack.length;
@@ -65,12 +54,16 @@ export function helperSteps(probes: readonly ProbeEvent[], o: { names?: readonly
     return n;
   };
   const add = (s: HelperStep) => {
-    if (steps.length >= HELPER_LIMITS.steps) more++;
+    if (steps.length >= HELPER_LIMITS.steps) cut = true;
     else steps.push(s);
   };
-  for (const p of probes) {
+  for (const raw of list) {
+    if (!raw || typeof raw !== "object") continue;
+    const p = raw as { k?: unknown; t?: unknown; at?: unknown; id?: unknown; name?: unknown };
+    if (!finite(p.t) || !finite(p.at) || !finite(p.k)) continue;
     const name = nameOf(p);
     if (name === null) continue;
+    const at = place(p.at);
     if (p.k === 0) {
       if (depth() > 0) stack[stack.length - 1]!.inner++;
       stack.push({ name, inner: 0 });
@@ -79,7 +72,7 @@ export function helperSteps(probes: readonly ProbeEvent[], o: { names?: readonly
     if (p.k === 3) {
       if (testedSet.has(name)) continue;
       if (depth() > 0) stack[stack.length - 1]!.inner++;
-      else open.push({ name, t: p.t, at: place(p.at), inner: 0 });
+      else open.push({ name, t: p.t, at, inner: 0 });
       continue;
     }
     if (p.k !== 1 && p.k !== 2) continue;
@@ -91,27 +84,29 @@ export function helperSteps(probes: readonly ProbeEvent[], o: { names?: readonly
       }
     }
     if (frame < 0) {
-      // An async function's end: its step goes here, when its value really came (review B1: never before it arrived).
+      // An async function's end: its step goes here, when it really ended (never before).
       const i = open.findIndex((x) => x.name === name);
       if (i >= 0) {
-        const value = p.k === 1 && p.json !== undefined && p.json.length <= HELPER_LIMITS.value ? p.json : undefined;
-        add({ name, t: p.t, at: place(p.at), ...(value !== undefined ? { value } : {}), ...(p.k === 2 ? { threw: true } : {}), inner: 0 });
+        add({ name, t: p.t, at, ...(p.k === 2 ? { threw: true } : {}), inner: 0 });
         open.splice(i, 1);
+      } else if (p.k === 2) {
+        // A `finally` that throws, after the return was reported.
+        const last = [...steps].reverse().find((s) => s.name === name);
+        if (last) last.threw = true;
       }
       continue;
     }
     const f = stack[frame]!;
-    stack.length = frame; // Frames above it ended without saying so (a throw through a concise arrow).
+    stack.length = frame;
     if (stack.length === 0 && testedSet.has(name)) continue; // the tested function's own end is the run's ending
     if (depth() > 0) {
       stack[stack.length - 1]!.inner += f.inner;
       continue;
     }
-    const value = p.k === 1 && p.json !== undefined && p.json.length <= HELPER_LIMITS.value ? p.json : undefined;
-    add({ name, t: p.t, at: place(p.at), ...(value !== undefined ? { value } : {}), ...(p.k === 2 ? { threw: true } : {}), inner: f.inner });
+    add({ name, t: p.t, at, ...(p.k === 2 ? { threw: true } : {}), inner: f.inner });
   }
-  // Begun and never ended, or with no end to report (Python's coroutines): the name, at the moment it began.
+  // Begun with no end to report (Python's coroutines): the name, at the moment it began.
   for (const o2 of open) add(o2);
   steps.sort((x, y) => x.at - y.at || x.t - y.t);
-  return { steps, more };
+  return { steps, cut };
 }

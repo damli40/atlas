@@ -2,12 +2,32 @@
 // model, and where a wire is drawn to a device, the real run must show calls to it.
 import { beforeAll, describe, expect, it } from "vitest";
 import { betView } from "../../renderer/authors/bet-view";
+import { networkCallSites, standInCallSites } from "../../src/call-sites";
 import { fileOutline } from "../../src/file-outline";
 import { gate } from "../../src/gate";
 import { makePastedTarget } from "../../src/pasted-code";
 import { runCallControl, runCallExperiment } from "../../runners/ts/call-runner";
 import { runPyCallControl, runPyCallExperiment } from "../../runners/py/py-runner";
 import { cases } from "../fixtures/r3/snippets";
+
+describe("N9: any write makes a name unsure, so no line", () => {
+  const site = (src: string, fn = "a", i = 0) => standInCallSites(src, "js", fileOutline(src, "js"), fn, i);
+  for (const src of [
+    "export async function a(cb){\n [cb] = [()=>0];\n return cb(1);\n}\n",
+    "export async function a(cb){\n for (cb of [()=>0]) {}\n return cb(1);\n}\n",
+    "export async function a(cb){\n for (cb in {}) {}\n return cb(1);\n}\n",
+    "export async function a(cb){\n ({cb} = {cb:()=>0});\n return cb(1);\n}\n",
+    "export async function a(cb){\n ({x: cb} = {x:()=>0});\n return cb(1);\n}\n",
+    "export async function a(cb){\n [...cb] = [];\n return cb(1);\n}\n",
+  ]) it(src.split("\n")[1]!, () => expect(site(src)).toEqual([]));
+  it("fetch = … inside a function draws no line to the fake network", () => {
+    const src = 'export async function a(){\n fetch = (u)=>u;\n return fetch("u");\n}\n';
+    expect(networkCallSites(src, "js", fileOutline(src, "js"), "fetch")).toEqual([]);
+  });
+  it("a plain parameter call still draws", () => {
+    expect(site("export async function a(cb){\n return cb(1);\n}\n").map((x) => x.part)).toEqual(["a"]);
+  });
+});
 
 describe("R3 B6: wires against the code's truth", () => {
   let ctl: Awaited<ReturnType<typeof runCallControl>>["run"];
