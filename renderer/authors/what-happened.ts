@@ -54,9 +54,9 @@ export type PathItem =
   | { kind: "together"; calls: { name: string; n: number }[]; t: number }
   /** An answer that came on its own, while other things were going on. */
   | { kind: "answer"; name: string; n: number; t: number; words: string; good: boolean }
-  | { kind: "loop"; name: string; from: number; to: number; count: number; t: number; answer: string | null; waits: { min: number; max: number } | null; good: boolean }
+  | { kind: "loop"; name: string; from: number; to: number; count: number; t: number; answer: string | null; waits: number[] | null; good: boolean }
   /** A repeating pattern folded: exact rounds, and the exact count for each name. */
-  | { kind: "cycle"; rounds: number; counts: { name: string; count: number }[]; t: number; pattern: string; waits: { min: number; max: number } | null; good: boolean }
+  | { kind: "cycle"; rounds: number; counts: { name: string; count: number }[]; t: number; pattern: string; waits: number[] | null; good: boolean }
   /** `answerWords`: the answer that ended this wait, written on the thread leaving it. */
   | { kind: "wait"; ms: number | null; t: number; cut?: boolean; answerWords?: string }
   /** `dashed`: past a gap in the trace, so it is not joined to the path as if it followed. `open`: calls still out at this ending. */
@@ -436,6 +436,14 @@ const itemKeys = (i: PathItem): string[] => {
   return [];
 };
 
+/** The waits a folded ticket covers: all the same, each one when few, else the real range. Never a range that leaves one out. */
+function waitWords(waits: readonly number[]): string {
+  const same = waits.every((w) => w === waits[0]);
+  if (same) return `waits ${grouped(waits[0]!)} ms`;
+  if (waits.length <= 4) return `waits ${waits.map(grouped).join(", ")} ms`;
+  return `waits ${grouped(Math.min(...waits))} to ${grouped(Math.max(...waits))} ms`;
+}
+
 const FOLD_PERIOD = 8;
 
 /**
@@ -470,7 +478,7 @@ export function collapse(items: PathItem[], over: number, keep: Set<string> = ne
     }
     const span = items.slice(i, i + best.len);
     const waits = span.filter((x): x is Extract<PathItem, { kind: "wait" }> => x.kind === "wait");
-    const waitRange = waits.length && waits.every((w) => w.ms !== null) ? { min: Math.min(...waits.map((w) => w.ms!)), max: Math.max(...waits.map((w) => w.ms!)) } : null;
+    const waitRange = waits.length && waits.every((w) => w.ms !== null) ? waits.map((w) => w.ms!) : null;
     const calls = span.filter((x): x is Extract<PathItem, { kind: "call" }> => x.kind === "call");
     const allOneName = calls.length === span.filter((x) => x.kind !== "wait").length && unique(calls.map((c) => c.name)).length === 1 && unique(calls.map((c) => c.answer ?? "")).length === 1 && calls.every((c) => c.answer !== null);
     if (allOneName && !waits.some((w) => w.answerWords !== undefined)) {
@@ -654,14 +662,14 @@ export function whatHappened(input: WhatHappenedInput): RenderSpec {
       add({ id, kind: "ticket", words: `${clip(it.name, 22)} ${clip(it.words, 28)}`, small: `its answer arrived at ${grouped(it.t)} ms`, provenance: "run", pin: it.good ? "blue" : "red" }, { beat: "call", device: it.name, words: `${it.name} ${it.words}, at ${grouped(it.t)} ms` });
     } else if (it.kind === "loop") {
       add({ id, kind: "ticket", words: `called ${clip(it.name, 24)} ${grouped(it.count)} times`, small: `calls ${grouped(it.from)} to ${grouped(it.to)}`, provenance: "run", pin: it.good ? "blue" : "red" }, { beat: "call", device: it.name, words: `called ${it.name} ${it.count} times` });
-      pendingWords = it.waits ? `each ${it.answer}, waits ${it.waits.min === it.waits.max ? `${grouped(it.waits.min)} ms` : `${grouped(it.waits.min)} to ${grouped(it.waits.max)} ms`}` : `each ${it.answer}`;
+      pendingWords = it.waits ? `each ${it.answer}, ${waitWords(it.waits)}` : `each ${it.answer}`;
     } else if (it.kind === "cycle") {
       // A list that was cut can only say "at least" about the names it holds (N5).
       const helperCut = Boolean(input.helpers && "cut" in input.helpers && input.helpers.cut);
       const counts = it.counts.map((c) => `${clip(c.name, 18)} ${helperCut && shownNames.has(c.name) ? "at least " : ""}${grouped(c.count)} times`);
       const words = `called ${names(counts)}`;
-      add({ id, kind: "ticket", words: clip(words, 70), small: `the same pattern, ${grouped(it.rounds)} rounds`, provenance: "run", pin: it.good ? "blue" : "red" }, { beat: "call", device: it.counts[0]?.name ?? "the code", words: `${words}: ${it.rounds} rounds` });
-      pendingWords = clip(`each round: ${it.pattern}${it.waits ? `; waits ${it.waits.min === it.waits.max ? `${grouped(it.waits.min)} ms` : `${grouped(it.waits.min)} to ${grouped(it.waits.max)} ms`}` : ""}`, 90);
+      add({ id, kind: "ticket", words: clip(words, 70), small: `${grouped(it.rounds)} rounds`, provenance: "run", pin: it.good ? "blue" : "red" }, { beat: "call", device: it.counts[0]?.name ?? "the code", words: `${words}: ${it.rounds} rounds` });
+      pendingWords = it.waits ? waitWords(it.waits) : clip(`each round: ${it.pattern}`, 60);
     } else if (it.kind === "wait") {
       const ms = it.ms;
       const words = ms === null ? (it.cut ? "was waiting when Atlas stopped" : "waited (time not reported)") : it.cut ? `asked to wait ${grouped(ms)} ms; Atlas stopped during it` : `waited ${grouped(ms)} ms`;

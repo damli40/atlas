@@ -292,3 +292,15 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 .u1-proof .pc-share{justify-content:center}
 .u1-shell .u1-gh label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 .u1-shell .u1-changing .u1-code{height:clamp(160px,44vh,420px)}
+
+.m-saved-label{font:500 13px/1.4 var(--ui);color:var(--ink-2);margin:0 0 12px}
+.m-covers{margin:14px 0 4px;font-size:12px;color:var(--ink-3)}
+.m-pick{white-space:normal!important;overflow-wrap:anywhere}
+.b-confirm{order:5;display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 0;font-size:12.5px;border-top:1px solid var(--rule-2)}
+.b-confirm p{flex-basis:100%;margin:0;color:var(--ink)}
+.pc-ask{flex-basis:100%;display:flex;flex-wrap:wrap;gap:8px;padding:10px 0;font-size:13px}
+.pc-ask p{flex-basis:100%;margin:0;line-height:1.45;max-width:72ch}
+.u1-picking .u1-testlist{list-style:none;padding:0;margin:8px 0;display:grid;gap:8px;font-size:13px}
+.u1-picking .u1-testlist li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:8px 0;border-top:1px solid var(--rule-2)}
+.u1-whole{order:3;list-style:none;margin:6px 0;padding:0;font:400 12px/1.4 var(--mono);overflow-wrap:anywhere;max-height:30vh;overflow:auto}
+.u1-repeat{position:absolute;left:24px;bottom:12px;width:calc(var(--col) - 48px);z-index:7;font-size:12.5px;margin:0}

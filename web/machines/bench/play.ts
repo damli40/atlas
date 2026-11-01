@@ -7,6 +7,7 @@
 // - marksOf(...): one mark per quiz question, anchored on the part it is about, with the verdict of every bettor.
 // The test is used only for words (the scripted answer of call n); what happened always comes from the run.
 
+import { bettorOrder, thrownWords } from "../../../src/moment";
 import type { Bet, Run, StandInStep, Verdict } from "../../../src/types";
 import type { Question } from "../../../src/gate";
 import { timelineModel } from "../calltimeline/model";
@@ -104,19 +105,7 @@ const short = (s: string) => {
 };
 
 /** U2: the thrown value in plain words: "TypeError: bad key", "undefined", "a string". Null when the run did not say. */
-export function thrownWords(run: Pick<Run, "result">): string | null {
-  const m = run.result.measured;
-  const name = typeof m.thrownName === "string" ? m.thrownName : null;
-  const msg = typeof m.thrownMessage === "string" ? m.thrownMessage : null;
-  if (name) {
-    const full = visibleText(`${name}${msg ? `: ${msg}` : ""}`);
-    return full.length > 140 ? `${full.slice(0, 139)}…` : full;
-  }
-  const type = typeof m.thrownType === "string" ? m.thrownType : null;
-  if (type === null) return null;
-  if (type === "undefined" || type === "null") return `${type} (not an Error)`;
-  return `a ${type} (not an Error)`;
-}
+export { thrownWords };
 
 /** The most steps one replay shows; past it, waits are thinned (every call is kept). */
 export const MAX_PLAY_STEPS = 40;
@@ -289,7 +278,7 @@ export function marksOf(questions: readonly Question[], bets: readonly Bet[], ve
         const pick = b.answer.kind === "quiz" ? quizChoiceLabel(b.answer.options, b.answer.choice) : b.answer.kind === "declined" ? CANT_TELL : b.answer.kind === "json" ? `typed ${clip(literal(b.answer.value, language))}` : "an answer";
         return { who: b.who, name: b.who === "human" ? "You" : modelDisplay(b.who.slice(6)), pick, outcome: v?.outcome ?? "cant_check", ...(v?.reason ? { reason: v.reason } : {}) };
       })
-      .sort((a, b) => (a.who === "human" ? -1 : b.who === "human" ? 1 : a.who < b.who ? -1 : 1));
+      .sort(bettorOrder);
     const short = q.measures.startsWith("calls:") ? `Calls to ${q.measures.slice(6)}` : (SHORT_Q[q.measures] ?? q.measures);
     return { measures: q.measures, anchor: anchorOf(q.measures, tested), question: short, measured, picks };
   });

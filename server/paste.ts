@@ -52,6 +52,7 @@ export const DEFAULT_PASTES_PER_IP_PER_HOUR = 60;
 /** Wonder proposal requests one session may make (each is 1–2 paid calls). */
 /** U2: 6 (was 3), so "Bet on another test" and "Test this claim" both stay usable in one session. */
 export const MAX_PROPOSALS_PER_SESSION = 6;
+const EARLY_PER_SESSION_PER_HOUR = 2;
 /**
  * E3 review B3/M5: the most lines a pasted file may have. The bet screen numbers every line, so 64 KB of empty lines
  * became a 645,000-character text per round (1.3 MB of memory each) and a ~200k-token prompt. 2,000 lines keep the
@@ -99,6 +100,8 @@ export interface PastedEntry {
 }
 
 interface ProposalSet {
+  /** D63: written ahead of the bet, and not yet used: it has not counted against the limits. */
+  ahead?: boolean;
   id: string;
   codeSha256: string;
   exportName: string;
@@ -123,7 +126,7 @@ const pasteBody = z
 const targetRef = z.object({ ref: z.string().min(1).max(200), codeSha256: z.string().regex(/^[0-9a-f]{64}$/) });
 // U2 (D53, "Test this claim"): `claimOf` names an experiment whose Muse Wonder sentence was already shown (after its run);
 // Wonder is asked for tests that check that sentence. The server looks the sentence up itself: no text from the page.
-const proposalsBody = z.object({ target: targetRef, exportName: z.string().min(1).max(100), claimOf: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/).optional() }).strict();
+const proposalsBody = z.object({ target: targetRef, exportName: z.string().min(1).max(100), claimOf: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/).optional(), early: z.literal(true).optional() }).strict();
 const claimBody = z.object({ experimentId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/) }).strict();
 
 const reasonOf = (err: z.ZodError) =>
@@ -147,6 +150,7 @@ export interface PasteDeps {
   budget?: ModelBudget;
   /** Per-address model-round limit, shared with model bets (S5). */
   takeModelRound: (c: Context) => { ok: true } | { ok: false; reason: string };
+  takeEarlyTests?: (c: Context) => { ok: true } | { ok: false; reason: string };
   /** Per-address paste limit. */
   takePaste: (c: Context) => { ok: true } | { ok: false; reason: string };
   /** E3 review r3 B1: where runs happen on this server (the page's privacy sentence is built from it). */
@@ -169,6 +173,7 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
   const sessionWho = new Map<string, string>();
   const sets = new Map<string, Map<string, ProposalSet>>(); // session → set id → set
   const proposalCount = new Map<string, number>();
+  const earlyAsked = new Map<string, number[]>();
   /** experiment id → the proposal set it came from (session-scoped by the round store itself). */
   const experimentSet = new Map<string, { sessionId: string; setId: string }>();
   const proposerModel = opts.proposer?.model ?? PROPOSER_MODEL;
@@ -412,11 +417,21 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
       }
       // D60: the example's tests are asked once and kept: a real answer from the real model and gate, with no wait for the next person.
       const kept = focusClaim === undefined && entry.target.codeSha256 === EXAMPLE_SHA && exp.name === EXAMPLE_FUNCTION ? await keptExample(entry, exp) : null;
+      // D63: asked ahead of the bet: it has its own limits, and counts against the usual ones only if the test is used.
+      const ahead = parsed.data.early === true && !kept && focusClaim === undefined;
+      if (ahead) {
+        const now = Date.now();
+        const seen = (earlyAsked.get(sessionId) ?? []).filter((t) => now - t < 3_600_000);
+        if (seen.length >= EARLY_PER_SESSION_PER_HOUR) return notAsked("tests are written ahead only twice an hour");
+        const allowed = deps.takeEarlyTests?.(c) ?? { ok: true as const };
+        if (!allowed.ok) return notAsked(allowed.reason);
+        earlyAsked.set(sessionId, [...seen, now]);
+      }
       const used = proposalCount.get(sessionId) ?? 0;
-      if (!kept && used >= MAX_PROPOSALS_PER_SESSION) return notAsked(`call limit reached: this session already asked for tests ${MAX_PROPOSALS_PER_SESSION} times`);
-      const byIp = kept ? ({ ok: true } as const) : deps.takeModelRound(c);
+      if (!kept && !ahead && used >= MAX_PROPOSALS_PER_SESSION) return notAsked(`call limit reached: this session already asked for tests ${MAX_PROPOSALS_PER_SESSION} times`);
+      const byIp = kept || ahead ? ({ ok: true } as const) : deps.takeModelRound(c);
       if (!byIp.ok) return notAsked(byIp.reason);
-      if (!kept) proposalCount.set(sessionId, used + 1);
+      if (!kept && !ahead) proposalCount.set(sessionId, used + 1);
       const aimedAt = kept ? null : (deps.weakSpotsOf?.(c, sessionId) ?? null);
       const r = kept ?? await runProposer(
         {
@@ -432,7 +447,7 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
         { chat: proposerChat, log: sessionEmitter(deps.agentLog, sessionId) },
       );
       const setId = `ps_${nanoid(10)}`;
-      const set: ProposalSet = { id: setId, codeSha256: entry.target.codeSha256, exportName: exp.name, model: r.model, claim: r.ok ? visibleText(r.claim) : null, proposals: r.proposals, at: Date.now() };
+      const set: ProposalSet = { ...(ahead ? { ahead: true } : {}), id: setId, codeSha256: entry.target.codeSha256, exportName: exp.name, model: r.model, claim: r.ok ? visibleText(r.claim) : null, proposals: r.proposals, at: Date.now() };
       touch(sets, sessionId, () => new Map<string, ProposalSet>(), MAX_PASTE_SESSIONS).set(setId, set);
       const shown = r.proposals.map((p) => ({
         id: p.id,
@@ -488,6 +503,13 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
      * A proposal of this session on this code, for POST /experiments {proposalId} (as proposed: it must be allowed)
      * or {editedFrom} (edited by the person: any proposal). Refused once the set's claim was shown (B2).
      */
+    /** D63: a test written ahead is now in use, so it counts. */
+    noteProposalUsed(sessionId: string, set: ProposalSet, c: Context) {
+      if (!set.ahead) return;
+      set.ahead = false;
+      proposalCount.set(sessionId, (proposalCount.get(sessionId) ?? 0) + 1);
+      deps.takeModelRound(c);
+    },
     proposalOf(sessionId: string, proposalId: string, codeSha256: string, edited = false): { set: ProposalSet; proposal: Proposal } | { error: string; status: 400 | 409 | 422 } {
       for (const set of sets.get(sessionId)?.values() ?? []) {
         const p = set.proposals.find((x) => x.id === proposalId);

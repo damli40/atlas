@@ -35,6 +35,7 @@ import { ENV, build, client, logLines, pastedRound, sum, tmp } from "../tools/g1
  * must be either here or in the gate's open list (checked below), so a new route cannot slip past this test.
  */
 const SPENDING: { method: string; route: string; path: string; body?: unknown; spends: string }[] = [
+  { method: "DELETE", route: "/proofs/:runId/keep", path: "/proofs/x/keep", spends: "nothing: the maker takes a public link down" },
   { method: "POST", route: "/proofs/:runId/keep", path: "/proofs/x/keep", spends: "a small file on the volume, only when the person asks for a link" },
   { method: "GET", route: "/runs/:runId/helpers", path: "/runs/x/helpers", spends: "nothing itself: the third run is started and counted by POST /runs" },
   { method: "GET", route: "/proofs/:runId/pencil.png", path: "/proofs/x/pencil.png", spends: "the machine's time: a separate process draws for up to 30 s, limited per code (R3)" },
@@ -75,7 +76,7 @@ describe("G1 gate: every spending route refuses without a code, and nothing is s
     expect(unaccounted).toEqual([]);
     // And every open route really is one of the read-only ones listed in the gate.
     const open = routes.filter((r) => !spending.has(r));
-    expect(open.sort()).toEqual(["GET /claimants", "GET /health", "GET /outline/jobs/:id", "GET /outline/jobs/:id/atlas", "GET /outline/jobs/:id/outline", "GET /outline/jobs/:id/parts/:partId", "GET /paste/languages", "GET /proofs/:runId"]);
+    expect(open.sort()).toEqual(["GET /claimants", "GET /health", "GET /moonwell/saved", "GET /outline/jobs/:id", "GET /outline/jobs/:id/atlas", "GET /outline/jobs/:id/outline", "GET /outline/jobs/:id/parts/:partId", "GET /paste/languages", "GET /proofs/:runId"]);
     expect(OPEN_ROUTES.every((r) => r.method === "GET" || /invite/.test(r.path.source))).toBe(true);
   });
 

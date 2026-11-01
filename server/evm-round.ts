@@ -35,7 +35,7 @@ export const ASKED_FIELD = "priceUsd1e18:cbETH";
 /** Why a github-pr target cannot run on the EVM runner, or undefined when it can. */
 export function evmTargetRefusal(ref: string, codeSha256: string, commit: string | undefined): string | undefined {
   if (ref.toLowerCase() !== MOONWELL_PR_REF.toLowerCase()) {
-    return `Atlas runs one pull request on the EVM runner today: ${MOONWELL_PR_REF} (MIP-X43). ${ref} can be read, not run.`;
+    return `Atlas runs one pull request on the EVM runner today: ${MOONWELL_PR_REF} (MIP-X43). ${ref} can't be run here.`;
   }
   if (commit !== undefined && commit !== MOONWELL_PR_578.commit) return `the PR's merge commit is ${commit}, not ${MOONWELL_PR_578.commit}, the copy Atlas applies`;
   if (codeSha256 !== PR578_CODE_SHA256) return `the PR's files hash to ${codeSha256.slice(0, 12)}…, not the copy Atlas applies (${PR578_CODE_SHA256.slice(0, 12)}…)`;

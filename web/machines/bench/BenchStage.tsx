@@ -50,6 +50,8 @@ export interface BenchStageProps {
   model: BenchModel;
   theme?: "light" | "dark";
   after?: After | null;
+  /** This code and test have already run here: "nothing has run" would be false. */
+  seenBefore?: boolean;
   /** D60: a part was clicked on the drawing: the code drawer jumps to its lines. */
   onPart?: (name: string) => void;
   /** A code box was chosen as the function to test. */
@@ -84,7 +86,7 @@ export function roundUp(ms: number): number {
   return 10 * p;
 }
 
-export function BenchStage({ model, theme, after = null, onPart, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null }: BenchStageProps) {
+export function BenchStage({ seenBefore = false, model, theme, after = null, onPart, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null }: BenchStageProps) {
   const playedRef = useRef(onPlayed);
   playedRef.current = onPlayed;
   const dark = useDarkScheme();
@@ -130,7 +132,7 @@ export function BenchStage({ model, theme, after = null, onPart, onTestFunction,
   const pathSpec = useMemo(() => {
     if (!after) return null;
     // D60: one ring or one tick on the drawing, for the question that leads the moment. The list beside it holds every other answer.
-    const lead = momentOf(after.marks, after.run)?.measures ?? null;
+    const lead = momentOf(after.marks, after.run, language)?.measures ?? null;
     const spec = whatHappened({ run: after.run, experiment: after.experiment, bets: after.bets.filter((b) => b.who === "human" && b.measures === lead), verdicts: [...after.verdicts], origin: "this-run", ...(after.helpers ? { helpers: after.helpers } : {}), seed: `path:${after.run.id}` });
     return { ...spec, title: undefined, kicker: undefined, subtitle: undefined } as typeof spec;
   }, [after?.run, after?.experiment, after?.bets, after?.verdicts, after?.helpers, after?.marks]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -138,6 +140,7 @@ export function BenchStage({ model, theme, after = null, onPart, onTestFunction,
   const [pathMount, setPathMount] = useState<Mounted | null | undefined>(undefined);
   /** Ends the pause while the chart moves aside, so a click during it counts. */
   const endPause = useRef<(() => void) | null>(null);
+  const skipAsked = useRef(false);
 
   // The run, played as a story. Without `after`: nothing plays.
   useEffect(() => {
@@ -169,6 +172,7 @@ export function BenchStage({ model, theme, after = null, onPart, onTestFunction,
       else if (s.device) void chartPlayer?.flash(deviceId(s.device), 620);
     };
     void (async () => {
+      skipAsked.current = false;
       setPlaying(true);
       p.rewind();
       // D60: about 5 s to the ring, whatever the path's length, up to about 6 s. The final ring keeps its pace: it is the payoff.
@@ -187,8 +191,11 @@ export function BenchStage({ model, theme, after = null, onPart, onTestFunction,
       for (let i = 0; i < pathSpec.steps.length && live; i++) {
         lit(pathSpec.steps[i]!);
         // The thread takes the centre and the view follows its head.
-        pathMount?.bringIntoView(pathSpec.steps[i]!.nodes[0] ?? "");
-        await p.playStep(i);
+        pathMount?.bringIntoView(pathSpec.steps[i]!.nodes[0] ?? "", !skipAsked.current);
+        const played = p.playStep(i);
+        // A key pressed in the pause before the first step still skips: nothing was animating yet to cut short.
+        if (skipAsked.current) p.skip();
+        await played;
       }
       if (!live) return;
       setStep(null);
@@ -209,6 +216,7 @@ export function BenchStage({ model, theme, after = null, onPart, onTestFunction,
   }, [after?.token, pathMount, pathSpec, still]);
 
   const skip = () => {
+    skipAsked.current = true;
     endPause.current?.();
     pathMount?.player?.skip();
     chartMount.current?.player?.skip();
@@ -218,10 +226,13 @@ export function BenchStage({ model, theme, after = null, onPart, onTestFunction,
     if (!playing) return;
     const onAny = (e: globalThis.KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || e.key === "Shift" || e.key === "Tab") return;
+      // A skip key only skips: it never goes on to do anything else.
+      e.stopImmediatePropagation();
+      e.preventDefault();
       skip();
     };
-    window.addEventListener("keydown", onAny);
-    return () => window.removeEventListener("keydown", onAny);
+    window.addEventListener("keydown", onAny, true);
+    return () => window.removeEventListener("keydown", onAny, true);
   });
   const onRootPointerUp = (e: RPointerEvent<HTMLDivElement>) => {
     if ((e.target as Element).closest?.("button, a, input, select, summary, textarea, .u1-card")) return;
@@ -259,7 +270,7 @@ export function BenchStage({ model, theme, after = null, onPart, onTestFunction,
         <p className="r-kick">{title}</p>
         <h1 className="r-name">{model.tested ?? fileName}</h1>
         <p className="r-sub" data-testid="r-sub">
-          {after ? (marksOn ? "" : STAGE_WORDS.playing) : model.parts[CLOCK_ID] ? "the code, and what Atlas will plug in. Nothing has run." : "what calls what, before anything has run"}
+          {after ? (marksOn ? "" : STAGE_WORDS.playing) : seenBefore ? "this code and test have already run here" : model.parts[CLOCK_ID] ? "the code, and what Atlas will plug in. Nothing has run." : "what calls what, before anything has run"}
         </p>
       </header>
       <p id="bench-described" className="rr-unseen" data-testid="bench-described">{model.plainLabel}</p>
@@ -290,7 +301,7 @@ export function BenchStage({ model, theme, after = null, onPart, onTestFunction,
         </p>
       )}
       {cardId && model.parts[cardId] && <PartCard id={cardId} part={model.parts[cardId]!} tested={model.tested} hasTest={Boolean(model.parts[CLOCK_ID])} python={language === "py"} pinned={pinned === cardId} {...(onTestFunction ? { onTest: onTestFunction } : {})} canChange={!after} onClose={() => setPinned(null)} />}
-      {after && marksOn && <MarkList marks={after.marks} focus={focusMark} onFocus={setFocusMark} footnote={footnote} headnote={headnote} moment={momentOf(after.marks, after.run)} readout={marksReadout(after.marks)} />}
+      {after && marksOn && <MarkList marks={after.marks} focus={focusMark} onFocus={setFocusMark} footnote={footnote} headnote={headnote} moment={momentOf(after.marks, after.run, language)} readout={marksReadout(after.marks)} />}
       {children}
     </div>
   );
@@ -371,6 +382,8 @@ export function MomentView({ moment }: { moment: Moment }) {
         <span className="m-run-v" data-testid="moment-run">{moment.run}</span>
       </p>
       {moment.bettors.length > 0 && (
+        <>
+        <p className="m-covers" data-testid="moment-covers">{`On this question: ${moment.question ?? ""}`}</p>
         <ul className="m-bettors" aria-label={moment.question ?? "the bets"} data-testid="moment-bettors">
           {moment.bettors.map((b) => (
             <li key={b.who}>
@@ -381,6 +394,7 @@ export function MomentView({ moment }: { moment: Moment }) {
             </li>
           ))}
         </ul>
+        </>
       )}
     </section>
   );
@@ -503,7 +517,7 @@ function PartCard({ id, part, tested, hasTest, python, pinned, onTest, onClose, 
       ) : (
         <>
           <h3>Atlas's clock</h3>
-          <p className="u1-sub">{`Atlas's clock is simulated: waits cost no real time. The dial runs from 0 to ${part.fullMs.toLocaleString("en-US")} ms.${part.marks.length ? ` Its longer ticks mark ${part.marks.map((m) => `${m.toLocaleString("en-US")} ms`).join(" and ")}, from the test's own scripted waits.` : ""}`}</p>
+          <p className="u1-sub">{`Atlas's clock is simulated: waits cost no real time. ${part.marks.length ? ` Its longer ticks mark ${part.marks.map((m) => `${m.toLocaleString("en-US")} ms`).join(" and ")}, from the test's own scripted waits.` : ""}`}</p>
         </>
       )}
       {pinned && (

@@ -216,7 +216,7 @@ export function benchModel(input: BenchInput): BenchModel {
       return by.length ? `wired to ${by.join(" and ")}` : "not wired (no line found that calls it)";
     };
     const devWords = [...[...uses.keys()].map((n) => `${n}, ${wiredTo(n)}`), ...(test.network ? [`${test.network.replaces} (a fake network), ${wiredTo(test.network.replaces)}`] : [])];
-    extraLabel = `Beside the code, the test's stand-ins (fakes Atlas controls): ${devs.length === 0 ? "none" : `${devWords.join("; ")}, each a small box with a lamp that lights when it is called`}; and a clock whose dial is Atlas's simulated clock, from 0 to ${dial.fullMs.toLocaleString("en-US")} ms.`;
+    extraLabel = `Beside the code, the test's stand-ins (fakes Atlas controls): ${devs.length === 0 ? "none" : `${devWords.join("; ")}, each a small box with a lamp that lights when it is called`}; and a clock that stands for Atlas's simulated clock.`;
   }
   // Each box's joins, for the pick highlight (applyPick lights the picked box's drawn lines).
   for (const b of boxes) {
@@ -231,7 +231,7 @@ export function benchModel(input: BenchInput): BenchModel {
     .concat(outline.joins.filter((j) => j.kind === "wraps").map((j) => `${j.from} is wrapped by ${j.to}`))
     .concat((outline.selfCalls ?? []).map((x) => `${x.name} calls itself`));
   const fns = outline.parts.length;
-  const plainLabel = `A drawing of ${path}: ${fns} ${fns === 1 ? "function or class" : "functions and classes"}, each a box (a taller box has more lines), named on its front${tested ? `; ${tested} is the one Atlas tests` : ""}. ${callWords.length ? `Lines join them: ${callWords.join("; ")}.` : "None of them calls another."}${extraLabel ? ` ${extraLabel}` : ""}`;
+  const plainLabel = `A drawing of ${path}: ${fns} ${fns === 1 ? "function or class" : "functions and classes"}, each a box with its name and lines on it${tested ? `; ${tested} is the one Atlas tests` : ""}. ${callWords.length ? `Lines join them: ${callWords.join("; ")}.` : "None of them calls another."}${extraLabel ? ` ${extraLabel}` : ""}`;
   return {
     plainLabel,
     notShown: boxes.length === 0 ? "plain code found no function or class in this file to draw" : null,

@@ -7,7 +7,12 @@
 //   one call, and two calls (the cache's edge).
 // - Muse Spark / Muse Spark Open: fixed letters (a / b).
 // Run: PORT=<port> pnpm exec tsx tests/evidence/U3/mock-server.ts   then   ATLAS_API_PORT=<port> pnpm exec vite --port <port2> --strictPort
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { serve } from "@hono/node-server";
+import { withInviteGate } from "../../../server/access/gate";
+import { openInviteStore } from "../../../server/access/store";
 import { createApp } from "../../../server/app";
 import { createModelBudget } from "../../../server/meta/budget";
 import type { ChatArgs, ChatResult } from "../../../server/meta/client";
@@ -64,5 +69,14 @@ export const mockChat = async (a: ChatArgs): Promise<ChatResult> => {
 };
 
 const budget = createModelBudget({ spendCeilingUsd: 5, callsPerHour: 100_000 });
-const app = createApp({ modelBets: { chat: mockChat, budget, sparkOpen: { available: true } }, paste: { proposer: { chat: mockChat } } });
-serve({ fetch: app.fetch, port: Number(process.env.PORT ?? 18951) }, (i) => console.log(`U3 mock-model server on ${i.port}: every model call is mocked ($0)`));
+const app = createApp({ modelBets: { chat: mockChat, budget, sparkOpen: { available: true } }, paste: { proposer: { chat: mockChat } }, keptProofsDir: join(mkdtempSync(join(tmpdir(), "u3-kept-")), "kept") });
+// With U3_GATE_FILE set: the real invite gate in front, and one code written to that file (never printed), so the browser checks the hosted path.
+let served: { fetch: typeof app.fetch } = app;
+if (process.env.U3_GATE_FILE) {
+  const dir = mkdtempSync(join(tmpdir(), "u3-gate-"));
+  const store = openInviteStore(dir, { env: { ATLAS_INVITE_PEPPER: "x".repeat(64), ATLAS_INVITE_SECRET: "x".repeat(64) } as never });
+  const made = store.create({ label: "check", dailyUsd: 3 }) as unknown as { code: string };
+  writeFileSync(process.env.U3_GATE_FILE, made.code, { mode: 0o600 });
+  served = withInviteGate(app, { store, require: true, secureCookie: false });
+}
+serve({ fetch: served.fetch, port: Number(process.env.PORT ?? 18951) }, (i) => console.log(`U3 mock-model server on ${i.port}: every model call is mocked ($0)`));

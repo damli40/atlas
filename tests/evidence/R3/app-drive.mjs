@@ -234,6 +234,129 @@ if (early) {
   await p.context().close();
 }
 
+
+// ---- R3 fix round 3: the keyboard paths the review and the cold test found ----
+if (late) {
+  const p = await open(`${BASE}/`, { vw: 1280, vh: 720 });
+  let wonder = 0;
+  let bets = 0;
+  let experiments = 0;
+  p.on("request", (r) => {
+    if (r.method() !== "POST") return;
+    if (r.url().includes("/paste/proposals")) wonder++;
+    if (r.url().endsWith("/api/bets")) bets++;
+    if (r.url().endsWith("/api/experiments")) experiments++;
+  });
+  await p.click('[data-testid="u1-example"]');
+  await p.waitForSelector('[data-testid="bench-stage"] svg');
+  await p.click('[data-testid="u1-bet-toggle"]');
+  await p.waitForSelector('[data-testid="u1-seal"]', { timeout: 60000 });
+  // A held digit answers one question, not all of them.
+  await p.keyboard.down("1");
+  await p.keyboard.down("1");
+  await p.keyboard.down("1");
+  await p.keyboard.up("1");
+  await wait(p, 250);
+  say("a held digit answers one question", (await p.textContent('[data-testid="b-progress"]')).startsWith("2 of"), await p.textContent('[data-testid="b-progress"]'));
+  await p.keyboard.press("ArrowLeft");
+  await wait(p, 100);
+  const chosenBefore = await p.$$eval('.u1-opt[aria-checked="true"]', (e) => e.length);
+  // The cold test's wipe: Enter on a focused bettor control.
+  const beforeExp = experiments;
+  const beforeWonder = wonder;
+  await p.focus('[data-testid="who-spark"]');
+  await p.keyboard.press("Enter");
+  await p.waitForSelector('[data-testid="b-claimant-confirm"]');
+  say("Enter on a bettor control asks first and restarts nothing", experiments === beforeExp && wonder === beforeWonder);
+  say("answers survive", (await p.$$eval('.u1-opt[aria-checked="true"]', (e) => e.length)) === chosenBefore);
+  await p.click('[data-testid="b-claimant-yes"]');
+  await wait(p, 800);
+  say("answers survive a real change of bettor", (await p.$$eval('.u1-opt[aria-checked="true"]', (e) => e.length)) === chosenBefore);
+  await p.click('[data-testid="who-both"]');
+  await p.click('[data-testid="b-claimant-yes"]');
+  await wait(p, 800);
+  // Enter in a typed answer moves on.
+  await p.keyboard.press("ArrowRight");
+  await wait(p, 100);
+  const typed = await p.$('.u1-quiz > li[data-active] .u1-typed-in');
+  if (typed) {
+    const at = await p.textContent('[data-testid="b-progress"]');
+    await typed.fill("42");
+    await typed.press("Enter");
+    await wait(p, 120);
+    say("Enter after a typed answer moves on", (await p.textContent('[data-testid="b-progress"]')) !== at && (await p.$$('[data-testid="u1-sealed"]')).length === 0);
+  }
+  for (let i = 0; i < 6 && !(await p.$('[data-testid="b-review"]')); i++) {
+    await p.keyboard.press("ArrowRight");
+    await wait(p, 60);
+  }
+  await p.locator('[data-testid="u1-pop"]').focus();
+  // A double Enter seals once.
+  await p.keyboard.press("Enter");
+  await p.keyboard.press("Enter");
+  await p.waitForSelector('[data-testid="bench-path"]', { timeout: 60000 });
+  say("a double Enter seals once", bets === 1, `${bets} requests`);
+  await wait(p, 300);
+  const paid = wonder;
+  await p.keyboard.press("b");
+  await wait(p, 200);
+  say("B while the run plays only skips: nothing wiped, nothing paid", wonder === paid && !(await p.$('[data-testid="u1-pick-panel"]')));
+  await p.waitForSelector('[data-testid="mark-list"]', { timeout: 15000 });
+  await p.waitForFunction(() => !document.querySelector('[data-testid="u1-replay"]')?.disabled, { timeout: 30000 });
+  await p.keyboard.press("b");
+  await p.waitForSelector('[data-testid="u1-pick-panel"]');
+  say("B after the verdict opens a list: the result stays, nothing paid", wonder === paid && !!(await p.$('[data-testid="mark-list"]')));
+  await axe(p, "another-test list");
+  await overlaps(p, "another-test list");
+  await p.keyboard.press("Escape");
+  await p.context().close();
+}
+
+// ---- R3 fix round 3: the hosted path, behind the real invite gate ----
+if (late && process.env.BASE_G) {
+  const code = readFileSync(process.env.GATE_FILE, "utf8").trim();
+  const p = await open(`${process.env.BASE_G}/`, { vw: 1280, vh: 720 });
+  let keeps = 0;
+  p.on("request", (r) => {
+    if (r.method() === "POST" && r.url().endsWith("/keep")) keeps++;
+  });
+  await p.waitForSelector('[data-testid="e-invite"]');
+  await p.fill('[data-testid="e-invite-code"]', code);
+  await p.click('[data-testid="e-invite-go"]');
+  await p.waitForFunction(() => !document.querySelector('[data-testid="u1-example"]')?.disabled);
+  await p.click('[data-testid="u1-example"]');
+  await p.waitForSelector('[data-testid="bench-stage"] svg');
+  await p.click('[data-testid="u1-bet-toggle"]');
+  await p.waitForSelector('[data-testid="u1-seal"]', { timeout: 60000 });
+  await p.click('[data-testid="u1-seal"]');
+  await p.waitForSelector('[data-testid="mark-list"]', { timeout: 60000 });
+  await p.waitForFunction(() => !document.querySelector('[data-testid="u1-replay"]')?.disabled, { timeout: 30000 });
+  await p.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await p.keyboard.press("p");
+  await p.waitForSelector('[data-testid="pc-copy-link"]', { timeout: 15000 });
+  await p.click('[data-testid="pc-copy-link"]');
+  await p.waitForSelector('[data-testid="pc-link-ask"]');
+  say("the truthful sentence comes before anything is written", keeps === 0 && /values it returned or threw/.test(await p.textContent('[data-testid="pc-link-ask"]')));
+  await shot(p, "gate-link-ask-1280");
+  await p.click('[data-testid="pc-link-yes"]');
+  await p.waitForSelector('[data-testid="pc-share-said"]');
+  const said = await p.textContent('[data-testid="pc-share-said"]');
+  say("behind the gate, the link is really kept", keeps === 1 && /30 days/.test(said) && !/JSON|nothing was run/.test(said), said);
+  const link = await p.evaluate(() => navigator.clipboard.readText());
+  const q = await open(link, { vw: 1280, vh: 720 });
+  await q.waitForSelector('[data-testid="pc-image"]', { timeout: 15000 });
+  say("a logged-out reader sees the card, with no re-run and no pencil", !(await q.$('[data-testid="pc-rerun"]')) && !(await q.$('[data-testid="pc-pencil"]')));
+  await q.click('[data-testid="pc-copy-link"]');
+  await wait(q, 200);
+  say("a reader's Copy link makes nothing", !(await q.$('[data-testid="pc-link-ask"]')) && !/needs an invite/.test(await q.textContent('[data-testid="pc-image"]')));
+  await axe(q, "shared card, logged out");
+  await q.context().close();
+  await p.click('[data-testid="pc-delete-link"]');
+  await p.waitForFunction(() => /deleted/.test(document.querySelector('[data-testid="pc-share-said"]')?.textContent ?? ""));
+  say("the maker can delete it", true);
+  await p.context().close();
+}
+
 // ---- the explorer: a real outline job, with a mocked Wonder; then "Bet on this part" ----
 if (late) {
   const p = await open(`${BASE_X}/`);
@@ -322,6 +445,11 @@ if (late) {
   });
   await p.click('[data-testid="u1-demos"]');
   await p.click('[data-testid="mode-pr"]');
+  await p.waitForSelector('[data-testid="moonwell-saved-label"]');
+  say("Moonwell's menu opens the saved result, labelled as a replay of a saved file", /replay of a saved file/.test(await p.textContent('[data-testid="moonwell-saved-label"]')));
+  await axe(p, "Moonwell saved");
+  await shot(p, "moonwell-saved-1440");
+  await p.click('[data-testid="moonwell-run-again"]');
   await p.fill('[data-testid="pr-link"]', "https://github.com/moonwell-fi/moonwell-contracts-v2/pull/578");
   await p.locator('[data-testid="pr-link"]').press("Tab");
   await p.locator('section[aria-label="pull request"] button').first().click();
@@ -337,7 +465,7 @@ if (late) {
   await p.locator("button.primary:not([disabled]), button:has-text(\"Run\"):not([disabled])").last().click();
   await p.waitForSelector('[data-testid="price-pipe"] svg', { timeout: 20000 });
   await wait(p, 5000);
-  await p.locator('[data-testid="m-split"]').evaluate((e) => e.scrollIntoView({ block: "start" }));
+  await p.locator('[data-testid="m-split"]').first().evaluate((e) => e.scrollIntoView({ block: "start" }));
   await wait(p, 300);
   await shot(p, "moonwell-1440");
   const words = await p.evaluate(() => [...document.querySelectorAll('[data-testid="price-pipe"] text')].map((t) => t.textContent).join(" "));

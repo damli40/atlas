@@ -72,7 +72,7 @@
 //   experiment, from the same prompt). GET /claimants says whether Muse Spark Open can be asked and,
 //   if not, why; when it cannot, its slot says "not available (<reason>)" and no bet is ever made up.
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -379,6 +379,9 @@ export interface AppOptions {
   perClientModelLimits?: { modelRoundsPerHour?: number; investigationsPerHour?: number };
   /** D60: where a shared link's card is kept, without its source (ATLAS_PROOFS_DIR/kept on a hosted server). */
   keptProofsDir?: string;
+  /** D63: refuse a chain round before any paid call when there is no chain connection (server/index.ts turns this on). */
+  checkChainFirst?: boolean;
+  keptProofsCaps?: { days?: number; perClient?: number; total?: number; fileBytes?: number };
   /** R3: tests start the pencil with a fake worker or shorter limits. */
   pencil?: Omit<PencilOptions, "take">;
   /**
@@ -536,6 +539,9 @@ export function createApp(opts: AppOptions = {}) {
     return m;
   };
   const evmRun = opts.evmRun ?? defaultEvmRun;
+  // D63: whether a chain round could finish here. The real server asks this before it spends anything.
+  const chainReady = () => !opts.checkChainFirst || opts.evmRun !== undefined || Boolean(process.env.BASE_RPC_URL);
+  const NO_CHAIN = "This server has no chain connection, so a new Moonwell run can't happen here. Nothing was spent. The saved result stays above.";
   // D22: one reader per app, so the facts are read once per fork block and reused by every later round.
   const readFacts: ((block: number) => Promise<MoonwellChainFacts>) | null =
     opts.chainFacts !== undefined
@@ -639,6 +645,8 @@ export function createApp(opts: AppOptions = {}) {
     return r !== undefined && (r.status === "running" || (r.status === "open" && r.bets.some((b) => b.who === "human")));
   };
   const proofOf = (runId: string) => proofStore.get(runId) ?? pastedProofs.get(runId);
+  // D63: tests written before anyone asked don't count against the limits until used, so they have their own small limit here.
+  const earlyTestsByClient = createHourlyLimit(envCount(process.env.ATLAS_EARLY_TESTS_PER_CLIENT_PER_HOUR, 12), "tests written ahead");
   // R3: the third run behind the drawing's helper steps, per invite code an hour (by address when there is no code).
   const helperRunsByClient = createHourlyLimit(envCount(process.env.ATLAS_HELPER_RUNS_PER_CLIENT_PER_HOUR, 200), "helper runs");
   const helperStore = createHelperStore();
@@ -666,6 +674,7 @@ export function createApp(opts: AppOptions = {}) {
     betStore,
     ...(budget ? { budget } : {}),
     takeModelRound: (c) => modelRoundsByIp.take(clientOf(c)),
+    takeEarlyTests: (c) => earlyTestsByClient.take(clientOf(c)),
     takePaste: (c) => pastesByIp.take(clientOf(c)),
     executorKind: executor.kind,
     // X3: Muse Wonder is told only the kinds of question where this person's bets most often didn't match (counts).
@@ -1001,6 +1010,7 @@ export function createApp(opts: AppOptions = {}) {
         const msg = e instanceof Error ? e.message : String(e);
         return c.json({ error: `could not read pull request ${parsed.data.ref}: ${msg}` }, /^call limit reached/.test(msg) ? 429 : 502); // G1 review B7
       }
+      if (!chainReady()) return c.json({ error: NO_CHAIN }, 503);
       const refusal = evmTargetRefusal(pr.target.ref, pr.target.codeSha256, pr.target.commit);
       if (refusal) return c.json({ error: refusal, target: pr.target }, 422);
       targets.set(pr.target.codeSha256, pr.target);
@@ -1058,6 +1068,8 @@ export function createApp(opts: AppOptions = {}) {
       if (!pastedEntry) return c.json({ error: "proposalId is for pasted code only" }, 400);
       if (body.params !== undefined || body.editedFrom !== undefined) return c.json({ error: "send proposalId alone, or params (with editedFrom when you edited a proposal)" }, 400);
       const found = paste.proposalOf(sessionId, body.proposalId, target.codeSha256);
+      // D63: a test written ahead counts against the limits only now that it is used.
+      if (!("error" in found)) paste.noteProposalUsed(sessionId, found.set, c);
       if ("error" in found) return c.json({ error: found.error }, found.status);
       fromProposal = { setId: found.set.id, model: found.set.model, params: found.proposal.params };
     }
@@ -1200,6 +1212,8 @@ export function createApp(opts: AppOptions = {}) {
     const parsed = investigateBody.safeParse(raw.body);
     if (!parsed.success) return c.json({ error: plainReason(parsed.error) }, 400);
     const body = parsed.data;
+    // D63: checked before anything is spent: without a chain connection this round could not finish.
+    if ("pr" in body && body.pr.toLowerCase() === MOONWELL_PR_REF.toLowerCase() && !chainReady()) return c.json({ error: NO_CHAIN }, 503);
     const model = opts.investigator?.model ?? INVESTIGATOR_MODEL;
     // Limits first, so a request that will not be answered does not spend GitHub's rate limit either.
     const mine = investigationsOf(sessionId);
@@ -1923,45 +1937,90 @@ export function createApp(opts: AppOptions = {}) {
     },
   });
 
-  // D60: a shared link must outlive a deploy. Proof files live in memory, and a pasted one goes after 2 hours with its source. So when
-  // the person who ran a round asks for a link, its card, without the source, is kept on the volume. Nothing is kept unless asked.
-  const keptDir = opts.keptProofsDir;
-  const keptPath = (runId: string) => (keptDir && /^[\w-]{1,64}$/.test(runId) ? join(keptDir, `${runId}.json`) : null);
-  const keptProof = (runId: string): AtlasFile | null => {
-    const at = keptPath(runId);
-    if (!at) return null;
+  // D63: the Moonwell menu opens this saved result, a replay of a saved file. Read only, the same as any public proof card.
+  app.get("/moonwell/saved", (c) => {
     try {
-      return JSON.parse(readFileSync(at, "utf8")) as AtlasFile;
+      return c.json(JSON.parse(readFileSync(new URL("../proofs/moonwell/saved-level2-mwTaxvHFzB.atlas.json", import.meta.url), "utf8")));
+    } catch {
+      return c.json({ error: "the saved Moonwell result is not on this server" }, 404);
+    }
+  });
+  // D60, D63: a public link must outlive a deploy. Proof files live in memory, and a pasted one goes after 2 hours with its source. So when
+  // the person who ran a round asks, its card, without the file's text, is kept on the volume for 30 days. Nothing is kept unless asked.
+  // The maker can delete it. Caps per client and in total keep this from starving what shares the volume: the ledger, invites, records.
+  const keptDir = opts.keptProofsDir;
+  const keptCaps = { days: 30, perClient: 50, total: 500, fileBytes: 256 * 1024, ...opts.keptProofsCaps };
+  const keptPath = (runId: string) => (keptDir && /^[\w-]{1,64}$/.test(runId) ? join(keptDir, `${runId}.json`) : null);
+  const clientHash = (c: Context) => createHash("sha256").update(clientOf(c)).digest("hex");
+  type KeptEntry = { until: string; maker: string; file: AtlasFile };
+  const readKept = (at: string): KeptEntry | null => {
+    try {
+      const e = JSON.parse(readFileSync(at, "utf8")) as KeptEntry;
+      if (Date.parse(e.until) > Date.now()) return e;
+      rmSync(at, { force: true });
+      return null;
     } catch {
       return null;
     }
   };
+  const keptProof = (runId: string): KeptEntry | null => {
+    const at = keptPath(runId);
+    return at ? readKept(at) : null;
+  };
+  /** Every live kept card, with expired ones removed on the way. */
+  const allKept = (): KeptEntry[] => {
+    if (!keptDir || !existsSync(keptDir)) return [];
+    return readdirSync(keptDir).flatMap((n) => {
+      const e = n.endsWith(".json") ? readKept(join(keptDir, n)) : null;
+      return e ? [e] : [];
+    });
+  };
   app.post("/proofs/:runId/keep", (c) => {
     const runId = c.req.param("runId");
+    const already = keptProof(runId);
+    if (already) return c.json({ kept: true, until: already.until });
     const file = proofOf(runId);
-    if (!file) return c.json({ kept: keptProof(runId) !== null });
+    if (!file) return c.json({ kept: false, error: "this card is no longer on the server" }, 404);
     const owner = pastedOwners.get(runId);
-    if (file.target.kind === "pasted" && (owner === undefined || c.req.header("x-atlas-session") !== owner)) return c.json({ kept: false, error: "only the session that ran this round can keep its card" }, 403);
+    if (file.target.kind === "pasted" && (owner === undefined || c.req.header("x-atlas-session") !== owner)) return c.json({ kept: false, error: "only the session that ran this round can make its link" }, 403);
     const at = keptPath(runId);
-    if (!at) return c.json({ kept: false, error: "this server keeps no cards on disk, so this link lasts until it restarts" });
-    mkdirSync(keptDir!, { recursive: true });
-    writeFileSync(at, JSON.stringify(file.target.kind === "pasted" ? withheldSource(file) : file));
-    return c.json({ kept: true });
+    if (!at) return c.json({ kept: false, error: "this server keeps no cards on disk" });
+    const live = allKept();
+    const me = clientHash(c);
+    if (live.length >= keptCaps.total) return c.json({ kept: false, error: "this server already holds as many public links as it keeps" }, 429);
+    if (live.filter((e) => e.maker === me).length >= keptCaps.perClient) return c.json({ kept: false, error: `you already have ${keptCaps.perClient} public links; delete one to make another` }, 429);
+    const until = new Date(Date.now() + keptCaps.days * 86_400_000).toISOString();
+    const text = JSON.stringify({ until, maker: me, file: file.target.kind === "pasted" ? withheldSource(file) : file });
+    if (Buffer.byteLength(text) > keptCaps.fileBytes) return c.json({ kept: false, error: "this card is too big to keep as a public link" }, 413);
+    try {
+      mkdirSync(keptDir!, { recursive: true });
+      writeFileSync(at, text);
+    } catch {
+      return c.json({ kept: false, error: "the card could not be saved" }, 500);
+    }
+    return c.json({ kept: true, until });
+  });
+  app.delete("/proofs/:runId/keep", (c) => {
+    const runId = c.req.param("runId");
+    const at = keptPath(runId);
+    const e = at ? readKept(at) : null;
+    if (!e) return c.json({ deleted: false, error: "there is no public link for this card" }, 404);
+    if (e.maker !== clientHash(c)) return c.json({ deleted: false, error: "only the person who made this link can delete it" }, 403);
+    rmSync(at!, { force: true });
+    return c.json({ deleted: true });
   });
 
   app.get("/proofs/:runId", (c) => {
     const file = proofOf(c.req.param("runId"));
-    if (!file) {
-      const kept = keptProof(c.req.param("runId"));
-      if (kept) return c.json(kept);
-    }
+    const kept = keptProof(c.req.param("runId"));
+    if (!file && kept) return c.json({ ...kept.file, keptCard: { until: kept.until } });
     if (!file) return c.json({ error: `no .atlas.json for run ${c.req.param("runId")}` }, 404);
     // E3 review M4: a pasted round's source is the owning session's. Anyone else gets the card without it (the
     // fingerprint stays, so the card still says which code ran).
     // E3 review r2 minor 5: the source only when an owner is on record AND the header names it.
     const owner = pastedOwners.get(c.req.param("runId"));
-    if (file.target.kind === "pasted" && (owner === undefined || c.req.header("x-atlas-session") !== owner)) return c.json(withheldSource(file));
-    return c.json(file);
+    if (file.target.kind === "pasted" && (owner === undefined || c.req.header("x-atlas-session") !== owner)) return c.json({ ...withheldSource(file), ...(kept ? { keptCard: { until: kept.until } } : {}) });
+    return c.json({ ...file, ...(kept ? { keptCard: { until: kept.until } } : {}) });
   });
 
   // R3: the helper steps of a pasted run, for the drawing only. Only the session that pasted the code may read them, as with its

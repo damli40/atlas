@@ -30,7 +30,7 @@ describe("a shared proof link", () => {
     const stranger = await a.request(`/proofs/${runId}/keep`, { method: "POST", headers: { "x-atlas-session": "ssstrangerstranger" } });
     expect(stranger.status).toBe(403);
     const kept = await a.request(`/proofs/${runId}/keep`, { method: "POST", headers: { "x-atlas-session": "ssownerownerowner1" } });
-    expect(await kept.json()).toEqual({ kept: true });
+    expect(await kept.json()).toMatchObject({ kept: true });
     const after = await createApp({ keptProofsDir: dir }).request(`/proofs/${runId}`);
     expect(after.status).toBe(200);
     const body = (await after.json()) as { sourceWithheld?: boolean; runs: { id: string }[] };

@@ -39,7 +39,7 @@ export function ExplorerMachine({ model, onBet, betUnavailable, betBusy = null, 
   const tagWords = useMemo(() => {
     const out: Record<string, string[]> = {};
     for (const [id, a] of Object.entries(labels ?? {})) {
-      const claimed = a.labels.filter((l) => l.label !== "common pattern").map((l) => `${l.label}: ${l.name}`);
+      const claimed = a.labels.filter((l) => l.label !== "common pattern").map((l) => (l.label === "found in this code" ? `possibly ${l.name}: a pattern in these lines, not seen in a run` : `${l.label}: ${l.name}`));
       if (claimed.length) out[id] = claimed.slice(0, 2);
     }
     return out;
@@ -123,12 +123,12 @@ export function ExplorerMachine({ model, onBet, betUnavailable, betBusy = null, 
           </>
         )}
         <p className="r-ex-pan" data-testid="r-pan-hint">drag to move, pinch to zoom</p>
-        <p className="r-ex-caption" data-testid="explorer-caption">{`Drawn only from Atlas's checked outline of ${model.source}${model.commit ? ` at commit ${model.commit.slice(0, 7)}` : ""} (${plural(model.files.length, "file")}). Muse Wonder (${model.model}) proposed the parts and wrote every name and purpose; plain code checked them against the files and found the joins. "Lines confirmed" means the lines exist where Wonder said; it does not mean Wonder's sentence about a part is true.`}</p>
+        {model.notShown === null && <p className="r-ex-caption" data-testid="explorer-caption">{`Drawn only from Atlas's checked outline of ${model.source}${model.commit ? ` at commit ${model.commit.slice(0, 7)}` : ""} (${plural(model.files.length, "file")}). Muse Wonder (${model.model}) proposed the parts and wrote every name and purpose; plain code checked them against the files and found the joins. "Lines confirmed" means the lines exist where Wonder said; it does not mean Wonder's sentence about a part is true.`}</p>}
       </div>
-      <div className="ex-aside">
+      {model.notShown === null && <div className="ex-aside">
         <PartCard model={model} box={box} onPick={(id) => setPicked(id)} {...(onBet ? { onBet } : {})} {...(betUnavailable ? { betUnavailable } : {})} betBusy={betBusy} labels={box && labels ? (labels[box.id] ?? null) : null} labelsHeld={labelsHeld} />
         <Lists model={model} />
-      </div>
+      </div>}
     </div>
     </div>
   );

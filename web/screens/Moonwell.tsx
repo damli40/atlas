@@ -4,6 +4,7 @@
 // sealed beside it (hashes only) → a real run on a fork of Base (30–90 s, progress from the agent
 // log) → verdicts by src/judge.ts → the false-alarm table → the captions this kind of run must carry.
 
+import type { AtlasFile } from "../../src/types";
 import { momentOfRows } from "../../src/moment";
 import { bettorNames } from "../../src/claimants";
 import { MomentView } from "../machines/bench/BenchStage";
@@ -72,6 +73,37 @@ function proofCardModelRows(result: RunAnswer) {
     });
 }
 
+/** D63: the menu opens the saved result, labelled as what it is. Running it again stays available. */
+function MoonwellSaved({ api, onRunAgain }: { api: Api; onRunAgain: () => void }) {
+  const [file, setFile] = useState<AtlasFile | null>(null);
+  useEffect(() => {
+    let live = true;
+    Promise.resolve()
+      .then(() => api.moonwellSaved())
+      .then((f) => live && setFile(f), () => live && onRunAgain());
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [api]);
+  if (!file || !file.runs[0]) return null;
+  const answer = { run: file.runs[0], bets: file.bets, verdicts: file.verdicts } as unknown as RunAnswer;
+  const moment = momentOfRows(proofCardModelRows(answer), file.runs[0]);
+  return (
+    <section data-testid="moonwell-saved">
+      <p className="m-saved-label" data-testid="moonwell-saved-label">{`A replay of a saved file: run ${file.runs[0].id}, at Base block ${file.runs[0].forkBlock ?? "?"}. Nothing ran just now.`}</p>
+      <div className="m-split" data-testid="m-split">
+        {moment && <div className="m-standalone"><MomentView moment={moment} /></div>}
+        <MoonwellDrawing run={file.runs[0]} bets={file.bets} verdicts={file.verdicts} captions={file.captions} still />
+      </div>
+      <button type="button" className="primary" onClick={onRunAgain} data-testid="moonwell-run-again">
+        Run it again
+      </button>
+      <span className="muted small"> Asks the AIs and forks the chain: paid calls. Atlas checks for a chain connection first.</span>
+    </section>
+  );
+}
+
 export function prRefFromLink(link: string): string | null {
   const t = link.trim();
   const url = /^(?:https?:\/\/)?(?:www\.)?github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)\/pull\/(\d+)(?:[/?#].*)?$/.exec(t);
@@ -82,8 +114,10 @@ export function prRefFromLink(link: string): string | null {
 const usd: FormatValue = (m, v) => (/^(priceUsd1e18|preApplyPriceUsd1e18|refUsd1e18):/.test(m) && typeof v === "string" && /^-?\d+$/.test(v) ? formatUsd1e18(BigInt(v)) : String(v));
 const usdOf = (v: string | null) => (v === null ? "not read" : formatUsd1e18(BigInt(v)));
 
-export function MoonwellFlow({ api, onRoundOpen }: { api: Api; onRoundOpen?: (open: boolean) => void }) {
+export function MoonwellFlow({ api, onRoundOpen, direct = false }: { api: Api; onRoundOpen?: (open: boolean) => void; /** Straight to a new run, past the saved result. */ direct?: boolean }) {
   const [link, setLink] = useState("");
+  // D63: the menu opens the saved result. A new run is a choice, with its cost said first.
+  const [runAgain, setRunAgain] = useState(direct);
   const [target, setTarget] = useState<PrTarget | null>(null);
   const [finding, setFinding] = useState<Finding | null>(null);
   const [level, setLevel] = useState<Level>("level2");
@@ -163,6 +197,7 @@ export function MoonwellFlow({ api, onRoundOpen }: { api: Api; onRoundOpen?: (op
   const q = questions[0];
   const m = result?.run.result.measured;
   const fileOf = (path: string) => target?.files.find((f) => f.path === path)?.text;
+  if (!runAgain) return <MoonwellSaved api={api} onRunAgain={() => setRunAgain(true)} />;
   return (
     <>
       <section className="card" aria-label="pull request">

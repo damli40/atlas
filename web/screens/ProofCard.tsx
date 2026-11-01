@@ -122,6 +122,8 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
   }, [file]);
   useEffect(() => () => void (download && URL.revokeObjectURL(download)), [download]);
 
+  // A reader of a shared card, or a card kept past its round: re-running or drawing it again is for the session that ran it.
+  const readerOnly = (file as { sourceWithheld?: boolean }).sourceWithheld === true || (file as { keptCard?: unknown }).keptCard !== undefined;
   const rerun = async () => {
     if (!api) return;
     setReplay({ kind: "running" });
@@ -235,7 +237,7 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
         // E3: the call timeline, drawn from the file's own run (the same component as the round's screen).
         <section className="pc-machine" aria-label="call timeline" data-testid="pc-call-timeline">
           <RunPath run={file.runs[0]} experiment={file.experiments[0]} bets={file.bets} verdicts={file.verdicts} still testid="pc-path" />
-          {api && <PencilImage api={api} runId={file.runs[0].id} />}
+          {api && (file as { keptCard?: unknown }).keptCard === undefined && <PencilImage api={api} runId={file.runs[0].id} />}
         </section>
       )}
 
@@ -243,13 +245,13 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
       {!call && file.runs[0]?.runner === "ts" && (
         <section className="pc-machine" aria-label="what happened" data-testid="pc-retry">
           <RunPath run={file.runs[0]} experiment={file.experiments[0]} bets={file.bets} verdicts={file.verdicts} still retry testid="pc-path" />
-          {api && <PencilImage api={api} runId={file.runs[0].id} />}
+          {api && (file as { keptCard?: unknown }).keptCard === undefined && <PencilImage api={api} runId={file.runs[0].id} />}
         </section>
       )}
       {!call && file.runs[0]?.runner === "evm" && (
         <section className="pc-machine" aria-label="the price flow" data-testid="pc-moonwell">
           <MoonwellDrawing run={file.runs[0]} bets={file.bets} verdicts={file.verdicts} captions={[...new Set(file.captions)]} still {...(file.change ? { beforeChange: true } : {})} />
-          {api && <PencilImage api={api} runId={file.runs[0].id} />}
+          {api && (file as { keptCard?: unknown }).keptCard === undefined && <PencilImage api={api} runId={file.runs[0].id} />}
         </section>
       )}
 
@@ -329,6 +331,7 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
             Download {card.runId}.atlas.json
           </a>
         )}
+        {!readerOnly && (
         <a
           href={`/api/replay/${encodeURIComponent(card.runId)}`}
           data-testid="pc-rerun"
@@ -340,6 +343,7 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
         >
           {replay.kind === "running" ? "re-running…" : "Re-run it"}
         </a>
+        )}
         {words && (
           <span className={`pc-replay${words.same ? " pc-same" : ""}`} data-testid="pc-replay">
             {words.text}
@@ -440,7 +444,7 @@ const PROOF_WORDS = {
 } as const;
 
 /** U3 item 7: a measured field's name in plain words ("calls:fetch" → "calls to fetch"). */
-function plainField(measures: string): string {
+export function plainField(measures: string): string {
   if (measures.startsWith("calls:")) return `calls to ${measures.slice(6)}`;
   const words: Record<string, string> = { outcome: "how it ends", returnedJson: "what it returns", virtualMs: "how long it takes", calls: "calls", totalWaitMs: "total wait" };
   return words[measures] ?? measures;

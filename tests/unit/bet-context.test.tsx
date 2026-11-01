@@ -132,7 +132,7 @@ describe("D19: what the bettor sees", () => {
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
-    act(() => root!.render(<MoonwellFlow api={api} />));
+    act(() => root!.render(<MoonwellFlow api={api} direct />));
 
     act(() => setValue($('[data-testid="pr-link"]') as HTMLInputElement, "https://github.com/moonwell-fi/moonwell-contracts-v2/pull/578"));
     await act(async () => byText("button", "Read it")!.click());
