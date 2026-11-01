@@ -80,7 +80,9 @@ export class Player {
     this.skipping = false;
   }
 
-  private async animate(el: Element, frames: Keyframe[] | PropertyIndexedKeyframes, opts: KeyframeAnimationOptions): Promise<void> {
+  private async animate(el: Element, frames: Keyframe[] | PropertyIndexedKeyframes, given: KeyframeAnimationOptions): Promise<void> {
+    // D60: a run's pace scales everything it animates, so a long path still takes about 5 s.
+    const opts = this.runPace === 1 || typeof given.duration !== "number" ? given : { ...given, duration: given.duration * this.runPace };
     if (this.fast) return;
     const a = el.animate(frames, { fill: "both", ...opts });
     this.active.add(a);
@@ -135,7 +137,7 @@ export class Player {
       return;
     }
     const len = spine.getTotalLength();
-    const duration = Math.max(180, Math.min(620, 120 + len * 0.9)) * (o.pace ?? this.runPace);
+    const duration = Math.max(180, Math.min(620, 120 + len * 0.9)) * (o.pace ?? 1);
     // The ribbon is revealed through a mask that is itself a stroke being drawn: pen-like, and the ribbon keeps its width.
     const id2 = `rr-reveal-${++maskCounter}`;
     const mask = document.createElementNS(SVG_NS, "mask");
@@ -252,7 +254,7 @@ export class Player {
     const hand = el?.querySelector<SVGGElement>(".rr-hand");
     if (!el || !hand || this.fast) return;
     const deg = Number(hand.dataset.sweep ?? 72);
-    const duration = Math.max(280, Math.min(620, 220 + 130 * Math.log10(1 + (ms ?? 100)))) * this.runPace;
+    const duration = Math.max(280, Math.min(620, 220 + 130 * Math.log10(1 + (ms ?? 100))));
     const origin = this.centerOf(el);
     const wedge = el.querySelector(".rr-wedge");
     const text = el.querySelectorAll(".rr-t");

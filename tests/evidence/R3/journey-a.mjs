@@ -129,6 +129,14 @@ await answerAll(ts);
 await ts.click('[data-testid="u1-seal"]');
 await ts.waitForSelector('[data-testid="mark-list"]', { timeout: 90000 });
 say("change: the changed run is judged", true);
+// A to B and back to A: the person is told what the models are told (D19).
+await ts.waitForFunction(() => !document.querySelector('[data-testid="u1-replay"]')?.disabled, { timeout: 60000 });
+await ts.click('[data-testid="u1-change"]');
+await ts.fill('[data-testid="u1-change-code"]', ORDERS);
+await ts.click('[data-testid="u1-change-go"]');
+await ts.waitForSelector('[data-testid="u1-seal"]', { timeout: 60000 });
+const back = await ts.evaluate(() => document.body.innerText);
+say("change back: says this test already ran, never 'nothing has run yet'", /repeat of a test you've already seen/.test(back) && !/nothing about this code has run yet/.test(back));
 await ts.screenshot({ path: `${OUT}/change-result.png` });
 // Test this claim: a first result, then the claim's button.
 const c = await flow("claim", ORDERS, "ts");

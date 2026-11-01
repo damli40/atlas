@@ -35,7 +35,7 @@ await p.click('[data-testid="u1-bet-toggle"]');
 await p.waitForSelector('[data-testid="u1-seal"]', { timeout: 60000 });
 await p.waitForTimeout(900);
 // One tap each: a person's pace, with a mismatch not scripted to land: the first option, then the second.
-for (const key of ["1", "5", "2", "2"]) {
+for (const key of ["1", "3", "2", "2"]) {
   await p.keyboard.press(key);
   await p.waitForTimeout(800);
 }

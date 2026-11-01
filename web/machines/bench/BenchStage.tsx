@@ -172,7 +172,7 @@ export function BenchStage({ model, theme, after = null, onPart, onTestFunction,
       setPlaying(true);
       p.rewind();
       // D60: about 5 s to the ring, whatever the path's length, up to about 6 s. The final ring keeps its pace: it is the payoff.
-      p.setRunPace(Math.min(0.85, 16 / Math.max(1, pathSpec.steps.length * 2)));
+      p.setRunPace(Math.max(0.12, Math.min(0.85, 4400 / Math.max(1, pathSpec.steps.length * 1000))));
       // The chart moves aside first, so the whole story is seen.
       if (!still && !p.reduced) {
         await new Promise<void>((r) => {
@@ -193,6 +193,7 @@ export function BenchStage({ model, theme, after = null, onPart, onTestFunction,
       if (!live) return;
       setStep(null);
       setMarksOn(true);
+      p.setRunPace(1);
       // The run's end card, or the card with the ring, is on screen when it finishes.
       pathMount?.bringIntoView(pathSpec.marks[0]?.on ?? pathSpec.nodes[pathSpec.nodes.length - 1]?.id ?? "");
       for (const m of pathSpec.marks) if (live) await p.landMark(m);
