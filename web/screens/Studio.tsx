@@ -463,7 +463,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
         if (ok || !live) return;
       }
       const st = await Promise.resolve().then(() => api.inviteStatus()).catch(() => null);
-      if (live && st) setInvite((v) => (v?.error ? v : { required: st.required, signedIn: st.signedIn }));
+      // A code carried by the link may land first: a status read before it never undoes it.
+      if (live && st) setInvite((v) => (v?.error || v?.signedIn ? v : { required: st.required, signedIn: st.signedIn }));
     })();
     return () => {
       live = false;
