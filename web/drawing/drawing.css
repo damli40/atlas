@@ -77,7 +77,7 @@ button{font-family:"Atlas Besley",Georgia,serif}
 .u1-measured{margin:2px 0 4px;font-style:italic}
 .u1-marks>ul>li{border:0!important;background:transparent!important;padding:0 0 14px!important;margin:0!important}
 .u1-picks li{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
-.u1-actions{left:clamp(20px,5vw,96px);right:auto;bottom:clamp(10px,2.4vh,26px);max-width:min(640px,calc(100vw - 40px));justify-content:flex-start;background:transparent;z-index:4}
+.u1-actions{left:clamp(20px,5vw,96px);right:auto;bottom:clamp(10px,2.4vh,26px);max-width:min(640px,calc(max(43vw,670px) - clamp(20px,5vw,96px) - 24px),calc(100vw - 40px));justify-content:flex-start;background:transparent;z-index:4}
 .u1-topbar{left:auto;right:18px;top:12px;z-index:5}
 .u1-card{background:var(--anatomy-paper);border:1.2px solid var(--anatomy-strong);border-radius:2px;box-shadow:5px 6px 0 -1px var(--anatomy-page),5px 6px 0 0 var(--anatomy-lo);font-size:15px;line-height:1.42;right:18px;left:auto;top:48px;z-index:6}
 .u1-card h3{font-weight:400;font-size:21px;margin:0 0 4px}
@@ -120,7 +120,7 @@ button{font-family:"Atlas Besley",Georgia,serif}
   .u1-root[data-pop] .r-chart{visibility:hidden}
   .u1-root[data-stage="run"] .r-chart,.u1-root[data-stage="verdict"] .r-chart{transform:none;opacity:0}
   .r-path{left:0;top:112px;width:100vw;height:calc(100% - 112px)}
-  .u1-root[data-stage="verdict"] .r-path{top:42%;height:calc(58% - 52px)}
+  .u1-root[data-stage="verdict"] .r-path{top:42%;height:calc(58% - 92px);overflow:hidden}
   .r-step{top:82px;left:14px;font-size:15px;width:calc(100vw - 28px)}
   .u1-bet{left:14px;top:auto;bottom:10px;width:calc(100vw - 28px);max-width:none}
   .u1-bet:has(.u1-pop){top:100px;bottom:0;background:var(--anatomy-page)}
