@@ -11,7 +11,7 @@ import { momentOfRows, reachNote } from "../../src/moment";
 import { theoryCaption } from "../../src/change";
 import type { AtlasFile } from "../../src/types";
 import { ProofCard } from "../../web/screens/ProofCard";
-import { labelMarkWords, requiredArgs, whatDiffers } from "../../web/screens/Studio";
+import { answersToSend, labelMarkWords, requiredArgs, whatDiffers } from "../../web/screens/Studio";
 import { loadDotEnv } from "../../server/load-env";
 import { marksOf } from "../../web/machines/bench/play";
 import { CHANGE_CAPTION, CHANGE_CAPTION_READER } from "../../src/change";
@@ -55,10 +55,10 @@ describe("R1: deleting a public link takes it down", () => {
     const { app, codes } = gated(dir);
     const s = "ssdeletedeletedele2";
     const id = await round(app, s, codes.a);
-    const hdr = (code: string) => ({ "content-type": "application/json", "x-atlas-session": s, "x-atlas-invite": code });
+    const hdr = (code: string, session = s) => ({ "content-type": "application/json", "x-atlas-session": session, "x-atlas-invite": code });
     await app.request(`/proofs/${id}/keep`, { method: "POST", headers: hdr(codes.a), body: "{}" });
     await app.request(`/proofs/${id}/keep`, { method: "DELETE", headers: hdr(codes.a) });
-    expect((await app.request(`/proofs/${id}/keep`, { method: "POST", headers: hdr(codes.b), body: "{}" })).status).toBe(410);
+    expect((await app.request(`/proofs/${id}/keep`, { method: "POST", headers: hdr(codes.b, "ssotherotherother02"), body: "{}" })).status).toBe(410);
     expect((await app.request(`/proofs/${id}/keep`, { method: "POST", headers: hdr(codes.a), body: "{}" })).status).toBe(200);
     expect((await app.request(`/proofs/${id}`)).status).toBe(200);
   }, 60_000);
@@ -71,7 +71,7 @@ describe("J3, J4: who is looking", () => {
     const s = "ssviewerviewerview1";
     const id = await round(app, s, codes.a);
     const view = async (h: Record<string, string>) => (await (await app.request(`/proofs/${id}/viewer`, { headers: h })).json()) as { yours: boolean; keepsCards: boolean };
-    expect(await view({ "x-atlas-session": s })).toEqual({ yours: true, keepsCards: true });
+    expect(await view({ "x-atlas-session": s })).toEqual({ yours: true, keepsCards: true, canKeep: true });
     expect((await view({ "x-atlas-session": "ssotherotherother01" })).yours).toBe(false);
     expect((await view({})).yours).toBe(false);
     const f = (await (await app.request(`/proofs/${id}`)).json()) as Record<string, unknown>;
@@ -223,5 +223,51 @@ describe("E: a model answers, only a person types", () => {
     const picks = marks[0]!.picks;
     expect(picks.find((p) => p.who === "human")!.pick).toMatch(/^typed /);
     expect(picks.find((p) => p.who !== "human")!.pick).toMatch(/^answered /);
+  });
+});
+
+describe("round 5, S1: a typed null is a value", () => {
+  const qs = [{ measures: "returnedJson", text: "q", kind: "quiz", allowsTyped: true, quiz: [] }] as never;
+  const sealed = (typed: string, lang: "js" | "py") => answersToSend(qs, {}, { returnedJson: typed }, lang).answers[0]!.answer;
+  it("null and None seal as null, the same as a model's null (D19)", () => {
+    expect(sealed("null", "js")).toEqual({ kind: "json", value: null });
+    expect(sealed("None", "py")).toEqual({ kind: "json", value: null });
+  });
+  it("the text null, in quotes, stays text; an unquoted word stays text", () => {
+    expect(sealed('"null"', "js")).toEqual({ kind: "json", value: "null" });
+    expect(sealed("hello", "js")).toEqual({ kind: "json", value: "hello" });
+  });
+});
+
+describe("round 5, S2: making a link never makes someone the bettor", () => {
+  const code2 = (dir: string) => gated(dir);
+  it("someone who did not run a non-pasted or pasted round can't keep it, and is never told it is theirs", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "kept-"));
+    const { app, codes } = code2(dir);
+    const a = "ssrunnerrunnerrunn1";
+    const id = await round(app, a, codes.a);
+    const other = { "content-type": "application/json", "x-atlas-session": "ssreaderreaderread1", "x-atlas-invite": codes.b };
+    expect((await app.request(`/proofs/${id}/keep`, { method: "POST", headers: other, body: "{}" })).status).toBe(403);
+    const v = (await (await app.request(`/proofs/${id}/viewer`, { headers: other })).json()) as { yours: boolean; canKeep: boolean };
+    expect(v).toMatchObject({ yours: false, canKeep: false });
+    expect((await app.request(`/proofs/${id}/keep`, { method: "DELETE", headers: other })).status).toBe(404);
+  }, 60_000);
+  it("the runner keeps and deletes, reads their own round after, and makes the link again; the same invite on another session is not the bettor", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "kept-"));
+    const { app, codes } = code2(dir);
+    const a = "ssrunnerrunnerrunn2";
+    const id = await round(app, a, codes.a);
+    const mine = { "content-type": "application/json", "x-atlas-session": a, "x-atlas-invite": codes.a };
+    expect((await app.request(`/proofs/${id}/keep`, { method: "POST", headers: mine, body: "{}" })).status).toBe(200);
+    const sameCode = { "x-atlas-session": "ssothersessionxxxx1", "x-atlas-invite": codes.a };
+    expect(((await (await app.request(`/proofs/${id}/viewer`, { headers: sameCode })).json()) as { yours: boolean }).yours).toBe(false);
+    expect((await app.request(`/proofs/${id}/keep`, { method: "DELETE", headers: mine })).status).toBe(200);
+    expect((await app.request(`/proofs/${id}`, { headers: { "x-atlas-session": a } })).status).toBe(200);
+    expect((await app.request(`/proofs/${id}/keep`, { method: "POST", headers: mine, body: "{}" })).status).toBe(200);
+  }, 60_000);
+  it("a reader's Copy link offers no public link", () => {
+    const html = renderToStaticMarkup(<ProofCard file={d20} canKeep={false} />);
+    expect(html).toContain('data-testid="pc-copy-link"');
+    expect(html).not.toContain('data-testid="pc-link-ask"');
   });
 });

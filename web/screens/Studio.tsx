@@ -78,7 +78,7 @@ export function defaultProposal<P extends { gate: { allowed: boolean }; params: 
  */
 /** D60: the example's real drawing, drawing itself on the first screen: the same parser's output, kept in the page (a test holds them equal). */
 /** D60: the code beside the drawing. Clicking a part on the drawing jumps here. */
-function CodeDrawer({ source, lines, onClose }: { source: string; lines: [number, number] | null; onClose: () => void }) {
+function CodeDrawer({ source, lines, onClose, coversResult = false }: { source: string; lines: [number, number] | null; onClose: () => void; coversResult?: boolean }) {
   const host = useRef<HTMLDivElement | null>(null);
   const all = useMemo(() => source.split(/\r\n|\r|\n/), [source]);
   useEffect(() => {
@@ -92,6 +92,7 @@ function CodeDrawer({ source, lines, onClose }: { source: string; lines: [number
           ×
         </button>
       </div>
+      {coversResult && <p className="c-covers" role="note" data-testid="c-covers">Your result is under this panel. C closes it.</p>}
       <div className="c-body" ref={host} tabIndex={0}>
         {all.map((text, i) => {
           const n = i + 1;
@@ -286,7 +287,9 @@ export function answersToSend(questions: readonly Question[], picked: Record<str
   for (const q of questions) {
     const t = (typed[q.measures] ?? "").trim();
     if (q.allowsTyped && t !== "") {
-      answers.push({ measures: q.measures, answer: { kind: "json", value: parseTyped(t, language)?.value ?? t } });
+      // A parsed null is a value, not "no parse": `??` can't tell them apart.
+      const read = parseTyped(t, language);
+      answers.push({ measures: q.measures, answer: { kind: "json", value: read ? read.value : t } });
       continue;
     }
     const c = picked[q.measures];
@@ -294,6 +297,9 @@ export function answersToSend(questions: readonly Question[], picked: Record<str
   }
   return { ok: true, answers };
 }
+
+/** Studio stays mounted under the other screens: while one of them shows, its keys and paste do nothing. */
+const offScreen = () => typeof document !== "undefined" && document.querySelector<HTMLElement>(".u1-fill")?.hidden === true;
 
 export interface StudioProps {
   api: Api;
@@ -633,6 +639,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   useEffect(() => {
     if (pasted) return;
     const onDocPaste = (e: globalThis.ClipboardEvent) => {
+      if (offScreen()) return;
       if ((e.target as HTMLElement | null)?.closest?.("input, textarea, select")) return;
       const text = e.clipboardData?.getData("text") ?? "";
       if (text.trim() === "") return;
@@ -846,7 +853,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     if (!exp || !open || sealed.length > 0 || changing) return;
     const onKey = (e: globalThis.KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
-      if (e.metaKey || e.ctrlKey || e.altKey || e.repeat || t?.closest?.("input, textarea, select")) return;
+      if (offScreen() || e.metaKey || e.ctrlKey || e.altKey || e.repeat || t?.closest?.("input, textarea, select")) return;
       if (e.key === "ArrowLeft") {
         setStep((n) => Math.max(0, n - 1));
         e.preventDefault();
@@ -878,7 +885,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
-      if (e.metaKey || e.ctrlKey || e.altKey || t?.closest?.("input, textarea, select")) return;
+      if (offScreen() || e.metaKey || e.ctrlKey || e.altKey || t?.closest?.("input, textarea, select")) return;
       if (e.key === "Escape") {
         // Only the top-most thing closes: a panel, then a pinned card (the stage closes that one), then the code panel.
         if (editing !== null || proofOpen || picking) {
@@ -1142,7 +1149,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
         </BenchStage>
       ) : null}
       {drawerOpen && (
-        <CodeDrawer source={readText} lines={drawerLines} onClose={() => setDrawer(false)} />
+        <CodeDrawer source={readText} lines={drawerLines} onClose={() => setDrawer(false)} coversResult={after !== null && typeof window !== "undefined" && window.innerWidth >= 761 && window.innerWidth < 1800} />
       )}
       {after && picking && (
         <section className="u1-proof u1-picking" role="dialog" aria-modal="false" aria-label={CHANGE_WORDS.pickTitle} data-testid="u1-pick-panel">
@@ -1387,7 +1394,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                     <ol className="b-review" data-testid="b-review">
                       {exp.questions.map((q, qi) => {
                         const t = (typed[q.measures] ?? "").trim();
-                        const label = t !== "" ? literal(parseTyped(t, exp.experiment.target.language)?.value ?? t, exp.experiment.target.language) : (q.quiz ?? []).find((o) => o.id === picked[q.measures])?.label ?? CANT_TELL;
+                        const read = t !== "" ? parseTyped(t, exp.experiment.target.language) : null;
+                        const label = t !== "" ? literal(read ? read.value : t, exp.experiment.target.language) : (q.quiz ?? []).find((o) => o.id === picked[q.measures])?.label ?? CANT_TELL;
                         return (
                           <li key={q.measures}>
                             <button type="button" onClick={() => setStep(qi)} data-testid={`b-review-${qi}`}>
