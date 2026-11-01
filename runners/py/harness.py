@@ -1117,6 +1117,64 @@ def main(key_text):
 
     modules_at_arm[0] = frozenset(_sys.modules)
     rand_at_load = rand_getstate(rand_inst)
+    # D61: the third, instrumented run only (a request with `probe`). The two sealed runs never install this. It records names and
+    # order, never a value, and keeps no frame. The code can reach this hook through sys.getprofile, which is why this run carries
+    # no signing key and its answer is treated as untrusted (runners/py/py-runner.ts runProbedPyCall).
+    probe_ctx = [None]
+    probe_events = []
+    probes_cut = [0]
+    if any(r.get("probe") == "profile" for r in req["runs"]):
+        import opcode as _opcode
+
+        PROBE_MAX = 5000
+        LAZY = 0x20 | 0x80 | 0x200  # generator, coroutine, async generator: their bodies run in pieces
+        RESUME = _opcode.opmap.get("RESUME", -1)
+        RETURNS = frozenset(_opcode.opmap[n] for n in ("RETURN_VALUE", "RETURN_CONST", "RETURN_GENERATOR") if n in _opcode.opmap)
+        first_resume = {}
+
+        def first_resume_of(c):
+            at = first_resume.get(c)
+            if at is None:
+                code = c.co_code
+                at = 0
+                for i in range(0, len(code), 2):
+                    if code[i] == RESUME:
+                        at = i
+                        break
+                first_resume[c] = at
+            return at
+
+        def profile(frame, event, arg):
+            if event != "call" and event != "return":
+                return
+            c = frame.f_code
+            if c.co_filename != "<pasted code>":
+                return
+            run_ctx = probe_ctx[0]
+            if run_ctx is None:
+                return
+            name = c.co_qualname
+            if "<" in name.replace("<locals>", ""):  # <module>, <lambda>, <listcomp>: not a named function
+                return
+            if len(probe_events) >= PROBE_MAX:
+                probes_cut[0] += 1
+                return
+            name = name.rsplit("<locals>.", 1)[-1]
+            ev = {"name": name, "t": ms(run_ctx["clock"]), "at": len(run_ctx["trace"])}
+            if c.co_flags & LAZY:
+                # Every resume reports "call": only the start counts.
+                if event == "call" and frame.f_lasti == first_resume_of(c):
+                    ev["k"] = 3
+                    probe_events.append(ev)
+                return
+            if event == "call":
+                ev["k"] = 0
+            else:
+                # A frame ended by an exception also reports "return". Its last instruction was not a return.
+                ev["k"] = 1 if c.co_code[frame.f_lasti] in RETURNS else 2
+            probe_events.append(ev)
+
+        _sys.setprofile(profile)
     armed[0] = True
     try:
         exec(code, moddict)
@@ -1361,6 +1419,7 @@ def main(key_text):
         REPEATS[1] = 0.0
         name = r["exportName"]
         names = [g[0] for g in run["gens"]]
+        probe_ctx[0] = ctx if r.get("probe") == "profile" else None
         emit(ctx, "python", {"version": py_version, "implementation": py_impl})
         fn = dict.get(moddict, name)
         if fn is None and not dict.__contains__(moddict, name):
@@ -1575,6 +1634,9 @@ def main(key_text):
         if one is None:
             tamper("a run ended without a result")
             break
+        if probe_ctx[0] is not None:
+            one["probes"] = probe_events
+            one["probesCut"] = probes_cut[0]
         out_runs.append(one)
     side_checks()
     if whole[0] is not None:

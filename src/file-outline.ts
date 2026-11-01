@@ -7,6 +7,7 @@
 // Deterministic: parts sorted by line, joins by id. Pure, no I/O.
 
 import { parseJsFile, type ParsedFile } from "./outline/parse-js";
+import type { CallFacts } from "./outline/types";
 import { parsePyFile } from "./outline/parse-py";
 import { bracketDepth, MAX_BRACKET_DEPTH } from "./outline/codemap";
 
@@ -32,6 +33,8 @@ export interface FileJoin {
   lines: number[];
 }
 export interface FileOutline {
+  /** R3: calls with names resolved by real scope (the parsers read them). Absent: no device gets a wire. */
+  callFacts?: CallFacts;
   parts: FilePart[];
   joins: FileJoin[];
   /** Why the outline is empty or partial, in plain words (parser notes). */
@@ -92,5 +95,5 @@ export function fileOutline(source: string, language: "js" | "ts" | "py"): FileO
   }
   const joins = [...byId.values()].map((j) => ({ ...j, lines: [...j.lines].sort((a, b) => a - b) })).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   const selfCalls = [...self.entries()].map(([name, lines]) => ({ name, lines: [...lines].sort((a, b) => a - b) })).sort((a, b) => (a.name < b.name ? -1 : 1));
-  return { parts, joins, notes, ...(selfCalls.length ? { selfCalls } : {}) };
+  return { parts, joins, notes, ...(selfCalls.length ? { selfCalls } : {}), ...(parsed.callFacts ? { callFacts: parsed.callFacts } : {}) };
 }

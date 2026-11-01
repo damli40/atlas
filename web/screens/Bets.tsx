@@ -85,18 +85,15 @@ export function Bets(p: BetsProps) {
               const shown = p.sealed.find((b) => b.measures === q.measures);
               return (
                 <div key={q.measures} className="question">
-                  <label htmlFor={id}>{q.text}</label>
+                  <label id={`${id}-q`} htmlFor={q.kind === "enum" ? undefined : id}>{q.text}</label>
                   {q.kind === "enum" ? (
-                    <select id={id} data-testid={id} value={p.answers[q.measures] ?? ""} disabled={locked} onChange={(e) => p.onAnswer(q.measures, e.target.value)}>
-                      <option value="" disabled>
-                        choose one
-                      </option>
+                    <div className="b-choices" role="radiogroup" aria-labelledby={`${id}-q`} data-testid={id}>
                       {(q.options ?? []).map((o) => (
-                        <option key={o} value={o}>
+                        <button type="button" role="radio" key={o} className="u1-opt" aria-checked={p.answers[q.measures] === o} disabled={locked} onClick={() => p.onAnswer(q.measures, o)} data-testid={`${id}-${o}`}>
                           {o}
-                        </option>
+                        </button>
                       ))}
-                    </select>
+                    </div>
                   ) : (
                     <input
                       id={id}

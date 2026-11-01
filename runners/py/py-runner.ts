@@ -27,7 +27,7 @@ import { MODAL_IMAGE } from "../executor/modal.ts";
 import { findPython, pythonSandboxExecutor } from "../executor/sandbox-exec-python.ts";
 import type { ExecRuntime, Executor } from "../runner.ts";
 import { CALL_DEFAULT_WATCH_LIMIT_MS, type CallRunRequest, type CallWorkerResponse } from "../ts/call-harness.ts";
-import { CALL_SEED, compareCallCase, networkToWire, parseCallWorkerOutput, reuseControl, toWire, twinRun, type CallControlCase } from "../ts/call-runner.ts";
+import { CALL_SEED, UNTRUSTED_RUN_KEY, compareCallCase, networkToWire, parseCallWorkerOutput, reuseControl, toWire, twinRun, type CallControlCase } from "../ts/call-runner.ts";
 import { ACCESS_REASON, PIN_FAILED_REASON, PROCESS_REASON, REAL_TIME_REASON } from "../ts/call-words.ts";
 import { CALL_PINNED_LOCALE, CALL_PINNED_TIME_ZONE, CLOCK_NUDGE_MS, conditionsFromTrace, isCallSeed, pinnedFor } from "../../src/conditions.ts";
 import {
@@ -91,6 +91,8 @@ export function pyWords(): Record<string, string> {
 }
 
 export interface PyWorkerRequest {
+  /** D61: the third run: no signing key. */
+  untrusted?: boolean;
   runs: CallRunRequest[];
   /** R1 (D42): the seed (Python's random, uuid, secrets, os.urandom and PYTHONHASHSEED). Default CALL_SEED. */
   seed?: string;
@@ -133,6 +135,20 @@ function pythonOf(stdout: string): PythonInfo | undefined {
   return undefined;
 }
 
+/**
+ * D61: the third run, for the drawing's helper order only (server/helpers.ts). The file runs as it is; the harness installs a
+ * profile hook before the code loads, which the code can reach. So this run has NO signing key (a fixed public value stands
+ * where the key goes) and its answer is only ever read through a strict schema. Nothing from it reaches a verdict, a proof file
+ * or a sealed run. The sealed runs never install the hook.
+ */
+export async function runProbedPyCall(exp: Experiment, source: string, o: { executor?: Executor; wallClockMs?: number; seed?: string } = {}): Promise<{ trace: TraceEvent[]; result: Run["result"]; probes: unknown; probesCut: unknown } | { reason: string }> {
+  if (exp.params.shape !== "call-function") return { reason: "only a call of a function has helper steps" };
+  const res = await runInPySandbox(o.executor ?? pythonSandboxExecutor, source, { runs: [{ ...runRequest(exp.id, exp.params), probe: "profile" }], seed: o.seed ?? CALL_SEED, untrusted: true }, o.wallClockMs ?? DEFAULT_WALL_CLOCK_MS);
+  if (!res.ok) return { reason: res.reason };
+  const one = res.runs.find((r) => r.id === exp.id) as (NonNullable<CallWorkerResponse["runs"]>[number] & { probes?: unknown; probesCut?: unknown }) | undefined;
+  return one ? { trace: one.trace, result: one.result, probes: one.probes ?? [], probesCut: one.probesCut ?? 0 } : { reason: "the sandbox returned no result" };
+}
+
 /** Runs the Python harness on `code` in the sandbox. */
 export async function runInPySandbox(executor: Executor, code: string, request: PyWorkerRequest, wallClockMs: number): Promise<PyAnswer> {
   const { answer, runtime } = await pySandboxAnswer(executor, code, request, wallClockMs);
@@ -140,7 +156,8 @@ export async function runInPySandbox(executor: Executor, code: string, request: 
 }
 
 async function pySandboxAnswer(executor: Executor, code: string, request: PyWorkerRequest, wallClockMs: number): Promise<{ answer: PyAnswer; runtime?: ExecRuntime }> {
-  const key = randomBytes(32).toString("hex"); // fresh per run; sent on stdin only
+  // Fresh per run, sent on stdin only. D61: an untrusted run has no key at all.
+  const key = request.untrusted ? UNTRUSTED_RUN_KEY : randomBytes(32).toString("hex");
   const files: Record<string, string> = {};
   for (const f of SANDBOX_FILES) files[f] = own(f);
   files["target.py"] = code;

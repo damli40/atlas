@@ -1,14 +1,14 @@
 // The log lines one POST /runs round writes, in order (D02-05). Kept here so server/app.ts only calls them.
 //
 // Order: human (one line per sealed human bet) → investigator stand-in (role "human", because a
-// person wrote the finding by hand; the Investigator model arrives Oct 30) → gate → seal → runner → judge.
+// person wrote the finding by hand; the Investigator model is a separate path) → gate → seal → runner → judge.
 // Model bets (who "model:…") get no line here: the Claimant role writes its own model line, with usage.
 
 import type { Bet, Experiment, Run, RunAttempt, Verdict } from "../../src/types";
 import { oneLine, type SessionEmitter } from "./agentlog";
 import { targetName } from "../../src/target-name";
 
-export const INVESTIGATOR_STUB_ACTION = "uses a fixture finding, written by hand (Investigator arrives Oct 30)";
+export const INVESTIGATOR_STUB_ACTION = "uses a fixture finding, written by hand";
 export const GATE_STUB_ACTION = "allowed (src/gate.ts)";
 
 /** What the screen calls the code under test: the target's own name (src/target-name.ts, final review M6). */

@@ -1,7 +1,10 @@
 // Final review S3: FIRST, before any module reads process.env: the repo's .env (never printed).
 import "./load-env";
+import { rpcEnv } from "./load-rpc-env";
 import { serve } from "@hono/node-server";
 import { createApp, type AppOptions } from "./app";
+import { EXAMPLE_FUNCTION } from "./paste";
+import { U1_EXAMPLE } from "../web/u1-example";
 import { createShareLimit, DEFAULT_GITHUB_SHARES } from "./access/shares";
 import { serverOptions, switchesFromEnv } from "./wiring";
 import { removeSandboxLeftovers } from "./sandbox-leftovers";
@@ -112,6 +115,9 @@ const githubReads = createShareLimit(DEFAULT_GITHUB_SHARES, "GitHub reads");
 const trackStore = diskTrackStore(access.dir);
 console.log("track records kept on disk in the invite store's folder (track-record/: one file per person, no code)");
 const appOptions: AppOptions = {
+  checkChainFirst: true,
+  // D60: a shared link's card, kept on the volume. Only where a folder was named for proofs: never in the repo's own proofs/ folder.
+  ...(process.env.ATLAS_PROOFS_DIR ? { keptProofsDir: join(proofsDir, "kept") } : {}),
   ...serverOptions(process.env, {
     makeChat: (timeoutMs) => createMetaClient(timeoutMs !== undefined ? { timeoutMs } : {}).chat,
     budget,
@@ -155,12 +161,25 @@ if (leftovers > 0) console.log(`deleted ${leftovers} leftover sandbox folder(s) 
 
 // Final review S3: which .env keys were read (names only, never values), and plain notes about this machine.
 if (dotEnv.loaded.length > 0) console.log(`.env: read ${dotEnv.loaded.join(", ")} (values not shown)`);
+if (rpcEnv.loaded.length > 0) console.log(`~/.config/atlas/rpc.env: read ${rpcEnv.loaded.join(", ")} (values not shown)`);
 for (const note of currentStartupNotes()) console.warn(`note: ${note}`);
 
 serve({ fetch: app.fetch, port }, (info) => {
   console.log(`Atlas server listening on http://localhost:${info.port} (model bets ${modelBetsOn ? "on" : "off"}, Muse Spark Open ${sparkOpen.available ? "available" : `not available (${sparkOpen.reason})`}, investigator ${investigatorOn ? "on" : "off"}, test proposer ${on.proposer ? "on" : "off"}, fixer ${fixerOn ? "on" : "off"}, adversary ${adversaryOn ? "on" : "off"}, outliner ${on.outliner ? "on" : "off"}, .atlas.json files ${publishProofs ? "written to the proofs folder" : "kept in memory only"}, sandbox ${executor.kind === "modal" ? "Modal (a throwaway container per run, no network)" : "local (Node permission model on this machine)"})`);
   // D32: warm Modal once, in the background; never blocks or stops the server.
   void runAs({ kind: "system", label: "server warm-up (D32)", route: "startup" }, () => warmUp(executor));
+  // D60: ask Muse Wonder once for the example's tests and keep the real answer, so the example has no wait. Approved at its normal cost.
+  if (investigatorOn) {
+    void runAs({ kind: "system", label: "the example's tests (D60)", route: "startup" }, async () => {
+      const headers = { "content-type": "application/json", "x-atlas-session": "ss_example_warmup" };
+      // With invites on, the owner's code has its own copy of the app, so it gets its own kept answer too.
+      for (const copy of ownerInner ? [inner, ownerInner] : [inner]) {
+        const post = (path: string, body: unknown) => copy.request(path, { method: "POST", headers, body: JSON.stringify(body) });
+        const p = (await (await post("/paste", { code: U1_EXAMPLE, language: "ts" })).json()) as { target?: { ref: string; codeSha256: string } };
+        if (p.target) await post("/paste/proposals", { target: { ref: p.target.ref, codeSha256: p.target.codeSha256 }, exportName: EXAMPLE_FUNCTION });
+      }
+    }).catch((e: Error) => console.warn(`note: the example's tests were not prepared: ${e.message}`));
+  }
   if (modelBetsOn || investigatorOn) {
     console.log(`model budget: $${budget.spentUsd().toFixed(2)} already spent (usage log, ${spentAtStart.lines} lines${spentAtStart.skipped ? `, ${spentAtStart.skipped} unreadable` : ""})`);
   }

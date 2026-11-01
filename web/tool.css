@@ -1,0 +1,441 @@
+/* D60: the drawing is handmade; the tool around it is exact and instant.
+   Three fonts, three jobs: Besley inside the drawing and one headline; Geist for what you operate; Geist Mono for what was
+   measured or came from code. Colour: paper and ink. Red means only what the run did. Blue tick, matched. Dashed grey, can't
+   check. Texture stays in the drawing: no pins or pencil on a control. */
+@font-face{font-family:"Geist";src:url("/fonts/geist-latin-wght.woff2") format("woff2");font-weight:100 900;font-display:block}
+@font-face{font-family:"Geist Mono";src:url("/fonts/geist-mono-latin-wght.woff2") format("woff2");font-weight:100 900;font-display:block}
+
+.u1-shell{--ui:"Geist",ui-sans-serif,system-ui,sans-serif;--mono:"Geist Mono",ui-monospace,"SF Mono",Menlo,monospace;--ink:#1f1b1d;--ink-2:#5a534c;--ink-3:#6b6358;--rule:#dcd4c3;--rule-2:#e9e3d5;--paper:#f5f1e7;--raised:#fbf8ef;--red:#b5372c;--blue:#2c5f9e;--col:clamp(400px,37vw,540px);--bar:48px;--anatomy-red:#b5372c;
+  font-family:var(--ui)!important;font-size:14px;line-height:1.45;letter-spacing:0;font-kerning:auto;font-variant-ligatures:normal;color:var(--ink);font-feature-settings:"tnum" 0}
+.u1-shell button,.u1-shell input,.u1-shell select,.u1-shell textarea,.u1-shell summary{font-family:var(--ui);letter-spacing:0}
+.u1-shell .rr,.u1-shell .rr text{font-family:"Atlas Besley",Georgia,serif}
+
+/* ---- the top bar: one, on every screen ---- */
+.u1-shell .u1-bar{height:var(--bar);padding:0 20px;border-bottom:1px solid var(--rule);background:var(--paper);display:flex;align-items:center;justify-content:space-between;position:relative;z-index:8}
+.u1-shell .u1-mark{font:600 15px/1 var(--ui);letter-spacing:-.01em;color:var(--ink)}
+.u1-shell .u1-nav{gap:4px;margin-right:0}
+.u1-shell .u1-nav .u1-link,.u1-shell .u1-menu summary{font-size:13px;padding:6px 10px;border-radius:6px;color:var(--ink-2);text-decoration:none;transition:background 80ms linear,color 80ms linear;cursor:pointer}
+.u1-shell .u1-nav .u1-link:hover,.u1-shell .u1-menu summary:hover{background:var(--rule-2);color:var(--ink)}
+.u1-shell .r-head{position:fixed;top:0;left:84px;height:var(--bar);width:auto;max-width:calc(100vw - 480px);display:flex;align-items:center;gap:12px;z-index:9;white-space:nowrap;overflow:hidden}
+.u1-shell .r-head .r-name{order:0;font:500 14px/1 var(--mono);letter-spacing:-.01em;color:var(--ink)}
+.u1-shell .r-head .r-kick{order:1;margin:0;font:400 12.5px/1 var(--ui);color:var(--ink-3)}
+.u1-shell .r-head .r-sub{order:2;margin:0;font:400 12.5px/1 var(--ui);color:var(--ink-3);overflow:hidden;text-overflow:ellipsis}
+.u1-shell .u1-topbar{position:fixed;top:8px;right:296px;left:auto;transform:none;z-index:9}
+.u1-shell .u1-topbar .u1-link{font-size:13px;padding:6px 10px;border-radius:6px;color:var(--ink-2);text-decoration:none;display:inline-block;transition:background 80ms linear}
+.u1-shell .u1-topbar .u1-link:hover{background:var(--rule-2);color:var(--ink)}
+.u1-shell .u1-menu ul{font-size:13px}
+
+/* ---- controls: exact, and they answer within 80 ms ---- */
+.u1-shell .u1-btn{font:500 13.5px/1 var(--ui);padding:9px 14px;border:1px solid var(--rule);border-radius:7px;background:var(--raised);color:var(--ink);transition:background 60ms linear,border-color 60ms linear,transform 60ms linear}
+.u1-shell .u1-btn:hover:not(:disabled){transform:none;background:#fff;border-color:#c9c0ad}
+.u1-shell .u1-btn:active:not(:disabled){transform:translateY(1px) scale(.99);background:var(--rule-2)}
+.u1-shell .u1-primary,.u1-shell .u1-btn.u1-primary{background:var(--ink)!important;border-color:var(--ink)!important;color:#fbf8ef!important}
+.u1-shell .u1-primary:hover:not(:disabled){background:#39332f!important}
+.u1-shell .u1-primary:active:not(:disabled){background:#000!important}
+.u1-shell :focus-visible{outline:2px solid var(--ink)!important;outline-offset:2px}
+.u1-shell .u1-link{transition:color 60ms linear}
+.u1-shell .u1-paid{font-size:12px;color:var(--ink-3)}
+kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);border-bottom-width:2px;border-radius:4px;color:var(--ink-3);background:transparent;margin-left:6px}
+.u1-primary kbd.k{border-color:#8a8278;color:#efe9dc}
+
+/* ---- the verdict: a left column you read, the drawing beside it ---- */
+.u1-shell .u1-root[data-stage="verdict"] .r-path,.u1-shell .u1-root[data-stage="run"] .r-path{left:var(--col);width:calc(100vw - var(--col));top:0;height:100%}
+.u1-shell .u1-marks{position:absolute;left:0;top:0;bottom:0;right:auto;width:var(--col);max-height:none;padding:0;margin:0;display:grid;grid-template-rows:auto minmax(0,1fr);border:0;border-right:1px solid var(--rule);border-radius:0;background:var(--paper);box-shadow:none;overflow:hidden;z-index:4;animation:m-in 180ms ease-out both}
+@keyframes m-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.m-top{padding:22px 24px 12px;border-bottom:1px solid var(--rule)}
+.m-pane{overflow:auto;padding:12px 24px 140px;min-height:0;display:flex;flex-direction:column}
+.m-pane>*{flex:none}
+.m-pane>.u1-claim{order:-1}
+.m-moment{margin:0}
+.m-k{display:block;font:500 11.5px/1 var(--ui);letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);margin-bottom:7px}
+.m-you{margin:0 0 16px}
+.m-you-v{display:block;font:500 16px/1.3 var(--ui);color:var(--ink);overflow-wrap:anywhere}
+.m-run{margin:0;padding-left:14px;border-left:3px solid var(--ink)}
+.m-moment[data-kind="not_matched"] .m-run{border-left-color:var(--red)}
+.m-moment[data-kind="matched"] .m-run{border-left-color:var(--blue)}
+.m-run-v{display:block;font:500 clamp(22px,2.1vw,29px)/1.2 var(--mono);letter-spacing:-.025em;color:var(--ink);overflow-wrap:anywhere}
+.m-bettors{list-style:none;margin:16px 0 0;padding:0;font-size:13px}
+.m-bettors li{display:grid;grid-template-columns:16px 112px minmax(0,1fr) auto;gap:8px;align-items:baseline;padding:5px 0;border-top:1px solid var(--rule-2)}
+.m-who{color:var(--ink-2)}
+.m-pick{font-family:var(--mono);font-size:12.5px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.m-out{font-size:12px;color:var(--ink-3)}
+.m-count{margin:10px 0 0;font-size:12.5px;color:var(--ink-3)}
+.u1-shell .u1-glyph{width:13px;height:13px;align-self:center;fill:none;stroke-width:1.4}
+.u1-shell .u1-glyph[data-outcome="matched"] circle{fill:var(--blue);stroke:var(--blue)}
+.u1-shell .u1-glyph[data-outcome="matched"] path{stroke:#fff}
+.u1-shell .u1-glyph[data-outcome="not_matched"] circle,.u1-shell .u1-glyph[data-outcome="not_matched"] path{stroke:var(--red);fill:none}
+.u1-shell .u1-glyph[data-outcome="cant_check"] rect{stroke:var(--ink-3);fill:none}
+.u1-shell .u1-glyph[data-outcome="cant_check"] text{fill:var(--ink-3);stroke:none;font:600 9px var(--ui)}
+.u1-shell .u1-marks h2{font:500 11.5px/1 var(--ui);letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);margin:6px 0 10px}
+.u1-shell .u1-marks ul{margin:0}
+.u1-shell .u1-marks>.m-pane>ul>li,.u1-shell .m-fold>ul>li{padding:0 0 12px;border:0;background:none}
+.u1-shell .u1-mark-head{font:500 13.5px/1.3 var(--ui);color:var(--ink)}
+.u1-shell .u1-measured{margin:3px 0 4px;font:400 12.5px/1.4 var(--mono);color:var(--ink);font-style:normal;overflow-wrap:anywhere}
+.u1-shell .u1-measured .u1-k{font-family:var(--ui);color:var(--ink-3)}
+.u1-shell .u1-picks{list-style:none;padding:0}
+.u1-shell .u1-picks li{display:grid;grid-template-columns:16px 112px minmax(0,1fr) auto;gap:8px;align-items:baseline;font-size:12.5px;padding:2px 0}
+.u1-shell .u1-who{color:var(--ink-2);font-weight:400;font-size:12.5px}
+.u1-shell .u1-pick{font-family:var(--mono);font-size:12px;overflow-wrap:anywhere;min-width:0}
+.u1-shell .u1-out{font-size:12px;color:var(--ink-3)}
+.m-fold summary{font-size:13px;color:var(--ink-2);cursor:pointer;padding:6px 0;list-style-position:outside;border-top:1px solid var(--rule-2);overflow-wrap:anywhere}
+.m-fold[open] summary{margin-bottom:8px}
+.u1-shell .u1-claim,.u1-shell .u1-next,.u1-shell .u1-samewhy{font-size:13px;margin:0 0 14px;padding:0 0 12px;border-bottom:1px solid var(--rule-2);display:block}
+.u1-shell .u1-claim p{margin:0 0 8px}
+.u1-shell .u1-claim q{font-family:var(--ui)}
+.u1-shell .u1-actions{position:absolute;left:0;right:auto;bottom:0;width:var(--col);max-width:none;padding:12px 24px 10px;background:var(--paper);border-top:1px solid var(--rule);border-right:1px solid var(--rule);box-sizing:border-box;display:flex;flex-wrap:wrap;gap:8px;align-items:center;z-index:5}
+.u1-shell .u1-actions .u1-paid{flex-basis:100%;order:9;margin-top:-2px}
+.u1-shell .u1-actions .u1-quiet{background:transparent;border-color:transparent;color:var(--ink-2);padding-left:8px;padding-right:8px}
+.u1-shell .u1-actions .u1-quiet:hover:not(:disabled){background:var(--rule-2);border-color:transparent}
+
+/* A sheet's line of words beside the drawing while it plays. */
+.u1-shell .r-step{top:calc(var(--bar) * 0 + 16px);left:24px;width:calc(var(--col) - 48px);font:500 18px/1.3 var(--mono);letter-spacing:-.02em;color:var(--ink);font-style:normal}
+@media (max-width:760px){
+  .u1-shell{--col:100vw}
+  .u1-shell .r-head{left:60px;max-width:calc(100vw - 70px)}
+  .u1-shell .r-head .r-kick,.u1-shell .r-head .r-sub{display:none}
+  .u1-shell .u1-marks{bottom:auto;height:50%;border-right:0;border-bottom:1px solid var(--rule)}
+  .u1-shell .u1-root[data-stage="verdict"] .r-path{left:0;width:100vw;top:50%;height:calc(50% - 76px);overflow:hidden}
+  .u1-shell .u1-actions{width:100vw;flex-wrap:nowrap;overflow-x:auto}
+  .u1-shell .u1-actions .u1-paid{display:none}
+  .m-top{padding:12px 14px 8px}
+  .m-pane{padding:8px 14px 16px}
+}
+@media (prefers-reduced-motion:reduce){.u1-shell .u1-marks{animation:none}.u1-shell .u1-btn{transition:none}}
+
+.u1-shell .u1-root[data-phase="playing"]~.u1-actions,.u1-shell .u1-root[data-phase="playing"] .u1-actions{display:none}
+.u1-shell .u1-actions .u1-btn{padding:8px 11px;font-size:13px}
+.u1-shell .u1-actions .u1-paid{font-size:11.5px}
+
+/* ---- the left column, on every stage of a round ---- */
+.u1-shell .r-chart{left:var(--col);width:calc(100vw - var(--col));top:0;height:100%}
+.u1-shell .u1-root::before{content:"";position:absolute;left:0;top:0;bottom:0;width:var(--col);border-right:1px solid var(--rule);background:var(--paper);z-index:1;pointer-events:none}
+
+/* ---- the bet: one question at a time, docked left over the drawing ---- */
+.u1-shell .u1-bet{position:absolute;left:0;top:0;bottom:0;right:auto;width:var(--col);max-width:none;display:block;padding:0;z-index:5}
+.u1-shell .u1-bet>.u1-paid{position:absolute;left:24px;top:82px}
+.u1-shell .u1-toggle{position:absolute;left:24px;top:24px;padding:12px 18px;font-size:14px;z-index:2}
+.u1-shell .u1-bet:has(.u1-pop) .u1-toggle{position:absolute;left:auto;right:16px;top:18px;padding:6px 10px;font:400 12.5px/1 var(--ui);background:transparent!important;border-color:transparent!important;color:var(--ink-3)!important}
+.u1-shell .u1-bet:has(.u1-pop) .u1-toggle:hover{background:var(--rule-2)!important;color:var(--ink)!important}
+.u1-shell .u1-pop:focus,.u1-shell .u1-pop:focus-visible{outline:none!important}
+.u1-shell .u1-pop{position:absolute;inset:0;width:auto;max-height:none;margin:0;padding:18px 24px 12px;background:var(--paper);border:0;border-right:1px solid var(--rule);border-radius:0;box-shadow:none;overflow:auto;display:flex;flex-direction:column;gap:0}
+.b-head{order:0;display:flex;align-items:center;gap:10px;height:28px;margin-bottom:14px}
+.b-back{all:unset;cursor:pointer;width:26px;height:26px;display:grid;place-items:center;border-radius:6px;color:var(--ink-2);font:400 15px/1 var(--ui);transition:background 60ms linear}
+.b-back:hover:not(:disabled){background:var(--rule-2)}
+.b-back:disabled{opacity:.25;cursor:default}
+.b-progress{font:500 12.5px/1 var(--mono);color:var(--ink-2)}
+.b-dots{display:flex;gap:4px}
+.b-dots i{display:block;width:18px;height:3px;border-radius:2px;background:var(--rule)}
+.b-dots i[data-on]{background:var(--ink)}
+.u1-shell .u1-quiz{order:1;list-style:none;margin:0;padding:0}
+.u1-shell .u1-quiz>li:not([data-active]){display:none}
+.u1-shell .u1-quiz[data-sealed]{display:none}
+.u1-shell .u1-q{font:500 clamp(19px,1.6vw,23px)/1.28 var(--ui);letter-spacing:-.012em;margin:0 0 16px;color:var(--ink)}
+.u1-shell .u1-opts{display:grid;gap:6px;counter-reset:opt}
+.u1-shell .u1-opt{counter-increment:opt;all:unset;counter-increment:opt;display:grid;grid-template-columns:22px minmax(0,1fr);gap:10px;align-items:baseline;padding:10px 12px;border:1px solid var(--rule);border-radius:8px;background:var(--raised);font:400 14px/1.35 var(--ui);color:var(--ink);cursor:pointer;transition:background 60ms linear,border-color 60ms linear,transform 60ms linear;box-sizing:border-box}
+.u1-shell .u1-opt::before{content:counter(opt);position:static;width:auto;height:auto;margin:0;border:0;border-radius:0;background:none;font:500 11.5px/1.5 var(--mono);color:var(--ink-3)}
+.u1-shell .u1-opt:hover:not(:disabled){background:#fff;border-color:#c9c0ad;transform:none}
+.u1-shell .u1-opt:active:not(:disabled){transform:scale(.995);background:var(--rule-2)}
+.u1-shell .u1-opt[aria-checked="true"]{background:var(--ink)!important;border-color:var(--ink);color:#fbf8ef!important;box-shadow:none}
+.u1-shell .u1-opt[aria-checked="true"]::before{top:auto;left:auto;background:none;border:0;color:#b5ada0}
+.u1-shell .u1-opt:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.u1-shell .u1-typed,.u1-shell .u1-typed-row{margin-top:10px;font-size:12.5px;color:var(--ink-2)}
+.u1-shell .u1-typed-in{font:400 13px/1.3 var(--mono);padding:8px 10px;border:1px solid var(--rule);border-radius:7px;background:var(--raised);width:100%;box-sizing:border-box}
+.b-review{order:2;list-style:none;margin:0 0 8px;padding:0}
+.b-review button{all:unset;display:grid;grid-template-columns:22px minmax(0,1fr);gap:10px;width:100%;padding:7px 0;border-top:1px solid var(--rule-2);cursor:pointer;box-sizing:border-box}
+.b-review button:hover .b-a{text-decoration:underline}
+.b-n{font:500 11.5px/1.5 var(--mono);color:var(--ink-3)}
+.b-a{font:400 13.5px/1.35 var(--mono);color:var(--ink);overflow-wrap:anywhere}
+/* What stays one small line until asked: the test and the AIs. */
+.u1-shell .u1-test{order:3;margin:auto 0 0;padding-top:14px;font:400 12.5px/1.45 var(--ui);font-style:normal;color:var(--ink-2)}
+.u1-shell .u1-test-clamp{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:1;line-clamp:1;overflow:hidden}
+.u1-shell .u1-testrow{order:4;display:flex;gap:12px;font-size:12px;margin:2px 0 8px}
+.u1-shell .u1-testrow .u1-link{font-size:12px;color:var(--ink-3)}
+.u1-shell .u1-models{order:5;margin:0;padding:8px 0;border-top:1px solid var(--rule-2);font-size:12px;color:var(--ink-3)}
+.u1-shell .u1-models>p{margin:0 0 4px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:1;overflow:hidden}
+.u1-shell .u1-models>p:first-child{display:none}
+.u1-shell .u1-who{display:flex;align-items:center;gap:4px;flex-wrap:wrap;font-size:12px}
+.u1-shell .u1-who>span{margin-right:4px}
+.u1-seg{all:unset;cursor:pointer;padding:3px 8px;border-radius:5px;font:400 12px/1.3 var(--ui);color:var(--ink-2);transition:background 60ms linear}
+.u1-seg:hover{background:var(--rule-2)}
+.u1-seg[aria-checked="true"]{background:var(--rule-2);color:var(--ink);font-weight:500}
+.u1-shell .u1-sealbar{order:6;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:10px 0 4px!important;border-top:1px solid var(--rule-2)!important}
+.u1-shell .u1-sealbar>.u1-sub{flex-basis:100%;margin:0;font-size:12px;color:var(--ink-3)}
+.u1-shell .u1-sealbar .felt-pick{display:none}
+.u1-shell .u1-sealbar[data-last] .felt-pick{display:flex;align-items:center;gap:8px;font-size:12.5px;flex-wrap:wrap;order:-1;flex-basis:100%}
+.u1-shell .u1-how,.u1-shell .u1-seen{order:7;font-size:12px;margin:0}
+.u1-shell .u1-seen summary{font-size:12px;color:var(--ink-3);padding:3px 0}
+.u1-shell .u1-seen pre{font:400 11.5px/1.45 var(--mono);max-height:220px;overflow:auto}
+.u1-shell .felt-opt{font:400 12.5px/1 var(--ui);padding:6px 10px;border:1px solid var(--rule);border-radius:6px;background:var(--raised);color:var(--ink);cursor:pointer;transition:background 60ms linear}
+.u1-shell .felt-opt[aria-checked="true"]{background:var(--ink);color:#fbf8ef;border-color:var(--ink)}
+.u1-shell .u1-status{order:1;font:500 15px/1.35 var(--ui);color:var(--ink);margin:0 0 10px}
+.b-seals{order:2;list-style:none;margin:0;padding:0;font-size:13px}
+.b-seals li{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-top:1px solid var(--rule-2)}
+.b-seal-who{color:var(--ink-2)}
+.b-seal-v{font:400 12.5px/1.3 var(--mono);color:var(--ink)}
+.b-seals li[data-state="thinking"] .b-seal-v{color:var(--ink-3)}
+.b-seal-time{justify-content:flex-end!important;font:500 12.5px/1.3 var(--mono);color:var(--ink-3)}
+
+/* ---- the run: the shrunk chart stays, docked top left; the thread takes the centre ---- */
+.u1-shell .u1-root[data-stage="run"] .r-chart{transform:translate(calc(var(--col) * -1 + 8px),92px) scale(.5);opacity:1;pointer-events:none;z-index:2;transition:transform .42s cubic-bezier(.4,0,.1,1)}
+.u1-shell .u1-root[data-stage="verdict"] .r-chart{transform:translate(calc(var(--col) * -1 + 8px),92px) scale(.5);opacity:0;z-index:0}
+.u1-shell .r-step{position:absolute;z-index:3;top:18px;left:24px;width:calc(var(--col) - 48px);min-height:0;font:500 clamp(16px,1.35vw,19px)/1.3 var(--mono);letter-spacing:-.02em;color:var(--ink);font-style:normal;overflow-wrap:anywhere}
+.r-skip{position:absolute;left:24px;bottom:14px;margin:0;z-index:3;font-size:12px;color:var(--ink-3);pointer-events:none}
+.u1-shell .u1-toast{left:24px;right:auto;bottom:14px;transform:none;font-size:13px}
+@media (max-width:760px){
+  .u1-shell .u1-root::before{display:none}
+  .u1-shell .r-chart{left:0;top:0;width:100vw;height:calc(100% - 70px)}
+  .u1-shell .u1-root[data-stage="run"] .r-chart{transform:none;opacity:0}
+  .u1-shell .u1-root[data-stage="run"] .r-path{left:0;width:100vw;top:60px;height:calc(100% - 60px)}
+  .u1-shell .u1-bet{top:auto;height:60px;width:100vw}
+  .u1-shell .u1-bet:has(.u1-pop){top:0;height:100%}
+  .u1-shell .u1-toggle{top:8px;left:14px}
+  .u1-shell .u1-bet>.u1-paid{display:none}
+  .u1-shell .u1-pop{padding:12px 14px}
+  .u1-shell .r-step{top:6px;left:14px;width:calc(100vw - 28px);font-size:14px}
+}
+
+/* ---- the first screen: a headline, one big button, and the example drawing itself ---- */
+.u1-shell .u1-entry{position:absolute;inset:0;max-width:none;margin:0;padding:0;display:grid;grid-template-columns:minmax(400px,44%) minmax(0,1fr);overflow:hidden}
+.e-left{padding:clamp(28px,9vh,92px) clamp(24px,4vw,64px) 24px;overflow:auto;min-height:0;display:flex;flex-direction:column}
+.u1-shell .u1-entry h1{font:400 clamp(38px,3.4vw,50px)/1.08 "Atlas Besley",Georgia,serif;letter-spacing:-.005em;margin:0 0 14px;color:var(--ink)}
+.u1-shell .u1-entry .u1-lede{font:400 15px/1.5 var(--ui);font-style:normal;color:var(--ink-2);margin:0 0 22px;max-width:50ch}
+.e-try{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:0 0 18px}
+.u1-shell .e-example{padding:14px 22px;font-size:15px;border-radius:9px}
+.e-or{font-size:13px;color:var(--ink-3)}
+.u1-shell .u1-entry .u1-code{min-height:96px;height:clamp(96px,17vh,180px);resize:vertical;padding:12px 14px;border:1px solid var(--rule);border-radius:9px;background:var(--raised);font:400 12.5px/1.5 var(--mono)!important;letter-spacing:0;box-shadow:none;width:100%}
+.u1-shell .u1-entry .u1-code:focus{border-color:var(--ink);box-shadow:none;outline:none}
+.u1-shell .u1-entry-row{margin:10px 0 0;gap:10px}
+.u1-shell .u1-entry-or{margin-top:auto;padding-top:14px;border-top:1px solid var(--rule-2);display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-3)}
+.u1-shell .u1-file{display:flex;align-items:center;gap:8px;font-size:12.5px;position:relative}
+.u1-shell .u1-file>span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.u1-shell .u1-file input{font-size:12px;max-width:190px;color:var(--ink-3)}
+.u1-shell .u1-file input::file-selector-button{font:400 12px/1 var(--ui);padding:5px 9px;border:1px solid var(--rule);border-radius:6px;background:var(--raised);color:var(--ink-2);margin-right:6px}
+.u1-shell .u1-gh{display:flex!important;align-items:center;gap:6px;flex:1;min-width:240px;margin:0}
+.u1-shell .u1-gh label{white-space:nowrap}
+.u1-shell .u1-gh input{flex:1;min-width:0;padding:5px 8px;font:400 12px/1.2 var(--mono);border:1px solid var(--rule);border-radius:6px;background:var(--raised)}
+.u1-shell .u1-gh .u1-btn{padding:6px 9px;font:400 12px/1 var(--ui)}
+.e-invite{margin:0 0 18px;display:grid;gap:6px;font-size:13px;color:var(--ink-2)}
+.e-invite label{font-weight:500;color:var(--ink)}
+.e-invite-row{display:flex;gap:8px}
+.e-invite-row input{flex:1;min-width:0;padding:9px 11px;font:400 13px/1.2 var(--mono);border:1px solid var(--ink);border-radius:7px;background:var(--raised)}
+.e-invite-error{margin:0;color:var(--ink);font-size:12.5px}
+.e-right{position:relative;border-left:1px solid var(--rule);min-width:0;min-height:0;overflow:hidden}
+.rr-host.e-sheet{position:absolute;inset:0;background:transparent}
+@media (max-width:760px){
+  .u1-shell .u1-entry{position:static;display:block;overflow:auto;height:100%}
+  .e-right{display:none}
+  .e-left{padding:20px 16px}
+}
+
+/* ---- the code drawer ---- */
+.u1-code-toggle{position:fixed;top:8px;right:386px;z-index:9;font-size:13px;padding:6px 8px;border-radius:6px;color:var(--ink-2);text-decoration:none!important;background:none;border:0;cursor:pointer;transition:background 60ms linear}
+.u1-code-toggle:hover,.u1-code-toggle[aria-pressed="true"]{background:var(--rule-2)}
+.c-drawer{position:absolute;right:0;top:0;bottom:0;width:clamp(320px,29vw,440px);z-index:6;background:var(--raised);border-left:1px solid var(--rule);display:grid;grid-template-rows:38px auto minmax(0,1fr)}
+.c-covers{margin:0;padding:7px 12px;font:500 12.5px/1.35 var(--ui);color:var(--ink);background:var(--rule-2);grid-row:2}
+.c-drawer .c-body{grid-row:3}
+.c-head{display:flex;align-items:center;justify-content:space-between;padding:0 12px;font:500 12.5px/1 var(--ui);color:var(--ink-2);border-bottom:1px solid var(--rule-2)}
+.c-body{overflow:auto;padding:8px 0;font:400 12px/1.55 var(--mono);color:var(--ink);tab-size:2}
+.c-body:focus{outline:none}
+.c-line{display:grid;grid-template-columns:38px minmax(0,1fr);white-space:pre;min-width:max-content}
+.c-line[data-on]{background:#ece5d2}
+.c-n{color:var(--ink-3);text-align:right;padding-right:10px;user-select:none}
+.u1-shell .u1-studio[data-drawer] .r-chart,.u1-shell .u1-studio[data-drawer] .u1-root[data-stage] .r-path{width:calc(100vw - var(--col) - clamp(320px,29vw,440px))}
+.u1-shell .u1-studio[data-drawer] .u1-card{right:calc(clamp(320px,29vw,440px) + 18px)}
+@media (max-width:760px){.c-drawer{width:100vw}.u1-code-toggle{right:8px;top:54px}.u1-shell .u1-studio[data-drawer] .r-chart{width:100vw}}
+
+/* ---- the top line, on the older screens ---- */
+.u1-shell .u1-sheet{padding:18px 24px 48px}
+.u1-shell .u1-sheet .shell:not(.explore) main{max-width:960px;margin:0 auto;padding:0}
+.u1-shell .u1-sheet .switch{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 14px}
+.u1-shell .u1-sheet .switch button{font:400 13px/1 var(--ui);padding:7px 10px;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--ink-2);cursor:pointer;transition:background 60ms linear}
+.u1-shell .u1-sheet .switch button:hover{background:var(--rule-2)}
+.u1-shell .u1-sheet .switch button.on{background:var(--ink);color:#fbf8ef}
+.u1-shell .u1-sheet button.primary{background:var(--ink);border-color:var(--ink);color:#fbf8ef}
+.u1-shell .u1-sheet h2{font:600 15px/1.3 var(--ui);letter-spacing:-.005em}
+.u1-shell .u1-sheet .card{padding:16px 0;margin:0}
+/* The log appears when it has something to say. */
+.u1-sheet .shell.with-strip:has(.logstrip-empty){display:block}
+.u1-sheet .shell .logstrip:has(.logstrip-empty){display:none}
+.m-standalone{margin:0 0 18px;padding:18px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+
+/* ---- the proof card: one image, then the details ---- */
+.u1-shell main.proof-page,main.proof-page{display:block;padding:20px}
+.proof-card{max-width:1120px!important;margin:0 auto;display:block!important;background:transparent;border:0;padding:0}
+.proof-card>*{margin-bottom:20px}
+.pc-image-wrap{margin:0 0 16px}
+.pc-image{display:block;width:100%;height:auto;border:1px solid var(--line,#dcd4c3);border-radius:8px}
+.pc-share{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px;font:13px/1.3 "Geist",system-ui,sans-serif}
+.pc-share .u1-btn,.pc-share a.pc-dl{font:500 13px/1 "Geist",system-ui,sans-serif;padding:9px 13px;border:1px solid #dcd4c3;border-radius:7px;background:#fbf8ef;color:#1f1b1d;text-decoration:none;cursor:pointer}
+.pc-hero .sb{display:none}
+
+.pc-hero .sb-premark{display:none}
+.pc-title{font:500 16px/1.3 "Geist Mono",ui-monospace,monospace!important;letter-spacing:-.01em}
+.pc-hero{display:none}
+.m-standalone{margin:0;padding:0;border:0}
+.m-split{display:grid;grid-template-columns:minmax(300px,380px) minmax(0,1fr);gap:28px;align-items:start;margin:0 0 18px;padding:16px 0;border-top:1px solid var(--rule,#dcd4c3);border-bottom:1px solid var(--rule,#dcd4c3)}
+.m-split .r-moonwell{margin:0;border:0;padding:0}
+.m-split .m-run-v{font-size:clamp(20px,1.8vw,26px)}
+.u1-shell .u1-sheet .shell:not(.explore) main:has(.m-split){max-width:1240px}
+@media (max-width:900px){.m-split{grid-template-columns:minmax(0,1fr)}}
+/* ---- the explorer: the side panel's small print folds away ---- */
+.u1-shell .ex-card{font-size:13.5px}
+.u1-shell .ex-card h3{font:500 16px/1.3 var(--mono)}
+.u1-shell .ex-side{font-size:13px}
+.u1-shell .ex-muted{font-size:12.5px;color:var(--ink-3)}
+.u1-shell .ex-bet-btn{background:var(--ink);color:#fbf8ef;border-color:var(--ink);border-radius:7px;font:500 13px/1 var(--ui);padding:8px 12px}
+
+.u1-shell .u1-sheet .shell.explore main{padding-top:0}
+.u1-shell .r-ex-form{margin:0 0 10px;font-size:13px}
+.u1-shell .r-ex-form summary{font:500 13px/1.4 var(--ui);color:var(--ink-2);margin:0}
+.ex-fold{margin:4px 0}
+.ex-fold summary{cursor:pointer;font-size:12.5px;color:var(--ink-2)}
+
+.u1-proof .pc-image{max-height:calc(100vh - 250px);width:auto;max-width:100%;margin:0 auto}
+.u1-proof .pc-share{justify-content:center}
+.u1-shell .u1-gh label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.u1-shell .u1-changing .u1-code{height:clamp(160px,44vh,420px)}
+
+.m-saved-label{font:500 13px/1.4 var(--ui);color:var(--ink-2);margin:0 0 12px}
+.m-covers{margin:14px 0 4px;font-size:12px;color:var(--ink-3)}
+.m-pick{white-space:normal!important;overflow-wrap:anywhere}
+.b-confirm{order:5;display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 0;font-size:12.5px;border-top:1px solid var(--rule-2)}
+.b-confirm p{flex-basis:100%;margin:0;color:var(--ink)}
+.pc-ask{flex-basis:100%;display:flex;flex-wrap:wrap;gap:8px;padding:10px 0;font-size:13px}
+.pc-ask p{flex-basis:100%;margin:0;line-height:1.45;max-width:72ch}
+.u1-picking .u1-testlist{list-style:none;padding:0;margin:8px 0;display:grid;gap:8px;font-size:13px}
+.u1-picking .u1-testlist li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:8px 0;border-top:1px solid var(--rule-2)}
+.u1-whole{order:3;list-style:none;margin:6px 0;padding:0;font:400 12px/1.4 var(--mono);overflow-wrap:anywhere;max-height:30vh;overflow:auto}
+.u1-repeat{position:absolute;left:24px;bottom:12px;width:calc(var(--col) - 48px);z-index:7;font-size:12.5px;margin:0}
+
+/* ---- fix round 3 ---- */
+.u1-shell .u1-handoff,.u1-shell .u1-repeat{position:absolute;left:calc(var(--col) + 16px);right:16px;top:10px;bottom:auto;width:auto;max-width:none;transform:none;z-index:7;margin:0;padding:8px 12px;font-size:12.5px;line-height:1.4;background:var(--raised);border:1px solid var(--rule);border-radius:8px}
+.u1-shell .u1-studio[data-drawer] .u1-handoff,.u1-shell .u1-studio[data-drawer] .u1-repeat{right:calc(clamp(320px,29vw,440px) + 16px)}
+.u1-shell .u1-repeat{top:56px}
+.u1-shell .u1-claim-tested{order:-1;margin:0 76px 12px 0;font-size:12.5px}
+.b-differs{display:block;margin-top:3px;font-size:11.5px;color:var(--ink-3)}
+.u1-shell .u1-claim .u1-paid{display:block;margin-top:4px}
+.b-beforeafter{display:grid;grid-template-columns:minmax(0,1fr);gap:2px;margin:0 0 12px;padding:0 0 12px;border-bottom:1px solid var(--rule-2);font:500 13.5px/1.35 var(--mono)}
+.b-beforeafter .m-k{margin:6px 0 0;font-family:var(--ui)}
+.m-others{order:1}
+.m-others summary{font:500 12.5px/1.3 var(--ui);color:var(--ink-2);padding:8px 0}
+.e-dead{position:absolute;left:24px;top:24px;width:calc(var(--col) - 48px);z-index:6;display:grid;gap:14px;justify-items:start;font-size:15px;line-height:1.45;color:var(--ink)}
+.e-dead p{margin:0}
+/* Older screens: no native radios, file inputs or dropdowns in the tool's own language. */
+.u1-shell .u1-sheet input[type="radio"]{position:absolute;opacity:0;width:1px;height:1px}
+.u1-shell .u1-sheet .choice{display:block;padding:10px 12px;border:1px solid var(--rule);border-radius:8px;background:var(--raised);margin:0 0 6px;cursor:pointer;font-size:13.5px;transition:background 60ms linear}
+.u1-shell .u1-sheet .choice:hover{background:#fff}
+.u1-shell .u1-sheet .choice:has(input:checked){border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.u1-shell .u1-sheet .choice:has(input:focus-visible){outline:2px solid var(--ink);outline-offset:2px}
+.u1-shell .u1-sheet fieldset.claimant{display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:12.5px}
+.u1-shell .u1-sheet fieldset.claimant legend{float:left;margin-right:8px;padding:3px 0}
+.u1-shell .u1-sheet fieldset.claimant label{padding:3px 8px;border-radius:5px;cursor:pointer}
+.u1-shell .u1-sheet fieldset.claimant label:has(input:checked){background:var(--rule-2);font-weight:500}
+.u1-shell .u1-sheet input[type="file"]{font:400 12.5px/1 var(--ui);color:var(--ink-3)}
+.u1-shell .u1-sheet input[type="file"]::file-selector-button,.u1-shell .u1-sheet .card button,.u1-shell .r-ex-form button,.u1-shell .u1-sheet button{font:500 13px/1 var(--ui);padding:8px 12px;border:1px solid var(--rule);border-radius:7px;background:var(--raised);color:var(--ink);cursor:pointer;transition:background 60ms linear}
+.u1-shell .u1-sheet input[type="text"],.u1-shell .u1-sheet input:not([type]),.u1-shell .u1-sheet input[type="number"],.u1-shell .r-ex-form input{font:400 13px/1.2 var(--mono);padding:8px 10px;border:1px solid var(--rule);border-radius:7px;background:var(--raised);color:var(--ink)}
+.u1-shell .u1-sheet .card button:hover,.u1-shell .u1-sheet button:hover:not(:disabled){background:#fff}
+.u1-shell .u1-sheet button.primary{background:var(--ink);color:#fbf8ef;border-color:var(--ink)}
+.u1-shell .u1-sheet select{font:400 13px/1.2 var(--ui);padding:7px 9px;border:1px solid var(--rule);border-radius:7px;background:var(--raised)}
+.r-ex-title{font:500 15px/1.3 var(--mono);margin:0 0 6px;overflow-wrap:normal;word-break:normal}
+
+/* A saved replay asks nobody anything, and Moonwell is the film's finale: the drawing takes the width beside the bet. */
+.shell:has([data-testid="moonwell-saved"]) .claimant{display:none!important}
+.u1-shell .u1-sheet .shell:not(.explore) main:has(.m-split){max-width:1480px}
+.m-split{grid-template-columns:minmax(260px,320px) minmax(0,1fr);gap:20px}
+.felt-fold summary{font-size:13px}
+.felt-fold .felt-paths{font-weight:500}
+
+/* Round 4 */
+.u1-reach { margin: 0 0 10px; padding: 8px 10px; border-left: 3px solid var(--warn, #6b4d00); font-size: 14px; line-height: 1.45; color: var(--ink, #1f1b1d); }
+.u1-none { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0 10px; }
+.u1-none p { flex: 1 0 100%; margin: 0; }
+
+/* D64: the Demos menu */
+.u1-earlier{margin-top:2px;border-top:1px solid var(--rule-2);padding-top:6px}
+.u1-earlier>summary{font:400 12.5px/1.3 var(--ui);color:var(--ink-3);cursor:pointer;padding:6px 10px;list-style-position:inside}
+.u1-earlier>summary:hover{color:var(--ink)}
+.u1-earlier ul{margin:0;padding:0;list-style:none}
+/* Moonwell in the new shell */
+.u1-shell .u1-moonwell{max-width:1480px;margin:0 auto}
+.u1-shell .u1-moonwell .m-again{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:14px 0 0}
+.u1-shell .u1-moonwell .m-again span{max-width:60ch}
+.u1-shell .u1-moonwell .m-back{display:block;margin:0 0 6px;padding:0;background:none;border:0;font:400 13px/1.3 var(--ui);color:var(--ink-3);cursor:pointer}
+.u1-shell .u1-moonwell>:not(.m-split):not([data-testid="moonwell-saved"]){max-width:960px;margin-left:auto;margin-right:auto}
+.u1-shell .u1-moonwell .m-place{margin:0 0 6px;font-size:13px}
+.u1-shell .u1-moonwell .m-place>summary{cursor:pointer;color:var(--ink-2);padding:6px 0}
+.u1-shell .u1-record{max-width:760px;margin:0 auto}
+/* Sealed lines: name, time, short hash */
+.seals-quiet{list-style:none;padding:0;margin:8px 0 0;font-size:13px}
+.seals-quiet li{display:grid;grid-template-columns:1fr auto auto;gap:14px;align-items:center;padding:6px 0;border-top:1px solid var(--rule-2,#e6dfd0)}
+.seals-quiet time{font:400 12px/1 var(--mono);color:var(--ink-3)}
+/* The retry demo's choices, the same as the main path's */
+.b-choices{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.b-choices .u1-opt{width:auto;padding:8px 12px;font:400 13px/1.2 var(--ui);border:1px solid var(--rule);border-radius:7px;background:var(--raised);color:var(--ink);cursor:pointer}
+.b-choices .u1-opt[aria-checked="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+/* The log in the old shell, at the size the rest of the product reads at */
+.u1-shell .logstrip-lines{font-size:12.5px}
+
+/* Round 4: the bet's own controls */
+.u1-shell .u1-bet:has(.u1-pop) .u1-pop{padding-top:46px}
+.u1-shell .u1-bet:has(.u1-pop) .u1-toggle{top:10px;right:14px;z-index:3}
+.u1-shell .u1-test-clamp{-webkit-line-clamp:3;line-clamp:3}
+.u1-shell .u1-wait{order:-1;display:flex;flex-direction:column;gap:8px}
+.u1-shell .u1-wait .u1-status{order:-1;margin:0}
+.u1-shell .u1-wait p{margin:0}
+.u1-shell .u1-typed label .k{margin-left:8px}
+/* A note about this round sits over the drawing, whole, never behind the panel */
+.u1-shell .u1-banner{position:absolute;left:calc(var(--col) + 16px);right:16px;top:10px;bottom:auto;width:auto;max-width:none;transform:none;z-index:7;margin:0;padding:8px 12px;font-size:12.5px;line-height:1.4;background:var(--raised);border:1px solid var(--rule);border-radius:7px;color:var(--ink-2)}
+.u1-shell .u1-studio[data-drawer] .u1-banner{right:calc(clamp(320px,29vw,440px) + 16px)}
+.u1-shell .u1-toast{left:calc(var(--col) + 16px);bottom:14px;max-width:calc(100vw - var(--col) - 32px)}
+@media (max-width:760px){.u1-shell .u1-banner,.u1-shell .u1-toast{left:14px;right:14px;max-width:none}}
+/* "Use my test" is ink, the same as every primary button */
+.u1-shell .u1-pop [data-testid="form-submit"],.u1-shell .u1-pop button.primary{background:var(--ink)!important;border-color:var(--ink)!important;color:#fbf8ef!important;font:500 13px/1 var(--ui);padding:9px 14px;border-radius:7px;border-width:1px;border-style:solid;cursor:pointer}
+/* Choices as buttons */
+.u1-segs{display:inline-flex;flex-wrap:wrap;gap:4px}
+.u1-shell .u1-segs .u1-seg{font:400 12.5px/1 var(--ui);padding:6px 9px;border:1px solid var(--rule);border-radius:6px;background:var(--raised);color:var(--ink-2);cursor:pointer}
+.u1-shell .u1-segs .u1-seg[aria-checked="true"]{background:var(--ink);border-color:var(--ink);color:#fbf8ef}
+/* Screens that keep a dropdown of their own: it looks like the product until it opens */
+.u1-shell select{appearance:none;-webkit-appearance:none;padding:7px 28px 7px 10px;font:400 13px/1.2 var(--ui);border:1px solid var(--rule);border-radius:7px;color:var(--ink);background:var(--raised) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6' fill='none' stroke='%236b6358'/%3E%3C/svg%3E") no-repeat right 10px center}
+/* File pickers: a button of ours over the browser's input */
+.u1-shell .u1-file>span{position:static;width:auto;height:auto;overflow:visible;clip-path:none;font:400 12.5px/1 var(--ui);padding:7px 11px;border:1px solid var(--rule);border-radius:7px;background:var(--raised);color:var(--ink-2);cursor:pointer}
+.u1-shell .u1-file input,.u1-pick-files input{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
+.u1-shell .u1-file:focus-within>span,.u1-pick-files:focus-within .u1-file-btn{outline:2px solid var(--ink);outline-offset:2px}
+.u1-pick-files{display:flex;flex-wrap:wrap;align-items:center;gap:8px;position:relative;cursor:pointer}
+.u1-file-btn{display:inline-block;font:400 12.5px/1 var(--ui);padding:7px 11px;border:1px solid var(--rule);border-radius:7px;background:var(--raised);color:var(--ink-2)}
+/* The repo box: its own line, so "owner/repo" reads whole at every width */
+.u1-shell .u1-gh{flex:1 1 100%}
+.u1-shell .u1-gh input{min-width:160px}
+.u1-shell .u1-proof .pc-said{flex-basis:100%}
+.pc-call{font-size:14px}
+.pc-home{color:inherit}
+
+/* The top bar with "Your record" in it */
+.u1-shell .u1-topbar{right:381px}
+.u1-code-toggle{right:458px}
+.u1-record-item{display:none}
+@media (max-width:760px){.u1-record-link{display:none!important}.u1-record-item{display:list-item}}
+/* The fold inside the menu is part of the same panel */
+.u1-shell .u1-menu .u1-earlier ul{position:static;box-shadow:none;background:none;border:0;margin:0;padding:0;width:auto;min-width:0}
+.u1-shell .u1-moonwell .m-back{text-align:left;margin-left:0}
+/* The typed box on its own line: its example reads whole */
+.u1-shell .u1-typed{display:block}
+.u1-shell .u1-typed label{display:block;margin-bottom:6px}
+.u1-shell .u1-typed .u1-typed-in{display:block;width:100%}
+/* A narrow window has no room for the moment, the path and the code side by side. On a result the code sits over the moment's column,
+   beside the path it explains, and the path keeps its width. C closes it. */
+@media (min-width:761px) and (max-width:1799px){
+  .u1-shell .u1-studio[data-drawer]:has(.u1-root[data-stage="verdict"]) .c-drawer,.u1-shell .u1-studio[data-drawer]:has(.u1-root[data-stage="run"]) .c-drawer{left:0;right:auto;width:var(--col);border-left:0;border-right:1px solid var(--rule)}
+  .u1-shell .u1-studio[data-drawer]:has(.u1-root[data-stage="verdict"]) .u1-root[data-stage] .r-path,.u1-shell .u1-studio[data-drawer]:has(.u1-root[data-stage="run"]) .u1-root[data-stage] .r-path{width:calc(100vw - var(--col))}
+}
+
+.u1-shell .ex-form .u1-pick-files{display:flex;flex:1 1 100%;flex-direction:row;justify-content:flex-start;align-items:center;gap:10px}
+
+.u1-shell .u1-typed .u1-sub{margin:6px 0 0}
+.u1-shell .u1-moonwell .m-again{margin-bottom:10px}
+.u1-shell .sb-item{max-width:300px}
+.u1-shell .logstrip-lines li,.u1-shell .logstrip-lines li *{font-size:12.5px;line-height:1.45}
+.u1-shell .logstrip-head h2{font:600 15px/1.3 var(--ui)}
+.u1-shell .logstrip-note{font-size:12.5px}
+.proof-page .pc-foot a.pc-home,.pc-foot a.pc-home{color:#6b6358;font:400 13px/1.3 "Geist",system-ui,sans-serif}
+/* The words and the fill change together, so a chosen option is never white on paper for a frame */
+.u1-shell .u1-opt{transition:background 60ms linear,color 60ms linear,border-color 60ms linear,transform 60ms linear}

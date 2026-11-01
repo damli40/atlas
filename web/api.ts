@@ -2,6 +2,7 @@
 // session id the server hands back on the first answer, so experiments, bets and the run share it.
 // In development, Vite forwards /api/* to the Hono server on port 8787 (vite.config.ts).
 
+import type { HelperStep } from "../src/helper-steps";
 import type { Question } from "../src/gate";
 import type { ChainFactsResult } from "../src/chain-facts";
 import type { AtlasFile, Bet, Confidence, Experiment, Finding, Run, Target, Verdict } from "../src/types";
@@ -202,6 +203,9 @@ export interface ReplayAnswer {
   changeReplay?: { replayRunId: string; measuredEqual: boolean; resultDiff: string[]; controlPassed: boolean; sameOutcomes: boolean } | { error: string };
 }
 
+/** R3: what GET /runs/:id/helpers answers (server/helpers.ts). */
+export type HelperAnswer = { steps: HelperStep[]; cut: boolean } | { none: string };
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -282,6 +286,38 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
     sweep: (target: Target, params: unknown) => post<SweepAnswer>("/sweeps", { target: { ref: target.ref, codeSha256: target.codeSha256 }, params }),
     /** D06-03: a round's .atlas.json, as the server kept it. */
     proof: (runId: string) => get<AtlasFile>(`/proofs/${encodeURIComponent(runId)}`),
+    moonwellReady: () => get<{ ready: boolean; words?: string }>("/moonwell/ready"),
+    proofViewer: (runId: string) => get<{ yours: boolean; keepsCards: boolean; canKeep: boolean }>(`/proofs/${encodeURIComponent(runId)}/viewer`),
+    /** D63: the saved Moonwell result the menu opens. */
+    moonwellSaved: () => get<AtlasFile>("/moonwell/saved"),
+    /** D60, D63: makes a public link for this card, without the file's text, for 30 days. */
+    keepProof: async (runId: string): Promise<{ kept: boolean; until?: string; words?: string; refused?: boolean }> => {
+      const r = await fetchFn(`${base}/proofs/${encodeURIComponent(runId)}/keep`, { method: "POST", headers: { "content-type": "application/json", ...(session ? { [SESSION_HEADER]: session } : {}) }, body: "{}" });
+      const body = (await r.json().catch(() => null)) as { kept?: boolean; until?: string; error?: string } | null;
+      return { kept: r.ok && body?.kept === true, ...(body?.until ? { until: body.until } : {}), ...(body?.error ? { words: body.error } : {}), ...(r.status === 401 || r.status === 403 ? { refused: true } : {}) };
+    },
+    /** D63: the person who made a link can take it down. */
+    unkeepProof: async (runId: string): Promise<boolean> => {
+      const r = await fetchFn(`${base}/proofs/${encodeURIComponent(runId)}/keep`, { method: "DELETE", headers: { "content-type": "application/json", ...(session ? { [SESSION_HEADER]: session } : {}) } });
+      return r.ok;
+    },
+    /** D60: whether this server needs an invite code, and whether this browser holds one. */
+    inviteStatus: () => get<{ required: boolean; signedIn: boolean; dailyUsd?: number | null; today?: { spentUsd: number; heldUsd: number } | null }>("/invite/status"),
+    /** D60: the same route the /invite page posts to. The server keeps the code in an HttpOnly cookie. */
+    signIn: async (code: string): Promise<{ ok: true } | { error: string }> => {
+      const r = await fetchFn(`${base}/invite`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code }) });
+      const body = (await r.json().catch(() => null)) as { error?: string } | null;
+      return r.ok ? { ok: true } : { error: body?.error ?? `The server answered ${r.status}.` };
+    },
+    /** R3: the code's own steps for the drawing, from the third run. Never part of a verdict or a proof. */
+    helpers: (runId: string) => get<HelperAnswer>(`/runs/${encodeURIComponent(runId)}/helpers`),
+    /** R3: the proof's path in pencil as an image address, or the server's own words for why not (review M5). */
+    pencil: async (runId: string): Promise<{ src: string } | { words: string }> => {
+      const r = await fetchFn(`${base}/proofs/${encodeURIComponent(runId)}/pencil.png`, { method: "GET", headers: { ...(session ? { [SESSION_HEADER]: session } : {}) } });
+      if (r.status === 200) return { src: URL.createObjectURL(await r.blob()) };
+      const body = (await r.json().catch(() => null)) as { error?: string } | null;
+      return { words: body?.error ?? `The server answered ${r.status}; the drawing above is the same chart.` };
+    },
     /** D06-03: re-run a round from its .atlas.json (same seed, or same fork block) and compare `measured`. */
     replay: (runId: string) => get<ReplayAnswer>(`/replay/${encodeURIComponent(runId)}`),
     /** The session id the server handed back (null before the first answer). */
@@ -324,8 +360,8 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
     paste: (code: string, language?: "js" | "ts" | "py") => post<PasteAnswer>("/paste", { code, ...(language ? { language } : {}) }),
     /** E3: Muse Wonder proposes up to 3 tests for one export; the gate checks each. */
     // U2 (D53): `claimOf` asks Muse Wonder for tests that check the sentence it wrote about that experiment (after its run).
-    proposals: (target: Pick<Target, "ref" | "codeSha256">, exportName: string, opts: { claimOf?: string } = {}) =>
-      post<ProposalsAnswer>("/paste/proposals", { target: { ref: target.ref, codeSha256: target.codeSha256 }, exportName, ...(opts.claimOf ? { claimOf: opts.claimOf } : {}) }),
+    proposals: (target: Pick<Target, "ref" | "codeSha256">, exportName: string, opts: { claimOf?: string; early?: boolean } = {}) =>
+      post<ProposalsAnswer>("/paste/proposals", { target: { ref: target.ref, codeSha256: target.codeSha256 }, exportName, ...(opts.claimOf ? { claimOf: opts.claimOf } : {}), ...(opts.early ? { early: true } : {}) }),
     /** E3: a test Muse Wonder proposed, used as proposed. */
     experimentFromProposal: (target: Pick<Target, "ref" | "codeSha256">, proposalId: string, opts: { quiz?: true } = {}) =>
       post<ExperimentAnswer>("/experiments", { target: { ref: target.ref, codeSha256: target.codeSha256 }, proposalId, ...(opts.quiz ? { quiz: true } : {}) }),

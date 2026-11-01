@@ -1,25 +1,26 @@
 :root {
-  --bg: #f7f7f5;
-  --card: #ffffff;
-  --ink: #1d1d1b;
-  --muted: #64645f;
-  --line: #e2e2dc;
-  --accent: #2f5bd3;
-  --matched: #1f7a46;
-  --not-matched: #9a4b00;
-  --cant: #5b5b8a;
-  --label-bg: #fff4d6;
+  --bg: #f5f1e7;
+  --card: #fdfaf2;
+  --ink: #1f1b1d;
+  --muted: #5d5650;
+  --line: #ddd4c3;
+  --accent: #a8443b;
+  --matched: #2c5f9e;
+  --not-matched: #8f4300;
+  --cant: #55557f;
+  --label-bg: #f3e8cf;
   --label-ink: #6b4d00;
-  color-scheme: light dark;
+  color-scheme: light;
 }
-@media (prefers-color-scheme: dark) {
+/* D60: light is locked for submission. The dark colours stay, behind this attribute. */
+@media not all {
   :root {
-    --bg: #151514;
-    --card: #1f1f1d;
-    --ink: #ececea;
-    --muted: #a3a39c;
-    --line: #34342f;
-    --accent: #8aa8ff;
+    --bg: #211d1a;
+    --card: #2b2622;
+    --ink: #ece4d4;
+    --muted: #a79d8e;
+    --line: #3d362e;
+    --accent: #e0695a;
     --matched: #6fd39b;
     --not-matched: #f0a35c;
     --cant: #b3b3e6;
@@ -32,7 +33,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
-  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  font: 15px/1.5 "Geist", ui-sans-serif, system-ui, sans-serif;
 }
 main { max-width: 760px; margin: 0 auto; padding: 24px 16px 64px; }
 h1 { margin: 0; font-size: 28px; }
@@ -170,7 +171,7 @@ fieldset { min-width: 0; }
   .verdicts { table-layout: fixed; }
   .verdicts th, .verdicts td { overflow-wrap: anywhere; }
 }
-@media (prefers-color-scheme: dark) {
+@media not all {
   /* E3 (seen in the 390 px dark run): white text on the light dark-mode accent was below 4.5:1. */
   button.primary, .switch button.on { color: #10131c; }
 }

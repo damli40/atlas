@@ -1,7 +1,6 @@
 // E3 review round 2: one test (or more) per finding. Models mocked; sandbox, gate, judge and seals real.
 
 import "../tools/jsdom-globals";
-import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { localExecutor } from "../../runners/executor/local";
 import { pythonSandboxExecutor } from "../../runners/executor/sandbox-exec-python";
@@ -18,7 +17,7 @@ import { BOUNDS, gate, questionsFor } from "../../src/gate";
 import { pastedFileBlock } from "../../src/paste-context";
 import { verifySeal } from "../../src/seal";
 import type { Run } from "../../src/types";
-import { CallTimeline } from "../../web/machines/calltimeline/CallTimeline";
+import { whatHappened } from "../../renderer/authors/what-happened";
 import { timelineModel } from "../../web/machines/calltimeline/model";
 import { RETRY_SRC, allowedA, client, makeApp, mockModels } from "../tools/paste-fixtures";
 import { mkdirSync, mkdtempSync, existsSync, utimesSync } from "node:fs";
@@ -48,9 +47,12 @@ describe("r2 B1: a cut trace states only exact counts", () => {
       expect(r.trace.some((t) => t.event === "trace_cut")).toBe(true);
       const m = timelineModel(r);
       expect(m.detail).toBe(`f: ${n.toLocaleString("en-US")} calls · g: 1 call`);
-      const h = renderToStaticMarkup(<CallTimeline run={r} still theme="light" />);
-      expect(h).not.toMatch(/stopped watching|not answered|returned\)/);
-      expect(h).toContain("returned at 5 ms");
+      const s = whatHappened({ run: r, bets: [], verdicts: [] });
+      const words = JSON.stringify([s.nodes.map((x) => x.words), s.edges.map((x) => x.words), s.captions.map((c) => c.words)]);
+      expect(words).not.toMatch(/stopped watching|not answered|no answer|returned\)/);
+      expect(words).toContain(`f ${n.toLocaleString("en-US")} times`);
+      expect(s.nodes.at(-1)!.words).toBe(`returned ${n + 1}`);
+      expect(s.edges.at(-1)!.kind).toBe("dashed-note");
     }, 60_000);
   }
 });

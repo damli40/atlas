@@ -22,7 +22,7 @@ import { ShortHash } from "./Bets";
 import { RunDidNotFinish } from "./Run";
 import { VerdictScreen } from "./Verdict";
 import { ProofLink } from "./ProofCard";
-import { CallTimeline } from "../machines/calltimeline/CallTimeline";
+import { RunPath } from "../drawing/RunPath";
 import { TestForm, emptyForm, formFromParams, type TestFormState } from "./TestForm";
 import { PASTE_EXAMPLE } from "../paste-example";
 import type { BetHandoff } from "./Explorer";
@@ -466,7 +466,7 @@ export function PasteFlow({ api, onRoundOpen, handoff = null, onHandoffUsed }: {
             </p>
           )}
           {result && <RunFacts result={result} />}
-          {result && <CallTimeline run={result.run} />}
+          {result && <RunPath run={result.run} {...(exp ? { experiment: exp.experiment } : {})} bets={result.bets} verdicts={result.verdicts} testid="call-timeline" />}
         </section>
       )}
 

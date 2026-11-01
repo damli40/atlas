@@ -1,0 +1,48 @@
+// R3 fix round 4: the one real Moonwell run, driven through the new shell: Demos, Moonwell, Run it again, Show the question, seal, run.
+// Real Muse Spark bets and a real Base fork. Run against a real server with ATLAS_SPEND_CEILING_USD=1.
+//   PW=<playwright-core> CHROME=<headless shell> BASE=<page> node tests/evidence/R3/moonwell-real.mjs <out dir>
+import { mkdirSync, writeFileSync } from "node:fs";
+const { chromium } = await import(process.env.PW);
+const OUT = process.argv[2];
+mkdirSync(OUT, { recursive: true });
+const b = await chromium.launch({ executablePath: process.env.CHROME });
+const p = await b.newPage({ viewport: { width: 1440, height: 900 } });
+const shot = (n) => p.screenshot({ path: `${OUT}/${n}.png` });
+const t0 = Date.now();
+const at = {};
+const mark = (k) => (at[k] = Math.round((Date.now() - t0) / 1000));
+await p.goto(process.env.BASE);
+await p.click('[data-testid="u1-demos"]');
+await p.click('[data-testid="mode-pr"]');
+await p.waitForSelector('[data-testid="moonwell-saved"]');
+await p.click('[data-testid="moonwell-run-again"]');
+await p.waitForSelector('[data-testid="pr-target"]', { timeout: 60000 });
+mark("pull request read");
+await p.waitForSelector('[data-testid="moonwell-place"]');
+await p.waitForFunction(() => /Show the question/.test(document.querySelector('[aria-label="bet"]')?.textContent ?? ""), null, { timeout: 30000 });
+await p.waitForTimeout(800);
+await shot("1-ready-to-bet");
+await p.getByRole("button", { name: "Show the question" }).click();
+await p.waitForSelector('[data-testid="bet-usd"]', { timeout: 120000 });
+mark("question shown");
+await p.fill('[data-testid="bet-usd"]', "2200");
+await p.getByRole("button", { name: "Seal my bet" }).click();
+await p.waitForSelector(".sealed", { timeout: 30000 });
+await shot("2-sealed");
+const go = p.getByRole("button", { name: "Run it on a fork of Base" });
+await go.waitFor({ timeout: 120000 });
+await p.waitForFunction(() => [...document.querySelectorAll("button")].some((x) => /Run it on a fork/.test(x.textContent) && !x.disabled), null, { timeout: 180000 });
+mark("models sealed");
+await go.click();
+await p.waitForSelector('[data-testid="run-progress"]');
+await shot("3-running");
+await p.waitForSelector('[data-testid="run-facts"]', { timeout: 300000 });
+mark("run finished");
+await p.waitForTimeout(1200);
+await shot("4-result");
+const facts = await p.textContent('[data-testid="run-facts"]');
+const moment = await p.textContent('[data-testid="moment"]').catch(() => "");
+const link = await p.getAttribute('[data-testid="proof-link"]', "href").catch(() => null);
+writeFileSync(`${OUT}/result.json`, JSON.stringify({ at, facts, moment, proofLink: link }, null, 1));
+console.log(JSON.stringify({ at, moment, link }).slice(0, 600));
+await b.close();

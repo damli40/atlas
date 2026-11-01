@@ -1,0 +1,289 @@
+{
+ "checks": [
+  {
+   "name": "Hide the bet covers no words while waiting (1440)",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "Hide the bet covers no words on the question (1440)",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "J1 no Wonder call on a Change round (1440)",
+   "ok": true,
+   "more": "0 extra"
+  },
+  {
+   "name": "D the change note sits clear of the panel, whole (1440)",
+   "ok": true,
+   "more": "{\"left\":548.796875,\"popRight\":532.796875,\"right\":1006.40625,\"vw\":1440}"
+  },
+  {
+   "name": "J5 an empty list says why, with a way on",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "D Use my test is ink",
+   "ok": true,
+   "more": "rgb(31, 27, 29)"
+  },
+  {
+   "name": "D an empty test is refused, and nothing starts",
+   "ok": true,
+   "more": "fetchAllOrders needs an argument (url), and this test gives it none. Add a value first."
+  },
+  {
+   "name": "Hide the bet covers no words while waiting (1280)",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "Hide the bet covers no words on the question (1280)",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "J1 no Wonder call on a Change round (1280)",
+   "ok": true,
+   "more": "0 extra"
+  },
+  {
+   "name": "D the change note sits clear of the panel, whole (1280)",
+   "ok": true,
+   "more": "{\"left\":489.59375,\"popRight\":473.59375,\"right\":1264,\"vw\":1280}"
+  },
+  {
+   "name": "E the typed box does not take the keys by itself",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "E a digit with no option starts the typed value, not lost",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "E Esc leaves the box",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "E T opens the box",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "R3 setup: moved on",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "R3 another test starts at question 1",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "R3 the value typed for the last test is gone",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "E the box says how it reads the text",
+   "ok": true,
+   "more": "Atlas reads it as the text \"$100.00\"."
+  },
+  {
+   "name": "E it leads, as typed",
+   "ok": true,
+   "more": "typed \"$100.00\""
+  },
+  {
+   "name": "E plain code matched it against the returned string",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "C1 no 'checks' sentence",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "D no internal words in the difference",
+   "ok": true,
+   "more": "Compared with the last test: \"Lagos\" becomes \"Abuja\", 31 becomes \"hot\"."
+  },
+  {
+   "name": "C1 plain code says it may not reach the sentence",
+   "ok": true,
+   "more": "This test ended the same way as the last one and made 0 calls to fetch. It may not reach what the sentence is about."
+  },
+  {
+   "name": "D no box of the drawing is under the panel",
+   "ok": true,
+   "more": "{\"popRight\":532.796875,\"hostLeft\":532.796875,\"leastLeft\":564.0807495117188}"
+  },
+  {
+   "name": "C4 nothing to draw: no Play again",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "C4 nothing to draw: no proof card",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "D Escape closes the card first, the code panel stays",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "D Escape then closes the code panel",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "D the pinned card closes on the bet",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "D no box card on the result",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "D at 1280 with the code panel open, no word of the path runs under it",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "D the consent is on screen when Copy link is pressed",
+   "ok": true,
+   "more": "{\"top\":526.640625,\"bottom\":644.171875,\"h\":720}"
+  },
+  {
+   "name": "D the placeholder is whole at 1280",
+   "ok": true,
+   "more": "{\"box\":247,\"need\":247}"
+  },
+  {
+   "name": "D no browser file picker text",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "D a 133 KB file is told the limit",
+   "ok": true,
+   "more": "this file is too long: Atlas reads one file of at most 64 KB"
+  },
+  {
+   "name": "D Enter in the repo box submits",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "B Moonwell is first",
+   "ok": true,
+   "more": "The Moonwell pull request"
+  },
+  {
+   "name": "B the earlier screens are folded",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "B the retry machine keeps its label",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "B no old screen switcher",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "B the Moonwell words say 'no multiply step here'",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "B no chain: said at once",
+   "ok": true,
+   "more": "56 ms"
+  },
+  {
+   "name": "B no chain: the saved result stays and nothing was asked",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "B Run it again fills in the pull request",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "B the bet's place is chosen for you",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "B the way back to the saved result",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "B no stale date in the words",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "J2 D20's sentence stays on the image",
+   "ok": true,
+   "more": "[149,18]"
+  },
+  {
+   "name": "J4 no 'you' for a reader",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "J3 a stranger has no Delete",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "J3 a stranger has no Re-run or pencil",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "J3 no raw invite sentence",
+   "ok": true,
+   "more": "Link copied."
+  },
+  {
+   "name": "E the card says what the function got",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "E the quiet link into Atlas",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "R1 after Delete a stranger's reload says it is gone",
+   "ok": true,
+   "more": "The person who made this card's public link has deleted it."
+  },
+  {
+   "name": "R1 no card is left for the stranger",
+   "ok": true,
+   "more": ""
+  }
+ ]
+}

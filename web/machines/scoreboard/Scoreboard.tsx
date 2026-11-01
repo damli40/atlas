@@ -33,7 +33,7 @@ export function useStill(): boolean {
  * visible on screen), e.g. "Muse Spark 1.3 (muse-spark-1.3)"; with no display name, the id itself.
  */
 export const bettorName = (who: string, names: Record<string, string>) => {
-  if (who === "human") return "You";
+  if (who === "human") return names.human ?? "You";
   const id = who.replace(/^model:/, "");
   const shown = names[who];
   return shown && shown.includes(id) ? shown : shown ? `${shown} (${id})` : id;

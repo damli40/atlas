@@ -14,6 +14,7 @@
 // nested functions, star-args semantics, conditional imports' conditions) is not interpreted. When it meets
 // something it cannot read (an unclosed string or bracket), it says so in parseNotes and keeps what it read.
 
+import { emptyCallFacts } from "./types";
 import type { CodeSymbol, ImportName } from "./types";
 import type { ParsedFile, RawCall, RawImport } from "./parse-js";
 
@@ -520,6 +521,11 @@ export function parsePyFile(text: string): ParsedFile {
     from: number;
     to: number;
     names: Set<string>;
+    /** R3: the def's name, its parameters in order, what its body binds (a parameter bound again is not the parameter). */
+    def: string;
+    params: string[];
+    bound: Set<string>;
+    indent: number;
   }
   const scopes: Scope[] = [];
   lines.forEach((l, idx) => {
@@ -536,21 +542,29 @@ export function parsePyFile(text: string): ParsedFile {
         break;
       }
     }
+    const params: string[] = [];
     for (const part of splitTopCommas(t.slice(k + 3, close))) {
       const n = part.find((x) => x.t === "name");
-      if (n) names.add(n.v);
+      if (n) {
+        names.add(n.v);
+        params.push(n.v);
+      }
     }
     const base = l.indent;
     let end = lastLine(l);
     const globals = new Set<string>();
+    const bound = new Set<string>();
     for (let j = idx + 1; j < lines.length && lines[j]!.indent > base; j++) {
       const b = lines[j]!.toks;
       end = lastLine(lines[j]!);
       if (isName(b[0], "global") || isName(b[0], "nonlocal")) for (const x of b.slice(1)) if (x.t === "name") globals.add(x.v);
-      for (const n of boundNames(b)) names.add(n);
+      for (const n of boundNames(b)) {
+        names.add(n);
+        bound.add(n);
+      }
     }
     for (const g of globals) names.delete(g);
-    scopes.push({ from: t[0]!.line, to: end, names });
+    scopes.push({ from: t[0]!.line, to: end, names, def: t[k + 1]!.v, params, bound, indent: base });
   });
   // Review round 3 (R3-M1): a class body binds names for its own direct statements only (not inside its methods).
   interface ClassScope {
@@ -629,6 +643,43 @@ export function parsePyFile(text: string): ParsedFile {
     return out;
   };
 
+  // ---- R3: calls with names resolved by scope (CallFacts) ----
+  const facts = emptyCallFacts();
+  /** A part-level def: at module level, or directly in a module-level class. Its name is the part's. */
+  const topClasses = new Map<number, string>();
+  lines.forEach((l) => {
+    if (l.indent === 0 && isName(l.toks[0], "class") && isName(l.toks[1])) topClasses.set(l.toks[0]!.line, l.toks[1]!.v);
+  });
+  const partOfScope = (sc: Scope): string | null => {
+    if (sc.indent === 0) return sc.def;
+    const owner = out.symbols.find((x) => x.name === sc.def && x.lineStart === sc.from && x.parent !== undefined);
+    return owner?.parent ?? null;
+  };
+  const nameUses = new Map<string, number>();
+  for (const l of lines) for (const x of l.toks) if (x.t === "name") nameUses.set(x.v, (nameUses.get(x.v) ?? 0) + 1);
+  /** False when the line sits in a nested def whose name appears nowhere else: nothing can reach it. */
+  const reachablePy = (line: number): boolean => {
+    let cur = scopeAt(line);
+    while (cur && partOfScope(cur) === null) {
+      if ((nameUses.get(cur.def) ?? 0) < 2) return false;
+      const c: Scope = cur;
+      cur = scopes.filter((sc) => sc !== c && sc.from <= c.from && c.to <= sc.to).sort((x, y) => y.from - x.from)[0] ?? null;
+    }
+    return true;
+  };
+  /** The part-level def whose parameter this name is, when nothing nearer binds it and the body never rebinds it. */
+  const paramAt = (name: string, line: number): { fn: string; index: number } | null => {
+    const enclosing = scopes.filter((sc) => sc.from <= line && line <= sc.to).sort((x, y) => y.from - x.from);
+    for (const sc of enclosing) {
+      if (!sc.names.has(name)) continue;
+      const fn = partOfScope(sc);
+      const index = sc.params.indexOf(name);
+      if (fn === null || index < 0 || sc.bound.has(name)) return null;
+      return { fn, index };
+    }
+    return null;
+  };
+
   // ---- every use of an imported name or a top-level def/class ----
   for (const l of lines) {
     const t = l.toks;
@@ -703,6 +754,43 @@ export function parsePyFile(text: string): ParsedFile {
         continue;
       }
       const r = resolveChain(d.name.split("."), tok.line, lineLocals);
+      // R3: the same reading, for the drawing's wires.
+      if (isOp(next, "(") && !lineLocals.has(d.name.split(".")[0]!)) {
+        if (r && "imp" in r && reachablePy(tok.line)) {
+          const imp = out.imports[r.imp]!;
+          const nm = imp.names.find((n) => n.local === r.local);
+          const module = imp.specifier;
+          const imported = nm && nm.imported !== "*" ? nm.imported : "";
+          facts.importCalls.push({ module, imported, member: r.member, line: tok.line });
+          const full = `${module}.${imported ? `${imported}.` : ""}${r.member}`.replace(/\.+$/, "");
+          const own = scopeAt(tok.line);
+          const isSleep = full === "time.sleep" || (full === "asyncio.sleep" && isName(t[j - 1], "await"));
+          if (isSleep && own && partOfScope(own) !== null) facts.waits.push({ line: tok.line });
+        } else if (!r && !d.name.includes(".")) {
+          const p = paramAt(d.name, tok.line);
+          if (p && reachablePy(tok.line)) facts.paramCalls.push({ ...p, line: tok.line });
+        } else if (r && "own" in r && !r.member && reachablePy(tok.line)) {
+          // A parameter handed to one of the file's own functions.
+          let dd = 0;
+          let close = t.length;
+          for (let q = d.next; q < t.length; q++) {
+            if (t[q]!.t === "op" && "([{".includes(t[q]!.v)) dd++;
+            if (t[q]!.t === "op" && ")]}".includes(t[q]!.v) && --dd === 0) {
+              close = q;
+              break;
+            }
+          }
+          const target = scopes.find((sc) => sc.def === r.local && sc.indent === 0);
+          splitTopCommas(t.slice(d.next + 1, close)).forEach((arg, position) => {
+            const kw = isName(arg[0]) && isOp(arg[1], "=") ? arg[0]!.v : null;
+            const value = kw ? arg.slice(2) : arg;
+            if (value.length !== 1 || !isName(value[0])) return;
+            const q = paramAt(value[0]!.v, tok.line);
+            const toIndex = kw ? (target?.params.indexOf(kw) ?? -1) : position;
+            if (q && toIndex >= 0) facts.handoffs.push({ ...q, to: r.local, toIndex, line: tok.line });
+          });
+        }
+      }
       if (r) {
         const form: RawCall["form"] = isClassLine && j > 2 && j < classClose ? "extends" : isOp(t[0], "@") && j === 1 ? "call" : isOp(next, "(") ? "call" : "ref";
         const use: RawCall = { line: tok.line, local: r.local, ...(r.member ? { member: r.member } : {}), form, ...("imp" in r ? { imp: r.imp } : { own: true as const }) };
@@ -712,5 +800,6 @@ export function parsePyFile(text: string): ParsedFile {
     }
   }
   out.symbols.sort((a, b) => a.lineStart - b.lineStart || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  (out as ParsedFile).callFacts = facts;
   return out as ParsedFile & { symbols: Omit<CodeSymbol, "id">[] };
 }

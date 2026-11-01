@@ -2,7 +2,7 @@
 
 import { notShownAsFact } from "../../src/trust";
 import type { RunAnswer } from "../api";
-import { RetryMachine } from "../machines/retry/RetryMachine";
+import { RunPath } from "../drawing/RunPath";
 
 export interface RunProps {
   canRun: boolean;
@@ -69,7 +69,7 @@ export function RunScreen({ canRun, running, result, onBreak, name = "the code",
           )}
         </dl>
       )}
-      {result && result.run.runner === "ts" && <RetryMachine run={result.run} bets={result.bets} verdicts={result.verdicts} />}
+      {result && result.run.runner === "ts" && <RunPath run={result.run} bets={result.bets} verdicts={result.verdicts} retry testid="retry-path" />}
     </section>
   );
 }

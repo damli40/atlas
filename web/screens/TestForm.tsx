@@ -96,12 +96,27 @@ export function paramsFromForm(exportName: string, f: TestFormState): { ok: true
 
 export const emptyForm = (): TestFormState => ({ args: [], watchLimitMs: "" });
 
-export function TestForm({ exportName, initial, onSubmit, busy, note }: { exportName: string; initial: TestFormState; onSubmit: (params: unknown) => void; busy: boolean; note?: string }) {
+/** The same choices as a row of buttons, never the browser's own dropdown. */
+export function Segments({ label, value, onChange, options, testid }: { label: string; value: string; onChange: (v: string) => void; options: readonly (readonly [string, string])[]; testid?: string }) {
+  return (
+    <div className="u1-segs" role="radiogroup" aria-label={label} {...(testid ? { "data-testid": testid } : {})}>
+      {options.map(([v, words]) => (
+        <button type="button" role="radio" key={v} className="u1-seg" aria-checked={value === v} onClick={() => onChange(v)} {...(testid ? { "data-testid": `${testid}-${v}` } : {})}>
+          {words}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function TestForm({ exportName, initial, onSubmit, busy, note, required = null }: { exportName: string; initial: TestFormState; onSubmit: (params: unknown) => void; busy: boolean; note?: string; /** What the function needs, from its signature. Null: can't be told. */ required?: string[] | null }) {
   const [f, setF] = useState<TestFormState>(initial);
   const [problem, setProblem] = useState<string | null>(null);
   const id = useId();
   const setArg = (i: number, a: ArgForm) => setF((x) => ({ ...x, args: x.args.map((y, k) => (k === i ? a : y)) }));
   const submit = () => {
+    // An empty test on a function that needs arguments only shows it failing on nothing, and would pay the AI bettors to say so.
+    if (f.args.length === 0 && required && required.length > 0) return setProblem(W.formEmpty(exportName, required));
     const r = paramsFromForm(exportName, f);
     if (!r.ok) return setProblem(r.reason);
     setProblem(null);
@@ -180,19 +195,13 @@ function StandInForm({ id, n, a, onChange, onRemove }: { id: string; n: number; 
         {a.steps.map((s, j) => (
           <li key={j}>
             <div className="row">
-              <label htmlFor={`${id}-s${j}`} className="small">{W.formCall(j + 1)}</label>
-              <select
-                id={`${id}-s${j}`}
+              <span className="small">{W.formCall(j + 1)}</span>
+              <Segments
+                label={W.formCall(j + 1)}
                 value={s.do}
-                onChange={(e) => {
-                  const d = e.target.value;
-                  setStep(j, d === "throw" ? { do: "throw", errorName: "Error", message: "" } : d === "never_settle" ? { do: "never_settle" } : { do: "return", value: "null", afterMs: "" });
-                }}
-              >
-                <option value="return">{W.formReturns}</option>
-                <option value="throw">{W.formThrows}</option>
-                {a.async && <option value="never_settle">{W.formNeverAnswers}</option>}
-              </select>
+                onChange={(d) => setStep(j, d === "throw" ? { do: "throw", errorName: "Error", message: "" } : d === "never_settle" ? { do: "never_settle" } : { do: "return", value: "null", afterMs: "" })}
+                options={[["return", W.formReturns], ["throw", W.formThrows], ...(a.async ? ([["never_settle", W.formNeverAnswers]] as const) : [])]}
+              />
               {s.do === "return" && (
                 <>
                   <label htmlFor={`${id}-s${j}-v`} className="small">
@@ -232,13 +241,8 @@ function StandInForm({ id, n, a, onChange, onRemove }: { id: string; n: number; 
         <button type="button" onClick={() => onChange({ ...a, steps: [...a.steps, { do: "return", value: "null", afterMs: "" }] })} disabled={a.steps.length >= BOUNDS.standInSteps.max}>
           {W.formAddStep}
         </button>
-        <label htmlFor={`${id}-then`} className="small">
-          {W.formThen}
-        </label>
-        <select id={`${id}-then`} value={a.then} onChange={(e) => onChange({ ...a, then: e.target.value === "throw_exhausted" ? "throw_exhausted" : "repeat_last" })}>
-          <option value="repeat_last">{W.formThenRepeat}</option>
-          <option value="throw_exhausted">{W.formThenThrow}</option>
-        </select>
+        <span className="small">{W.formThen}</span>
+        <Segments label={W.formThen} value={a.then} onChange={(v) => onChange({ ...a, then: v === "throw_exhausted" ? "throw_exhausted" : "repeat_last" })} options={[["repeat_last", W.formThenRepeat], ["throw_exhausted", W.formThenThrow]]} />
       </div>
     </div>
   );

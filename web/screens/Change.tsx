@@ -15,8 +15,8 @@ import type { Bet, Outcome, Verdict } from "../../src/types";
 import { toleranceShort } from "../../src/judge";
 import type { Api, ChangeAnswer, RunAnswer } from "../api";
 import { useRunnerProgress } from "../progress";
-import { RetryMachine } from "../machines/retry/RetryMachine";
-import { PricePipe } from "../machines/pricepipe/PricePipe";
+import { RunPath } from "../drawing/RunPath";
+import { MoonwellDrawing } from "../drawing/MoonwellDrawing";
 import type { FormatValue } from "./Verdict";
 import { bettorNames, changeProposer } from "../../src/claimants";
 import { bettorName } from "../machines/scoreboard/Scoreboard";
@@ -182,7 +182,7 @@ export function ChangeResult({ answer, format = asStored }: { answer: ChangeAnsw
           </ul>
         </>
       )}
-      {r.runner === "ts" ? <RetryMachine run={r} bets={answer.bets} verdicts={answer.after.verdicts} /> : <PricePipe run={r} bets={answer.bets} verdicts={answer.after.verdicts} theory={theory} />}
+      {r.runner === "ts" ? <RunPath run={r} bets={answer.bets} verdicts={answer.after.verdicts} retry testid="retry-path" /> : <MoonwellDrawing run={r} bets={answer.bets} verdicts={answer.after.verdicts} theory={theory} />}
     </div>
   );
 }

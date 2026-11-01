@@ -132,7 +132,7 @@ describe("D19: what the bettor sees", () => {
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
-    act(() => root!.render(<MoonwellFlow api={api} />));
+    act(() => root!.render(<MoonwellFlow api={api} direct />));
 
     act(() => setValue($('[data-testid="pr-link"]') as HTMLInputElement, "https://github.com/moonwell-fi/moonwell-contracts-v2/pull/578"));
     await act(async () => byText("button", "Read it")!.click());
@@ -176,7 +176,7 @@ describe("D19: what the bettor sees", () => {
     // D05-03: the price pipe is drawn on the Moonwell run screen from the run that just came back.
     const pipe = $('[data-testid="price-pipe"]');
     expect(pipe).not.toBeNull();
-    expect(pipe!.querySelector("[data-readout]")!.textContent).toMatch(/^cbETH (read \$|: can't check)/);
+    expect(pipe!.textContent).toMatch(/the oracle reported \$|not shown as fact|did not read a price/);
     const prompt = calls[0]!.messages.map((m) => m.content).join("\n");
     for (const n of [...Object.values(RUN_NUMBERS), "1.12", "1,12", "2206", "2,206", "0.9999"]) expect(prompt).not.toContain(n);
     expect(prompt).not.toMatch(/\$\s?\d/); // no dollar amount at all

@@ -3,7 +3,7 @@
 // the fallback ran. Also a source scan, so a new "lines ${a}–${b}" template cannot come back.
 
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { fileLines, lineSpan, plural } from "../../src/words";
 import { changeProposer } from "../../src/claimants";
@@ -28,7 +28,8 @@ describe("D07-04 wording helpers", () => {
 describe("D07-04 source scan", () => {
   const files = execFileSync("git", ["ls-files", "src", "server", "web", "runners"], { encoding: "utf8" })
     .split("\n")
-    .filter((f) => /\.(ts|tsx)$/.test(f));
+    // A tracked file deleted in the working tree has nothing to scan.
+    .filter((f) => /\.(ts|tsx)$/.test(f) && existsSync(f));
   it('no template writes "lines ${a}–${b}" by hand (use lineSpan / fileLines)', () => {
     const hits = files.filter((f) => f !== "src/words.ts" && /lines \$\{[^}]+\}–\$\{/.test(readFileSync(f, "utf8")));
     expect(hits).toEqual([]);

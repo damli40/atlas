@@ -1,0 +1,112 @@
+{
+ "timings": {
+  "orders: paste → drawing (ms)": 97,
+  "orders: tap a box → next paint (ms)": 29,
+  "orders: tap an answer → next paint (ms)": 32,
+  "orders: seal → first motion (ms)": 716,
+  "orders: run length, first motion → verdict (ms)": 4823,
+  "claim: paste → drawing (ms)": 85,
+  "claim: tap a box → next paint (ms)": 31,
+  "claim: tap an answer → next paint (ms)": 31,
+  "claim: seal → first motion (ms)": 733,
+  "claim: run length, first motion → verdict (ms)": 4833,
+  "plan: paste → drawing (ms)": 77,
+  "plan: tap a box → next paint (ms)": 29,
+  "plan: tap an answer → next paint (ms)": 22,
+  "plan: seal → first motion (ms)": 549,
+  "plan: run length, first motion → verdict (ms)": 5823,
+  "example: click → drawing (ms)": 71,
+  "example: click → first question (ms)": 155,
+  "example: click → sealed, by keys (ms)": 735
+ },
+ "checks": [
+  {
+   "name": "orders: reaches a verdict",
+   "ok": true,
+   "more": "called fetch1st callcalled fetch | waited 200 mswaited 200 ms | called fetch 3 times and fetchPage 3 times3 roundscalled fetch 3 times andfetchPage 3 times | fetchPage threwyour codefetchPage threw | threw Error at 1,400 msthe endthrew Error at 1,400 ms"
+  },
+  {
+   "name": "orders: the helper order is drawn, and its caption says where it came from",
+   "ok": true,
+   "more": "virtual: nothingwaited for real. This run just happened here.Helper order comes from a separate traced run, not the sealed ones. The code itselfcould change it."
+  },
+  {
+   "name": "change: the Go button waits for a change",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "change: a paid call is shown before the click",
+   "ok": true,
+   "more": "The AI bettors answer too. Each is a paid AI call, from your invite's budget where you have one."
+  },
+  {
+   "name": "change: same test again, on changed code",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "change: no run data before sealing",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "change: the changed run is judged",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "change back: says this test already ran, never 'nothing has run yet'",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "claim: reaches a verdict",
+   "ok": true,
+   "more": "called fetch1st callcalled fetch | waited 200 mswaited 200 ms | called fetch 3 times and fetchPage 3 times3 roundscalled fetch 3 times andfetchPage 3 times | fetchPage threwyour codefetchPage threw | threw Error at 1,400 msthe endthrew Error at 1,400 ms"
+  },
+  {
+   "name": "claim: a paid call is shown",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "claim: a different test opens, or the button goes away and the result stays",
+   "ok": true,
+   "more": "nothing new"
+  },
+  {
+   "name": "plan: reaches a verdict",
+   "ok": true,
+   "more": "get_user_planAtlas's call 1 of 2get_user_plan | inneryour code, and 1 call…inner | waited 500 mswaited 500 ms | call 1 returned \"pro\"end of call 1call 1 returned \"pro\" | get_user_planAtlas's call 2 of 2get_user_plan | inneryour codeinner | returned \"pro\"the endreturned \"pro\""
+  },
+  {
+   "name": "plan: the helper order is drawn, and its caption says where it came from",
+   "ok": true,
+   "more": "e clock. Atlas's clock is simulated (it starts at 2026-01-01T00:00:00Zand moves only while the code waits), so time-based values are Atlas's, not yourmachine's."
+  }
+ ],
+ "orders path": [
+  "called fetch1st callcalled fetch",
+  "waited 200 mswaited 200 ms",
+  "called fetch 3 times and fetchPage 3 times3 roundscalled fetch 3 times andfetchPage 3 times",
+  "fetchPage threwyour codefetchPage threw",
+  "threw Error at 1,400 msthe endthrew Error at 1,400 ms"
+ ],
+ "claim path": [
+  "called fetch1st callcalled fetch",
+  "waited 200 mswaited 200 ms",
+  "called fetch 3 times and fetchPage 3 times3 roundscalled fetch 3 times andfetchPage 3 times",
+  "fetchPage threwyour codefetchPage threw",
+  "threw Error at 1,400 msthe endthrew Error at 1,400 ms"
+ ],
+ "plan path": [
+  "get_user_planAtlas's call 1 of 2get_user_plan",
+  "inneryour code, and 1 call…inner",
+  "waited 500 mswaited 500 ms",
+  "call 1 returned \"pro\"end of call 1call 1 returned \"pro\"",
+  "get_user_planAtlas's call 2 of 2get_user_plan",
+  "inneryour codeinner",
+  "returned \"pro\"the endreturned \"pro\""
+ ]
+}

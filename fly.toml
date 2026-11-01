@@ -36,7 +36,8 @@ swap_size_mb = 512
   ATLAS_INVITES_DIR = "/data/atlas"
   ATLAS_USAGE_PATH = "/data/usage.jsonl"
   # Refusal records (S7) are written here; /app in the image is read-only to the server's user. Nothing else changes:
-  # .atlas.json files stay in memory (ATLAS_PUBLISH_PROOFS is not set).
+  # .atlas.json files stay in memory (ATLAS_PUBLISH_PROOFS is not set), apart from a public link someone
+  # asked for: its card, without the file's text, is kept in kept/ for 30 days, within caps.
   ATLAS_PROOFS_DIR = "/data/proofs"
   PORT = "8080"
 

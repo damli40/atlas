@@ -1,4 +1,7 @@
 // X2 review round 1: one test (or more) per finding. Every model mocked.
+import { describeSpec, explorerSpec } from "../../renderer/authors/code-chart";
+import { checkDrawing } from "../../renderer/check";
+import { drawSpec } from "../../renderer/live/draw";
 import { jsdomWindow } from "../tools/jsdom-globals";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -7,7 +10,6 @@ import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError, type Api, type PasteAnswer } from "../../web/api";
-import { buildFigure, TooManyToDraw, MAX_DRAWN_LINES } from "../../web/machines/explorer/figure.mjs";
 import { ExplorerMachine } from "../../web/machines/explorer/ExplorerMachine";
 import { DATA_WORDS, arrowOf, explorerModel, joinWords, lineWord } from "../../web/machines/explorer/model";
 import type { OutlineView } from "../../web/machines/explorer/outline-data";
@@ -64,11 +66,9 @@ describe("B1: the live screen never changes the picked part on its own", () => {
       (globalThis as Record<string, unknown>).IntersectionObserver = io;
     }
   }, 120_000);
-  it("the live component has no timer that picks; the saved demo page's tour stops on any pointer or focus", () => {
+  it("the live component has no timer that picks", () => {
     const src = readFileSync(join(ROOT, "web/machines/explorer/ExplorerMachine.tsx"), "utf8");
     expect(src).not.toMatch(/setInterval\([^)]*setPicked/s);
-    const live = readFileSync(join(ROOT, "web/machines/explorer/live.js"), "utf8");
-    for (const ev of ["pointerenter", "pointerdown", "focusin", "keydown"]) expect(live).toContain(`"${ev}"`);
   });
 });
 
@@ -84,8 +84,7 @@ describe("B2 / minor 2: one line per code link; a data join says it is linked ei
     expect(joinWords(data)).toContain(DATA_WORDS);
     expect(DATA_WORDS).toBe("plain code found a use between these parts (it did not check the direction)");
     expect(lineWord(data)).toBe("same line as the imports join");
-    const fig = buildFigure(m);
-    expect([...fig.svg.matchAll(/data-line="([^"]*)"/g)].map((x) => x[1]).filter((v, i, a) => a.indexOf(v) === i)).toEqual(["wonder:0"]);
+    expect(explorerSpec(m).edges.filter((e) => e.kind === "thread").map((e) => e.id)).toEqual(["wonder:0"]);
   }, 120_000);
   it("the same join twice is one line", () => {
     const m = explorerModel(duplicated());
@@ -96,43 +95,37 @@ describe("B2 / minor 2: one line per code link; a data join says it is linked ei
 });
 
 describe("B3: decks are the real folders, whatever a part spans", () => {
-  it("6 folders, 12 files: 6 decks, 12 trays, the spanning part drawn as one box per folder, and the label says so", () => {
+  it("6 folders, 12 files: 6 decks; on the chart every part is one ticket, in a real folder, naming all its places; the words for a screen reader count them", () => {
     const v = spanFolders();
     const m = explorerModel(v);
     expect(m.decks.map((d) => d.folder).sort()).toEqual([...new Set(v.files.map((f) => folderOf(f.path)))].sort());
     for (const d of m.decks) for (const s of d.slots) if (s.kind === "box") for (const sl of s.slices) expect(folderOf(sl.path)).toBe(d.folder);
-    const fig = buildFigure(m);
-    expect(fig.stats).toMatchObject({ decks: 6, files: 12, trays: 12, boxes: 13 + 5 });
-    // U3 item 7: the screen-reader label is in plain words now (no "skid", no "tag collars").
-    expect(fig.svg).toContain("6 folders, 12 files and 13 parts, each part drawn as a box (1 part spanning folders get one box per folder)");
-    expect([...fig.svg.matchAll(/data-hit="([^"]*)"/g)]).toHaveLength(13);
+    const spec = explorerSpec(m);
+    expect(spec.nodes).toHaveLength(13);
+    const folders = new Set(v.files.map((f) => folderOf(f.path).replace(/\/$/, "")));
+    for (const r of spec.regions) expect(folders.has(r.words.replace(/\/$/, ""))).toBe(true);
+    for (const b of m.boxes) expect(spec.nodes.find((n) => n.id === b.id)!.sourceLines).toHaveLength(b.spans.length);
+    expect(describeSpec(spec)).toMatch(/^13 parts\./);
   }, 120_000);
 });
 
 describe("B4: a large outline never freezes the page", () => {
-  it("X1's maximum (40 parts, 156 joins) ends at once as 'too many joins to draw'", () => {
+  it("X1's maximum (40 parts, 156 joins) now draws within budget (D55: the renderer), and every check holds; past the budget it is the list", () => {
     const m = explorerModel(big(40, 0.1));
-    expect(m.lines.length).toBeGreaterThan(MAX_DRAWN_LINES);
-    const t = Date.now();
-    expect(() => buildFigure(m)).toThrow(TooManyToDraw);
-    expect(Date.now() - t).toBeLessThan(200);
-    const html = renderToStaticMarkup(<ExplorerMachine model={m} theme="light" />);
-    expect(html).toContain("Too many joins to draw");
-    expect(html).toContain("Showing the list instead");
+    expect(m.lines.length).toBeGreaterThan(90); // the old figure gave up past 90 joins
+    const spec = explorerSpec(m);
+    const d = drawSpec(spec);
+    if (d.kind !== "drawing") throw new Error(`expected a drawing, got ${d.kind}`);
+    expect(d.ms).toBeLessThan(2000);
+    expect(checkDrawing(spec, d.scene, d.svg)).toEqual([]);
   }, 120_000);
   it("40 parts with 47 joins draw in well under the page's 30 s limit (Node, no worker)", () => {
     const m = explorerModel(big(40, 0.03));
-    expect(m.lines.length).toBeLessThanOrEqual(MAX_DRAWN_LINES);
+    expect(m.lines.length).toBeLessThanOrEqual(90);
     const t = Date.now();
-    buildFigure(m);
-    // R2 review round 1 (m5): the page's real limit is 30 s. Alone this build takes 9-12 s, but under a loaded full suite
-    // it reached 15-17 s and failed most full runs; 15 s measured the machine's load, not the drawing code.
+    const spec = explorerSpec(m);
+    expect(drawSpec(spec).kind).toBe("drawing");
     expect(Date.now() - t).toBeLessThan(30_000);
-  }, 120_000);
-  it("the live screen builds in a Web Worker and shows a seconds counter meanwhile", () => {
-    const src = readFileSync(join(ROOT, "web/machines/explorer/ExplorerMachine.tsx"), "utf8");
-    expect(src).toContain('new Worker(new URL("./figure.worker.ts", import.meta.url), { type: "module" })');
-    expect(src).toContain("Drawing the machine for");
   }, 120_000);
 });
 
@@ -170,6 +163,11 @@ describe("M4: an expired job says so and offers a re-run", () => {
       },
     } as unknown as Api;
     mount(<ExplorerFlow api={api} onBet={() => {}} />);
+    await act(async () => {
+      const input = host!.querySelector<HTMLInputElement>('[data-testid="outline-repo"]')!;
+      Object.getOwnPropertyDescriptor(input.ownerDocument.defaultView!.HTMLInputElement.prototype, "value")!.set!.call(input, "damli40/atlas");
+      input.dispatchEvent(new (input.ownerDocument.defaultView!.Event)("input", { bubbles: true }));
+    });
     await act(async () => host!.querySelector<HTMLButtonElement>('[data-testid="outline-start"]')!.click());
     await flush();
     const stage = host!.querySelector<HTMLElement>('[data-testid="explorer-stage"]')!;

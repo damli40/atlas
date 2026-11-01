@@ -1,0 +1,39 @@
+{
+ "checks": [
+  {
+   "name": "S1 a typed null matches a function returning null",
+   "ok": true,
+   "more": "typed null"
+  },
+  {
+   "name": "J2 no bet is sealed from another screen",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "J2 digits on another screen answered nothing",
+   "ok": true,
+   "more": "1 of 4"
+  },
+  {
+   "name": "J1 the code panel says the result is under it",
+   "ok": true,
+   "more": "Your result is under this panel. C closes it."
+  },
+  {
+   "name": "S2 a signed-in reader is offered no public link",
+   "ok": true,
+   "more": "Link copied."
+  },
+  {
+   "name": "S2 they are not told 'you'",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "S2 no Delete for them",
+   "ok": true,
+   "more": ""
+  }
+ ]
+}

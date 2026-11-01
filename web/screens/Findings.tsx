@@ -51,10 +51,12 @@ export function FindingsPanel({ api, target, chosen, onChoose, locked, allowPick
   return (
     <section className="card" aria-label="findings" data-testid="findings">
       <h2>Where could expectations break?</h2>
+      <p className="muted small">Asking the Investigator is a paid AI call.</p>
       {!answer && (
         <button type="button" onClick={ask} disabled={!target || asking || locked}>
           Ask the Investigator ({modelName("muse-wonder-1.0")})
         </button>
+
       )}
       {asking && (
         <p className="running" role="status">

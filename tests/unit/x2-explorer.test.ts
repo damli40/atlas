@@ -4,8 +4,8 @@
 //   never a line (a chalk tag: "Wonder says this; plain code could not check it", or, when proved, "Atlas found no
 //   import or call for this").
 // - wholeFile, typeOnly, cantCheck and cantMap are rendered as X1 says; "lines confirmed", never "purpose confirmed".
-// - The drawn figure carries a data-line for exactly the drawn joins, and the Anatomy audit passes on the saved
-//   outline and on outlines with joins taken away.
+// - The drawn chart (renderer/authors/code-chart.ts, which replaced the old figure) has a thread for exactly the drawn
+//   joins, and the renderer's checks (renderer/check.ts) pass on the saved outline and on outlines with joins taken away.
 // - "Bet on this part" offers exported functions of JS, TS and Python files, and says why when it cannot.
 
 import { readFileSync } from "node:fs";
@@ -13,15 +13,23 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { CHALK_WORDS, LINES_CONFIRMED, NO_LINK_WORDS, explorerModel, joinWords, spanText } from "../../web/machines/explorer/model";
 import type { OutlineView } from "../../web/machines/explorer/outline-data";
-import { auditFigure, buildFigure } from "../../web/machines/explorer/figure.mjs";
+import { explorerSpec } from "../../renderer/authors/code-chart";
+import { checkDrawing, checkSvgSafety } from "../../renderer/check";
+import { drawSpec } from "../../renderer/live/draw";
+import type { RenderSpec } from "../../renderer/spec";
 import { outlineAnswerOf } from "../../server/outline/routes";
 import type { OutlineSection } from "../../src/outline/types";
 
 const ROOT = join(import.meta.dirname, "..", "..");
 const FIXTURE = join(ROOT, "tests/fixtures/outline/atlas-server-meta-058ab2a.outline.json");
 const saved = (): OutlineView => JSON.parse(readFileSync(FIXTURE, "utf8")) as OutlineView;
-const unescape = (s: string) => s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&");
-const attrValues = (html: string, attr: string) => new Set([...html.matchAll(new RegExp(`${attr}="([^"]*)"`, "g"))].map((m) => unescape(m[1]!)));
+/** The joins drawn as threads. One thread may carry several joins between the same two parts: its id lists them. */
+const threadJoins = (s: RenderSpec) => [...new Set(s.edges.filter((e) => e.kind === "thread").flatMap((e) => e.id.split("+")))].sort();
+const checksOn = (s: RenderSpec) => {
+  const d = drawSpec(s);
+  if (d.kind !== "drawing") throw new Error(`expected a drawing, got ${d.kind}`);
+  return checkDrawing(s, d.scene, d.svg);
+};
 const drawable = (v: OutlineView) => v.verified!.joins.filter((j) => j.status !== "model-only").map((j) => j.id).sort();
 
 describe("X2 explorer model", () => {
@@ -68,10 +76,13 @@ describe("X2 explorer model", () => {
     expect(CHALK_WORDS).toBe("Wonder says this; plain code could not check it");
     expect(NO_LINK_WORDS).toBe("Atlas found no import or call for this");
     expect(joinWords({ status: "model-only", typeOnly: false, noLinkFound: true })).toBe(NO_LINK_WORDS);
-    const fig = buildFigure(m);
-    const lines = attrValues(fig.svg, "data-line");
-    expect([...lines].sort()).toEqual(m.lines.map((l) => l.id).sort());
-    expect(lines.has(j0.id) || lines.has(j1.id)).toBe(false);
+    const spec = explorerSpec(m);
+    const lines = threadJoins(spec);
+    expect(lines).toEqual(m.lines.map((l) => l.id).sort());
+    expect(lines.includes(j0.id) || lines.includes(j1.id)).toBe(false);
+    // On the chart a Wonder-only join is a dotted note in Wonder's name, never a thread.
+    for (const e of spec.edges.filter((x) => x.id.startsWith("chalk:"))) expect(e).toMatchObject({ kind: "dashed-note", provenance: "wonder-words" });
+    expect(checksOn(spec)).toEqual([]);
   }, 120_000);
 
   it("whole-file spans say 'whole file'; type-only joins say 'type-only'; the card label is 'lines confirmed'", () => {
@@ -91,7 +102,9 @@ describe("X2 explorer model", () => {
     const a = saved();
     a.codeMap.cantMap = "the codebase is too complex to map";
     expect(explorerModel(a).notShown).toMatch(/Can't check: plain code could not map this codebase \(the codebase is too complex to map\)/);
-    expect(() => buildFigure(explorerModel(a))).toThrow(/could not map/);
+    const sa = explorerSpec(explorerModel(a));
+    expect(sa.notShown).toMatch(/could not map/);
+    expect([sa.nodes, sa.edges]).toEqual([[], []]);
     const b = saved();
     b.verified!.cantCheck = "the outline is too large to verify";
     for (const p of b.verified!.parts) p.status = "unconfirmed";
@@ -150,35 +163,32 @@ describe("X2 explorer model", () => {
   }, 120_000);
 });
 
-describe("X2 explorer figure", () => {
-  it("draws exactly the drawable joins and a hit target per box; the Anatomy audit passes", () => {
+describe("X2 explorer chart", () => {
+  it("draws exactly the drawable joins and a ticket per box; the renderer's checks pass", () => {
     const v = saved();
     const m = explorerModel(v);
-    const fig = buildFigure(m);
-    expect([...attrValues(fig.svg, "data-line")].sort()).toEqual(drawable(v));
-    expect([...attrValues(fig.svg, "data-hit")].sort()).toEqual(m.boxes.map((b) => b.id).sort());
-    expect(fig.stats.lines).toBe(24);
-    const a = auditFigure(fig);
-    if (!a.passed) console.log(a.report);
-    expect(a.passed).toBe(true);
+    const spec = explorerSpec(m);
+    expect(threadJoins(spec)).toEqual(drawable(v));
+    expect(spec.nodes.map((n) => n.id).sort()).toEqual(m.boxes.map((b) => b.id).sort());
+    expect(threadJoins(spec)).toHaveLength(24);
+    expect(checksOn(spec)).toEqual([]);
   }, 120_000);
 
-  it("the audit also passes with joins taken away (every second join, then only code-only joins)", () => {
+  it("the checks also pass with joins taken away (every second join, then only code-only joins)", () => {
     for (const keep of [(i: number) => i % 2 === 0, (_: number, s: string) => s === "code-only"]) {
       const v = saved();
       v.verified!.joins = v.verified!.joins.filter((j, i) => keep(i, j.status));
-      const fig = buildFigure(explorerModel(v));
-      const a = auditFigure(fig);
-      if (!a.passed) console.log(a.report);
-      expect(a.passed).toBe(true);
+      expect(checksOn(explorerSpec(explorerModel(v)))).toEqual([]);
     }
   }, 240_000);
 
-  it("writes a part name that looks like markup as text on its plate, not markup", () => {
+  it("writes a part name that looks like markup as text on its ticket, not markup", () => {
     const v = saved();
     v.verified!.parts[0]!.name.text = '<img src=x onerror="alert(1)">';
-    const fig = buildFigure(explorerModel(v));
-    expect(fig.svg).not.toContain("<img");
-    expect(fig.svg).toContain("&lt;img");
+    const d = drawSpec(explorerSpec(explorerModel(v)));
+    if (d.kind !== "drawing") throw new Error(`expected a drawing, got ${d.kind}`);
+    expect(d.svg).not.toContain("<img");
+    expect(d.svg).toContain("&lt;img");
+    expect(checkSvgSafety(d.svg)).toEqual([]);
   }, 120_000);
 });

@@ -1,0 +1,263 @@
+{
+ "path-1920-light": {
+  "kind": "drawing",
+  "ms": 34.29999999701977,
+  "hidden": 0,
+  "measure": {
+   "texts": 22,
+   "worstPx": 1.2911249999999654
+  }
+ },
+ "always500-1920-light": {
+  "kind": "drawing",
+  "ms": 16.399999998509884,
+  "hidden": 0,
+  "measure": {
+   "texts": 25,
+   "worstPx": 1.2911249999999654
+  }
+ },
+ "bet-1920-light": {
+  "kind": "drawing",
+  "ms": 10.600000001490116,
+  "hidden": 0,
+  "measure": {
+   "texts": 15,
+   "worstPx": 1.2911249999999654
+  }
+ },
+ "chart-1920-light": {
+  "kind": "drawing",
+  "ms": 5,
+  "hidden": 0,
+  "measure": {
+   "texts": 8,
+   "worstPx": 1.265875000000051
+  }
+ },
+ "meta-1920-light": {
+  "kind": "drawing",
+  "ms": 41.5,
+  "hidden": 0,
+  "measure": {
+   "texts": 58,
+   "worstPx": 1.3243750000000318
+  }
+ },
+ "retry-1920-light": {
+  "kind": "drawing",
+  "ms": 12.600000001490116,
+  "hidden": 0,
+  "measure": {
+   "texts": 38,
+   "worstPx": 1.3023750000000405
+  }
+ },
+ "moonwell-1920-light": {
+  "kind": "drawing",
+  "ms": 9,
+  "hidden": 0,
+  "measure": {
+   "texts": 22,
+   "worstPx": 1.3872500000000514
+  }
+ },
+ "stress-1920-light": {
+  "kind": "drawing",
+  "ms": 61,
+  "hidden": 1,
+  "measure": {
+   "texts": 102,
+   "worstPx": 1.2999999999999545
+  }
+ },
+ "path-1920-dark": {
+  "kind": "drawing",
+  "ms": 28,
+  "hidden": 0,
+  "measure": {
+   "texts": 22,
+   "worstPx": 1.2911249999999654
+  }
+ },
+ "always500-1920-dark": {
+  "kind": "drawing",
+  "ms": 12.100000001490116,
+  "hidden": 0,
+  "measure": {
+   "texts": 25,
+   "worstPx": 1.2911249999999654
+  }
+ },
+ "bet-1920-dark": {
+  "kind": "drawing",
+  "ms": 10.399999998509884,
+  "hidden": 0,
+  "measure": {
+   "texts": 15,
+   "worstPx": 1.2911249999999654
+  }
+ },
+ "chart-1920-dark": {
+  "kind": "drawing",
+  "ms": 7.4000000059604645,
+  "hidden": 0,
+  "measure": {
+   "texts": 8,
+   "worstPx": 1.265875000000051
+  }
+ },
+ "meta-1920-dark": {
+  "kind": "drawing",
+  "ms": 51.599999994039536,
+  "hidden": 0,
+  "measure": {
+   "texts": 58,
+   "worstPx": 1.3243750000000318
+  }
+ },
+ "retry-1920-dark": {
+  "kind": "drawing",
+  "ms": 14.700000002980232,
+  "hidden": 0,
+  "measure": {
+   "texts": 38,
+   "worstPx": 1.3023750000000405
+  }
+ },
+ "moonwell-1920-dark": {
+  "kind": "drawing",
+  "ms": 10.600000001490116,
+  "hidden": 0,
+  "measure": {
+   "texts": 22,
+   "worstPx": 1.3872500000000514
+  }
+ },
+ "stress-1920-dark": {
+  "kind": "drawing",
+  "ms": 69.40000000596046,
+  "hidden": 1,
+  "measure": {
+   "texts": 102,
+   "worstPx": 1.2999999999999545
+  }
+ },
+ "path-390-light": {
+  "kind": "drawing",
+  "ms": 31.600000001490116,
+  "hidden": 0,
+  "measure": {
+   "texts": 25,
+   "worstPx": 0.8607499999999959
+  }
+ },
+ "always500-390-light": {
+  "kind": "drawing",
+  "ms": 14.100000001490116,
+  "hidden": 0,
+  "measure": {
+   "texts": 28,
+   "worstPx": 0.8607499999999959
+  }
+ },
+ "bet-390-light": {
+  "kind": "drawing",
+  "ms": 10.199999995529652,
+  "hidden": 0,
+  "measure": {
+   "texts": 16,
+   "worstPx": 0.8607499999999959
+  }
+ },
+ "chart-390-light": {
+  "kind": "drawing",
+  "ms": 6.700000002980232,
+  "hidden": 0,
+  "measure": {
+   "texts": 10,
+   "worstPx": 0.9101249999999936
+  }
+ },
+ "meta-390-light": {
+  "kind": "drawing",
+  "ms": 50.5,
+  "hidden": 0,
+  "measure": {
+   "texts": 56,
+   "worstPx": 0.8881250000000023
+  }
+ },
+ "retry-390-light": {
+  "kind": "drawing",
+  "ms": 15.200000002980232,
+  "hidden": 0,
+  "measure": {
+   "texts": 43,
+   "worstPx": 0.8682499999999891
+  }
+ },
+ "moonwell-390-light": {
+  "kind": "drawing",
+  "ms": 10.700000002980232,
+  "hidden": 0,
+  "measure": {
+   "texts": 22,
+   "worstPx": 0.9352500000000248
+  }
+ },
+ "stress-390-light": {
+  "kind": "drawing",
+  "ms": 64.39999999850988,
+  "hidden": 1,
+  "measure": {
+   "texts": 102,
+   "worstPx": 0.8718749999999318
+  }
+ },
+ "path-390-dark": {
+  "kind": "drawing",
+  "ms": 29.200000002980232,
+  "hidden": 0,
+  "measure": {
+   "texts": 25,
+   "worstPx": 0.8607499999999959
+  }
+ },
+ "stress": {
+  "msEach": [
+   98,
+   64,
+   66,
+   63,
+   61
+  ],
+  "hiddenWords": 1
+ },
+ "stressWorker": {
+  "kind": "drawing",
+  "ms": 121.29999999701977,
+  "hidden": 1
+ },
+ "pan": {
+  "before": "-605.39 0.00 3096.77 1741.94",
+  "panned": "-282.81 161.29 3096.77 1741.94",
+  "moved": true
+ },
+ "axe-1920-light-didnt-match": [],
+ "axe-1920-light-matched": [],
+ "axe-1920-dark-didnt-match": [],
+ "axe-390-light-matched": [],
+ "filmFrames": 1458,
+ "skipEntranceMs": 49,
+ "skipRunMs": 18,
+ "pendingAfterSkip": 0,
+ "reducedReadyMs": 108,
+ "reducedDoneMs": 265,
+ "reducedAnimationsRunning": 0,
+ "keyboard": {
+  "first": "p0",
+  "second": "p1"
+ },
+ "problems": []
+}

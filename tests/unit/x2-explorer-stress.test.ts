@@ -1,40 +1,31 @@
-// X2: the figure must draw outlines it has never seen. The live run at 058ab2a (16 parts, split files) found that the
-// first routing rule could not stack its lines ("cannot be stacked without one passing through another"); the
-// router now tries side jogs and L-shaped routes and breaks every such cycle. These tests draw 25 random outlines (the evidence run drew 200; review M3 made the suite's share lighter),
-// and run the full Anatomy audit on seed 7, the one the reviewer's sweep failed on crowding (review minor 6).
+// X2: the chart must draw outlines it has never seen. These tests draw 25 random outlines through the renderer that
+// replaced the old figure (D55), and run its full checks (renderer/check.ts took the place of the Anatomy audit) on
+// each, including seed 7, the one the reviewer's sweep failed on crowding on the old figure (review minor 6).
 import { describe, expect, it } from "vitest";
-import { auditFigure, buildFigure, TooManyToDraw } from "../../web/machines/explorer/figure.mjs";
+import { explorerSpec } from "../../renderer/authors/code-chart";
+import { checkDrawing } from "../../renderer/check";
+import { drawSpec } from "../../renderer/live/draw";
 import { chalkText, CHALK_WORDS } from "../../web/machines/explorer/model";
 import { randomModel } from "../tools/x2-random-outline";
 
-describe("X2 figure on random outlines", () => {
-  it("draws 25 random outlines (6–17 files, split files, up to 33 joins) without giving up", () => {
+describe("X2 chart on random outlines", () => {
+  it("draws 25 random outlines (6–17 files, split files, up to 33 joins) without giving up: every join is on the chart, and every check holds", () => {
     const failed: string[] = [];
     for (let s = 1; s <= 25; s++) {
       const m = randomModel(s);
       try {
-        let fig;
-        try {
-          fig = buildFigure(m);
-        } catch (e) {
-          if (e instanceof TooManyToDraw) continue; // listed instead: an honest outcome, not a failure
-          throw e;
-        }
-        const drawn = new Set([...fig.svg.matchAll(/data-line="([^"]*)"/g)].map((x) => x[1]));
+        const spec = explorerSpec(m);
+        const d = drawSpec(spec);
+        if (d.kind === "list") continue; // listed instead: an honest outcome, not a failure
+        if (d.kind !== "drawing") throw new Error(`no drawing: ${d.words}`);
+        const drawn = new Set(spec.edges.filter((e) => e.kind === "thread").flatMap((e) => e.id.split("+")));
         if (drawn.size !== m.lines.length) failed.push(`seed ${s}: ${drawn.size} of ${m.lines.length} lines drawn`);
+        for (const p of checkDrawing(spec, d.scene, d.svg)) failed.push(`seed ${s}: ${p}`);
       } catch (e) {
         failed.push(`seed ${s}: ${(e as Error).message}`);
       }
     }
     expect(failed).toEqual([]);
-  }, 300_000);
-
-  it("the Anatomy audit passes on random outline seed 7 (it failed on crowding before lines were lifted)", () => {
-    for (const s of [7]) {
-      const a = auditFigure(buildFigure(randomModel(s)));
-      if (!a.passed) console.log(`seed ${s}\n${a.report}`);
-      expect(a.passed).toBe(true);
-    }
   }, 300_000);
 
   it("a chalk tag says Wonder's words once, then plain code's reason", () => {

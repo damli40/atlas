@@ -144,7 +144,7 @@ describe("D22: chain facts before the bet", () => {
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
-    act(() => root!.render(<MoonwellFlow api={api} />));
+    act(() => root!.render(<MoonwellFlow api={api} direct />));
     act(() => setValue($('[data-testid="pr-link"]') as HTMLInputElement, "https://github.com/moonwell-fi/moonwell-contracts-v2/pull/578"));
     await act(async () => byText("button", "Read it")!.click());
     await until(() => $('[data-testid="pr-target"]') !== null, "the PR target");

@@ -60,7 +60,7 @@ async function round(replies: string[]) {
   await until(() => $('[data-testid="bet-calls"]') !== null, "the questions");
   act(() => setValue($('[data-testid="bet-calls"]') as HTMLInputElement, "5"));
   act(() => setValue($('[data-testid="bet-totalWaitMs"]') as HTMLInputElement, "12000"));
-  act(() => setValue($('[data-testid="bet-outcome"]') as HTMLSelectElement, "throws"));
+  act(() => ($('[data-testid="bet-outcome-throws"]') as HTMLButtonElement).click());
   await act(async () => byText("button", "Seal my bets")!.click());
   await until(() => $('[data-testid="hash-outcome"]') !== null, "the sealed hashes");
   await until(() => $('[data-testid="model-slot"]')?.getAttribute("data-status") !== "thinking", "the model slot");

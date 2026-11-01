@@ -47,7 +47,7 @@ const DEPENDENCY_DIRS = new Set(["node_modules", "dist", "build", "out", ".git",
 /** At most this many skipped files are listed one by one; the rest are counted in one last line. */
 export const MAX_SKIPPED_LISTED = 1000;
 
-const ext = (p: string) => (/\.[A-Za-z0-9]{1,10}$/.exec(p)?.[0] ?? "(none)");
+const ext = (p: string) => (/\.[A-Za-z0-9]{1,10}$/.exec(p)?.[0] ?? "no extension");
 
 /** Why plain code does not read this path as a source file (null = it does). Size and bytes are checked separately. */
 export function skipReason(path: string): string | null {

@@ -235,7 +235,7 @@ describe("S2 (page): a run that did not finish can be tried again with the same 
     await until(() => $('[data-testid="bet-calls"]') !== null, "the questions");
     act(() => setValue($('[data-testid="bet-calls"]') as HTMLInputElement, "5"));
     act(() => setValue($('[data-testid="bet-totalWaitMs"]') as HTMLInputElement, "12000"));
-    act(() => setValue($('[data-testid="bet-outcome"]') as HTMLSelectElement, "throws"));
+    act(() => ($('[data-testid="bet-outcome-throws"]') as HTMLButtonElement).click());
     await act(async () => byText("button", "Seal my bets")!.click());
     await until(() => $('[data-testid="hash-outcome"]') !== null, "the sealed hashes");
     const before = $('[data-testid="hash-outcome"]')!.getAttribute("data-hash");

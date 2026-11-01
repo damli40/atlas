@@ -1,5 +1,5 @@
 // The one finding the Claimant works on today. It is a fixture finding, written by hand: the
-// Investigator (the model that finds these) arrives Oct 30. Until then this stands in, and every
+// On the fixture path this stands in for the Investigator (the model that finds these), and every
 // place that shows it must show FIXTURE_FINDING_LABEL beside it.
 //
 // The lines are the retry loop in tests/fixtures/with-rpc-retry.ts: fixture lines 49–66, which are
@@ -16,7 +16,7 @@
 
 import type { Finding } from "../../../src/types";
 
-export const FIXTURE_FINDING_LABEL = "fixture finding, written by hand (Investigator arrives Oct 30)";
+export const FIXTURE_FINDING_LABEL = "fixture finding, written by hand";
 
 export const FIXTURE_FILE = "tests/fixtures/with-rpc-retry.ts";
 

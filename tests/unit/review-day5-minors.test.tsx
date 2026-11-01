@@ -1,18 +1,16 @@
 // Day-5 review, minors m1–m3 (m4–m7 are tested beside the items they touch:
 // review-day5-why, review-day5-m7, review-day5-scoreboard).
-// m1: a wait Atlas's watch limit cut off is drawn and described as unfinished. Before (probes5/p1):
-//     "waits 2 × 20,000 ms", the drum turned twice, both turn marks lit, "it waited 2 times".
-// m2: the watch-limit caption says "Still running", not "Still pending" (pending is a bet outcome).
+// m1: a wait Atlas's watch limit cut off is described as unfinished. Before (probes5/p1, on the old figure):
+//     "waits 2 × 20,000 ms", "it waited 2 times".
+// m2: the watch limit is never called "pending" (pending is a bet outcome).
 // m3: the never-settled sentence no longer says "nothing was pending".
 // A real run through the real server (TS runner, no model).
 
-import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "../../server/app";
 import type { Run } from "../../src/types";
 import { linkSentences, templatedSentences } from "../../src/why";
-import { poseAt, retryModel } from "../../web/machines/retry/model";
-import { RetryMachine } from "../../web/machines/retry/RetryMachine";
+import { retryDemo } from "../../renderer/authors/what-happened";
 import { playRound, type Round } from "../tools/machine-pages";
 
 let cut: Round;
@@ -28,18 +26,18 @@ describe("m1 + m2: a wait cut off by the watch limit", () => {
     expect(ev.at(-1)).toBe("stopped_watching");
   });
 
-  it("the machine: 1 finished wait, 1 cut off (half a turn, no counter mark); the caption says 'Still running'", () => {
-    const m = retryModel(cut);
-    expect(m.waits.map((w) => w.finished)).toEqual([true, false]);
-    expect(m.readout).toBe("calls 2 · waits 1 × 20,000 ms + 1 cut off · still waiting when Atlas stopped watching");
-    expect(poseAt(m, Infinity).drumTurns).toBe(1.5);
-    expect(poseAt(m, Infinity).waitsDone).toBe(1);
-    expect(m.endCaption).toMatch(/^Still running at Atlas's watch limit: /);
-    const html = renderToStaticMarkup(<RetryMachine run={cut.run} bets={cut.bets} verdicts={cut.verdicts} still theme="light" />);
-    const turns = html.slice(html.indexOf("rm-turn-marks"), html.indexOf("</g>", html.indexOf("rm-turn-marks")));
-    expect((turns.match(/data-on/g) ?? []).length).toBe(1);
-    expect(html).toContain("that Atlas&#x27;s watch limit cut off (half a turn, never counted)");
-    expect(html).not.toContain("Still pending");
+  it("the retry demo: 2 calls; never 2 finished waits; the watch limit named as Atlas's; never 'pending' and no ending claimed", () => {
+    const s = retryDemo({ run: cut.run, bets: cut.bets, verdicts: cut.verdicts });
+    expect(s.nodes.filter((n) => n.words === "called the RPC")).toHaveLength(2);
+    const words = JSON.stringify([s.nodes.map((n) => n.words), s.captions.map((c) => c.words), s.marks.map((m) => m.words)]);
+    // The second wait was cut off by the watch limit: at most the first may read as a wait that finished.
+    expect(s.nodes.filter((n) => n.words === "waited 20,000 ms").length).toBe(1);
+    expect(s.nodes.map((n) => n.words)).toContain("asked to wait 20,000 ms; Atlas stopped during it");
+    expect(words).not.toMatch(/2 × /);
+    expect(s.nodes.at(-1)!.words).toMatch(/^Atlas can't say how it ended: Atlas's watch limit \(30000 ms of virtual time, Atlas's limit, not the code's\) ended the run/);
+    expect(s.nodes.some((n) => /^(returned|threw)/.test(n.words))).toBe(false);
+    expect(words).not.toMatch(/pending/i);
+    expect(s.marks.map((m) => m.kind)).toEqual(["cant-check"]);
   });
 
   it("Ask why: 'it waited 1 time', and the cut-off wait said apart; both linked", () => {

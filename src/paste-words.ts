@@ -10,6 +10,16 @@
 import type { PastedLanguage } from "./pasted-code";
 
 /** Muse Wonder proposes the tests in the paste flow; named by product name AND id (D10). */
+/** An hourly limit in plain words, and when it frees up. Any other reason, as it is, without the wrapping. */
+export function plainLimit(reason: string): string {
+  const inner = reason.replace(/^not asked \((.*)\)$/s, "$1");
+  const m = /call limit reached: one client address may ask for (\d+) (.+?) an hour(?:[.;:,]?\s*(.*))?$/s.exec(inner);
+  if (m) return `You've used this hour's ${m[1]} ${m[2]}.${m[3] ? ` ${m[3]}` : " It frees up within the hour."}`;
+  const s = /call limit reached: this session already asked for tests (\d+) times/.exec(inner);
+  if (s) return `This tab has asked for tests ${s[1]} times, its limit. A new tab starts again.`;
+  return `${inner.charAt(0).toUpperCase()}${inner.slice(1)}${/[.!?]$/.test(inner) ? "" : "."}`;
+}
+
 export const WONDER_MODEL = "muse-wonder-1.0";
 export const WONDER_DISPLAY = "Muse Wonder 1.0 (muse-wonder-1.0)";
 
@@ -69,6 +79,7 @@ export const PASTE_WORDS = {
   formThenThrow: "throw AtlasStandInExhausted",
   formWatch: "Watch for (virtual ms)",
   formSubmit: "Use my test",
+  formEmpty: (name: string, need: readonly string[]) => `${name} needs ${need.length === 1 ? `an argument (${need[0]})` : `${need.length} arguments (${need.join(", ")})`}, and this test gives it none. Add a value first.`,
   betsHeading: "4. Place your bets",
   betsIntro: "Answer any question you want to bet on. Leave one blank to skip it. Bets are sealed before the run.",
   seenHeading: "What every bettor sees",
@@ -231,7 +242,8 @@ export const BET_WORDS = {
   /** U3 item 4: the typed returned value, next to the options. */
   typedLabel: "Or type the exact value it returns",
   typedHint: (py: boolean) => (py ? 'Write it as Python or JSON, e.g. "pro", 42, True, None, [1, 2]. Matched only when it is exactly the returned value.' : 'Write it as JSON, e.g. "pro", 42, true, null, [1, 2]. Matched only when it is exactly the returned value.'),
-  typedBad: (py: boolean) => (py ? "That is not a value Atlas can read. Use quotes for text (\"pro\"), and True, False or None." : "That is not JSON. Use double quotes for text (\"pro\"), and true, false or null."),
+  typedText: (shown: string) => `Atlas reads it as the text ${shown}.`,
+  typedKeys: "Typing here. Esc goes back to the option keys.",
   typedReads: (shown: string) => `Atlas reads it as ${shown}.`,
   /** U3 item 6: while Muse Wonder writes tests. */
   waitHead: (fn: string, seconds: number) => `Muse Wonder 1.0 (Meta) is writing tests for ${fn}: ${seconds} s so far (usually under a minute).`,
@@ -240,7 +252,7 @@ export const BET_WORDS = {
   waitExplore: "The drawing stays live meanwhile: hover or click any part.",
   writeOwnNow: "Write my own test instead",
   /** U3: Muse Wonder wrote no test this time; why, in the server's words. */
-  noTests: (reason: string) => `Muse Wonder wrote no test this time (${reason}). You can write your own below.`,
+  noTests: (reason: string) => `Muse Wonder wrote no test this time. ${plainLimit(reason)} You can write your own below.`,
 } as const;
 
 export const STAGE_WORDS = {
@@ -284,7 +296,7 @@ export const FELT_WORDS = {
     `You said '${level}' on ${rounds === 1 ? "1 round" : `${rounds} rounds`} and matched ${matched} of ${n}${percent === null ? "" : ` (${percent}%)`}.`,
   levelUnchecked: (level: string, rounds: number) => `You said '${level}' on ${rounds === 1 ? "1 round" : `${rounds} rounds`}. None of those answers could be checked.`,
   levelsEmpty: "You have not said how sure you were on any round yet.",
-  paths: (nothingMatched: number, nothingN: number, somethingMatched: number, somethingN: number) => `When nothing failed you matched ${nothingMatched} of ${nothingN}. When something failed, ${somethingMatched} of ${somethingN}.`,
+  paths: (nothingMatched: number, nothingN: number, somethingMatched: number, somethingN: number) => `On tests with no scripted failure you matched ${nothingMatched} of ${nothingN}. With a scripted failure, ${somethingMatched} of ${somethingN}.`,
   pathsWait: (min: number, nothingN: number, somethingN: number) => `The line comparing tests where nothing failed with tests where something failed appears once each side has at least ${min} answers. So far: ${nothingN} when nothing failed, ${somethingN} when something failed.`,
   pathsMeaning: "“Something failed” means the test scripts a stand-in or the fake network to throw, answer with an error status, or never answer. Plain code reads that from the test before it runs.",
   pathsCantCheck: (k: number) => `${answersWord(k)} that couldn't be checked ${k === 1 ? "is" : "are"} not counted in that line.`,
@@ -318,12 +330,12 @@ export const RESULT_WORDS = {
   testClaim: "Test this claim",
   testClaimBusy: `${WONDER_ROLE}, is writing a test for this sentence…`,
   /** U3 item 5: the sentence a "Test this claim" round tests, and its result beside the measured facts. */
-  testingSentence: (s: string) => `This test checks Muse Wonder's sentence: “${s}”`,
+  testingSentence: (s: string) => `Muse Wonder wrote this test for its sentence: “${s}”`,
   claimFactsHeading: "What the run shows about this claim: you decide",
   claimSaid: "Muse Wonder 1.0 said, before the first run:",
   claimMeasured: "What this run measured (plain code):",
   claimYouDecide: "Atlas does not say whether the sentence holds. Neither an AI nor plain code may decide that; compare the two yourself.",
-  nextTry: "Next things to try, found in this code:",
+  nextTry: "Next things to try, read from this code and not seen in a run:",
   proofTitle: "Proof card",
   closeProof: "Close the proof card",
 } as const;

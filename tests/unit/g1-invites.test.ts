@@ -5,7 +5,7 @@
 import { mkdtempSync, readFileSync, statSync, writeFileSync, chmodSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createApp } from "../../server/app";
 import { createAgentLog } from "../../server/log/agentlog";
 import { createProofStore } from "../../server/evm-round";
@@ -35,6 +35,11 @@ import { ENV, build, client, logLines, pastedRound, sum, tmp } from "../tools/g1
  * must be either here or in the gate's open list (checked below), so a new route cannot slip past this test.
  */
 const SPENDING: { method: string; route: string; path: string; body?: unknown; spends: string }[] = [
+  { method: "GET", route: "/moonwell/ready", path: "/moonwell/ready", spends: "nothing paid: one read to the chain, before a run that would pay" },
+  { method: "DELETE", route: "/proofs/:runId/keep", path: "/proofs/x/keep", spends: "nothing: the maker takes a public link down" },
+  { method: "POST", route: "/proofs/:runId/keep", path: "/proofs/x/keep", spends: "a small file on the volume, only when the person asks for a link" },
+  { method: "GET", route: "/runs/:runId/helpers", path: "/runs/x/helpers", spends: "nothing itself: the third run is started and counted by POST /runs" },
+  { method: "GET", route: "/proofs/:runId/pencil.png", path: "/proofs/x/pencil.png", spends: "the machine's time: a separate process draws for up to 30 s, limited per code (R3)" },
   { method: "POST", route: "/targets", path: "/targets", body: { kind: "github-pr", ref: PR.target.ref }, spends: "a GitHub read (rate limit, no $)" },
   { method: "POST", route: "/experiments", path: "/experiments", body: {}, spends: "Muse Spark / Muse Spark Open bets (Meta, Baseten); chain-facts RPC read" },
   { method: "POST", route: "/investigate", path: "/investigate", body: { pr: PR.target.ref }, spends: "Muse Wonder Investigator (Meta)" },
@@ -72,7 +77,7 @@ describe("G1 gate: every spending route refuses without a code, and nothing is s
     expect(unaccounted).toEqual([]);
     // And every open route really is one of the read-only ones listed in the gate.
     const open = routes.filter((r) => !spending.has(r));
-    expect(open.sort()).toEqual(["GET /claimants", "GET /health", "GET /outline/jobs/:id", "GET /outline/jobs/:id/atlas", "GET /outline/jobs/:id/outline", "GET /outline/jobs/:id/parts/:partId", "GET /paste/languages", "GET /proofs/:runId"]);
+    expect(open.sort()).toEqual(["GET /claimants", "GET /health", "GET /moonwell/saved", "GET /outline/jobs/:id", "GET /outline/jobs/:id/atlas", "GET /outline/jobs/:id/outline", "GET /outline/jobs/:id/parts/:partId", "GET /paste/languages", "GET /proofs/:runId", "GET /proofs/:runId/viewer"]);
     expect(OPEN_ROUTES.every((r) => r.method === "GET" || /invite/.test(r.path.source))).toBe(true);
   });
 
@@ -188,10 +193,11 @@ describe("G1 per-code budgets (D34)", () => {
     expect(round.e.json.models.map((m: { status: string }) => m.status)).toEqual(["thinking", "thinking"]);
     // 1 Wonder call + 2 bet calls (Spark, Spark Open), each $0.0164 as the mock reports.
     expect(s.spent.calls).toHaveLength(3);
+    // R3: the third run behind the helper steps starts when the sealed runs end, and it is on the same ledger as everything else.
+    await vi.waitFor(() => expect(s.ledger.today(s.ids.dev).running).toBe(0), { timeout: 20_000 });
     const today = s.ledger.today(s.ids.dev);
     expect(today.spentUsd).toBeCloseTo(3 * 0.0164, 6);
     expect(today.heldUsd).toBe(0);
-    expect(today.running).toBe(0);
     const lines = logLines(s.dir);
     const model = lines.filter((l) => l.kind === "model");
     expect(model.map((l) => l.route).sort()).toEqual(["POST /experiments", "POST /experiments", "POST /paste/proposals"]);
@@ -244,8 +250,11 @@ describe("G1 per-code budgets (D34)", () => {
     const c = client(s.app, s.codes.owner);
     const round = await pastedRound(c);
     expect(round.r.status).toBe(200);
+    // R3: the third run behind the helper steps is a sandbox too, so it is reserved and settled like the others.
+    await vi.waitFor(() => expect(logLines(s.dir).filter((l) => l.kind === "sandbox").length).toBe(s.ledger.modalToday().starts), { timeout: 20_000 });
+    await vi.waitFor(() => expect(s.ledger.today(s.ids.owner).running).toBe(0), { timeout: 20_000 });
     const sandboxes = logLines(s.dir).filter((l) => l.kind === "sandbox");
-    expect(sandboxes.length).toBeGreaterThanOrEqual(2); // the control, then the run
+    expect(sandboxes.length).toBeGreaterThanOrEqual(3); // the control, the run, the third run
     for (const l of sandboxes) {
       expect(l.reservedUsd).toBeGreaterThanOrEqual(modalWorstCaseUsd(1));
       expect(l.usd).toBeLessThan(l.reservedUsd);

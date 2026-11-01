@@ -1,0 +1,11 @@
+Full suite, run 1:
+ Test Files  142 passed | 2 skipped (144)
+      Tests  2282 passed | 35 skipped (2317)
+Full suite, run 2:
+ Test Files  142 passed | 2 skipped (144)
+      Tests  2282 passed | 35 skipped (2317)
+Full suite, run 3:
+ Test Files  142 passed | 2 skipped (144)
+      Tests  2282 passed | 35 skipped (2317)
+
+tsc --noEmit: exit 0

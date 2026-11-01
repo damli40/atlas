@@ -13,6 +13,26 @@
 
 export type OutlineLanguage = "js" | "ts" | "py";
 
+/**
+ * R3: what plain code knows about one file's calls, with names resolved by real scope (TypeScript's binder; the Python
+ * parser's scopes). A name a function binds for itself is never the outside thing with the same name.
+ * Lines are 1-based. The drawing's wires come from here, never from searching text.
+ */
+export interface CallFacts {
+  /** A call of a name nothing in the file binds (`fetch(…)`, `globalThis.fetch(…)`). */
+  freeCalls: { name: string; line: number }[];
+  /** A call through an import (`requests.get(…)`, or `get(…)` after `from requests import get`). */
+  importCalls: { module: string; imported: string; member: string; line: number }[];
+  /** A call of a part's own parameter, never reassigned: which part, which position (0-based). */
+  paramCalls: { fn: string; index: number; line: number }[];
+  /** A part hands its parameter on to one of the file's own functions, as that function's argument `toIndex`. */
+  handoffs: { fn: string; index: number; to: string; toIndex: number; line: number }[];
+  /** A wait the part's own lines plainly make: an awaited or returned Promise a timer resolves; a Python sleep. */
+  waits: { line: number }[];
+}
+
+export const emptyCallFacts = (): CallFacts => ({ freeCalls: [], importCalls: [], paramCalls: [], handoffs: [], waits: [] });
+
 /** One source file of the codebase, exactly as Atlas read it. */
 export interface OutlineFile {
   /** Path inside the codebase: forward slashes, no leading "/", no "." or ".." segments. */

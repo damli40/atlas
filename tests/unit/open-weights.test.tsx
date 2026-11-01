@@ -324,7 +324,7 @@ describe("D07-01 page", () => {
     await until(() => $('[data-testid="bet-calls"]') !== null, "the questions");
     act(() => setValue($('[data-testid="bet-calls"]') as HTMLInputElement, "5"));
     act(() => setValue($('[data-testid="bet-totalWaitMs"]') as HTMLInputElement, "12000"));
-    act(() => setValue($('[data-testid="bet-outcome"]') as HTMLSelectElement, "throws"));
+    act(() => ($('[data-testid="bet-outcome-throws"]') as HTMLButtonElement).click());
     await act(async () => byText("button", "Seal my bets")!.click());
     await until(() => host!.querySelectorAll('[data-testid="model-sealed-note"]').length === 2, "both models' seals");
     expect(host!.textContent).toContain(`${OPEN_DISPLAY} has sealed 3 bets`);

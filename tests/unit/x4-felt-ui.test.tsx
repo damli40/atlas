@@ -80,7 +80,7 @@ describe("X4 the record", () => {
     expect(a).toContain("You said &#x27;sure&#x27; on 1 round and matched 1 of 1.");
     const enough = trackRecordOf([...Array.from({ length: 3 }, () => entry("matched", { path: "nothing failed" })), ...Array.from({ length: 3 }, () => entry("not_matched", { path: "something failed" }))]);
     const b = renderToStaticMarkup(<RecordView record={enough} />);
-    expect(b).toContain("When nothing failed you matched 3 of 3. When something failed, 0 of 3.");
+    expect(b).toContain("On tests with no scripted failure you matched 3 of 3. With a scripted failure, 0 of 3.");
     expect(b).toContain("data-testid=\"felt-record\"");
   });
 });

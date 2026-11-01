@@ -6,6 +6,7 @@
 // browser), "judged by src/judge.ts", a link to download the exact file, and a "re-run it" link that
 // asks the server to replay the round (GET /replay/:runId; the page sends the session header).
 
+import { ProofImage } from "./ProofImage";
 import { useEffect, useMemo, useState } from "react";
 import type { AtlasFile } from "../../src/types";
 import { ApiError, type Api, type ReplayAnswer } from "../api";
@@ -14,10 +15,12 @@ import { SAY, bettorLineWords, bettorLines, proofCardModel, replayWords } from "
 import { DiffView } from "./Change";
 import { BettorCounts } from "./Claimant";
 import { bettorNames, changeProposer, orderModelBettors } from "../../src/claimants";
-import { AFTER_LABEL, BEFORE_LABEL, CHANGE_CAPTION, theoryCaptions } from "../../src/change";
+import { AFTER_LABEL, BEFORE_LABEL, CHANGE_CAPTION, CHANGE_CAPTION_READER, theoryCaptions } from "../../src/change";
 import { targetName } from "../../src/target-name";
+import { describeCall } from "../../src/gate";
 import { shortQuestionFor, LANGUAGE_NAME } from "../../src/paste-context";
-import { CallTimeline } from "../machines/calltimeline/CallTimeline";
+import { RunPath } from "../drawing/RunPath";
+import { MoonwellDrawing } from "../drawing/MoonwellDrawing";
 import { PASTE_WORDS } from "../../src/paste-words";
 import { ConditionsLine } from "./Conditions";
 import { RecordBefore } from "./TrackRecord";
@@ -39,9 +42,62 @@ export function ProofLink({ runId }: { runId: string }) {
 }
 
 /** The card on its own page (`?proof=<runId>`): fetches the file, then draws it. */
+/** R3: the same path in the pencil engine, on request. If it cannot be drawn, the server's own words say why. */
+function PencilImage({ api, runId }: { api: Pick<Api, "pencil">; runId: string }) {
+  const [state, setState] = useState<{ kind: "idle" | "busy" } | { kind: "none"; words: string } | { kind: "ok"; src: string }>({ kind: "idle" });
+  if (state.kind === "ok") return <img className="pc-pencil" src={state.src} alt="The same path, drawn by the pencil engine" data-testid="pc-pencil-img" />;
+  return (
+    <p className="pc-small">
+      <button
+        type="button"
+        className="u1-link"
+        disabled={state.kind === "busy"}
+        onClick={async () => {
+          setState({ kind: "busy" });
+          const a = await api.pencil(runId).catch(() => ({ words: "The server could not be reached; the drawing above is the same chart." }));
+          setState("src" in a ? { kind: "ok", src: a.src } : { kind: "none", words: a.words });
+        }}
+        data-testid="pc-pencil"
+      >
+        {state.kind === "busy" ? "drawing in pencil…" : "draw this in pencil"}
+      </button>{" "}
+      {state.kind === "none" ? <span data-testid="pc-pencil-none">{state.words}</span> : null}
+    </p>
+  );
+}
+
 export function ProofCardPage({ api, runId, embedded = false }: { api: Api; runId: string; embedded?: boolean }) {
   const [file, setFile] = useState<AtlasFile | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // J3: with an invite gate on, someone logged out cannot run anything, so nothing that runs or keeps is offered to them. Unknown yet counts as out.
+  const [loggedOut, setLoggedOut] = useState(!embedded);
+  useEffect(() => {
+    if (embedded) return;
+    let live = true;
+    void Promise.resolve()
+      .then(() => api.inviteStatus())
+      .then(
+        (st) => live && setLoggedOut(st.required && !st.signedIn),
+        () => live && setLoggedOut(false),
+      );
+    return () => {
+      live = false;
+    };
+  }, [api, embedded]);
+  // J4, C3: what the server records about whoever is looking. If it can't say, nothing says "you" and the card asks nothing of the volume.
+  const [viewer, setViewer] = useState<{ yours: boolean; keepsCards: boolean; canKeep: boolean } | null>(null);
+  useEffect(() => {
+    let live = true;
+    void Promise.resolve()
+      .then(() => api.proofViewer(runId))
+      .then(
+        (v) => live && setViewer(v),
+        () => live && setViewer({ yours: false, keepsCards: true, canKeep: false }),
+      );
+    return () => {
+      live = false;
+    };
+  }, [api, runId]);
   useEffect(() => {
     let live = true;
     api.proof(runId).then(
@@ -56,16 +112,22 @@ export function ProofCardPage({ api, runId, embedded = false }: { api: Api; runI
   const Shell = embedded ? "div" : "main";
   return (
     <Shell className="proof-page">
-      {file ? (
+      {file && viewer ? (
         <div className="proof-stack">
-          <ProofCard file={file} api={api} />
+          {/* Inside the round's own screen the bettor is looking. Elsewhere only the server's record says so: where nothing records whose bet it was, the words stay neutral. */}
+          <ProofCard file={file} api={api} reader={loggedOut} keepsCards={viewer.keepsCards} canKeep={viewer.canKeep} stranger={!embedded && !viewer.yours} />
           {/* X3 (D27): only for the person whose round this was (the server answers null for anyone else). */}
           <RecordBefore api={api} runId={runId} />
         </div>
       ) : error ? (
-        <p className="notice" role="alert">
-          {error}
-        </p>
+        <>
+          <p className="notice" role="alert">
+            {error}
+          </p>
+          <p className="pc-small">
+            <a href="/" data-testid="pc-home-gone">Atlas: draw your own code and bet on what it does</a>
+          </p>
+        </>
       ) : (
         <p className="muted">Reading the .atlas.json for run {runId}…</p>
       )}
@@ -80,22 +142,26 @@ export function modelNames(file: Pick<AtlasFile, "bets">): Record<string, string
   return bettorNames(file.bets.map((b) => b.who));
 }
 
-export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?: Api; replay?: ReplayAnswer }) {
+export function ProofCard({ file, api, replay: given, stranger = false, reader = false, keepsCards = true, canKeep = true }: { file: AtlasFile; api?: Api; replay?: ReplayAnswer; /** Whoever is looking did not place these bets, so nothing says "you". */ stranger?: boolean; /** Logged out: nothing that runs or keeps is offered. */ reader?: boolean; /** False: this server has no volume to keep a card on. */ keepsCards?: boolean; /** False: whoever is looking did not run this round, so the link stays the file's own address. */ canKeep?: boolean }) {
   const card = useMemo(() => proofCardModel(file), [file]);
   // D10 + D07-01: every model bettor by product name AND id (src/claimants.ts), e.g.
   // "Muse Spark Open (meta-models/muse-spark-open-1026) · via Baseten". An unknown id is shown as itself.
   // Day-7 review M3/M7: every bettor of the round, including a model that sealed nothing and a person not asked.
   const lines = useMemo(() => bettorLines(file), [file]);
-  const names = useMemo(() => bettorNames([...file.bets.map((b) => b.who), ...lines.map((l) => l.who)]), [file, lines]);
+  const names = useMemo(() => ({ ...bettorNames([...file.bets.map((b) => b.who), ...lines.map((l) => l.who)]), ...(stranger ? { human: "The bettor" } : {}) }), [file, lines, stranger]);
   const modelBettors = orderModelBettors(lines.filter((l) => l.who !== "human").map((l) => l.who));
   const unseated = Object.fromEntries(lines.filter((l) => l.status !== "sealed").map((l) => [l.who, l.status === "not_asked" ? "not asked" : "no usable answer"]));
   const [replay, setReplay] = useState<ReplayState>(given ? { kind: "done", answer: given } : { kind: "idle" });
   const download = useMemo(() => {
     if (typeof URL === "undefined" || typeof URL.createObjectURL !== "function" || typeof Blob === "undefined") return null;
-    return URL.createObjectURL(new Blob([JSON.stringify(file, null, 2) + "\n"], { type: "application/json" }));
+    // What the server says about a link is not part of the file: the download must pass verifyAtlasFile.
+    const { keptCard: _kept, ...plain } = file as AtlasFile & { keptCard?: unknown };
+    return URL.createObjectURL(new Blob([JSON.stringify(plain, null, 2) + "\n"], { type: "application/json" }));
   }, [file]);
   useEffect(() => () => void (download && URL.revokeObjectURL(download)), [download]);
 
+  // A reader of a shared card, or a card kept past its round: re-running or drawing it again is for the session that ran it.
+  const readerOnly = reader || (file as { sourceWithheld?: boolean }).sourceWithheld === true || (file as { keptCard?: unknown }).keptCard !== undefined;
   const rerun = async () => {
     if (!api) return;
     setReplay({ kind: "running" });
@@ -111,11 +177,14 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
   const call = exp0?.params.shape === "call-function" ? exp0.params : undefined;
   const title = call && file.target.kind === "pasted" ? `${call.exportName} · pasted ${file.target.language ? LANGUAGE_NAME[file.target.language] : "code"}` : targetName(card.target);
   const caption = (q: string) => shortQuestionFor(q, exp0?.params, file.target.language);
+  // The file's own caption stays as it was sealed; only what a reader who did not bet sees changes.
+  const sayCaption = (c: string) => (stranger && c === CHANGE_CAPTION ? CHANGE_CAPTION_READER : c);
   const fp = (h: string) => `${h.slice(0, 12)}…${h.slice(-6)}`;
   const saidHowSure = file.bets.find((b) => b.who === "human" && b.confidence)?.confidence;
 
   return (
     <article className="proof-card" data-testid="proof-card" aria-label={`proof card for run ${card.runId}`}>
+      <ProofImage stranger={stranger} reader={reader} keepsCards={keepsCards} canKeep={canKeep} card={card} file={file} lines={lines} names={names} preExisting={card.target.kind === "ts-fixture" ? preExistingLabel(file) : null} {...(api ? { api } : {})} {...(download ? { download, downloadName: `${card.runId}.atlas.json` } : {})} />
       <header className="pc-head">
         <div>
           <p className="pc-kicker">Atlas · proof card</p>
@@ -149,12 +218,17 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
         </p>
       </header>
       {/* U3 item 7: plain words first; the technical details are folded below. */}
+      {call && (
+        <p className="pc-plain pc-call" data-testid="pc-call">
+          <b>What it was given:</b> {describeCall(call, file.target.language)}
+        </p>
+      )}
       <p className="pc-plain" data-testid="pc-plain">
         {PROOF_WORDS.what}
       </p>
 
       {/* D07-04: the film's end frame. The scoreboard is the Atlas mark, large and centred, then who bet and how it came out. */}
-      <section className="pc-hero" aria-label="scoreboard">
+      <section className="pc-hero" aria-label="the marks">
         {card.notShownAsFact ? (
           <p className="notice" data-testid="pc-not-shown">
             {card.notShownAsFact}
@@ -202,12 +276,27 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
         </table>
       </section>
 
-      {file.change && file.replay && <ProofChange file={file} said={Object.fromEntries(card.bets.map((b) => [b.betId, b.said]))} />}
+      {file.change && file.replay && <ProofChange file={file} names={names} stranger={stranger} said={Object.fromEntries(card.bets.map((b) => [b.betId, b.said]))} />}
 
       {call && file.runs[0] && (
         // E3: the call timeline, drawn from the file's own run (the same component as the round's screen).
         <section className="pc-machine" aria-label="call timeline" data-testid="pc-call-timeline">
-          <CallTimeline run={file.runs[0]} still />
+          <RunPath run={file.runs[0]} experiment={file.experiments[0]} bets={file.bets} verdicts={file.verdicts} still testid="pc-path" stranger={stranger} />
+          {api && !reader && (file as { keptCard?: unknown }).keptCard === undefined && <PencilImage api={api} runId={file.runs[0].id} />}
+        </section>
+      )}
+
+      {/* R3 phase 2: the retry demo's and Moonwell's cards carry their drawing too. */}
+      {!call && file.runs[0]?.runner === "ts" && (
+        <section className="pc-machine" aria-label="what happened" data-testid="pc-retry">
+          <RunPath run={file.runs[0]} experiment={file.experiments[0]} bets={file.bets} verdicts={file.verdicts} still retry testid="pc-path" stranger={stranger} />
+          {api && !reader && (file as { keptCard?: unknown }).keptCard === undefined && <PencilImage api={api} runId={file.runs[0].id} />}
+        </section>
+      )}
+      {!call && file.runs[0]?.runner === "evm" && (
+        <section className="pc-machine" aria-label="the price flow" data-testid="pc-moonwell">
+          <MoonwellDrawing run={file.runs[0]} bets={file.bets} verdicts={file.verdicts} captions={[...new Set(file.captions.map(sayCaption))]} still stranger={stranger} {...(file.change ? { beforeChange: true } : {})} />
+          {api && !reader && (file as { keptCard?: unknown }).keptCard === undefined && <PencilImage api={api} runId={file.runs[0].id} />}
         </section>
       )}
 
@@ -264,7 +353,7 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
         </dl>
         <ul className="pc-captions" data-testid="pc-captions" aria-label="captions">
           {card.captions.map((c) => (
-            <li key={c}>{c}</li>
+            <li key={c}>{sayCaption(c)}</li>
           ))}
         </ul>
       </section>
@@ -287,6 +376,7 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
             Download {card.runId}.atlas.json
           </a>
         )}
+        {!readerOnly && (
         <a
           href={`/api/replay/${encodeURIComponent(card.runId)}`}
           data-testid="pc-rerun"
@@ -298,6 +388,7 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
         >
           {replay.kind === "running" ? "re-running…" : "Re-run it"}
         </a>
+        )}
         {words && (
           <span className={`pc-replay${words.same ? " pc-same" : ""}`} data-testid="pc-replay">
             {words.text}
@@ -311,6 +402,9 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
             replay not run: {replay.reason}
           </span>
         )}
+        <a className="pc-small pc-home" href="/" data-testid="pc-home">
+          Atlas: draw your own code and bet on what it does
+        </a>
         <span className="pc-small muted">recorded {card.createdAt.replace("T", " ").replace(/\.\d{3}Z$/, " UTC")} · run {card.runId}</span>
       </footer>
     </article>
@@ -318,7 +412,7 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
 }
 
 /** D06-01: the change and its replay, from the file: the diff only, and the SAME bets before | after. */
-function ProofChange({ file, said }: { file: AtlasFile; said: Record<string, string> }) {
+function ProofChange({ file, said, names, stranger }: { file: AtlasFile; said: Record<string, string>; names: Record<string, string>; stranger: boolean }) {
   const change = file.change!;
   const replay = file.replay!;
   const before = (id: string) => file.verdicts.find((v) => v.betId === id)?.outcome;
@@ -330,7 +424,7 @@ function ProofChange({ file, said }: { file: AtlasFile; said: Record<string, str
         The same sealed bets, {BEFORE_LABEL.toLowerCase()} | {AFTER_LABEL.toLowerCase()}
       </h2>
       <p className="caption label" data-testid="pc-change-caption">
-        {CHANGE_CAPTION}
+        {stranger ? CHANGE_CAPTION_READER : CHANGE_CAPTION}
       </p>
       {theoryCaptions(change).map((t) => (
         <p key={t} className="caption label theory" data-testid="pc-change-theory">
@@ -362,7 +456,7 @@ function ProofChange({ file, said }: { file: AtlasFile; said: Record<string, str
             const o2 = after(b.id);
             return (
               <tr key={b.id}>
-                <td className="pc-who">{bettorName(b.who, modelNames(file))}</td>
+                <td className="pc-who">{bettorName(b.who, names)}</td>
                 <td>{b.measures}</td>
                 <td>{said[b.id] ?? ""}</td>
                 <td className={`pc-out pc-${o1 ?? "none"}`}>{o1 ? SAY[o1] : "no verdict"}</td>
@@ -398,8 +492,9 @@ const PROOF_WORDS = {
 } as const;
 
 /** U3 item 7: a measured field's name in plain words ("calls:fetch" → "calls to fetch"). */
-function plainField(measures: string): string {
+export function plainField(measures: string): string {
   if (measures.startsWith("calls:")) return `calls to ${measures.slice(6)}`;
+  if (measures.startsWith("priceUsd1e18:")) return `${measures.slice(13)} in dollars`;
   const words: Record<string, string> = { outcome: "how it ends", returnedJson: "what it returns", virtualMs: "how long it takes", calls: "calls", totalWaitMs: "total wait" };
   return words[measures] ?? measures;
 }

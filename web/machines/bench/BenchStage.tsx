@@ -1,168 +1,34 @@
-// U1 (D47): the full-screen drawing. It draws the bench model (model.ts) with the explorer's drawing code
-// (figure.mjs, in a worker), lets the reader pan and zoom it, shows a hover card for each box, and AFTER the bets are
-// sealed plays the run on it and pins the quiz marks to the parts they are about.
+// U1 (D47), redrawn in R3 phase 2 (D55): the full-screen drawing. Atlas authors a spec from the bench model
+// (renderer/authors/bet-view.ts) and the renderer draws it; the chart draws itself on. It shows a card for each part,
+// and AFTER the bets are sealed plays the run as the "what happened" path, from the measured trace, and marks each answer.
 //
 // The rule it keeps (D47): before the bets are sealed it is given no run at all. `after` is the only door for run data,
-// and the page passes it only once the run answered (which happens only after sealing). Without `after`, no lamp is
-// lit, the dial needle stands at 0, no chip and no mark is drawn (tests/unit/u1-stage.test.tsx checks the DOM).
+// and the page passes it only once the run answered (which happens only after sealing). Without `after` there is no path, no
+// lit lamp, no mark (tests/unit/u1-stage.test.tsx checks the DOM, and the spec is refused if it holds run data).
 //
-// Motion: one orchestrated sequence per run (calls light their devices in order, the dial follows the virtual clock,
-// the function box shows its ending, then the marks appear). Under reduced motion the end state is shown at once.
+// Motion: one story per run: each call's thread is drawn and its ticket pinned, each wait's clock sweeps, its device's lamp
+// lights on the chart beside it, then the answers land. A click, Space or Escape skips to the end. Under reduced motion the
+// end state is shown at once.
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent as RPointerEvent, type ReactNode, type WheelEvent } from "react";
-import { buildFigure, dialNeedle, TooManyToDraw, W, H } from "../explorer/figure.mjs";
-import type { BenchReply } from "./bench.worker";
-import { CLOCK_ID, type BenchModel, type BenchPart } from "./model";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent as RPointerEvent, type ReactNode } from "react";
+import { benchSpec } from "../../../renderer/authors/bet-view";
+import { momentOf, type Moment } from "../../../src/moment";
+import { whatHappened } from "../../../renderer/authors/what-happened";
+import type { HelperAnswer } from "../../api";
+import type { Mounted } from "../../../renderer/live/mount";
+import type { SpecStep } from "../../../renderer/spec";
+import { idFromAttr } from "../../../renderer/words";
+import type { FileOutline } from "../../../src/file-outline";
+import type { Bet, Experiment, Run, Verdict } from "../../../src/types";
+import { Drawing } from "../../drawing/Drawing";
+import { useDarkScheme, useReducedMotion } from "../../drawing/media";
+import { CLOCK_ID, deviceId, type BenchModel, type BenchPart } from "./model";
 import { OUTCOME_WORDS, type Mark, type Script } from "./play";
-import { applyPick } from "../explorer/pick";
 import { lineSpan } from "../../../src/words";
 import { RESULT_WORDS, STAGE_WORDS } from "../../../src/paste-words";
 import { CANT_TELL } from "../../../src/quiz";
 
-const DARK = "(prefers-color-scheme: dark)";
-const STILL = "(prefers-reduced-motion: reduce)";
-function useMedia(q: string): boolean {
-  return useSyncExternalStore(
-    (changed) => {
-      if (typeof window === "undefined" || typeof window.matchMedia !== "function") return () => {};
-      const m = window.matchMedia(q);
-      m.addEventListener("change", changed);
-      return () => m.removeEventListener("change", changed);
-    },
-    () => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia(q).matches,
-    () => false,
-  );
-}
-export const useDarkScheme = () => useMedia(DARK);
-export const useReducedMotion = () => useMedia(STILL);
-
-/** An attribute value inside a "…" selector. */
-const attr = (v: string) => v.replace(/["\\]/g, "\\$&");
-
-type Dials = Record<string, { x: number; y: number; top: number; r: number }>;
-type Built = { svg: string; P: unknown; dials: Dials } | { error: string } | { drawing: true };
-
-/** Builds the figure in a worker (or in place where there is no Worker, e.g. tests). */
-function useFigure(model: BenchModel): Built {
-  const [built, setBuilt] = useState<Built>({ drawing: true });
-  useEffect(() => {
-    if (model.notShown !== null) {
-      setBuilt({ error: model.notShown });
-      return;
-    }
-    const sync = () => {
-      try {
-        const f = buildFigure(model);
-        setBuilt({ svg: f.svg, P: f.P, dials: f.dials });
-      } catch (e) {
-        setBuilt({ error: e instanceof TooManyToDraw ? `${(e as Error).message}; the parts are listed in the side panel` : `The drawing could not be made: ${(e as Error).message}` });
-      }
-    };
-    if (typeof Worker === "undefined" || typeof window === "undefined") {
-      sync();
-      return;
-    }
-    // Keep the last drawing on screen while the next one is built (a test adds the stand-in deck).
-    setBuilt((b) => ("svg" in b ? b : { drawing: true }));
-    const worker = new Worker(new URL("./bench.worker.ts", import.meta.url), { type: "module" });
-    worker.onmessage = (e: MessageEvent<BenchReply>) => {
-      worker.terminate();
-      const r = e.data;
-      setBuilt(r.ok ? { svg: r.svg, P: r.P, dials: r.dials } : { error: r.tooMany ? `${r.message}; the parts are listed in the side panel` : `The drawing could not be made: ${r.message}` });
-    };
-    worker.onerror = () => {
-      worker.terminate();
-      sync();
-    };
-    worker.postMessage({ id: 1, model });
-    return () => worker.terminate();
-  }, [model]);
-  return built;
-}
-
-/**
- * U3 item 7: result labels (run chips, pinned answers, failure labels) never sit on a cable, a box or an engraved
- * label. Each label is tried at its anchor, then at growing distances around it, and takes the first spot where none
- * of its area touches a cable (points sampled along every cable), a box (the box's own outline), the drawing's text or
- * a label already placed. Measured on screen, so it holds at any zoom. Returns how many labels found no free spot.
- */
-export function placeLabels(root: HTMLElement, scale: number): number {
-  const svg = root.querySelector<SVGSVGElement>(".u1-svg svg");
-  if (!svg) return 0;
-  const stage = root.getBoundingClientRect();
-  const pts: { x: number; y: number }[] = [];
-  for (const p of svg.querySelectorAll<SVGGeometryElement>("[data-line] path, path[data-line]")) {
-    let len = 0;
-    try {
-      len = p.getTotalLength();
-    } catch {
-      continue;
-    }
-    const m = p.getScreenCTM();
-    if (!m) continue;
-    for (let d = 0; d <= len; d += 3) {
-      const q = p.getPointAtLength(d);
-      const sp = new DOMPoint(q.x, q.y).matrixTransform(m);
-      pts.push({ x: sp.x, y: sp.y });
-    }
-  }
-  const hits = [...svg.querySelectorAll<SVGGeometryElement>("[data-hit]")].map((h) => ({ h, inv: h.getScreenCTM()?.inverse() ?? null }));
-  const texts = [...svg.querySelectorAll("text")].map((t) => t.getBoundingClientRect()).filter((b) => b.width > 1);
-  // Panels over the stage (the judged answers, the bet pop-up, a part's card, the buttons) hide what is under them.
-  for (const panel of document.querySelectorAll(".u1-marks, .u1-pop, .u1-card, .u1-actions, .u1-zoom, .u1-bet")) {
-    const b = panel.getBoundingClientRect();
-    if (b.width > 1) texts.push(b);
-  }
-  const placed: { left: number; right: number; top: number; bottom: number }[] = [];
-  const meet = (a: { left: number; right: number; top: number; bottom: number }, b: { left: number; right: number; top: number; bottom: number }, pad = 2) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > -pad && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > -pad;
-  const clear = (r: { left: number; right: number; top: number; bottom: number }) => {
-    if (r.left < stage.left + 4 || r.right > stage.right - 4 || r.top < stage.top + 40 || r.bottom > stage.bottom - 60) return false;
-    if (placed.some((p) => meet(p, r, 4))) return false;
-    if (texts.some((t) => meet(t, r))) return false;
-    for (const q of pts) if (q.x > r.left - 3 && q.x < r.right + 3 && q.y > r.top - 3 && q.y < r.bottom + 3) return false;
-    for (let y = r.top; y <= r.bottom; y += 5)
-      for (let x = r.left; x <= r.right; x += 6)
-        for (const { h, inv } of hits) {
-          if (!inv) continue;
-          const u = new DOMPoint(x, y).matrixTransform(inv);
-          try {
-            if (h.isPointInFill(u)) return false;
-          } catch {
-            /* a shape the browser cannot test is not an obstacle */
-          }
-        }
-    return true;
-  };
-  let stuck = 0;
-  const els = [...root.querySelectorAll<HTMLElement>(".u1-chip[data-run], .u1-pins, .u1-chip-label")].filter((e) => e.offsetParent !== null);
-  for (const el of els) {
-    // The CSS `translate` property moves the label on top of its own CSS transform (which centres it on its anchor).
-    el.style.translate = "";
-    const b = el.getBoundingClientRect();
-    let best: [number, number] | null = null;
-    outer: for (let ring = 0; ring <= 18; ring++) {
-      const dist = ring * 14;
-      const steps = ring === 0 ? 1 : 16;
-      for (let i = 0; i < steps; i++) {
-        const a = (i / steps) * Math.PI * 2;
-        const dx = Math.round(Math.cos(a) * dist * 1.6);
-        const dy = Math.round(-Math.sin(a) * dist);
-        if (clear({ left: b.left + dx, right: b.right + dx, top: b.top + dy, bottom: b.bottom + dy })) {
-          best = [dx, dy];
-          break outer;
-        }
-      }
-    }
-    if (!best) {
-      stuck++;
-      best = [0, 0];
-    }
-    el.style.translate = best[0] || best[1] ? `${best[0] / scale}px ${best[1] / scale}px` : "";
-    placed.push({ left: b.left + best[0], right: b.right + best[0], top: b.top + best[1], bottom: b.bottom + best[1] });
-  }
-  root.setAttribute("data-labels-stuck", String(stuck));
-  return stuck;
-}
+export { useDarkScheme, useReducedMotion };
 
 /** Run data for the drawing. Passed only after the bets are sealed and the run answered. */
 export interface After {
@@ -172,30 +38,40 @@ export interface After {
   marks: Mark[];
   /** The dial's full sweep in ms. */
   dialFullMs: number;
-}
-
-export interface Anchor {
-  x: number;
-  y: number;
+  run: Run;
+  experiment: Pick<Experiment, "params">;
+  bets: readonly Bet[];
+  verdicts: readonly Verdict[];
+  /** R3: the code's own steps, from a third run made only for this drawing. */
+  helpers?: HelperAnswer | null;
 }
 
 export interface BenchStageProps {
   model: BenchModel;
   theme?: "light" | "dark";
   after?: After | null;
+  /** This code and test have already run here: "nothing has run" would be false. */
+  seenBefore?: boolean;
+  /** This code has already run here on some test: nothing on screen may say nothing has run. */
+  codeRan?: boolean;
+  /** D60: a part was clicked on the drawing: the code drawer jumps to its lines. */
+  onPart?: (name: string) => void;
   /** A code box was chosen as the function to test. */
   onTestFunction?: (name: string) => void;
-  /** Words in the corners (Anatomy's card: Fig n, title, hint, readout). */
+  /** The file and its size, above the name. */
   title: string;
-  /** Called with each mark's anchor position, so the page can lay out its own list. */
+  /** The file itself: the chart's call sites and waits are read from it. */
+  source: string;
+  language: "js" | "ts" | "py";
+  outline: FileOutline;
+  fileName: string;
   children?: ReactNode;
   /**
-   * X3 hook: extra marks pinned to parts: plain code's failure labels. D50 (X3 review round 2): shown before betting too
-   * (they are facts about the code's text, and every bettor's text carries the same labels); after a run they follow
-   * the marks toggle like the run's own marks. They never carry run data before a run exists.
+   * X3 hook: plain code's failure labels, on the parts they are about. D50 (X3 review round 2): shown before betting too
+   * (they are facts about the code's text, and every bettor's text carries the same labels).
    */
   extraMarks?: { anchor: string; text: string }[];
-  /** A panel (the bet pop-up) is open on the right: the drawing moves left to stay in view. */
+  /** A panel (the bet pop-up) is open beside the drawing. */
   side?: boolean;
   /** Words under the judged answers (e.g. Muse Wonder's sentence, shown only after the run). */
   footnote?: ReactNode;
@@ -205,10 +81,6 @@ export interface BenchStageProps {
   headnote?: ReactNode;
 }
 
-/** U2: about how long the steps of one replay take together (ms of real time), before the intro and the end. */
-export const PLAY_TOTAL_MS = 6000;
-/** U2: how long "Atlas calls the function" shows before the first step. */
-const INTRO_MS = 1100;
 /** U2: a round number of ms at or above `ms`, for a dial rescaled to a run that went past the test's own dial. */
 export function roundUp(ms: number): number {
   const p = 10 ** Math.floor(Math.log10(Math.max(1, ms)));
@@ -216,363 +88,235 @@ export function roundUp(ms: number): number {
   return 10 * p;
 }
 
-export function BenchStage({ model, theme, after = null, onTestFunction, title, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null }: BenchStageProps) {
+export function BenchStage({ seenBefore = false, codeRan = false, model, theme, after = null, onPart, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null }: BenchStageProps) {
   const playedRef = useRef(onPlayed);
   playedRef.current = onPlayed;
   const dark = useDarkScheme();
   const still = useReducedMotion();
   const shown = theme ?? (dark ? "dark" : "light");
-  const built = useFigure(model);
-  const rootRef = useRef<HTMLDivElement | null>(null);
-  const svgHost = useRef<HTMLDivElement | null>(null);
-  const [anchors, setAnchors] = useState<Record<string, Anchor & { w: number; h: number }>>({});
   const [hover, setHover] = useState<string | null>(null);
   const [pinned, setPinned] = useState<string | null>(null);
-  const [view, setView] = useState({ s: 1, x: 0, y: 0 });
-  const [chips, setChips] = useState<Record<string, string>>({});
-  const [clockMs, setClockMs] = useState<number | null>(null);
   const [marksOn, setMarksOn] = useState(false);
   const [focusMark, setFocusMark] = useState<string | null>(null);
-  const [dialScale, setDialScale] = useState<number | null>(null);
-  const svgReady = "svg" in built ? built.svg : null;
+  const [step, setStep] = useState<string | null>(null);
+  const [panHint, setPanHint] = useState(false);
+  const [playing, setPlaying] = useState(false);
 
-  // Anchors: each box's top centre in SVG units, measured from its hit path.
-  useLayoutEffect(() => {
-    const host = svgHost.current;
-    if (!host || !svgReady) return;
-    const out: Record<string, Anchor & { w: number; h: number }> = {};
-    for (const el of host.querySelectorAll<SVGGraphicsElement>("[data-hit]")) {
-      const id = el.getAttribute("data-hit")!;
-      try {
-        const b = el.getBBox();
-        out[id] = { x: b.x + b.width / 2, y: b.y, w: b.width, h: b.height };
-      } catch {
-        out[id] = { x: W / 2, y: H / 2, w: 0, h: 0 };
-      }
+  // ---- the chart: drawn from the bench model, with no run in it ----
+  const labelsKey = JSON.stringify(extraMarks);
+  const chart = useMemo(() => {
+    const spec = benchSpec(model, { fileName, outline, source, language, labels: extraMarks, seed: `chart:${fileName}` });
+    return { ...spec, title: undefined, kicker: undefined, subtitle: undefined } as typeof spec; // the page's own header says these
+  }, [model, fileName, outline, source, language, labelsKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const chartMount = useRef<Mounted | null>(null);
+  const known = useRef<{ nodes: Set<string>; edges: Set<string> } | null>(null);
+  const onChart = (m: Mounted | null, narrow: boolean) => {
+    chartMount.current = m;
+    const p = m?.player;
+    if (m) setPanHint(narrow && m.needsPan());
+    if (!p) return;
+    // The first time the chart draws itself on. When a test adds devices, only what is new is drawn; the rest is already there.
+    const nodes = new Set(chart.nodes.map((n) => n.id));
+    const edges = new Set(chart.edges.map((e) => e.id));
+    const was = known.current;
+    known.current = { nodes, edges };
+    p.showAll();
+    if (after) return;
+    if (!was) void p.entrance();
+    else {
+      const newNodes = new Set([...nodes].filter((n) => !was.nodes.has(n)));
+      const newEdges = new Set([...edges].filter((e) => !was.edges.has(e)));
+      if (newNodes.size || newEdges.size) void p.entrance({ nodes: newNodes, edges: newEdges });
     }
-    setAnchors(out);
-  }, [svgReady]);
-
-  // The tested function and its devices are lit (the rest steps back), as the explorer's pick does.
-  useEffect(() => {
-    if (rootRef.current && svgReady) applyPick(rootRef.current, model.boxes, model.tested);
-  }, [svgReady, model]);
-
-  const needle = useCallback(
-    (frac: number) => {
-      if (!("svg" in built)) return;
-      const d = built.dials[CLOCK_ID];
-      const el = svgHost.current?.querySelector(`[data-needle="${attr(CLOCK_ID)}"] path`);
-      if (d && el) el.setAttribute("d", dialNeedle(d, built.P, frac));
-    },
-    [built],
-  );
-  const lamp = (id: string, on: boolean) => {
-    const el = svgHost.current?.querySelector(`[data-lamp="${attr(id)}"]`);
-    if (el) el.toggleAttribute("data-on", on);
-  };
-  const lineLit = (ids: string | null, on: boolean) => {
-    if (!ids) return;
-    // U3: a step may light several cables (the whole certain call path), one id per line.
-    for (const id of ids.split("\n")) for (const el of svgHost.current?.querySelectorAll(`[data-line="${attr(id)}"]`) ?? []) el.classList.toggle("u1-live", on);
   };
 
-  // The run, played on the drawing. Without `after`: the rest state (lamps off, needle at 0, no chips, no marks).
-  // U2 (D53): a watchable pace (about 5 to 10 s in all): Atlas calls the function, then each call lights its device,
-  // each wait lights the parts that wait and moves the needle, and the ending shows on the function. "Play the run
-  // again" (a new token) plays it all again.
+  // ---- the path: only from `after` ----
+  const pathSpec = useMemo(() => {
+    if (!after) return null;
+    // D60: one ring or one tick on the drawing, for the question that leads the moment. The list beside it holds every other answer.
+    const lead = momentOf(after.marks, after.run, language)?.measures ?? null;
+    const spec = whatHappened({ run: after.run, experiment: after.experiment, bets: after.bets.filter((b) => b.who === "human" && b.measures === lead), verdicts: [...after.verdicts], origin: "this-run", ...(after.helpers ? { helpers: after.helpers } : {}), seed: `path:${after.run.id}` });
+    return { ...spec, title: undefined, kicker: undefined, subtitle: undefined } as typeof spec;
+  }, [after?.run, after?.experiment, after?.bets, after?.verdicts, after?.helpers, after?.marks]); // eslint-disable-line react-hooks/exhaustive-deps
+  /** undefined: not drawn yet. null: refused. A mount with no player: the plain list. The last two have nothing to play. */
+  const [pathMount, setPathMount] = useState<Mounted | null | undefined>(undefined);
+  /** Ends the pause while the chart moves aside, so a click during it counts. */
+  const endPause = useRef<(() => void) | null>(null);
+  const skipAsked = useRef(false);
+
+  // The run, played as a story. Without `after`: nothing plays.
   useEffect(() => {
-    setChips({});
-    setClockMs(null);
     setMarksOn(false);
-    setDialScale(null);
-    if (!svgReady) return;
-    const host = svgHost.current;
-    for (const el of host?.querySelectorAll("[data-lamp]") ?? []) el.removeAttribute("data-on");
-    for (const el of host?.querySelectorAll(".u1-live") ?? []) el.classList.remove("u1-live");
-    needle(0);
+    setStep(null);
     if (!after) return;
-    const { script } = after;
-    // The dial's scale: the test's own (before betting) unless the run went past it; then a round number above the run's
-    // end, said on the clock chip, and the test's tick marks (which belong to the old scale) are hidden.
-    const scale = script.dialEndMs !== null && script.dialEndMs > after.dialFullMs ? roundUp(script.dialEndMs) : after.dialFullMs;
-    if (scale !== after.dialFullMs) setDialScale(scale);
-    const frac = (ms: number) => Math.min(1, ms / Math.max(1, scale));
-    const partsLit = (ids: readonly string[], on: boolean) => {
-      for (const id of ids) for (const el of host?.querySelectorAll(`[data-of="${attr(id)}"]:not([data-line])`) ?? []) el.classList.toggle("u1-live", on);
-    };
-    const endState = () => {
-      const c: Record<string, string> = { ...script.totals };
-      if (script.ending && model.tested) c[model.tested] = script.ending;
-      setChips(c);
-      if (script.dialEndMs !== null) {
-        needle(frac(script.dialEndMs));
-        setClockMs(script.dialEndMs);
-      }
+    const end = () => {
+      setPlaying(false);
+      setStep(null);
       setMarksOn(true);
       playedRef.current?.();
     };
-    if (still || script.notShown !== null) {
-      endState();
+    const p = pathMount?.player;
+    if (pathSpec && after.script.notShown === null && pathSpec.notShown === undefined && pathMount !== undefined && !p) {
+      // R3 review B4: too long to draw, or refused. There is no story to play, and the verdict always appears.
+      end();
       return;
     }
-    const timers: number[] = [];
-    const later = (ms: number, fn: () => void) => timers.push(window.setTimeout(fn, ms));
-    const raf = { current: 0 };
-    let from = 0;
-    const turn = (to: number, over: number) => {
-      // One needle motion at a time: a newer turn cancels the older one, so a slow frame never lands an old value last.
-      cancelAnimationFrame(raf.current);
-      const start = performance.now();
-      const a = from;
-      from = to;
-      const step = (now: number) => {
-        const t = Math.min(1, (now - start) / over);
-        const e = 1 - (1 - t) ** 3;
-        needle(frac(a + (to - a) * e));
-        if (t < 1) raf.current = requestAnimationFrame(step);
-      };
-      raf.current = requestAnimationFrame(step);
+    if (!pathSpec || after.script.notShown !== null || pathSpec.notShown !== undefined) {
+      if (pathSpec?.notShown !== undefined || after.script.notShown !== null) end();
+      return;
+    }
+    if (!p) return; // the path's drawing arrives on the next render
+    let live = true;
+    const chartPlayer = chartMount.current?.player ?? null;
+    const lit = (s: SpecStep) => {
+      setStep(s.words ?? null);
+      if (s.device === "clock") void chartPlayer?.sweep(CLOCK_ID, s.ms);
+      else if (s.device) void chartPlayer?.flash(deviceId(s.device), 620);
     };
-    const steps = script.steps;
-    const stepMs = Math.round(Math.min(2400, Math.max(260, PLAY_TOTAL_MS / Math.max(1, steps.length))));
-    // U3 item 7: the first step waits until the pop-up has slid away, so the whole play is seen.
-    const START = 700;
-    // Step 0: Atlas calls the function (it lights; the clock reads 0 ms).
-    // U3: a decorator's wrapper runs whenever the decorated function is called, so it lights with it.
-    const testedPart = model.tested ? model.parts[model.tested] : undefined;
-    const entry = model.tested ? [model.tested, ...(testedPart?.kind === "code" ? (testedPart.wrappedBy ?? []) : [])] : [];
-    later(START, () => {
-      if (model.tested) {
-        partsLit(entry, true);
-        setChips({ [model.tested]: `Atlas calls ${model.tested}` });
-      }
-      setClockMs(0);
-    });
-    later(START + INTRO_MS - 120, () => model.tested && partsLit(entry, false));
-    steps.forEach((s, i) => {
-      const t0 = START + INTRO_MS + i * stepMs;
-      later(t0, () => {
-        if (s.device) lamp(s.device, true);
-        lineLit(s.line, true);
-        partsLit(s.parts, true);
-        const where = s.device ?? s.parts[0] ?? model.tested;
-        if (where) setChips((c) => ({ ...(s.kind === "end" ? { ...script.totals } : c), [where]: s.words }));
-        if (script.dialEndMs !== null || s.kind !== "end") {
-          turn(s.at, stepMs * 0.7);
-          setClockMs(s.at);
-        }
-      });
-      if (s.kind !== "end")
-        later(t0 + stepMs * 0.7, () => {
-          if (s.device) lamp(s.device, false);
-          lineLit(s.line, false);
-          partsLit(s.parts, false);
+    void (async () => {
+      skipAsked.current = false;
+      setPlaying(true);
+      p.rewind();
+      // D60: about 5 s to the ring, whatever the path's length, up to about 6 s. The final ring keeps its pace: it is the payoff.
+      p.setRunPace(Math.max(0.12, Math.min(0.85, 4400 / Math.max(1, pathSpec.steps.length * 1000))));
+      // The chart moves aside first, so the whole story is seen.
+      if (!still && !p.reduced) {
+        await new Promise<void>((r) => {
+          const t = setTimeout(r, 420);
+          endPause.current = () => {
+            clearTimeout(t);
+            r();
+          };
         });
-    });
-    const end = START + INTRO_MS + steps.length * stepMs;
-    later(end + 700, () => {
-      cancelAnimationFrame(raf.current);
-      for (const el of host?.querySelectorAll(".u1-live") ?? []) el.classList.remove("u1-live");
-      endState();
-    });
+        endPause.current = null;
+      }
+      for (let i = 0; i < pathSpec.steps.length && live; i++) {
+        lit(pathSpec.steps[i]!);
+        // The thread takes the centre and the view follows its head.
+        pathMount?.bringIntoView(pathSpec.steps[i]!.nodes[0] ?? "", !skipAsked.current);
+        const played = p.playStep(i);
+        // A key pressed in the pause before the first step still skips: nothing was animating yet to cut short.
+        if (skipAsked.current) p.skip();
+        await played;
+      }
+      if (!live) return;
+      setStep(null);
+      setMarksOn(true);
+      p.setRunPace(1);
+      // The run's end card, or the card with the ring, is on screen when it finishes.
+      pathMount?.bringIntoView(pathSpec.marks[0]?.on ?? pathSpec.nodes[pathSpec.nodes.length - 1]?.id ?? "");
+      for (const m of pathSpec.marks) if (live) await p.landMark(m);
+      if (!live) return;
+      p.showCaptions();
+      end();
+    })();
     return () => {
-      timers.forEach((t) => clearTimeout(t));
-      cancelAnimationFrame(raf.current);
+      live = false;
+      p.skip();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [after?.token, svgReady, still]);
+  }, [after?.token, pathMount, pathSpec, still]);
 
-  // U3 item 7: after any label changes (a chip, the marks, a zoom), move labels off cables and boxes.
-  useLayoutEffect(() => {
-    if (!rootRef.current || !svgReady) return;
-    // Placement only tidies labels: if a browser lacks what it measures with, labels stay at their anchors and the page lives.
-    try {
-      placeLabels(rootRef.current, view.s);
-    } catch {
-      rootRef.current.setAttribute("data-labels-stuck", "not measured");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chips, marksOn, clockMs, anchors, view.s, view.x, view.y, extraMarks, svgReady, side, after?.token, dialScale]);
+  const skip = () => {
+    skipAsked.current = true;
+    endPause.current?.();
+    pathMount?.player?.skip();
+    chartMount.current?.player?.skip();
+  };
+  // D60: any key skips while the run plays (a key with a modifier is the browser's).
+  useEffect(() => {
+    if (!playing) return;
+    const onAny = (e: globalThis.KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || e.key === "Shift" || e.key === "Tab" || document.querySelector<HTMLElement>(".u1-fill")?.hidden === true) return;
+      // A skip key only skips: it never goes on to do anything else.
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      skip();
+    };
+    window.addEventListener("keydown", onAny, true);
+    return () => window.removeEventListener("keydown", onAny, true);
+  });
+  const onRootPointerUp = (e: RPointerEvent<HTMLDivElement>) => {
+    if ((e.target as Element).closest?.("button, a, input, select, summary, textarea, .u1-card")) return;
+    if (playing) skip();
+  };
 
-  // ---- pan and zoom ----
-  const drag = useRef<{ x: number; y: number; vx: number; vy: number; moved: boolean; pointers: Map<number, { x: number; y: number }>; pinch: number | null } | null>(null);
-  const zoomBy = (f: number) => setView((v) => ({ ...v, s: Math.min(4, Math.max(0.6, v.s * f)) }));
-  const onWheel = (e: WheelEvent<HTMLDivElement>) => {
-    if (!e.ctrlKey && !e.metaKey && Math.abs(e.deltaY) < 1) return;
-    zoomBy(e.deltaY < 0 ? 1.1 : 1 / 1.1);
+  // ---- a part's card ----
+  const nodeAt = (e: { target: EventTarget }) => {
+    const el = (e.target as Element).closest?.("[data-node]");
+    return el ? idFromAttr(el.getAttribute("data-node")!) : null;
   };
-  const onPointerDown = (e: RPointerEvent<HTMLDivElement>) => {
-    if ((e.target as Element).closest(".u1-card, .u1-zoom, .u1-pin")) return;
-    const d = drag.current ?? { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, moved: false, pointers: new Map(), pinch: null };
-    d.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (d.pointers.size === 1) Object.assign(d, { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, moved: false });
-    drag.current = d;
-  };
-  const onPointerMove = (e: RPointerEvent<HTMLDivElement>) => {
-    const d = drag.current;
-    if (!d) {
-      const hit = (e.target as Element).closest?.("[data-hit]");
-      setHover(hit ? hit.getAttribute("data-hit") : null);
-      return;
-    }
-    d.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (d.pointers.size === 2) {
-      const [a, b] = [...d.pointers.values()];
-      const dist = Math.hypot(a!.x - b!.x, a!.y - b!.y);
-      if (d.pinch !== null) zoomBy(dist / d.pinch);
-      d.pinch = dist;
-      d.moved = true;
-      return;
-    }
-    const dx = e.clientX - d.x;
-    const dy = e.clientY - d.y;
-    if (Math.abs(dx) + Math.abs(dy) > 4) d.moved = true;
-    if (d.moved) setView((v) => ({ ...v, x: d.vx + dx, y: d.vy + dy }));
-  };
-  const onPointerUp = (e: RPointerEvent<HTMLDivElement>) => {
-    const d = drag.current;
-    if (!d) return;
-    d.pointers.delete(e.pointerId);
-    if (d.pointers.size > 0) return;
-    drag.current = null;
-    if (!d.moved) {
-      const hit = (e.target as Element).closest?.("[data-hit]");
-      setPinned(hit ? hit.getAttribute("data-hit") : null);
-    }
-  };
+  const onMove = (e: RPointerEvent<HTMLDivElement>) => setHover(after ? null : nodeAt(e));
   const order = model.boxes.map((b) => b.id);
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === " " && playing) {
+      e.preventDefault();
+      skip();
+    }
+    if (after) return;
     if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
       e.preventDefault();
       const i = pinned ? order.indexOf(pinned) : -1;
       const n = order.length;
       setPinned(order[i < 0 ? (e.key === "ArrowRight" ? 0 : n - 1) : (i + (e.key === "ArrowRight" ? 1 : n - 1)) % n]!);
-    } else if (e.key === "Escape") setPinned(null);
-    else if (e.key === "+" || e.key === "=") zoomBy(1.2);
-    else if (e.key === "-") zoomBy(1 / 1.2);
-    else if (e.key === "0") setView({ s: 1, x: 0, y: 0 });
+    }
   };
-
+  // A pinned card belongs to looking at the drawing. It closes when the bet opens or a run starts, and Escape closes it first.
+  const hasRun = after !== null;
+  useEffect(() => setPinned(null), [side, hasRun]);
+  useEffect(() => {
+    if (!pinned) return;
+    const onEsc = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== "Escape" || document.querySelector(".u1-proof")) return;
+      // First in line and marked as used: this key has closed the top-most thing, so nothing below closes too.
+      e.preventDefault();
+      setPinned(null);
+    };
+    window.addEventListener("keydown", onEsc, true);
+    return () => window.removeEventListener("keydown", onEsc, true);
+  }, [pinned]);
   const cardId = pinned ?? hover;
-  const at = (a: Anchor) => ({ left: `${(a.x / W) * 100}%`, top: `${(a.y / H) * 100}%` });
-  const marksByAnchor = useMemo(() => {
-    const m = new Map<string, Mark[]>();
-    for (const mk of after?.marks ?? []) m.set(mk.anchor, [...(m.get(mk.anchor) ?? []), mk]);
-    return m;
-  }, [after]);
+  const stage = !after ? "structure" : marksOn ? "verdict" : "run";
   const readout = after && marksOn ? marksReadout(after.marks) : model.tested ? `testing ${model.tested}` : `${model.boxes.length} ${model.boxes.length === 1 ? "part" : "parts"} · ${model.lines.length} ${model.lines.length === 1 ? "join" : "joins"}`;
 
   return (
-    <div className={`iso u1-root${marksOn ? " u1-marked" : ""}`} data-theme={shown === "light" ? "light" : undefined} ref={rootRef} data-testid="bench-stage" data-pop={side && !after ? "" : undefined} data-rescaled={dialScale !== null ? "" : undefined} data-phase={after ? (marksOn ? "marked" : "playing") : "rest"} data-side={side || (after && marksOn) ? "" : undefined}>
-      <div className="iso-plate-corners u1-corners" aria-hidden="true">
-        <span className="iso-plate-corner" data-corner="fig">Fig U1</span>
-        <span className="iso-plate-corner" data-corner="title">{title}</span>
-        <span className="iso-plate-corner" data-corner="hint">drag to move · pinch or ctrl+scroll to zoom · Tab, then ← →</span>
-        <span className="iso-plate-corner" data-corner="readout" data-readout="">
-          {readout}
-        </span>
+    <div className={`rr-host u1-root${marksOn ? " u1-marked" : ""}`} data-theme={shown} data-stage={stage} data-phase={!after ? "rest" : marksOn ? "marked" : "playing"} data-pop={side && !after ? "" : undefined} data-testid="bench-stage" onPointerUp={onRootPointerUp} onKeyDown={onKey} tabIndex={-1}>
+      <header className="r-head">
+        <p className="r-kick">{title}</p>
+        <h1 className="r-name">{model.tested ?? fileName}</h1>
+        <p className="r-sub" data-testid="r-sub">
+          {after ? (marksOn ? "" : STAGE_WORDS.playing) : seenBefore ? "this code and test have already run here" : codeRan ? (model.parts[CLOCK_ID] ? "this code has run here; this test has not" : "what calls what. This code has already run here.") : model.parts[CLOCK_ID] ? "the code, and what Atlas will plug in. Nothing has run." : "what calls what, before anything has run"}
+        </p>
+      </header>
+      <p id="bench-described" className="rr-unseen" data-testid="bench-described">{model.plainLabel}</p>
+      <div className="r-viewport r-chart" role="group" aria-describedby="bench-described" aria-label="The drawing of your code. Tab to a part; Enter picks it; arrows walk its joins; plus and minus zoom." onPointerMove={onMove} onPointerLeave={() => setHover(null)} data-testid="bench-viewport">
+        {model.notShown !== null ? (
+          <p className="u1-notice" role="note" data-testid="bench-not-drawn">
+            {model.notShown}
+          </p>
+        ) : (
+          <Drawing spec={chart} theme={shown} className="u1-svg r-sheet" maxScale={1.2} minScale={0.3} hover={!after} onMount={onChart} onSelect={(id) => {
+              setPinned((p) => (p === id ? null : id));
+              onPart?.(id);
+            }} />
+        )}
       </div>
-      <div
-        className="u1-viewport ex"
-        tabIndex={0}
-        role="group"
-        aria-label="The drawing of your code. Left and right arrows pick a part; Escape clears; plus and minus zoom."
-        onWheel={onWheel}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={() => (drag.current = null)}
-        onPointerLeave={() => setHover(null)}
-        onKeyDown={onKey}
-        data-testid="bench-viewport"
-      >
-        <div className="u1-pan" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.s})` }}>
-          <div className="u1-figure">
-            {"svg" in built ? (
-              <div className="u1-svg" ref={svgHost} dangerouslySetInnerHTML={{ __html: built.svg }} />
-            ) : "error" in built ? (
-              <p className="u1-notice" role="note" data-testid="bench-not-drawn">
-                {built.error}
-              </p>
-            ) : (
-              <p className="u1-notice" role="status" data-testid="bench-drawing">
-                Drawing your code…
-              </p>
-            )}
-            {/* Run chips: only from `after` (never before the bets are sealed). */}
-            {after &&
-              Object.entries(chips).map(([id, words]) =>
-                anchors[id] ? (
-                  <span key={`chip-${id}`} className="u1-chip" data-run="" data-of={id} style={at(anchors[id]!)} data-testid={`chip-${id}`}>
-                    {words}
-                  </span>
-                ) : null,
-              )}
-            {after && clockMs !== null && anchors[CLOCK_ID] && (
-              <span className="u1-chip u1-chip-clock" data-run="" style={at(anchors[CLOCK_ID]!)} data-testid="chip-clock">
-                {`${clockMs.toLocaleString("en-US")} ms${after.script.atLimit && marksOn ? " (Atlas stopped watching; still running)" : ""}${dialScale !== null ? ` · dial now 0–${dialScale.toLocaleString("en-US")} ms` : ""}`}
-              </span>
-            )}
-            {after &&
-              marksOn &&
-              [...marksByAnchor.entries()].map(([anchor, list]) =>
-                anchors[anchor] ? (
-                  <div
-                    key={`pins-${anchor}`}
-                    className="u1-pins"
-                    style={model.parts[anchor]?.kind === "code" ? at({ x: anchors[anchor]!.x, y: anchors[anchor]!.y + anchors[anchor]!.h }) : at({ x: anchors[anchor]!.x + anchors[anchor]!.w / 2, y: anchors[anchor]!.y + anchors[anchor]!.h / 2 })}
-                    data-beside={model.parts[anchor]?.kind === "code" ? undefined : ""}
-                    data-run=""
-                  >
-                    {list.map((mk) => {
-                      const you = mk.picks.find((p) => p.who === "human");
-                      return (
-                        <button
-                          type="button"
-                          key={mk.measures}
-                          className="u1-pin"
-                          data-outcome={you?.outcome ?? "cant_check"}
-                          aria-pressed={focusMark === mk.measures}
-                          aria-label={`${after.marks.indexOf(mk) + 1}. ${mk.question}: ${you ? OUTCOME_WORDS[you.outcome] : "no pick"}`}
-                          onClick={() => setFocusMark((f) => (f === mk.measures ? null : mk.measures))}
-                          data-testid={`pin-${mk.measures}`}
-                        >
-                          <Glyph outcome={you?.outcome ?? "cant_check"} />
-                          <span className="u1-pin-n" aria-hidden="true">
-                            {after.marks.indexOf(mk) + 1}
-                          </span>
-                          <span className="u1-pin-t">{`${mk.question}: ${you ? OUTCOME_WORDS[you.outcome] : "no pick"}`}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : null,
-              )}
-            {(after ? marksOn : true) &&
-              extraMarks.map((x, i) =>
-                anchors[x.anchor] ? (
-                  <span key={`x-${i}`} className="u1-chip u1-chip-label" data-label-mark="" style={{ ...at(anchors[x.anchor]!), marginTop: `${28 * extraMarks.slice(0, i).filter((y) => y.anchor === x.anchor).length}px` }} data-testid={`label-mark-${i}`}>
-                    {x.text}
-                  </span>
-                ) : null,
-              )}
-          </div>
+      {pathSpec && (
+        <div className="r-viewport r-path" data-testid="bench-path">
+          <Drawing spec={pathSpec} theme={shown} className="r-sheet" maxScale={1.08} minScale={typeof window !== "undefined" && window.innerWidth <= 760 ? 0.66 : 0.5} hover={false} onPending={() => setPathMount(undefined)} onMount={(m) => setPathMount(m)} />
         </div>
-        {cardId && anchors[cardId] && model.parts[cardId] && <PartCard id={cardId} part={model.parts[cardId]!} tested={model.tested} hasTest={Boolean(model.parts[CLOCK_ID])} python={/\.py$/.test(String((model as { source?: unknown }).source ?? ""))} pinned={pinned === cardId} onTest={onTestFunction} onClose={() => setPinned(null)} canChange={!after} />}
-      </div>
-      <div className="u1-zoom" role="group" aria-label="zoom">
-        <button type="button" onClick={() => zoomBy(1.25)} aria-label="Zoom in">
-          +
-        </button>
-        <button type="button" onClick={() => zoomBy(0.8)} aria-label="Zoom out">
-          −
-        </button>
-        <button type="button" onClick={() => setView({ s: 1, x: 0, y: 0 })} aria-label="Fit the drawing">
-          Fit
-        </button>
-      </div>
-      {after && marksOn && <MarkList marks={after.marks} focus={focusMark} onFocus={setFocusMark} footnote={footnote} headnote={headnote} />}
+      )}
+      <p className="r-step" role="status" aria-live="polite" data-testid="run-step">
+        {step ?? ""}
+      </p>
+      {after && !marksOn && <p className="r-skip" data-testid="r-skip">any key skips</p>}
+      {panHint && !after && (
+        <p className="r-pan-hint" data-testid="r-pan-hint">
+          drag to move, pinch to zoom
+        </p>
+      )}
+      {!after && cardId && model.parts[cardId] && <PartCard id={cardId} part={model.parts[cardId]!} tested={model.tested} hasTest={Boolean(model.parts[CLOCK_ID])} python={language === "py"} pinned={pinned === cardId} {...(onTestFunction ? { onTest: onTestFunction } : {})} canChange={!after} onClose={() => setPinned(null)} />}
+      {after && marksOn && <MarkList marks={after.marks} focus={focusMark} onFocus={setFocusMark} footnote={footnote} headnote={headnote} moment={momentOf(after.marks, after.run, language)} readout={marksReadout(after.marks)} />}
       {children}
     </div>
   );
@@ -638,46 +382,110 @@ export function sharedReason(marks: readonly Mark[]): string | null {
   return all[0]!.slice("can't check: ".length);
 }
 
-function MarkList({ marks, focus, onFocus, footnote, headnote }: { marks: readonly Mark[]; focus: string | null; onFocus: (m: string | null) => void; footnote: ReactNode; headnote: ReactNode }) {
-  const same = sharedReason(marks);
+/** D60: your bet and what the run did. The run's fact is the largest words on the screen. */
+export function MomentView({ moment, stranger = false }: { moment: Moment; /** Whoever is looking did not place this bet. */ stranger?: boolean }) {
   return (
-    <section className="u1-marks" aria-label="How each answer was judged" data-testid="mark-list">
-      <p className="u1-headline" data-testid="u1-headline">
-        {headlineOf(marks)}
-      </p>
-      {headnote}
-      {same && (
-        <p className="u1-samewhy" data-testid="u1-same-reason">
-          {RESULT_WORDS.sameReason(same)}
+    <section className="m-moment" data-kind={moment.kind} aria-label="What you bet and what the run did" data-testid="moment">
+      {moment.you !== null && (
+        <p className="m-you">
+          <span className="m-k">{stranger ? "The bet" : "You bet"}</span>
+          <span className="m-you-v" data-testid="moment-you">{moment.you}</span>
         </p>
       )}
-      <h2>Judged by plain code</h2>
-      <ul>
-        {marks.map((m) => (
-          <li key={m.measures} data-focus={focus === m.measures ? "" : undefined} data-testid={`mark-${m.measures}`}>
-            <button type="button" className="u1-mark-head" onClick={() => onFocus(focus === m.measures ? null : m.measures)} aria-expanded={focus === m.measures}>
-              {`${marks.indexOf(m) + 1}. ${m.question}`}
-            </button>
-            <p className="u1-measured">
-              <span className="u1-k">The run:</span> {same ? RESULT_WORDS.seeAbove : m.measured}
-            </p>
-            <ul className="u1-picks">
-              {m.picks.map((p) => (
-                <li key={p.who}>
-                  <Glyph outcome={p.outcome} />
-                  <span className="u1-who" title={p.name}>
-                    {shortName(p.name)}
-                  </span>
-                  <span className="u1-pick">{p.pick}</span>
-                  <span className="u1-out">{OUTCOME_WORDS[p.outcome]}</span>
-                  {p.outcome === "cant_check" && p.reason && !same && p.reason !== m.measured.replace(/^can't check: /, "") && focus === m.measures && <span className="u1-why">{p.reason}</span>}
-                </li>
-              ))}
-            </ul>
+      <p className="m-run">
+        <span className="m-k">The run</span>
+        <span className="m-run-v" data-testid="moment-run">{moment.run}</span>
+      </p>
+      {moment.bettors.length > 0 && (
+        <>
+        <p className="m-covers" data-testid="moment-covers">{`On this question: ${moment.question ?? ""}`}</p>
+        <ul className="m-bettors" aria-label={moment.question ?? "the bets"} data-testid="moment-bettors">
+          {moment.bettors.map((b) => (
+            <li key={b.who}>
+              <Glyph outcome={b.outcome} />
+              <span className="m-who" title={b.name}>{shortName(b.name)}</span>
+              <span className="m-pick">{b.pick}</span>
+              <span className="m-out">{OUTCOME_WORDS[b.outcome]}</span>
+            </li>
+          ))}
+        </ul>
+        </>
+      )}
+    </section>
+  );
+}
+
+function MarkRow({ m, same, focus, onFocus, hidden = false }: { m: Mark; same: string | null; focus: string | null; onFocus: (m: string | null) => void; hidden?: boolean }) {
+  return (
+    <li hidden={hidden} data-focus={focus === m.measures ? "" : undefined} data-testid={`mark-${m.measures}`}>
+      <button type="button" className="u1-mark-head" onClick={() => onFocus(focus === m.measures ? null : m.measures)} aria-expanded={focus === m.measures}>
+        {m.question}
+      </button>
+      <p className="u1-measured">
+        <span className="u1-k">The run:</span> {same ? RESULT_WORDS.seeAbove : m.measured}
+      </p>
+      <ul className="u1-picks">
+        {m.picks.map((p) => (
+          <li key={p.who}>
+            <Glyph outcome={p.outcome} />
+            <span className="u1-who" title={p.name}>
+              {shortName(p.name)}
+            </span>
+            <span className="u1-pick">{p.pick}</span>
+            <span className="u1-out">{OUTCOME_WORDS[p.outcome]}</span>
+            {p.outcome === "cant_check" && p.reason && !same && p.reason !== m.measured.replace(/^can't check: /, "") && focus === m.measures && <span className="u1-why">{p.reason}</span>}
           </li>
         ))}
       </ul>
-      {footnote}
+    </li>
+  );
+}
+
+function MarkList({ marks, focus, onFocus, footnote, headnote, moment, readout }: { marks: readonly Mark[]; focus: string | null; onFocus: (m: string | null) => void; footnote: ReactNode; headnote: ReactNode; moment: Moment | null; readout: string }) {
+  const same = sharedReason(marks);
+  // Questions nobody could check fold to one line with their reason: a real result must not read as a shrug.
+  const checkable = marks.filter((m) => !m.picks.every((p) => p.outcome === "cant_check"));
+  const unchecked = marks.filter((m) => m.picks.every((p) => p.outcome === "cant_check"));
+  const rest = checkable.filter((m) => m.measures !== moment?.measures);
+  const uncheckedWhy = unchecked[0]?.measured.replace(/^can't check: /, "") ?? "";
+  return (
+    <section className="u1-marks" aria-label="How each answer was judged" data-testid="mark-list">
+      <div className="m-top">
+        {moment && <MomentView moment={moment} />}
+        <p className="m-count" data-testid="m-count">{readout}</p>
+      </div>
+      <div className="m-pane" data-testid="m-pane">
+        {/* The plain counts stay for a screen reader; the moment is what the eye reads. */}
+        <p className="rr-unseen" data-testid="u1-headline">
+          {headlineOf(marks)}
+        </p>
+        {headnote}
+        {same && (
+          <p className="u1-samewhy" data-testid="u1-same-reason">
+            {RESULT_WORDS.sameReason(same)}
+          </p>
+        )}
+        <details className="m-fold m-others" data-testid="m-others" open={rest.length === 1} hidden={rest.length === 0}>
+          <summary>{`Judged by plain code: ${rest.length} more ${rest.length === 1 ? "answer" : "answers"}`}</summary>
+          <ul>
+            {checkable.map((m) => (
+              // The question that leads is already at the top, whole.
+              <MarkRow key={m.measures} m={m} same={same} focus={focus} onFocus={onFocus} hidden={m.measures === moment?.measures} />
+            ))}
+          </ul>
+        </details>
+        {unchecked.length > 0 && (
+          <details className="m-fold" data-testid="m-cant-fold">
+            <summary>{`${unchecked.length} can't check${uncheckedWhy && !same ? `: ${uncheckedWhy}` : ""}`}</summary>
+            <ul>
+              {unchecked.map((m) => (
+                <MarkRow key={m.measures} m={m} same={same} focus={focus} onFocus={onFocus} />
+              ))}
+            </ul>
+          </details>
+        )}
+        {footnote}
+      </div>
     </section>
   );
 }
@@ -727,7 +535,7 @@ function PartCard({ id, part, tested, hasTest, python, pinned, onTest, onClose, 
       ) : (
         <>
           <h3>Atlas's clock</h3>
-          <p className="u1-sub">{`Atlas's clock is simulated: waits cost no real time. The dial runs from 0 to ${part.fullMs.toLocaleString("en-US")} ms.${part.marks.length ? ` Its longer ticks mark ${part.marks.map((m) => `${m.toLocaleString("en-US")} ms`).join(" and ")}, from the test's own scripted waits.` : ""}`}</p>
+          <p className="u1-sub">{`Atlas's clock is simulated: waits cost no real time. ${part.marks.length ? ` Its longer ticks mark ${part.marks.map((m) => `${m.toLocaleString("en-US")} ms`).join(" and ")}, from the test's own scripted waits.` : ""}`}</p>
         </>
       )}
       {pinned && (

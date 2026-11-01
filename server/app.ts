@@ -72,9 +72,9 @@
 //   experiment, from the same prompt). GET /claimants says whether Muse Spark Open can be asked and,
 //   if not, why; when it cannot, its slot says "not available (<reason>)" and no bet is ever made up.
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { relative, resolve, sep } from "node:path";
+import { join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Hono, type Context } from "hono";
 import { z } from "zod";
@@ -85,6 +85,8 @@ import { createModelBudget, type ModelBudget } from "./meta/budget";
 import { principalClientKey, runAs } from "./access/context";
 import { createShareLimit, DEFAULT_GITHUB_SHARES, type ShareLimit } from "./access/shares";
 import { cleanRecord, type RefusalWriter } from "./proofs/refusals";
+import { createHelperStore, helperRun, HELPER_WORDS } from "./helpers";
+import { createPencil, PENCIL_WORDS, type PencilOptions } from "./pencil";
 import { checkAnswer, createBetStore, humanBetBody, humanBetsBody, MAX_BETS, MAX_EXPERIMENTS, modelSlotsOf, modelSlotView, modelSlotViews, newExperimentId, newRound, publicBet, sealedAfter, sealHumanBet, type BetStore, type ModelSlot, type Round } from "./bets";
 import type { ChatArgs, ChatResult } from "./meta/client";
 import { CLAIMANT_MODEL } from "./meta/roles/claimant";
@@ -375,6 +377,13 @@ export interface AppOptions {
   trustProxy?: boolean;
   /** S5: model rounds (experiments that ask the model) and investigations one client address may start an hour. */
   perClientModelLimits?: { modelRoundsPerHour?: number; investigationsPerHour?: number };
+  /** D60: where a shared link's card is kept, without its source (ATLAS_PROOFS_DIR/kept on a hosted server). */
+  keptProofsDir?: string;
+  /** D63: refuse a chain round before any paid call when there is no chain connection (server/index.ts turns this on). */
+  checkChainFirst?: boolean;
+  keptProofsCaps?: { days?: number; perClient?: number; total?: number; fileBytes?: number };
+  /** R3: tests start the pencil with a fake worker or shorter limits. */
+  pencil?: Omit<PencilOptions, "take">;
   /**
    * D06-01, POST /changes: the Fixer (Muse Code via `muse exec`, chat fallback). Absent: no model is
    * asked and the answer says so. `museExec: null` skips Muse Code (chat fallback only).
@@ -530,6 +539,10 @@ export function createApp(opts: AppOptions = {}) {
     return m;
   };
   const evmRun = opts.evmRun ?? defaultEvmRun;
+  // D63: whether a chain round could finish here. The real server asks this before it spends anything.
+  const chainReady = () => !opts.checkChainFirst || opts.evmRun !== undefined || Boolean(process.env.BASE_RPC_URL);
+  const NO_CHAIN = "This server has no chain connection, so a new Moonwell run can't happen here. Nothing was spent.";
+  const CHAIN_SILENT = "The chain connection did not answer, so a new Moonwell run can't happen right now. Nothing was spent.";
   // D22: one reader per app, so the facts are read once per fork block and reused by every later round.
   const readFacts: ((block: number) => Promise<MoonwellChainFacts>) | null =
     opts.chainFacts !== undefined
@@ -558,6 +571,7 @@ export function createApp(opts: AppOptions = {}) {
   const sandboxGate = opts.sandboxGate ?? createSandboxGate();
   /** E3 review B5/M4: which session made each pasted round (its source and its replays are that session's only). */
   const pastedOwners = new Map<string, string>();
+  const roundSessions = new Map<string, string>();
   const trustProxy = opts.trustProxy ?? trustProxyFromEnv();
   const proxyHops = trustedHopsFromEnv(); // E3 review r2 M4: read once; an invalid value throws here, not per request
   // G1: with an invite code, the per-address limits count by the code (server/access/context.ts), so a new address or a
@@ -633,7 +647,16 @@ export function createApp(opts: AppOptions = {}) {
     return r !== undefined && (r.status === "running" || (r.status === "open" && r.bets.some((b) => b.who === "human")));
   };
   const proofOf = (runId: string) => proofStore.get(runId) ?? pastedProofs.get(runId);
+  // D63: tests written before anyone asked don't count against the limits until used, so they have their own small limit here.
+  const earlyTestsByClient = createHourlyLimit(envCount(process.env.ATLAS_EARLY_TESTS_PER_CLIENT_PER_HOUR, 12), "tests written ahead");
+  // R3: the third run behind the drawing's helper steps, per invite code an hour (by address when there is no code).
+  const helperRunsByClient = createHourlyLimit(envCount(process.env.ATLAS_HELPER_RUNS_PER_CLIENT_PER_HOUR, 200), "helper runs");
+  const helperStore = createHelperStore();
+  // R3 review B8: pencil drawings per invite code an hour (by address when there is no code).
+  const pencilByClient = createHourlyLimit(envCount(process.env.ATLAS_PENCIL_DRAWINGS_PER_CLIENT_PER_HOUR, 12), "pencil drawings");
+  const pencil = createPencil({ take: (client) => pencilByClient.take(client), ...opts.pencil });
   const pastedExperimentsByIp = createHourlyLimit(envCount(process.env.ATLAS_PASTED_EXPERIMENTS_PER_IP_PER_HOUR, 200), "experiments on pasted code");
+  const chainChecksByIp = createHourlyLimit(envCount(process.env.ATLAS_CHAIN_CHECKS_PER_IP_PER_HOUR, 120), "chain checks");
   const pastesByIp = createHourlyLimit(envCount(process.env.ATLAS_PASTES_PER_IP_PER_HOUR, DEFAULT_PASTES_PER_IP_PER_HOUR), "pastes");
   // X3 (D27): each person's track record, from their sealed bets and the judge's verdicts only (src/track-record.ts).
   const trackStore = opts.trackStore ?? memoryTrackStore();
@@ -654,6 +677,7 @@ export function createApp(opts: AppOptions = {}) {
     betStore,
     ...(budget ? { budget } : {}),
     takeModelRound: (c) => modelRoundsByIp.take(clientOf(c)),
+    takeEarlyTests: (c) => earlyTestsByClient.take(clientOf(c)),
     takePaste: (c) => pastesByIp.take(clientOf(c)),
     executorKind: executor.kind,
     // X3: Muse Wonder is told only the kinds of question where this person's bets most often didn't match (counts).
@@ -801,6 +825,9 @@ export function createApp(opts: AppOptions = {}) {
         createdAt: new Date().toISOString(),
       });
       const put = (exp.target.kind === "pasted" ? pastedProofs : proofStore).put(file, run);
+      // J4: whose bets these were, so only they are told "you" on the card's own page.
+      roundSessions.set(run.id, sessionId);
+      while (roundSessions.size > 2000) roundSessions.delete(roundSessions.keys().next().value!);
       if (exp.target.kind === "pasted") {
         pastedOwners.set(run.id, sessionId);
         while (pastedOwners.size > 2000) pastedOwners.delete(pastedOwners.keys().next().value!);
@@ -989,6 +1016,7 @@ export function createApp(opts: AppOptions = {}) {
         const msg = e instanceof Error ? e.message : String(e);
         return c.json({ error: `could not read pull request ${parsed.data.ref}: ${msg}` }, /^call limit reached/.test(msg) ? 429 : 502); // G1 review B7
       }
+      if (!chainReady()) return c.json({ error: NO_CHAIN }, 503);
       const refusal = evmTargetRefusal(pr.target.ref, pr.target.codeSha256, pr.target.commit);
       if (refusal) return c.json({ error: refusal, target: pr.target }, 422);
       targets.set(pr.target.codeSha256, pr.target);
@@ -1046,6 +1074,8 @@ export function createApp(opts: AppOptions = {}) {
       if (!pastedEntry) return c.json({ error: "proposalId is for pasted code only" }, 400);
       if (body.params !== undefined || body.editedFrom !== undefined) return c.json({ error: "send proposalId alone, or params (with editedFrom when you edited a proposal)" }, 400);
       const found = paste.proposalOf(sessionId, body.proposalId, target.codeSha256);
+      // D63: a test written ahead counts against the limits only now that it is used.
+      if (!("error" in found)) paste.noteProposalUsed(sessionId, found.set, c);
       if ("error" in found) return c.json({ error: found.error }, found.status);
       fromProposal = { setId: found.set.id, model: found.set.model, params: found.proposal.params };
     }
@@ -1188,6 +1218,8 @@ export function createApp(opts: AppOptions = {}) {
     const parsed = investigateBody.safeParse(raw.body);
     if (!parsed.success) return c.json({ error: plainReason(parsed.error) }, 400);
     const body = parsed.data;
+    // D63: checked before anything is spent: without a chain connection this round could not finish.
+    if ("pr" in body && body.pr.toLowerCase() === MOONWELL_PR_REF.toLowerCase() && !chainReady()) return c.json({ error: NO_CHAIN }, 503);
     const model = opts.investigator?.model ?? INVESTIGATOR_MODEL;
     // Limits first, so a request that will not be answered does not spend GitHub's rate limit either.
     const mine = investigationsOf(sessionId);
@@ -1520,6 +1552,12 @@ export function createApp(opts: AppOptions = {}) {
       throw new RunDidNotFinish(reason);
     }
     keepRun(run);
+    // R3: the third run, for the drawing's helper steps. It starts only now, after the sealed runs have finished, so it cannot
+    // touch them; it counts toward this code's hourly allowance; nothing it finds reaches a verdict or a proof file.
+    if (experiment.target.kind === "pasted" && experiment.params.shape === "call-function" && run.controlPassed) {
+      const allowed = helperRunsByClient.take(principalClientKey() ?? sessionId);
+      helperStore.put(run.id, allowed.ok ? helperRun(experiment, run, { executor }).catch(() => ({ none: HELPER_WORDS.failed })) : Promise.resolve({ none: HELPER_WORDS.limit(allowed.reason) }));
+    }
     if (experiment.target.kind === "pasted") for (const d of paste.noteRoundChars(experiment.id, JSON.stringify(run).length, keepRound)) betStore.peek(d.sessionId)?.delete(d.experimentId);
     log.runner(experiment, run);
     // The promise this route makes: every bet's sealedAt is earlier than run.startedAt.
@@ -1905,15 +1943,178 @@ export function createApp(opts: AppOptions = {}) {
     },
   });
 
+  // D63: the Moonwell menu opens this saved result, a replay of a saved file. Read only, the same as any public proof card.
+  app.get("/moonwell/saved", (c) => {
+    try {
+      return c.json(JSON.parse(readFileSync(new URL("../proofs/moonwell/saved-level2-mwTaxvHFzB.atlas.json", import.meta.url), "utf8")));
+    } catch {
+      return c.json({ error: "the saved Moonwell result is not on this server" }, 404);
+    }
+  });
+  // B1: asked before anything else on "Run it again", so a missing connection is said at once. One free read to the chain, which also
+  // catches a wrong address: having the setting is not the same as the chain answering. The address itself is never sent or logged.
+  app.get("/moonwell/ready", async (c) => {
+    if (!opts.checkChainFirst || opts.evmRun !== undefined) return c.json({ ready: true });
+    const url = process.env.BASE_RPC_URL;
+    if (!url) return c.json({ ready: false, words: NO_CHAIN });
+    const asked = chainChecksByIp.take(clientOf(c));
+    if (!asked.ok) return c.json({ ready: false, words: `Atlas could not check for a chain connection: ${asked.reason}. Nothing was spent.` }, 429);
+    try {
+      const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_chainId", params: [] }), signal: AbortSignal.timeout(5000) });
+      const a = (await r.json()) as { result?: string };
+      return c.json(a.result === "0x2105" ? { ready: true } : { ready: false, words: CHAIN_SILENT });
+    } catch {
+      return c.json({ ready: false, words: CHAIN_SILENT });
+    }
+  });
+
+  // D60, D63: a public link must outlive a deploy. Proof files live in memory, and a pasted one goes after 2 hours with its source. So when
+  // the person who ran a round asks, its card, without the file's text, is kept on the volume for 30 days. Nothing is kept unless asked.
+  // The maker can delete it. Caps per client and in total keep this from starving what shares the volume: the ledger, invites, records.
+  const keptDir = opts.keptProofsDir;
+  const keptCaps = { days: 30, perClient: 50, total: 500, fileBytes: 256 * 1024, ...opts.keptProofsCaps };
+  const keptPath = (runId: string) => (keptDir && /^[\w-]{1,64}$/.test(runId) ? join(keptDir, `${runId}.json`) : null);
+  const clientHash = (c: Context) => createHash("sha256").update(clientOf(c)).digest("hex");
+  type KeptEntry = { until: string; maker: string; file: AtlasFile };
+  const readKept = (at: string): KeptEntry | null => {
+    try {
+      const e = JSON.parse(readFileSync(at, "utf8")) as KeptEntry;
+      if (Date.parse(e.until) > Date.now()) return e;
+      rmSync(at, { force: true });
+      return null;
+    } catch {
+      return null;
+    }
+  };
+  const keptProof = (runId: string): KeptEntry | null => {
+    const at = keptPath(runId);
+    return at ? readKept(at) : null;
+  };
+  // Review R1: deleting a public link must take it down, on disk and in memory, at once. A pasted round's own session can still read its
+  // round (that is its own work, and its panel stays open); nobody else can. The mark is on the volume, so a restart does not bring it back.
+  const deletedPath = (runId: string) => (keptDir && /^[\w-]{1,64}$/.test(runId) ? join(keptDir, `${runId}.deleted`) : null);
+  const deletedInMemory = new Map<string, string>();
+  const deletedBy = (runId: string): string | null => {
+    const known = deletedInMemory.get(runId);
+    if (known) return known;
+    const at = deletedPath(runId);
+    if (!at) return null;
+    try {
+      return readFileSync(at, "utf8");
+    } catch {
+      return null;
+    }
+  };
+  /** The session that ran this round, when the server still remembers it. Only it may keep a card, and only it is told "you". */
+  const ranIt = (c: Context, runId: string): boolean => {
+    const session = c.req.header("x-atlas-session");
+    return session !== undefined && (pastedOwners.get(runId) === session || roundSessions.get(runId) === session);
+  };
+  const goneFor = (c: Context, runId: string): boolean => deletedBy(runId) !== null && !ranIt(c, runId);
+  const GONE_WORDS = "The person who made this card's public link has deleted it.";
+  /** Every live kept card, with expired ones removed on the way. */
+  const allKept = (): KeptEntry[] => {
+    if (!keptDir || !existsSync(keptDir)) return [];
+    return readdirSync(keptDir).flatMap((n) => {
+      const e = n.endsWith(".json") ? readKept(join(keptDir, n)) : null;
+      return e ? [e] : [];
+    });
+  };
+  app.post("/proofs/:runId/keep", (c) => {
+    const runId = c.req.param("runId");
+    const already = keptProof(runId);
+    if (already) return c.json({ kept: true, until: already.until });
+    // Only whoever deleted a link can make it again: otherwise a reader could undo the deletion.
+    const wasDeleted = deletedBy(runId);
+    if (wasDeleted !== null && wasDeleted !== clientHash(c) && !ranIt(c, runId)) return c.json({ kept: false, error: GONE_WORDS }, 410);
+    const file = proofOf(runId);
+    if (!file) return c.json({ kept: false, error: "this card is no longer on the server" }, 404);
+    if (!ranIt(c, runId)) return c.json({ kept: false, error: "only the session that ran this round can make its link" }, 403);
+    const at = keptPath(runId);
+    if (!at) return c.json({ kept: false, error: "this server keeps no cards on disk" });
+    const live = allKept();
+    const me = clientHash(c);
+    if (live.length >= keptCaps.total) return c.json({ kept: false, error: "this server already holds as many public links as it keeps" }, 429);
+    if (live.filter((e) => e.maker === me).length >= keptCaps.perClient) return c.json({ kept: false, error: `you already have ${keptCaps.perClient} public links; delete one to make another` }, 429);
+    const until = new Date(Date.now() + keptCaps.days * 86_400_000).toISOString();
+    const text = JSON.stringify({ until, maker: me, file: file.target.kind === "pasted" ? withheldSource(file) : file });
+    if (Buffer.byteLength(text) > keptCaps.fileBytes) return c.json({ kept: false, error: "this card is too big to keep as a public link" }, 413);
+    try {
+      mkdirSync(keptDir!, { recursive: true });
+      writeFileSync(at, text);
+      deletedInMemory.delete(runId);
+      const mark = deletedPath(runId);
+      if (mark) rmSync(mark, { force: true });
+    } catch {
+      return c.json({ kept: false, error: "the card could not be saved" }, 500);
+    }
+    return c.json({ kept: true, until });
+  });
+  app.delete("/proofs/:runId/keep", (c) => {
+    const runId = c.req.param("runId");
+    const at = keptPath(runId);
+    const e = at ? readKept(at) : null;
+    if (!e) return c.json({ deleted: false, error: "there is no public link for this card" }, 404);
+    if (e.maker !== clientHash(c)) return c.json({ deleted: false, error: "only the person who made this link can delete it" }, 403);
+    rmSync(at!, { force: true });
+    deletedInMemory.set(runId, e.maker);
+    while (deletedInMemory.size > 2000) deletedInMemory.delete(deletedInMemory.keys().next().value!);
+    try {
+      writeFileSync(deletedPath(runId)!, e.maker);
+    } catch {
+      // The memory mark still holds until a restart, and the card itself is already off the disk.
+    }
+    return c.json({ deleted: true });
+  });
+
   app.get("/proofs/:runId", (c) => {
-    const file = proofOf(c.req.param("runId"));
-    if (!file) return c.json({ error: `no .atlas.json for run ${c.req.param("runId")}` }, 404);
+    const runId = c.req.param("runId");
+    if (goneFor(c, runId)) return c.json({ error: GONE_WORDS }, 410);
+    const file = proofOf(runId);
+    const kept = keptProof(runId);
+    const session = c.req.header("x-atlas-session");
+    const owner = pastedOwners.get(runId);
+    const about = kept ? { keptCard: { until: kept.until, mine: kept.maker === clientHash(c) } } : {};
+    if (!file && kept) return c.json({ ...kept.file, ...about });
+    if (!file) return c.json({ error: `no .atlas.json for run ${runId}` }, 404);
     // E3 review M4: a pasted round's source is the owning session's. Anyone else gets the card without it (the
     // fingerprint stays, so the card still says which code ran).
     // E3 review r2 minor 5: the source only when an owner is on record AND the header names it.
-    const owner = pastedOwners.get(c.req.param("runId"));
-    if (file.target.kind === "pasted" && (owner === undefined || c.req.header("x-atlas-session") !== owner)) return c.json(withheldSource(file));
-    return c.json(file);
+    if (file.target.kind === "pasted" && (owner === undefined || session !== owner)) return c.json({ ...withheldSource(file), ...about });
+    return c.json({ ...file, ...about });
+  });
+
+  // What the card's page needs to know about whoever is looking. Kept out of the file itself, which a reader can verify and download.
+  // Whether these were their bets (J4), whether this server can keep a card at all (C3), and whether they may ask it to (only who ran the round). Read only; names nobody.
+  app.get("/proofs/:runId/viewer", (c) => {
+    const runId = c.req.param("runId");
+    // Making a link never makes someone the bettor: "yours" is the session that ran the round, and nothing else.
+    const yours = ranIt(c, runId);
+    return c.json({ yours, keepsCards: keptDir !== undefined, canKeep: yours });
+  });
+
+  // R3: the helper steps of a pasted run, for the drawing only. Only the session that pasted the code may read them, as with its
+  // source, and only after its run, because they come from what the code really did.
+  app.get("/runs/:runId/helpers", async (c) => {
+    const runId = c.req.param("runId");
+    const owner = pastedOwners.get(runId);
+    if (owner === undefined || c.req.header("x-atlas-session") !== owner) return c.json({ none: HELPER_WORDS.notPasted });
+    const answer = helperStore.get(runId);
+    return c.json(answer ? await answer : { none: HELPER_WORDS.gone });
+  });
+
+  // R3: the proof's path in pencil, where the optional engine is installed. Each reason it cannot be drawn has its own status and words.
+  app.get("/proofs/:runId/pencil.png", async (c) => {
+    if (goneFor(c, c.req.param("runId"))) return c.json({ error: GONE_WORDS }, 410);
+    const file = proofOf(c.req.param("runId"));
+    if (!file) return c.json({ error: `no .atlas.json for run ${c.req.param("runId")}` }, 404);
+    const a = await pencil.draw(c.req.param("runId"), file, clientOf(c));
+    if (a.kind === "no-engine") return c.json({ error: PENCIL_WORDS.noEngine }, 501);
+    if (a.kind === "not-drawn" || a.kind === "too-long") return c.json({ error: a.words }, 422);
+    if (a.kind === "busy") return c.json({ error: a.words }, 429);
+    if (a.kind === "failed") return c.json({ error: a.words }, 500);
+    return new Response(a.png as BodyInit, { headers: { "content-type": "image/png", "cache-control": "no-store" } });
+
   });
 
   /**
@@ -1947,6 +2148,7 @@ export function createApp(opts: AppOptions = {}) {
   // Answers whether the replay's `measured` is deep-equal to the file's, and which result fields differ.
   app.get("/replay/:runId", async (c) => {
     const runId = c.req.param("runId");
+    if (goneFor(c, runId)) return c.json({ error: GONE_WORDS }, 410);
     const stored = proofOf(runId);
     if (!stored) return c.json({ error: `no .atlas.json for run ${runId}` }, 404);
     const v = verifyAtlasFile(stored);

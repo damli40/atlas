@@ -18,8 +18,7 @@ import { PASTE_BET_INSTRUCTION, testJson } from "../../src/paste-context";
 import { PASTE_WORDS } from "../../src/paste-words";
 import { MAX_TRACE_EVENTS } from "../../runners/ts/call-harness";
 import type { AtlasFile, Run } from "../../src/types";
-import { renderToStaticMarkup } from "react-dom/server";
-import { CallTimeline } from "../../web/machines/calltimeline/CallTimeline";
+import { whatHappened } from "../../renderer/authors/what-happened";
 import { CLAIM, RETRY_SRC, WONDER_ANSWER, allowedA, client, makeApp, mockModels } from "../tools/paste-fixtures";
 
 const ROOT = join(__dirname, "../..");
@@ -142,7 +141,7 @@ describe("B3 / M5: bounded bet text and prompts; one text per test, shared by it
 });
 
 describe("B4: a run with tens of thousands of calls keeps a bounded trace, exact counts and a file that verifies", () => {
-  it("3,000 calls: the trace is cut at the cap with the reason; calls:f is exact; the proof verifies; the timeline is not drawn", async () => {
+  it("3,000 calls: the trace is cut at the cap with the reason; calls:f is exact; the proof verifies; the path stops at the cut and says so", async () => {
     const { app } = makeApp();
     const c = client(app);
     const p = await c.post("/paste", { code: "export function many(f, n){let s=0;for(let i=0;i<n;i++)s+=f();return s}\n" });
@@ -159,9 +158,13 @@ describe("B4: a run with tens of thousands of calls keeps a bounded trace, exact
     expect(JSON.stringify(r.json).length).toBeLessThan(400_000);
     const file = (await c.get(`/proofs/${run.id}`)).json as AtlasFile;
     expect(verifyAtlasFile(file).ok).toBe(true);
-    const h = renderToStaticMarkup(<CallTimeline run={run} still theme="light" />);
-    expect(h).toContain("more events than Atlas keeps");
-    expect(h).not.toContain("<svg");
+    const s = whatHappened({ run, experiment: e.json.experiment, bets: [], verdicts: [] });
+    const stop = s.nodes.find((n) => n.kind === "note" && n.words.startsWith("Atlas kept the first"))!;
+    expect(stop.words).toBe(`Atlas kept the first ${Number(cut.data!.kept).toLocaleString("en-US")} events and counted ${Number(cut.data!.eventsNotKept ?? cut.data!.dropped).toLocaleString("en-US")} more without keeping them, so the path stops here. In all, the code called f 3,000 times.`);
+    // Past the cut only the known ending, on a dashed line: not joined to the path as if it followed.
+    expect(s.nodes.at(-1)!.words).toBe("returned 3000");
+    expect(s.edges.at(-1)!.kind).toBe("dashed-note");
+    expect(s.path!.edges).not.toContain(s.edges.at(-1)!.id);
   }, 60_000);
 });
 

@@ -48,24 +48,11 @@ const click = (el: HTMLElement | null) => {
 /** Everything on the stage that could carry a run result. */
 function runTraces(stage: HTMLElement) {
   return {
-    runEls: stage.querySelectorAll("[data-run]").length,
-    litLamps: stage.querySelectorAll("[data-lamp][data-on]").length,
-    liveLines: stage.querySelectorAll(".u1-live").length,
-    marks: stage.querySelectorAll(".u1-pin, [data-testid='mark-list']").length,
-    /**
-     * Words laid over the drawing (everything on the figure but the SVG itself). X3 review round 2 (D50): plain code's
-     * failure labels ([data-label-mark]) are facts about the code's text, shown before betting to every bettor alike;
-     * they are counted separately below, not as run traces.
-     */
-    figureText: [...stage.querySelector(".u1-figure")!.children]
-      .filter((c) => !c.classList.contains("u1-svg"))
-      .map((c) => {
-        const k = c.cloneNode(true) as HTMLElement;
-        k.querySelectorAll("[data-label-mark]").forEach((x) => x.remove());
-        return k.hasAttribute("data-label-mark") ? "" : k.textContent;
-      })
-      .join(""),
-    labelMarks: [...stage.querySelectorAll("[data-label-mark]")].map((e) => e.textContent),
+    runEls: stage.querySelectorAll("[data-testid='bench-path']").length,
+    litLamps: stage.querySelectorAll(".rr-lit").length,
+    marks: stage.querySelectorAll(".rr-mark, [data-testid='mark-list']").length,
+    /** Words of plain code's failure labels: facts about the code's text, shown before betting to every bettor alike (D50). */
+    labelMarks: [...stage.querySelectorAll("[data-tag-of]")].map((e) => [...e.querySelectorAll("text")].map((t) => t.textContent).join(" ")),
   };
 }
 
@@ -80,11 +67,12 @@ describe("U1 drawing-first screen", () => {
     expect(claimProposal([one, two], { source: "cache = {}\n", language: "py" })).toBe(two);
     expect(claimProposal([one, two], { source: "x = 1\n", language: "py" })).toBe(one);
     const sent = answersToSend(qs, { outcome: "a", virtualMs: "can't tell" });
-    expect(sent.ok && sent.answers.map((a) => a.answer.kind)).toEqual(["quiz", "declined", "declined", "declined"]);
+    expect(sent.ok && sent.answers.map((a) => a.answer.kind)).toEqual(["declined", "quiz", "declined", "declined"]);
     // U3: a typed returned value is a json answer; one that does not read is refused before sealing.
     const typed = answersToSend(qs, { returnedJson: "a" }, { returnedJson: '{"ok": true}' });
     expect(typed.ok && typed.answers.find((a) => a.measures === "returnedJson")!.answer).toEqual({ kind: "json", value: { ok: true } });
-    expect(answersToSend(qs, {}, { returnedJson: "{nope" })).toEqual({ ok: false, measures: "returnedJson" });
+    // D64: text that isn't a value seals as that text.
+    expect(answersToSend(qs, {}, { returnedJson: "$100.00" }).answers.find((a) => a.measures === "returnedJson")!.answer).toEqual({ kind: "json", value: "$100.00" });
   });
 
   it("before sealing the stage draws structure only; after sealing the run plays and the quiz is marked", async () => {
@@ -101,21 +89,28 @@ describe("U1 drawing-first screen", () => {
     await until(() => $(".u1-svg svg") !== null, "the drawing", 60000);
     const stage = $('[data-testid="bench-stage"]')!;
     expect(stage.getAttribute("data-phase")).toBe("rest");
-    expect([...stage.querySelectorAll("[data-hit]")].map((e) => e.getAttribute("data-hit"))).toEqual(expect.arrayContaining(["backoffMs", "sleep", "fetchWithRetry", "getPrice"]));
+    expect([...stage.querySelectorAll("[data-node]")].map((e) => decodeURIComponent(e.getAttribute("data-node")!))).toEqual(expect.arrayContaining(["backoffMs", "sleep", "fetchWithRetry", "getPrice"]));
     let t = runTraces(stage);
-    expect(t).toMatchObject({ runEls: 0, litLamps: 0, liveLines: 0, marks: 0, figureText: "" });
+    expect(t).toMatchObject({ runEls: 0, litLamps: 0, marks: 0 });
     // D50: the failure label is drawn before any bet, and it carries no run result.
-    expect(t.labelMarks).toEqual(["found in this code: no overall timeout, lines 12–19"]);
+    expect(t.labelMarks).toEqual(["could fail: no overall timeout, lines 12–19 (read, not run)"]);
 
     // open the bet: Wonder's first allowed test is preselected, the stand-in deck appears, still no result
     click($('[data-testid="u1-bet-toggle"]'));
-    await until(() => $('[data-testid="u1-seal"]') !== null && $('[data-lamp]') !== null, "the quiz and the stand-in devices", 60000);
+    await until(() => $('[data-testid="u1-seal"]') !== null && $('.rr-lamp') !== null, "the quiz and the stand-in devices", 60000);
     expect($('[data-testid="u1-test"]')!.textContent).toContain("fetchWithRetry");
     t = runTraces($('[data-testid="bench-stage"]')!);
-    expect(t).toMatchObject({ runEls: 0, litLamps: 0, liveLines: 0, marks: 0, figureText: "" });
-    const needleAtRest = $('[data-needle] path')!.getAttribute("d");
+    expect(t).toMatchObject({ runEls: 0, litLamps: 0, marks: 0 });
     // the drawing's words before betting: names and plates only, no counts, times or endings
-    const svgText = $(".u1-svg svg")!.textContent ?? "";
+    // (the captions say what the test's script will do: that is the test, not a run)
+    const svgClone = $(".u1-svg svg")!.cloneNode(true) as SVGElement;
+    // Captions and tooltips are checked apart: before sealing they hold only plain code's words about the code and the test's own
+    // script, and the step line is empty. A leak would be drawn in those places (M4).
+    const shownBefore = [...$('[data-testid="bench-stage"]')!.querySelectorAll(".rr-captions, title")].map((e) => e.textContent ?? "").join(" ");
+    expect(shownBefore).not.toMatch(/\b(threw|returned \S|waited \d|called \w+ \d|matched|parts ways|run [A-Za-z0-9_-]{8,}'s trace)\b/);
+    expect($('[data-testid="run-step"]')?.textContent ?? "").toBe("");
+    svgClone.querySelectorAll(".rr-captions, title").forEach((x) => x.remove());
+    const svgText = svgClone.textContent ?? "";
     expect(svgText).not.toMatch(/\d+\s*(ms|calls?)\b|returned|threw|matched/i);
 
     click($('[data-testid="opt-outcome-a"]'));
@@ -127,14 +122,15 @@ describe("U1 drawing-first screen", () => {
     const after = runTraces($('[data-testid="bench-stage"]')!);
     expect(after.runEls).toBeGreaterThan(0);
     expect(after.marks).toBeGreaterThan(0);
-    expect($('[data-needle] path')!.getAttribute("d")).not.toBe(needleAtRest);
     const list = $('[data-testid="mark-list"]')!;
     for (const m of ["outcome", "returnedJson", "calls:fetchIt", "virtualMs"]) expect(list.querySelector(`[data-testid="mark-${m}"]`)).not.toBeNull();
     // your pick and both models' picks, each with plain code's word
     expect(list.querySelector('[data-testid="mark-outcome"]')!.textContent).toMatch(/You.*returns a value.*matched/);
     expect(list.textContent).toContain("Muse Spark Open");
     expect(list.querySelector('[data-testid="mark-returnedJson"]')!.textContent).toMatch(/You.*can't tell.*can't check/);
-    expect($('[data-testid="chip-stand-in fetchIt"]')!.textContent).toBe("3 calls");
+    // the path is drawn from the trace: each call of the stand-in has its ticket
+    const path = [...$('[data-testid="bench-path"]')!.querySelectorAll("text")].map((x) => x.textContent).join(" | ");
+    expect(path.match(/called fetchIt/g)?.length).toBe(3);
     // U2 (D53): the proof card opens in place (a panel), with a link to its own page.
     expect($('[data-testid="u1-proof"]')!.tagName).toBe("BUTTON");
   }, 120_000);
