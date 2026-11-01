@@ -85,7 +85,7 @@ Atlas writes a plain data file (a RenderSpec) saying what to draw. The renderer 
 | 40 parts + 90 joins, layout and SVG text, page thread | 62–104 ms over 5 loads (first load slowest) | Target was under 1 s, so no Worker is strictly needed; one exists anyway |
 | The same, then until it is on screen (two frames) | 26–46 ms more | The browser's own paint is not the cost either |
 | The same, in the Web Worker | 57–121 ms across the driver runs | Same order |
-| 200 parts | "showing the list" in under 500 ms (test) | Past 150 parts or 420 lines the page never tries, and the Worker is stopped at 4 s |
+| 200 parts | "showing the list" in under 500 ms (test) | Past 150 parts or 420 lines the page never tries. A drawing over 25 parts or 40 lines now runs in the Worker, stopped at 4 s, and then the list is shown |
 | Words the font table vs the browser | worst 1.3 px off, on any word of the path and `server/meta` | Layout agrees with what is drawn; tables can be used in Node and the browser alike |
 | Click to skip during the entrance / during the run | 49 ms / 18 ms to the finished picture | "Never slower than the person wants" holds |
 | Reduced motion | structure in 108 ms; verdict 265 ms after that page load | Arrives finished |
@@ -135,3 +135,12 @@ statechart-art MIT (Kevin T. Ngo), pele 1.12.0 MIT (1.13.0 was published today, 
 
 ## Tests
 `tests/unit/renderer-{spec,draw,authors,boundaries}.test.ts`: refusals, hostile names, 0 and 200 nodes, cycles, self-loops, the checks on five random 40+90 charts, every author's honesty rules, import fences. Phase 1 suite results were replaced by phase 2's in `full-suite.txt`.
+
+## Review round (phase 3): truth first
+
+Plain words: the review found the drawing's account of the run was false on ordinary code. This round fixed that. The film and the screenshots above are from before it, and are redone after the design verdict.
+
+- `journey-a.mjs` drives the real app: speed, helper steps, change the code and bet again, test this claim. Results: `journey-a/journey.json`.
+- `journey-a/live-result.png`, `live-claim.png`: one live round with real models, $0.0653 (`journey-a/live-usage.json`).
+- Pencil: draws in its own process. Retry demo 2,025 ms; longest stall of the server's thread during it, 7 ms (it was 2,100 ms).
+- Real-run tests: `tests/unit/r3-wires`, `r3-truth-runs`, `r3-helpers`, `r3-pencil`, `r3-bench-verdict`, `r3-honesty-moved`.
