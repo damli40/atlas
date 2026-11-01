@@ -1,5 +1,5 @@
 // R3 fix round 4: review round 4 and the second cold test. Each of these failed before its fix. The screen paths are in tests/evidence/R3/round4.mjs.
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -11,7 +11,9 @@ import { momentOfRows, reachNote } from "../../src/moment";
 import { theoryCaption } from "../../src/change";
 import type { AtlasFile } from "../../src/types";
 import { ProofCard } from "../../web/screens/ProofCard";
-import { labelMarkWords } from "../../web/screens/Studio";
+import { labelMarkWords, requiredArgs, whatDiffers } from "../../web/screens/Studio";
+import { loadDotEnv } from "../../server/load-env";
+import { marksOf } from "../../web/machines/bench/play";
 import { CHANGE_CAPTION, CHANGE_CAPTION_READER } from "../../src/change";
 
 const ENV = { ATLAS_INVITE_PEPPER: "x".repeat(64), ATLAS_INVITE_SECRET: "x".repeat(64) } as never;
@@ -102,7 +104,7 @@ describe("the proof card for someone who did not bet", () => {
     expect(renderToStaticMarkup(<ProofCard file={changed} />)).toMatch(/aria-label="[^"]*you bet/);
   });
   it("R2: the image says which question its bet answers", () => {
-    expect(renderToStaticMarkup(<ProofCard file={changed} />)).toMatch(/YOU BET, ON [A-Z ]+/);
+    expect(renderToStaticMarkup(<ProofCard file={changed} />)).toMatch(/YOU BET<tspan[^>]*> on cbETH in dollars</);
   });
 });
 
@@ -146,5 +148,80 @@ describe("C2: a label is what could fail, not what the code has", () => {
   it("reads as a failure the code could have", () => {
     expect(labelMarkWords("found in this code", "timeout", "line 13")).toBe("could fail: timeout, line 13 (read, not run)");
     expect(labelMarkWords("reproduced", "timeout", "line 13")).toBe("reproduced: timeout, line 13");
+  });
+});
+
+describe("a person's own test", () => {
+  it("D: what a function needs, from its signature", () => {
+    expect(requiredArgs("getTemperature(city: string)")).toEqual(["city"]);
+    expect(requiredArgs("f(a, b = 2, ...rest)")).toEqual(["a"]);
+    expect(requiredArgs("f(a?: number)")).toEqual([]);
+    expect(requiredArgs("f()")).toEqual([]);
+    expect(requiredArgs("def f(self, x, y=1, *args)")).toEqual(["x"]);
+    expect(requiredArgs("f(m: Map<string, number>, cb: (a: number) => void)")).toEqual(["m", "cb"]);
+    expect(requiredArgs(undefined)).toBeNull();
+  });
+  it("D: two tests are told apart by their values, never the test's internal words", () => {
+    const t = (then: string, value: number) => ({ args: [{ kind: "stand-in", name: "x", then, calls: [{ do: "return", value }] }] });
+    expect(whatDiffers(t("throw_exhausted", 1), t("repeat_last", 1))).toBe("Differs from the last test in what its fakes do.");
+    expect(whatDiffers(t("throw_exhausted", 2), t("repeat_last", 1))).toBe("Compared with the last test: 1 becomes 2.");
+  });
+});
+
+describe("E: the proof card says what the function was given", () => {
+  it("on the card and on the image, and links back quietly", () => {
+    const f = structuredClone(d20) as AtlasFile;
+    f.experiments[0]!.params = { shape: "call-function", exportName: "f", args: [{ kind: "json", value: 7 }] } as never;
+    const html = renderToStaticMarkup(<ProofCard file={f} />);
+    expect(html).toContain('data-testid="pc-call"');
+    expect(html).toMatch(/data-testid="pc-image-call"[^>]*>Atlas calls f\(7\)\./);
+    expect(html).toContain('data-testid="pc-home"');
+  });
+});
+
+describe("B1: the chain connection", () => {
+  it("a server with no setting says so at once, with nothing spent", async () => {
+    const was = process.env.BASE_RPC_URL;
+    delete process.env.BASE_RPC_URL;
+    const app = createApp({ checkChainFirst: true });
+    const a = (await (await app.request("/moonwell/ready")).json()) as { ready: boolean; words?: string };
+    expect(a.ready).toBe(false);
+    expect(a.words).toMatch(/no chain connection/);
+    expect(a.words).not.toMatch(/stays above/);
+    if (was !== undefined) process.env.BASE_RPC_URL = was;
+  });
+  it("a setting that doesn't answer is not a connection", async () => {
+    const was = process.env.BASE_RPC_URL;
+    process.env.BASE_RPC_URL = "http://127.0.0.1:9/nothing";
+    const app = createApp({ checkChainFirst: true });
+    const a = (await (await app.request("/moonwell/ready")).json()) as { ready: boolean; words?: string };
+    expect(a.ready).toBe(false);
+    expect(a.words).toMatch(/did not answer/);
+    expect(JSON.stringify(a)).not.toContain("127.0.0.1");
+    if (was !== undefined) process.env.BASE_RPC_URL = was;
+    else delete process.env.BASE_RPC_URL;
+  });
+  it("the rpc file is read by name only, and a value already set wins", () => {
+    const dir = mkdtempSync(join(tmpdir(), "rpc-"));
+    const at = join(dir, "rpc.env");
+    writeFileSync(at, "BASE_RPC_URL=https://example.test/key\n");
+    const env: Record<string, string | undefined> = {};
+    expect(loadDotEnv(at, env).loaded).toEqual(["BASE_RPC_URL"]);
+    expect(env.BASE_RPC_URL).toBe("https://example.test/key");
+    const set: Record<string, string | undefined> = { BASE_RPC_URL: "x" };
+    loadDotEnv(at, set);
+    expect(set.BASE_RPC_URL).toBe("x");
+  });
+});
+
+describe("E: a model answers, only a person types", () => {
+  it("a model's value on the result reads 'answered'", () => {
+    const q = { measures: "returnedJson", text: "q", kind: "quiz", quiz: [{ id: "a", label: "x" }] };
+    const run = { id: "r", controlPassed: true, trace: [], result: { measured: { outcome: "returned", returnedJson: "1" }, notMeasured: {} } };
+    const bet = (who: string) => ({ id: who, who, measures: "returnedJson", answer: { kind: "json", value: 1 } });
+    const marks = marksOf([q] as never, [bet("human"), bet("muse-spark-1.3")] as never, [{ betId: "human", outcome: "matched" }, { betId: "muse-spark-1.3", outcome: "matched" }] as never, run as never, null, "js");
+    const picks = marks[0]!.picks;
+    expect(picks.find((p) => p.who === "human")!.pick).toMatch(/^typed /);
+    expect(picks.find((p) => p.who !== "human")!.pick).toMatch(/^answered /);
   });
 });

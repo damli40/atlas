@@ -46,6 +46,10 @@ const CLAIM_PLAN = {
   claim: `People expect the cached plan to last 60 s after the read; it expires 60 s after the read STARTED.${MOCK ? ` ${MOCK}` : ""}`,
   experiments: [{ shape: "call-function", exportName: "get_user_plan", args: [one], watchLimitMs: 120000, calls: [{ exportName: "get_user_plan", args: [one] }, { exportName: "get_user_plan", args: [one], waitMs: 59700 }] }],
 };
+// Round 4's driver: the cold test's getTemperature (its claim test never reaches fetch) and waitForJob (a loop that never ends).
+const WEATHER = { claim: "People expect getTemperature to validate the API payload; the code does not.", experiments: [{ shape: "call-function", exportName: "getTemperature", args: [{ kind: "json", value: "Lagos" }], network: { replaces: "fetch", then: "repeat_last", calls: [{ do: "respond", status: 200, body: { current: { temp_c: 31 } } }] } }] };
+const CLAIM_WEATHER = { claim: "People expect getTemperature to validate the API payload; the code does not.", experiments: [{ shape: "call-function", exportName: "getTemperature", args: [{ kind: "json", value: "Abuja" }], network: { replaces: "fetch", then: "repeat_last", calls: [{ do: "respond", status: 200, body: { current: { temp_c: "hot" } } }] } }] };
+const LOOP = { claim: "People expect waitForJob to poll until the job finishes; it spins forever.", experiments: [{ shape: "call-function", exportName: "waitForJob", args: [{ kind: "json", value: { id: "a", done: false } }] }] };
 const delay = Number(process.env.U3_WONDER_DELAY_MS ?? 6000);
 const EXAMPLE = {
   claim: `People expect fetchWithRetry to wait and try again until the source answers; after its last try it throws what the source threw.${MOCK ? ` ${MOCK}` : ""}`,
@@ -60,6 +64,8 @@ export const mockChat = async (a: ChatArgs): Promise<ChatResult> => {
     await new Promise((r) => setTimeout(r, delay));
     const claimRound = /check this sentence/.test(all);
     const py = /get_user_plan/.test(all);
+    if (/getTemperature/.test(all)) return { ok: true, finishReason: "stop", usage, content: JSON.stringify(claimRound ? CLAIM_WEATHER : WEATHER) };
+    if (/waitForJob/.test(all)) return { ok: true, finishReason: "stop", usage, content: JSON.stringify(LOOP) };
     if (/fetchWithRetry/.test(all) && /backoffMs/.test(all)) return { ok: true, finishReason: "stop", usage, content: JSON.stringify(EXAMPLE) };
     return { ok: true, finishReason: "stop", usage, content: JSON.stringify(py ? (claimRound ? CLAIM_PLAN : PLAN) : claimRound ? CLAIM_ORDERS : ORDERS) };
   }

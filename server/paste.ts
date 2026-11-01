@@ -119,7 +119,7 @@ interface ProposalSet {
 
 const pasteBody = z
   .object({
-    code: z.string().max(PASTED_MAX_BYTES * 2, "the code is longer than Atlas reads"),
+    code: z.string().max(PASTED_MAX_BYTES * 2, `this file is too long: Atlas reads one file of at most ${PASTED_MAX_BYTES / 1024} KB`),
     language: z.enum(["js", "ts", "py"]).optional(),
   })
   .strict();
@@ -132,7 +132,7 @@ const claimBody = z.object({ experimentId: z.string().regex(/^[A-Za-z0-9_-]{1,64
 const reasonOf = (err: z.ZodError) =>
   err.issues
     .slice(0, 3)
-    .map((i) => `${i.path.length ? i.path.join(".") : "body"}: ${i.message}`)
+    .map((i) => (i.message.startsWith("this file is too long") ? i.message : `${i.path.length ? i.path.join(".") : "body"}: ${i.message}`))
     .join("; ");
 
 async function readJson(req: Request): Promise<{ ok: true; body: unknown } | { ok: false }> {

@@ -347,3 +347,87 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 .u1-reach { margin: 0 0 10px; padding: 8px 10px; border-left: 3px solid var(--warn, #6b4d00); font-size: 14px; line-height: 1.45; color: var(--ink, #1f1b1d); }
 .u1-none { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0 10px; }
 .u1-none p { flex: 1 0 100%; margin: 0; }
+
+/* D64: the Demos menu */
+.u1-earlier{margin-top:2px;border-top:1px solid var(--rule-2);padding-top:6px}
+.u1-earlier>summary{font:400 12.5px/1.3 var(--ui);color:var(--ink-3);cursor:pointer;padding:6px 10px;list-style-position:inside}
+.u1-earlier>summary:hover{color:var(--ink)}
+.u1-earlier ul{margin:0;padding:0;list-style:none}
+/* Moonwell in the new shell */
+.u1-shell .u1-moonwell{max-width:1480px;margin:0 auto}
+.u1-shell .u1-moonwell .m-again{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:14px 0 0}
+.u1-shell .u1-moonwell .m-again span{max-width:60ch}
+.u1-shell .u1-moonwell .m-back{display:block;margin:0 0 6px;padding:0;background:none;border:0;font:400 13px/1.3 var(--ui);color:var(--ink-3);cursor:pointer}
+.u1-shell .u1-moonwell>:not(.m-split):not([data-testid="moonwell-saved"]){max-width:960px;margin-left:auto;margin-right:auto}
+.u1-shell .u1-moonwell .m-place{margin:0 0 6px;font-size:13px}
+.u1-shell .u1-moonwell .m-place>summary{cursor:pointer;color:var(--ink-2);padding:6px 0}
+.u1-shell .u1-record{max-width:760px;margin:0 auto}
+/* Sealed lines: name, time, short hash */
+.seals-quiet{list-style:none;padding:0;margin:8px 0 0;font-size:13px}
+.seals-quiet li{display:grid;grid-template-columns:1fr auto auto;gap:14px;align-items:center;padding:6px 0;border-top:1px solid var(--rule-2,#e6dfd0)}
+.seals-quiet time{font:400 12px/1 var(--mono);color:var(--ink-3)}
+/* The retry demo's choices, the same as the main path's */
+.b-choices{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.b-choices .u1-opt{width:auto;padding:8px 12px;font:400 13px/1.2 var(--ui);border:1px solid var(--rule);border-radius:7px;background:var(--raised);color:var(--ink);cursor:pointer}
+.b-choices .u1-opt[aria-checked="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+/* The log in the old shell, at the size the rest of the product reads at */
+.u1-shell .logstrip-lines{font-size:12.5px}
+
+/* Round 4: the bet's own controls */
+.u1-shell .u1-bet:has(.u1-pop) .u1-pop{padding-top:46px}
+.u1-shell .u1-bet:has(.u1-pop) .u1-toggle{top:10px;right:14px;z-index:3}
+.u1-shell .u1-test-clamp{-webkit-line-clamp:3;line-clamp:3}
+.u1-shell .u1-wait{order:-1;display:flex;flex-direction:column;gap:8px}
+.u1-shell .u1-wait .u1-status{order:-1;margin:0}
+.u1-shell .u1-wait p{margin:0}
+.u1-shell .u1-typed label .k{margin-left:8px}
+/* A note about this round sits over the drawing, whole, never behind the panel */
+.u1-shell .u1-banner{position:absolute;left:calc(var(--col) + 16px);right:16px;top:10px;bottom:auto;width:auto;max-width:none;transform:none;z-index:7;margin:0;padding:8px 12px;font-size:12.5px;line-height:1.4;background:var(--raised);border:1px solid var(--rule);border-radius:7px;color:var(--ink-2)}
+.u1-shell .u1-studio[data-drawer] .u1-banner{right:calc(clamp(320px,29vw,440px) + 16px)}
+.u1-shell .u1-toast{left:calc(var(--col) + 16px);bottom:14px;max-width:calc(100vw - var(--col) - 32px)}
+@media (max-width:760px){.u1-shell .u1-banner,.u1-shell .u1-toast{left:14px;right:14px;max-width:none}}
+/* "Use my test" is ink, the same as every primary button */
+.u1-shell .u1-pop [data-testid="form-submit"],.u1-shell .u1-pop button.primary{background:var(--ink)!important;border-color:var(--ink)!important;color:#fbf8ef!important;font:500 13px/1 var(--ui);padding:9px 14px;border-radius:7px;border-width:1px;border-style:solid;cursor:pointer}
+/* Choices as buttons */
+.u1-segs{display:inline-flex;flex-wrap:wrap;gap:4px}
+.u1-shell .u1-segs .u1-seg{font:400 12.5px/1 var(--ui);padding:6px 9px;border:1px solid var(--rule);border-radius:6px;background:var(--raised);color:var(--ink-2);cursor:pointer}
+.u1-shell .u1-segs .u1-seg[aria-checked="true"]{background:var(--ink);border-color:var(--ink);color:#fbf8ef}
+/* Screens that keep a dropdown of their own: it looks like the product until it opens */
+.u1-shell select{appearance:none;-webkit-appearance:none;padding:7px 28px 7px 10px;font:400 13px/1.2 var(--ui);border:1px solid var(--rule);border-radius:7px;color:var(--ink);background:var(--raised) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6' fill='none' stroke='%236b6358'/%3E%3C/svg%3E") no-repeat right 10px center}
+/* File pickers: a button of ours over the browser's input */
+.u1-shell .u1-file>span{position:static;width:auto;height:auto;overflow:visible;clip-path:none;font:400 12.5px/1 var(--ui);padding:7px 11px;border:1px solid var(--rule);border-radius:7px;background:var(--raised);color:var(--ink-2);cursor:pointer}
+.u1-shell .u1-file input,.u1-pick-files input{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
+.u1-shell .u1-file:focus-within>span,.u1-pick-files:focus-within .u1-file-btn{outline:2px solid var(--ink);outline-offset:2px}
+.u1-pick-files{display:flex;flex-wrap:wrap;align-items:center;gap:8px;position:relative;cursor:pointer}
+.u1-file-btn{display:inline-block;font:400 12.5px/1 var(--ui);padding:7px 11px;border:1px solid var(--rule);border-radius:7px;background:var(--raised);color:var(--ink-2)}
+/* The repo box: its own line, so "owner/repo" reads whole at every width */
+.u1-shell .u1-gh{flex:1 1 100%}
+.u1-shell .u1-gh input{min-width:160px}
+.u1-shell .u1-proof .pc-said{flex-basis:100%}
+.pc-call{font-size:14px}
+.pc-home{color:inherit}
+
+/* The top bar with "Your record" in it */
+.u1-shell .u1-topbar{right:381px}
+.u1-code-toggle{right:458px}
+.u1-record-item{display:none}
+@media (max-width:760px){.u1-record-link{display:none!important}.u1-record-item{display:list-item}}
+/* The fold inside the menu is part of the same panel */
+.u1-shell .u1-menu .u1-earlier ul{position:static;box-shadow:none;background:none;border:0;margin:0;padding:0;width:auto;min-width:0}
+.u1-shell .u1-moonwell .m-back{text-align:left;margin-left:0}
+/* The typed box on its own line: its example reads whole */
+.u1-shell .u1-typed{display:block}
+.u1-shell .u1-typed label{display:block;margin-bottom:6px}
+.u1-shell .u1-typed .u1-typed-in{display:block;width:100%}
+/* A narrow window has no room for the moment, the path and the code side by side. On a result the code sits over the moment's column,
+   beside the path it explains, and the path keeps its width. C closes it. */
+@media (min-width:761px) and (max-width:1799px){
+  .u1-shell .u1-studio[data-drawer]:has(.u1-root[data-stage="verdict"]) .c-drawer,.u1-shell .u1-studio[data-drawer]:has(.u1-root[data-stage="run"]) .c-drawer{left:0;right:auto;width:var(--col);border-left:0;border-right:1px solid var(--rule)}
+  .u1-shell .u1-studio[data-drawer]:has(.u1-root[data-stage="verdict"]) .u1-root[data-stage] .r-path,.u1-shell .u1-studio[data-drawer]:has(.u1-root[data-stage="run"]) .u1-root[data-stage] .r-path{width:calc(100vw - var(--col))}
+}
+
+.u1-shell .ex-form .u1-pick-files{display:flex;flex:1 1 100%;flex-direction:row;justify-content:flex-start;align-items:center;gap:10px}
+
+.u1-shell .u1-typed .u1-sub{margin:6px 0 0}
+.u1-shell .u1-moonwell .m-again{margin-bottom:10px}
+.u1-shell .sb-item{max-width:300px}

@@ -37,7 +37,7 @@ import type { ClaimantMode } from "../../src/claimants";
 import { didNotFinish, type Api, type ExperimentAnswer, type HumanAnswer, type PasteAnswer, type ProposalsAnswer, type RunAnswer, type ShownBet } from "../api";
 import { useModelSlots } from "./Claimant";
 import { ErrorNotice } from "./ErrorNotice";
-import { TestForm, emptyForm, formFromParams, type TestFormState } from "./TestForm";
+import { Segments, TestForm, emptyForm, formFromParams, type TestFormState } from "./TestForm";
 import { BenchStage, type After } from "../machines/bench/BenchStage";
 import { benchModel, dialFullMs, type CallTest } from "../machines/bench/model";
 import { marksOf, playScript } from "../machines/bench/play";
@@ -199,7 +199,7 @@ export function longValues(params: unknown, language: Lang | undefined): string[
   return out;
 }
 
-/** How one test differs from another, by the values that change, so two tests can be told apart. */
+/** How one test differs from another, by the values a person would recognise, so two tests can be told apart. Never the test's internal words. */
 export function whatDiffers(a: unknown, b: unknown, other = "the last"): string {
   const leaves = (v: unknown, path: string, out: Map<string, unknown>) => {
     if (v && typeof v === "object") for (const [k, x] of Object.entries(v as Record<string, unknown>)) leaves(x, `${path}/${k}`, out);
@@ -210,13 +210,40 @@ export function whatDiffers(a: unknown, b: unknown, other = "the last"): string 
   const y = leaves(b, "", new Map());
   const changed = [...new Set([...x.keys(), ...y.keys()])].filter((k) => x.get(k) !== y.get(k));
   if (changed.length === 0) return `The same as ${other} test.`;
+  const isValue = (k: string) => /\/(value|body|status|message|errorName|afterMs|waitMs|name)$/.test(k) || /\/value\//.test(k) || /\/body\//.test(k);
   const shown = changed
-    .filter((k) => x.has(k) && y.has(k))
+    .filter((k) => x.has(k) && y.has(k) && isValue(k))
     .slice(0, 3)
     .map((k) => `${JSON.stringify(y.get(k))} becomes ${JSON.stringify(x.get(k))}`);
-  if (shown.length === 0) return `Differs from ${other} test in its shape.`;
-  const more = changed.length - shown.length;
+  if (shown.length === 0) return `Differs from ${other} test in what its fakes do.`;
+  const more = changed.filter(isValue).length - shown.length;
   return `Compared with ${other} test: ${visibleText(shown.join(", "))}${more > 0 ? `, and ${more} more` : ""}.`;
+}
+
+/** How many arguments a function needs, from its signature: a default, a ? or a * makes one optional. Null when it can't be told. */
+export function requiredArgs(signature: string | undefined): string[] | null {
+  if (!signature) return null;
+  const open = signature.indexOf("(");
+  if (open < 0) return null;
+  let depth = 0;
+  let cur = "";
+  const out: string[] = [];
+  for (let i = open; i < signature.length; i++) {
+    const c = signature[i]!;
+    if ("([{<".includes(c)) {
+      if (depth++ > 0) cur += c;
+    } else if (")]}>".includes(c) && !(c === ">" && signature[i - 1] === "=")) {
+      if (--depth === 0) {
+        out.push(cur);
+        break;
+      }
+      cur += c;
+    } else if (c === "," && depth === 1) {
+      out.push(cur);
+      cur = "";
+    } else cur += c;
+  }
+  return out.map((p) => p.trim()).filter((p) => p !== "" && p !== "self" && p !== "cls" && !/[=?]|^\*|^\.\.\./.test(p.split(":")[0]!) && !/=(?!>)/.test(p)).map((p) => p.split(":")[0]!.trim());
 }
 
 /** A plain-code label on the drawing. "found in this code" is what the code matched, not what it has. */
@@ -252,16 +279,14 @@ export const canonicalTest = (v: unknown): string => JSON.stringify(v, (_k, x: u
 
 /**
  * The answers the page sends: a tap is a quiz answer; U3: a typed value (on a question that takes one) is a json answer;
- * an untouched question or "can't tell" is declined. A typed value that does not read is refused before sealing.
+ * an untouched question or "can't tell" is declined. D64: text that isn't a value seals as that text, and the box says so as it is typed.
  */
-export function answersToSend(questions: readonly Question[], picked: Record<string, string>, typed: Record<string, string> = {}, language?: Lang): { ok: true; answers: { measures: string; answer: HumanAnswer }[] } | { ok: false; measures: string } {
+export function answersToSend(questions: readonly Question[], picked: Record<string, string>, typed: Record<string, string> = {}, language?: Lang): { ok: true; answers: { measures: string; answer: HumanAnswer }[] } {
   const answers: { measures: string; answer: HumanAnswer }[] = [];
   for (const q of questions) {
     const t = (typed[q.measures] ?? "").trim();
     if (q.allowsTyped && t !== "") {
-      const v = parseTyped(t, language);
-      if (!v) return { ok: false, measures: q.measures };
-      answers.push({ measures: q.measures, answer: { kind: "json", value: v.value } });
+      answers.push({ measures: q.measures, answer: { kind: "json", value: parseTyped(t, language)?.value ?? t } });
       continue;
     }
     const c = picked[q.measures];
@@ -294,6 +319,13 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const [typed, setTyped] = useState<Record<string, string>>({});
   const [confidence, setConfidence] = useState<Confidence | null>(null);
   const [wholeTest, setWholeTest] = useState(false);
+  // "show the whole test" only when some of it is really cut.
+  const testLine = useRef<HTMLParagraphElement | null>(null);
+  const [testCut, setTestCut] = useState(false);
+  useEffect(() => {
+    const el = testLine.current;
+    if (el && !wholeTest) setTestCut(el.scrollHeight > el.clientHeight + 1);
+  });
   const [sealed, setSealed] = useState<ShownBet[]>([]);
   const [result, setResult] = useState<RunAnswer | null>(null);
   const [claim, setClaim] = useState<string | null>(null);
@@ -673,10 +705,6 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     try {
       const lang = exp.experiment.target.language;
       const out = answersToSend(exp.questions, picked, typed, lang);
-      if (!out.ok) {
-        setError(BET_WORDS.typedBad(lang === "py"));
-        return;
-      }
       setSealed(await api.bets(exp.experiment.id, out.answers, confidence));
     } catch (e) {
       setError((e as Error).message);
@@ -811,17 +839,9 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   useEffect(() => {
     if (expId && open) document.querySelector<HTMLElement>('[data-testid="u1-pop"]')?.focus({ preventScroll: true });
   }, [expId, open]);
-  const usingPointer = useRef(false);
-  // A question that takes a typed value shows with its box ready.
-  const activeMeasures = exp?.questions[step]?.measures;
-  useEffect(() => {
-    if (!open || sealed.length > 0 || !activeMeasures) return;
-    // Only for someone answering by pointer. For keys a digit must answer the question, not land in the box, and the first
-    // question can't tell which: so the first question never takes the keys away.
-    if (exp?.questions[step]?.allowsTyped && usingPointer.current) document.getElementById(`typed-${activeMeasures}`)?.focus({ preventScroll: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeMeasures, open]);
   // D60: the bet's keys: 1 to 9 answer the question showing, the left arrow goes back, Enter seals on the last step.
+  // Round 4: keys and typing are separate. The box never takes the keys by itself: it is clicked, or T opens it, and Esc leaves it. A digit
+  // with no option of its own, on a question with an empty box, starts the typed value instead of being lost.
   useEffect(() => {
     if (!exp || !open || sealed.length > 0 || changing) return;
     const onKey = (e: globalThis.KeyboardEvent) => {
@@ -840,9 +860,15 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
         const q = exp.questions[step]!;
         const ids = [...(q.quiz ?? []).map((o) => o.id), CANT_TELL];
         const id = ids[Number(e.key) - 1];
-        if (id === undefined) return;
         e.preventDefault();
-        document.querySelector<HTMLElement>(`[data-testid="opt-${q.measures}-${id}"]`)?.click();
+        if (id !== undefined) document.querySelector<HTMLElement>(`[data-testid="opt-${q.measures}-${id}"]`)?.click();
+        else if (q.allowsTyped && (typed[q.measures] ?? "") === "") {
+          setTyped((v) => ({ ...v, [q.measures]: e.key }));
+          document.getElementById(`typed-${q.measures}`)?.focus({ preventScroll: true });
+        }
+      } else if (e.key.toLowerCase() === "t" && step < exp.questions.length && exp.questions[step]!.allowsTyped) {
+        e.preventDefault();
+        document.getElementById(`typed-${exp.questions[step]!.measures}`)?.focus({ preventScroll: true });
       }
     };
     window.addEventListener("keydown", onKey);
@@ -854,10 +880,12 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       const t = e.target as HTMLElement | null;
       if (e.metaKey || e.ctrlKey || e.altKey || t?.closest?.("input, textarea, select")) return;
       if (e.key === "Escape") {
-        setEditing(null);
-        setProofOpen(false);
-        setPicking(false);
-        setDrawer(false);
+        // Only the top-most thing closes: a panel, then a pinned card (the stage closes that one), then the code panel.
+        if (editing !== null || proofOpen || picking) {
+          setEditing(null);
+          setProofOpen(false);
+          setPicking(false);
+        } else if (!e.defaultPrevented) setDrawer(false);
         return;
       }
       if (e.key.toLowerCase() === "c" && pasted) {
@@ -941,15 +969,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           </button>
           {/* The language is guessed. The choice appears only if a guess did not work. */}
           {error && (
-            <label className="u1-inline">
-              <span className="u1-sr">Language</span>
-              <select value={lang} onChange={(e) => setLang(e.target.value as Lang | "auto")} aria-label="Language" data-testid="u1-lang">
-                <option value="auto">Guess the language</option>
-                <option value="ts">TypeScript</option>
-                <option value="js">JavaScript</option>
-                <option value="py">Python</option>
-              </select>
-            </label>
+            <Segments label="Language" value={lang} onChange={(v) => setLang(v as Lang | "auto")} testid="u1-lang" options={[["auto", "Guess the language"], ["ts", "TypeScript"], ["js", "JavaScript"], ["py", "Python"]]} />
           )}
         </div>
         <div className="u1-entry-or">
@@ -975,7 +995,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
             className="u1-gh"
             onSubmit={(e) => {
               e.preventDefault();
-              onExplore({ repo: repo.trim() });
+              if (repo.trim() !== "") onExplore({ repo: repo.trim() });
             }}
           >
             <label htmlFor="u1-repo">A GitHub folder</label>
@@ -1273,7 +1293,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
             {open ? "Hide the bet" : "Bet on your understanding"}
           </button>
           {open && (
-            <section id="u1-pop" className="u1-pop" tabIndex={-1} onPointerDown={() => (usingPointer.current = true)} aria-label="Bet on your understanding" data-testid="u1-pop">
+            <section id="u1-pop" className="u1-pop" tabIndex={-1} aria-label="Bet on your understanding" data-testid="u1-pop">
               {wonderWait && !exp && <WonderWaiting wait={wonderWait} fn={fn} onOwn={changing ? null : writeOwn} />}
               {!exp && !changing && busy && !wonderWait && (
                 <p className="u1-status" role="status">
@@ -1288,7 +1308,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                       {claimRound.closeness && <small className="b-differs" data-testid="u1-claim-closeness">{claimRound.closeness}</small>}
                     </p>
                   )}
-                  <p className={`u1-test${wholeTest ? "" : " u1-test-clamp"}`} data-testid="u1-test">
+                  <p ref={testLine} className={`u1-test${wholeTest ? "" : " u1-test-clamp"}`} data-testid="u1-test">
                     <span className="u1-k">{BET_WORDS.testIs}</span> {chosenSays ?? (exp.experiment.params.shape === "call-function" ? describeCall(exp.experiment.params, exp.experiment.target.language) : "")}
                   </p>
                   {wholeTest && longValues(exp.experiment.params, exp.experiment.target.language ?? undefined).length > 0 && (
@@ -1299,9 +1319,11 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                     </ul>
                   )}
                   <div className="u1-testrow">
-                    <button type="button" className="u1-link" aria-expanded={wholeTest} onClick={() => setWholeTest((w) => !w)} data-testid="u1-whole-test">
-                      {wholeTest ? BET_WORDS.testShort : BET_WORDS.testWhole}
-                    </button>
+                    {(wholeTest || testCut || longValues(exp.experiment.params, exp.experiment.target.language ?? undefined).length > 0) && (
+                      <button type="button" className="u1-link" aria-expanded={wholeTest} onClick={() => setWholeTest((w) => !w)} data-testid="u1-whole-test">
+                        {wholeTest ? BET_WORDS.testShort : BET_WORDS.testWhole}
+                      </button>
+                    )}
                     {sealed.length === 0 && (
                       <button type="button" className="u1-link" onClick={() => setChanging(true)} data-testid="u1-change">
                         change test
@@ -1365,7 +1387,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                     <ol className="b-review" data-testid="b-review">
                       {exp.questions.map((q, qi) => {
                         const t = (typed[q.measures] ?? "").trim();
-                        const label = t !== "" ? t : (q.quiz ?? []).find((o) => o.id === picked[q.measures])?.label ?? CANT_TELL;
+                        const label = t !== "" ? literal(parseTyped(t, exp.experiment.target.language)?.value ?? t, exp.experiment.target.language) : (q.quiz ?? []).find((o) => o.id === picked[q.measures])?.label ?? CANT_TELL;
                         return (
                           <li key={q.measures}>
                             <button type="button" onClick={() => setStep(qi)} data-testid={`b-review-${qi}`}>
@@ -1521,7 +1543,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                   <button type="button" className="u1-link" onClick={() => setForm({ initial: emptyForm() })} data-testid="u1-own">
                     Write your own test
                   </button>
-                  {form && <TestForm key={JSON.stringify(form.initial)} exportName={fn} initial={form.initial} busy={busy !== null} onSubmit={(params) => start(() => api.experiment(target, params, undefined, form.editedFrom, { quiz: true }))} />}
+                  {form && <TestForm key={JSON.stringify(form.initial)} exportName={fn} required={requiredArgs(pasted.outline?.parts.find((x) => x.name === fn)?.signature)} initial={form.initial} busy={busy !== null} onSubmit={(params) => start(() => api.experiment(target, params, undefined, form.editedFrom, { quiz: true }))} />}
                   {exp && (
                     <button type="button" className="u1-link" onClick={() => setChanging(false)}>
                       Back to the quiz
@@ -1608,12 +1630,16 @@ function TypedValue({ id, value, language, disabled, onChange, onEnter }: { id: 
   const py = language === "py";
   const t = value.trim();
   const read = t === "" ? null : parseTyped(t, language);
+  const [focused, setFocused] = useState(false);
   return (
     <div className="u1-typed">
-      <label htmlFor={id}>{BET_WORDS.typedLabel}</label>
-      <input id={id} className="u1-typed-in" value={value} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onEnter?.(); } }} onChange={(e) => onChange(e.target.value)} disabled={disabled} spellCheck={false} autoComplete="off" placeholder={py ? 'e.g. "pro", 42, True, None' : 'e.g. "pro", 42, true, null'} aria-describedby={`${id}-hint`} data-testid={id} />
+      <label htmlFor={id}>
+        {BET_WORDS.typedLabel}
+        {!focused && <kbd className="k">T</kbd>}
+      </label>
+      <input id={id} className="u1-typed-in" value={value} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onEnter?.(); } else if (e.key === "Escape") { e.preventDefault(); e.currentTarget.blur(); document.querySelector<HTMLElement>('[data-testid="u1-pop"]')?.focus({ preventScroll: true }); } }} onChange={(e) => onChange(e.target.value)} disabled={disabled} spellCheck={false} autoComplete="off" placeholder={py ? 'e.g. "pro", 42, True, None' : 'e.g. "pro", 42, true, null'} aria-describedby={`${id}-hint`} data-testid={id} />
       <p className="u1-sub" id={`${id}-hint`} aria-live="polite">
-        {t === "" ? "" : read ? BET_WORDS.typedReads(literal(read.value, language)) : BET_WORDS.typedBad(py)}
+        {t === "" ? (focused ? BET_WORDS.typedKeys : "") : read ? BET_WORDS.typedReads(literal(read.value, language)) : BET_WORDS.typedText(literal(t, language))}
       </p>
     </div>
   );

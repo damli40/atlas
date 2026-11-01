@@ -203,7 +203,7 @@ export function ExplorerFlow({ api, onBet, saved, initialRepo, initialFiles, vis
         </p>
         <div className="ex-form">
           <label>
-            GitHub repo <input value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="owner/repo" disabled={running || busy} data-testid="outline-repo" />
+            GitHub repo <input value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="owner/repo" onKeyDown={(e) => { if (e.key === "Enter" && repo.trim() !== "" && !running && !busy) { e.preventDefault(); void start(false); } }} disabled={running || busy} data-testid="outline-repo" />
           </label>
           <label>
             Folder <input value={subfolder} onChange={(e) => setSubfolder(e.target.value)} placeholder="(the whole repo)" disabled={running || busy} data-testid="outline-subfolder" />
@@ -216,8 +216,10 @@ export function ExplorerFlow({ api, onBet, saved, initialRepo, initialFiles, vis
           </button>
         </div>
         <div className="ex-form">
-          <label>
-            Or upload files (outlining asks Muse Wonder: a paid AI call) <input type="file" multiple onChange={(e) => setFiles(e.target.files)} disabled={running || busy} data-testid="outline-files" />
+          <label className="u1-pick-files">
+            <span className="u1-sub">Or upload files (outlining asks Muse Wonder: a paid AI call)</span>
+            <span className="u1-btn u1-file-btn">{files && files.length > 0 ? `${files.length} ${files.length === 1 ? "file" : "files"} chosen` : "Choose files"}</span>
+            <input type="file" multiple onChange={(e) => setFiles(e.target.files)} disabled={running || busy} data-testid="outline-files" />
           </label>
           <button type="button" onClick={() => start(true)} disabled={running || busy || !files || files.length === 0} data-testid="outline-upload">
             Outline these files (a paid AI call)

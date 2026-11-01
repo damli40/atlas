@@ -71,7 +71,8 @@ describe("U1 drawing-first screen", () => {
     // U3: a typed returned value is a json answer; one that does not read is refused before sealing.
     const typed = answersToSend(qs, { returnedJson: "a" }, { returnedJson: '{"ok": true}' });
     expect(typed.ok && typed.answers.find((a) => a.measures === "returnedJson")!.answer).toEqual({ kind: "json", value: { ok: true } });
-    expect(answersToSend(qs, {}, { returnedJson: "{nope" })).toEqual({ ok: false, measures: "returnedJson" });
+    // D64: text that isn't a value seals as that text.
+    expect(answersToSend(qs, {}, { returnedJson: "$100.00" }).answers.find((a) => a.measures === "returnedJson")!.answer).toEqual({ kind: "json", value: "$100.00" });
   });
 
   it("before sealing the stage draws structure only; after sealing the run plays and the quiz is marked", async () => {

@@ -17,6 +17,7 @@ import { BettorCounts } from "./Claimant";
 import { bettorNames, changeProposer, orderModelBettors } from "../../src/claimants";
 import { AFTER_LABEL, BEFORE_LABEL, CHANGE_CAPTION, CHANGE_CAPTION_READER, theoryCaptions } from "../../src/change";
 import { targetName } from "../../src/target-name";
+import { describeCall } from "../../src/gate";
 import { shortQuestionFor, LANGUAGE_NAME } from "../../src/paste-context";
 import { RunPath } from "../drawing/RunPath";
 import { MoonwellDrawing } from "../drawing/MoonwellDrawing";
@@ -119,9 +120,14 @@ export function ProofCardPage({ api, runId, embedded = false }: { api: Api; runI
           <RecordBefore api={api} runId={runId} />
         </div>
       ) : error ? (
-        <p className="notice" role="alert">
-          {error}
-        </p>
+        <>
+          <p className="notice" role="alert">
+            {error}
+          </p>
+          <p className="pc-small">
+            <a href="/" data-testid="pc-home-gone">Atlas: draw your own code and bet on what it does</a>
+          </p>
+        </>
       ) : (
         <p className="muted">Reading the .atlas.json for run {runId}…</p>
       )}
@@ -210,6 +216,11 @@ export function ProofCard({ file, api, replay: given, stranger = false, reader =
         </p>
       </header>
       {/* U3 item 7: plain words first; the technical details are folded below. */}
+      {call && (
+        <p className="pc-plain pc-call" data-testid="pc-call">
+          <b>What it was given:</b> {describeCall(call, file.target.language)}
+        </p>
+      )}
       <p className="pc-plain" data-testid="pc-plain">
         {PROOF_WORDS.what}
       </p>
@@ -269,7 +280,7 @@ export function ProofCard({ file, api, replay: given, stranger = false, reader =
         // E3: the call timeline, drawn from the file's own run (the same component as the round's screen).
         <section className="pc-machine" aria-label="call timeline" data-testid="pc-call-timeline">
           <RunPath run={file.runs[0]} experiment={file.experiments[0]} bets={file.bets} verdicts={file.verdicts} still testid="pc-path" stranger={stranger} />
-          {api && !readerOnly && <PencilImage api={api} runId={file.runs[0].id} />}
+          {api && !reader && (file as { keptCard?: unknown }).keptCard === undefined && <PencilImage api={api} runId={file.runs[0].id} />}
         </section>
       )}
 
@@ -277,13 +288,13 @@ export function ProofCard({ file, api, replay: given, stranger = false, reader =
       {!call && file.runs[0]?.runner === "ts" && (
         <section className="pc-machine" aria-label="what happened" data-testid="pc-retry">
           <RunPath run={file.runs[0]} experiment={file.experiments[0]} bets={file.bets} verdicts={file.verdicts} still retry testid="pc-path" stranger={stranger} />
-          {api && !readerOnly && <PencilImage api={api} runId={file.runs[0].id} />}
+          {api && !reader && (file as { keptCard?: unknown }).keptCard === undefined && <PencilImage api={api} runId={file.runs[0].id} />}
         </section>
       )}
       {!call && file.runs[0]?.runner === "evm" && (
         <section className="pc-machine" aria-label="the price flow" data-testid="pc-moonwell">
           <MoonwellDrawing run={file.runs[0]} bets={file.bets} verdicts={file.verdicts} captions={[...new Set(file.captions.map(sayCaption))]} still stranger={stranger} {...(file.change ? { beforeChange: true } : {})} />
-          {api && !readerOnly && <PencilImage api={api} runId={file.runs[0].id} />}
+          {api && !reader && (file as { keptCard?: unknown }).keptCard === undefined && <PencilImage api={api} runId={file.runs[0].id} />}
         </section>
       )}
 
@@ -389,6 +400,9 @@ export function ProofCard({ file, api, replay: given, stranger = false, reader =
             replay not run: {replay.reason}
           </span>
         )}
+        <a className="pc-small pc-home" href="/" data-testid="pc-home">
+          Atlas: draw your own code and bet on what it does
+        </a>
         <span className="pc-small muted">recorded {card.createdAt.replace("T", " ").replace(/\.\d{3}Z$/, " UTC")} · run {card.runId}</span>
       </footer>
     </article>
@@ -478,6 +492,7 @@ const PROOF_WORDS = {
 /** U3 item 7: a measured field's name in plain words ("calls:fetch" → "calls to fetch"). */
 export function plainField(measures: string): string {
   if (measures.startsWith("calls:")) return `calls to ${measures.slice(6)}`;
+  if (measures.startsWith("priceUsd1e18:")) return `${measures.slice(13)} in dollars`;
   const words: Record<string, string> = { outcome: "how it ends", returnedJson: "what it returns", virtualMs: "how long it takes", calls: "calls", totalWaitMs: "total wait" };
   return words[measures] ?? measures;
 }

@@ -49,7 +49,7 @@ export interface LoopDeps {
 
 const experimentId = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/);
 const chooseBody = z.object({ experimentId, typed: z.string().max(200) }).strict();
-const rerunBody = z.object({ experimentId, code: z.string().max(PASTED_MAX_BYTES * 2, "the code is longer than Atlas reads") }).strict();
+const rerunBody = z.object({ experimentId, code: z.string().max(PASTED_MAX_BYTES * 2, `this file is too long: Atlas reads one file of at most ${PASTED_MAX_BYTES / 1024} KB`) }).strict();
 
 /** Changed lines an answer carries; the proof file keeps them all. */
 export const LOOP_MAX_LINES_IN_ANSWER = 200;

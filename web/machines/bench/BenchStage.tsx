@@ -249,7 +249,6 @@ export function BenchStage({ seenBefore = false, codeRan = false, model, theme, 
   const onMove = (e: RPointerEvent<HTMLDivElement>) => setHover(after ? null : nodeAt(e));
   const order = model.boxes.map((b) => b.id);
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === "Escape") setPinned(null);
     if (e.key === " " && playing) {
       e.preventDefault();
       skip();
@@ -262,6 +261,20 @@ export function BenchStage({ seenBefore = false, codeRan = false, model, theme, 
       setPinned(order[i < 0 ? (e.key === "ArrowRight" ? 0 : n - 1) : (i + (e.key === "ArrowRight" ? 1 : n - 1)) % n]!);
     }
   };
+  // A pinned card belongs to looking at the drawing. It closes when the bet opens or a run starts, and Escape closes it first.
+  const hasRun = after !== null;
+  useEffect(() => setPinned(null), [side, hasRun]);
+  useEffect(() => {
+    if (!pinned) return;
+    const onEsc = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== "Escape" || document.querySelector(".u1-proof")) return;
+      // First in line and marked as used: this key has closed the top-most thing, so nothing below closes too.
+      e.preventDefault();
+      setPinned(null);
+    };
+    window.addEventListener("keydown", onEsc, true);
+    return () => window.removeEventListener("keydown", onEsc, true);
+  }, [pinned]);
   const cardId = pinned ?? hover;
   const stage = !after ? "structure" : marksOn ? "verdict" : "run";
   const readout = after && marksOn ? marksReadout(after.marks) : model.tested ? `testing ${model.tested}` : `${model.boxes.length} ${model.boxes.length === 1 ? "part" : "parts"} · ${model.lines.length} ${model.lines.length === 1 ? "join" : "joins"}`;
@@ -290,7 +303,7 @@ export function BenchStage({ seenBefore = false, codeRan = false, model, theme, 
       </div>
       {pathSpec && (
         <div className="r-viewport r-path" data-testid="bench-path">
-          <Drawing spec={pathSpec} theme={shown} className="r-sheet" maxScale={1.08} minScale={0.66} hover={false} onPending={() => setPathMount(undefined)} onMount={(m) => setPathMount(m)} />
+          <Drawing spec={pathSpec} theme={shown} className="r-sheet" maxScale={1.08} minScale={typeof window !== "undefined" && window.innerWidth <= 760 ? 0.66 : 0.5} hover={false} onPending={() => setPathMount(undefined)} onMount={(m) => setPathMount(m)} />
         </div>
       )}
       <p className="r-step" role="status" aria-live="polite" data-testid="run-step">
@@ -302,7 +315,7 @@ export function BenchStage({ seenBefore = false, codeRan = false, model, theme, 
           drag to move, pinch to zoom
         </p>
       )}
-      {cardId && model.parts[cardId] && <PartCard id={cardId} part={model.parts[cardId]!} tested={model.tested} hasTest={Boolean(model.parts[CLOCK_ID])} python={language === "py"} pinned={pinned === cardId} {...(onTestFunction ? { onTest: onTestFunction } : {})} canChange={!after} onClose={() => setPinned(null)} />}
+      {!after && cardId && model.parts[cardId] && <PartCard id={cardId} part={model.parts[cardId]!} tested={model.tested} hasTest={Boolean(model.parts[CLOCK_ID])} python={language === "py"} pinned={pinned === cardId} {...(onTestFunction ? { onTest: onTestFunction } : {})} canChange={!after} onClose={() => setPinned(null)} />}
       {after && marksOn && <MarkList marks={after.marks} focus={focusMark} onFocus={setFocusMark} footnote={footnote} headnote={headnote} moment={momentOf(after.marks, after.run, language)} readout={marksReadout(after.marks)} />}
       {children}
     </div>

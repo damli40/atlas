@@ -79,6 +79,7 @@ export const PASTE_WORDS = {
   formThenThrow: "throw AtlasStandInExhausted",
   formWatch: "Watch for (virtual ms)",
   formSubmit: "Use my test",
+  formEmpty: (name: string, need: readonly string[]) => `${name} needs ${need.length === 1 ? `an argument (${need[0]})` : `${need.length} arguments (${need.join(", ")})`}, and this test gives it none. Add a value first.`,
   betsHeading: "4. Place your bets",
   betsIntro: "Answer any question you want to bet on. Leave one blank to skip it. Bets are sealed before the run.",
   seenHeading: "What every bettor sees",
@@ -241,7 +242,8 @@ export const BET_WORDS = {
   /** U3 item 4: the typed returned value, next to the options. */
   typedLabel: "Or type the exact value it returns",
   typedHint: (py: boolean) => (py ? 'Write it as Python or JSON, e.g. "pro", 42, True, None, [1, 2]. Matched only when it is exactly the returned value.' : 'Write it as JSON, e.g. "pro", 42, true, null, [1, 2]. Matched only when it is exactly the returned value.'),
-  typedBad: (py: boolean) => (py ? "That is not a value Atlas can read. Use quotes for text (\"pro\"), and True, False or None." : "That is not JSON. Use double quotes for text (\"pro\"), and true, false or null."),
+  typedText: (shown: string) => `Atlas reads it as the text ${shown}.`,
+  typedKeys: "Typing here. Esc goes back to the option keys.",
   typedReads: (shown: string) => `Atlas reads it as ${shown}.`,
   /** U3 item 6: while Muse Wonder writes tests. */
   waitHead: (fn: string, seconds: number) => `Muse Wonder 1.0 (Meta) is writing tests for ${fn}: ${seconds} s so far (usually under a minute).`,

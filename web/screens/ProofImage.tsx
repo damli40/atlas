@@ -2,8 +2,9 @@
 // page, so what you see is exactly what Copy image gives. The moment's two lines, the marks in one row, the three bettors by
 // Meta's model names, "Judged by plain code", the mark's note (D21), the run id and a short hash.
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MARK_PRE_EXISTING_CAPTION } from "../../src/captions";
+import { describeCall } from "../../src/gate";
 import { theoryCaptions } from "../../src/change";
 import { momentOfRows } from "../../src/moment";
 import type { AtlasFile } from "../../src/types";
@@ -12,6 +13,9 @@ import { Mark } from "../machines/scoreboard/Scoreboard";
 import { scoreboardMarks } from "../machines/scoreboard/marks";
 import { plainField } from "./ProofCard";
 import { bettorLineWords, type bettorLines, type proofCardModel } from "./proofcard-model";
+
+/** "Atlas calls f(1)." as the first sentence of the test, without its fakes. */
+export const callOnly = (params: Parameters<typeof describeCall>[0], language: Parameters<typeof describeCall>[1]) => /^.*?\)\./.exec(describeCall(params, language))?.[0] ?? describeCall(params, language);
 
 const W = 1280;
 const H = 720;
@@ -105,6 +109,15 @@ export function ProofImage({ card, file, lines, names, api, download, downloadNa
   const ref = useRef<SVGSVGElement | null>(null);
   const [said, setSaid] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
+  // The consent is what the button asks, so it is brought into view with it. A card can be taller than its panel.
+  const askRef = useRef<HTMLDivElement | null>(null);
+  const saidRef = useRef<HTMLSpanElement | null>(null);
+  useEffect(() => {
+    if (asking) askRef.current?.scrollIntoView?.({ block: "nearest" });
+  }, [asking]);
+  useEffect(() => {
+    if (said) saidRef.current?.scrollIntoView?.({ block: "nearest" });
+  }, [said]);
   const [keptUntil, setKeptUntil] = useState<string | null>((file as { keptCard?: { until: string } }).keptCard?.until ?? null);
   // Only the person who made a link is offered its Delete.
   const [keptMine, setKeptMine] = useState((file as { keptCard?: { mine?: boolean } }).keptCard?.mine === true);
@@ -115,6 +128,9 @@ export function ProofImage({ card, file, lines, names, api, download, downloadNa
   const exp = file.experiments[0];
   // A title per kind of round: the image travels alone, so it has to say what it is about.
   const title = exp?.params.shape === "call-function" ? exp.params.exportName : run?.runner === "evm" ? "Moonwell MIP-X43: 1 cbETH, on a Base fork" : exp?.params.shape === "retry-scenario" ? "withRpcRetry" : "pasted code";
+  // What the function was given: the image travels alone.
+  const callText = exp?.params.shape === "call-function" ? callOnly(exp.params, file.target.language) : null;
+  const callLine = callText ? (callText.length > 128 ? `${callText.slice(0, 127)}…` : callText) : null;
   const unitless = moment !== null && /^[\d,.]+$/.test(moment.run.trim());
   const runWords = moment ? (unitless && moment.measures ? `${moment.run} (${plainField(moment.measures)})` : moment.run) : "";
   const runLines = moment ? wrap(runWords, 42, 3) : [];
@@ -190,13 +206,14 @@ export function ProofImage({ card, file, lines, names, api, download, downloadNa
     <section className="pc-image-wrap" aria-label="the proof card as one image" data-testid="pc-image">
       <svg ref={ref} className="pc-image" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title}: ${moment.you === null ? "no bet on this" : `${stranger ? "the bet was" : "you bet"} ${moment.you}, on ${(moment.question ?? "").toLowerCase()}`}; the run ${moment.run}`} xmlns="http://www.w3.org/2000/svg">
         <rect x="0" y="0" width={W} height={H} fill="#f5f1e7" />
-        <text x="56" y="70" fontFamily={SANS} fontWeight="600" fontSize="22" fill="#1f1b1d">Atlas</text>
-        <text x="130" y="70" fontFamily={MONO} fontWeight="500" fontSize="22" fill="#1f1b1d">{title.slice(0, 44)}</text>
+        <text x="56" y={callLine ? 58 : 70} fontFamily={SANS} fontWeight="600" fontSize="22" fill="#1f1b1d">Atlas</text>
+        <text x="130" y={callLine ? 58 : 70} fontFamily={MONO} fontWeight="500" fontSize="22" fill="#1f1b1d">{title.slice(0, 44)}</text>
+        {callLine && <text x="56" y="84" fontFamily={MONO} fontSize="14" fill="#6b6358" data-testid="pc-image-call">{callLine}</text>}
         <text x={W - 56} y="70" textAnchor="end" fontFamily={MONO} fontSize="16" fill="#6b6358">{`run ${card.runId}`}</text>
         <line x1="56" x2={W - 56} y1="96" y2="96" stroke="#dcd4c3" />
         {youLines.length > 0 && (
           <>
-            <text x="56" y="132" fontFamily={SANS} fontWeight="500" fontSize="16" letterSpacing=".6" fill="#6b6358" data-testid="pc-image-question">{`${stranger ? "THE BET" : "YOU BET"}, ON ${(moment.question ?? "").toUpperCase()}`}</text>
+            <text x="56" y="132" fontFamily={SANS} fontWeight="500" fontSize="16" letterSpacing=".6" fill="#6b6358" data-testid="pc-image-question">{stranger ? "THE BET" : "YOU BET"}<tspan fontWeight="400" letterSpacing="0">{` on ${moment.question ?? ""}`}</tspan></text>
             {youLines.map((l, i) => (
               <text key={i} x="56" y={162 + i * 26} fontFamily={MONO} fontWeight="500" fontSize="22" fill="#1f1b1d">{l}</text>
             ))}
@@ -240,13 +257,13 @@ export function ProofImage({ card, file, lines, names, api, download, downloadNa
           <button type="button" className="u1-btn" onClick={() => void deleteLink()} data-testid="pc-delete-link">Delete public link</button>
         )}
         {asking && (
-          <div className="pc-ask" role="group" aria-label="Make a public link" data-testid="pc-link-ask">
+          <div className="pc-ask" ref={askRef} role="group" aria-label="Make a public link" data-testid="pc-link-ask">
             <p>{KEEP_WORDS}</p>
             <button type="button" className="u1-btn u1-primary" onClick={() => void makeLink()} data-testid="pc-link-yes">Make the public link</button>
             <button type="button" className="u1-btn" onClick={() => setAsking(false)} data-testid="pc-link-no">Not now</button>
           </div>
         )}
-        {said && <span className="u1-sub" role="status" data-testid="pc-share-said">{said}</span>}
+        {said && <span className="u1-sub pc-said" ref={saidRef} role="status" data-testid="pc-share-said">{said}</span>}
       </div>
     </section>
   );

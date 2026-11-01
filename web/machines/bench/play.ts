@@ -275,7 +275,7 @@ export function marksOf(questions: readonly Question[], bets: readonly Bet[], ve
       .map((b) => {
         const v = verdicts.find((x) => x.betId === b.id);
         // U3: a typed returned value reads as the code's language writes it.
-        const pick = b.answer.kind === "quiz" ? quizChoiceLabel(b.answer.options, b.answer.choice) : b.answer.kind === "declined" ? CANT_TELL : b.answer.kind === "json" ? `typed ${clip(literal(b.answer.value, language))}` : "an answer";
+        const pick = b.answer.kind === "quiz" ? quizChoiceLabel(b.answer.options, b.answer.choice) : b.answer.kind === "declined" ? CANT_TELL : b.answer.kind === "json" ? `${b.who === "human" ? "typed" : "answered"} ${clip(literal(b.answer.value, language))}` : "an answer";
         return { who: b.who, name: b.who === "human" ? "You" : modelDisplay(b.who.slice(6)), pick, outcome: v?.outcome ?? "cant_check", ...(v?.reason ? { reason: v.reason } : {}) };
       })
       .sort(bettorOrder);
