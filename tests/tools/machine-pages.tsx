@@ -1,12 +1,11 @@
-// Builds the evidence pages for the two machines (D05-01 scoreboard, D05-02 retry machine) from REAL
-// runs: it starts Atlas's server in-process (no model is called), plays rounds through the same
-// HTTP routes the page uses, and renders the real React components to static HTML. One more input
-// is the real D04-04 round (person + Muse Spark on S3), read from its .atlas.json.
+// Plays REAL rounds for the tests, and builds the scoreboard's evidence page (D05-01) from them: it
+// starts Atlas's server in-process (no model is called), plays rounds through the same HTTP routes the
+// page uses, and renders the real React component to static HTML. One more input is the real D04-04
+// round (person + Muse Spark on S3), read from its .atlas.json.
 //
 // Run: npx tsx tests/tools/machine-pages.tsx
-// Writes: tests/evidence/D05-01/*.html, tests/evidence/D05-02/*.html and runs.json beside them.
-// The pages are static: the end state (or one held moment), so scripts/lines.mjs and capture.mjs
-// see exactly what the reader sees at that moment.
+// Writes: tests/evidence/D05-01/*.html, and tests/evidence/D05-02/runs.json (what each round recorded).
+// The retry machine's own pages under D05-02 are a historic record: that figure was removed (R3 review M1).
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -17,8 +16,6 @@ import type { AtlasFile, Bet, BetAnswer, ExperimentShape, Run, Verdict } from ".
 import { OUTCOME_OPTIONS } from "../../src/units.ts";
 import { scoreboardCases } from "./scoreboard-cases.ts";
 import { Scoreboard } from "../../web/machines/scoreboard/Scoreboard.tsx";
-import { RetryMachine } from "../../web/machines/retry/RetryMachine.tsx";
-import { retryModel } from "../../web/machines/retry/model.ts";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const OUT1 = join(ROOT, "tests/evidence/D05-01");
@@ -98,20 +95,8 @@ async function main() {
   rounds.push(d0404Round());
   writeFileSync(join(OUT2, "runs.json"), JSON.stringify(rounds.map((r) => ({ id: r.id, runId: r.run.id, trace: r.run.trace, measured: r.run.result.measured, bets: r.bets.map((b) => ({ who: b.who, measures: b.measures, answer: b.answer })), verdicts: r.verdicts.map((v) => ({ betId: v.betId, outcome: v.outcome, observed: v.observed })) })), null, 2) + "\n");
 
-  const byId = (id: string) => rounds.find((r) => r.id === id)!;
   for (const theme of ["dark", "light"] as const) {
     const sfx = theme === "light" ? "-light" : "";
-    // D05-02: the retry machine, end state, for each round; plus held moments of the S3 story.
-    for (const r of rounds) {
-      const html = renderToStaticMarkup(<RetryMachine run={r.run} bets={r.bets} verdicts={r.verdicts} still theme={theme} />);
-      writeFileSync(join(OUT2, `retry-${r.id}${sfx}.html`), page(`Retry machine ${r.id}`, html, theme));
-    }
-    const s3 = byId("S3-person-and-spark");
-    const m = retryModel(s3);
-    for (const [name, at] of [["mid-send", 0.6], ["mid-back", 1.5], ["mid-wait", 2.8], ["mid-pull", 3.4]] as const) {
-      const html = renderToStaticMarkup(<RetryMachine run={s3.run} bets={s3.bets} verdicts={s3.verdicts} still theme={theme} at={Math.min(at, m.total)} />);
-      writeFileSync(join(OUT2, `retry-S3-${name}${sfx}.html`), page(`Retry machine S3 ${name}`, html, theme));
-    }
     // D05-01: the scoreboard, from each real round, plus the two acceptance cases.
     const cases = scoreboardCases();
     const body = [

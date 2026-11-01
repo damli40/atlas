@@ -1,5 +1,5 @@
 // Day-5 review, B1: when the known-case control failed (or the sandbox never finished the run),
-// nothing from that run is shown as fact. Not the retry machine's motion or readout, not an "Ask why"
+// nothing from that run is shown as fact. Not the retry demo's path or its words, not an "Ask why"
 // sentence, not the Run screen's measured line, and the scoreboard shows every bettor as "can't check".
 // Inputs: the real D04-04 fixture round, with the control marked failed the way runners/ts/control.ts
 // marks a tampered run, and a sandbox failure the way runExperiment records one. No network, no model.
@@ -15,8 +15,8 @@ import { judge } from "../../src/judge";
 import { notShownAsFact } from "../../src/trust";
 import type { AtlasFile, Run } from "../../src/types";
 import { templatedSentences } from "../../src/why";
-import { retryModel } from "../../web/machines/retry/model";
-import { RetryMachine } from "../../web/machines/retry/RetryMachine";
+import { retryDemo } from "../../renderer/authors/what-happened";
+import { drawSpec } from "../../renderer/live/draw";
 import { Scoreboard } from "../../web/machines/scoreboard/Scoreboard";
 import { RunScreen } from "../../web/screens/Run";
 import { WhyScreen } from "../../web/screens/Why";
@@ -48,31 +48,36 @@ describe("B1: an untrusted run is never shown as fact", () => {
     expect(notShownAsFact({ ...GOOD, trace: [] })).toMatch(/the run recorded no trace$/);
   });
 
-  // Before the fix: readout "calls 5 · waits 4 × 3,000 ms · threw the 5th error", 5 capsules, and the
-  // caption "Drawn from run …'s trace only: 5 calls" (probes5/p5).
-  it("retry machine, control failed: no drawing, no motion, no readout numbers; the reason card instead", () => {
-    const m = retryModel({ run: controlFailed, bets: FIXTURE.bets, verdicts: verdictsOn(controlFailed) });
-    expect([m.calls.length, m.waits.length, m.steps.length, m.pulls, m.readout, m.ghosts.length]).toEqual([0, 0, 0, 0, "", 0]);
-    const html = renderToStaticMarkup(<RetryMachine run={controlFailed} bets={FIXTURE.bets} verdicts={verdictsOn(controlFailed)} still theme="light" />);
-    expect(html).not.toContain("<svg");
-    expect(html).not.toContain("data-readout");
-    expect(html).not.toMatch(/calls \d|waits \d|threw the/);
-    expect(html).toContain('data-testid="retry-cant-check"');
-    expect(text(html)).toContain("Atlas's known-case check did not match, so this run is not shown as fact: tampered: result rewritten");
+  // The old figure, before the fix: readout "calls 5 · waits 4 × 3,000 ms · threw the 5th error", and the caption
+  // "Drawn from run …'s trace only: 5 calls" (probes5/p5). The retry demo took its place (R3 review M1).
+  it("retry demo, control failed: no drawing, no steps, no numbers, no marks; the reason instead", () => {
+    const s = retryDemo({ run: controlFailed, experiment: FIXTURE.experiments[0]!, bets: FIXTURE.bets, verdicts: verdictsOn(controlFailed) });
+    expect([s.nodes, s.edges, s.steps, s.marks, s.captions]).toEqual([[], [], [], [], []]);
+    const d = drawSpec(s);
+    if (d.kind !== "not-shown") throw new Error(`expected no drawing, got ${d.kind}`);
+    expect(d.html).not.toContain("<svg");
+    expect(d.html).not.toMatch(/called|waited|threw|3,000/);
+    expect(d.words).toBe("Atlas's known-case check did not match, so this run is not shown as fact: tampered: result rewritten");
+    expect(text(d.html)).toContain("tampered: result rewritten");
   });
 
-  // Before the fix: "calls 0 · waits 0 · no ending in the trace" and "0 calls (one capsule each)".
-  it("retry machine, sandbox failed: never 'calls 0' as if measured", () => {
-    const html = renderToStaticMarkup(<RetryMachine run={sandboxFailed} bets={FIXTURE.bets} verdicts={[]} still theme="light" />);
-    expect(html).not.toMatch(/calls 0|0 calls|waits 0/);
-    expect(html).not.toContain("<svg");
-    expect(text(html)).toContain("The sandbox did not finish this run, so nothing from it is shown as fact");
+  // The old figure, before the fix: "calls 0 · waits 0 · no ending in the trace" and "0 calls (one capsule each)".
+  it("retry demo, sandbox failed: never 0 calls as if measured", () => {
+    const s = retryDemo({ run: sandboxFailed, bets: FIXTURE.bets, verdicts: [] });
+    expect(s.nodes).toEqual([]);
+    const d = drawSpec(s);
+    if (d.kind !== "not-shown") throw new Error(`expected no drawing, got ${d.kind}`);
+    expect(d.html).not.toMatch(/calls 0|0 calls|waits 0|\b0 ms/);
+    expect(d.html).not.toContain("<svg");
+    expect(d.words).toContain("The sandbox did not finish this run, so nothing from it is shown as fact");
   });
 
-  it("the trusted run still draws (no regression): readout and capsules as before", () => {
-    const html = renderToStaticMarkup(<RetryMachine run={GOOD} bets={FIXTURE.bets} verdicts={FIXTURE.verdicts} still theme="light" />);
-    expect(html).toContain("calls 5 · waits 4 × 3,000 ms · threw the 5th error");
-    expect(html).not.toContain("retry-cant-check");
+  it("the trusted run still draws (no regression): 5 calls and 4 waits of 3,000 ms", () => {
+    const s = retryDemo({ run: GOOD, experiment: FIXTURE.experiments[0]!, bets: FIXTURE.bets, verdicts: FIXTURE.verdicts });
+    expect(s.notShown).toBeUndefined();
+    expect(s.nodes.filter((n) => /^\d+(st|nd|rd|th) call$/.test(n.small ?? ""))).toHaveLength(5);
+    expect(s.nodes.filter((n) => n.words === "waited 3,000 ms")).toHaveLength(4);
+    expect(drawSpec(s).kind).toBe("drawing");
   });
 
   // Before the fix: "call 5 threw; no more attempts (trace #23)" in Atlas's voice from the untrusted run.

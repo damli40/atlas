@@ -612,7 +612,7 @@ export function layOut(spec: RenderSpec, o: LayoutOptions = {}): Scene {
   const capW = narrow ? Math.max(340, x1 - x0) : Math.max(460, Math.min(x1 - x0, 880));
   const hiddenWords = hiddenLabels > 0 ? [`${hiddenLabels} line${hiddenLabels === 1 ? "'s" : "s'"} words had no clean spot on the paper, so ${hiddenLabels === 1 ? "they are" : "they are"} not drawn: hover the line to read them.`] : [];
   for (const words of [...(spec.legend ? [spec.legend] : []), ...spec.captions.map((c) => c.words), ...hiddenWords]) {
-    const lines = wrapWords(cleanWords(words), capW, TYPE.caption, "italic", 5);
+    const lines = wrapWords(cleanWords(words), capW, TYPE.caption, "italic", 14);
     const b = block("caption", "italic", TYPE.caption, lines, x0, capY, LINE.caption);
     captions.push(b);
     capY = b.box.y1 + 6;

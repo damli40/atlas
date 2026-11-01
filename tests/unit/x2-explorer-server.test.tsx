@@ -3,7 +3,7 @@
 //   verification) → GET /outline → the explorer model and figure draw exactly the confirmed and code-only joins.
 // - "Bet on this part": the file text comes from the job's own /atlas file and goes through POST /paste (the same
 //   route, the same export scan); the React paste flow sends it once and picks the export.
-// - A 3,000-call run handed off from the explorer still renders honestly (trace cut at the cap, timeline not drawn).
+// - A 3,000-call run handed off from the explorer still renders honestly (trace cut at the cap, the path says so).
 
 import "../tools/jsdom-globals";
 import { readFileSync, readdirSync, statSync } from "node:fs";
@@ -14,10 +14,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it } from "vitest";
 import type { ChatArgs, ChatResult } from "../../server/meta/client";
 import type { Run } from "../../src/types";
-import { CallTimeline } from "../../web/machines/calltimeline/CallTimeline";
+import { explorerSpec } from "../../renderer/authors/code-chart";
+import { whatHappened } from "../../renderer/authors/what-happened";
 import { explorerModel } from "../../web/machines/explorer/model";
 import type { OutlineView } from "../../web/machines/explorer/outline-data";
-import { buildFigure } from "../../web/machines/explorer/figure.mjs";
 import { ExplorerMachine } from "../../web/machines/explorer/ExplorerMachine";
 import { PasteFlow } from "../../web/screens/Paste";
 import { ExplorerFlow, type BetHandoff } from "../../web/screens/Explorer";
@@ -57,7 +57,7 @@ async function waitDone(c: ReturnType<typeof client>, jobId: string) {
 }
 
 describe("X2: server round-trip with a mocked Muse Wonder", () => {
-  it("upload server/meta → outline job → the figure draws exactly the confirmed and code-only joins → hand-off to /paste", async () => {
+  it("upload server/meta → outline job → the chart draws exactly the confirmed and code-only joins → hand-off to /paste", async () => {
     const w = outlinerAnswering(WONDER);
     const { app } = makeApp({ outline: { outliner: { chat: w.chat } } });
     const c = client(app);
@@ -74,8 +74,8 @@ describe("X2: server round-trip with a mocked Muse Wonder", () => {
     expect(m.notShown).toBeNull();
     const drawable = view.verified!.joins.filter((j) => j.status !== "model-only").map((j) => j.id).sort();
     expect(m.lines.map((l) => l.id).sort()).toEqual(drawable);
-    const fig = buildFigure(m);
-    const drawn = new Set([...fig.svg.matchAll(/data-line="([^"]*)"/g)].map((x) => x[1]!.replace(/&gt;/g, ">")));
+    // A thread is a line plain code found; one thread may carry several joins between the same two parts.
+    const drawn = new Set(explorerSpec(m).edges.filter((e) => e.kind === "thread").flatMap((e) => e.id.split("+")));
     expect([...drawn].sort()).toEqual(drawable);
     for (const j of view.verified!.joins.filter((x) => x.status === "model-only")) expect(drawn.has(j.id)).toBe(false);
 
@@ -100,7 +100,7 @@ describe("X2: server round-trip with a mocked Muse Wonder", () => {
     expect((await b.get(`/outline/jobs/${start.json.jobId}/atlas`)).status).toBe(404);
   }, 120_000);
 
-  it("a 3,000-call function handed off from the explorer: the trace is cut at the cap and the timeline says so instead of drawing", async () => {
+  it("a 3,000-call function handed off from the explorer: the trace is cut at the cap and the path says so, with the exact count", async () => {
     const src = "export function many(f, n){let s=0;for(let i=0;i<n;i++)s+=f();return s}\n";
     const outline = JSON.stringify({ parts: [{ id: "loop", name: "Loop runner (mock)", purpose: "Calls f n times and sums the results (mocked Wonder sentence).", files: [{ path: "many.js", lineStart: 1, lineEnd: 1, quotedSnippet: src.trim() }], patterns: [] }], joins: [] });
     const w = outlinerAnswering(outline);
@@ -123,9 +123,10 @@ describe("X2: server round-trip with a mocked Muse Wonder", () => {
     const run = r.json.run as Run;
     expect(run.result.measured).toMatchObject({ outcome: "returned", "calls:f": 3000 });
     expect(run.trace.some((t) => t.event === "trace_cut")).toBe(true);
-    const h = renderToStaticMarkup(<CallTimeline run={run} still theme="light" />);
-    expect(h).toContain("more events than Atlas keeps");
-    expect(h).not.toContain("<svg");
+    const s = whatHappened({ run, experiment: e.json.experiment, bets: [], verdicts: [] });
+    expect(s.nodes.find((n) => n.words.startsWith("Atlas kept the first"))!.words).toMatch(/so the path stops here\. In all, the code called f 3,000 times\.$/);
+    expect(s.nodes.at(-1)!.words).toBe("returned 3000");
+    expect(s.edges.at(-1)!.kind).toBe("dashed-note");
   }, 120_000);
 });
 

@@ -138,7 +138,7 @@ function PartCard({ model, box, onPick, onBet, betUnavailable, betBusy, labels, 
   if (!box)
     return (
       <section className="ex-card" aria-label="part" data-testid="part-card">
-        <p className="ex-card-label">Pick a box</p>
+        <p className="ex-card-label">Pick a part</p>
         <p className="ex-muted">Hover, click or Tab to a box to see its part: the name and purpose sentence Muse Wonder ({model.model}) wrote, the real file lines plain code confirmed, its joins, and the functions you can bet on.</p>
       </section>
     );
@@ -256,7 +256,7 @@ function Lists({ model }: { model: ExplorerModel }) {
       {model.notInAnyPart.length ? (
         <>
           <h2>Files in no part</h2>
-          <p className="ex-muted">{`${model.notInAnyPart.join(", ")}: an empty tray each.`}</p>
+          <p className="ex-muted">{`${model.notInAnyPart.join(", ")}: no part of their own.`}</p>
         </>
       ) : null}
       {model.skipped.length ? (

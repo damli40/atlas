@@ -347,7 +347,8 @@ export function pathItems(input: WhatHappenedInput): { items: PathItem[]; notes:
       // Retry scenario: the code asked for this wait; the following "wake" finishes it.
       const ms = num(d.ms);
       const woke = trace.slice(trace.indexOf(raw) + 1).some((x) => x.event === "wake");
-      items.push({ kind: "wait", ms: timeOk ? ms : null, t: e.t + (ms ?? 0), ...(woke ? {} : { cut: true }) });
+      // The trace itself says how long this wait was asked to be, whatever else could not be measured.
+      items.push({ kind: "wait", ms, t: e.t + (ms ?? 0), ...(woke ? {} : { cut: true }) });
       lastT = e.t + (ms ?? 0);
       continue;
     }
@@ -369,7 +370,7 @@ export function pathItems(input: WhatHappenedInput): { items: PathItem[]; notes:
     const more = num(d.eventsNotKept) ?? num(d.dropped);
     const counts = Object.keys(measured)
       .filter((k) => k.startsWith("calls:") && num(measured[k]) !== null)
-      .map((k) => `${k.slice(6)} ${grouped(num(measured[k])!)} times`);
+      .map((k) => `${k.slice(6)} ${num(measured[k]) === 1 ? "once" : `${grouped(num(measured[k])!)} times`}`);
     // The call the kept part ended on may have answered in the part not kept: it says that, never "no answer".
     const lastItem = items[items.length - 1];
     if (lastItem?.kind === "call" && lastItem.answer === null) lastItem.answer = "its answer is past what Atlas kept";
@@ -677,7 +678,7 @@ export function whatHappened(input: WhatHappenedInput): RenderSpec {
       pendingWords = clip(`each round: ${it.pattern}${it.waits ? `; waits ${it.waits.min === it.waits.max ? `${grouped(it.waits.min)} ms` : `${grouped(it.waits.min)} to ${grouped(it.waits.max)} ms`}` : ""}`, 90);
     } else if (it.kind === "wait") {
       const ms = it.ms;
-      const words = ms === null ? "waited (time not reported)" : it.cut ? `was waiting ${grouped(ms)} ms when Atlas stopped` : `waited ${grouped(ms)} ms`;
+      const words = ms === null ? (it.cut ? "was waiting when Atlas stopped" : "waited (time not reported)") : it.cut ? `asked to wait ${grouped(ms)} ms; Atlas stopped during it` : `waited ${grouped(ms)} ms`;
       // The sweep is on a log scale: enough to feel longer waits without any one filling the dial.
       add({ id, kind: "clock", words, provenance: "run", sweep: ms === null ? 0.05 : Math.max(0.06, Math.min(0.92, Math.log10(1 + ms) / 5)) }, { beat: "wait", device: "clock", words, ...(ms === null ? {} : { ms }) });
       if (it.answerWords) pendingWords = it.answerWords;

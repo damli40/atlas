@@ -26,8 +26,8 @@ can tell it apart. Anything on this list that appears on screen carries a
 
 ## Tools and third-party software
 - Anatomy skill (github.com/wheresryan22/anatomy, MIT): a design method and SVG kit for
-  isometric figures. Its kit files are copied into web/machines/iso/ with the license.
-  The two Atlas machines (retry machine, price pipe) are built during the hackathon.
+  isometric figures. Its stylesheet tokens remain in web/machines/iso/ with the license; the kit's
+  drawing code and the machines built on it were removed in R3.
 - statechart-art (github.com/damli40/statechart-art, MIT, Copyright (c) 2026 Kevin T. Ngo; upstream commit
   09c959c79e25767cc34a5beddf3df234b085636e), reused in renderer/ during the hackathon (R3, D55). Technique only: none
   of its pictures, characters, boba scene, TLA+ models or Kevin fonts are copied. See renderer/NOTICE.md for every file.

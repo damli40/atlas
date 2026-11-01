@@ -5,7 +5,7 @@
 import { mkdtempSync, readFileSync, statSync, writeFileSync, chmodSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createApp } from "../../server/app";
 import { createAgentLog } from "../../server/log/agentlog";
 import { createProofStore } from "../../server/evm-round";
@@ -190,10 +190,11 @@ describe("G1 per-code budgets (D34)", () => {
     expect(round.e.json.models.map((m: { status: string }) => m.status)).toEqual(["thinking", "thinking"]);
     // 1 Wonder call + 2 bet calls (Spark, Spark Open), each $0.0164 as the mock reports.
     expect(s.spent.calls).toHaveLength(3);
+    // R3: the third run behind the helper steps starts when the sealed runs end, and it is on the same ledger as everything else.
+    await vi.waitFor(() => expect(s.ledger.today(s.ids.dev).running).toBe(0), { timeout: 20_000 });
     const today = s.ledger.today(s.ids.dev);
     expect(today.spentUsd).toBeCloseTo(3 * 0.0164, 6);
     expect(today.heldUsd).toBe(0);
-    expect(today.running).toBe(0);
     const lines = logLines(s.dir);
     const model = lines.filter((l) => l.kind === "model");
     expect(model.map((l) => l.route).sort()).toEqual(["POST /experiments", "POST /experiments", "POST /paste/proposals"]);
@@ -246,8 +247,11 @@ describe("G1 per-code budgets (D34)", () => {
     const c = client(s.app, s.codes.owner);
     const round = await pastedRound(c);
     expect(round.r.status).toBe(200);
+    // R3: the third run behind the helper steps is a sandbox too, so it is reserved and settled like the others.
+    await vi.waitFor(() => expect(logLines(s.dir).filter((l) => l.kind === "sandbox").length).toBe(s.ledger.modalToday().starts), { timeout: 20_000 });
+    await vi.waitFor(() => expect(s.ledger.today(s.ids.owner).running).toBe(0), { timeout: 20_000 });
     const sandboxes = logLines(s.dir).filter((l) => l.kind === "sandbox");
-    expect(sandboxes.length).toBeGreaterThanOrEqual(2); // the control, then the run
+    expect(sandboxes.length).toBeGreaterThanOrEqual(3); // the control, the run, the third run
     for (const l of sandboxes) {
       expect(l.reservedUsd).toBeGreaterThanOrEqual(modalWorstCaseUsd(1));
       expect(l.usd).toBeLessThan(l.reservedUsd);

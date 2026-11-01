@@ -6,6 +6,8 @@
 // nothing about the code (the same rule as the old price pipe). The caption is the allowed wording in CLAUDE.md.
 // Pure; imports types, src/trust.ts and src/units.ts.
 
+import { LEVEL2_CAPTION, level1Caption } from "../../src/captions";
+import { MOONWELL_LEVEL1_BLOCK, MOONWELL_LEVEL2_BLOCK } from "../../src/moonwell-blocks";
 import { notShownAsFact } from "../../src/trust";
 import type { Bet, Run, Verdict } from "../../src/types";
 import { formatUsd1e18 } from "../../src/units";
@@ -57,15 +59,17 @@ export function moonwellFlow(input: MoonwellInput): RenderSpec {
   const usdBets = (input.bets ?? []).filter((b) => b.measures === `priceUsd1e18:${symbol}`);
   // The note goes first, so the feed sits in the middle of the top row and its thread runs straight down.
   const nodes: SpecNode[] = [];
-  if (count === 1) nodes.push({ id: "gear", kind: "note", words: usdBets.length > 0 ? "the multiply step the bettors expected is not there" : "no multiply step: the run counted one price source", provenance: "run", missing: true });
+  // Only an answer that expected the multiply step can say it is missing: the 2-source price, or any price but the one read.
+  const expectedStep = usdBets.some((b) => b.answer.kind !== "declined" && (input.verdicts ?? []).find((v) => v.betId === b.id)?.outcome === "not_matched");
+  if (count === 1 && expectedStep) nodes.push({ id: "gear", kind: "note", words: "the multiply step the bettors expected is not there", provenance: "run", missing: true });
   nodes.push({ id: "feed", kind: "device", words: feedWords, provenance: "run" });
   const edges: RenderSpec["edges"] = [];
   const steps: SpecStep[] = [{ id: "s0", nodes: ["feed"], edges: [], provenance: "run", beat: "start", words: `the price read went through ${feedWords}` }];
-  const sourceWords = count === null ? "the source count was not measured" : `${count} price source${count === 1 ? "" : "s"}`;
-  nodes.push({ id: "price", kind: "ticket", words: `the oracle reported ${price}`, small: `at block ${input.run.forkBlock ?? "?"}`, provenance: "run", pin: "red" });
+  const sourceWords = count === null ? `the source count was not measured: ${clipReason(input.run.result.notMeasured[`priceSources:${symbol}`])}` : `${count} price source${count === 1 ? "" : "s"}`;
+  nodes.push({ id: "price", kind: "ticket", words: `the oracle reported ${price}`, small: `at block ${input.run.forkBlock ?? "?"}`, provenance: "run", pin: count === 1 ? "red" : "blue" });
   edges.push({ id: "e-price", from: "feed", to: "price", words: sourceWords, kind: "thread", provenance: "run" });
   steps.push({ id: "s1", nodes: ["price"], edges: ["e-price"], provenance: "run", beat: "end", words: `the oracle reported ${price}` });
-  if (count === 1) {
+  if (count === 1 && expectedStep) {
     edges.push({ id: "e-gear", from: "gear", to: "price", kind: "dashed-note", provenance: "run" });
     steps.push({ id: "s2", nodes: ["gear"], edges: ["e-gear"], provenance: "run", beat: "note" });
   }
@@ -75,6 +79,7 @@ export function moonwellFlow(input: MoonwellInput): RenderSpec {
     edges.push({ id: "e-ref", from: "ref", to: "price", words: clipMethod(refRaw.method), kind: "dashed-note", provenance: "run" });
     steps.push({ id: "s3", nodes: ["ref"], edges: ["e-ref"], provenance: "run", beat: "note", words: `reference ${refWords}` });
   }
+  const level = levelCaption(input.run.forkBlock);
   const marks: SpecMark[] = [];
   for (const b of usdBets) {
     const v = (input.verdicts ?? []).find((x) => x.betId === b.id);
@@ -95,10 +100,23 @@ export function moonwellFlow(input: MoonwellInput): RenderSpec {
     path: { edges: ["e-price"], provenance: "run", ...(marks.some((k) => k.kind === "didnt-match") ? { partsWaysAt: "price" } : {}) },
     captions: [
       { words: MOONWELL_ALLOWED_WORDS, provenance: "plain-code" },
-      ...(input.fileCaptions ?? []).map((words) => ({ words, provenance: "run" as const })),
+      // The file's captions already hold the Level words on a proof card, so they appear once.
+      ...[...new Set([...(level !== null ? [level] : []), ...(input.fileCaptions ?? [])])].map((words) => ({ words, provenance: "run" as const })),
       { words: `Every number comes from run ${input.run.id}.${input.origin === "proof-file" ? " Read back from its saved proof file." : input.origin === "this-run" ? " This run just happened on a fork." : ""} Atlas shows what the code did; it does not judge it.`, provenance: "run" },
     ],
   };
+}
+
+const clipReason = (why: string | undefined) => {
+  const w = why ?? "the run did not report it";
+  return w.length > 80 ? `${w.slice(0, 79)}…` : w;
+};
+
+/** The Level words come from the run's fork block, never from which button was pressed or from its trace. */
+function levelCaption(block: number | undefined): string | null {
+  if (block === MOONWELL_LEVEL2_BLOCK) return LEVEL2_CAPTION;
+  if (block === MOONWELL_LEVEL1_BLOCK) return level1Caption(MOONWELL_LEVEL1_BLOCK);
+  return null;
 }
 
 function clipMethod(method: string): string {

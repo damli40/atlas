@@ -1,5 +1,5 @@
 /* Styles for the Atlas machines: the Anatomy kit's tokens (iso.css, MIT, see iso/LICENSE),
-   the scoreboard mark and the retry machine. Imported once by web/main.tsx. */
+   the scoreboard mark, the explorer's card and the bench. Imported once by web/main.tsx. */
 @import "./iso/iso.css";
 @import "./scoreboard/scoreboard.css";
 @import "./explorer/explorer.css";

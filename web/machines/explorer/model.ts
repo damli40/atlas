@@ -330,5 +330,5 @@ export function chalkText(c: Pick<Chalk, "words" | "reason">): string {
 export function lineWord(j: Pick<BoxJoin, "drawn" | "status" | "typeOnly" | "sharesLine">): string {
   if (j.sharesLine) return `same line as the ${j.sharesLine.kind} join`;
   if (!j.drawn) return "no line";
-  return j.status === "code-only" ? "line with tag collars" : j.typeOnly ? "braided line" : "steel line";
+  return j.status === "code-only" ? "solid line, from plain code" : j.typeOnly ? "solid line, a type only" : "solid line";
 }

@@ -15,5 +15,5 @@
     "resolveJsonModule": true
   },
   "include": ["src", "server", "web", "runners", "tests", "tools", "plugins", "bench", "renderer", "vite.config.ts"],
-  "exclude": ["bench/truth/cases", "bench/truth-2/cases", "bench/models/cases"]
+  "exclude": ["bench/truth/cases", "bench/truth-2/cases", "bench/models/cases", "tests/evidence/D05-review/probes/p1-machines.tsx", "tests/evidence/D05-review/probes/p5-control.tsx", "tests/evidence/D20/pages.tsx", "tests/evidence/U1/audit.ts"]
 }

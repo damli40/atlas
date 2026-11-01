@@ -30,7 +30,11 @@ export function sizedHeight(m: Mounted, narrow: boolean): number {
   return Math.ceil(h * Math.min(1, room / Math.max(1, w)));
 }
 
-export function RunPath({ run, experiment, bets = [], verdicts = [], title, kicker, still = false, retry = false, testid = "run-path" }: RunPathProps) {
+// One empty list, kept: a new `[]` each render would redraw the drawing each render.
+const NO_BETS: readonly Bet[] = [];
+const NO_VERDICTS: readonly Verdict[] = [];
+
+export function RunPath({ run, experiment, bets = NO_BETS, verdicts = NO_VERDICTS, title, kicker, still = false, retry = false, testid = "run-path" }: RunPathProps) {
   const dark = useDarkScheme();
   const reduced = useReducedMotion();
   const spec = useMemo(() => {

@@ -5,6 +5,8 @@
 
 import "../tools/jsdom-globals";
 import { readFileSync } from "node:fs";
+import { act } from "react";
+import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { verifyAtlasFile } from "../../src/atlasfile";
@@ -14,7 +16,9 @@ import { changeAndReplay } from "../../server/changes";
 import type { Round } from "../../server/bets";
 import type { MuseExec } from "../../server/meta/roles/fixer";
 import { ProofCard } from "../../web/screens/ProofCard";
-import { PricePipe } from "../../web/machines/pricepipe/PricePipe";
+import { moonwellFlow } from "../../renderer/authors/moonwell";
+import { drawSpec } from "../../renderer/live/draw";
+import { MoonwellDrawing } from "../../web/drawing/MoonwellDrawing";
 
 const file = JSON.parse(readFileSync(new URL("../evidence/D20/d20.atlas.json", import.meta.url), "utf8")) as AtlasFile;
 const CAPTION = "In theory: Atlas wired cbETH_ORACLE directly; the real proposal would first need a new cbETH_ORACLE_OEV_WRAPPER contract deployed.";
@@ -49,13 +53,28 @@ describe("D20: the theoretical-direct-wire replay", () => {
   it("removing the 'In theory' caption does not verify", () => {
     expect(edited((x) => (x.captions = x.captions.filter((c) => c !== CAPTION)))).toMatch(/does not carry the caption "In theory/);
   });
-  it("the proof card and the price pipe carry the caption; the pass-rule lines are labelled theoretical", () => {
+  it("the proof card and the price drawing carry the caption, whole; the pass-rule lines are labelled theoretical", async () => {
     const card = renderToStaticMarkup(<ProofCard file={file} />);
     expect(card).toContain('data-testid="pc-change-theory"');
     expect(card).toContain('data-testid="pc-change-pass-rule-theory"');
-    const pipe = renderToStaticMarkup(<PricePipe run={file.replay!.run} bets={file.bets} verdicts={file.replay!.verdicts} still theory={theoryCaptions(file.change)} />);
-    expect(pipe).toContain(CAPTION);
-    expect(pipe).toContain('data-part="multiply-gear"');
+    // The real page wrapper on the real replay: the caption is in what it draws, not only in its props.
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const reactRoot = createRoot(host);
+    await act(async () => reactRoot.render(<MoonwellDrawing run={file.replay!.run} bets={file.bets} verdicts={file.replay!.verdicts} still theory={theoryCaptions(file.change)} />));
+    expect(host.querySelector(".rr-captions")!.textContent!.replace(/\s+/g, "")).toContain(CAPTION.replace(/\s+/g, ""));
+    await act(async () => reactRoot.unmount());
+    host.remove();
+    // The replay measured two price sources, so no step is shown as absent, and the file's captions all reach the drawing.
+    const spec = moonwellFlow({ run: file.replay!.run, bets: file.bets, verdicts: file.replay!.verdicts, fileCaptions: file.captions });
+    expect(spec.nodes.some((n) => n.missing)).toBe(false);
+    expect(spec.edges.find((e) => e.id === "e-price")!.words).toBe("2 price sources");
+    expect(spec.captions.map((c) => c.words)).toContain(CAPTION);
+    for (const narrow of [false, true]) {
+      const d = drawSpec(spec, { narrow });
+      if (d.kind !== "drawing") throw new Error(`expected a drawing, got ${d.kind}`);
+      expect(d.scene.captions.map((b) => b.lines.map((l) => l.text).join(" "))).toContain(CAPTION);
+    }
   });
   it("POST /changes' work: the change carries the mode and the log strip gets the caption line", async () => {
     const replay = JSON.parse(readFileSync(new URL("../evidence/D20/replay-run.json", import.meta.url), "utf8")) as Run;

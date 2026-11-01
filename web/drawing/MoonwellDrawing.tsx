@@ -9,7 +9,11 @@ import { useDarkScheme, useReducedMotion } from "./media";
 import { sizedHeight } from "./RunPath";
 import type { Mounted } from "../../renderer/live/mount";
 
-export function MoonwellDrawing({ run, bets = [], verdicts = [], theory, captions, still = false }: { run: Run; bets?: readonly Bet[]; verdicts?: readonly Verdict[]; /** D20: the words every screen must carry for a change wired "in theory". */ theory?: string[]; captions?: string[]; /** A proof card: the finished picture, no motion. */ still?: boolean }) {
+// One empty list, kept: a new `[]` each render would redraw the drawing each render.
+const NO_BETS: readonly Bet[] = [];
+const NO_VERDICTS: readonly Verdict[] = [];
+
+export function MoonwellDrawing({ run, bets = NO_BETS, verdicts = NO_VERDICTS, theory, captions, still = false }: { run: Run; bets?: readonly Bet[]; verdicts?: readonly Verdict[]; /** D20: the words every screen must carry for a change wired "in theory". */ theory?: string[]; captions?: string[]; /** A proof card: the finished picture, no motion. */ still?: boolean }) {
   const dark = useDarkScheme();
   const reduced = useReducedMotion();
   const spec = useMemo(() => {
