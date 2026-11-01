@@ -203,14 +203,11 @@ describe("R3 the pencil export (Node only, optional)", () => {
 });
 
 describe("R3 the pencil export where the engine is not installed", () => {
-  it("says so plainly, and the server's route answers 204", async () => {
+  it("says so plainly", async () => {
     vi.resetModules();
     vi.doMock("node:module", () => ({ createRequire: () => () => { throw new Error("Cannot find module '@napi-rs/canvas'"); } }));
     const { drawPlate, ExportUnavailable } = await import("../../renderer/export/plate");
     await expect(drawPlate(shell({ nodes: [ticket("a")] }), { out: "/nowhere.png" })).rejects.toBeInstanceOf(ExportUnavailable);
-    const { pencilPng } = await import("../../server/pencil");
-    const run = { id: "r", runner: "ts", trace: [{ t: 0, event: "start" }, { t: 0, event: "returned" }], result: { measured: { outcome: "returned" }, notMeasured: {} }, controlPassed: true };
-    await expect(pencilPng("r", { runs: [run], bets: [], verdicts: [], experiments: [], captions: [] } as never)).resolves.toBeNull();
     vi.doUnmock("node:module");
     vi.resetModules();
   }, 60_000);

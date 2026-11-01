@@ -123,10 +123,13 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
   // ---- the path: only from `after` ----
   const pathSpec = useMemo(() => {
     if (!after) return null;
-    const spec = whatHappened({ run: after.run, experiment: after.experiment, bets: after.bets.filter((b) => b.who === "human"), verdicts: [...after.verdicts], seed: `path:${after.run.id}` });
+    const spec = whatHappened({ run: after.run, experiment: after.experiment, bets: after.bets.filter((b) => b.who === "human"), verdicts: [...after.verdicts], origin: "this-run", seed: `path:${after.run.id}` });
     return { ...spec, title: undefined, kicker: undefined, subtitle: undefined } as typeof spec;
   }, [after?.run, after?.experiment, after?.bets, after?.verdicts]); // eslint-disable-line react-hooks/exhaustive-deps
-  const [pathMount, setPathMount] = useState<Mounted | null>(null);
+  /** undefined: not drawn yet. null: refused. A mount with no player: the plain list. The last two have nothing to play. */
+  const [pathMount, setPathMount] = useState<Mounted | null | undefined>(undefined);
+  /** Ends the pause while the chart moves aside, so a click during it counts. */
+  const endPause = useRef<(() => void) | null>(null);
 
   // The run, played as a story. Without `after`: nothing plays.
   useEffect(() => {
@@ -140,6 +143,11 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
       playedRef.current?.();
     };
     const p = pathMount?.player;
+    if (pathSpec && after.script.notShown === null && pathSpec.notShown === undefined && pathMount !== undefined && !p) {
+      // R3 review B4: too long to draw, or refused. There is no story to play, and the verdict always appears.
+      end();
+      return;
+    }
     if (!pathSpec || after.script.notShown !== null || pathSpec.notShown !== undefined) {
       if (pathSpec?.notShown !== undefined || after.script.notShown !== null) end();
       return;
@@ -156,7 +164,16 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
       setPlaying(true);
       p.rewind();
       // The chart moves aside first, so the whole story is seen.
-      if (!still && !p.reduced) await new Promise((r) => setTimeout(r, 800));
+      if (!still && !p.reduced) {
+        await new Promise<void>((r) => {
+          const t = setTimeout(r, 800);
+          endPause.current = () => {
+            clearTimeout(t);
+            r();
+          };
+        });
+        endPause.current = null;
+      }
       for (let i = 0; i < pathSpec.steps.length && live; i++) {
         lit(pathSpec.steps[i]!);
         await p.playStep(i);
@@ -177,6 +194,7 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
   }, [after?.token, pathMount, pathSpec, still]);
 
   const skip = () => {
+    endPause.current?.();
     pathMount?.player?.skip();
     chartMount.current?.player?.skip();
   };
@@ -219,7 +237,8 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
           {after ? (marksOn ? readout : STAGE_WORDS.playing) : model.parts[CLOCK_ID] ? "the code, and what Atlas will plug in. Nothing has run." : "what calls what, before anything has run"}
         </p>
       </header>
-      <div className="r-viewport r-chart" role="group" aria-label="The drawing of your code. Tab to a part; Enter picks it; arrows walk its joins; plus and minus zoom." onPointerMove={onMove} onPointerLeave={() => setHover(null)} data-testid="bench-viewport">
+      <p id="bench-described" className="rr-unseen" data-testid="bench-described">{model.plainLabel}</p>
+      <div className="r-viewport r-chart" role="group" aria-describedby="bench-described" aria-label="The drawing of your code. Tab to a part; Enter picks it; arrows walk its joins; plus and minus zoom." onPointerMove={onMove} onPointerLeave={() => setHover(null)} data-testid="bench-viewport">
         {model.notShown !== null ? (
           <p className="u1-notice" role="note" data-testid="bench-not-drawn">
             {model.notShown}
@@ -230,7 +249,7 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
       </div>
       {pathSpec && (
         <div className="r-viewport r-path" data-testid="bench-path">
-          <Drawing spec={pathSpec} theme={shown} className="r-sheet" maxScale={1.08} minScale={0.66} hover={false} onMount={(m) => setPathMount(m)} />
+          <Drawing spec={pathSpec} theme={shown} className="r-sheet" maxScale={1.08} minScale={0.66} hover={false} onPending={() => setPathMount(undefined)} onMount={(m) => setPathMount(m)} />
         </div>
       )}
       <p className="r-step" role="status" aria-live="polite" data-testid="run-step">

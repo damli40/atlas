@@ -23,7 +23,7 @@ describe("R3 boundaries", () => {
     for (const f of files.filter((x) => x.includes("/authors/"))) {
       for (const i of imports(f)) {
         expect(i).not.toMatch(/server|runners|\/meta|node:/);
-        if (i.includes("src/") && !i.endsWith("/types") && !i.endsWith("file-outline") && !i.endsWith("outline/types")) expect(i).toMatch(/src\/(trust|units|network-fake|call-sites)$/);
+        if (i.includes("src/") && !i.endsWith("/types") && !i.endsWith("file-outline") && !i.endsWith("outline/types")) expect(i).toMatch(/src\/(trust|units|network-fake|call-sites|change)$/);
         // The bench and explorer models are pure: plain code's reading of the code, no run and no server.
         if (i.includes("web/")) expect(i).toMatch(/web\/machines\/(bench|explorer)\/model$/);
       }
@@ -93,7 +93,7 @@ describe("R3 boundaries", () => {
       hits = ""; // git grep exits 1 when nothing matches
     }
     // One door only, loaded on request and guarded, so a server without the package still starts.
-    expect(hits.split("\n").filter(Boolean)).toEqual(["server/pencil.ts"]);
-    expect(readFileSync(join(root, "server/pencil.ts"), "utf8")).toMatch(/await import\("\.\.\/renderer\/export\/plate"\)/);
+    expect(hits.split("\n").filter(Boolean)).toEqual(["server/pencil-worker.ts"]);
+    expect(readFileSync(join(root, "server/pencil-worker.ts"), "utf8")).toMatch(/await import\("\.\.\/renderer\/export\/plate"\)/);
   });
 });

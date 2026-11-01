@@ -75,6 +75,8 @@ export type BenchPart =
   | { kind: "clock"; fullMs: number; marks: number[] };
 
 export type BenchModel = ExplorerModel & {
+  /** The drawing in words, for a screen reader. */
+  plainLabel: string;
   extraLabel?: string;
   /** Each box id → what it is (hover cards). */
   parts: Record<string, BenchPart>;

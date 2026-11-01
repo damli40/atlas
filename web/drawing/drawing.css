@@ -136,3 +136,6 @@ button{font-family:"Atlas Besley",Georgia,serif}
 
 .r-ex-pan{display:none;margin:2px 0 0;font-style:italic;font-size:13px;color:var(--anatomy-text)}
 @media (max-width:760px){.r-ex-pan{display:block}}
+
+/* Read by screen readers, not drawn. */
+.rr-unseen{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:normal;border:0}

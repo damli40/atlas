@@ -40,9 +40,9 @@ export function ProofLink({ runId }: { runId: string }) {
 }
 
 /** The card on its own page (`?proof=<runId>`): fetches the file, then draws it. */
-/** R3 phase 2: the same path in the pencil engine, on request; where the server has no engine, it says so. */
+/** R3: the same path in the pencil engine, on request. If it cannot be drawn, the server's own words say why. */
 function PencilImage({ api, runId }: { api: Pick<Api, "pencil">; runId: string }) {
-  const [state, setState] = useState<{ kind: "idle" | "busy" | "none" } | { kind: "ok"; src: string }>({ kind: "idle" });
+  const [state, setState] = useState<{ kind: "idle" | "busy" } | { kind: "none"; words: string } | { kind: "ok"; src: string }>({ kind: "idle" });
   if (state.kind === "ok") return <img className="pc-pencil" src={state.src} alt="The same path, drawn by the pencil engine" data-testid="pc-pencil-img" />;
   return (
     <p className="pc-small">
@@ -52,14 +52,14 @@ function PencilImage({ api, runId }: { api: Pick<Api, "pencil">; runId: string }
         disabled={state.kind === "busy"}
         onClick={async () => {
           setState({ kind: "busy" });
-          const src = await api.pencil(runId).catch(() => null);
-          setState(src ? { kind: "ok", src } : { kind: "none" });
+          const a = await api.pencil(runId).catch(() => ({ words: "The server could not be reached; the drawing above is the same chart." }));
+          setState("src" in a ? { kind: "ok", src: a.src } : { kind: "none", words: a.words });
         }}
         data-testid="pc-pencil"
       >
         {state.kind === "busy" ? "drawing in pencil…" : "draw this in pencil"}
       </button>{" "}
-      {state.kind === "none" ? <span data-testid="pc-pencil-none">This server has no pencil engine; the drawing above is the same chart.</span> : null}
+      {state.kind === "none" ? <span data-testid="pc-pencil-none">{state.words}</span> : null}
     </p>
   );
 }

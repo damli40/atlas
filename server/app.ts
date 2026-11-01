@@ -85,7 +85,7 @@ import { createModelBudget, type ModelBudget } from "./meta/budget";
 import { principalClientKey, runAs } from "./access/context";
 import { createShareLimit, DEFAULT_GITHUB_SHARES, type ShareLimit } from "./access/shares";
 import { cleanRecord, type RefusalWriter } from "./proofs/refusals";
-import { pencilPng } from "./pencil";
+import { createPencil, PENCIL_WORDS, type PencilOptions } from "./pencil";
 import { checkAnswer, createBetStore, humanBetBody, humanBetsBody, MAX_BETS, MAX_EXPERIMENTS, modelSlotsOf, modelSlotView, modelSlotViews, newExperimentId, newRound, publicBet, sealedAfter, sealHumanBet, type BetStore, type ModelSlot, type Round } from "./bets";
 import type { ChatArgs, ChatResult } from "./meta/client";
 import { CLAIMANT_MODEL } from "./meta/roles/claimant";
@@ -376,6 +376,8 @@ export interface AppOptions {
   trustProxy?: boolean;
   /** S5: model rounds (experiments that ask the model) and investigations one client address may start an hour. */
   perClientModelLimits?: { modelRoundsPerHour?: number; investigationsPerHour?: number };
+  /** R3: tests start the pencil with a fake worker or shorter limits. */
+  pencil?: Omit<PencilOptions, "take">;
   /**
    * D06-01, POST /changes: the Fixer (Muse Code via `muse exec`, chat fallback). Absent: no model is
    * asked and the answer says so. `museExec: null` skips Muse Code (chat fallback only).
@@ -634,6 +636,9 @@ export function createApp(opts: AppOptions = {}) {
     return r !== undefined && (r.status === "running" || (r.status === "open" && r.bets.some((b) => b.who === "human")));
   };
   const proofOf = (runId: string) => proofStore.get(runId) ?? pastedProofs.get(runId);
+  // R3 review B8: pencil drawings per invite code an hour (by address when there is no code).
+  const pencilByClient = createHourlyLimit(envCount(process.env.ATLAS_PENCIL_DRAWINGS_PER_CLIENT_PER_HOUR, 12), "pencil drawings");
+  const pencil = createPencil({ take: (client) => pencilByClient.take(client), ...opts.pencil });
   const pastedExperimentsByIp = createHourlyLimit(envCount(process.env.ATLAS_PASTED_EXPERIMENTS_PER_IP_PER_HOUR, 200), "experiments on pasted code");
   const pastesByIp = createHourlyLimit(envCount(process.env.ATLAS_PASTES_PER_IP_PER_HOUR, DEFAULT_PASTES_PER_IP_PER_HOUR), "pastes");
   // X3 (D27): each person's track record, from their sealed bets and the judge's verdicts only (src/track-record.ts).
@@ -1917,13 +1922,17 @@ export function createApp(opts: AppOptions = {}) {
     return c.json(file);
   });
 
-  // R3 phase 2: the proof's path in pencil, where the optional engine is installed; 204 where it is not (not an error).
+  // R3: the proof's path in pencil, where the optional engine is installed. Each reason it cannot be drawn has its own status and words.
   app.get("/proofs/:runId/pencil.png", async (c) => {
     const file = proofOf(c.req.param("runId"));
     if (!file) return c.json({ error: `no .atlas.json for run ${c.req.param("runId")}` }, 404);
-    const png = await pencilPng(c.req.param("runId"), file).catch(() => null);
-    if (!png) return c.body(null, 204);
-    return new Response(png as BodyInit, { headers: { "content-type": "image/png", "cache-control": "no-store" } });
+    const a = await pencil.draw(c.req.param("runId"), file, clientOf(c));
+    if (a.kind === "no-engine") return c.json({ error: PENCIL_WORDS.noEngine }, 501);
+    if (a.kind === "not-drawn" || a.kind === "too-long") return c.json({ error: a.words }, 422);
+    if (a.kind === "busy") return c.json({ error: a.words }, 429);
+    if (a.kind === "failed") return c.json({ error: a.words }, 500);
+    return new Response(a.png as BodyInit, { headers: { "content-type": "image/png", "cache-control": "no-store" } });
+
   });
 
   /**

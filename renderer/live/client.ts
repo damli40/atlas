@@ -5,14 +5,14 @@ import { drawSpec, listHtml, type Drawn } from "./draw";
 /** Past this the Worker is stopped and the list is shown. */
 export const DRAW_TIMEOUT_MS = 4000;
 
-export function drawInWorker(spec: RenderSpec, o: { timeoutMs?: number; makeWorker?: () => Worker } = {}): Promise<Drawn> {
+export function drawInWorker(spec: RenderSpec, o: { timeoutMs?: number; makeWorker?: () => Worker; narrow?: boolean } = {}): Promise<Drawn> {
   assertSpec(spec);
   const make = o.makeWorker ?? (() => new Worker(new URL("./worker.ts", import.meta.url), { type: "module" }));
   let worker: Worker;
   try {
     worker = make();
   } catch {
-    return Promise.resolve(drawSpec(spec));
+    return Promise.resolve(drawSpec(spec, { narrow: o.narrow === true }));
   }
   return new Promise((resolve) => {
     const t0 = performance.now();
@@ -33,8 +33,8 @@ export function drawInWorker(spec: RenderSpec, o: { timeoutMs?: number; makeWork
     worker.onerror = () => {
       clearTimeout(timer);
       worker.terminate();
-      resolve(drawSpec(spec));
+      resolve(drawSpec(spec, { narrow: o.narrow === true }));
     };
-    worker.postMessage(spec);
+    worker.postMessage({ spec, narrow: o.narrow === true });
   });
 }

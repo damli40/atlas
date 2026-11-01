@@ -3,7 +3,7 @@
 // draws only that. Every model sentence on the card is React text (escaped); the renderer escapes the names it draws.
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
-import { explorerSpec } from "../../../renderer/authors/code-chart";
+import { describeSpec, explorerSpec } from "../../../renderer/authors/code-chart";
 import type { Mounted } from "../../../renderer/live/mount";
 import { idFromAttr } from "../../../renderer/words";
 import { Drawing } from "../../drawing/Drawing";
@@ -91,9 +91,12 @@ export function ExplorerMachine({ model, onBet, betUnavailable, betBusy = null, 
             <p>{model.notShown}</p>
           </div>
         ) : (
+          <>
+          <p id="explorer-described" className="rr-unseen" data-testid="explorer-described">{describeSpec(spec)}</p>
           <div
             className="ex-stage r-ex-stage"
             role="group"
+            aria-describedby="explorer-described"
             aria-label="Code explorer chart. Tab to a part; arrows walk its joins; Enter picks it."
             onPointerMove={hoverPick}
             onClick={pickFrom}
@@ -117,6 +120,7 @@ export function ExplorerMachine({ model, onBet, betUnavailable, betBusy = null, 
             />
             <p className="r-ex-readout" data-readout="">{readout}</p>
           </div>
+          </>
         )}
         <p className="r-ex-pan" data-testid="r-pan-hint">drag to move, pinch to zoom</p>
         <p className="r-ex-caption" data-testid="explorer-caption">{`Drawn only from Atlas's checked outline of ${model.source}${model.commit ? ` at commit ${model.commit.slice(0, 7)}` : ""} (${plural(model.files.length, "file")}). Muse Wonder (${model.model}) proposed the parts and wrote every name and purpose; plain code checked them against the files and found the joins. "Lines confirmed" means the lines exist where Wonder said; it does not mean Wonder's sentence about a part is true.`}</p>

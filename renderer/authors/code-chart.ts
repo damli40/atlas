@@ -10,6 +10,7 @@
 // - parts are grouped in their folders;
 // - the lines step back until a part is hovered, which brings its own lines forward.
 
+import { cleanWords } from "../words";
 import type { ExplorerModel } from "../../web/machines/explorer/model";
 import type { Pin, RenderSpec, SpecCaption, SpecEdge, SpecNode, SpecRegion, SpecTag } from "../spec";
 
@@ -80,4 +81,13 @@ export function explorerSpec(model: ExplorerModel, o: { seed?: string; labels?: 
   const verb = common === "imports" ? "imports" : common === "calls" ? "calls" : `is joined by "${common}" to`;
   const legend = `A solid line: plain code found that one part ${verb} the other; thicker means more links. A dotted line is only ${model.model}'s word. Hover a part to bring its lines forward.`;
   return { ...base, nodes, edges, regions: [...regions.values()], tags, legend, captions };
+}
+
+/** The drawing in words, for a screen reader: every part and join, up to a limit, with the exact number past it. */
+export function describeSpec(spec: RenderSpec, limit = 200): string {
+  const words = new Map(spec.nodes.map((n) => [n.id, cleanWords(n.words)]));
+  const joins = spec.edges.map((e) => `${words.get(e.from) ?? "?"} to ${words.get(e.to) ?? "?"}`);
+  const shown = joins.slice(0, limit).join("; ");
+  const more = joins.length > limit ? ` and ${joins.length - limit} more` : "";
+  return `${spec.nodes.length} parts. ${joins.length ? `Lines join them: ${shown}${more}.` : "No lines join them."}`;
 }
