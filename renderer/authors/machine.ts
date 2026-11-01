@@ -8,10 +8,10 @@ import type { FileOutline } from "../../src/file-outline";
 import type { BenchModel } from "../../web/machines/bench/model";
 import type { Pt } from "../hand";
 import type { RenderSpec } from "../spec";
-import { auditMachine, type MachineFacts } from "./audit";
-import { rectsOverlap, sample, solidHitsRect, solidOf, segDist, type Rect, type Solid } from "./geometry";
-import { block, chevrons, dial, drum, esc, flange, floorShadow, hopper, iso, pipe, ringAround, screws, sheetOf, stemDial, threadPath, ticket, topOf, wheel, type Plan, type Sheet, type W } from "./pencil";
-import { PIPE_R, PIPE_Z, routeAll, type Job, type Owner } from "./route";
+import { auditMachine, type MachineFacts } from "../machine/audit";
+import { rectsOverlap, sample, solidHitsRect, solidOf, segDist, type Rect, type Solid } from "../machine/geometry";
+import { block, chevrons, dial, drum, esc, flange, floorShadow, hopper, iso, pipe, ringAround, screws, sheetOf, stemDial, threadPath, ticket, topOf, wheel, type Plan, type Sheet, type W } from "../machine/pencil";
+import { PIPE_R, PIPE_Z, routeAll, type Job, type Owner } from "../machine/route";
 
 /** Past this the machine can't be drawn large enough to read: the page says so in words and shows the chart. */
 export const MACHINE_PART_LIMIT = 8;
@@ -93,7 +93,9 @@ export function machineParts(model: BenchModel, outline: FileOutline, source: st
 const WIDE = 190;
 const DEEP = 124;
 const BODY = 46;
-const STEP_X = WIDE + 150;
+const STEP_X = WIDE + 124;
+/** Each column also steps toward the viewer, so the machine runs down the page as well as across it, and fills the space. */
+const DRIFT_Y = 0.24;
 const STEP_Y = DEEP + 150;
 const LABEL = 13.5;
 const span = (a: number, b: number) => (a === b ? `line ${a}` : `lines ${a}–${b}`);
@@ -182,7 +184,7 @@ function finish(s: Sheet, seed: string, label: string, facts: MachineFacts, ende
 export interface MachineRing {
   part: string;
   /** Which of the part's fittings the run ended at. */
-  on: "chute" | "housing";
+  on: "chute" | "outlet" | "housing";
   words: string;
 }
 
@@ -199,12 +201,13 @@ interface Callout {
 function placeCallouts(s: Sheet, list: readonly Callout[], solids: readonly Solid[], pipes: readonly Pt[][], keepOut: readonly Rect[]): MachineFacts["labels"] {
   const placed: MachineFacts["labels"] = [];
   const taken: Rect[] = [...keepOut];
+  const words: Rect[] = [];
   const pipePoints = pipes.flatMap((l) => sample(l, 8));
   const free = (r: Rect) => !taken.some((t) => rectsOverlap(t, r, 3)) && !solids.some((o) => solidHitsRect(o, r, 3)) && !pipePoints.some((q) => q[0] > r.x0 - PIPE_R - 2 && q[0] < r.x1 + PIPE_R + 2 && q[1] > r.y0 - PIPE_R - 2 && q[1] < r.y1 + PIPE_R + 2);
   for (const c of list) {
     const size = c.size ?? LABEL;
-    const w = c.text.length * size * 0.5 + 6;
-    const h = size + 5;
+    const w = c.text.length * size * 0.56 + 8;
+    const h = size * 1.45 + 2;
     let best: { r: Rect; score: number; x: number; y: number; anchor: "start" | "end" } | null = null;
     for (const dist of [22, 34, 48, 64, 84, 108, 136, 170, 210, 260, 320]) {
       for (let k = 0; k < 16; k++) {
@@ -215,7 +218,7 @@ function placeCallouts(s: Sheet, list: readonly Callout[], solids: readonly Soli
         const r: Rect = right ? { x0: ax, x1: ax + w, y0: ay - h / 2, y1: ay + h / 2 } : { x0: ax - w, x1: ax, y0: ay - h / 2, y1: ay + h / 2 };
         if (!free(r)) continue;
         // A leader that crosses another callout is no use.
-        if (taken.some((u) => segDist([(u.x0 + u.x1) / 2, (u.y0 + u.y1) / 2], c.anchor, [ax, ay]) < (u.y1 - u.y0) / 2 + 2)) continue;
+        if (words.some((u) => segDist([(u.x0 + u.x1) / 2, (u.y0 + u.y1) / 2], c.anchor, [ax, ay]) < (u.y1 - u.y0) / 2 + 2)) continue;
         const score = dist + (Math.sin(t) < -0.4 ? 12 : 0);
         if (!best || score < best.score) best = { r, score, x: ax, y: ay, anchor: right ? "start" : "end" };
       }
@@ -226,6 +229,7 @@ function placeCallouts(s: Sheet, list: readonly Callout[], solids: readonly Soli
       continue;
     }
     taken.push(best.r);
+    words.push(best.r);
     placed.push({ part: c.part, text: c.text, rect: best.r });
     s.raw(`<path class="m-leader" d="M${best.x.toFixed(1)} ${best.y.toFixed(1)}L${c.anchor[0].toFixed(1)} ${c.anchor[1].toFixed(1)}"/>`);
     s.dot(c.anchor, 1.5);
@@ -280,7 +284,7 @@ export function drawMachine(p: MachineParts, o: { seed: string; ring?: MachineRi
       const off = i - (list.length - 1) / 2;
       orderOf.set(id, off);
       const port = p.ports.some((x) => x.id === id);
-      place.set(id, { x: c * STEP_X, y: off * STEP_Y + (port ? 14 : 0), w: port ? 150 : WIDE, d: port ? 96 : DEEP });
+      place.set(id, { x: c * STEP_X, y: c * STEP_X * DRIFT_Y + off * STEP_Y + (port ? 14 : 0), w: port ? 150 : WIDE, d: port ? 96 : DEEP });
     });
   }
   const house = new Map(p.housings.map((h) => [h.id, h]));
@@ -335,7 +339,7 @@ export function drawMachine(p: MachineParts, o: { seed: string; ring?: MachineRi
       const kind = edges.find((e) => `${e.from}->${e.to}` === job.id)!.kind;
       open(s, job.id, kind === "wraps" ? `${job.to} wraps ${job.from}` : `${job.from} calls ${job.to.replace(/^stand-in |^outside /, "")}`);
       const line = pipe(s, full, PIPE_R);
-      const marks = chevrons(s, line);
+      const marks = chevrons(s, full.map(iso));
       threadPath(s, job.id, line);
       flange(s, [a.x + a.w, yOut, PIPE_Z], "x", 10, 3);
       if (job.back) flange(s, [b.x + b.w, yIn, PIPE_Z], "x", 10, 3);
@@ -423,6 +427,7 @@ export function drawMachine(p: MachineParts, o: { seed: string; ring?: MachineRi
         outlet(s, pl.x + 34, face);
         close(s);
         callouts.push({ part: h.id, text: `returns, ${at(h.returns)}`, anchor: iso([pl.x + 26, face + 28, 2]) });
+        if (o.ring?.part === h.id && o.ring.on === "outlet") ringAt = { c: iso([pl.x + 34, face + 16, 14]), rx: 46, ry: 40, words: [o.ring.words] };
       }
       if (h.throws.length > 0) {
         const cx = pl.x + WIDE - 70;
@@ -488,7 +493,7 @@ export function drawMoonwell(spec: RenderSpec, o: { ended: boolean }): MachineDr
   screws(s, fl, 55, 5);
   const fp = { x: feed.x + 12, y: feed.y + 34, w: feed.w - 24, d: 52 };
   block(s, fp, 55, 1.6, { tone: "bare", width: 0.9 });
-  s.onTop([feed.x + feed.w / 2, feed.y + 66, 56.6], feedName, Math.min(20, (fp.w - 10) / (feedName.length * 0.6)));
+  s.onTop([feed.x + feed.w / 2, feed.y + 66, 56.6], feedName, Math.min(20, (fp.w - 14) / (feedName.length * 0.74)));
   lamp(s, "feed", [feed.x + feed.w - 18, feed.y + 22, 55]);
   close(s);
   solid("feed", feed, 60);
@@ -498,7 +503,7 @@ export function drawMoonwell(spec: RenderSpec, o: { ended: boolean }): MachineDr
   const route: W[] = [[feed.x + feed.w + 3, y, PIPE_Z], [(feed.x + feed.w + oracle.x) / 2, y, PIPE_Z], [(feed.x + feed.w + oracle.x) / 2, toY, PIPE_Z], [oracle.x - 6, toY, PIPE_Z]];
   open(s, "e-price", pipeWords);
   const line = pipe(s, route, 7.4);
-  const marks = chevrons(s, line);
+  const marks = chevrons(s, route.map(iso));
   threadPath(s, "e-price", line);
   flange(s, [feed.x + feed.w, y, PIPE_Z], "x", 11, 3);
   flange(s, [oracle.x - 7, toY, PIPE_Z], "x", 11, 3);
@@ -564,12 +569,12 @@ export function drawMoonwell(spec: RenderSpec, o: { ended: boolean }): MachineDr
   const oracleAt = iso([oracle.x + oracle.w, oracle.y + oracle.d / 2, 40]);
   const refAt = iso([ref.x + ref.w, ref.y + ref.d / 2, 20]);
   const t1 = ticket(s, rightOf, oracleAt[1] - 120, 300, { small: (pm?.[1] ?? "").trim(), big: pm?.[2] ?? price, foot: node("price")?.small ?? "", lines: marksHere.map((k) => ({ text: `${k.who} ${k.words}`, red: k.kind === "didnt-match" })) });
-  s.raw(`<path class="m-leader" d="M${rightOf} ${(t1.y0 + 50).toFixed(1)}L${oracleAt[0].toFixed(1)} ${oracleAt[1].toFixed(1)}"/>`);
+  s.raw(`<path class="m-leader" d="M${rightOf} ${(t1.y0 + 60).toFixed(1)}L${oracleAt[0].toFixed(1)} ${oracleAt[1].toFixed(1)}"/>`);
   s.dot(oracleAt, 2);
   const labelsT: MachineFacts["labels"] = [{ part: "price", text: pm?.[2] ?? price, rect: t1 }];
   if (rm) {
     const t2 = ticket(s, rightOf, t1.y1 + 26, 300, { small: (rm[1] ?? "").trim(), big: rm[2]!, foot: node("ref")?.small ?? "", lines: [] });
-    s.raw(`<path class="m-leader" d="M${rightOf} ${(t2.y0 + 50).toFixed(1)}L${refAt[0].toFixed(1)} ${refAt[1].toFixed(1)}"/>`);
+    s.raw(`<path class="m-leader" d="M${rightOf} ${(t2.y0 + 60).toFixed(1)}L${refAt[0].toFixed(1)} ${refAt[1].toFixed(1)}"/>`);
     s.dot(refAt, 2);
     labelsT.push({ part: "ref", text: rm[2]!, rect: t2 });
   }
@@ -578,7 +583,7 @@ export function drawMoonwell(spec: RenderSpec, o: { ended: boolean }): MachineDr
   const facts: MachineFacts = { owners, routes: [{ id: "e-price", from: "feed", to: "price", page: route.map(iso), chevrons: marks, endsAtParts: true, nearEnds: [iso([feed.x + feed.w, y, PIPE_Z]), iso([oracle.x, toY, PIPE_Z])] }], labels: [...labelsT, ...placed] };
   if (spec.path?.partsWaysAt) {
     s.raw(`<g class="m-end">`);
-    ringAround(s, [t1.x0 + 150, t1.y0 + 60], 136, 42);
+    ringAround(s, [t1.x0 + 150, t1.y0 + 70], 104, 37);
     s.raw(`</g>`);
   }
   return finish(s, spec.seed ?? "moonwell", `A machine of the Moonwell read: ${feedName}, ${pipeWords}, ${price}.`, facts, o.ended);

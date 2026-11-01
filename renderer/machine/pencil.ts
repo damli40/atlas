@@ -65,7 +65,7 @@ export class Sheet {
   }
   /** Upright words on the paper beside a part: the same italic as the other drawings. */
   note(at: Pt, words: string, size = 13, o: { cls?: string; anchor?: "start" | "middle" | "end" } = {}) {
-    const w = words.length * size * 0.5;
+    const w = words.length * size * 0.56;
     const a = o.anchor ?? "start";
     this.seen([[at[0] - (a === "start" ? 0 : a === "middle" ? w / 2 : w), at[1] - size], [at[0] + (a === "start" ? w : a === "middle" ? w / 2 : 0), at[1] + 4]]);
     this.out.push(`<text class="m-t m-i ${o.cls ?? ""}" text-anchor="${a}" font-size="${size}" x="${n1(at[0])}" y="${n1(at[1])}">${esc(words)}</text>`);
@@ -222,34 +222,24 @@ export function pipe(s: Sheet, route: readonly W[], r = 6.5, o: { cls?: string; 
   return pts;
 }
 
-/** Which way a pipe flows: arrow marks printed on it, as real pipework has. Returns how many. */
-export function chevrons(s: Sheet, line: readonly Pt[]): number {
-  let total = 0;
-  for (let i = 1; i < line.length; i++) total += Math.hypot(line[i]![0] - line[i - 1]![0], line[i]![1] - line[i - 1]![1]);
-  const count = Math.max(1, Math.floor(total / 78));
+/** Which way a pipe flows: arrow marks printed on its straight legs, as real pipework has, never on a bend. Returns how many. */
+export function chevrons(s: Sheet, legs: readonly Pt[]): number {
+  const list: { a: Pt; b: Pt; l: number }[] = [];
+  for (let i = 1; i < legs.length; i++) list.push({ a: legs[i - 1]!, b: legs[i]!, l: Math.hypot(legs[i]![0] - legs[i - 1]![0], legs[i]![1] - legs[i - 1]![1]) });
+  const longest = [...list].sort((x, y) => y.l - x.l);
+  const chosen = longest.filter((x, i) => i === 0 || x.l > 56).slice(0, 3);
   let d = "";
-  for (let k = 0; k < count; k++) {
-    let need = (total * (k + 0.5)) / count;
-    for (let i = 1; i < line.length; i++) {
-      const a = line[i - 1]!;
-      const b = line[i]!;
-      const l = Math.hypot(b[0] - a[0], b[1] - a[1]);
-      if (need > l) {
-        need -= l;
-        continue;
-      }
-      const ux = (b[0] - a[0]) / (l || 1);
-      const uy = (b[1] - a[1]) / (l || 1);
-      const px = a[0] + ux * need;
-      const py = a[1] + uy * need;
-      const nx = -uy;
-      const ny = ux;
-      d += `M${n1(px - ux * 5 + nx * 4.4)} ${n1(py - uy * 5 + ny * 4.4)}L${n1(px + ux * 3)} ${n1(py + uy * 3)}L${n1(px - ux * 5 - nx * 4.4)} ${n1(py - uy * 5 - ny * 4.4)}`;
-      break;
-    }
+  for (const { a, b, l } of chosen) {
+    const ux = (b[0] - a[0]) / (l || 1);
+    const uy = (b[1] - a[1]) / (l || 1);
+    const px = (a[0] + b[0]) / 2;
+    const py = (a[1] + b[1]) / 2;
+    const nx = -uy;
+    const ny = ux;
+    d += `M${n1(px - ux * 6 + nx * 4.8)} ${n1(py - uy * 6 + ny * 4.8)}L${n1(px + ux * 4)} ${n1(py + uy * 4)}L${n1(px - ux * 6 - nx * 4.8)} ${n1(py - uy * 6 - ny * 4.8)}`;
   }
   s.raw(`<path class="m-chevron" d="${d}"/>`);
-  return count;
+  return chosen.length;
 }
 
 /** The run's red thread inside a pipe, waiting: the player draws it along when the run goes this way. */
@@ -259,7 +249,7 @@ export function threadPath(s: Sheet, id: string, line: readonly Pt[]) {
 
 /** A flat paper ticket: a small line, a large number, a foot, then who said what. Returns its box. */
 export function ticket(s: Sheet, x: number, y: number, w: number, o: { small: string; big: string; foot: string; lines: { text: string; red: boolean }[] }) {
-  const h = 104 + o.lines.length * 22;
+  const h = 132 + o.lines.length * 25;
   const poly: Pt[] = [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
   s.fill(poly);
   s.edges(poly, { width: 1.15 });
@@ -267,10 +257,10 @@ export function ticket(s: Sheet, x: number, y: number, w: number, o: { small: st
   for (let i = x + 10; i < x + w + 6; i += 3.2) d += `M${n1(i)} ${n1(y + h + 1)}l5 6`;
   for (let i = y + 10; i < y + h; i += 3.2) d += `M${n1(x + w + 1)} ${n1(i)}l5 5`;
   s.raw(`<path class="m-shadow" d="${d}"/>`);
-  s.note([x + 150, y + 24], o.small, 15, { anchor: "middle", cls: "m-soft" });
-  s.raw(`<text class="m-t" data-big="" text-anchor="middle" font-size="46" x="${n1(x + 150)}" y="${n1(y + 72)}">${esc(o.big)}</text>`);
-  s.note([x + 150, y + 94], o.foot, 12.5, { anchor: "middle", cls: "m-soft" });
-  o.lines.forEach((l, i) => s.note([x + 150, y + 118 + i * 22], l.text, 14.5, { anchor: "middle", cls: l.red ? "m-redw" : "" }));
+  s.note([x + 150, y + 19], o.small, 15, { anchor: "middle", cls: "m-soft" });
+  s.raw(`<text class="m-t" data-big="" text-anchor="middle" font-size="46" x="${n1(x + 150)}" y="${n1(y + 86)}">${esc(o.big)}</text>`);
+  s.note([x + 150, y + 122], o.foot, 12.5, { anchor: "middle", cls: "m-soft" });
+  o.lines.forEach((l, i) => s.note([x + 150, y + 148 + i * 25], l.text, 14.5, { anchor: "middle", cls: l.red ? "m-redw" : "" }));
   return { x0: x, y0: y, x1: x + w, y1: y + h };
 }
 
@@ -390,7 +380,7 @@ export const MACHINE_CSS = `
 .m-missing{fill:none;stroke:var(--rr-red);stroke-width:1.4;stroke-dasharray:6 5;stroke-linecap:round}
 .m-thread{fill:none;stroke:var(--rr-red-pen);stroke-width:3;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1;pointer-events:none}
 .m-sheet[data-ended] .m-thread[data-ran]{stroke-dashoffset:0}
-.m-chevron{fill:none;stroke:var(--rr-ink);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;opacity:.85}
+.m-chevron{fill:none;stroke:var(--rr-ink);stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;opacity:.85}
 .m-leader{fill:none;stroke:var(--rr-soft);stroke-width:.7;opacity:.8;pointer-events:none}
 .m-dash{fill:none;stroke:var(--rr-ink);stroke-width:1.3;stroke-dasharray:2 6;stroke-linecap:round;opacity:.75}
 .m-lamp-base{fill:var(--rr-paper);stroke:var(--rr-ink);stroke-width:.9}
@@ -400,7 +390,8 @@ export const MACHINE_CSS = `
 .m-end{visibility:hidden}
 .m-sheet[data-ended] .m-end,.m-sheet[data-ended] .m-hit-only{visibility:visible}
 .m-bluew{fill:#3e6c8c}
-.m-part:focus-visible{outline:2px solid var(--rr-ink);outline-offset:2px}
+.m-part:focus{outline:none}
+.m-part:focus-visible{outline:1.5px dashed var(--rr-ink);outline-offset:3px}
 .m-t{fill:var(--rr-ink);font-family:"Atlas Besley",Georgia,serif;font-kerning:none;font-variant-ligatures:none;text-rendering:geometricPrecision}
 .m-i{font-style:italic}
 .m-soft{fill:var(--rr-soft)}

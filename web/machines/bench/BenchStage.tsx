@@ -14,8 +14,8 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerE
 import { benchSpec } from "../../../renderer/authors/bet-view";
 import { momentOf, type Moment } from "../../../src/moment";
 import { MachineSheet, machineFirst, rememberView, type MachineControl } from "../../drawing/MachineView";
-import { drawMachine, machineParts, type MachineRing } from "../../../renderer/machine/machine";
-import { machineScript } from "../../../renderer/machine/script";
+import { drawMachine, machineParts, type MachineParts, type MachineRing } from "../../../renderer/authors/machine";
+import { machineScript } from "../../../renderer/authors/machine-script";
 import { whatHappened } from "../../../renderer/authors/what-happened";
 import type { HelperAnswer } from "../../api";
 import type { Mounted } from "../../../renderer/live/mount";
@@ -92,14 +92,19 @@ export function roundUp(ms: number): number {
 }
 
 /** Where the ring lands: on the chute of the part the run's traced steps say threw, else on the function under test. Only when the bet missed. */
-function machineRing(after: After, language: "js" | "ts" | "py", tested: string | null): MachineRing | null {
+function machineRing(after: After, language: "js" | "ts" | "py", tested: string | null, parts: MachineParts): MachineRing | null {
   const moment = momentOf(after.marks, after.run, language);
   if (!moment || moment.kind !== "not_matched" || !tested) return null;
   const steps = after.helpers && "steps" in after.helpers ? after.helpers.steps : [];
-  const threw = [...steps].reverse().find((x) => x.threw)?.name;
+  // A throw passes up through every caller: the ring goes where the code itself throws, the first traced function that has a chute.
+  const withChute = new Set(parts.housings.filter((h) => h.throws.length > 0).map((h) => h.id));
+  const threw = steps.find((x) => x.threw && withChute.has(x.name))?.name ?? (withChute.size === 1 ? [...withChute][0] : undefined);
   const m = after.run.result.measured as { outcome?: string };
   const words = `you said ${moment.you}`;
-  return m.outcome === "threw" ? { part: threw ?? tested, on: "chute", words } : { part: tested, on: "housing", words };
+  if (m.outcome === "threw" && threw) return { part: threw, on: "chute", words };
+  // It returned, and the bet said otherwise: the ring is on the outlet the value came out of.
+  if (m.outcome === "returned" && parts.housings.find((h) => h.id === tested)?.returns.length) return { part: tested, on: "outlet", words };
+  return { part: tested, on: "housing", words };
 }
 
 export function BenchStage({ seenBefore = false, codeRan = false, model, theme, after = null, onPart, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null }: BenchStageProps) {
@@ -156,7 +161,7 @@ export function BenchStage({ seenBefore = false, codeRan = false, model, theme, 
   // D65: the machine, drawn by plain code from the same model as the chart. It holds its ring from the start, hidden until the run lands it.
   const machineRef = useRef<MachineControl | null>(null);
   const parts = useMemo(() => machineParts(model, outline, source, language), [model, outline, source, language]);
-  const ring = useMemo(() => (after ? machineRing(after, language, model.tested) : null), [after?.run, after?.marks, after?.helpers, model.tested]); // eslint-disable-line react-hooks/exhaustive-deps
+  const ring = useMemo(() => (after ? machineRing(after, language, model.tested, parts) : null), [after?.run, after?.marks, after?.helpers, model.tested, parts]); // eslint-disable-line react-hooks/exhaustive-deps
   const drawn = useMemo(() => {
     const d = drawMachine(parts, { seed: `machine:${outline.parts.map((p) => p.name).join(",")}`, ring });
     // The check runs on every drawing: a picture that fails it is not shown.
@@ -243,13 +248,13 @@ export function BenchStage({ seenBefore = false, codeRan = false, model, theme, 
       if (!live) return;
       setStep(null);
       setMarksOn(true);
+      machineRef.current?.land();
       p.setRunPace(1);
       // The run's end card, or the card with the ring, is on screen when it finishes.
       pathMount?.bringIntoView(pathSpec.marks[0]?.on ?? pathSpec.nodes[pathSpec.nodes.length - 1]?.id ?? "");
       for (const m of pathSpec.marks) if (live) await p.landMark(m);
       if (!live) return;
       p.showCaptions();
-      machineRef.current?.land();
       end();
     })();
     return () => {
@@ -346,7 +351,7 @@ export function BenchStage({ seenBefore = false, codeRan = false, model, theme, 
       </div>
       {showMachine && (
         <div className="r-machine" data-testid="machine-region" data-captions={after && marksOn && pathSpec?.captions.length ? "" : undefined}>
-          <MachineSheet ref={machineRef} drawn={drawn} reduced={still} onPart={(id) => model.parts[id]?.kind === "code" && onPart?.(id)} />
+          <MachineSheet ref={machineRef} drawn={drawn} reduced={still} onPart={(id) => model.parts[id]?.kind === "code" && document.querySelector(".c-drawer") && onPart?.(id)} />
           {after && marksOn && pathSpec?.captions.length ? (
             <p className="m-captions" data-testid="machine-captions">
               {pathSpec.captions.map((c) => (

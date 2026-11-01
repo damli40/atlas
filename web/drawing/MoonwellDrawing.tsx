@@ -7,7 +7,7 @@ import type { Bet, Run, Verdict } from "../../src/types";
 import { Drawing } from "./Drawing";
 import { useDarkScheme, useReducedMotion } from "./media";
 import { sizedHeight } from "./RunPath";
-import { drawMoonwell } from "../../renderer/machine/machine";
+import { drawMoonwell } from "../../renderer/authors/machine";
 import { MachineSheet, machineFirst, type MachineControl } from "./MachineView";
 import type { Mounted } from "../../renderer/live/mount";
 

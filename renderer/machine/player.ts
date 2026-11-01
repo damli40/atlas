@@ -1,6 +1,6 @@
 // D65: plays a machine's script on its SVG: a red thread runs through the pipes, a dial's needle sweeps, a lamp comes on, and at the end the
 // ring lands. Web Animations only, the same as the renderer's player. skip() jumps to the end; reduced motion shows the end at once.
-import type { MachineBeat } from "./script";
+import type { MachineBeat } from "../authors/machine-script";
 
 const C = Math.cos(Math.PI / 6);
 const S = 0.5;

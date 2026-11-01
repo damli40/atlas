@@ -3,8 +3,8 @@
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { MachinePlayer } from "../../renderer/machine/player";
 import { MACHINE_CSS } from "../../renderer/machine/pencil";
-import type { MachineDrawn } from "../../renderer/machine/machine";
-import type { MachineBeat } from "../../renderer/machine/script";
+import type { MachineDrawn } from "../../renderer/authors/machine";
+import type { MachineBeat } from "../../renderer/authors/machine-script";
 import { ensureRendererStyle } from "./Drawing";
 
 const VIEW_KEY = "atlas-view";

@@ -30,6 +30,8 @@ const say = (name, ok, more = "") => {
 const b = await chromium.launch({ executablePath: process.env.CHROME });
 const open = async (url, { vw = 1920, vh = 1080, scheme = "light", reduced = false } = {}) => {
   const ctx = await b.newContext({ viewport: { width: vw, height: vh }, colorScheme: scheme, reducedMotion: reduced ? "reduce" : "no-preference" });
+  // These checks are about the box chart and the path: the machine has its own driver (tests/evidence/R4/machine.mjs).
+  await ctx.addInitScript(() => sessionStorage.setItem("atlas-view", "chart"));
   const p = await ctx.newPage();
   p.on("pageerror", (e) => say(`no page error (${url})`, false, e.message));
   p.on("console", (m) => {
