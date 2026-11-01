@@ -328,12 +328,12 @@ export const RESULT_WORDS = {
   testClaim: "Test this claim",
   testClaimBusy: `${WONDER_ROLE}, is writing a test for this sentence…`,
   /** U3 item 5: the sentence a "Test this claim" round tests, and its result beside the measured facts. */
-  testingSentence: (s: string) => `This test checks Muse Wonder's sentence: “${s}”`,
+  testingSentence: (s: string) => `Muse Wonder wrote this test for its sentence: “${s}”`,
   claimFactsHeading: "What the run shows about this claim: you decide",
   claimSaid: "Muse Wonder 1.0 said, before the first run:",
   claimMeasured: "What this run measured (plain code):",
   claimYouDecide: "Atlas does not say whether the sentence holds. Neither an AI nor plain code may decide that; compare the two yourself.",
-  nextTry: "Next things to try, found in this code:",
+  nextTry: "Next things to try, read from this code and not seen in a run:",
   proofTitle: "Proof card",
   closeProof: "Close the proof card",
 } as const;

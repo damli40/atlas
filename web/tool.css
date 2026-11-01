@@ -342,3 +342,8 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 .m-split{grid-template-columns:minmax(260px,320px) minmax(0,1fr);gap:20px}
 .felt-fold summary{font-size:13px}
 .felt-fold .felt-paths{font-weight:500}
+
+/* Round 4 */
+.u1-reach { margin: 0 0 10px; padding: 8px 10px; border-left: 3px solid var(--warn, #6b4d00); font-size: 14px; line-height: 1.45; color: var(--ink, #1f1b1d); }
+.u1-none { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0 10px; }
+.u1-none p { flex: 1 0 100%; margin: 0; }

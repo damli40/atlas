@@ -378,9 +378,9 @@ describe("R3 moved rules that first needed the author fixed", () => {
   it("a bet that matched, or declined, does not claim the bettors expected a step", () => {
     const bet = { id: "b", who: "human", measures: "priceUsd1e18:cbETH", answer: { kind: "number", value: 1.12, tolerancePct: 1, unit: "usd" } };
     const s = moonwell({ forkBlock: 42194662, measured: { "priceSources:cbETH": 1 } }, [bet], [{ betId: "b", outcome: "matched" }]);
-    expect(s.nodes.map((n) => n.words).join()).not.toMatch(/bettors expected/);
+    expect(s.nodes.map((n) => n.words).join()).not.toMatch(/no multiply step here/);
     const miss = moonwell({ forkBlock: 42194662, measured: { "priceSources:cbETH": 1 } }, [bet], [{ betId: "b", outcome: "not_matched" }]);
-    expect(miss.nodes.map((n) => n.words).join()).toMatch(/bettors expected/);
+    expect(miss.nodes.map((n) => n.words).join()).toMatch(/no multiply step here/);
   });
   it("the runner's reason for an unmeasured count is said", () => {
     const s = moonwell({ forkBlock: 42194662, notMeasured: { "priceSources:cbETH": "the call trace read a price another way" } });

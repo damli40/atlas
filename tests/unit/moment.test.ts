@@ -19,11 +19,11 @@ describe("the moment", () => {
   it("says the verdict's sentence from measured facts", () => {
     expect(runEnding(threw)).toBe("threw Error: HTTP 429 at 1,400 ms, after 4 calls to fetch");
   });
-  it("leads with the first you did not match, over one you matched", () => {
-    const m = momentOf([mark("outcome", "matched"), mark("calls:fetch", "not_matched", "once")], threw)!;
+  it("D64: a missed ending leads, over a matched count", () => {
+    const m = momentOf([mark("calls:fetch", "matched", "4 times"), mark("outcome", "not_matched", "returns a value")], threw)!;
     expect(m.kind).toBe("not_matched");
-    expect(m.you).toBe("once");
-    expect(m.run).toBe("called fetch 4 times, then threw Error: HTTP 429 at 1,400 ms");
+    expect(m.you).toBe("returns a value");
+    expect(m.run).toMatch(/^threw Error: HTTP 429/);
   });
   it("a match has the same shape", () => {
     expect(momentOf([mark("outcome", "matched"), mark("virtualMs", "cant_check")], threw)).toMatchObject({ kind: "matched", you: "throws" });

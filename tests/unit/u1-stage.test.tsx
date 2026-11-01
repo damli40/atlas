@@ -92,7 +92,7 @@ describe("U1 drawing-first screen", () => {
     let t = runTraces(stage);
     expect(t).toMatchObject({ runEls: 0, litLamps: 0, marks: 0 });
     // D50: the failure label is drawn before any bet, and it carries no run result.
-    expect(t.labelMarks).toEqual(["found in this code: no overall timeout, lines 12–19"]);
+    expect(t.labelMarks).toEqual(["could fail: no overall timeout, lines 12–19 (read, not run)"]);
 
     // open the bet: Wonder's first allowed test is preselected, the stand-in deck appears, still no result
     click($('[data-testid="u1-bet-toggle"]'));

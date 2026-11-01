@@ -95,13 +95,19 @@ export interface ProofImageProps {
   preExisting?: string | null;
   /** Whoever is looking did not place this bet. An image the bettor copies keeps "you". */
   stranger?: boolean;
+  /** Whoever is looking did not run this round: they can pass the link on and copy the image, nothing else. */
+  reader?: boolean;
+  /** False: this server has no volume, so no public link can be made. */
+  keepsCards?: boolean;
 }
 
-export function ProofImage({ card, file, lines, names, api, download, downloadName, preExisting = null, stranger = false }: ProofImageProps) {
+export function ProofImage({ card, file, lines, names, api, download, downloadName, preExisting = null, stranger = false, reader: readerGiven = false, keepsCards = true }: ProofImageProps) {
   const ref = useRef<SVGSVGElement | null>(null);
   const [said, setSaid] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
   const [keptUntil, setKeptUntil] = useState<string | null>((file as { keptCard?: { until: string } }).keptCard?.until ?? null);
+  // Only the person who made a link is offered its Delete.
+  const [keptMine, setKeptMine] = useState((file as { keptCard?: { mine?: boolean } }).keptCard?.mine === true);
   const run = file.runs[0];
   const rows = card.bets.map((b) => ({ who: b.who, name: b.who === "human" ? (names.human ?? "You") : (names[b.who] ?? b.who), measures: b.measures, question: plainField(b.measures), said: b.said, observed: b.observed, outcome: b.outcome ?? null }));
   const moment = run ? momentOfRows(rows, run, file.target.language) : null;
@@ -116,6 +122,8 @@ export function ProofImage({ card, file, lines, names, api, download, downloadNa
   // D20: this image can travel alone, so what it shows and what the change was are on it.
   const beforeChange = file.change ? "This shows the run before the change." : null;
   const theory = theoryCaptions(file.change);
+  // D20's words are required whole, so they wrap: this never cuts them.
+  const changeLines = beforeChange || theory.length > 0 ? wrap([beforeChange, ...theory].filter(Boolean).join(" "), 150, 8) : [];
   const hash = (file.bets[0]?.sealedHash ?? "").slice(0, 10);
   const copyImage = async () => {
     if (!ref.current) return;
@@ -146,7 +154,9 @@ export function ProofImage({ card, file, lines, names, api, download, downloadNa
     }
   };
   // Someone reading a shared card can pass its link on. Making a link is for the person who ran the round.
-  const reader = (file as { sourceWithheld?: boolean }).sourceWithheld === true && !keptUntil;
+  const reader = readerGiven || ((file as { sourceWithheld?: boolean }).sourceWithheld === true && !keptMine);
+  // C3: a server with no volume cannot keep a card, so it does not ask to. It says what really happens to the link.
+  const lasts = file.target.kind === "pasted" ? "for up to 2 hours" : "until this server restarts";
   const copied = (ok: boolean, rest: string) => setSaid(ok ? `Link copied. ${rest}`.trim() : `Copy this link: ${link()} ${rest}`.trim());
   const makeLink = async () => {
     setAsking(false);
@@ -154,29 +164,31 @@ export function ProofImage({ card, file, lines, names, api, download, downloadNa
     const ok = await toClipboard();
     if (a.kept) {
       setKeptUntil((a as { until?: string }).until ?? "kept");
+      setKeptMine(true);
       copied(ok, "Anyone with it can read this card for 30 days.");
     } else copied(ok, `No public link was made: ${a.words ?? "this server keeps no cards"}. This address works only while the round is on the server: up to 2 hours.`);
   };
   const copyLink = async () => {
     if (keptUntil || reader || !api) return copied(await toClipboard(), "");
+    if (!keepsCards) return copied(await toClipboard(), `Anyone with it can read this card, without your file's text, ${lasts}. This server keeps no cards for longer.`);
     setAsking(true);
   };
   const deleteLink = async () => {
     const ok = await api?.unkeepProof(card.runId).catch(() => false);
     if (ok) {
       setKeptUntil(null);
-      setSaid("The public link is deleted.");
+      setSaid("The public link is deleted: it no longer opens for anyone else.");
     } else setSaid("The link could not be deleted.");
   };
   if (!moment) return null;
   // The picture closes up around however many lines the run takes.
   const runEnd = 238 + runLines.length * 56;
   const changeY = runEnd + 26;
-  const marksY = runEnd + (beforeChange || theory.length > 0 ? 44 : 24);
+  const marksY = runEnd + (changeLines.length > 0 ? 24 + changeLines.length * 20 : 24);
   const shownMarks = marks.slice(0, 8);
   return (
     <section className="pc-image-wrap" aria-label="the proof card as one image" data-testid="pc-image">
-      <svg ref={ref} className="pc-image" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title}: you bet ${moment.you ?? "nothing"}; the run ${moment.run}`} xmlns="http://www.w3.org/2000/svg">
+      <svg ref={ref} className="pc-image" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title}: ${moment.you === null ? "no bet on this" : `${stranger ? "the bet was" : "you bet"} ${moment.you}, on ${(moment.question ?? "").toLowerCase()}`}; the run ${moment.run}`} xmlns="http://www.w3.org/2000/svg">
         <rect x="0" y="0" width={W} height={H} fill="#f5f1e7" />
         <text x="56" y="70" fontFamily={SANS} fontWeight="600" fontSize="22" fill="#1f1b1d">Atlas</text>
         <text x="130" y="70" fontFamily={MONO} fontWeight="500" fontSize="22" fill="#1f1b1d">{title.slice(0, 44)}</text>
@@ -184,7 +196,7 @@ export function ProofImage({ card, file, lines, names, api, download, downloadNa
         <line x1="56" x2={W - 56} y1="96" y2="96" stroke="#dcd4c3" />
         {youLines.length > 0 && (
           <>
-            <text x="56" y="132" fontFamily={SANS} fontWeight="500" fontSize="16" letterSpacing=".6" fill="#6b6358">{stranger ? "THE BET" : "YOU BET"}</text>
+            <text x="56" y="132" fontFamily={SANS} fontWeight="500" fontSize="16" letterSpacing=".6" fill="#6b6358" data-testid="pc-image-question">{`${stranger ? "THE BET" : "YOU BET"}, ON ${(moment.question ?? "").toUpperCase()}`}</text>
             {youLines.map((l, i) => (
               <text key={i} x="56" y={162 + i * 26} fontFamily={MONO} fontWeight="500" fontSize="22" fill="#1f1b1d">{l}</text>
             ))}
@@ -212,9 +224,9 @@ export function ProofImage({ card, file, lines, names, api, download, downloadNa
         ))}
         <text x={W - 56} y="628" textAnchor="end" fontFamily={SANS} fontWeight="500" fontSize="16" fill="#1f1b1d">Judged by plain code</text>
         <text x={W - 56} y="652" textAnchor="end" fontFamily={MONO} fontSize="14" fill="#6b6358">{hash ? `sealed ${hash}` : ""}</text>
-        {(beforeChange || theory.length > 0) && (
-          <text x="56" y={changeY} fontFamily={SANS} fontWeight="500" fontSize="15" fill="#6b4d00" data-testid="pc-image-change">{[beforeChange, ...theory].filter(Boolean).join(" ").slice(0, 170)}</text>
-        )}
+        {changeLines.map((l, i) => (
+          <text key={i} x="56" y={changeY + i * 20} fontFamily={SANS} fontWeight="500" fontSize="15" fill="#6b4d00" data-testid="pc-image-change">{l}</text>
+        ))}
         <text x="56" y="694" fontFamily={SANS} fontSize="14" fill="#6b6358">{MARK_PRE_EXISTING_CAPTION}</text>
         {preExisting && <text x={W - 56} y="694" textAnchor="end" fontFamily={SANS} fontWeight="500" fontSize="13" fill="#6b4d00">{preExisting.length > 62 ? "Pre-existing code: listed in PRE-EXISTING.md" : preExisting}</text>}
       </svg>
@@ -224,7 +236,7 @@ export function ProofImage({ card, file, lines, names, api, download, downloadNa
         {download && (
           <a className="u1-btn pc-dl" href={download} download={downloadName} data-testid="pc-download-top">Download file</a>
         )}
-        {keptUntil && api && !reader && (
+        {keptUntil && keptMine && api && !readerGiven && (
           <button type="button" className="u1-btn" onClick={() => void deleteLink()} data-testid="pc-delete-link">Delete public link</button>
         )}
         {asking && (

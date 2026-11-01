@@ -1,5 +1,5 @@
 // The one moment everything serves (D60): what you bet and what the run did, side by side. Plain code picks which question
-// leads (D63: the sharpest you answered), else the run's ending alone. Never scripted, and the same
+// leads (D64: a miss on how it ended first, never a count or a time), else the run's ending alone. Never scripted, and the same
 // words on the verdict screen, the proof card and the film's frame. Pure.
 
 import { visibleText } from "./gate";
@@ -105,17 +105,18 @@ function runFact(mark: MomentMark, run: Pick<Run, "result" | "trace">, language?
   return e ? `${e.what}${e.at}${e.after}` : mark.measured;
 }
 
+const isEnding = (measures: string) => measures === "outcome";
+const isCount = (measures: string) => measures === "calls" || measures.startsWith("calls:");
+const isTime = (measures: string) => measures === "virtualMs" || measures === "totalWaitMs";
+
 /**
- * D63: the sharpest question leads: the most specific one you answered. A value you typed, then what it returns, a count, a time,
- * and how it ends last. Among equals, one you did not match comes first. A bet can be right and still lead, so a right bet does not
- * headline "returns a value".
+ * D64: which question leads. A missed ending, then a missed value, then a matched value, then a matched ending. Never a count or a
+ * time: "sharpest first" (D63) put a blue "matched" over "then threw Error". Null: this answer cannot lead.
  */
-function sharpness(mark: MomentMark, you: MomentMark["picks"][number]): number {
-  if (/^typed /.test(you.pick)) return 0;
-  if (mark.measures === "returnedJson") return 1;
-  if (mark.measures.startsWith("calls")) return 2;
-  if (mark.measures === "virtualMs") return 3;
-  return 4;
+function leadRank(measures: string, outcome: "matched" | "not_matched"): number | null {
+  if (isEnding(measures)) return outcome === "not_matched" ? 0 : 3;
+  if (isCount(measures) || isTime(measures)) return null;
+  return outcome === "not_matched" ? 1 : 2;
 }
 
 /** Null when the run may not be shown as fact: then there is no moment, only the reason. */
@@ -123,13 +124,16 @@ export function momentOf(marks: readonly MomentMark[], run: Pick<Run, "result" |
   if (notShownAsFact(run as Run) !== null) return null;
   const answered = marks
     .map((mark, i) => ({ mark, i, you: mark.picks.find((p) => p.who === "human") }))
-    .filter((x): x is { mark: MomentMark; i: number; you: MomentMark["picks"][number] } => x.you !== undefined && (x.you.outcome === "matched" || x.you.outcome === "not_matched"));
-  answered.sort((a, b) => sharpness(a.mark, a.you) - sharpness(b.mark, b.you) || Number(a.you.outcome === "matched") - Number(b.you.outcome === "matched") || a.i - b.i);
-  const lead = answered[0];
-  if (!lead) {
-    const ending = runEnding(run, language);
-    return ending === null ? null : { kind: "ending", measures: null, question: null, you: null, run: ending, bettors: [] };
-  }
+    .filter((x): x is { mark: MomentMark; i: number; you: MomentMark["picks"][number] & { outcome: "matched" | "not_matched" } } => x.you !== undefined && (x.you.outcome === "matched" || x.you.outcome === "not_matched"));
+  const ranked = answered.flatMap((x) => {
+    const r = leadRank(x.mark.measures, x.you.outcome);
+    return r === null ? [] : [{ ...x, r }];
+  });
+  ranked.sort((a, b) => a.r - b.r || a.i - b.i);
+  const ending = runEnding(run, language);
+  // Only when the run has no ending to show and nothing else was answered can a count or a time stand in: there is no other fact.
+  const lead = ranked[0] ?? (ending === null ? answered[0] : undefined);
+  if (!lead) return ending === null ? null : { kind: "ending", measures: null, question: null, you: null, run: ending, bettors: [] };
   return {
     kind: lead.you.outcome === "not_matched" ? "not_matched" : "matched",
     measures: lead.mark.measures,
@@ -138,6 +142,24 @@ export function momentOf(marks: readonly MomentMark[], run: Pick<Run, "result" |
     run: runFact(lead.mark, run, language),
     bettors: [...lead.mark.picks].sort(bettorOrder).map(({ who, name, pick, outcome }) => ({ who, name, pick, outcome })),
   };
+}
+
+/**
+ * D64: a claim test proves nothing about a sentence if it never reached what the sentence is about. Plain code compares this run with
+ * the last one, and counts the calls to the fakes. Null when neither holds. The words only say what was measured.
+ */
+export function reachNote(run: Pick<Run, "result" | "trace">, last: string | null, language?: CodeLanguage): string | null {
+  const m = run.result.measured as Record<string, unknown>;
+  const notMeasured = (run.result.notMeasured ?? {}) as Record<string, unknown>;
+  const fakes = Object.entries(m).filter(([k, v]) => k.startsWith("calls:") && typeof v === "number") as [string, number][];
+  const countsKnown = !Object.keys(notMeasured).some((k) => k.startsWith("calls:"));
+  const none = countsKnown && fakes.length > 0 && fakes.every(([, v]) => v === 0);
+  const what = endingFacts(run, language)?.what ?? null;
+  const same = last !== null && what === last;
+  if (!none && !same) return null;
+  const calls = fakes.map(([k]) => clip(visibleText(k.slice(6)), 24)).join(" or ");
+  const head = same && none ? `This test ended the same way as the last one and made 0 calls to ${calls}.` : same ? "This test ended the same way as the last one." : `This test made 0 calls to ${calls}.`;
+  return `${head} It may not reach what the sentence is about.`;
 }
 
 /**

@@ -10,6 +10,8 @@ import { formatUsd1e18 } from "./units";
 
 /** The caption under every before/after view. Templated by plain code, never a model's words. */
 export const CHANGE_CAPTION = "changed toward what you expected, then re-run";
+/** The same caption for someone who did not place these bets. */
+export const CHANGE_CAPTION_READER = "changed toward what the bettors expected, then re-run";
 export const BEFORE_LABEL = "Before change";
 
 /**

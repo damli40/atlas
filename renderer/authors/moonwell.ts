@@ -65,7 +65,7 @@ export function moonwellFlow(input: MoonwellInput): RenderSpec {
   const nodes: SpecNode[] = [];
   // Only an answer that expected the multiply step can say it is missing: the 2-source price, or any price but the one read.
   const expectedStep = usdBets.some((b) => b.answer.kind !== "declined" && (input.verdicts ?? []).find((v) => v.betId === b.id)?.outcome === "not_matched");
-  if (count === 1 && expectedStep) nodes.push({ id: "gear", kind: "note", words: "the multiply step the bettors expected is not there", provenance: "run", missing: true });
+  if (count === 1 && expectedStep) nodes.push({ id: "gear", kind: "note", words: "no multiply step here", provenance: "run", missing: true });
   nodes.push({ id: "feed", kind: "device", words: feedWords, provenance: "run" });
   const edges: RenderSpec["edges"] = [];
   const steps: SpecStep[] = [{ id: "s0", nodes: ["feed"], edges: [], provenance: "run", beat: "start", words: `the price read went through ${feedWords}` }];

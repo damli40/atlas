@@ -570,6 +570,7 @@ export function createApp(opts: AppOptions = {}) {
   const sandboxGate = opts.sandboxGate ?? createSandboxGate();
   /** E3 review B5/M4: which session made each pasted round (its source and its replays are that session's only). */
   const pastedOwners = new Map<string, string>();
+  const roundSessions = new Map<string, string>();
   const trustProxy = opts.trustProxy ?? trustProxyFromEnv();
   const proxyHops = trustedHopsFromEnv(); // E3 review r2 M4: read once; an invalid value throws here, not per request
   // G1: with an invite code, the per-address limits count by the code (server/access/context.ts), so a new address or a
@@ -822,6 +823,9 @@ export function createApp(opts: AppOptions = {}) {
         createdAt: new Date().toISOString(),
       });
       const put = (exp.target.kind === "pasted" ? pastedProofs : proofStore).put(file, run);
+      // J4: whose bets these were, so only they are told "you" on the card's own page.
+      roundSessions.set(run.id, sessionId);
+      while (roundSessions.size > 2000) roundSessions.delete(roundSessions.keys().next().value!);
       if (exp.target.kind === "pasted") {
         pastedOwners.set(run.id, sessionId);
         while (pastedOwners.size > 2000) pastedOwners.delete(pastedOwners.keys().next().value!);
@@ -1967,6 +1971,27 @@ export function createApp(opts: AppOptions = {}) {
     const at = keptPath(runId);
     return at ? readKept(at) : null;
   };
+  // Review R1: deleting a public link must take it down, on disk and in memory, at once. A pasted round's own session can still read its
+  // round (that is its own work, and its panel stays open); nobody else can. The mark is on the volume, so a restart does not bring it back.
+  const deletedPath = (runId: string) => (keptDir && /^[\w-]{1,64}$/.test(runId) ? join(keptDir, `${runId}.deleted`) : null);
+  const deletedInMemory = new Map<string, string>();
+  const deletedBy = (runId: string): string | null => {
+    const known = deletedInMemory.get(runId);
+    if (known) return known;
+    const at = deletedPath(runId);
+    if (!at) return null;
+    try {
+      return readFileSync(at, "utf8");
+    } catch {
+      return null;
+    }
+  };
+  const goneFor = (c: Context, runId: string): boolean => {
+    if (deletedBy(runId) === null) return false;
+    const owner = pastedOwners.get(runId);
+    return owner === undefined || c.req.header("x-atlas-session") !== owner;
+  };
+  const GONE_WORDS = "The person who made this card's public link has deleted it.";
   /** Every live kept card, with expired ones removed on the way. */
   const allKept = (): KeptEntry[] => {
     if (!keptDir || !existsSync(keptDir)) return [];
@@ -1979,6 +2004,9 @@ export function createApp(opts: AppOptions = {}) {
     const runId = c.req.param("runId");
     const already = keptProof(runId);
     if (already) return c.json({ kept: true, until: already.until });
+    // Only whoever deleted a link can make it again: otherwise a reader could undo the deletion.
+    const wasDeleted = deletedBy(runId);
+    if (wasDeleted !== null && wasDeleted !== clientHash(c)) return c.json({ kept: false, error: GONE_WORDS }, 410);
     const file = proofOf(runId);
     if (!file) return c.json({ kept: false, error: "this card is no longer on the server" }, 404);
     const owner = pastedOwners.get(runId);
@@ -1995,6 +2023,9 @@ export function createApp(opts: AppOptions = {}) {
     try {
       mkdirSync(keptDir!, { recursive: true });
       writeFileSync(at, text);
+      deletedInMemory.delete(runId);
+      const mark = deletedPath(runId);
+      if (mark) rmSync(mark, { force: true });
     } catch {
       return c.json({ kept: false, error: "the card could not be saved" }, 500);
     }
@@ -2007,20 +2038,41 @@ export function createApp(opts: AppOptions = {}) {
     if (!e) return c.json({ deleted: false, error: "there is no public link for this card" }, 404);
     if (e.maker !== clientHash(c)) return c.json({ deleted: false, error: "only the person who made this link can delete it" }, 403);
     rmSync(at!, { force: true });
+    deletedInMemory.set(runId, e.maker);
+    while (deletedInMemory.size > 2000) deletedInMemory.delete(deletedInMemory.keys().next().value!);
+    try {
+      writeFileSync(deletedPath(runId)!, e.maker);
+    } catch {
+      // The memory mark still holds until a restart, and the card itself is already off the disk.
+    }
     return c.json({ deleted: true });
   });
 
   app.get("/proofs/:runId", (c) => {
-    const file = proofOf(c.req.param("runId"));
-    const kept = keptProof(c.req.param("runId"));
-    if (!file && kept) return c.json({ ...kept.file, keptCard: { until: kept.until } });
-    if (!file) return c.json({ error: `no .atlas.json for run ${c.req.param("runId")}` }, 404);
+    const runId = c.req.param("runId");
+    if (goneFor(c, runId)) return c.json({ error: GONE_WORDS }, 410);
+    const file = proofOf(runId);
+    const kept = keptProof(runId);
+    const session = c.req.header("x-atlas-session");
+    const owner = pastedOwners.get(runId);
+    const about = kept ? { keptCard: { until: kept.until, mine: kept.maker === clientHash(c) } } : {};
+    if (!file && kept) return c.json({ ...kept.file, ...about });
+    if (!file) return c.json({ error: `no .atlas.json for run ${runId}` }, 404);
     // E3 review M4: a pasted round's source is the owning session's. Anyone else gets the card without it (the
     // fingerprint stays, so the card still says which code ran).
     // E3 review r2 minor 5: the source only when an owner is on record AND the header names it.
-    const owner = pastedOwners.get(c.req.param("runId"));
-    if (file.target.kind === "pasted" && (owner === undefined || c.req.header("x-atlas-session") !== owner)) return c.json({ ...withheldSource(file), ...(kept ? { keptCard: { until: kept.until } } : {}) });
-    return c.json({ ...file, ...(kept ? { keptCard: { until: kept.until } } : {}) });
+    if (file.target.kind === "pasted" && (owner === undefined || session !== owner)) return c.json({ ...withheldSource(file), ...about });
+    return c.json({ ...file, ...about });
+  });
+
+  // What the card's page needs to know about whoever is looking. Kept out of the file itself, which a reader can verify and download.
+  // Whether these were their bets (J4), and whether this server can keep a card at all (C3). Read only; names nobody.
+  app.get("/proofs/:runId/viewer", (c) => {
+    const runId = c.req.param("runId");
+    const session = c.req.header("x-atlas-session");
+    const kept = keptProof(runId);
+    const yours = (session !== undefined && (pastedOwners.get(runId) === session || roundSessions.get(runId) === session)) || (kept !== null && kept.maker === clientHash(c));
+    return c.json({ yours, keepsCards: keptDir !== undefined });
   });
 
   // R3: the helper steps of a pasted run, for the drawing only. Only the session that pasted the code may read them, as with its
@@ -2035,6 +2087,7 @@ export function createApp(opts: AppOptions = {}) {
 
   // R3: the proof's path in pencil, where the optional engine is installed. Each reason it cannot be drawn has its own status and words.
   app.get("/proofs/:runId/pencil.png", async (c) => {
+    if (goneFor(c, c.req.param("runId"))) return c.json({ error: GONE_WORDS }, 410);
     const file = proofOf(c.req.param("runId"));
     if (!file) return c.json({ error: `no .atlas.json for run ${c.req.param("runId")}` }, 404);
     const a = await pencil.draw(c.req.param("runId"), file, clientOf(c));
@@ -2077,6 +2130,7 @@ export function createApp(opts: AppOptions = {}) {
   // Answers whether the replay's `measured` is deep-equal to the file's, and which result fields differ.
   app.get("/replay/:runId", async (c) => {
     const runId = c.req.param("runId");
+    if (goneFor(c, runId)) return c.json({ error: GONE_WORDS }, 410);
     const stored = proofOf(runId);
     if (!stored) return c.json({ error: `no .atlas.json for run ${runId}` }, 404);
     const v = verifyAtlasFile(stored);

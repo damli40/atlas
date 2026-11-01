@@ -40,8 +40,8 @@ describe("the moment's words come from structured facts", () => {
   });
   it("B3: a value holding ', after' stays whole", async () => {
     const { run } = await real("js", 'export async function f(x){ await x(); return "a, after b"; }\n', { exportName: "f", args: [si("x", [{ do: "return", value: 1 }])] });
-    const m = momentOf([{ measures: "calls:x", question: "q", measured: "m", picks: [{ who: "human", name: "You", pick: "0 times", outcome: "not_matched" }] }], run)!;
-    expect(m.run).toBe('called x once, then returned "a, after b"');
+    const m = momentOf([{ measures: "outcome", question: "q", measured: "m", picks: [{ who: "human", name: "You", pick: "throws", outcome: "not_matched" }] }], run)!;
+    expect(m.run).toBe('returned "a, after b", after 1 call to x');
   });
   it("B4: a count not measured means no 'after' clause", () => {
     const run = { trace: [], controlPassed: true, result: { measured: { outcome: "returned", returnedJson: "1", "calls:y": 1 }, notMeasured: { "calls:x": "the two runs differed" } } } as never;
@@ -58,16 +58,18 @@ describe("the moment's words come from structured facts", () => {
   });
 });
 
-describe("D63: the sharpest bet leads", () => {
+describe("D64: which question leads", () => {
   const run = { trace: [{ t: 0, event: "start" }], controlPassed: true, result: { measured: { outcome: "returned", returnedJson: "5549", "calls:x": 2, virtualMs: 100 }, notMeasured: {} } } as never;
   const mark = (measures: string, outcome: "matched" | "not_matched" | "cant_check", pick = "p"): MomentMark => ({ measures, question: measures, measured: "m", picks: [{ who: "human", name: "You", pick, outcome }] });
-  it("a typed value before what it returns, before a count, a time and how it ends, right or not", () => {
-    expect(momentOf([mark("outcome", "not_matched"), mark("returnedJson", "matched", "typed 5549")], run)!.measures).toBe("returnedJson");
-    expect(momentOf([mark("outcome", "not_matched"), mark("virtualMs", "matched")], run)!.measures).toBe("virtualMs");
-    expect(momentOf([mark("outcome", "matched"), mark("calls:x", "matched")], run)!.measures).toBe("calls:x");
+  it("a missed ending, then a missed value, then a matched value, then a matched ending", () => {
+    expect(momentOf([mark("returnedJson", "matched", "typed 5549"), mark("outcome", "not_matched")], run)!.measures).toBe("outcome");
+    expect(momentOf([mark("outcome", "matched"), mark("returnedJson", "not_matched")], run)!.measures).toBe("returnedJson");
+    expect(momentOf([mark("outcome", "matched"), mark("returnedJson", "matched")], run)!.measures).toBe("returnedJson");
   });
-  it("among equals, the one you did not match; a declined answer never leads", () => {
-    expect(momentOf([mark("calls:a", "matched"), mark("calls:x", "not_matched")], run)!.measures).toBe("calls:x");
+  it("never a count or a time: with only those answered, the run's ending stands alone", () => {
+    expect(momentOf([mark("outcome", "not_matched"), mark("virtualMs", "matched")], run)!.measures).toBe("outcome");
+    expect(momentOf([mark("outcome", "matched"), mark("calls:x", "matched")], run)!.measures).toBe("outcome");
+    expect(momentOf([mark("calls:a", "matched"), mark("calls:x", "not_matched")], run)).toMatchObject({ kind: "ending", measures: null, you: null });
     expect(momentOf([mark("returnedJson", "cant_check"), mark("outcome", "matched")], run)!.measures).toBe("outcome");
   });
 });
@@ -134,7 +136,7 @@ describe("public links, behind the real gate", () => {
     await app.request(`/proofs/${id}/keep`, { method: "POST", headers: hdr(codes.a), body: "{}" });
     expect((await app.request(`/proofs/${id}/keep`, { method: "DELETE", headers: hdr(codes.b) })).status).toBe(403);
     expect((await app.request(`/proofs/${id}/keep`, { method: "DELETE", headers: hdr(codes.a) })).status).toBe(200);
-    expect(readdirSync(dir)).toEqual([]);
+    expect(readdirSync(dir).filter((n) => n.endsWith(".json"))).toEqual([]);
     await app.request(`/proofs/${id}/keep`, { method: "POST", headers: hdr(codes.a), body: "{}" });
     const at = join(dir, `${id}.json`);
     const e = JSON.parse(readFileSync(at, "utf8"));
@@ -142,7 +144,7 @@ describe("public links, behind the real gate", () => {
     utimesSync(at, new Date(), new Date());
     const app2 = gated(dir).app;
     expect((await app2.request(`/proofs/${id}`)).status).toBe(404);
-    expect(readdirSync(dir)).toEqual([]);
+    expect(readdirSync(dir).filter((n) => n.endsWith(".json"))).toEqual([]);
   }, 60_000);
   it("D63: the caps hold, per client and in total", async () => {
     const dir = mkdtempSync(join(tmpdir(), "kept-"));

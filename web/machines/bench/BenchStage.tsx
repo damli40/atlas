@@ -52,6 +52,8 @@ export interface BenchStageProps {
   after?: After | null;
   /** This code and test have already run here: "nothing has run" would be false. */
   seenBefore?: boolean;
+  /** This code has already run here on some test: nothing on screen may say nothing has run. */
+  codeRan?: boolean;
   /** D60: a part was clicked on the drawing: the code drawer jumps to its lines. */
   onPart?: (name: string) => void;
   /** A code box was chosen as the function to test. */
@@ -86,7 +88,7 @@ export function roundUp(ms: number): number {
   return 10 * p;
 }
 
-export function BenchStage({ seenBefore = false, model, theme, after = null, onPart, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null }: BenchStageProps) {
+export function BenchStage({ seenBefore = false, codeRan = false, model, theme, after = null, onPart, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null }: BenchStageProps) {
   const playedRef = useRef(onPlayed);
   playedRef.current = onPlayed;
   const dark = useDarkScheme();
@@ -270,7 +272,7 @@ export function BenchStage({ seenBefore = false, model, theme, after = null, onP
         <p className="r-kick">{title}</p>
         <h1 className="r-name">{model.tested ?? fileName}</h1>
         <p className="r-sub" data-testid="r-sub">
-          {after ? (marksOn ? "" : STAGE_WORDS.playing) : seenBefore ? "this code and test have already run here" : model.parts[CLOCK_ID] ? "the code, and what Atlas will plug in. Nothing has run." : "what calls what, before anything has run"}
+          {after ? (marksOn ? "" : STAGE_WORDS.playing) : seenBefore ? "this code and test have already run here" : codeRan ? (model.parts[CLOCK_ID] ? "this code has run here; this test has not" : "what calls what. This code has already run here.") : model.parts[CLOCK_ID] ? "the code, and what Atlas will plug in. Nothing has run." : "what calls what, before anything has run"}
         </p>
       </header>
       <p id="bench-described" className="rr-unseen" data-testid="bench-described">{model.plainLabel}</p>

@@ -15,7 +15,7 @@ import { SAY, bettorLineWords, bettorLines, proofCardModel, replayWords } from "
 import { DiffView } from "./Change";
 import { BettorCounts } from "./Claimant";
 import { bettorNames, changeProposer, orderModelBettors } from "../../src/claimants";
-import { AFTER_LABEL, BEFORE_LABEL, CHANGE_CAPTION, theoryCaptions } from "../../src/change";
+import { AFTER_LABEL, BEFORE_LABEL, CHANGE_CAPTION, CHANGE_CAPTION_READER, theoryCaptions } from "../../src/change";
 import { targetName } from "../../src/target-name";
 import { shortQuestionFor, LANGUAGE_NAME } from "../../src/paste-context";
 import { RunPath } from "../drawing/RunPath";
@@ -68,6 +68,35 @@ function PencilImage({ api, runId }: { api: Pick<Api, "pencil">; runId: string }
 export function ProofCardPage({ api, runId, embedded = false }: { api: Api; runId: string; embedded?: boolean }) {
   const [file, setFile] = useState<AtlasFile | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // J3: with an invite gate on, someone logged out cannot run anything, so nothing that runs or keeps is offered to them. Unknown yet counts as out.
+  const [loggedOut, setLoggedOut] = useState(!embedded);
+  useEffect(() => {
+    if (embedded) return;
+    let live = true;
+    void Promise.resolve()
+      .then(() => api.inviteStatus())
+      .then(
+        (st) => live && setLoggedOut(st.required && !st.signedIn),
+        () => live && setLoggedOut(false),
+      );
+    return () => {
+      live = false;
+    };
+  }, [api, embedded]);
+  // J4, C3: what the server records about whoever is looking. If it can't say, nothing says "you" and the card asks nothing of the volume.
+  const [viewer, setViewer] = useState<{ yours: boolean; keepsCards: boolean } | null>(null);
+  useEffect(() => {
+    let live = true;
+    void Promise.resolve()
+      .then(() => api.proofViewer(runId))
+      .then(
+        (v) => live && setViewer(v),
+        () => live && setViewer({ yours: false, keepsCards: true }),
+      );
+    return () => {
+      live = false;
+    };
+  }, [api, runId]);
   useEffect(() => {
     let live = true;
     api.proof(runId).then(
@@ -82,10 +111,10 @@ export function ProofCardPage({ api, runId, embedded = false }: { api: Api; runI
   const Shell = embedded ? "div" : "main";
   return (
     <Shell className="proof-page">
-      {file ? (
+      {file && viewer ? (
         <div className="proof-stack">
-          {/* Inside the round's own screen, or a pasted card whose source this session may read, the bettor is looking. Anyone else is not. */}
-          <ProofCard file={file} api={api} stranger={!embedded && !(file.target.kind === "pasted" && (file as { sourceWithheld?: boolean }).sourceWithheld !== true)} />
+          {/* Inside the round's own screen the bettor is looking. Elsewhere only the server's record says so: where nothing records whose bet it was, the words stay neutral. */}
+          <ProofCard file={file} api={api} reader={loggedOut} keepsCards={viewer.keepsCards} stranger={!embedded && !viewer.yours} />
           {/* X3 (D27): only for the person whose round this was (the server answers null for anyone else). */}
           <RecordBefore api={api} runId={runId} />
         </div>
@@ -107,7 +136,7 @@ export function modelNames(file: Pick<AtlasFile, "bets">): Record<string, string
   return bettorNames(file.bets.map((b) => b.who));
 }
 
-export function ProofCard({ file, api, replay: given, stranger = false }: { file: AtlasFile; api?: Api; replay?: ReplayAnswer; /** Whoever is looking did not place these bets, so nothing says "you". */ stranger?: boolean }) {
+export function ProofCard({ file, api, replay: given, stranger = false, reader = false, keepsCards = true }: { file: AtlasFile; api?: Api; replay?: ReplayAnswer; /** Whoever is looking did not place these bets, so nothing says "you". */ stranger?: boolean; /** Logged out: nothing that runs or keeps is offered. */ reader?: boolean; /** False: this server has no volume to keep a card on. */ keepsCards?: boolean }) {
   const card = useMemo(() => proofCardModel(file), [file]);
   // D10 + D07-01: every model bettor by product name AND id (src/claimants.ts), e.g.
   // "Muse Spark Open (meta-models/muse-spark-open-1026) · via Baseten". An unknown id is shown as itself.
@@ -124,7 +153,7 @@ export function ProofCard({ file, api, replay: given, stranger = false }: { file
   useEffect(() => () => void (download && URL.revokeObjectURL(download)), [download]);
 
   // A reader of a shared card, or a card kept past its round: re-running or drawing it again is for the session that ran it.
-  const readerOnly = (file as { sourceWithheld?: boolean }).sourceWithheld === true || (file as { keptCard?: unknown }).keptCard !== undefined;
+  const readerOnly = reader || (file as { sourceWithheld?: boolean }).sourceWithheld === true || (file as { keptCard?: unknown }).keptCard !== undefined;
   const rerun = async () => {
     if (!api) return;
     setReplay({ kind: "running" });
@@ -140,12 +169,14 @@ export function ProofCard({ file, api, replay: given, stranger = false }: { file
   const call = exp0?.params.shape === "call-function" ? exp0.params : undefined;
   const title = call && file.target.kind === "pasted" ? `${call.exportName} · pasted ${file.target.language ? LANGUAGE_NAME[file.target.language] : "code"}` : targetName(card.target);
   const caption = (q: string) => shortQuestionFor(q, exp0?.params, file.target.language);
+  // The file's own caption stays as it was sealed; only what a reader who did not bet sees changes.
+  const sayCaption = (c: string) => (stranger && c === CHANGE_CAPTION ? CHANGE_CAPTION_READER : c);
   const fp = (h: string) => `${h.slice(0, 12)}…${h.slice(-6)}`;
   const saidHowSure = file.bets.find((b) => b.who === "human" && b.confidence)?.confidence;
 
   return (
     <article className="proof-card" data-testid="proof-card" aria-label={`proof card for run ${card.runId}`}>
-      <ProofImage stranger={stranger} card={card} file={file} lines={lines} names={names} preExisting={card.target.kind === "ts-fixture" ? preExistingLabel(file) : null} {...(api ? { api } : {})} {...(download ? { download, downloadName: `${card.runId}.atlas.json` } : {})} />
+      <ProofImage stranger={stranger} reader={reader} keepsCards={keepsCards} card={card} file={file} lines={lines} names={names} preExisting={card.target.kind === "ts-fixture" ? preExistingLabel(file) : null} {...(api ? { api } : {})} {...(download ? { download, downloadName: `${card.runId}.atlas.json` } : {})} />
       <header className="pc-head">
         <div>
           <p className="pc-kicker">Atlas · proof card</p>
@@ -232,13 +263,13 @@ export function ProofCard({ file, api, replay: given, stranger = false }: { file
         </table>
       </section>
 
-      {file.change && file.replay && <ProofChange file={file} said={Object.fromEntries(card.bets.map((b) => [b.betId, b.said]))} />}
+      {file.change && file.replay && <ProofChange file={file} names={names} stranger={stranger} said={Object.fromEntries(card.bets.map((b) => [b.betId, b.said]))} />}
 
       {call && file.runs[0] && (
         // E3: the call timeline, drawn from the file's own run (the same component as the round's screen).
         <section className="pc-machine" aria-label="call timeline" data-testid="pc-call-timeline">
           <RunPath run={file.runs[0]} experiment={file.experiments[0]} bets={file.bets} verdicts={file.verdicts} still testid="pc-path" stranger={stranger} />
-          {api && (file as { keptCard?: unknown }).keptCard === undefined && <PencilImage api={api} runId={file.runs[0].id} />}
+          {api && !readerOnly && <PencilImage api={api} runId={file.runs[0].id} />}
         </section>
       )}
 
@@ -246,13 +277,13 @@ export function ProofCard({ file, api, replay: given, stranger = false }: { file
       {!call && file.runs[0]?.runner === "ts" && (
         <section className="pc-machine" aria-label="what happened" data-testid="pc-retry">
           <RunPath run={file.runs[0]} experiment={file.experiments[0]} bets={file.bets} verdicts={file.verdicts} still retry testid="pc-path" stranger={stranger} />
-          {api && (file as { keptCard?: unknown }).keptCard === undefined && <PencilImage api={api} runId={file.runs[0].id} />}
+          {api && !readerOnly && <PencilImage api={api} runId={file.runs[0].id} />}
         </section>
       )}
       {!call && file.runs[0]?.runner === "evm" && (
         <section className="pc-machine" aria-label="the price flow" data-testid="pc-moonwell">
-          <MoonwellDrawing run={file.runs[0]} bets={file.bets} verdicts={file.verdicts} captions={[...new Set(file.captions)]} still stranger={stranger} {...(file.change ? { beforeChange: true } : {})} />
-          {api && (file as { keptCard?: unknown }).keptCard === undefined && <PencilImage api={api} runId={file.runs[0].id} />}
+          <MoonwellDrawing run={file.runs[0]} bets={file.bets} verdicts={file.verdicts} captions={[...new Set(file.captions.map(sayCaption))]} still stranger={stranger} {...(file.change ? { beforeChange: true } : {})} />
+          {api && !readerOnly && <PencilImage api={api} runId={file.runs[0].id} />}
         </section>
       )}
 
@@ -309,7 +340,7 @@ export function ProofCard({ file, api, replay: given, stranger = false }: { file
         </dl>
         <ul className="pc-captions" data-testid="pc-captions" aria-label="captions">
           {card.captions.map((c) => (
-            <li key={c}>{c}</li>
+            <li key={c}>{sayCaption(c)}</li>
           ))}
         </ul>
       </section>
@@ -365,7 +396,7 @@ export function ProofCard({ file, api, replay: given, stranger = false }: { file
 }
 
 /** D06-01: the change and its replay, from the file: the diff only, and the SAME bets before | after. */
-function ProofChange({ file, said }: { file: AtlasFile; said: Record<string, string> }) {
+function ProofChange({ file, said, names, stranger }: { file: AtlasFile; said: Record<string, string>; names: Record<string, string>; stranger: boolean }) {
   const change = file.change!;
   const replay = file.replay!;
   const before = (id: string) => file.verdicts.find((v) => v.betId === id)?.outcome;
@@ -377,7 +408,7 @@ function ProofChange({ file, said }: { file: AtlasFile; said: Record<string, str
         The same sealed bets, {BEFORE_LABEL.toLowerCase()} | {AFTER_LABEL.toLowerCase()}
       </h2>
       <p className="caption label" data-testid="pc-change-caption">
-        {CHANGE_CAPTION}
+        {stranger ? CHANGE_CAPTION_READER : CHANGE_CAPTION}
       </p>
       {theoryCaptions(change).map((t) => (
         <p key={t} className="caption label theory" data-testid="pc-change-theory">
@@ -409,7 +440,7 @@ function ProofChange({ file, said }: { file: AtlasFile; said: Record<string, str
             const o2 = after(b.id);
             return (
               <tr key={b.id}>
-                <td className="pc-who">{bettorName(b.who, modelNames(file))}</td>
+                <td className="pc-who">{bettorName(b.who, names)}</td>
                 <td>{b.measures}</td>
                 <td>{said[b.id] ?? ""}</td>
                 <td className={`pc-out pc-${o1 ?? "none"}`}>{o1 ? SAY[o1] : "no verdict"}</td>
