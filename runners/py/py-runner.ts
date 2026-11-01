@@ -133,6 +133,18 @@ function pythonOf(stdout: string): PythonInfo | undefined {
   return undefined;
 }
 
+/**
+ * R3: the third run, for the drawing's helper steps only (server/helpers.ts). The file runs as it is; the harness installs a
+ * profile hook before the code loads. Same seed as the sealed runs. Nothing from it reaches a verdict or a proof file.
+ */
+export async function runProbedPyCall(exp: Experiment, source: string, o: { executor?: Executor; wallClockMs?: number; seed?: string } = {}): Promise<{ trace: TraceEvent[]; result: Run["result"]; probes: { k: number; name: string; t: number; at: number; json?: string }[] } | { reason: string }> {
+  if (exp.params.shape !== "call-function") return { reason: "only a call of a function has helper steps" };
+  const res = await runInPySandbox(o.executor ?? pythonSandboxExecutor, source, { runs: [{ ...runRequest(exp.id, exp.params), probe: "profile" }], seed: o.seed ?? CALL_SEED }, o.wallClockMs ?? DEFAULT_WALL_CLOCK_MS);
+  if (!res.ok) return { reason: res.reason };
+  const one = res.runs.find((r) => r.id === exp.id) as (NonNullable<CallWorkerResponse["runs"]>[number] & { probes?: unknown }) | undefined;
+  return one ? { trace: one.trace, result: one.result, probes: (one.probes ?? []) as unknown as { k: number; name: string; t: number; at: number; json?: string }[] } : { reason: "the sandbox returned no result" };
+}
+
 /** Runs the Python harness on `code` in the sandbox. */
 export async function runInPySandbox(executor: Executor, code: string, request: PyWorkerRequest, wallClockMs: number): Promise<PyAnswer> {
   const { answer, runtime } = await pySandboxAnswer(executor, code, request, wallClockMs);

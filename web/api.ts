@@ -2,6 +2,7 @@
 // session id the server hands back on the first answer, so experiments, bets and the run share it.
 // In development, Vite forwards /api/* to the Hono server on port 8787 (vite.config.ts).
 
+import type { HelperStep } from "../src/helper-steps";
 import type { Question } from "../src/gate";
 import type { ChainFactsResult } from "../src/chain-facts";
 import type { AtlasFile, Bet, Confidence, Experiment, Finding, Run, Target, Verdict } from "../src/types";
@@ -202,6 +203,9 @@ export interface ReplayAnswer {
   changeReplay?: { replayRunId: string; measuredEqual: boolean; resultDiff: string[]; controlPassed: boolean; sameOutcomes: boolean } | { error: string };
 }
 
+/** R3: what GET /runs/:id/helpers answers (server/helpers.ts). */
+export type HelperAnswer = { steps: HelperStep[]; more: number } | { none: string };
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -282,6 +286,8 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
     sweep: (target: Target, params: unknown) => post<SweepAnswer>("/sweeps", { target: { ref: target.ref, codeSha256: target.codeSha256 }, params }),
     /** D06-03: a round's .atlas.json, as the server kept it. */
     proof: (runId: string) => get<AtlasFile>(`/proofs/${encodeURIComponent(runId)}`),
+    /** R3: the code's own steps for the drawing, from the third run. Never part of a verdict or a proof. */
+    helpers: (runId: string) => get<HelperAnswer>(`/runs/${encodeURIComponent(runId)}/helpers`),
     /** R3: the proof's path in pencil as an image address, or the server's own words for why not (review M5). */
     pencil: async (runId: string): Promise<{ src: string } | { words: string }> => {
       const r = await fetchFn(`${base}/proofs/${encodeURIComponent(runId)}/pencil.png`, { method: "GET", headers: { ...(session ? { [SESSION_HEADER]: session } : {}) } });

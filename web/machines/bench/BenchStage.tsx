@@ -13,6 +13,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent as RPointerEvent, type ReactNode } from "react";
 import { benchSpec } from "../../../renderer/authors/bet-view";
 import { whatHappened } from "../../../renderer/authors/what-happened";
+import type { HelperAnswer } from "../../api";
 import type { Mounted } from "../../../renderer/live/mount";
 import type { SpecStep } from "../../../renderer/spec";
 import { idFromAttr } from "../../../renderer/words";
@@ -40,6 +41,8 @@ export interface After {
   experiment: Pick<Experiment, "params">;
   bets: readonly Bet[];
   verdicts: readonly Verdict[];
+  /** R3: the code's own steps, from a third run made only for this drawing. */
+  helpers?: HelperAnswer | null;
 }
 
 export interface BenchStageProps {
@@ -123,9 +126,9 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
   // ---- the path: only from `after` ----
   const pathSpec = useMemo(() => {
     if (!after) return null;
-    const spec = whatHappened({ run: after.run, experiment: after.experiment, bets: after.bets.filter((b) => b.who === "human"), verdicts: [...after.verdicts], origin: "this-run", seed: `path:${after.run.id}` });
+    const spec = whatHappened({ run: after.run, experiment: after.experiment, bets: after.bets.filter((b) => b.who === "human"), verdicts: [...after.verdicts], origin: "this-run", ...(after.helpers ? { helpers: after.helpers } : {}), seed: `path:${after.run.id}` });
     return { ...spec, title: undefined, kicker: undefined, subtitle: undefined } as typeof spec;
-  }, [after?.run, after?.experiment, after?.bets, after?.verdicts]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [after?.run, after?.experiment, after?.bets, after?.verdicts, after?.helpers]); // eslint-disable-line react-hooks/exhaustive-deps
   /** undefined: not drawn yet. null: refused. A mount with no player: the plain list. The last two have nothing to play. */
   const [pathMount, setPathMount] = useState<Mounted | null | undefined>(undefined);
   /** Ends the pause while the chart moves aside, so a click during it counts. */

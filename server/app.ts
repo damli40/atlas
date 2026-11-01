@@ -85,6 +85,7 @@ import { createModelBudget, type ModelBudget } from "./meta/budget";
 import { principalClientKey, runAs } from "./access/context";
 import { createShareLimit, DEFAULT_GITHUB_SHARES, type ShareLimit } from "./access/shares";
 import { cleanRecord, type RefusalWriter } from "./proofs/refusals";
+import { createHelperStore, helperRun, HELPER_WORDS } from "./helpers";
 import { createPencil, PENCIL_WORDS, type PencilOptions } from "./pencil";
 import { checkAnswer, createBetStore, humanBetBody, humanBetsBody, MAX_BETS, MAX_EXPERIMENTS, modelSlotsOf, modelSlotView, modelSlotViews, newExperimentId, newRound, publicBet, sealedAfter, sealHumanBet, type BetStore, type ModelSlot, type Round } from "./bets";
 import type { ChatArgs, ChatResult } from "./meta/client";
@@ -636,6 +637,9 @@ export function createApp(opts: AppOptions = {}) {
     return r !== undefined && (r.status === "running" || (r.status === "open" && r.bets.some((b) => b.who === "human")));
   };
   const proofOf = (runId: string) => proofStore.get(runId) ?? pastedProofs.get(runId);
+  // R3: the third run behind the drawing's helper steps, per invite code an hour (by address when there is no code).
+  const helperRunsByClient = createHourlyLimit(envCount(process.env.ATLAS_HELPER_RUNS_PER_CLIENT_PER_HOUR, 200), "helper runs");
+  const helperStore = createHelperStore();
   // R3 review B8: pencil drawings per invite code an hour (by address when there is no code).
   const pencilByClient = createHourlyLimit(envCount(process.env.ATLAS_PENCIL_DRAWINGS_PER_CLIENT_PER_HOUR, 12), "pencil drawings");
   const pencil = createPencil({ take: (client) => pencilByClient.take(client), ...opts.pencil });
@@ -1526,6 +1530,12 @@ export function createApp(opts: AppOptions = {}) {
       throw new RunDidNotFinish(reason);
     }
     keepRun(run);
+    // R3: the third run, for the drawing's helper steps. It starts only now, after the sealed runs have finished, so it cannot
+    // touch them; it counts toward this code's hourly allowance; nothing it finds reaches a verdict or a proof file.
+    if (experiment.target.kind === "pasted" && experiment.params.shape === "call-function" && run.controlPassed) {
+      const allowed = helperRunsByClient.take(principalClientKey() ?? sessionId);
+      helperStore.put(run.id, allowed.ok ? helperRun(experiment, run, { executor }).catch((e: Error) => ({ none: HELPER_WORDS.failed(e.message) })) : Promise.resolve({ none: HELPER_WORDS.limit(allowed.reason) }));
+    }
     if (experiment.target.kind === "pasted") for (const d of paste.noteRoundChars(experiment.id, JSON.stringify(run).length, keepRound)) betStore.peek(d.sessionId)?.delete(d.experimentId);
     log.runner(experiment, run);
     // The promise this route makes: every bet's sealedAt is earlier than run.startedAt.
@@ -1920,6 +1930,16 @@ export function createApp(opts: AppOptions = {}) {
     const owner = pastedOwners.get(c.req.param("runId"));
     if (file.target.kind === "pasted" && (owner === undefined || c.req.header("x-atlas-session") !== owner)) return c.json(withheldSource(file));
     return c.json(file);
+  });
+
+  // R3: the helper steps of a pasted run, for the drawing only. Only the session that pasted the code may read them, as with its
+  // source, and only after its run, because they come from what the code really did.
+  app.get("/runs/:runId/helpers", async (c) => {
+    const runId = c.req.param("runId");
+    const owner = pastedOwners.get(runId);
+    if (owner === undefined || c.req.header("x-atlas-session") !== owner) return c.json({ none: HELPER_WORDS.notPasted });
+    const answer = helperStore.get(runId);
+    return c.json(answer ? await answer : { none: HELPER_WORDS.notPasted });
   });
 
   // R3: the proof's path in pencil, where the optional engine is installed. Each reason it cannot be drawn has its own status and words.

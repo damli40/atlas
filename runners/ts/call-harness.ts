@@ -141,6 +141,11 @@ export interface CallRunRequest {
    */
   sequence?: { exportName: string; args: WireArg[]; waitMs: number }[];
   watchLimitMs: number;
+  /**
+   * R3: only the third, instrumented run names a probe (server/helpers.ts): the global its probes call. The two sealed runs
+   * never do, so for them nothing below exists.
+   */
+  probe?: string;
   /** U2 (D53): the scripted fake installed as the global `fetch` for this run (the real network stays blocked). */
   network?: { name: "fetch" | "requests" | "urllib" | "httpx"; calls: WireNetStep[]; then: "repeat_last" | "throw_exhausted" };
 }
@@ -159,9 +164,17 @@ export interface CallHarnessOutput {
   trace: TraceEvent[];
   result: RunResult;
 }
+/** R3: one probe's report (src/helper-steps.ts reads it). */
+export interface ProbeWire {
+  k: number;
+  id: number;
+  t: number;
+  at: number;
+  json?: string;
+}
 /** What call-worker.ts prints after RESULT_MARKER and the per-run marker. Exactly one of runs / wholeRun / tampered. */
 export interface CallWorkerResponse {
-  runs?: ({ id: string } & CallHarnessOutput)[];
+  runs?: ({ id: string; probes?: ProbeWire[] } & CallHarnessOutput)[];
   wholeRun?: string;
   tampered?: string;
   changed?: string;
@@ -1412,6 +1425,38 @@ function grownResources(before: Map<string, number>): string[] {
   return out;
 }
 
+// ---- R3: the third run's probes. Not installed for a sealed run. ----
+const PROBE_MAX = 5000;
+const PROBE_VALUE_MAX = 200;
+const probeEvents: ProbeWire[] = [];
+let probePlace: (() => [number, number]) | null = null;
+/** What the probes reported. */
+export const probesSoFar = (): ProbeWire[] => probeEvents;
+/** Defines the global the instrumented file calls. It gives back what it is given, whatever else happens. */
+export function installProbe(name: string): void {
+  const probe = (k: number, id: number, v?: unknown) => {
+    try {
+      if (probePlace && probeEvents.length < PROBE_MAX) {
+        const [t, at] = probePlace();
+        const ev = record<ProbeWire>();
+        put(ev, "k", k);
+        put(ev, "id", id);
+        put(ev, "t", t);
+        put(ev, "at", at);
+        if (k === 1 && v !== undefined) {
+          const c = classifyReturned(v);
+          if ("json" in c && typeof c.json === "string" && c.json.length <= PROBE_VALUE_MAX) put(ev, "json", c.json);
+        }
+        append(probeEvents, ev);
+      }
+    } catch {
+      // A value that cannot be read gives the step no value; it never changes what the code does.
+    }
+    return v;
+  };
+  Object.defineProperty(globalThis, name, { value: probe, enumerable: false, writable: false, configurable: false });
+}
+
 /**
  * Calls `fn` once with the request's arguments and returns what was measured. Never throws for anything the
  * code does. A whole-run reason (see markWholeRun) is NOT returned here: the worker reads it and sends only it.
@@ -1423,6 +1468,7 @@ export async function runCall(fn: unknown, req: CallRunRequest, opts: CallHarnes
   const watchLimitMs = req.watchLimitMs;
   const clock = new VirtualClock(req.id);
   const trace: TraceEvent[] = [];
+  probePlace = () => [clock.now, trace.length];
   let dropped = 0;
   const droppedCalls = record<Record<string, number>>();
   const emit = (event: string, data?: Record<string, unknown>) => {

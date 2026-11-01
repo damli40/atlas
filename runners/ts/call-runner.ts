@@ -25,7 +25,7 @@ import { staticRefusal } from "../../src/pasted-code.ts";
 import type { ArgSpec, Experiment, ExperimentShape, JsonValue, NetworkFake, Run, Target, TraceEvent } from "../../src/types.ts";
 import { localExecutor } from "../executor/local.ts";
 import type { ExecRuntime, Executor } from "../runner.ts";
-import { CALL_DEFAULT_WATCH_LIMIT_MS, type CallRunRequest, type CallWorkerRequest, type CallWorkerResponse, type WireArg, type WireNetStep } from "./call-harness.ts";
+import { CALL_DEFAULT_WATCH_LIMIT_MS, type CallRunRequest, type CallWorkerRequest, type CallWorkerResponse, type ProbeWire, type WireArg, type WireNetStep } from "./call-harness.ts";
 import { BUILTINS_CHANGED_REASON, RESULT_MARKER } from "./harness.ts";
 
 type CallShape = Extract<ExperimentShape, { shape: "call-function" }>;
@@ -108,6 +108,18 @@ function isRun(r: unknown): r is NonNullable<CallWorkerResponse["runs"]>[number]
   if (!r || typeof r !== "object") return false;
   const x = r as { id?: unknown; trace?: unknown; result?: { measured?: unknown; notMeasured?: unknown } };
   return typeof x.id === "string" && Array.isArray(x.trace) && !!x.result && typeof x.result.measured === "object" && x.result.measured !== null && typeof x.result.notMeasured === "object" && x.result.notMeasured !== null;
+}
+
+/**
+ * R3: the third run, for the drawing's helper steps only (server/helpers.ts). One run of already instrumented source, with
+ * the same seed as the sealed runs. Nothing from it reaches a verdict or a proof file.
+ */
+export async function runProbedCall(exp: Experiment, instrumented: string, language: "js" | "ts", probe: string, o: { executor?: Executor; wallClockMs?: number; seed?: string } = {}): Promise<{ trace: TraceEvent[]; result: Run["result"]; probes: ProbeWire[] } | { reason: string }> {
+  if (exp.params.shape !== "call-function") return { reason: "only a call of a function has helper steps" };
+  const res = await runInSandbox(o.executor ?? localExecutor, instrumented, language, { runs: [{ ...runRequest(exp.id, exp.params), probe }], seed: o.seed ?? CALL_SEED }, o.wallClockMs ?? DEFAULT_WALL_CLOCK_MS);
+  if (!res.ok) return { reason: res.reason };
+  const one = res.runs.find((r) => r.id === exp.id);
+  return one ? { trace: one.trace, result: one.result, probes: one.probes ?? [] } : { reason: "the sandbox returned no result" };
 }
 
 /** HMAC-SHA256 of the result JSON under the run's key, as the worker writes it (call-worker.ts explains why). */

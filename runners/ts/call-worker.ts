@@ -39,6 +39,7 @@ import { fileURLToPath } from "node:url";
 import { BUILTINS_CHANGED_REASON, RESULT_MARKER } from "./harness.ts";
 import { JSONParse, ObjectGetOwnPropertyDescriptor, append, armBuiltinCheck, builtinsChanged, put, record } from "./primordials.ts";
 import {
+  installProbe,
   installSandboxGuards,
   installVirtualClock,
   isAccessDenied,
@@ -46,6 +47,7 @@ import {
   markWholeRun,
   noteUncaught,
   pendingLoadTimers,
+  probesSoFar,
   runCall,
   seedRandomness,
   setClockNudge,
@@ -180,6 +182,12 @@ async function main(): Promise<void> {
   setClockNudge(req.nudgeClockMs ?? 0);
   installVirtualClock();
   installSandboxGuards();
+  // R3: the third, instrumented run only (the name is Atlas's own, never from the code).
+  const probeName = req.runs[0]?.probe;
+  if (probeName !== undefined) {
+    if (!/^__atlasP_[0-9a-f]{16}$/.test(probeName)) throw new Error("the request names a probe Atlas does not use");
+    installProbe(probeName);
+  }
   nativeOn("unhandledRejection", (r: unknown) => noteUncaught("rejection", r));
   nativeOn("uncaughtException", (e: unknown) => noteUncaught("exception", e));
   // Only this worker may load the target; every other import (from the target, or anything it loads) is refused.
@@ -242,6 +250,7 @@ async function main(): Promise<void> {
       put(one, "id", r.id);
       put(one, "trace", res.trace);
       put(one, "result", res.result);
+      if (probeName !== undefined) put(one, "probes", probesSoFar());
       append(runs, one);
     }
   }

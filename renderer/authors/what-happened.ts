@@ -27,6 +27,7 @@
 // Pure; imports types and the pure src/trust.ts rule only.
 
 import type { Bet, Experiment, JsonValue, NetworkStep, Run, StandInStep, TraceEvent, Verdict } from "../../src/types";
+import type { HelperStep } from "../../src/helper-steps";
 import { notShownAsFact } from "../../src/trust";
 import { cleanWords } from "../words";
 import type { RenderSpec, SpecMark, SpecNode, SpecStep } from "../spec";
@@ -61,6 +62,8 @@ export type PathItem =
   /** `dashed`: past a gap in the trace, so it is not joined to the path as if it followed. `open`: calls still out at this ending. */
   | { kind: "end"; words: string; t: number | null; good: boolean; dashed?: boolean; open?: string }
   | { kind: "stop"; words: string; cut?: boolean }
+  /** One of the code's own functions ran (from the third run). `value`: what it returned, as JSON text. */
+  | { kind: "helper"; name: string; t: number; value?: string; threw?: boolean; inner: number }
   /** After the code ended: a call or an answer. Never part of the path's order of cause. */
   | { kind: "late"; words: string; t: number; keys: string[] }
   /** A sequence: Atlas makes call n of m. */
@@ -83,6 +86,11 @@ export interface WhatHappenedInput {
   preExisting?: string;
   /** Collapse loops past this many calls. */
   collapseOver?: number;
+  /**
+   * R3: what the code's own helpers did, from a separate third run made only for this drawing (server/helpers.ts). Never
+   * from a sealed run, never in a verdict. `none`: why there are no helper steps, said in a caption.
+   */
+  helpers?: { steps: readonly HelperStep[]; more: number } | { none: string };
   /** Where the run came from, only when the caller knows. Absent: the drawing says nothing about it (review B5). */
   origin?: RunOrigin;
 }
@@ -138,6 +146,7 @@ function inTimeOrder(trace: readonly TraceEvent[], measured: Record<string, unkn
   return moved.map((x, i) => ({ x, i })).sort((a, b) => a.x.e.t - b.x.e.t || a.i - b.i).map(({ x }) => x);
 }
 
+const helperList = (input: Pick<WhatHappenedInput, "helpers">) => (input.helpers && "steps" in input.helpers ? input.helpers.steps : []);
 const names = (list: readonly string[]) => (list.length <= 3 ? list.join(list.length === 2 ? " and " : ", ") : `${list.slice(0, 3).join(", ")} and ${list.length - 3} more`);
 const unique = (list: readonly string[]) => [...new Set(list)];
 
@@ -219,8 +228,29 @@ export function pathItems(input: WhatHappenedInput): { items: PathItem[]; notes:
     return s ?? { words: "answered", good: true };
   };
 
+  // Helper steps go in before the event they came before. `at` counts the events the drawing reads, in the trace's own order.
+  const shownHelpers = helperList(input);
+  let nextHelper = 0;
+  const rawPlace = new Map<TraceEvent, number>();
+  {
+    let n = 0;
+    for (const e of trace) {
+      rawPlace.set(e, n);
+      if (!BOOKKEEPING.has(e.event) && e.event !== "start" && e.event !== "python") n++;
+    }
+  }
+  const helpersBefore = (place: number) => {
+    while (nextHelper < shownHelpers.length && shownHelpers[nextHelper]!.at <= place) {
+      const h = shownHelpers[nextHelper++]!;
+      if (ended) continue;
+      addGap(h.t);
+      items.push({ kind: "helper", name: h.name, t: h.t, inner: h.inner, ...(h.value !== undefined ? { value: h.value } : {}), ...(h.threw ? { threw: true } : {}) });
+    }
+  };
+
   for (let idx = 0; idx <= lastKept; idx++) {
     const { e, raw } = events[idx]!;
+    if (!BOOKKEEPING.has(e.event) && e.event !== "start" && e.event !== "python" && e.event !== "trace_cut") helpersBefore(rawPlace.get(raw) ?? 0);
     if (raw === divergeAt) {
       items.push({ kind: "stop", words: "the second run of this test went differently from here, so Atlas does not claim what came next" });
       break;
@@ -385,6 +415,8 @@ function foldSig(i: PathItem): string | null {
       return `t|${i.calls.map((c) => c.name).join()}`;
     case "answer":
       return `a|${i.name}|${i.words}`;
+    case "helper":
+      return `h|${i.name}|${i.value ?? ""}|${i.threw ? 1 : 0}`;
     case "wait":
       return i.cut ? null : `w|${i.ms === null ? "?" : ""}|${i.answerWords ?? ""}`;
     default:
@@ -396,6 +428,7 @@ const itemKeys = (i: PathItem): string[] => {
   if (i.kind === "call") return [`${i.name}:${i.n}`];
   if (i.kind === "together") return i.calls.map((c) => `${c.name}:${c.n}`);
   if (i.kind === "wait") return [`wait:${i.t}`];
+  if (i.kind === "helper") return [`helper:${i.name}:${i.t}:${i.value ?? ""}`];
   if (i.kind === "end") return ["end"];
   if (i.kind === "late") return i.keys;
   return [];
@@ -409,7 +442,7 @@ const FOLD_PERIOD = 8;
  * ring needs stays on its own (review B3), calls and waits alike.
  */
 export function collapse(items: PathItem[], over: number, keep: Set<string> = new Set()): PathItem[] {
-  const callsIn = (i: PathItem) => (i.kind === "call" ? 1 : i.kind === "together" ? i.calls.length : 0);
+  const callsIn = (i: PathItem) => (i.kind === "call" || i.kind === "helper" ? 1 : i.kind === "together" ? i.calls.length : 0);
   if (items.reduce((n, i) => n + callsIn(i), 0) <= over) return items;
   const sigs = items.map((i) => (itemKeys(i).some((k) => keep.has(k)) ? null : foldSig(i)));
   const out: PathItem[] = [];
@@ -417,7 +450,7 @@ export function collapse(items: PathItem[], over: number, keep: Set<string> = ne
   while (i < items.length) {
     const a = items[i]!;
     let best: { len: number; period: number } | null = null;
-    if ((a.kind === "call" || a.kind === "together") && sigs[i] !== null) {
+    if ((a.kind === "call" || a.kind === "together" || a.kind === "helper") && sigs[i] !== null) {
       for (let period = 1; period <= FOLD_PERIOD && i + period < items.length; period++) {
         let end = i + period;
         while (end < items.length && sigs[end] !== null && sigs[end] === sigs[end - period]) end++;
@@ -445,12 +478,12 @@ export function collapse(items: PathItem[], over: number, keep: Set<string> = ne
     } else {
       const counted = new Map<string, number>();
       for (const x of span) {
-        if (x.kind === "call") counted.set(x.name, (counted.get(x.name) ?? 0) + 1);
+        if (x.kind === "call" || x.kind === "helper") counted.set(x.name, (counted.get(x.name) ?? 0) + 1);
         if (x.kind === "together") for (const c of x.calls) counted.set(c.name, (counted.get(c.name) ?? 0) + 1);
       }
       const round = span.slice(0, best.period);
       const pattern = round
-        .map((x) => (x.kind === "call" ? `${x.name}${x.answer ? ` ${x.answer}` : ""}` : x.kind === "together" ? `${names(unique(x.calls.map((c) => c.name)))} together` : x.kind === "answer" ? `${x.name} ${x.words}` : x.kind === "wait" && x.answerWords ? x.answerWords : ""))
+        .map((x) => (x.kind === "helper" ? `${x.name}${x.value !== undefined ? ` → ${x.value}` : ""}` : x.kind === "call" ? `${x.name}${x.answer ? ` ${x.answer}` : ""}` : x.kind === "together" ? `${names(unique(x.calls.map((c) => c.name)))} together` : x.kind === "answer" ? `${x.name} ${x.words}` : x.kind === "wait" && x.answerWords ? x.answerWords : ""))
         .filter(Boolean)
         .join("; ");
       out.push({ kind: "cycle", rounds: Math.ceil(best.len / best.period), counts: [...counted].map(([name, count]) => ({ name, count })), t: (a as { t: number }).t, pattern, waits: waitRange, good: !span.some((x) => (x.kind === "call" || x.kind === "answer") && !x.good) });
@@ -497,7 +530,9 @@ const whoWords = (who: string) => (who === "human" ? "you" : who.replace(/^model
  * - A time ("how long it takes"): only the last call of a two-call test counts, because that is what is measured, and only
  *   steps up to its ending. The first step past the range; if none, the ending, where it finished sooner.
  * - A total wait: the wait that pushed the sum past the range; if none, the ending.
- * - How it ended, what it returned: the ending.
+ * - What it returned, when the code's own steps are drawn: if one of them produced the value the bettor said, the step after
+ *   it is where the run moved on from that answer. Otherwise the ending.
+ * - How it ended: the ending.
  * - The step is past what Atlas kept, or the path has no ending: null.
  */
 export function partingKey(items: PathItem[], bet: Pick<Bet, "measures" | "answer">): string | null {
@@ -540,6 +575,25 @@ export function partingKey(items: PathItem[], bet: Pick<Bet, "measures" | "answe
       }
     }
     return wasCut ? null : end;
+  }
+  const saidValue = bet.answer.kind === "json" ? bet.answer.value : bet.answer.kind === "quiz" ? (() => {
+    const a = bet.answer as Extract<Bet["answer"], { kind: "quiz" }>;
+    const m = a.options.find((o) => o.id === a.choice)?.match;
+    return m?.kind === "json" ? m.value : undefined;
+  })() : undefined;
+  if (bet.measures === "returnedJson" && saidValue !== undefined) {
+    const said = JSON.stringify(saidValue);
+    let last = -1;
+    items.forEach((it, i) => {
+      if (it.kind === "helper" && it.value === said) last = i;
+    });
+    if (last >= 0) {
+      const stopAt = endAt >= 0 ? endAt : items.length;
+      for (let i = last + 1; i < stopAt; i++) {
+        const it = items[i]!;
+        if (it.kind === "helper" || it.kind === "call" || it.kind === "together") return itemKeys(it)[0]!;
+      }
+    }
   }
   return end;
 }
@@ -603,6 +657,9 @@ export function whatHappened(input: WhatHappenedInput): RenderSpec {
       const small = it.whileOpen ? `${ordinal(it.n)} call, while ${names(it.whileOpen)} still had no answer` : `${ordinal(it.n)} call`;
       add({ id, kind: "ticket", words: `called ${clip(it.name, 30)}`, small: clip(small, 60), provenance: "run", pin: it.answer === null ? "ochre" : it.good ? "blue" : "red" }, { beat: "call", device: it.name, words: `called ${it.name}${it.answer ? `, ${it.answer}` : ""}` });
       if (it.answer) pendingWords = it.answer;
+    } else if (it.kind === "helper") {
+      const words = `${clip(it.name, 30)}${it.threw ? " threw" : it.value !== undefined ? ` → ${clip(it.value, 30)}` : ""}`;
+      add({ id, kind: "ticket", words, small: it.inner > 0 ? `your code, and ${grouped(it.inner)} call${it.inner === 1 ? "" : "s"} inside it` : "your code", provenance: "run", pin: it.threw ? "red" : "ochre" }, { beat: "call", words });
     } else if (it.kind === "together") {
       const nameList = names(unique(it.calls.map((c) => c.name)));
       const sameName = unique(it.calls.map((c) => c.name)).length === 1;
@@ -690,6 +747,8 @@ export function whatHappened(input: WhatHappenedInput): RenderSpec {
   const originWords = input.origin === "proof-file" ? " Read back from a saved proof file." : input.origin === "this-run" ? " This run just happened here." : "";
   const captions = [
     { words: `Every step comes from run ${clip(input.run.id, 24)}'s trace. Atlas's clock is virtual: nothing waited for real.${originWords}`, provenance: "run" as const },
+    ...(input.helpers && "none" in input.helpers ? [{ words: input.helpers.none, provenance: "run" as const }] : []),
+    ...(helperList(input).length ? [{ words: `Your code's own steps come from a third run made only for this drawing, and it matched the two sealed runs exactly. They count toward no verdict.${input.helpers && "more" in input.helpers && input.helpers.more > 0 ? ` ${grouped(input.helpers.more)} more were not drawn.` : ""}`, provenance: "run" as const }] : []),
     ...(overlapped ? [{ words: "Calls overlapped here. The drawing shows when each answer arrived; the trace does not say whether the code used it.", provenance: "run" as const }] : []),
     ...notes.map((words) => ({ words, provenance: "run" as const })),
     ...conditions,

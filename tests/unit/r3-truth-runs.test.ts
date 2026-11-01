@@ -1,6 +1,7 @@
 // R3 review B1, B2, B3, B4, B7: the path against REAL runs. Every trace here comes from the real runner, JavaScript and
 // Python, never built by hand: hand-built traces are how the review's faults stayed hidden.
 import { beforeAll, describe, expect, it } from "vitest";
+import { helperRun } from "../../server/helpers";
 import { partingKey, pathItems, whatHappened, type PathItem } from "../../renderer/authors/what-happened";
 import { specProblems } from "../../renderer/spec";
 import { gate } from "../../src/gate";
@@ -140,6 +141,50 @@ describe("R3 B3: the ring goes on the first step that really departs", () => {
     expect(spec.marks[0]).toMatchObject({ kind: "didnt-match", noStep: true });
     expect(spec.marks[0]!.words).toMatch(/the run made 3,000, past what Atlas kept/);
     expect(spec.path?.partsWaysAt).toBeUndefined();
+  });
+});
+
+describe("R3 journey 1: helper steps on the path", () => {
+  const CART = `function subtotal(items) {\n return items.length * 2750;\n}\nfunction applyCoupon(total) {\n return Math.round(total * 0.9);\n}\nconst shippingFor = (total) => (total > 5000 ? 0 : 599);\nexport function checkout(items) {\n const t = subtotal(items);\n const after = applyCoupon(t);\n return after + shippingFor(after);\n}\n`;
+  it("the path tells the story, and the ring goes on the step that moves away from the bet", async () => {
+    const { run, experiment } = await realRun("js", CART, { exportName: "checkout", args: [{ kind: "json", value: ["a", "b"] }] });
+    const helpers = await helperRun(experiment as never, run);
+    if ("none" in helpers) throw new Error(helpers.none);
+    const bets = [{ id: "b", who: "human" as const, measures: "returnedJson", answer: { kind: "json" as const, value: 5500 } }];
+    const spec = whatHappened({ run, experiment, helpers, bets, verdicts: [{ betId: "b", outcome: "not_matched" }] });
+    expect(spec.nodes.map((n) => n.words)).toEqual(["subtotal → 5500", "applyCoupon → 4950", "shippingFor → 599", "returned 5549"]);
+    expect(spec.nodes.find((n) => n.id === spec.marks[0]!.on)!.words).toBe("applyCoupon → 4950");
+    expect(spec.captions.map((c) => c.words).join()).toMatch(/third run made only for this drawing/);
+  });
+  it("a bet no step produced parts at the end, and helper steps never claim more", async () => {
+    const { run, experiment } = await realRun("js", CART, { exportName: "checkout", args: [{ kind: "json", value: ["a", "b"] }] });
+    const helpers = await helperRun(experiment as never, run);
+    const bets = [{ id: "b", who: "human" as const, measures: "returnedJson", answer: { kind: "json" as const, value: 7 } }];
+    const spec = whatHappened({ run, experiment, helpers, bets, verdicts: [{ betId: "b", outcome: "not_matched" }] });
+    expect(spec.nodes.find((n) => n.id === spec.marks[0]!.on)!.words).toBe("returned 5549");
+  });
+  it("when the third run differs, the path has no helpers and a caption says why", async () => {
+    const src = `function me() { return 1; }\nexport function a() { return me.toString().length; }\n`;
+    const { run, experiment } = await realRun("js", src, { exportName: "a", args: [] });
+    const helpers = await helperRun(experiment as never, run);
+    const spec = whatHappened({ run, experiment, helpers });
+    expect(spec.nodes.map((n) => n.words)).toEqual(["returned 27"]);
+    expect(spec.captions.map((c) => c.words).join()).toMatch(/went differently from the sealed run/);
+  });
+  it("helpers mixed with stand-ins stay in the order they ran, with the wait between them", async () => {
+    const src = `function total(x) {\n return x + 1;\n}\nexport async function a(load) {\n const v = await load();\n return total(v);\n}\n`;
+    const { run, experiment } = await realRun("js", src, { exportName: "a", args: [si("load", [later(100, 4)])] });
+    const helpers = await helperRun(experiment as never, run);
+    const spec = whatHappened({ run, experiment, helpers });
+    expect(spec.nodes.map((n) => n.words)).toEqual(["called load", "waited 100 ms", "total → 5", "returned 5"]);
+  });
+  it("a loop of helpers folds with exact counts", async () => {
+    const src = `function one(x) {\n return 1;\n}\nexport function a() {\n let s = 0;\n for (let i = 0; i < 100; i++) s += one(i);\n return s;\n}\n`;
+    const { run, experiment } = await realRun("js", src, { exportName: "a", args: [] });
+    const helpers = await helperRun(experiment as never, run);
+    const spec = whatHappened({ run, experiment, helpers });
+    expect(spec.nodes.map((n) => n.words).join()).toContain("one 100 times");
+    expect(specProblems(spec)).toEqual([]);
   });
 });
 

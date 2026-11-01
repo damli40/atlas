@@ -35,7 +35,8 @@ import { ENV, build, client, logLines, pastedRound, sum, tmp } from "../tools/g1
  * must be either here or in the gate's open list (checked below), so a new route cannot slip past this test.
  */
 const SPENDING: { method: string; route: string; path: string; body?: unknown; spends: string }[] = [
-  { method: "GET", route: "/proofs/:runId/pencil.png", path: "/proofs/x/pencil.png", spends: "the machine's time: the pencil engine holds the thread while it paints (R3)" },
+  { method: "GET", route: "/runs/:runId/helpers", path: "/runs/x/helpers", spends: "nothing itself: the third run is started and counted by POST /runs" },
+  { method: "GET", route: "/proofs/:runId/pencil.png", path: "/proofs/x/pencil.png", spends: "the machine's time: a separate process draws for up to 30 s, limited per code (R3)" },
   { method: "POST", route: "/targets", path: "/targets", body: { kind: "github-pr", ref: PR.target.ref }, spends: "a GitHub read (rate limit, no $)" },
   { method: "POST", route: "/experiments", path: "/experiments", body: {}, spends: "Muse Spark / Muse Spark Open bets (Meta, Baseten); chain-facts RPC read" },
   { method: "POST", route: "/investigate", path: "/investigate", body: { pr: PR.target.ref }, spends: "Muse Wonder Investigator (Meta)" },
