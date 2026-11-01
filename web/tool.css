@@ -435,3 +435,5 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 .u1-shell .logstrip-head h2{font:600 15px/1.3 var(--ui)}
 .u1-shell .logstrip-note{font-size:12.5px}
 .proof-page .pc-foot a.pc-home,.pc-foot a.pc-home{color:#6b6358;font:400 13px/1.3 "Geist",system-ui,sans-serif}
+/* The words and the fill change together, so a chosen option is never white on paper for a frame */
+.u1-shell .u1-opt{transition:background 60ms linear,color 60ms linear,border-color 60ms linear,transform 60ms linear}

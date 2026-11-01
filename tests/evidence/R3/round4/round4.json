@@ -213,7 +213,7 @@
   {
    "name": "B no chain: said at once",
    "ok": true,
-   "more": "47 ms"
+   "more": "56 ms"
   },
   {
    "name": "B no chain: the saved result stays and nothing was asked",
