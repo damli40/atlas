@@ -103,9 +103,11 @@ export interface ProofImageProps {
   reader?: boolean;
   /** False: this server has no volume, so no public link can be made. */
   keepsCards?: boolean;
+  /** False: whoever is looking did not run this round. Copy link gives the file's own address, and no public link is offered. */
+  canKeep?: boolean;
 }
 
-export function ProofImage({ card, file, lines, names, api, download, downloadName, preExisting = null, stranger = false, reader: readerGiven = false, keepsCards = true }: ProofImageProps) {
+export function ProofImage({ card, file, lines, names, api, download, downloadName, preExisting = null, stranger = false, reader: readerGiven = false, keepsCards = true, canKeep = true }: ProofImageProps) {
   const ref = useRef<SVGSVGElement | null>(null);
   const [said, setSaid] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
@@ -185,7 +187,7 @@ export function ProofImage({ card, file, lines, names, api, download, downloadNa
     } else copied(ok, `No public link was made: ${a.words ?? "this server keeps no cards"}. This address works only while the round is on the server: up to 2 hours.`);
   };
   const copyLink = async () => {
-    if (keptUntil || reader || !api) return copied(await toClipboard(), "");
+    if (keptUntil || reader || !api || !canKeep) return copied(await toClipboard(), "");
     if (!keepsCards) return copied(await toClipboard(), `Anyone with it can read this card, without your file's text, ${lasts}. This server keeps no cards for longer.`);
     setAsking(true);
   };

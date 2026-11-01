@@ -656,6 +656,7 @@ export function createApp(opts: AppOptions = {}) {
   const pencilByClient = createHourlyLimit(envCount(process.env.ATLAS_PENCIL_DRAWINGS_PER_CLIENT_PER_HOUR, 12), "pencil drawings");
   const pencil = createPencil({ take: (client) => pencilByClient.take(client), ...opts.pencil });
   const pastedExperimentsByIp = createHourlyLimit(envCount(process.env.ATLAS_PASTED_EXPERIMENTS_PER_IP_PER_HOUR, 200), "experiments on pasted code");
+  const chainChecksByIp = createHourlyLimit(envCount(process.env.ATLAS_CHAIN_CHECKS_PER_IP_PER_HOUR, 120), "chain checks");
   const pastesByIp = createHourlyLimit(envCount(process.env.ATLAS_PASTES_PER_IP_PER_HOUR, DEFAULT_PASTES_PER_IP_PER_HOUR), "pastes");
   // X3 (D27): each person's track record, from their sealed bets and the judge's verdicts only (src/track-record.ts).
   const trackStore = opts.trackStore ?? memoryTrackStore();
@@ -1956,6 +1957,8 @@ export function createApp(opts: AppOptions = {}) {
     if (!opts.checkChainFirst || opts.evmRun !== undefined) return c.json({ ready: true });
     const url = process.env.BASE_RPC_URL;
     if (!url) return c.json({ ready: false, words: NO_CHAIN });
+    const asked = chainChecksByIp.take(clientOf(c));
+    if (!asked.ok) return c.json({ ready: false, words: `Atlas could not check for a chain connection: ${asked.reason}. Nothing was spent.` }, 429);
     try {
       const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_chainId", params: [] }), signal: AbortSignal.timeout(5000) });
       const a = (await r.json()) as { result?: string };
@@ -2002,11 +2005,12 @@ export function createApp(opts: AppOptions = {}) {
       return null;
     }
   };
-  const goneFor = (c: Context, runId: string): boolean => {
-    if (deletedBy(runId) === null) return false;
-    const owner = pastedOwners.get(runId);
-    return owner === undefined || c.req.header("x-atlas-session") !== owner;
+  /** The session that ran this round, when the server still remembers it. Only it may keep a card, and only it is told "you". */
+  const ranIt = (c: Context, runId: string): boolean => {
+    const session = c.req.header("x-atlas-session");
+    return session !== undefined && (pastedOwners.get(runId) === session || roundSessions.get(runId) === session);
   };
+  const goneFor = (c: Context, runId: string): boolean => deletedBy(runId) !== null && !ranIt(c, runId);
   const GONE_WORDS = "The person who made this card's public link has deleted it.";
   /** Every live kept card, with expired ones removed on the way. */
   const allKept = (): KeptEntry[] => {
@@ -2022,11 +2026,10 @@ export function createApp(opts: AppOptions = {}) {
     if (already) return c.json({ kept: true, until: already.until });
     // Only whoever deleted a link can make it again: otherwise a reader could undo the deletion.
     const wasDeleted = deletedBy(runId);
-    if (wasDeleted !== null && wasDeleted !== clientHash(c)) return c.json({ kept: false, error: GONE_WORDS }, 410);
+    if (wasDeleted !== null && wasDeleted !== clientHash(c) && !ranIt(c, runId)) return c.json({ kept: false, error: GONE_WORDS }, 410);
     const file = proofOf(runId);
     if (!file) return c.json({ kept: false, error: "this card is no longer on the server" }, 404);
-    const owner = pastedOwners.get(runId);
-    if (file.target.kind === "pasted" && (owner === undefined || c.req.header("x-atlas-session") !== owner)) return c.json({ kept: false, error: "only the session that ran this round can make its link" }, 403);
+    if (!ranIt(c, runId)) return c.json({ kept: false, error: "only the session that ran this round can make its link" }, 403);
     const at = keptPath(runId);
     if (!at) return c.json({ kept: false, error: "this server keeps no cards on disk" });
     const live = allKept();
@@ -2082,13 +2085,12 @@ export function createApp(opts: AppOptions = {}) {
   });
 
   // What the card's page needs to know about whoever is looking. Kept out of the file itself, which a reader can verify and download.
-  // Whether these were their bets (J4), and whether this server can keep a card at all (C3). Read only; names nobody.
+  // Whether these were their bets (J4), whether this server can keep a card at all (C3), and whether they may ask it to (only who ran the round). Read only; names nobody.
   app.get("/proofs/:runId/viewer", (c) => {
     const runId = c.req.param("runId");
-    const session = c.req.header("x-atlas-session");
-    const kept = keptProof(runId);
-    const yours = (session !== undefined && (pastedOwners.get(runId) === session || roundSessions.get(runId) === session)) || (kept !== null && kept.maker === clientHash(c));
-    return c.json({ yours, keepsCards: keptDir !== undefined });
+    // Making a link never makes someone the bettor: "yours" is the session that ran the round, and nothing else.
+    const yours = ranIt(c, runId);
+    return c.json({ yours, keepsCards: keptDir !== undefined, canKeep: yours });
   });
 
   // R3: the helper steps of a pasted run, for the drawing only. Only the session that pasted the code may read them, as with its

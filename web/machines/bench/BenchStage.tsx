@@ -270,7 +270,7 @@ export function BenchStage({ seenBefore = false, codeRan = false, model, theme, 
   useEffect(() => {
     if (!playing) return;
     const onAny = (e: globalThis.KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey || e.key === "Shift" || e.key === "Tab") return;
+      if (e.metaKey || e.ctrlKey || e.altKey || e.key === "Shift" || e.key === "Tab" || document.querySelector<HTMLElement>(".u1-fill")?.hidden === true) return;
       // A skip key only skips: it never goes on to do anything else.
       e.stopImmediatePropagation();
       e.preventDefault();

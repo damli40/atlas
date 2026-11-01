@@ -230,7 +230,9 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 /* ---- the code drawer ---- */
 .u1-code-toggle{position:fixed;top:8px;right:386px;z-index:9;font-size:13px;padding:6px 8px;border-radius:6px;color:var(--ink-2);text-decoration:none!important;background:none;border:0;cursor:pointer;transition:background 60ms linear}
 .u1-code-toggle:hover,.u1-code-toggle[aria-pressed="true"]{background:var(--rule-2)}
-.c-drawer{position:absolute;right:0;top:0;bottom:0;width:clamp(320px,29vw,440px);z-index:6;background:var(--raised);border-left:1px solid var(--rule);display:grid;grid-template-rows:38px minmax(0,1fr)}
+.c-drawer{position:absolute;right:0;top:0;bottom:0;width:clamp(320px,29vw,440px);z-index:6;background:var(--raised);border-left:1px solid var(--rule);display:grid;grid-template-rows:38px auto minmax(0,1fr)}
+.c-covers{margin:0;padding:7px 12px;font:500 12.5px/1.35 var(--ui);color:var(--ink);background:var(--rule-2);grid-row:2}
+.c-drawer .c-body{grid-row:3}
 .c-head{display:flex;align-items:center;justify-content:space-between;padding:0 12px;font:500 12.5px/1 var(--ui);color:var(--ink-2);border-bottom:1px solid var(--rule-2)}
 .c-body{overflow:auto;padding:8px 0;font:400 12px/1.55 var(--mono);color:var(--ink);tab-size:2}
 .c-body:focus{outline:none}

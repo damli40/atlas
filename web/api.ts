@@ -287,7 +287,7 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
     /** D06-03: a round's .atlas.json, as the server kept it. */
     proof: (runId: string) => get<AtlasFile>(`/proofs/${encodeURIComponent(runId)}`),
     moonwellReady: () => get<{ ready: boolean; words?: string }>("/moonwell/ready"),
-    proofViewer: (runId: string) => get<{ yours: boolean; keepsCards: boolean }>(`/proofs/${encodeURIComponent(runId)}/viewer`),
+    proofViewer: (runId: string) => get<{ yours: boolean; keepsCards: boolean; canKeep: boolean }>(`/proofs/${encodeURIComponent(runId)}/viewer`),
     /** D63: the saved Moonwell result the menu opens. */
     moonwellSaved: () => get<AtlasFile>("/moonwell/saved"),
     /** D60, D63: makes a public link for this card, without the file's text, for 30 days. */
