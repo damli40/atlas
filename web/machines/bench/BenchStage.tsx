@@ -169,10 +169,12 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
     void (async () => {
       setPlaying(true);
       p.rewind();
+      // D60: about 5 s to the ring, whatever the path's length, up to about 6 s. The final ring keeps its pace: it is the payoff.
+      p.setRunPace(Math.min(1, 16 / Math.max(1, pathSpec.steps.length * 2)));
       // The chart moves aside first, so the whole story is seen.
       if (!still && !p.reduced) {
         await new Promise<void>((r) => {
-          const t = setTimeout(r, 800);
+          const t = setTimeout(r, 420);
           endPause.current = () => {
             clearTimeout(t);
             r();
@@ -204,6 +206,16 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
     pathMount?.player?.skip();
     chartMount.current?.player?.skip();
   };
+  // D60: any key skips while the run plays (a key with a modifier is the browser's).
+  useEffect(() => {
+    if (!playing) return;
+    const onAny = (e: globalThis.KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || e.key === "Shift" || e.key === "Tab") return;
+      skip();
+    };
+    window.addEventListener("keydown", onAny);
+    return () => window.removeEventListener("keydown", onAny);
+  });
   const onRootPointerUp = (e: RPointerEvent<HTMLDivElement>) => {
     if ((e.target as Element).closest?.("button, a, input, select, summary, textarea, .u1-card")) return;
     if (playing) skip();
@@ -261,6 +273,7 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
       <p className="r-step" role="status" aria-live="polite" data-testid="run-step">
         {step ?? ""}
       </p>
+      {after && !marksOn && <p className="r-skip" data-testid="r-skip">any key skips</p>}
       {panHint && !after && (
         <p className="r-pan-hint" data-testid="r-pan-hint">
           drag to move, pinch to zoom

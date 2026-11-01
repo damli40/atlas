@@ -24,6 +24,11 @@ const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 let maskCounter = 0;
 
 export class Player {
+  /** D60: how much of its full time a run's step takes (1 is full). The final ring is not scaled: it is the payoff. */
+  private runPace = 1;
+  setRunPace(p: number): void {
+    this.runPace = p;
+  }
   readonly nodes = new Map<string, SVGGElement>();
   readonly edges = new Map<string, SVGGElement>();
   readonly labels = new Map<string, SVGGElement>();
@@ -130,7 +135,7 @@ export class Player {
       return;
     }
     const len = spine.getTotalLength();
-    const duration = Math.max(280, Math.min(1000, 200 + len * 1.5)) * (o.pace ?? 1);
+    const duration = Math.max(180, Math.min(620, 120 + len * 0.9)) * (o.pace ?? this.runPace);
     // The ribbon is revealed through a mask that is itself a stroke being drawn: pen-like, and the ribbon keeps its width.
     const id2 = `rr-reveal-${++maskCounter}`;
     const mask = document.createElementNS(SVG_NS, "mask");
@@ -247,7 +252,7 @@ export class Player {
     const hand = el?.querySelector<SVGGElement>(".rr-hand");
     if (!el || !hand || this.fast) return;
     const deg = Number(hand.dataset.sweep ?? 72);
-    const duration = Math.max(420, Math.min(1100, 340 + 240 * Math.log10(1 + (ms ?? 100))));
+    const duration = Math.max(280, Math.min(620, 220 + 130 * Math.log10(1 + (ms ?? 100)))) * this.runPace;
     const origin = this.centerOf(el);
     const wedge = el.querySelector(".rr-wedge");
     const text = el.querySelectorAll(".rr-t");
@@ -316,7 +321,7 @@ export class Player {
     await Promise.all(step.edges.map((e) => this.drawThread(e)));
     await Promise.all(step.nodes.map((n) => this.settle(n)));
     if (step.beat === "wait") await Promise.all(step.nodes.map((n) => this.sweep(n, step.ms)));
-    await this.rest(step.beat === "end" ? 260 : 90);
+    await this.rest((step.beat === "end" ? 180 : 40) * this.runPace);
     this.busy--;
   }
 

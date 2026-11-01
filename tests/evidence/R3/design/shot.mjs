@@ -20,10 +20,13 @@ await p.click('[data-testid="u1-bet-toggle"]');
 await p.waitForSelector('[data-testid="u1-seal"]', { timeout: 60000 });
 await p.waitForTimeout(250);
 await p.screenshot({ path: `${OUT}/bet-${tag}.png` });
-for (const q of await p.$$(".u1-quiz > li")) {
-  const o = await q.$$(".u1-opt");
-  if (o[+pick]) await o[+pick].click();
+// One question at a time: the keys answer it.
+const count = (await p.$$(".u1-quiz > li")).length;
+for (let i = 0; i < count; i++) {
+  await p.keyboard.press(String(+pick + 1));
+  await p.waitForTimeout(170);
 }
+await p.screenshot({ path: `${OUT}/seal-${tag}.png` });
 await p.click('[data-testid="u1-seal"]');
 await p.waitForSelector('[data-testid="bench-path"]', { timeout: 60000 });
 await p.waitForTimeout(1800);

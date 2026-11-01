@@ -163,6 +163,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const [readText, setReadText] = useState("");
   // R3: "Change the code and bet again": the code being edited. The test stays the one just run.
   const [editing, setEditing] = useState<string | null>(null);
+  // D60: the bet is one question at a time. All of them stay in the page (D19); CSS shows the current one.
+  const [step, setStep] = useState(0);
   // R3: "Test this claim": asking Wonder, and whether it had nothing new (the button then goes away).
   const [claimAsking, setClaimAsking] = useState(false);
   const [claimNoNew, setClaimNoNew] = useState(false);
@@ -230,6 +232,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     setClaimRound(null);
     setWonderWait(null);
     setEditing(null);
+    setStep(0);
     setClaimNoNew(false);
     setHelpers(null);
     ownTest.current = false;
@@ -477,6 +480,38 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     setChanging(true);
     await askWonder({ pick: "list" });
   };
+  // D60: when the questions arrive, the keys belong to them, not to the button that opened the bet.
+  const expId = exp?.experiment.id;
+  useEffect(() => {
+    if (expId && open) document.querySelector<HTMLElement>('[data-testid="u1-pop"]')?.focus({ preventScroll: true });
+  }, [expId, open]);
+  // D60: the bet's keys: 1 to 9 answer the question showing, the left arrow goes back, Enter seals on the last step.
+  useEffect(() => {
+    if (!exp || !open || sealed.length > 0 || changing) return;
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (e.metaKey || e.ctrlKey || e.altKey || t?.closest?.("input, textarea, select")) return;
+      if (e.key === "ArrowLeft") {
+        setStep((n) => Math.max(0, n - 1));
+        e.preventDefault();
+      } else if (e.key === "ArrowRight") {
+        setStep((n) => Math.min(exp.questions.length, n + 1));
+        e.preventDefault();
+      } else if (e.key === "Enter" && step >= exp.questions.length && !t?.closest?.("button, a, summary")) {
+        e.preventDefault();
+        void seal();
+      } else if (/^[1-9]$/.test(e.key) && step < exp.questions.length) {
+        const q = exp.questions[step]!;
+        const ids = [...(q.quiz ?? []).map((o) => o.id), CANT_TELL];
+        const id = ids[Number(e.key) - 1];
+        if (id === undefined) return;
+        e.preventDefault();
+        document.querySelector<HTMLElement>(`[data-testid="opt-${q.measures}-${id}"]`)?.click();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
   // D60: the keys. Never while typing, and never with a modifier. The bet's own keys live in the bet.
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => {
@@ -742,7 +777,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
             {open ? "Hide the bet" : "Bet on your understanding"}
           </button>
           {open && (
-            <section id="u1-pop" className="u1-pop" aria-label="Bet on your understanding" data-testid="u1-pop">
+            <section id="u1-pop" className="u1-pop" tabIndex={-1} aria-label="Bet on your understanding" data-testid="u1-pop">
               {wonderWait && !exp && <WonderWaiting wait={wonderWait} fn={fn} onOwn={changing ? null : writeOwn} />}
               {!exp && !changing && busy && !wonderWait && (
                 <p className="u1-status" role="status">
@@ -769,9 +804,22 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                       </button>
                     )}
                   </div>
-                  <ol className="u1-quiz">
-                    {exp.questions.map((q) => (
-                      <li key={q.measures}>
+                  {sealed.length === 0 && (
+                    <div className="b-head" data-testid="b-head">
+                      <button type="button" className="b-back" onClick={() => setStep((n) => Math.max(0, n - 1))} disabled={step === 0} aria-label="Back to the question before" data-testid="b-back">
+                        ←
+                      </button>
+                      <span className="b-progress" data-testid="b-progress">{step < exp.questions.length ? `${step + 1} of ${exp.questions.length}` : `${exp.questions.length} of ${exp.questions.length}`}</span>
+                      <span className="b-dots" aria-hidden="true">
+                        {exp.questions.map((q, i) => (
+                          <i key={q.measures} data-on={i <= step ? "" : undefined} />
+                        ))}
+                      </span>
+                    </div>
+                  )}
+                  <ol className="u1-quiz" data-sealed={sealed.length > 0 ? "" : undefined}>
+                    {exp.questions.map((q, qi) => (
+                      <li key={q.measures} data-active={qi === step ? "" : undefined}>
                         <p className="u1-q" id={`q-${q.measures}`}>
                           {shortQuestionFor(q.text, exp.experiment.params, exp.experiment.target.language)}
                         </p>
@@ -787,6 +835,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                               onClick={() => {
                                 setPicked((p) => ({ ...p, [q.measures]: o.id }));
                                 setTyped((t) => ({ ...t, [q.measures]: "" }));
+                                // A moment to see the choice land, then the next question.
+                                window.setTimeout(() => setStep((n) => (n === qi ? n + 1 : n)), 130);
                               }}
                               data-testid={`opt-${q.measures}-${o.id}`}
                             >
@@ -806,6 +856,22 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                       </li>
                     ))}
                   </ol>
+                  {sealed.length === 0 && step >= exp.questions.length && (
+                    <ol className="b-review" data-testid="b-review">
+                      {exp.questions.map((q, qi) => {
+                        const t = (typed[q.measures] ?? "").trim();
+                        const label = t !== "" ? t : (q.quiz ?? []).find((o) => o.id === picked[q.measures])?.label ?? CANT_TELL;
+                        return (
+                          <li key={q.measures}>
+                            <button type="button" onClick={() => setStep(qi)} data-testid={`b-review-${qi}`}>
+                              <span className="b-n">{qi + 1}</span>
+                              <span className="b-a">{label}</span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  )}
                   <ModelsLine
                     slots={models.slots}
                     claimant={claimant}
@@ -825,17 +891,21 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                     }}
                   />
                   {sealed.length === 0 ? (
-                    <div className="u1-sealbar">
-                      <button type="button" className="u1-btn u1-primary" onClick={seal} disabled={busy !== null} data-testid="u1-seal">
+                    <div className="u1-sealbar" data-last={step >= exp.questions.length ? "" : undefined}>
+                      <button type="button" className={`u1-btn${step >= exp.questions.length ? " u1-primary" : ""}`} onClick={seal} disabled={busy !== null} data-testid="u1-seal">
                         {BET_WORDS.seal}
+                        {step >= exp.questions.length && <kbd className="k">↵</kbd>}
                       </button>
                       <HowSurePicker value={confidence} onChange={setConfidence} disabled={busy !== null} hint={false} />
                       <p className="u1-sub">{`${BET_WORDS.untapped} ${FELT_WORDS.pickerHint}`}</p>
                     </div>
                   ) : (
-                    <p className="u1-status" role="status" data-testid="u1-sealed">
-                      {`Sealed ${plural(sealed.length, "answer")}. ${confidence ? `${FELT_WORDS.sealedSaid(confidence)} ` : ""}${busy ?? (models.thinking ? "Waiting for the AIs to seal theirs…" : "")}`}
-                    </p>
+                    <>
+                      <p className="u1-status" role="status" data-testid="u1-sealed">
+                        {`Sealed ${plural(sealed.length, "answer")}. ${confidence ? `${FELT_WORDS.sealedSaid(confidence)} ` : ""}${busy ?? (models.thinking ? "Waiting for the AIs to seal theirs…" : "")}`}
+                      </p>
+                      <SealTags sealed={sealed} slots={models.slots} />
+                    </>
                   )}
                   {sealed.length > 0 && !result && error && !busy && (
                     <button type="button" className="u1-btn" onClick={() => setRunTry((n) => n + 1)} data-testid="u1-run-again">
@@ -932,6 +1002,33 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   );
 }
 
+/** D60: after sealing, each bettor's sealed tag with its real short hash, and a real seconds counter. Answers stay hidden. */
+function SealTags({ sealed, slots }: { sealed: readonly { sealedHash?: string }[]; slots: ReturnType<typeof useModelSlots>["slots"] }) {
+  const [started] = useState(() => Date.now());
+  const [now, setNow] = useState(started);
+  useEffect(() => {
+    const t = window.setInterval(() => setNow(Date.now()), 250);
+    return () => window.clearInterval(t);
+  }, []);
+  const short = (list: readonly { sealedHash?: string }[]) => (list[0]?.sealedHash ? list[0].sealedHash.slice(0, 8) : "");
+  const on = slots.filter((s) => s.status !== "off");
+  return (
+    <ul className="b-seals" data-testid="b-seals">
+      <li>
+        <span className="b-seal-who">You</span>
+        <span className="b-seal-v">{`sealed ${short(sealed)}`}</span>
+      </li>
+      {on.map((s) => (
+        <li key={s.who} data-state={s.status}>
+          <span className="b-seal-who">{betterByRole(s.model)}</span>
+          <span className="b-seal-v">{s.status === "sealed" ? `sealed ${short((s as { sealed?: { sealedHash?: string }[] }).sealed ?? [])}` : s.status === "thinking" ? "answering" : s.status === "no_usable_answer" ? "no usable answer" : s.status}</span>
+        </li>
+      ))}
+      <li className="b-seal-time" data-testid="b-seal-time">{`${((now - started) / 1000).toFixed(1)} s`}</li>
+    </ul>
+  );
+}
+
 function ModelsLine({ slots, claimant, onClaimant, locked }: { slots: ReturnType<typeof useModelSlots>["slots"]; claimant: ClaimantMode; onClaimant: (m: ClaimantMode) => void; locked: boolean }) {
   const on = slots.filter((s) => s.status !== "off");
   const say = (st: string) => (st === "thinking" ? "answering" : st === "sealed" ? "sealed" : st === "no_usable_answer" ? "no usable answer" : st);
@@ -940,14 +1037,20 @@ function ModelsLine({ slots, claimant, onClaimant, locked }: { slots: ReturnType
       <p>{BET_WORDS.ais(on.map((s) => betterByRole(s.model)))}</p>
       {on.length > 0 && <p className="u1-sub">{on.map((s) => BET_WORDS.aiStatus(betterByRole(s.model), say(s.status))).join(" · ")}</p>}
       {!locked && (
-        <label className="u1-who">
+        <div className="u1-who" role="radiogroup" aria-label={BET_WORDS.whoBets}>
           <span>{BET_WORDS.whoBets}</span>
-          <select className="u1-who-bets" value={claimant} onChange={(e) => onClaimant(e.target.value as ClaimantMode)}>
-            <option value="spark">Muse Spark 1.3 (Meta)</option>
-            <option value="spark-open">Muse Spark Open (Meta, open weights)</option>
-            <option value="both">Both</option>
-          </select>
-        </label>
+          {(
+            [
+              ["spark", "Muse Spark 1.3"],
+              ["spark-open", "Muse Spark Open"],
+              ["both", "Both"],
+            ] as const
+          ).map(([value, words]) => (
+            <button type="button" role="radio" key={value} className="u1-seg" aria-checked={claimant === value} onClick={() => claimant !== value && onClaimant(value)} data-testid={`who-${value}`}>
+              {words}
+            </button>
+          ))}
+        </div>
       )}
     </div>
   );
