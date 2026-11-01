@@ -14,8 +14,9 @@ const round = async (app: ReturnType<typeof createApp>, session: string) => {
   const e = await post("/experiments", { target, params: { shape: "call-function", exportName: "secretName", args: [{ kind: "json", value: 1 }] }, quiz: true });
   const id = (e.experiment as { id: string }).id;
   const qs = e.questions as { measures: string }[];
-  await post("/bets", { experimentId: id, who: "human", bets: qs.map((q) => ({ measures: q.measures, answer: { kind: "declined" } })) });
+  await post("/bets", { experimentId: id, who: "human", bets: qs.map((q) => ({ measures: q.measures, answer: { kind: "declined", reason: "can't tell" } })) });
   const r = await post("/runs", { experimentId: id });
+  if (!r.run) throw new Error(JSON.stringify(r).slice(0, 300));
   return (r.run as { id: string }).id;
 };
 

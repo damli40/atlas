@@ -152,7 +152,10 @@ function PartCard({ model, box, onPick, onBet, betUnavailable, betBusy, labels, 
         <p className="ex-quote-by">{`${authorOf(box.purpose.by)} says what this part is for:`}</p>
         <blockquote>{box.purpose.text}</blockquote>
       </div>
-      <p className="ex-muted">Plain code checked that these lines exist, on whole definitions. It did not check the sentence above.</p>
+      <details className="ex-fold" data-testid="ex-checked-fold">
+        <summary>Plain code checked the lines, not the sentence</summary>
+        <p className="ex-muted">Plain code checked that these lines exist, on whole definitions. It did not check the sentence above.</p>
+      </details>
       <p className="ex-card-label">Real lines ({box.lines})</p>
       <ul className="ex-ranges">
         {box.spans.map((s) => (
@@ -210,7 +213,10 @@ function PartCard({ model, box, onPick, onBet, betUnavailable, betBusy, labels, 
       {labels && !labelsHeld ? (
         <>
           <p className="ex-card-label">{FL_WORDS.heading}</p>
-          <FailureLabels answer={labels} idPrefix={`part-${box.id}`} showPath compact />
+          <details className="ex-fold" data-testid="ex-labels-fold">
+            <summary>{`${labels.labels.length} ${labels.labels.length === 1 ? "note" : "notes"} from Atlas's list`}</summary>
+            <FailureLabels answer={labels} idPrefix={`part-${box.id}`} showPath compact />
+          </details>
         </>
       ) : null}
     </section>

@@ -219,6 +219,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const [readText, setReadText] = useState("");
   // R3: "Change the code and bet again": the code being edited. The test stays the one just run.
   const [editing, setEditing] = useState<string | null>(null);
+  const drawStart = useRef(0);
+  const [drawnMs, setDrawnMs] = useState<number | null>(null);
   // D60: the code drawer. Closed on the drawing, open during the bet on a wide screen, because the AIs read the code and you should too.
   const [drawerChoice, setDrawer] = useState<boolean | null>(null);
   const [drawerLines, setDrawerLines] = useState<[number, number] | null>(null);
@@ -362,6 +364,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       const g = gen.current;
       setPasted(null);
       setHandoffNote(null);
+      drawStart.current = performance.now();
+      setDrawnMs(null);
       setSource(from ?? null);
       setBusy("Reading your code…");
       setReadText(text);
@@ -369,6 +373,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
         const r = await api.paste(text, language);
         if (g !== gen.current) return null;
         setPasted(r);
+        // A real timer from the click to the frame. Reading a file calls no AI (server/paste.ts).
+        requestAnimationFrame(() => requestAnimationFrame(() => setDrawnMs(Math.round(performance.now() - drawStart.current))));
         // Review M4: a function the explorer named that this file does not export is said plainly, never swapped silently.
         if (want && !r.exports.some((e) => e.name === want)) {
           setHandoffNote(`${want} is not exported by this file, and Atlas can only call exported functions. Pick one on the drawing.`);
@@ -794,7 +800,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const notRunnable = !pasted.runnable ? (pasted.reason ?? "Atlas cannot run this language here yet.") : pasted.cantCheck;
   const allowed = proposals?.proposals.filter((p) => p.gate.allowed) ?? [];
   const chosenSays = exp ? allowed.find((p) => p.params && JSON.stringify(p.params) === JSON.stringify(exp.experiment.params))?.says : undefined;
-  const title = `${source ?? FILE_NAME[pasted.target.language ?? "ts"]} · ${plural(pasted.lines, "line")}`;
+  const title = `${source ?? FILE_NAME[pasted.target.language ?? "ts"]} · ${plural(pasted.lines, "line")}${drawnMs !== null ? ` · drawn in ${drawnMs} ms` : ""}`;
   return (
     <div className="u1-studio" data-drawer={drawerOpen ? "" : undefined}>
       <button type="button" className="u1-link u1-code-toggle" aria-pressed={drawerOpen} onClick={() => setDrawer(!drawerOpen)} data-testid="u1-code-toggle">

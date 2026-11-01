@@ -181,7 +181,7 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
       </p>
 
       {/* D07-04: the film's end frame. The scoreboard is the Atlas mark, large and centred, then who bet and how it came out. */}
-      <section className="pc-hero" aria-label="scoreboard">
+      <section className="pc-hero" aria-label="the marks">
         {card.notShownAsFact ? (
           <p className="notice" data-testid="pc-not-shown">
             {card.notShownAsFact}

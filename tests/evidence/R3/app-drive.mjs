@@ -40,11 +40,18 @@ const open = async (url, { vw = 1920, vh = 1080, scheme = "light", reduced = fal
 };
 const shot = (p, name) => p.screenshot({ path: `${OUT}/screens/${name}.png` });
 
+/** D60: words the product never uses on screen. The D21 caption is the one exception, pending Dami. */
+async function bannedWords(p, where) {
+  const text = await p.evaluate(() => document.body.innerText);
+  const hits = [...text.replaceAll("The scoreboard that draws it from the verdicts", "").matchAll(/\b(race|showdown|vs|beat|winner|leaderboard|right|wrong|score|skill|teach|learn)\b/gi)].map((m) => m[0]);
+  say(`no banned word: ${where}`, hits.length === 0, [...new Set(hits)].join(", "));
+}
 /** axe on the page as it stands. */
 async function axe(p, where) {
   if (!(await p.evaluate(() => !!window.axe))) await p.evaluate(AXE);
   const v = await p.evaluate(async () => (await window.axe.run(document, { runOnly: ["wcag2a", "wcag2aa"] })).violations.map((x) => `${x.id} ×${x.nodes.length}: ${x.nodes[0]?.target}`));
   say(`axe 0: ${where}`, v.length === 0, v.join("; "));
+  await bannedWords(p, where);
 }
 /** Words on top of words: all drawn text, and the page's text panels against it. Scaled drawings are measured on screen. */
 async function overlaps(p, where) {
