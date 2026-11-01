@@ -17,10 +17,10 @@ export function specOfFile(file: Pick<AtlasFile, "runs" | "experiments" | "bets"
   const theory = theoryCaptions(file.change).map((words) => ({ words, provenance: "plain-code" as const }));
   const spec =
     run.runner === "evm"
-      ? moonwellFlow({ run, bets: file.bets, verdicts: file.verdicts, fileCaptions: file.captions, origin: "proof-file", seed, ...(file.change ? { beforeChange: true } : {}) })
+      ? moonwellFlow({ run, bets: file.bets, verdicts: file.verdicts, fileCaptions: file.captions, origin: "proof-file", stranger: true, seed, ...(file.change ? { beforeChange: true } : {}) })
       : experiment?.params.shape === "retry-scenario" || !experiment
         ? retryOrPlain(file, seed)
-        : whatHappened({ run, experiment, bets: file.bets.filter((b) => b.who === "human"), verdicts: file.verdicts, origin: "proof-file", seed, title: "What happened" });
+        : whatHappened({ run, experiment, bets: file.bets.filter((b) => b.who === "human"), verdicts: file.verdicts, origin: "proof-file", stranger: true, seed, title: "What happened" });
   if (!theory.length) return spec;
   // The file's captions may hold the same words: once is enough.
   const seen = new Set<string>();
@@ -30,6 +30,6 @@ export function specOfFile(file: Pick<AtlasFile, "runs" | "experiments" | "bets"
 function retryOrPlain(file: Pick<AtlasFile, "runs" | "experiments" | "bets" | "verdicts">, seed: string): RenderSpec {
   const run = file.runs[0]!;
   const experiment = file.experiments[0];
-  if (experiment) return retryDemo({ run, experiment, bets: file.bets, verdicts: file.verdicts, origin: "proof-file", seed });
-  return whatHappened({ run, bets: file.bets.filter((b) => b.who === "human"), verdicts: file.verdicts, origin: "proof-file", seed, title: "What happened" });
+  if (experiment) return retryDemo({ run, experiment, bets: file.bets, verdicts: file.verdicts, origin: "proof-file", stranger: true, seed });
+  return whatHappened({ run, bets: file.bets.filter((b) => b.who === "human"), verdicts: file.verdicts, origin: "proof-file", stranger: true, seed, title: "What happened" });
 }

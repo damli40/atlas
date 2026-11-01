@@ -782,13 +782,14 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   useEffect(() => {
     if (expId && open) document.querySelector<HTMLElement>('[data-testid="u1-pop"]')?.focus({ preventScroll: true });
   }, [expId, open]);
-  const usingKeys = useRef(false);
+  const usingPointer = useRef(false);
   // A question that takes a typed value shows with its box ready.
   const activeMeasures = exp?.questions[step]?.measures;
   useEffect(() => {
     if (!open || sealed.length > 0 || !activeMeasures) return;
-    // Not for someone answering by keys: there a digit must answer the question, not land in the box.
-    if (exp?.questions[step]?.allowsTyped && !usingKeys.current) document.getElementById(`typed-${activeMeasures}`)?.focus({ preventScroll: true });
+    // Only for someone answering by pointer. For keys a digit must answer the question, not land in the box, and the first
+    // question can't tell which: so the first question never takes the keys away.
+    if (exp?.questions[step]?.allowsTyped && usingPointer.current) document.getElementById(`typed-${activeMeasures}`)?.focus({ preventScroll: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeMeasures, open]);
   // D60: the bet's keys: 1 to 9 answer the question showing, the left arrow goes back, Enter seals on the last step.
@@ -807,7 +808,6 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
         e.preventDefault();
         void seal();
       } else if (/^[1-9]$/.test(e.key) && step < exp.questions.length) {
-        usingKeys.current = true;
         const q = exp.questions[step]!;
         const ids = [...(q.quiz ?? []).map((o) => o.id), CANT_TELL];
         const id = ids[Number(e.key) - 1];
@@ -1233,7 +1233,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
             {open ? "Hide the bet" : "Bet on your understanding"}
           </button>
           {open && (
-            <section id="u1-pop" className="u1-pop" tabIndex={-1} aria-label="Bet on your understanding" data-testid="u1-pop">
+            <section id="u1-pop" className="u1-pop" tabIndex={-1} onPointerDown={() => (usingPointer.current = true)} aria-label="Bet on your understanding" data-testid="u1-pop">
               {wonderWait && !exp && <WonderWaiting wait={wonderWait} fn={fn} onOwn={changing ? null : writeOwn} />}
               {!exp && !changing && busy && !wonderWait && (
                 <p className="u1-status" role="status">

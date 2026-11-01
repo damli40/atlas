@@ -93,15 +93,17 @@ export interface ProofImageProps {
   downloadName?: string;
   /** The label PRE-EXISTING.md requires on anything showing that code. */
   preExisting?: string | null;
+  /** Whoever is looking did not place this bet. An image the bettor copies keeps "you". */
+  stranger?: boolean;
 }
 
-export function ProofImage({ card, file, lines, names, api, download, downloadName, preExisting = null }: ProofImageProps) {
+export function ProofImage({ card, file, lines, names, api, download, downloadName, preExisting = null, stranger = false }: ProofImageProps) {
   const ref = useRef<SVGSVGElement | null>(null);
   const [said, setSaid] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
   const [keptUntil, setKeptUntil] = useState<string | null>((file as { keptCard?: { until: string } }).keptCard?.until ?? null);
   const run = file.runs[0];
-  const rows = card.bets.map((b) => ({ who: b.who, name: b.who === "human" ? "You" : (names[b.who] ?? b.who), measures: b.measures, question: plainField(b.measures), said: b.said, observed: b.observed, outcome: b.outcome ?? null }));
+  const rows = card.bets.map((b) => ({ who: b.who, name: b.who === "human" ? (names.human ?? "You") : (names[b.who] ?? b.who), measures: b.measures, question: plainField(b.measures), said: b.said, observed: b.observed, outcome: b.outcome ?? null }));
   const moment = run ? momentOfRows(rows, run, file.target.language) : null;
   const marks = scoreboardMarks(file.verdicts, file.bets);
   const exp = file.experiments[0];
@@ -182,7 +184,7 @@ export function ProofImage({ card, file, lines, names, api, download, downloadNa
         <line x1="56" x2={W - 56} y1="96" y2="96" stroke="#dcd4c3" />
         {youLines.length > 0 && (
           <>
-            <text x="56" y="132" fontFamily={SANS} fontWeight="500" fontSize="16" letterSpacing=".6" fill="#6b6358">YOU BET</text>
+            <text x="56" y="132" fontFamily={SANS} fontWeight="500" fontSize="16" letterSpacing=".6" fill="#6b6358">{stranger ? "THE BET" : "YOU BET"}</text>
             {youLines.map((l, i) => (
               <text key={i} x="56" y={162 + i * 26} fontFamily={MONO} fontWeight="500" fontSize="22" fill="#1f1b1d">{l}</text>
             ))}
@@ -202,10 +204,10 @@ export function ProofImage({ card, file, lines, names, api, download, downloadNa
             </g>
           ))}
         </g>
-        <text x="56" y={marksY + 124} fontFamily={SANS} fontSize="15" fill="#6b6358">{"One mark per question, a dot for each bettor (solid: you). A line reaching the bar: matched. Stopping short: didn't match. Dashed: can't check."}</text>
+        <text x="56" y={marksY + 124} fontFamily={SANS} fontSize="15" fill="#6b6358">{"One mark per question, a dot for each bettor (solid: the person). A line reaching the bar: matched. Stopping short: didn't match. Dashed: can't check."}</text>
         {lines.slice(0, 3).map((l, i) => (
           <text key={l.who} x="56" y={marksY + 156 + i * 25} fontFamily={SANS} fontSize="17" fill="#1f1b1d">
-            {`${l.who === "human" ? "You" : (names[l.who] ?? l.who).replace(/ · via .*$/, "")}: ${bettorLineWords(l)}`.slice(0, 110)}
+            {`${l.who === "human" ? (names.human ?? "You") : (names[l.who] ?? l.who).replace(/ · via .*$/, "")}: ${bettorLineWords(l)}`.slice(0, 110)}
           </text>
         ))}
         <text x={W - 56} y="628" textAnchor="end" fontFamily={SANS} fontWeight="500" fontSize="16" fill="#1f1b1d">Judged by plain code</text>

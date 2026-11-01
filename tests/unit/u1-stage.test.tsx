@@ -67,7 +67,7 @@ describe("U1 drawing-first screen", () => {
     expect(claimProposal([one, two], { source: "cache = {}\n", language: "py" })).toBe(two);
     expect(claimProposal([one, two], { source: "x = 1\n", language: "py" })).toBe(one);
     const sent = answersToSend(qs, { outcome: "a", virtualMs: "can't tell" });
-    expect(sent.ok && sent.answers.map((a) => a.answer.kind)).toEqual(["quiz", "declined", "declined", "declined"]);
+    expect(sent.ok && sent.answers.map((a) => a.answer.kind)).toEqual(["declined", "quiz", "declined", "declined"]);
     // U3: a typed returned value is a json answer; one that does not read is refused before sealing.
     const typed = answersToSend(qs, { returnedJson: "a" }, { returnedJson: '{"ok": true}' });
     expect(typed.ok && typed.answers.find((a) => a.measures === "returnedJson")!.answer).toEqual({ kind: "json", value: { ok: true } });

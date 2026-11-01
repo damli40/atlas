@@ -59,7 +59,7 @@ function MoonwellMoment({ result }: { result: RunAnswer }) {
 }
 
 /** One row per bet: what the bettor said, in dollars, and what the run read. */
-function proofCardModelRows(result: RunAnswer) {
+function proofCardModelRows(result: RunAnswer, person = "You") {
   const names = bettorNames(result.bets.map((b) => b.who));
   const read = result.run.result.measured["priceUsd1e18:cbETH"];
   const observed = typeof read === "string" ? usd("priceUsd1e18:cbETH", read) : "not measured";
@@ -69,7 +69,7 @@ function proofCardModelRows(result: RunAnswer) {
       const v = result.verdicts.find((x) => x.betId === b.id);
       const a = b.answer;
       const said = a.kind === "number" || a.kind === "integer" ? `$${a.value.toLocaleString("en-US")}` : "declined to guess";
-      return { who: b.who, name: b.who === "human" ? "You" : (names[b.who] ?? b.who), measures: b.measures, question: "cbETH in dollars", said, observed: `1 cbETH read ${observed}`, outcome: v?.outcome ?? null };
+      return { who: b.who, name: b.who === "human" ? person : (names[b.who] ?? b.who), measures: b.measures, question: "cbETH in dollars", said, observed: `1 cbETH read ${observed}`, outcome: v?.outcome ?? null };
     });
 }
 
@@ -88,13 +88,14 @@ function MoonwellSaved({ api, onRunAgain }: { api: Api; onRunAgain: () => void }
   }, [api]);
   if (!file || !file.runs[0]) return null;
   const answer = { run: file.runs[0], bets: file.bets, verdicts: file.verdicts } as unknown as RunAnswer;
-  const moment = momentOfRows(proofCardModelRows(answer), file.runs[0]);
+  // A saved file: whoever opened this did not place its bet.
+  const moment = momentOfRows(proofCardModelRows(answer, "The bettor"), file.runs[0]);
   return (
     <section data-testid="moonwell-saved">
       <p className="m-saved-label" data-testid="moonwell-saved-label">{`A replay of a saved file: run ${file.runs[0].id}, at Base block ${file.runs[0].forkBlock ?? "?"}. Nothing ran just now.`}</p>
       <div className="m-split" data-testid="m-split">
-        {moment && <div className="m-standalone"><MomentView moment={moment} /></div>}
-        <MoonwellDrawing run={file.runs[0]} bets={file.bets} verdicts={file.verdicts} captions={file.captions} still compact />
+        {moment && <div className="m-standalone"><MomentView moment={moment} stranger /></div>}
+        <MoonwellDrawing run={file.runs[0]} bets={file.bets} verdicts={file.verdicts} captions={file.captions} still stranger />
       </div>
       <button type="button" className="primary" onClick={onRunAgain} data-testid="moonwell-run-again">
         Run it again

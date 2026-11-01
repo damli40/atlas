@@ -116,7 +116,7 @@ describe("U1 quiz options are built by plain code from the test only", () => {
     expect(() => quizQuestionsFor(withMeasured)).toThrow(/gate refuses/);
     // and the same test always gives the same options (no clock, no randomness)
     expect(JSON.stringify(quizQuestionsFor(test3))).toBe(JSON.stringify(quizQuestionsFor(JSON.parse(JSON.stringify(test3)))));
-    expect(quizQuestionsFor(test3).map((q) => q.measures)).toEqual(["outcome", "returnedJson", "calls:fetchIt", "virtualMs"]);
+    expect(quizQuestionsFor(test3).map((q) => q.measures)).toEqual(["returnedJson", "outcome", "calls:fetchIt", "virtualMs"]);
   });
 });
 

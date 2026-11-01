@@ -345,6 +345,8 @@ if (late && process.env.BASE_G) {
   const link = await p.evaluate(() => navigator.clipboard.readText());
   const q = await open(link, { vw: 1280, vh: 720 });
   await q.waitForSelector('[data-testid="pc-image"]', { timeout: 15000 });
+  const readerWords = await q.evaluate(() => document.body.textContent);
+  say("a shared card doesn't call its reader 'you'", /The bettor/.test(readerWords) && !/YOU BET|You bet|you said|You:|You ·/.test(readerWords));
   say("a logged-out reader sees the card, with no re-run and no pencil", !(await q.$('[data-testid="pc-rerun"]')) && !(await q.$('[data-testid="pc-pencil"]')));
   await q.click('[data-testid="pc-copy-link"]');
   await wait(q, 200);
@@ -451,6 +453,13 @@ if (late) {
   say("Moonwell's menu opens the saved result, labelled as a replay of a saved file", /replay of a saved file/.test(await p.textContent('[data-testid="moonwell-saved-label"]')));
   await axe(p, "Moonwell saved");
   await shot(p, "moonwell-saved-1440");
+  const savedWords = await p.evaluate(() => document.querySelector('[data-testid="moonwell-saved"]').textContent);
+  say("a saved replay doesn't call a stranger 'you'", /The bet/.test(savedWords) && !/You bet|you said/i.test(savedWords) && !/\bYou\b/.test(savedWords));
+  say("nothing is being asked, so no 'who bets' row", !(await p.locator('[data-testid="claimant-toggle"]').isVisible()));
+  await p.setViewportSize({ width: 1280, height: 720 });
+  await wait(p, 400);
+  await shot(p, "moonwell-saved-1280");
+  await p.setViewportSize({ width: 1440, height: 900 });
   await p.click('[data-testid="moonwell-run-again"]');
   await p.fill('[data-testid="pr-link"]', "https://github.com/moonwell-fi/moonwell-contracts-v2/pull/578");
   await p.locator('[data-testid="pr-link"]').press("Tab");

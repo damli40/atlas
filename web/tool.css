@@ -335,3 +335,10 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 .u1-shell .u1-sheet button.primary{background:var(--ink);color:#fbf8ef;border-color:var(--ink)}
 .u1-shell .u1-sheet select{font:400 13px/1.2 var(--ui);padding:7px 9px;border:1px solid var(--rule);border-radius:7px;background:var(--raised)}
 .r-ex-title{font:500 15px/1.3 var(--mono);margin:0 0 6px;overflow-wrap:normal;word-break:normal}
+
+/* A saved replay asks nobody anything, and Moonwell is the film's finale: the drawing takes the width beside the bet. */
+.shell:has([data-testid="moonwell-saved"]) .claimant{display:none!important}
+.u1-shell .u1-sheet .shell:not(.explore) main:has(.m-split){max-width:1480px}
+.m-split{grid-template-columns:minmax(260px,320px) minmax(0,1fr);gap:20px}
+.felt-fold summary{font-size:13px}
+.felt-fold .felt-paths{font-weight:500}

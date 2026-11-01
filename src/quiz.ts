@@ -136,10 +136,10 @@ export function quizQuestionsFor(test: unknown, exportNames?: readonly string[],
     const q = byField.get(measures);
     if (q && quiz.length >= 2) out.push({ measures: q.measures, text: q.text, kind: "quiz", unit: q.unit, quiz, ...(typed ? { allowsTyped: true as const } : {}) });
   };
-  as("outcome", endingOptions(params.watchLimitMs ?? CALL_DEFAULT_WATCH_LIMIT_MS));
-  // U3 item 4: plain code cannot know what the code returns without running it, so besides the options written from the
+  // D63 follow-up: the typed-value question comes first for everyone, so the sharpest bet is the first one asked. U3 item 4: plain code cannot know what the code returns without running it, so besides the options written from the
   // test a bettor may type the exact value (a "json" answer). The options are unchanged.
   as("returnedJson", valueOptions(params, language), true);
+  as("outcome", endingOptions(params.watchLimitMs ?? CALL_DEFAULT_WATCH_LIMIT_MS));
   for (const a of standInsOf(params)) as(`calls:${a.name}`, countOptions((a as StandIn).calls.length));
   if (params.network) as(`calls:${params.network.replaces}`, countOptions(params.network.calls.length));
   as("virtualMs", timeOptions(params));

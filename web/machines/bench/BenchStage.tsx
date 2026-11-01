@@ -368,12 +368,12 @@ export function sharedReason(marks: readonly Mark[]): string | null {
 }
 
 /** D60: your bet and what the run did. The run's fact is the largest words on the screen. */
-export function MomentView({ moment }: { moment: Moment }) {
+export function MomentView({ moment, stranger = false }: { moment: Moment; /** Whoever is looking did not place this bet. */ stranger?: boolean }) {
   return (
     <section className="m-moment" data-kind={moment.kind} aria-label="What you bet and what the run did" data-testid="moment">
       {moment.you !== null && (
         <p className="m-you">
-          <span className="m-k">You bet</span>
+          <span className="m-k">{stranger ? "The bet" : "You bet"}</span>
           <span className="m-you-v" data-testid="moment-you">{moment.you}</span>
         </p>
       )}

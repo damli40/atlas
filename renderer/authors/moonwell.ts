@@ -28,6 +28,8 @@ export interface MoonwellInput {
   origin?: "this-run" | "proof-file";
   /** D20's file: this run is from before the change, and the file's captions are about the re-run. The drawing says which it shows. */
   beforeChange?: boolean;
+  /** Whoever is looking did not place this bet: "the bet said", not "you said". */
+  stranger?: boolean;
 }
 
 const isUint = (v: unknown): v is string => typeof v === "string" && /^\d+$/.test(v);
@@ -85,7 +87,7 @@ export function moonwellFlow(input: MoonwellInput): RenderSpec {
   const marks: SpecMark[] = [];
   for (const b of usdBets) {
     const v = (input.verdicts ?? []).find((x) => x.betId === b.id);
-    const who = b.who === "human" ? "you" : b.who.replace(/^model:/, "").replace(/^meta-models\//, "");
+    const who = b.who === "human" ? (input.stranger ? "the bet" : "you") : b.who.replace(/^model:/, "").replace(/^meta-models\//, "");
     if (!v) continue;
     if (v.outcome === "cant_check") marks.push({ on: "price", kind: "cant-check", who, words: b.answer.kind === "declined" ? "declined to guess" : `can't check: ${v.reason ?? "not measured"}` });
     else {

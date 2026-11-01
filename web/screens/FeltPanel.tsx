@@ -47,7 +47,17 @@ export function FeltRecord({ record }: { record: TrackRecord }) {
   const p = pathWords(record.felt);
   return (
     <section className="felt-record" aria-label={FELT_WORDS.recordHeading} data-testid="felt-record">
-      <h3>{FELT_WORDS.recordHeading}</h3>
+      <details className="m-fold felt-fold" data-testid="felt-fold">
+      <summary>
+        {p.line ? (
+          <span className="felt-paths" data-testid="felt-paths">
+            {p.line}
+          </span>
+        ) : (
+          FELT_WORDS.recordHeading
+        )}
+      </summary>
+      {p.line && <h3>{FELT_WORDS.recordHeading}</h3>}
       <ul>
         {levelsWords(record.felt).map((s) => (
           <li key={s} data-testid="felt-level">
@@ -55,15 +65,11 @@ export function FeltRecord({ record }: { record: TrackRecord }) {
           </li>
         ))}
       </ul>
-      {p.line && (
-        <p className="felt-paths" data-testid="felt-paths">
-          {p.line}
-        </p>
-      )}
       <p className="felt-note" data-testid="felt-paths-note">
         {[...p.notes, FELT_WORDS.pathsMeaning].join(" ")}
       </p>
       <p className="felt-note">{FELT_WORDS.luck}</p>
+      </details>
     </section>
   );
 }

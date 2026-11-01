@@ -20,6 +20,8 @@ export interface RunPathProps {
   /** The retry demo: the code is pre-existing, and the drawing says so. */
   retry?: boolean;
   testid?: string;
+  /** Whoever is looking did not place this bet. */
+  stranger?: boolean;
 }
 
 /** The height at which the whole drawing shows at the width the page gives it. */
@@ -34,16 +36,16 @@ export function sizedHeight(m: Mounted, narrow: boolean): number {
 const NO_BETS: readonly Bet[] = [];
 const NO_VERDICTS: readonly Verdict[] = [];
 
-export function RunPath({ run, experiment, bets = NO_BETS, verdicts = NO_VERDICTS, title, kicker, still = false, retry = false, testid = "run-path" }: RunPathProps) {
+export function RunPath({ run, experiment, bets = NO_BETS, verdicts = NO_VERDICTS, title, kicker, still = false, retry = false, testid = "run-path", stranger = false }: RunPathProps) {
   const dark = useDarkScheme();
   const reduced = useReducedMotion();
   const spec = useMemo(() => {
     // The retry demo marks each model's bet as well as the person's (D10). On a call's path only the person's are marked.
     const shown = retry ? [...bets] : bets.filter((b) => b.who === "human");
     // A proof card reads a saved file. Everywhere else in the app the run has just happened on this server.
-    const input = { run, ...(experiment ? { experiment } : {}), bets: shown, verdicts: [...verdicts], origin: still ? ("proof-file" as const) : ("this-run" as const), ...(title ? { title } : {}), ...(kicker ? { kicker } : {}) };
+    const input = { run, ...(experiment ? { experiment } : {}), bets: shown, verdicts: [...verdicts], origin: still ? ("proof-file" as const) : ("this-run" as const), ...(stranger ? { stranger: true } : {}), ...(title ? { title } : {}), ...(kicker ? { kicker } : {}) };
     return retry ? retryDemo(input) : whatHappened(input);
-  }, [run, experiment, bets, verdicts, title, kicker, retry, still]);
+  }, [run, experiment, bets, verdicts, title, kicker, retry, still, stranger]);
   const [m, setM] = useState<Mounted | null>(null);
   const [token, setToken] = useState(0);
   const first = useRef(true);

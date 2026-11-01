@@ -84,7 +84,8 @@ export function ProofCardPage({ api, runId, embedded = false }: { api: Api; runI
     <Shell className="proof-page">
       {file ? (
         <div className="proof-stack">
-          <ProofCard file={file} api={api} />
+          {/* Inside the round's own screen, or a pasted card whose source this session may read, the bettor is looking. Anyone else is not. */}
+          <ProofCard file={file} api={api} stranger={!embedded && !(file.target.kind === "pasted" && (file as { sourceWithheld?: boolean }).sourceWithheld !== true)} />
           {/* X3 (D27): only for the person whose round this was (the server answers null for anyone else). */}
           <RecordBefore api={api} runId={runId} />
         </div>
@@ -106,13 +107,13 @@ export function modelNames(file: Pick<AtlasFile, "bets">): Record<string, string
   return bettorNames(file.bets.map((b) => b.who));
 }
 
-export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?: Api; replay?: ReplayAnswer }) {
+export function ProofCard({ file, api, replay: given, stranger = false }: { file: AtlasFile; api?: Api; replay?: ReplayAnswer; /** Whoever is looking did not place these bets, so nothing says "you". */ stranger?: boolean }) {
   const card = useMemo(() => proofCardModel(file), [file]);
   // D10 + D07-01: every model bettor by product name AND id (src/claimants.ts), e.g.
   // "Muse Spark Open (meta-models/muse-spark-open-1026) · via Baseten". An unknown id is shown as itself.
   // Day-7 review M3/M7: every bettor of the round, including a model that sealed nothing and a person not asked.
   const lines = useMemo(() => bettorLines(file), [file]);
-  const names = useMemo(() => bettorNames([...file.bets.map((b) => b.who), ...lines.map((l) => l.who)]), [file, lines]);
+  const names = useMemo(() => ({ ...bettorNames([...file.bets.map((b) => b.who), ...lines.map((l) => l.who)]), ...(stranger ? { human: "The bettor" } : {}) }), [file, lines, stranger]);
   const modelBettors = orderModelBettors(lines.filter((l) => l.who !== "human").map((l) => l.who));
   const unseated = Object.fromEntries(lines.filter((l) => l.status !== "sealed").map((l) => [l.who, l.status === "not_asked" ? "not asked" : "no usable answer"]));
   const [replay, setReplay] = useState<ReplayState>(given ? { kind: "done", answer: given } : { kind: "idle" });
@@ -144,7 +145,7 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
 
   return (
     <article className="proof-card" data-testid="proof-card" aria-label={`proof card for run ${card.runId}`}>
-      <ProofImage card={card} file={file} lines={lines} names={names} preExisting={card.target.kind === "ts-fixture" ? preExistingLabel(file) : null} {...(api ? { api } : {})} {...(download ? { download, downloadName: `${card.runId}.atlas.json` } : {})} />
+      <ProofImage stranger={stranger} card={card} file={file} lines={lines} names={names} preExisting={card.target.kind === "ts-fixture" ? preExistingLabel(file) : null} {...(api ? { api } : {})} {...(download ? { download, downloadName: `${card.runId}.atlas.json` } : {})} />
       <header className="pc-head">
         <div>
           <p className="pc-kicker">Atlas · proof card</p>
@@ -236,7 +237,7 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
       {call && file.runs[0] && (
         // E3: the call timeline, drawn from the file's own run (the same component as the round's screen).
         <section className="pc-machine" aria-label="call timeline" data-testid="pc-call-timeline">
-          <RunPath run={file.runs[0]} experiment={file.experiments[0]} bets={file.bets} verdicts={file.verdicts} still testid="pc-path" />
+          <RunPath run={file.runs[0]} experiment={file.experiments[0]} bets={file.bets} verdicts={file.verdicts} still testid="pc-path" stranger={stranger} />
           {api && (file as { keptCard?: unknown }).keptCard === undefined && <PencilImage api={api} runId={file.runs[0].id} />}
         </section>
       )}
@@ -244,13 +245,13 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
       {/* R3 phase 2: the retry demo's and Moonwell's cards carry their drawing too. */}
       {!call && file.runs[0]?.runner === "ts" && (
         <section className="pc-machine" aria-label="what happened" data-testid="pc-retry">
-          <RunPath run={file.runs[0]} experiment={file.experiments[0]} bets={file.bets} verdicts={file.verdicts} still retry testid="pc-path" />
+          <RunPath run={file.runs[0]} experiment={file.experiments[0]} bets={file.bets} verdicts={file.verdicts} still retry testid="pc-path" stranger={stranger} />
           {api && (file as { keptCard?: unknown }).keptCard === undefined && <PencilImage api={api} runId={file.runs[0].id} />}
         </section>
       )}
       {!call && file.runs[0]?.runner === "evm" && (
         <section className="pc-machine" aria-label="the price flow" data-testid="pc-moonwell">
-          <MoonwellDrawing run={file.runs[0]} bets={file.bets} verdicts={file.verdicts} captions={[...new Set(file.captions)]} still {...(file.change ? { beforeChange: true } : {})} />
+          <MoonwellDrawing run={file.runs[0]} bets={file.bets} verdicts={file.verdicts} captions={[...new Set(file.captions)]} still stranger={stranger} {...(file.change ? { beforeChange: true } : {})} />
           {api && (file as { keptCard?: unknown }).keptCard === undefined && <PencilImage api={api} runId={file.runs[0].id} />}
         </section>
       )}

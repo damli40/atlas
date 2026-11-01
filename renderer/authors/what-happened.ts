@@ -91,6 +91,8 @@ export interface WhatHappenedInput {
    * Names only, never values; never a ring; never in a verdict. `none`: why there are none, said in a caption.
    */
   helpers?: { steps: readonly HelperStep[]; cut?: boolean } | { none: string };
+  /** Whoever is looking did not place this bet: "the bet said", not "you said". */
+  stranger?: boolean;
   /** Where the run came from, only when the caller knows. Absent: the drawing says nothing about it (review B5). */
   origin?: RunOrigin;
 }
@@ -531,7 +533,7 @@ function measureWords(measures: string): string {
   return ({ calls: "calls", outcome: "how it ends", returnedJson: "what it returns", virtualMs: "how long it takes", totalWaitMs: "the total wait" } as Record<string, string>)[measures] ?? measures;
 }
 
-const whoWords = (who: string) => (who === "human" ? "you" : who.replace(/^model:/, "").replace(/^meta-models\//, ""));
+const whoWords = (who: string, stranger = false) => (who === "human" ? (stranger ? "the bet" : "you") : who.replace(/^model:/, "").replace(/^meta-models\//, ""));
 
 /**
  * The first step on the path that really departs from the bettor's answer, or null when no step honestly does. Exported for
@@ -707,7 +709,7 @@ export function whatHappened(input: WhatHappenedInput): RenderSpec {
     const v = verdictOf(b.id);
     if (!v || !lastNode) continue;
     if (b.answer.kind === "declined" && b.who === "human") continue; // no answer, nothing to mark
-    const who = whoWords(b.who);
+    const who = whoWords(b.who, input.stranger === true);
     if (v.outcome === "cant_check") {
       marks.push({ on: lastNode, kind: "cant-check", who, words: `can't check ${measureWords(b.measures)}, ${clip(v.reason ?? "not measured", 80)}` });
     } else if (v.outcome === "matched") {
