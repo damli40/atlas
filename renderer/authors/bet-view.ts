@@ -3,10 +3,11 @@
 // wire appears only where plain code found the part's OWN lines calling the thing, with comments and strings removed. So a
 // string that says `fetch(` draws nothing. No run goes in, so no run can come out.
 //
-// The clock gets a wire only where plain code can tell the part really waits (`waitLines` below). A timer that only starts
-// something later (fetchWithRetry's abort timer) is not a wait, so it draws no wire.
+// The clock gets a wire only where plain code can tell the part really waits (src/call-sites.ts `waitingPartsOf`): a Promise a
+// timer resolves, awaited or returned; a Python sleep. A timer that only starts something later (fetchWithRetry's abort timer),
+// or one nobody waits on, draws no wire.
 
-import { codeLines } from "../../src/call-sites";
+import { waitingPartsOf } from "../../src/call-sites";
 import type { FileOutline } from "../../src/file-outline";
 import { benchModel, CLOCK_ID, type BenchModel, type CallTest } from "../../web/machines/bench/model";
 import type { Pin, RenderSpec, SpecCaption, SpecEdge, SpecNode, SpecTag } from "../spec";
@@ -26,25 +27,6 @@ export interface BetViewInput {
   /** Plain code's failure labels, on the parts they are about. */
   labels?: { anchor: string; text: string }[];
   seed?: string;
-}
-
-/**
- * The parts whose own lines plainly wait: a Promise that a timer resolves (`new Promise((r) => setTimeout(r, ms))`), or a
- * Python sleep. Read from code only (comments and strings removed). Anything else plain code cannot call a wait, so it is left
- * out, including `setTimeout(() => controller.abort(), 5000)`, which starts something later and waits for nothing.
- */
-export function waitLines(source: string, language: "js" | "ts" | "py", outline: Pick<FileOutline, "parts">): string[] {
-  const lines = codeLines(source, language);
-  return outline.parts
-    .filter((p) => {
-      const text = lines.slice(p.lineStart - 1, p.lineEnd).join("\n");
-      if (language === "py") return /(^|[^\w.])(time\.|asyncio\.)sleep\s*\(/m.test(text);
-      const m = /new\s+Promise\s*(?:<[^>]*>\s*)?\(\s*\(?\s*([A-Za-z_$][\w$]*)[^)=]*\)?\s*(?::[^=]*)?=>/.exec(text);
-      if (!m) return false;
-      const r = m[1]!.replace(/[$]/g, "\\$&");
-      return new RegExp(`setTimeout\\s*\\(\\s*${r}\\b|setTimeout\\s*\\(\\s*\\(\\s*\\)\\s*=>\\s*\\{?\\s*${r}\\s*\\(`).test(text);
-    })
-    .map((p) => p.name);
 }
 
 /** The bench model as a spec. Node ids are the model's box ids, so a part card and a lamp find their part directly. */
@@ -77,7 +59,7 @@ export function benchSpec(model: BenchModel, input: Pick<BetViewInput, "fileName
     edges.push({ id: l.id, from: l.from, to: l.to, words: kind ?? (l.kind === "calls" ? "calls" : "uses"), kind: "thread", provenance: "plain-code" });
   }
   if (seen.has(CLOCK_ID)) {
-    for (const name of waitLines(input.source, input.language, input.outline)) {
+    for (const name of waitingPartsOf(input.outline)) {
       if (seen.has(name)) edges.push({ id: `wait:${name}`, from: name, to: CLOCK_ID, words: "waits on", kind: "thread", provenance: "plain-code" });
     }
   }

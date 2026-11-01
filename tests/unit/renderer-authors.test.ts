@@ -1,7 +1,8 @@
 // R3: the authors: pure functions from Atlas's data to a RenderSpec. What they refuse to claim matters most.
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { betView, waitLines } from "../../renderer/authors/bet-view";
+import { betView } from "../../renderer/authors/bet-view";
+import { waitingPartsOf } from "../../src/call-sites";
 import { explorerSpec } from "../../renderer/authors/code-chart";
 import { explorerModel } from "../../web/machines/explorer/model";
 import { MOONWELL_ALLOWED_WORDS, moonwellFlow } from "../../renderer/authors/moonwell";
@@ -81,7 +82,7 @@ describe("R3 author (b): the chart and the bet view use U3's call sites", () => 
   it("an abort timer is not a wait; a Promise a timer resolves is, and so is a Python sleep", () => {
     expect(wire(spec, "fetchWithRetry", "clock housing")).toBe(false);
     expect(wire(spec, "sleep", "clock housing")).toBe(true);
-    const o = (src: string, lang: "js" | "py") => waitLines(src, lang, fileOutline(src, lang));
+    const o = (src: string, lang: "js" | "py") => waitingPartsOf(fileOutline(src, lang));
     expect(o("export function a() {\n  setTimeout(() => go(), 100);\n}\n", "js")).toEqual([]);
     expect(o('export function a() {\n  const s = "new Promise((r) => setTimeout(r, 1))";\n  return s;\n}\n', "js")).toEqual([]);
     expect(o("export function a() {\n  return new Promise((resolve) => setTimeout(resolve, 100));\n}\n", "js")).toEqual(["a"]);

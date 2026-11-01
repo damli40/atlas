@@ -19,6 +19,7 @@
 // (a parameter or a local) hides the import of the same name inside that function (review minor 1).
 
 import ts from "typescript-api";
+import { emptyCallFacts, type CallFacts } from "./types";
 import type { CodeSymbol, ImportKind, ImportName, OutlineLanguage } from "./types";
 
 export interface RawImport {
@@ -52,6 +53,8 @@ export interface ParsedFile {
   /** `export { a as b }` (no `from`): exported name → local name. */
   exportedLocals: { exported: string; local: string }[];
   notes: string[];
+  /** R3: calls with their names resolved by real scope. */
+  callFacts?: CallFacts;
 }
 
 const SIG_MAX = 200;
@@ -367,5 +370,141 @@ export function parseJsFile(path: string, text: string, language: OutlineLanguag
     ts.forEachChild(n, walk);
   };
   ts.forEachChild(bound, walk);
+  out.callFacts = callFactsOf(bound, checker);
   return out;
+}
+
+/** R3: the file's calls, resolved by the binder. See CallFacts. A name a function binds for itself is never the outside thing. */
+function callFactsOf(sf: ts.SourceFile, checker: ts.TypeChecker): CallFacts {
+  const facts = emptyCallFacts();
+  const lineOf = (n: ts.Node) => sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1;
+  const isFn = (n: ts.Node): n is ts.FunctionLikeDeclaration => ts.isFunctionDeclaration(n) || ts.isFunctionExpression(n) || ts.isArrowFunction(n) || ts.isMethodDeclaration(n) || ts.isConstructorDeclaration(n) || ts.isGetAccessorDeclaration(n) || ts.isSetAccessorDeclaration(n);
+  /** A part-level function: top-level, a top-level const's function, or a top-level class's method. Its name is the part's. */
+  const partNameOf = (f: ts.Node): string | null => {
+    if (ts.isFunctionDeclaration(f) && f.parent === sf) return f.name?.text ?? "default";
+    if ((ts.isArrowFunction(f) || ts.isFunctionExpression(f)) && ts.isVariableDeclaration(f.parent) && f.parent.parent?.parent?.parent === sf && ts.isIdentifier(f.parent.name)) return f.parent.name.text;
+    if ((ts.isMethodDeclaration(f) || ts.isConstructorDeclaration(f) || ts.isGetAccessorDeclaration(f) || ts.isSetAccessorDeclaration(f)) && ts.isClassDeclaration(f.parent) && f.parent.parent === sf) return f.parent.name?.text ?? "default";
+    return null;
+  };
+  const enclosingFn = (n: ts.Node): ts.Node | null => {
+    for (let p: ts.Node | undefined = n.parent; p; p = p.parent) if (isFn(p)) return p;
+    return null;
+  };
+  // Which names are ever used (a nested function nobody refers to never runs), and which parameters are ever assigned.
+  const used = new Map<ts.Symbol, number>();
+  const assigned = new Set<ts.Symbol>();
+  const count = (n: ts.Node): void => {
+    if (ts.isIdentifier(n)) {
+      const s = checker.getSymbolAtLocation(n);
+      const isDeclName = (n.parent as { name?: ts.Node } | undefined)?.name === n && !ts.isPropertyAccessExpression(n.parent);
+      if (s && !isDeclName) used.set(s, (used.get(s) ?? 0) + 1);
+    }
+    if (ts.isBinaryExpression(n) && n.operatorToken.kind >= ts.SyntaxKind.FirstAssignment && n.operatorToken.kind <= ts.SyntaxKind.LastAssignment && ts.isIdentifier(n.left)) {
+      const s = checker.getSymbolAtLocation(n.left);
+      if (s) assigned.add(s);
+    }
+    if ((ts.isPrefixUnaryExpression(n) || ts.isPostfixUnaryExpression(n)) && ts.isIdentifier(n.operand) && (n.operator === ts.SyntaxKind.PlusPlusToken || n.operator === ts.SyntaxKind.MinusMinusToken)) {
+      const s = checker.getSymbolAtLocation(n.operand);
+      if (s) assigned.add(s);
+    }
+    ts.forEachChild(n, count);
+  };
+  count(sf);
+  /** False when the call sits in a nested named function nothing refers to, so it can never run from here. */
+  const reachable = (n: ts.Node): boolean => {
+    for (let f = enclosingFn(n); f; f = enclosingFn(f)) {
+      if (partNameOf(f) !== null) return true;
+      const nameNode = ts.isFunctionDeclaration(f) ? f.name : (ts.isArrowFunction(f) || ts.isFunctionExpression(f)) && ts.isVariableDeclaration(f.parent) ? f.parent.name : undefined;
+      if (nameNode && ts.isIdentifier(nameNode)) {
+        const s = checker.getSymbolAtLocation(nameNode);
+        if (s && !used.get(s)) return false;
+      }
+    }
+    return true;
+  };
+  const paramOf = (id: ts.Identifier): { fn: string; index: number } | null => {
+    const s = checker.getSymbolAtLocation(id);
+    const d = s?.declarations?.[0];
+    if (!s || !d || !ts.isParameter(d) || assigned.has(s) || !ts.isIdentifier(d.name)) return null;
+    const fn = partNameOf(d.parent);
+    if (fn === null) return null;
+    const list = d.parent.parameters.filter((p) => !(ts.isIdentifier(p.name) && p.name.text === "this"));
+    return { fn, index: list.indexOf(d) };
+  };
+  const GLOBAL_OBJECTS = new Set(["globalThis", "window", "self", "global"]);
+  const unbound = (id: ts.Identifier) => !checker.getSymbolAtLocation(id)?.declarations?.length;
+  const ownFunction = (id: ts.Identifier): string | null => {
+    const d = checker.getSymbolAtLocation(id)?.declarations?.[0];
+    if (!d) return null;
+    if (ts.isFunctionDeclaration(d) && d.parent === sf) return id.text;
+    if (ts.isVariableDeclaration(d) && d.parent?.parent?.parent === sf && d.initializer && (ts.isArrowFunction(d.initializer) || ts.isFunctionExpression(d.initializer))) return id.text;
+    return null;
+  };
+  /** Through brackets and type assertions, to what a value really flows into. */
+  const outer = (n: ts.Node): ts.Node => {
+    let p = n.parent;
+    while (p && (ts.isParenthesizedExpression(p) || ts.isAsExpression(p) || ts.isNonNullExpression(p) || ts.isSatisfiesExpression(p))) p = p.parent;
+    return p;
+  };
+  const timerResolves = (fn: ts.Node, resolver: ts.Symbol): boolean => {
+    let found = false;
+    const look = (n: ts.Node): void => {
+      if (found) return;
+      if (ts.isCallExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === "setTimeout" && unbound(n.expression)) {
+        const a = n.arguments[0];
+        if (a && ts.isIdentifier(a) && checker.getSymbolAtLocation(a) === resolver) found = true;
+        if (a && (ts.isArrowFunction(a) || ts.isFunctionExpression(a))) {
+          const calls = (m: ts.Node): void => {
+            if (ts.isCallExpression(m) && ts.isIdentifier(m.expression) && checker.getSymbolAtLocation(m.expression) === resolver) found = true;
+            ts.forEachChild(m, calls);
+          };
+          calls(a.body);
+        }
+      }
+      ts.forEachChild(n, look);
+    };
+    look(fn);
+    return found;
+  };
+  const visit = (n: ts.Node): void => {
+    if (ts.isCallExpression(n)) {
+      let callee: ts.Expression = n.expression;
+      // `f.call(…)`, `f.apply(…)` are calls of f.
+      if (ts.isPropertyAccessExpression(callee) && (callee.name.text === "call" || callee.name.text === "apply") && ts.isIdentifier(callee.expression)) callee = callee.expression;
+      if (ts.isIdentifier(callee)) {
+        const line = lineOf(n);
+        if (unbound(callee)) {
+          if (reachable(n)) facts.freeCalls.push({ name: callee.text, line });
+        } else {
+          const p = paramOf(callee);
+          if (p && p.index >= 0 && reachable(n)) facts.paramCalls.push({ ...p, line });
+          const to = ownFunction(callee);
+          if (to && reachable(n)) {
+            n.arguments.forEach((a, toIndex) => {
+              if (!ts.isIdentifier(a)) return;
+              const q = paramOf(a);
+              if (q && q.index >= 0) facts.handoffs.push({ ...q, to, toIndex, line });
+            });
+          }
+        }
+      } else if (ts.isPropertyAccessExpression(callee) && ts.isIdentifier(callee.expression) && GLOBAL_OBJECTS.has(callee.expression.text)) {
+        const d = checker.getSymbolAtLocation(callee.expression)?.declarations?.[0];
+        if ((!d || d.getSourceFile() !== sf) && reachable(n)) facts.freeCalls.push({ name: callee.name.text, line: lineOf(n) });
+      }
+    }
+    if (ts.isNewExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === "Promise" && unbound(n.expression)) {
+      const cb = n.arguments?.[0];
+      if (cb && (ts.isArrowFunction(cb) || ts.isFunctionExpression(cb)) && cb.parameters[0] && ts.isIdentifier(cb.parameters[0].name)) {
+        const resolver = checker.getSymbolAtLocation(cb.parameters[0].name);
+        const host = enclosingFn(n);
+        const flows = outer(n);
+        // The promise is waited on, or handed back to whoever waits; and it is the part's own function doing it.
+        const awaited = !!flows && (ts.isAwaitExpression(flows) || ts.isReturnStatement(flows) || (ts.isArrowFunction(flows) && flows.body !== undefined && flows === host));
+        if (resolver && host && partNameOf(host) !== null && awaited && timerResolves(cb, resolver)) facts.waits.push({ line: lineOf(n) });
+      }
+    }
+    ts.forEachChild(n, visit);
+  };
+  visit(sf);
+  return facts;
 }
