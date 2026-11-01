@@ -24,6 +24,8 @@ export interface MountOptions extends PlayerOptions {
 
 export interface Mounted {
   player: Player | null;
+  /** Moves the view just enough to show this node. The thread's head stays on screen; nothing moves if it already is. */
+  bringIntoView(id: string, smooth?: boolean): void;
   fit(): void;
   setTheme(t: "light" | "dark"): void;
   destroy(): void;
@@ -42,7 +44,7 @@ export function mountDrawing(host: HTMLElement, drawn: Drawn, spec: RenderSpec, 
   host.dataset.theme = o.theme ?? "light";
   if (drawn.kind !== "drawing") {
     host.innerHTML = drawn.html;
-    return { player: null, fit() {}, setTheme: (t) => void (host.dataset.theme = t), destroy: () => void (host.innerHTML = ""), view: () => ({ x: 0, y: 0, k: 1 }), pick() {}, needsPan: () => false, size: () => ({ w: 0, h: 0 }) };
+    return { player: null, bringIntoView() {}, fit() {}, setTheme: (t) => void (host.dataset.theme = t), destroy: () => void (host.innerHTML = ""), view: () => ({ x: 0, y: 0, k: 1 }), pick() {}, needsPan: () => false, size: () => ({ w: 0, h: 0 }) };
   }
   // The text was escaped and no script, link or foreign object was written (renderer/check.ts proves it for hostile names).
   host.innerHTML = drawn.svg;
@@ -52,6 +54,7 @@ export function mountDrawing(host: HTMLElement, drawn: Drawn, spec: RenderSpec, 
   const scene: Scene = drawn.scene;
   const player = new Player(svg as SVGSVGElement, scene, spec, o);
   const state = { x: 0, y: 0, k: 1 };
+  let glide = 0;
   const apply = () => {
     const w = host.clientWidth / state.k;
     const h = host.clientHeight / state.k;
@@ -220,6 +223,39 @@ export function mountDrawing(host: HTMLElement, drawn: Drawn, spec: RenderSpec, 
       host.innerHTML = "";
     },
     view: () => ({ ...state }),
+    bringIntoView(id, smooth = true) {
+      const n = scene.nodes.find((x) => x.id === id);
+      if (!n) return;
+      const margin = 70 / state.k;
+      const h = host.clientHeight / state.k;
+      const w = host.clientWidth / state.k;
+      let y = state.y;
+      let x = state.x;
+      if (n.box.y1 + margin > y + h) y = n.box.y1 + margin - h;
+      if (n.box.y0 - margin < y) y = n.box.y0 - margin;
+      if (n.box.x1 + margin > x + w) x = n.box.x1 + margin - w;
+      if (n.box.x0 - margin < x) x = n.box.x0 - margin;
+      if (x === state.x && y === state.y) return;
+      const from = { x: state.x, y: state.y };
+      const token = ++glide;
+      if (!smooth || typeof requestAnimationFrame !== "function") {
+        state.x = x;
+        state.y = y;
+        apply();
+        return;
+      }
+      const start = performance.now();
+      const step = (now: number) => {
+        if (token !== glide) return;
+        const t = Math.min(1, (now - start) / 240);
+        const e = 1 - (1 - t) ** 3;
+        state.x = from.x + (x - from.x) * e;
+        state.y = from.y + (y - from.y) * e;
+        apply();
+        if (t < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    },
     pick(id) {
       picked = id;
       near(id);

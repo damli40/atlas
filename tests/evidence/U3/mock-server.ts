@@ -42,12 +42,20 @@ const CLAIM_PLAN = {
   experiments: [{ shape: "call-function", exportName: "get_user_plan", args: [one], watchLimitMs: 120000, calls: [{ exportName: "get_user_plan", args: [one] }, { exportName: "get_user_plan", args: [one], waitMs: 59700 }] }],
 };
 const delay = Number(process.env.U3_WONDER_DELAY_MS ?? 6000);
+const EXAMPLE = {
+  claim: `People expect fetchWithRetry to wait and try again until the source answers; after its last try it throws what the source threw.${MOCK ? ` ${MOCK}` : ""}`,
+  experiments: [
+    { shape: "call-function", exportName: "fetchWithRetry", args: [{ kind: "stand-in", name: "fetchIt", async: true, then: "repeat_last", calls: [{ do: "throw", errorName: "TypeError", message: "fetch failed" }] }] },
+    { shape: "call-function", exportName: "fetchWithRetry", args: [{ kind: "stand-in", name: "fetchIt", async: true, then: "repeat_last", calls: [{ do: "throw", errorName: "TypeError", message: "fetch failed" }, { do: "return", value: { price: 42 } }] }] },
+  ],
+};
 export const mockChat = async (a: ChatArgs): Promise<ChatResult> => {
   const all = a.messages.map((m) => m.content).join("\n");
   if (a.role === "investigator") {
     await new Promise((r) => setTimeout(r, delay));
     const claimRound = /check this sentence/.test(all);
     const py = /get_user_plan/.test(all);
+    if (/fetchWithRetry/.test(all) && /backoffMs/.test(all)) return { ok: true, finishReason: "stop", usage, content: JSON.stringify(EXAMPLE) };
     return { ok: true, finishReason: "stop", usage, content: JSON.stringify(py ? (claimRound ? CLAIM_PLAN : PLAN) : claimRound ? CLAIM_ORDERS : ORDERS) };
   }
   const qs = [...all.matchAll(/measures "([^"]+)"/g)].map((m) => m[1]!);

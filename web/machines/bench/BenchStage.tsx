@@ -184,11 +184,15 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
       }
       for (let i = 0; i < pathSpec.steps.length && live; i++) {
         lit(pathSpec.steps[i]!);
+        // The thread takes the centre and the view follows its head.
+        pathMount?.bringIntoView(pathSpec.steps[i]!.nodes[0] ?? "");
         await p.playStep(i);
       }
       if (!live) return;
       setStep(null);
       setMarksOn(true);
+      // The run's end card, or the card with the ring, is on screen when it finishes.
+      pathMount?.bringIntoView(pathSpec.marks[0]?.on ?? pathSpec.nodes[pathSpec.nodes.length - 1]?.id ?? "");
       for (const m of pathSpec.marks) if (live) await p.landMark(m);
       if (!live) return;
       p.showCaptions();

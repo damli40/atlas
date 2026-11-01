@@ -11,9 +11,12 @@
 // - Muse Wonder's test is a proposal: the gate decides. Its claim sentence is shown only after the run (D18).
 // - Verdicts are plain code's (src/judge.ts): matched / didn't match / can't check.
 
+import EXAMPLE_OUTLINE from "../u1-example-outline.json";
+import { betView } from "../../renderer/authors/bet-view";
+import { Drawing } from "../drawing/Drawing";
 import { waitingPartsOf } from "../../src/call-sites";
 import type { HelperAnswer } from "../api";
-import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type FormEvent } from "react";
 import type { Question } from "../../src/gate";
 import { shortQuestionFor, pinsLineOf } from "../../src/paste-context";
 import { CANT_TELL, timeOptions } from "../../src/quiz";
@@ -67,6 +70,28 @@ export function defaultProposal<P extends { gate: { allowed: boolean }; params: 
  * U3: the test a "Test this claim" round opens on: Wonder's first allowed test (the one aimed at the sentence), except
  * that on code keeping state between calls a single call cannot show the state working, so a two-call test comes first.
  */
+/** D60: the example's real drawing, drawing itself on the first screen: the same parser's output, kept in the page (a test holds them equal). */
+function ExampleDrawing() {
+  const spec = useMemo(() => {
+    const s = betView({ fileName: "example.ts", outline: EXAMPLE_OUTLINE as unknown as FileOutline, source: U1_EXAMPLE, language: "ts", test: null, tested: "fetchWithRetry", seed: "first-screen" });
+    return { ...s, title: undefined, kicker: undefined, subtitle: undefined, captions: [] } as typeof s;
+  }, []);
+  return (
+    <div className="e-right" aria-hidden="true" data-testid="e-drawing">
+      <Drawing
+        spec={spec}
+        theme="light"
+        className="e-sheet"
+        maxScale={1}
+        hover={false}
+        onMount={(m) => {
+          if (m?.player && !m.player.reduced) void m.player.entrance();
+        }}
+      />
+    </div>
+  );
+}
+
 const HELPER_WAIT_MS = 2500;
 const HELPER_TOO_SLOW = "Helper steps are not shown: the extra run made to see them took too long.";
 export const CHANGE_WORDS = {
@@ -77,6 +102,7 @@ export const CHANGE_WORDS = {
   claimAsking: "Asking Muse Wonder for a new test…",
   claimNoNew: "Muse Wonder's tests for this sentence are ones that have already run here, so there is nothing new to bet on.",
   paidWonder: "Asks Muse Wonder: a paid AI call.",
+  earlyWonder: "Muse Wonder is writing a test for this code: a paid AI call.",
   paidAgain: "The first two start paid AI calls.",
   paidBets: "The AI bettors answer too: paid AI calls.",
 } as const;
@@ -251,7 +277,10 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     setWonderWait({ started: Date.now(), phase: BET_WORDS.waitAsking, ...(opts.claim ? { claim: opts.claim } : {}) });
     setError(null);
     try {
-      const p = await api.proposals(target, fn, opts.claimOf ? { claimOf: opts.claimOf } : undefined);
+      // D60: the test-writing that began when the drawing finished, if it is for this file and function.
+      const ready = !opts.claimOf && early.current?.key === `${target.codeSha256}|${fn}` ? early.current.answer : null;
+      if (ready) early.current = null;
+      const p = (await ready) ?? (await api.proposals(target, fn, opts.claimOf ? { claimOf: opts.claimOf } : undefined));
       if (g !== gen.current) return;
       setProposals(p);
       const allowedN = p.proposals.filter((x) => x.gate.allowed).length;
@@ -269,6 +298,22 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       if (g === gen.current) setWonderWait(null);
     }
   };
+  // D60: Muse Wonder starts writing tests when the drawing is done, not on the Bet click, so the wait is spent looking at the
+  // drawing. Only the test-writing: its sentence stays hidden (D18), and the two model bets start only with a test.
+  const early = useRef<{ key: string; answer: Promise<ProposalsAnswer | null> } | null>(null);
+  const [earlyBusy, setEarlyBusy] = useState(false);
+  useEffect(() => {
+    if (!target || !fn || pasted?.cantCheck || !api.proposals) return;
+    const key = `${target.codeSha256}|${fn}`;
+    if (early.current?.key === key || exp || proposals) return;
+    setEarlyBusy(true);
+    const answer = Promise.resolve()
+      .then(() => api.proposals(target, fn))
+      .catch(() => null)
+      .finally(() => setEarlyBusy(false));
+    early.current = { key, answer };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target?.codeSha256, fn]);
   const writeOwn = () => {
     ownTest.current = true;
     setChanging(true);
@@ -319,13 +364,65 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handoff?.nonce]);
 
+  // ---- D60: the invite on the first screen. A link can carry the code in its fragment, which never reaches a server's logs.
+  const [invite, setInvite] = useState<{ required: boolean; signedIn: boolean; error?: string; busy?: boolean } | null>(null);
+  const [inviteCode, setInviteCode] = useState("");
+  const locked = Boolean(invite?.required && !invite.signedIn);
+  const useCode = async (typed: string) => {
+    setInvite((v) => (v ? { ...v, busy: true } : v));
+    const a = await api.signIn(typed);
+    if ("error" in a) {
+      setInvite((v) => ({ required: true, signedIn: false, ...v, busy: false, error: a.error }));
+      return false;
+    }
+    setInvite({ required: true, signedIn: true });
+    return true;
+  };
+  useEffect(() => {
+    let live = true;
+    void (async () => {
+      const carried = typeof location !== "undefined" ? /^#(?:invite|code)=(.+)$/.exec(location.hash)?.[1] : undefined;
+      if (carried) {
+        history.replaceState(null, "", location.pathname + location.search);
+        const ok = await Promise.resolve().then(() => useCode(decodeURIComponent(carried))).catch(() => false);
+        if (ok || !live) return;
+      }
+      const st = await Promise.resolve().then(() => api.inviteStatus()).catch(() => null);
+      if (live && st) setInvite((v) => (v?.error ? v : { required: st.required, signedIn: st.signedIn }));
+    })();
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [api]);
+  const submitInvite = async (e: FormEvent) => {
+    e.preventDefault();
+    // Whatever was pasted stays in its box: the code only opens the door.
+    const ok = await useCode(inviteCode.trim());
+    if (ok && code.trim() !== "") void read(code, lang === "auto" ? undefined : lang);
+  };
+  // D60: paste anywhere on the first screen draws at once.
+  useEffect(() => {
+    if (pasted) return;
+    const onDocPaste = (e: globalThis.ClipboardEvent) => {
+      if ((e.target as HTMLElement | null)?.closest?.("input, textarea, select")) return;
+      const text = e.clipboardData?.getData("text") ?? "";
+      if (text.trim() === "") return;
+      e.preventDefault();
+      setCode(text);
+      if (!locked) void read(text, lang === "auto" ? undefined : lang);
+    };
+    document.addEventListener("paste", onDocPaste);
+    return () => document.removeEventListener("paste", onDocPaste);
+  });
+
   const onPaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
     // The drawing comes first: pasted code is read at once (no button to press).
     const text = e.clipboardData.getData("text");
     if (text.trim() === "" || code.trim() !== "") return;
     e.preventDefault();
     setCode(text);
-    void read(text, lang === "auto" ? undefined : lang);
+    if (!locked) void read(text, lang === "auto" ? undefined : lang);
   };
 
   // ---- the bet pop-up ----
@@ -539,38 +636,73 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   // ---- entry ----
   if (!pasted) {
     return (
-      <section className="u1-entry" aria-labelledby="u1-entry-h">
+      <section className="u1-entry" aria-labelledby="u1-entry-h" data-testid="u1-entry">
+        <div className="e-left">
         <h1 id="u1-entry-h">See how your code is built</h1>
         <p className="u1-lede">Paste one file. Atlas draws its functions and how they call each other. Then, if you like, bet on what it will do: Atlas runs it and shows whether your bet matched.</p>
-        <label htmlFor="u1-code" className="u1-sr">
-          Your code
-        </label>
-        <textarea id="u1-code" className="u1-code" data-testid="u1-code" value={code} onChange={(e) => setCode(e.target.value)} onPaste={onPaste} placeholder="Paste a JavaScript, TypeScript or Python file here" spellCheck={false} rows={10} disabled={busy !== null} />
-        <div className="u1-entry-row">
-          <button type="button" className="u1-btn u1-primary" onClick={() => read(code, lang === "auto" ? undefined : lang)} disabled={busy !== null || code.trim() === ""} data-testid="u1-draw">
-            Draw it
-          </button>
-          <label className="u1-inline">
-            <span className="u1-sr">Language</span>
-            <select value={lang} onChange={(e) => setLang(e.target.value as Lang | "auto")} aria-label="Language" data-testid="u1-lang">
-              <option value="auto">Guess the language</option>
-              <option value="ts">TypeScript</option>
-              <option value="js">JavaScript</option>
-              <option value="py">Python</option>
-            </select>
-          </label>
+        {invite?.required && !invite.signedIn && (
+          <form className="e-invite" onSubmit={(e) => void submitInvite(e)} data-testid="e-invite">
+            <label htmlFor="e-invite-code">Your invite code</label>
+            <div className="e-invite-row">
+              <input id="e-invite-code" value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} autoComplete="off" spellCheck={false} data-testid="e-invite-code" />
+              <button type="submit" className="u1-btn" disabled={inviteCode.trim() === "" || invite.busy === true} data-testid="e-invite-go">
+                Use this code
+              </button>
+            </div>
+            {invite.error && <p className="e-invite-error" role="alert" data-testid="e-invite-error">{invite.error}</p>}
+          </form>
+        )}
+        <div className="e-try">
           <button
             type="button"
-            className="u1-link"
+            className="u1-btn u1-primary e-example"
             onClick={() => {
               setCode(U1_EXAMPLE);
               void read(U1_EXAMPLE, "ts");
             }}
-            disabled={busy !== null}
+            disabled={busy !== null || locked}
             data-testid="u1-example"
           >
-            Try an example
+            Try the example
           </button>
+          <span className="u1-sub e-or">or paste a file anywhere on this page</span>
+        </div>
+        <label htmlFor="u1-code" className="u1-sr">
+          Your code
+        </label>
+        <textarea
+          id="u1-code"
+          className="u1-code"
+          data-testid="u1-code"
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          onPaste={onPaste}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && code.trim() !== "" && !locked) {
+              e.preventDefault();
+              void read(code, lang === "auto" ? undefined : lang);
+            }
+          }}
+          placeholder="Paste a JavaScript, TypeScript or Python file here"
+          spellCheck={false}
+        />
+        <div className="u1-entry-row">
+          <button type="button" className="u1-btn" onClick={() => read(code, lang === "auto" ? undefined : lang)} disabled={busy !== null || code.trim() === "" || locked} data-testid="u1-draw">
+            Draw it
+            <kbd className="k">⌘↵</kbd>
+          </button>
+          {/* The language is guessed. The choice appears only if a guess did not work. */}
+          {error && (
+            <label className="u1-inline">
+              <span className="u1-sr">Language</span>
+              <select value={lang} onChange={(e) => setLang(e.target.value as Lang | "auto")} aria-label="Language" data-testid="u1-lang">
+                <option value="auto">Guess the language</option>
+                <option value="ts">TypeScript</option>
+                <option value="js">JavaScript</option>
+                <option value="py">Python</option>
+              </select>
+            </label>
+          )}
         </div>
         <div className="u1-entry-or">
           <label className="u1-file">
@@ -611,6 +743,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           </p>
         )}
         {error && <ErrorNotice message={error} />}
+        </div>
+        <ExampleDrawing />
       </section>
     );
   }
@@ -772,7 +906,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
 
       {!notRunnable && fn && !after && (
         <div className="u1-bet">
-          {!open && !exp && !proposals && <span className="u1-sub u1-paid" data-testid="u1-paid-bet">{CHANGE_WORDS.paidWonder}</span>}
+          {!open && !exp && !proposals && <span className="u1-sub u1-paid" data-testid="u1-paid-bet">{earlyBusy ? CHANGE_WORDS.earlyWonder : CHANGE_WORDS.paidBets}</span>}
           <button type="button" className="u1-btn u1-primary u1-toggle" aria-expanded={open} aria-controls="u1-pop" onClick={openBet} data-testid="u1-bet-toggle">
             {open ? "Hide the bet" : "Bet on your understanding"}
           </button>

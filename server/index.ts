@@ -2,6 +2,8 @@
 import "./load-env";
 import { serve } from "@hono/node-server";
 import { createApp, type AppOptions } from "./app";
+import { EXAMPLE_FUNCTION } from "./paste";
+import { U1_EXAMPLE } from "../web/u1-example";
 import { createShareLimit, DEFAULT_GITHUB_SHARES } from "./access/shares";
 import { serverOptions, switchesFromEnv } from "./wiring";
 import { removeSandboxLeftovers } from "./sandbox-leftovers";
@@ -161,6 +163,15 @@ serve({ fetch: app.fetch, port }, (info) => {
   console.log(`Atlas server listening on http://localhost:${info.port} (model bets ${modelBetsOn ? "on" : "off"}, Muse Spark Open ${sparkOpen.available ? "available" : `not available (${sparkOpen.reason})`}, investigator ${investigatorOn ? "on" : "off"}, test proposer ${on.proposer ? "on" : "off"}, fixer ${fixerOn ? "on" : "off"}, adversary ${adversaryOn ? "on" : "off"}, outliner ${on.outliner ? "on" : "off"}, .atlas.json files ${publishProofs ? "written to the proofs folder" : "kept in memory only"}, sandbox ${executor.kind === "modal" ? "Modal (a throwaway container per run, no network)" : "local (Node permission model on this machine)"})`);
   // D32: warm Modal once, in the background; never blocks or stops the server.
   void runAs({ kind: "system", label: "server warm-up (D32)", route: "startup" }, () => warmUp(executor));
+  // D60: ask Muse Wonder once for the example's tests and keep the real answer, so the example has no wait. Approved at its normal cost.
+  if (investigatorOn) {
+    void runAs({ kind: "system", label: "the example's tests (D60)", route: "startup" }, async () => {
+      const headers = { "content-type": "application/json", "x-atlas-session": "ss_example_warmup" };
+      const post = (path: string, body: unknown) => inner.request(path, { method: "POST", headers, body: JSON.stringify(body) });
+      const p = (await (await post("/paste", { code: U1_EXAMPLE, language: "ts" })).json()) as { target?: { ref: string; codeSha256: string } };
+      if (p.target) await post("/paste/proposals", { target: { ref: p.target.ref, codeSha256: p.target.codeSha256 }, exportName: EXAMPLE_FUNCTION });
+    }).catch((e: Error) => console.warn(`note: the example's tests were not prepared: ${e.message}`));
+  }
   if (modelBetsOn || investigatorOn) {
     console.log(`model budget: $${budget.spentUsd().toFixed(2)} already spent (usage log, ${spentAtStart.lines} lines${spentAtStart.skipped ? `, ${spentAtStart.skipped} unreadable` : ""})`);
   }

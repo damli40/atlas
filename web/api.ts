@@ -286,6 +286,14 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
     sweep: (target: Target, params: unknown) => post<SweepAnswer>("/sweeps", { target: { ref: target.ref, codeSha256: target.codeSha256 }, params }),
     /** D06-03: a round's .atlas.json, as the server kept it. */
     proof: (runId: string) => get<AtlasFile>(`/proofs/${encodeURIComponent(runId)}`),
+    /** D60: whether this server needs an invite code, and whether this browser holds one. */
+    inviteStatus: () => get<{ required: boolean; signedIn: boolean }>("/invite/status"),
+    /** D60: the same route the /invite page posts to. The server keeps the code in an HttpOnly cookie. */
+    signIn: async (code: string): Promise<{ ok: true } | { error: string }> => {
+      const r = await fetchFn(`${base}/invite`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code }) });
+      const body = (await r.json().catch(() => null)) as { error?: string } | null;
+      return r.ok ? { ok: true } : { error: body?.error ?? `The server answered ${r.status}.` };
+    },
     /** R3: the code's own steps for the drawing, from the third run. Never part of a verdict or a proof. */
     helpers: (runId: string) => get<HelperAnswer>(`/runs/${encodeURIComponent(runId)}/helpers`),
     /** R3: the proof's path in pencil as an image address, or the server's own words for why not (review M5). */

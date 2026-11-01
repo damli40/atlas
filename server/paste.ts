@@ -33,6 +33,7 @@ import { PASTED_RUNNERS, type PastedRunners } from "../runners/pasted-registry";
 import type { ChatArgs, ChatResult } from "./meta/client";
 import { guardPastedChat } from "./meta/pasted-guard";
 import { PROPOSER_MODEL, runProposer, type Proposal } from "./meta/roles/proposer";
+import { U1_EXAMPLE } from "../web/u1-example";
 import { oneLine, sessionEmitter, type AgentLog } from "./log/agentlog";
 import { BAD_SESSION, sessionIdOf } from "./log/sse";
 import type { ModelBudget } from "./meta/budget";
@@ -157,6 +158,10 @@ export interface PasteDeps {
   weakSpotsOf?: (c: Context, sessionId: string) => string | null;
 }
 
+/** D60: the first screen's example, and the function its round opens on (a test holds this to the page's own default). */
+export const EXAMPLE_FUNCTION = "fetchWithRetry";
+const EXAMPLE_SHA = makePastedTarget(U1_EXAMPLE, "ts").codeSha256;
+
 export function createPaste(opts: PasteOptions, deps: PasteDeps) {
   const runners = opts.runners ?? PASTED_RUNNERS;
   const sessions = new Map<string, Map<string, PastedEntry>>();
@@ -167,6 +172,25 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
   /** experiment id → the proposal set it came from (session-scoped by the round store itself). */
   const experimentSet = new Map<string, { sessionId: string; setId: string }>();
   const proposerModel = opts.proposer?.model ?? PROPOSER_MODEL;
+  // D60: the example's tests, asked once. A failed answer is not kept, so the next person's request asks again.
+  let exampleAnswer: Promise<Awaited<ReturnType<typeof runProposer>> | null> | null = null;
+  const keptExample = (entry: PastedEntry, exp: FoundExport) => {
+    if (!proposerChat) return Promise.resolve(null);
+    exampleAnswer ??= runProposer(
+      { source: entry.target.source!, language: entry.target.language!, exportName: exp.name, exportLine: exp.line, exportNames: entry.exports.map((e) => e.name), model: proposerModel },
+      { chat: proposerChat, log: sessionEmitter(deps.agentLog, "example-tests") },
+    ).then(
+      (r) => {
+        if (!r.ok) exampleAnswer = null;
+        return r.ok ? r : null;
+      },
+      () => {
+        exampleAnswer = null;
+        return null;
+      },
+    );
+    return exampleAnswer;
+  };
   /** E3 review B3: one bet-screen text (its test part) per distinct text, shared by every round that uses it. */
   const contexts = new Map<string, string>();
   /** E3 review r2 B3: the numbered file, one per (file, marked line). */
@@ -386,13 +410,15 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
         if (from.codeSha256 !== entry.target.codeSha256 || from.exportName !== exp.name) return c.json({ error: "that sentence is about another file or function" }, 400);
         focusClaim = from.claim;
       }
+      // D60: the example's tests are asked once and kept: a real answer from the real model and gate, with no wait for the next person.
+      const kept = focusClaim === undefined && entry.target.codeSha256 === EXAMPLE_SHA && exp.name === EXAMPLE_FUNCTION ? await keptExample(entry, exp) : null;
       const used = proposalCount.get(sessionId) ?? 0;
-      if (used >= MAX_PROPOSALS_PER_SESSION) return notAsked(`call limit reached: this session already asked for tests ${MAX_PROPOSALS_PER_SESSION} times`);
-      const byIp = deps.takeModelRound(c);
+      if (!kept && used >= MAX_PROPOSALS_PER_SESSION) return notAsked(`call limit reached: this session already asked for tests ${MAX_PROPOSALS_PER_SESSION} times`);
+      const byIp = kept ? ({ ok: true } as const) : deps.takeModelRound(c);
       if (!byIp.ok) return notAsked(byIp.reason);
-      proposalCount.set(sessionId, used + 1);
-      const aimedAt = deps.weakSpotsOf?.(c, sessionId) ?? null;
-      const r = await runProposer(
+      if (!kept) proposalCount.set(sessionId, used + 1);
+      const aimedAt = kept ? null : (deps.weakSpotsOf?.(c, sessionId) ?? null);
+      const r = kept ?? await runProposer(
         {
           source: entry.target.source!,
           language: entry.target.language!,
