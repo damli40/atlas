@@ -153,3 +153,15 @@ Plain words: the drawing stays handmade, and the tool around it became exact and
 - `design/shots/`: every stage at 1440x900 and 1280x720. `design/shot.mjs`, `design/first.mjs` make them. Models mocked, sealed runs real; the mock's words are hidden with `U3_QUIET_MOCK`.
 - `hero-journey-v2.mp4`: the journey, 16 s. `journey-a/journey.json`: the speed numbers. `journey-a/live-*`: one live round, $0.0466.
 - The third run carries no signing key and is read through a strict reader; it reaches no verdict or proof (`tests/unit/r3-helpers.test.ts`, "D61").
+
+## Fix round 4 (D64)
+
+Where to look: `round4/` holds a picture for every visual item, in the state the cold tester saw it, at 1440 and 1280. `round4.mjs` makes them and checks each one; `round4/round4.json` is its log. Its checks include: Hide the bet covers no words, the change note clears the panel, the consent is on screen, no word of the path runs under the code panel, and a stranger's reload after Delete says the card is gone.
+
+`moonwell-real/` is the one real Moonwell run through the new shell, with its own README. `hero-journey-v2.mp4` was re-recorded last. Models mocked everywhere else.
+
+What the round changed in how Atlas leads: D64's order (a missed ending, a missed value, a matched value, a matched ending), never a count or a time.
+
+Keys and typing (a call made this round): the typed box takes keys only when clicked or on T. Esc leaves it. A digit picks its numbered option. A digit with no option, on an empty box, starts the typed value.
+
+Not done, logged: the page-only $1 floor, Wonder failing paying twice, corrupt or old kept files not being removed or counted, and `allKept` reading every file on each keep. Earlier screens' own dropdowns (many callers, findings, the earlier paste form) look like the product until they open, then the browser's list shows.
