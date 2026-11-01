@@ -103,6 +103,8 @@ export interface SpecStep {
   device?: string;
   /** A wait's measured length in ms (sets how long the clock's hand sweeps, within limits). */
   ms?: number;
+  /** For a helper step: which function of the file this step is in. */
+  part?: string;
 }
 
 export interface RenderSpec {

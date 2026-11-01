@@ -1,38 +1,110 @@
-// D65 style proof: the machine on the page. A flag (?machine=1) turns it on, so nothing changes for anyone else until Dami has seen it.
-import { useMemo } from "react";
-import { drawMachine, machineParts, type MachineRing } from "../../renderer/machine/machine";
+// D65: the machine on the page. Plain SVG text from renderer/machine; React never touches what is inside it. Each part is a button, and
+// clicking one says what it stands for and its lines.
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { MachinePlayer } from "../../renderer/machine/player";
 import { MACHINE_CSS } from "../../renderer/machine/pencil";
-import type { FileOutline } from "../../src/file-outline";
-import type { BenchModel } from "../machines/bench/model";
+import type { MachineDrawn } from "../../renderer/machine/machine";
+import type { MachineBeat } from "../../renderer/machine/script";
 import { ensureRendererStyle } from "./Drawing";
 
-export const machineOn = () => typeof location !== "undefined" && new URLSearchParams(location.search).get("machine") === "1";
+const VIEW_KEY = "atlas-view";
+/** The machine is the first view unless this person chose the chart, or the screen is a phone. */
+export const machineFirst = (): boolean => {
+  if (typeof window === "undefined") return true;
+  if (window.innerWidth < 760) return false;
+  try {
+    return window.sessionStorage.getItem(VIEW_KEY) !== "chart";
+  } catch {
+    return true;
+  }
+};
+export const rememberView = (view: "machine" | "chart") => {
+  try {
+    window.sessionStorage.setItem(VIEW_KEY, view);
+  } catch {
+    // only a preference
+  }
+};
 
 let styled = false;
-export function ensureMachineStyle() {
+function ensureMachineStyle() {
   ensureRendererStyle();
   if (styled || typeof document === "undefined") return;
   styled = true;
   const style = document.createElement("style");
-  style.textContent = `${MACHINE_CSS}
-.m-host{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:18px 18px 18px;box-sizing:border-box}
-.m-host .m-sheet{width:100%;height:100%;max-width:calc(var(--m-w) * 1.3);max-height:calc(var(--m-h) * 1.3);display:block;overflow:visible}
-.m-flow{position:relative}
-.m-kicker{font:400 15px/1.3 "Atlas Besley",Georgia,serif;color:var(--rr-soft,#5d5650);margin:0}
-.m-title{font:400 44px/1.1 "Atlas Besley",Georgia,serif;margin:2px 0 0}
-.m-cap{font:italic 400 13.5px/1.45 "Atlas Besley",Georgia,serif;color:#5d5650;margin:4px 0 0}
-.m-over{z-index:3}
-.m-tooMany{position:absolute;left:24px;top:12px;font:400 13px/1.4 var(--ui, sans-serif);z-index:2}`;
+  style.dataset.atlas = "machine";
+  style.textContent = MACHINE_CSS;
   document.head.append(style);
 }
 
-export function SvgSheet({ svg, width, height, testid, className = "" }: { svg: string; width: number; height: number; testid?: string; className?: string }) {
-  ensureMachineStyle();
-  return <div className={`rr-host m-host ${className}`} data-theme="light" data-testid={testid} style={{ background: "transparent", ["--m-w" as string]: `${width}px`, ["--m-h" as string]: `${height}px` }} dangerouslySetInnerHTML={{ __html: svg }} />;
+export interface MachineControl {
+  play(i: number, ms: number): void;
+  setScript(beats: MachineBeat[]): void;
+  rewind(): void;
+  land(): void;
+  skip(): void;
 }
 
-export function MachineView({ model, outline, source, language, ring = null }: { model: BenchModel; outline: FileOutline; source: string; language: "js" | "ts" | "py"; ring?: MachineRing | null }) {
-  const drawn = useMemo(() => drawMachine(machineParts(model, outline, source, language), { seed: `machine:${outline.parts.map((p) => p.name).join(",")}`, ring }), [model, outline, source, language, ring]);
-  if (drawn.tooMany) return <p className="m-tooMany" data-testid="machine-too-many">{drawn.tooMany}</p>;
-  return <SvgSheet svg={drawn.svg} width={drawn.width} height={drawn.height} testid="machine" />;
-}
+export const MachineSheet = forwardRef<MachineControl, { drawn: MachineDrawn; reduced?: boolean; onPart?: (id: string) => void; testid?: string }>(function MachineSheet({ drawn, reduced = false, onPart, testid = "machine" }, ref) {
+  ensureMachineStyle();
+  const host = useRef<HTMLDivElement | null>(null);
+  const player = useRef<MachinePlayer | null>(null);
+  const [card, setCard] = useState<{ words: string; x: number; y: number } | null>(null);
+  const html = useMemo(() => ({ __html: drawn.svg }), [drawn.svg]);
+  useLayoutEffect(() => {
+    const svg = host.current?.querySelector("svg");
+    player.current = svg ? new MachinePlayer(svg as SVGSVGElement, reduced) : null;
+  }, [drawn.svg, reduced]);
+  useImperativeHandle(ref, () => ({
+    play: (i, ms) => void player.current?.play(i, ms),
+    setScript: (b) => player.current?.setScript(b),
+    rewind: () => player.current?.rewind(),
+    land: () => player.current?.land(),
+    skip: () => player.current?.skip(),
+  }), []);
+  useEffect(() => {
+    if (!card) return;
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || document.querySelector(".u1-proof")) return;
+      e.preventDefault();
+      setCard(null);
+    };
+    window.addEventListener("keydown", onEsc, true);
+    return () => window.removeEventListener("keydown", onEsc, true);
+  }, [card]);
+  const show = (el: Element) => {
+    const part = el.closest("[data-part]");
+    if (!part) return setCard(null);
+    const box = part.getBoundingClientRect();
+    const mine = host.current!.getBoundingClientRect();
+    setCard({ words: part.getAttribute("aria-label") ?? "", x: box.left - mine.left + box.width / 2, y: box.top - mine.top });
+    onPart?.((part.getAttribute("data-part") ?? "").split("#")[0]!);
+  };
+  return (
+    <div
+      ref={host}
+      className="rr-host m-host"
+      data-theme="light"
+      data-testid={testid}
+      onClick={(e) => {
+        e.stopPropagation();
+        show(e.target as Element);
+      }}
+      onPointerUp={(e) => (e.target as Element).closest?.("[data-part]") && e.stopPropagation()}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          if (!(e.target as Element).closest?.("[data-part]")) return;
+          e.preventDefault();
+          show(e.target as Element);
+        }
+      }}
+    >
+      <div className="m-svg" dangerouslySetInnerHTML={html} style={{ ["--m-w" as string]: `${drawn.width}px`, ["--m-h" as string]: `${drawn.height}px` }} />
+      {card && (
+        <p className="m-card-pop" role="status" data-testid="machine-card" style={{ left: Math.max(170, card.x), top: Math.max(8, card.y - 8) }}>
+          {card.words}
+        </p>
+      )}
+    </div>
+  );
+});

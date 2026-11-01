@@ -120,7 +120,7 @@ function MoonwellSaved({ api, onRunAgain, onNew }: { api: Api; onRunAgain: (plac
       {cant && <p className="notice" role="alert" data-testid="moonwell-cant">{cant}</p>}
       <div className="m-split" data-testid="m-split">
         {moment && <div className="m-standalone"><MomentView moment={moment} stranger /></div>}
-        <MoonwellDrawing run={file.runs[0]} bets={file.bets} verdicts={file.verdicts} captions={file.captions} still stranger />
+        <MoonwellDrawing run={file.runs[0]} bets={file.bets} verdicts={file.verdicts} captions={file.captions} still stranger machine />
       </div>
     </section>
   );
@@ -392,7 +392,7 @@ export function MoonwellFlow({ api, onRoundOpen, direct = false }: { api: Api; o
         // D60: the film's payoff frame: the moment beside the ring.
         <div className="m-split" ref={payoff} data-testid="m-split">
           <MoonwellMoment result={result} />
-          <MoonwellDrawing run={result.run} bets={result.bets} verdicts={result.verdicts} compact />
+          <MoonwellDrawing run={result.run} bets={result.bets} verdicts={result.verdicts} compact machine />
         </div>
       )}
 

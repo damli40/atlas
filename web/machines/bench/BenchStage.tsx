@@ -13,7 +13,9 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent as RPointerEvent, type ReactNode } from "react";
 import { benchSpec } from "../../../renderer/authors/bet-view";
 import { momentOf, type Moment } from "../../../src/moment";
-import { MachineView, machineOn } from "../../drawing/MachineView";
+import { MachineSheet, machineFirst, rememberView, type MachineControl } from "../../drawing/MachineView";
+import { drawMachine, machineParts, type MachineRing } from "../../../renderer/machine/machine";
+import { machineScript } from "../../../renderer/machine/script";
 import { whatHappened } from "../../../renderer/authors/what-happened";
 import type { HelperAnswer } from "../../api";
 import type { Mounted } from "../../../renderer/live/mount";
@@ -89,19 +91,19 @@ export function roundUp(ms: number): number {
   return 10 * p;
 }
 
-/** The proof's ring: on the chute of the part the run's traced steps say threw, else the function under test. */
-function machineRing(after: After, language: "js" | "ts" | "py", tested: string | null) {
+/** Where the ring lands: on the chute of the part the run's traced steps say threw, else on the function under test. Only when the bet missed. */
+function machineRing(after: After, language: "js" | "ts" | "py", tested: string | null): MachineRing | null {
   const moment = momentOf(after.marks, after.run, language);
   if (!moment || moment.kind !== "not_matched" || !tested) return null;
   const steps = after.helpers && "steps" in after.helpers ? after.helpers.steps : [];
   const threw = [...steps].reverse().find((x) => x.threw)?.name;
   const m = after.run.result.measured as { outcome?: string };
   const words = `you said ${moment.you}`;
-  return m.outcome === "threw" ? { part: threw ?? tested, on: "chute" as const, words } : { part: tested, on: "housing" as const, words };
+  return m.outcome === "threw" ? { part: threw ?? tested, on: "chute", words } : { part: tested, on: "housing", words };
 }
 
 export function BenchStage({ seenBefore = false, codeRan = false, model, theme, after = null, onPart, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null }: BenchStageProps) {
-  const machine = machineOn();
+  const [wantMachine, setWantMachine] = useState(machineFirst);
   const playedRef = useRef(onPlayed);
   playedRef.current = onPlayed;
   const dark = useDarkScheme();
@@ -151,6 +153,29 @@ export function BenchStage({ seenBefore = false, codeRan = false, model, theme, 
     const spec = whatHappened({ run: after.run, experiment: after.experiment, bets: after.bets.filter((b) => b.who === "human" && b.measures === lead), verdicts: [...after.verdicts], origin: "this-run", ...(after.helpers ? { helpers: after.helpers } : {}), seed: `path:${after.run.id}` });
     return { ...spec, title: undefined, kicker: undefined, subtitle: undefined } as typeof spec;
   }, [after?.run, after?.experiment, after?.bets, after?.verdicts, after?.helpers, after?.marks]); // eslint-disable-line react-hooks/exhaustive-deps
+  // D65: the machine, drawn by plain code from the same model as the chart. It holds its ring from the start, hidden until the run lands it.
+  const machineRef = useRef<MachineControl | null>(null);
+  const parts = useMemo(() => machineParts(model, outline, source, language), [model, outline, source, language]);
+  const ring = useMemo(() => (after ? machineRing(after, language, model.tested) : null), [after?.run, after?.marks, after?.helpers, model.tested]); // eslint-disable-line react-hooks/exhaustive-deps
+  const drawn = useMemo(() => {
+    const d = drawMachine(parts, { seed: `machine:${outline.parts.map((p) => p.name).join(",")}`, ring });
+    // The check runs on every drawing: a picture that fails it is not shown.
+    return d.problems.length > 0 ? { ...d, tooMany: `The machine could not be drawn clearly (${d.problems[0]}), so here is the box chart.` } : d;
+  }, [parts, ring, outline]);
+  const noRunToShow = Boolean(after && (after.script.notShown !== null || pathSpec?.notShown !== undefined));
+  const showMachine = wantMachine && !drawn.tooMany && !noRunToShow && model.notShown === null;
+  const beats = useMemo(() => (pathSpec ? machineScript(pathSpec, parts, outline, model.tested) : []), [pathSpec, parts, outline, model.tested]);
+  useEffect(() => {
+    const onM = (e: globalThis.KeyboardEvent) => {
+      if (e.key.toLowerCase() !== "m" || e.metaKey || e.ctrlKey || e.altKey || (e.target as HTMLElement | null)?.closest?.("input, textarea, select")) return;
+      setWantMachine((w) => {
+        rememberView(w ? "chart" : "machine");
+        return !w;
+      });
+    };
+    window.addEventListener("keydown", onM);
+    return () => window.removeEventListener("keydown", onM);
+  }, []);
   /** undefined: not drawn yet. null: refused. A mount with no player: the plain list. The last two have nothing to play. */
   const [pathMount, setPathMount] = useState<Mounted | null | undefined>(undefined);
   /** Ends the pause while the chart moves aside, so a click during it counts. */
@@ -190,6 +215,8 @@ export function BenchStage({ seenBefore = false, codeRan = false, model, theme, 
       skipAsked.current = false;
       setPlaying(true);
       p.rewind();
+      machineRef.current?.rewind();
+      machineRef.current?.setScript(beats);
       // D60: about 5 s to the ring, whatever the path's length, up to about 6 s. The final ring keeps its pace: it is the payoff.
       p.setRunPace(Math.max(0.12, Math.min(0.85, 4400 / Math.max(1, pathSpec.steps.length * 1000))));
       // The chart moves aside first, so the whole story is seen.
@@ -205,6 +232,7 @@ export function BenchStage({ seenBefore = false, codeRan = false, model, theme, 
       }
       for (let i = 0; i < pathSpec.steps.length && live; i++) {
         lit(pathSpec.steps[i]!);
+        machineRef.current?.play(i, Math.max(120, Math.min(800, 4400 / pathSpec.steps.length)));
         // The thread takes the centre and the view follows its head.
         pathMount?.bringIntoView(pathSpec.steps[i]!.nodes[0] ?? "", !skipAsked.current);
         const played = p.playStep(i);
@@ -221,6 +249,7 @@ export function BenchStage({ seenBefore = false, codeRan = false, model, theme, 
       for (const m of pathSpec.marks) if (live) await p.landMark(m);
       if (!live) return;
       p.showCaptions();
+      machineRef.current?.land();
       end();
     })();
     return () => {
@@ -235,6 +264,7 @@ export function BenchStage({ seenBefore = false, codeRan = false, model, theme, 
     endPause.current?.();
     pathMount?.player?.skip();
     chartMount.current?.player?.skip();
+    machineRef.current?.skip();
   };
   // D60: any key skips while the run plays (a key with a modifier is the browser's).
   useEffect(() => {
@@ -293,7 +323,7 @@ export function BenchStage({ seenBefore = false, codeRan = false, model, theme, 
   const readout = after && marksOn ? marksReadout(after.marks) : model.tested ? `testing ${model.tested}` : `${model.boxes.length} ${model.boxes.length === 1 ? "part" : "parts"} · ${model.lines.length} ${model.lines.length === 1 ? "join" : "joins"}`;
 
   return (
-    <div className={`rr-host u1-root${marksOn ? " u1-marked" : ""}`} data-theme={shown} data-stage={stage} data-phase={!after ? "rest" : marksOn ? "marked" : "playing"} data-pop={side && !after ? "" : undefined} data-testid="bench-stage" onPointerUp={onRootPointerUp} onKeyDown={onKey} tabIndex={-1}>
+    <div className={`rr-host u1-root${marksOn ? " u1-marked" : ""}`} data-view={showMachine ? "machine" : "chart"} data-theme={shown} data-stage={stage} data-phase={!after ? "rest" : marksOn ? "marked" : "playing"} data-pop={side && !after ? "" : undefined} data-testid="bench-stage" onPointerUp={onRootPointerUp} onKeyDown={onKey} tabIndex={-1}>
       <header className="r-head">
         <p className="r-kick">{title}</p>
         <h1 className="r-name">{model.tested ?? fileName}</h1>
@@ -308,19 +338,33 @@ export function BenchStage({ seenBefore = false, codeRan = false, model, theme, 
             {model.notShown}
           </p>
         ) : (
-          machine && !after ? <MachineView model={model} outline={outline} source={source} language={language} /> : <Drawing spec={chart} theme={shown} className="u1-svg r-sheet" maxScale={1.2} minScale={0.3} hover={!after} onMount={onChart} onSelect={(id) => {
+          <Drawing spec={chart} theme={shown} className="u1-svg r-sheet" maxScale={1.2} minScale={0.3} hover={!after} onMount={onChart} onSelect={(id) => {
               setPinned((p) => (p === id ? null : id));
               onPart?.(id);
             }} />
         )}
       </div>
-      {machine && after && marksOn && (
-        <div className="r-viewport r-path m-over" data-testid="machine-result">
-          <MachineView model={model} outline={outline} source={source} language={language} ring={machineRing(after, language, model.tested)} />
+      {showMachine && (
+        <div className="r-machine" data-testid="machine-region" data-captions={after && marksOn && pathSpec?.captions.length ? "" : undefined}>
+          <MachineSheet ref={machineRef} drawn={drawn} reduced={still} onPart={(id) => model.parts[id]?.kind === "code" && onPart?.(id)} />
+          {after && marksOn && pathSpec?.captions.length ? (
+            <p className="m-captions" data-testid="machine-captions">
+              {pathSpec.captions.map((c) => (
+                <span key={c.words}>{c.words}</span>
+              ))}
+            </p>
+          ) : null}
         </div>
       )}
+      {wantMachine && drawn.tooMany && !noRunToShow && <p className="r-view-note" role="note" data-testid="machine-too-many">{drawn.tooMany}</p>}
+      {!drawn.tooMany && !noRunToShow && model.notShown === null && typeof window !== "undefined" && window.innerWidth >= 760 && (
+        <button type="button" className="r-view-toggle" onClick={() => setWantMachine((w) => { rememberView(w ? "chart" : "machine"); return !w; })} data-testid="view-toggle">
+          {showMachine ? "Box chart" : "Machine"}
+          <kbd className="k">M</kbd>
+        </button>
+      )}
       {pathSpec && (
-        <div className="r-viewport r-path" data-testid="bench-path" style={machine && marksOn ? { visibility: "hidden" } : undefined}>
+        <div className="r-viewport r-path" data-testid="bench-path">
           <Drawing spec={pathSpec} theme={shown} className="r-sheet" maxScale={1.08} minScale={typeof window !== "undefined" && window.innerWidth <= 760 ? 0.66 : 0.5} hover={false} onPending={() => setPathMount(undefined)} onMount={(m) => setPathMount(m)} />
         </div>
       )}

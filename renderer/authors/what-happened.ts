@@ -654,7 +654,7 @@ export function whatHappened(input: WhatHappenedInput): RenderSpec {
       if (it.answer) pendingWords = it.answer;
     } else if (it.kind === "helper") {
       const words = `${clip(it.name, 30)}${it.threw ? " threw" : ""}`;
-      add({ id, kind: "ticket", words, small: it.inner > 0 ? `your code, and ${grouped(it.inner)} call${it.inner === 1 ? "" : "s"} inside it` : "your code", provenance: "run", pin: it.threw ? "red" : "ochre" }, { beat: "call", words });
+      add({ id, kind: "ticket", words, small: it.inner > 0 ? `your code, and ${grouped(it.inner)} call${it.inner === 1 ? "" : "s"} inside it` : "your code", provenance: "run", pin: it.threw ? "red" : "ochre" }, { beat: "call", words, part: it.name });
     } else if (it.kind === "together") {
       const nameList = names(unique(it.calls.map((c) => c.name)));
       const sameName = unique(it.calls.map((c) => c.name)).length === 1;

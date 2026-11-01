@@ -184,7 +184,7 @@ function rounded(pts: readonly Pt[], r: number): Pt[] {
 }
 
 /** A pipe along a route: a filled band, two pencil edges, and shading ticks along its underside. */
-export function pipe(s: Sheet, route: readonly W[], r = 6.5, o: { cls?: string; bend?: number; dashed?: boolean } = {}) {
+export function pipe(s: Sheet, route: readonly W[], r = 6.5, o: { cls?: string; bend?: number; dashed?: boolean } = {}): Pt[] {
   const page = route.map(iso);
   const line = rounded(page, o.bend ?? r * 2.4);
   // resample evenly so the band and the ticks stay even round a bend
@@ -219,6 +219,87 @@ export function pipe(s: Sheet, route: readonly W[], r = 6.5, o: { cls?: string; 
   s.raw(`<path class="m-pencil-cream" d="${d}"/>`);
   s.curve(left, { width: 1.05, cls: o.cls ?? "m-ink" });
   s.curve(right, { width: 1.05, cls: o.cls ?? "m-ink" });
+  return pts;
+}
+
+/** Which way a pipe flows: arrow marks printed on it, as real pipework has. Returns how many. */
+export function chevrons(s: Sheet, line: readonly Pt[]): number {
+  let total = 0;
+  for (let i = 1; i < line.length; i++) total += Math.hypot(line[i]![0] - line[i - 1]![0], line[i]![1] - line[i - 1]![1]);
+  const count = Math.max(1, Math.floor(total / 78));
+  let d = "";
+  for (let k = 0; k < count; k++) {
+    let need = (total * (k + 0.5)) / count;
+    for (let i = 1; i < line.length; i++) {
+      const a = line[i - 1]!;
+      const b = line[i]!;
+      const l = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (need > l) {
+        need -= l;
+        continue;
+      }
+      const ux = (b[0] - a[0]) / (l || 1);
+      const uy = (b[1] - a[1]) / (l || 1);
+      const px = a[0] + ux * need;
+      const py = a[1] + uy * need;
+      const nx = -uy;
+      const ny = ux;
+      d += `M${n1(px - ux * 5 + nx * 4.4)} ${n1(py - uy * 5 + ny * 4.4)}L${n1(px + ux * 3)} ${n1(py + uy * 3)}L${n1(px - ux * 5 - nx * 4.4)} ${n1(py - uy * 5 - ny * 4.4)}`;
+      break;
+    }
+  }
+  s.raw(`<path class="m-chevron" d="${d}"/>`);
+  return count;
+}
+
+/** The run's red thread inside a pipe, waiting: the player draws it along when the run goes this way. */
+export function threadPath(s: Sheet, id: string, line: readonly Pt[]) {
+  s.raw(`<path class="m-thread" pathLength="1" data-route="${esc(id)}" d="${linePath(line)}"/>`);
+}
+
+/** A flat paper ticket: a small line, a large number, a foot, then who said what. Returns its box. */
+export function ticket(s: Sheet, x: number, y: number, w: number, o: { small: string; big: string; foot: string; lines: { text: string; red: boolean }[] }) {
+  const h = 104 + o.lines.length * 22;
+  const poly: Pt[] = [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
+  s.fill(poly);
+  s.edges(poly, { width: 1.15 });
+  let d = "";
+  for (let i = x + 10; i < x + w + 6; i += 3.2) d += `M${n1(i)} ${n1(y + h + 1)}l5 6`;
+  for (let i = y + 10; i < y + h; i += 3.2) d += `M${n1(x + w + 1)} ${n1(i)}l5 5`;
+  s.raw(`<path class="m-shadow" d="${d}"/>`);
+  s.note([x + 150, y + 24], o.small, 15, { anchor: "middle", cls: "m-soft" });
+  s.raw(`<text class="m-t" data-big="" text-anchor="middle" font-size="46" x="${n1(x + 150)}" y="${n1(y + 72)}">${esc(o.big)}</text>`);
+  s.note([x + 150, y + 94], o.foot, 12.5, { anchor: "middle", cls: "m-soft" });
+  o.lines.forEach((l, i) => s.note([x + 150, y + 118 + i * 22], l.text, 14.5, { anchor: "middle", cls: l.red ? "m-redw" : "" }));
+  return { x0: x, y0: y, x1: x + w, y1: y + h };
+}
+
+/** Where the call comes in: a wide funnel on a collar, with an arrow going into it. The obvious start. */
+export function hopper(s: Sheet, cx: number, cy: number, z: number) {
+  drum(s, cx, cy, 13, z, 7);
+  const k = Math.SQRT1_2;
+  const lo = circle([cx, cy, z + 7], 10, [k, -k, 0], [k, k, 0], 14, 0, Math.PI).map(iso);
+  const up = circle([cx, cy, z + 34], 24, X, Y).map(iso);
+  const side: Pt[] = [...lo, iso([cx - 24 * k, cy + 24 * k, z + 34]), iso([cx, cy + 24, z + 34]), iso([cx + 24 * k, cy - 24 * k, z + 34])];
+  s.fill(side);
+  s.hatch(side, "m-pencil-cream", 88, 2.8);
+  s.curve(lo, { width: 1 });
+  s.edges([lo[0]!, iso([cx + 24 * k, cy - 24 * k, z + 34])], { closed: false, width: 1.05, over: 0.2 });
+  s.edges([lo[lo.length - 1]!, iso([cx - 24 * k, cy + 24 * k, z + 34])], { closed: false, width: 1.05, over: 0.2 });
+  s.fill(up, "m-card");
+  const inner = circle([cx, cy, z + 34], 20, X, Y).map(iso);
+  s.fill(inner, "m-ink");
+  s.curve(up, { width: 1.1 });
+  // the arrow, flat on the page
+  const a = iso([cx, cy, z + 34]);
+  s.fill([[a[0] - 3.2, a[1] - 44], [a[0] + 3.2, a[1] - 44], [a[0] + 3.2, a[1] - 18], [a[0] + 9.5, a[1] - 18], [a[0], a[1] - 4], [a[0] - 9.5, a[1] - 18], [a[0] - 3.2, a[1] - 18]], "m-ink");
+}
+
+/** A dial raised on a stem. */
+export function stemDial(s: Sheet, cx: number, cy: number, r: number, z: number, id: string) {
+  drum(s, cx, cy, 8, z, 3, { tone: "bare" });
+  drum(s, cx, cy, 3.6, z + 3, 14, { tone: "bare" });
+  dial(s, cx, cy, r, z + 17, id);
 }
 
 /** Screws at the corners of a plate on top. */
@@ -230,7 +311,7 @@ export function screws(s: Sheet, p: Plan, z: number, inset = 6) {
 }
 
 /** A round dial lying on top: body, face, ticks, needle. The needle stays at rest: it reads nothing until a run moves it. */
-export function dial(s: Sheet, cx: number, cy: number, r: number, z: number) {
+export function dial(s: Sheet, cx: number, cy: number, r: number, z: number, id = "") {
   drum(s, cx, cy, r, z, 6);
   drum(s, cx, cy, r - 2.2, z + 6, 1.4, { tone: "bare" });
   const top = z + 7.4;
@@ -240,8 +321,11 @@ export function dial(s: Sheet, cx: number, cy: number, r: number, z: number) {
     const b = i % 3 === 0 ? r - 7.6 : r - 5.8;
     s.edges([iso([cx + Math.cos(t) * a, cy + Math.sin(t) * a, top]), iso([cx + Math.cos(t) * b, cy + Math.sin(t) * b, top])], { closed: false, width: 0.7, over: 0 });
   }
-  s.edges([iso([cx, cy, top]), iso([cx - (r - 8), cy - (r - 8) * 0.25, top])], { closed: false, width: 1.1, over: 0 });
-  s.dot(iso([cx, cy, top]), 1.4);
+  const c = iso([cx, cy, top]);
+  s.raw(`<g class="m-needle" data-dial="${esc(id)}" data-cx="${n1(c[0])}" data-cy="${n1(c[1])}">`);
+  s.edges([c, iso([cx, cy - (r - 7), top])], { closed: false, width: 1.1, over: 0 });
+  s.raw(`</g>`);
+  s.dot(c, 1.4);
 }
 
 /** A hand wheel on a stem: round, spoked, set on a return pipe. */
@@ -279,7 +363,7 @@ export function ringAround(s: Sheet, c: Pt, rx: number, ry: number, o: { dashed?
   }
   s.seen(pts);
   const line = handLine(pts, s.R, { bow: 0.1, tremor: 0.5, step: 3, smooth: 1 });
-  s.raw(`<path class="m-ring" d="${ribbon(line, 2.5, s.R)}"/>`);
+  s.raw(`<path class="m-ring" d="${ribbon(line, 2.6, s.R)}"/>`);
   if (!o.dashed) return;
   const dash: Pt[] = [];
   for (let i = 0; i <= n; i++) {
@@ -304,9 +388,22 @@ export const MACHINE_CSS = `
 .m-ring{fill:var(--rr-red-pen)}
 .m-ring-dash{fill:none;stroke:var(--rr-soft);stroke-width:1.1;stroke-dasharray:5 6;stroke-linecap:round}
 .m-missing{fill:none;stroke:var(--rr-red);stroke-width:1.4;stroke-dasharray:6 5;stroke-linecap:round}
+.m-thread{fill:none;stroke:var(--rr-red-pen);stroke-width:3;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1;pointer-events:none}
+.m-sheet[data-ended] .m-thread[data-ran]{stroke-dashoffset:0}
+.m-chevron{fill:none;stroke:var(--rr-ink);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;opacity:.85}
+.m-leader{fill:none;stroke:var(--rr-soft);stroke-width:.7;opacity:.8;pointer-events:none}
+.m-dash{fill:none;stroke:var(--rr-ink);stroke-width:1.3;stroke-dasharray:2 6;stroke-linecap:round;opacity:.75}
+.m-lamp-base{fill:var(--rr-paper);stroke:var(--rr-ink);stroke-width:.9}
+.m-lamp{fill:var(--rr-paper);transition:fill .12s linear}
+.m-lamp[data-on]{fill:var(--rr-red-pen)}
+.m-hit-only{visibility:hidden}
+.m-end{visibility:hidden}
+.m-sheet[data-ended] .m-end,.m-sheet[data-ended] .m-hit-only{visibility:visible}
+.m-bluew{fill:#3e6c8c}
+.m-part:focus-visible{outline:2px solid var(--rr-ink);outline-offset:2px}
 .m-t{fill:var(--rr-ink);font-family:"Atlas Besley",Georgia,serif;font-kerning:none;font-variant-ligatures:none;text-rendering:geometricPrecision}
 .m-i{font-style:italic}
 .m-soft{fill:var(--rr-soft)}
 .m-redw{fill:var(--rr-red)}
-.m-part{cursor:pointer;outline:none}
+.m-part{cursor:pointer}
 `;
