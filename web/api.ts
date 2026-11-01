@@ -286,6 +286,12 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
     sweep: (target: Target, params: unknown) => post<SweepAnswer>("/sweeps", { target: { ref: target.ref, codeSha256: target.codeSha256 }, params }),
     /** D06-03: a round's .atlas.json, as the server kept it. */
     proof: (runId: string) => get<AtlasFile>(`/proofs/${encodeURIComponent(runId)}`),
+    /** D60: keeps this card past the 2-hour rule and restarts, without its source, so a shared link keeps working. */
+    keepProof: async (runId: string): Promise<{ kept: boolean; words?: string }> => {
+      const r = await fetchFn(`${base}/proofs/${encodeURIComponent(runId)}/keep`, { method: "POST", headers: { ...(session ? { [SESSION_HEADER]: session } : {}) } });
+      const body = (await r.json().catch(() => null)) as { kept?: boolean; error?: string } | null;
+      return { kept: r.ok && body?.kept === true, ...(body?.error ? { words: body.error } : {}) };
+    },
     /** D60: whether this server needs an invite code, and whether this browser holds one. */
     inviteStatus: () => get<{ required: boolean; signedIn: boolean }>("/invite/status"),
     /** D60: the same route the /invite page posts to. The server keeps the code in an HttpOnly cookie. */

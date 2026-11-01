@@ -72,9 +72,9 @@
 //   experiment, from the same prompt). GET /claimants says whether Muse Spark Open can be asked and,
 //   if not, why; when it cannot, its slot says "not available (<reason>)" and no bet is ever made up.
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { relative, resolve, sep } from "node:path";
+import { join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Hono, type Context } from "hono";
 import { z } from "zod";
@@ -377,6 +377,8 @@ export interface AppOptions {
   trustProxy?: boolean;
   /** S5: model rounds (experiments that ask the model) and investigations one client address may start an hour. */
   perClientModelLimits?: { modelRoundsPerHour?: number; investigationsPerHour?: number };
+  /** D60: where a shared link's card is kept, without its source (ATLAS_PROOFS_DIR/kept on a hosted server). */
+  keptProofsDir?: string;
   /** R3: tests start the pencil with a fake worker or shorter limits. */
   pencil?: Omit<PencilOptions, "take">;
   /**
@@ -1921,8 +1923,38 @@ export function createApp(opts: AppOptions = {}) {
     },
   });
 
+  // D60: a shared link must outlive a deploy. Proof files live in memory, and a pasted one goes after 2 hours with its source. So when
+  // the person who ran a round asks for a link, its card, without the source, is kept on the volume. Nothing is kept unless asked.
+  const keptDir = opts.keptProofsDir;
+  const keptPath = (runId: string) => (keptDir && /^[\w-]{1,64}$/.test(runId) ? join(keptDir, `${runId}.json`) : null);
+  const keptProof = (runId: string): AtlasFile | null => {
+    const at = keptPath(runId);
+    if (!at) return null;
+    try {
+      return JSON.parse(readFileSync(at, "utf8")) as AtlasFile;
+    } catch {
+      return null;
+    }
+  };
+  app.post("/proofs/:runId/keep", (c) => {
+    const runId = c.req.param("runId");
+    const file = proofOf(runId);
+    if (!file) return c.json({ kept: keptProof(runId) !== null });
+    const owner = pastedOwners.get(runId);
+    if (file.target.kind === "pasted" && (owner === undefined || c.req.header("x-atlas-session") !== owner)) return c.json({ kept: false, error: "only the session that ran this round can keep its card" }, 403);
+    const at = keptPath(runId);
+    if (!at) return c.json({ kept: false, error: "this server keeps no cards on disk, so this link lasts until it restarts" });
+    mkdirSync(keptDir!, { recursive: true });
+    writeFileSync(at, JSON.stringify(file.target.kind === "pasted" ? withheldSource(file) : file));
+    return c.json({ kept: true });
+  });
+
   app.get("/proofs/:runId", (c) => {
     const file = proofOf(c.req.param("runId"));
+    if (!file) {
+      const kept = keptProof(c.req.param("runId"));
+      if (kept) return c.json(kept);
+    }
     if (!file) return c.json({ error: `no .atlas.json for run ${c.req.param("runId")}` }, 404);
     // E3 review M4: a pasted round's source is the owning session's. Anyone else gets the card without it (the
     // fingerprint stays, so the card still says which code ran).

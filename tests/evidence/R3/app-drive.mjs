@@ -129,13 +129,11 @@ async function studio({ name, code, vw = 1920, vh = 1080, scheme = "light", pick
   await checks(p, `${name} bet`);
   // X4: the confidence tap is in the pop-up.
   say(`${name}: X4's how-sure picker is in the pop-up`, await p.evaluate(() => !!document.querySelector(".u1-pop [data-testid^='felt'], .u1-pop .felt-pick, .u1-pop [class*='felt']")));
-  const qs = await p.$$(".u1-quiz > li");
-  for (const q of qs.slice(0, 2)) {
-    const o = await q.$$(".u1-opt");
-    if (o[pick]) {
-      clicks++;
-      await o[pick].click();
-    }
+  // One question at a time: two answers by key, the rest left as "can't tell".
+  for (let i = 0; i < 2; i++) {
+    clicks++;
+    await p.keyboard.press(String(pick + 1));
+    await wait(p, 170);
   }
   if (shots) await shot(p, `${name}-4-picked`);
   await click('[data-testid="u1-seal"]');
@@ -302,10 +300,11 @@ if (late) {
   const file = JSON.parse(read("../D04-04/moonwell-level2-mwTaxvHFzB.atlas.json"));
   const exp = file.experiments[0];
   const q = { measures: file.bets[0].measures, text: file.bets[0].question, kind: "number", unit: "USD" };
-  const p = await open(`${BASE}/`);
+  const p = await open(`${BASE}/`, { vw: 1440, vh: 900 });
   await p.route("**/api/**", async (route) => {
     const path = new URL(route.request().url()).pathname.replace(/^\/api/, "");
     const json = (o) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(o) });
+    if (path === "/invite/status") return json({ required: false, signedIn: false });
     if (path === "/targets") return json({ ...file.target, title: "MIP-X43", files: [{ path: "mip-x43.sol", text: "contract MIPX43 {}\n" }] });
     if (path === "/investigate") return json({ ok: true, model: "muse-wonder-1.0", findings: file.findings ?? [], dropped: [] });
     if (path === "/experiments") return json({ experiment: exp, questions: [q], model: null, models: [] });
@@ -331,9 +330,9 @@ if (late) {
   await p.locator("button.primary:not([disabled]), button:has-text(\"Run\"):not([disabled])").last().click();
   await p.waitForSelector('[data-testid="price-pipe"] svg', { timeout: 20000 });
   await wait(p, 5000);
-  await p.locator('[data-testid="price-pipe"]').scrollIntoViewIfNeeded();
+  await p.locator('[data-testid="m-split"]').evaluate((e) => e.scrollIntoView({ block: "start" }));
   await wait(p, 300);
-  await shot(p, "moonwell-1920");
+  await shot(p, "moonwell-1440");
   const words = await p.evaluate(() => [...document.querySelectorAll('[data-testid="price-pipe"] text')].map((t) => t.textContent).join(" "));
   say("Moonwell: $1.12 and the reference $2,206.68, only from the run", words.includes("$1.12") && words.includes("$2,206.68"));
   say("Moonwell: the allowed wording", words.replace(/\s+/g, " ").includes("Moonwell took $1.78M in bad debt from one oracle setting"));

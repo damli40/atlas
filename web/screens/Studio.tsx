@@ -71,6 +71,36 @@ export function defaultProposal<P extends { gate: { allowed: boolean }; params: 
  * that on code keeping state between calls a single call cannot show the state working, so a two-call test comes first.
  */
 /** D60: the example's real drawing, drawing itself on the first screen: the same parser's output, kept in the page (a test holds them equal). */
+/** D60: the code beside the drawing. Clicking a part on the drawing jumps here. */
+function CodeDrawer({ source, lines, onClose }: { source: string; lines: [number, number] | null; onClose: () => void }) {
+  const host = useRef<HTMLDivElement | null>(null);
+  const all = useMemo(() => source.split(/\r\n|\r|\n/), [source]);
+  useEffect(() => {
+    if (lines) host.current?.querySelector<HTMLElement>(`[data-line="${lines[0]}"]`)?.scrollIntoView({ block: "center" });
+  }, [lines]);
+  return (
+    <aside className="c-drawer" aria-label="Your code" data-testid="c-drawer">
+      <div className="c-head">
+        <span>Your code</span>
+        <button type="button" className="u1-close" onClick={onClose} aria-label="Close the code">
+          ×
+        </button>
+      </div>
+      <div className="c-body" ref={host} tabIndex={0}>
+        {all.map((text, i) => {
+          const n = i + 1;
+          return (
+            <div className="c-line" key={n} data-line={n} data-on={lines && n >= lines[0] && n <= lines[1] ? "" : undefined}>
+              <span className="c-n">{n}</span>
+              <span className="c-t">{text || " "}</span>
+            </div>
+          );
+        })}
+      </div>
+    </aside>
+  );
+}
+
 function ExampleDrawing() {
   const spec = useMemo(() => {
     const s = betView({ fileName: "example.ts", outline: EXAMPLE_OUTLINE as unknown as FileOutline, source: U1_EXAMPLE, language: "ts", test: null, tested: "fetchWithRetry", seed: "first-screen" });
@@ -189,6 +219,10 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const [readText, setReadText] = useState("");
   // R3: "Change the code and bet again": the code being edited. The test stays the one just run.
   const [editing, setEditing] = useState<string | null>(null);
+  // D60: the code drawer. Closed on the drawing, open during the bet on a wide screen, because the AIs read the code and you should too.
+  const [drawerChoice, setDrawer] = useState<boolean | null>(null);
+  const [drawerLines, setDrawerLines] = useState<[number, number] | null>(null);
+  const wide = typeof window !== "undefined" && window.innerWidth >= 1400;
   // D60: the bet is one question at a time. All of them stay in the page (D19); CSS shows the current one.
   const [step, setStep] = useState(0);
   // R3: "Test this claim": asking Wonder, and whether it had nothing new (the button then goes away).
@@ -617,6 +651,12 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       if (e.key === "Escape") {
         setEditing(null);
         setProofOpen(false);
+        setDrawer(false);
+        return;
+      }
+      if (e.key.toLowerCase() === "c" && pasted) {
+        setDrawer((d) => !(d ?? (wide && open && exp !== null && !result)));
+        e.preventDefault();
         return;
       }
       if (!result) return;
@@ -750,12 +790,17 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   }
 
   // ---- the drawing ----
+  const drawerOpen = drawerChoice ?? (wide && open && exp !== null && !after);
   const notRunnable = !pasted.runnable ? (pasted.reason ?? "Atlas cannot run this language here yet.") : pasted.cantCheck;
   const allowed = proposals?.proposals.filter((p) => p.gate.allowed) ?? [];
   const chosenSays = exp ? allowed.find((p) => p.params && JSON.stringify(p.params) === JSON.stringify(exp.experiment.params))?.says : undefined;
   const title = `${source ?? FILE_NAME[pasted.target.language ?? "ts"]} · ${plural(pasted.lines, "line")}`;
   return (
-    <div className="u1-studio">
+    <div className="u1-studio" data-drawer={drawerOpen ? "" : undefined}>
+      <button type="button" className="u1-link u1-code-toggle" aria-pressed={drawerOpen} onClick={() => setDrawer(!drawerOpen)} data-testid="u1-code-toggle">
+        Code
+        <kbd className="k">C</kbd>
+      </button>
       {shownModel && pasted.outline ? (
         <BenchStage
           model={shownModel}
@@ -768,6 +813,12 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           title={title}
           side={open}
           onPlayed={() => setPlayed((n) => n + 1)}
+          onPart={(name) => {
+            const part = pasted.outline?.parts.find((p) => p.name === name);
+            if (!part) return;
+            setDrawerLines([part.lineStart, part.lineEnd]);
+            setDrawer(true);
+          }}
           headnote={
             after && result ? (
               <>
@@ -843,6 +894,9 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           )}
         </BenchStage>
       ) : null}
+      {drawerOpen && (
+        <CodeDrawer source={readText} lines={drawerLines} onClose={() => setDrawer(false)} />
+      )}
       {after && editing !== null && (
         <section className="u1-proof u1-changing" role="dialog" aria-modal="false" aria-label={CHANGE_WORDS.open} data-testid="u1-change-panel">
           <div className="u1-proof-head">

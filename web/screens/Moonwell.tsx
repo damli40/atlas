@@ -4,6 +4,9 @@
 // sealed beside it (hashes only) → a real run on a fork of Base (30–90 s, progress from the agent
 // log) → verdicts by src/judge.ts → the false-alarm table → the captions this kind of run must carry.
 
+import { momentOfRows } from "../../src/moment";
+import { bettorNames } from "../../src/claimants";
+import { MomentView } from "../machines/bench/BenchStage";
 import { ProofLink } from "./ProofCard";
 import { useEffect, useState } from "react";
 import { MOONWELL_FORK_BLOCKS, MOONWELL_LEVEL_CAPTION, MOONWELL_LEVEL_SAYS, MOONWELL_LICENCE_LINE, moonwellBetContext, type MoonwellLevel } from "../../src/bet-context";
@@ -47,6 +50,28 @@ const LEVELS = {
 type Level = MoonwellLevel;
 
 /** "https://github.com/o/r/pull/578", "github.com/o/r/pull/578/files" or "o/r#578" → "o/r#578". */
+/** D60: the same moment as every other result: what was bet, and what the run read. */
+function MoonwellMoment({ result }: { result: RunAnswer }) {
+  const card = proofCardModelRows(result);
+  const moment = momentOfRows(card, result.run);
+  return moment ? <div className="m-standalone"><MomentView moment={moment} /></div> : null;
+}
+
+/** One row per bet: what the bettor said, in dollars, and what the run read. */
+function proofCardModelRows(result: RunAnswer) {
+  const names = bettorNames(result.bets.map((b) => b.who));
+  const read = result.run.result.measured["priceUsd1e18:cbETH"];
+  const observed = typeof read === "string" ? usd("priceUsd1e18:cbETH", read) : "not measured";
+  return result.bets
+    .filter((b) => b.measures === "priceUsd1e18:cbETH")
+    .map((b) => {
+      const v = result.verdicts.find((x) => x.betId === b.id);
+      const a = b.answer;
+      const said = a.kind === "number" || a.kind === "integer" ? `$${a.value.toLocaleString("en-US")}` : "declined to guess";
+      return { who: b.who, name: b.who === "human" ? "You" : (names[b.who] ?? b.who), measures: b.measures, question: "cbETH in dollars", said, observed: `1 cbETH read ${observed}`, outcome: v?.outcome ?? null };
+    });
+}
+
 export function prRefFromLink(link: string): string | null {
   const t = link.trim();
   const url = /^(?:https?:\/\/)?(?:www\.)?github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)\/pull\/(\d+)(?:[/?#].*)?$/.exec(t);
@@ -281,7 +306,13 @@ export function MoonwellFlow({ api, onRoundOpen }: { api: Api; onRoundOpen?: (op
         </section>
       )}
 
-      {result && result.run.runner === "evm" && <MoonwellDrawing run={result.run} bets={result.bets} verdicts={result.verdicts} />}
+      {result && result.run.runner === "evm" && (
+        // D60: the film's payoff frame: the moment beside the ring.
+        <div className="m-split" data-testid="m-split">
+          <MoonwellMoment result={result} />
+          <MoonwellDrawing run={result.run} bets={result.bets} verdicts={result.verdicts} />
+        </div>
+      )}
 
       {result && (
         <VerdictScreen

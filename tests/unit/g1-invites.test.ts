@@ -35,6 +35,7 @@ import { ENV, build, client, logLines, pastedRound, sum, tmp } from "../tools/g1
  * must be either here or in the gate's open list (checked below), so a new route cannot slip past this test.
  */
 const SPENDING: { method: string; route: string; path: string; body?: unknown; spends: string }[] = [
+  { method: "POST", route: "/proofs/:runId/keep", path: "/proofs/x/keep", spends: "a small file on the volume, only when the person asks for a link" },
   { method: "GET", route: "/runs/:runId/helpers", path: "/runs/x/helpers", spends: "nothing itself: the third run is started and counted by POST /runs" },
   { method: "GET", route: "/proofs/:runId/pencil.png", path: "/proofs/x/pencil.png", spends: "the machine's time: a separate process draws for up to 30 s, limited per code (R3)" },
   { method: "POST", route: "/targets", path: "/targets", body: { kind: "github-pr", ref: PR.target.ref }, spends: "a GitHub read (rate limit, no $)" },

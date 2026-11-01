@@ -6,6 +6,7 @@
 // browser), "judged by src/judge.ts", a link to download the exact file, and a "re-run it" link that
 // asks the server to replay the round (GET /replay/:runId; the page sends the session header).
 
+import { ProofImage } from "./ProofImage";
 import { useEffect, useMemo, useState } from "react";
 import type { AtlasFile } from "../../src/types";
 import { ApiError, type Api, type ReplayAnswer } from "../api";
@@ -141,6 +142,7 @@ export function ProofCard({ file, api, replay: given }: { file: AtlasFile; api?:
 
   return (
     <article className="proof-card" data-testid="proof-card" aria-label={`proof card for run ${card.runId}`}>
+      <ProofImage card={card} file={file} lines={lines} names={names} preExisting={card.target.kind === "ts-fixture" ? preExistingLabel(file) : null} {...(api ? { api } : {})} {...(download ? { download, downloadName: `${card.runId}.atlas.json` } : {})} />
       <header className="pc-head">
         <div>
           <p className="pc-kicker">Atlas · proof card</p>

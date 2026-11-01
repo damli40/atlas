@@ -114,6 +114,8 @@ const githubReads = createShareLimit(DEFAULT_GITHUB_SHARES, "GitHub reads");
 const trackStore = diskTrackStore(access.dir);
 console.log("track records kept on disk in the invite store's folder (track-record/: one file per person, no code)");
 const appOptions: AppOptions = {
+  // D60: a shared link's card, kept on the volume. Only where a folder was named for proofs: never in the repo's own proofs/ folder.
+  ...(process.env.ATLAS_PROOFS_DIR ? { keptProofsDir: join(proofsDir, "kept") } : {}),
   ...serverOptions(process.env, {
     makeChat: (timeoutMs) => createMetaClient(timeoutMs !== undefined ? { timeoutMs } : {}).chat,
     budget,

@@ -50,6 +50,8 @@ export interface BenchStageProps {
   model: BenchModel;
   theme?: "light" | "dark";
   after?: After | null;
+  /** D60: a part was clicked on the drawing: the code drawer jumps to its lines. */
+  onPart?: (name: string) => void;
   /** A code box was chosen as the function to test. */
   onTestFunction?: (name: string) => void;
   /** The file and its size, above the name. */
@@ -82,7 +84,7 @@ export function roundUp(ms: number): number {
   return 10 * p;
 }
 
-export function BenchStage({ model, theme, after = null, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null }: BenchStageProps) {
+export function BenchStage({ model, theme, after = null, onPart, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null }: BenchStageProps) {
   const playedRef = useRef(onPlayed);
   playedRef.current = onPlayed;
   const dark = useDarkScheme();
@@ -266,7 +268,10 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
             {model.notShown}
           </p>
         ) : (
-          <Drawing spec={chart} theme={shown} className="u1-svg r-sheet" maxScale={1.2} hover={!after} onMount={onChart} onSelect={(id) => setPinned((p) => (p === id ? null : id))} />
+          <Drawing spec={chart} theme={shown} className="u1-svg r-sheet" maxScale={1.2} hover={!after} onMount={onChart} onSelect={(id) => {
+              setPinned((p) => (p === id ? null : id));
+              onPart?.(id);
+            }} />
         )}
       </div>
       {pathSpec && (
