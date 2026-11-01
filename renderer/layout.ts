@@ -522,7 +522,7 @@ export function layOut(spec: RenderSpec, o: LayoutOptions = {}): Scene {
       placed = block("mark", "italic", TYPE.mark, lines, node.box.x0, b0, LINE.mark, m.on);
       taken.push(placed.box);
     }
-    return { on: m.on, kind: m.kind, words: placed };
+    return { on: m.on, kind: m.kind, ...(m.noStep ? { noStep: true } : {}), words: placed };
   });
 
   // ---- tags: a part's notes (failure labels), on clean paper beside it ----

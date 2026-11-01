@@ -1,21 +1,34 @@
 // R3 author (c), and (d) the retry demo: the "what happened" path, from the measured trace only (D54).
 //
-// Plain words: read the run's trace in order. Each call of a stand-in or a network fake becomes a pinned ticket; what it
-// answered is written beside the red thread leaving it; a gap on Atlas's virtual clock becomes a clock; the ending comes
-// from the measured fields, not from a guess.
+// Plain words: walk the run's events in the order they happened. Each call of a stand-in or a network fake becomes a pinned
+// ticket; a gap on Atlas's virtual clock becomes a clock; the ending comes from the measured fields, not from a guess.
+//
+// An answer is drawn when it ARRIVED, not beside the call that asked for it (R3 review B1, B2):
+// - answered at once: on the thread leaving the call;
+// - answered later, with nothing else going on: call, then the wait, then the answer on the thread leaving the wait;
+// - calls started together, or while another was still out: one "together" ticket, or "while x was still waiting", and
+//   each answer gets its own ticket at its own time;
+// - after the code ended: a dashed note, never a wait and never on the thread. A call still out at the end says so.
+// The trace says when an answer arrived, not whether the code used it, so when calls overlap a caption says that too.
+// Python's harness writes a delayed answer at the moment of the call, with `afterMs`, and writes its ending after the event
+// loop drains. `inTimeOrder` puts both where they happened, from the same trace and the measured time.
 //
 // What it refuses to do:
 // - A run that may not be shown as fact (src/trust.ts) draws nothing; the spec carries the reason.
-// - A trace Atlas cut stops where it was cut and says so; the ending still comes from the measured fields.
+// - A cut trace (Atlas keeps only so many events) stops at the last event kept: no wait across the gap, no invented
+//   "no answer", the exact measured counts in a note, and then the known ending, joined by a dashed line (review B7).
 // - If the second run of the double run went differently, the path stops at the first difference and says so.
 // - A wait whose time was not reported says "time not reported". A count not claimed says so in a caption.
 // - A verdict of can't check gets a can't-check mark with the reason, never a place on the path.
-// Loops: when there are many calls, runs of calls with the same answer collapse into one ticket with the exact count.
+// - The ring "the run parts ways here" goes only on the first step that really departs from the answer (`partingKey`).
+//   If no such step is on the path, there is no ring and the words say so (review B3).
+// Loops: past a few calls, anything that repeats (x; x, wait; x, y, x, y…) folds into one ticket with exact counts.
 //
 // Pure; imports types and the pure src/trust.ts rule only.
 
 import type { Bet, Experiment, JsonValue, NetworkStep, Run, StandInStep, TraceEvent, Verdict } from "../../src/types";
 import { notShownAsFact } from "../../src/trust";
+import { cleanWords } from "../words";
 import type { RenderSpec, SpecMark, SpecNode, SpecStep } from "../spec";
 
 const rec = (x: unknown): Record<string, unknown> => (x && typeof x === "object" && !Array.isArray(x) ? (x as Record<string, unknown>) : {});
@@ -34,15 +47,26 @@ const ordinal = (n: number) => {
 
 /** One thing on the path. */
 export type PathItem =
-  | { kind: "call"; name: string; n: number; t: number; answer: string; good: boolean }
-  | { kind: "loop"; name: string; from: number; to: number; count: number; t: number; answer: string; waits: { min: number; max: number } | null; good: boolean }
-  | { kind: "wait"; ms: number | null; t: number; cut?: boolean }
-  | { kind: "end"; words: string; t: number | null; good: boolean }
-  | { kind: "stop"; words: string }
+  /** `answer` null: no answer yet when the thread moved on. `whileOpen`: others were still waiting when this call began. */
+  | { kind: "call"; name: string; n: number; t: number; answer: string | null; good: boolean; whileOpen?: string[] }
+  /** Calls begun at the same moment, none answered when the next began (Promise.all, gather). */
+  | { kind: "together"; calls: { name: string; n: number }[]; t: number }
+  /** An answer that came on its own, while other things were going on. */
+  | { kind: "answer"; name: string; n: number; t: number; words: string; good: boolean }
+  | { kind: "loop"; name: string; from: number; to: number; count: number; t: number; answer: string | null; waits: { min: number; max: number } | null; good: boolean }
+  /** A repeating pattern folded: exact rounds, and the exact count for each name. */
+  | { kind: "cycle"; rounds: number; counts: { name: string; count: number }[]; t: number; pattern: string; waits: { min: number; max: number } | null; good: boolean }
+  /** `answerWords`: the answer that ended this wait, written on the thread leaving it. */
+  | { kind: "wait"; ms: number | null; t: number; cut?: boolean; answerWords?: string }
+  /** `dashed`: past a gap in the trace, so it is not joined to the path as if it followed. `open`: calls still out at this ending. */
+  | { kind: "end"; words: string; t: number | null; good: boolean; dashed?: boolean; open?: string }
+  | { kind: "stop"; words: string; cut?: boolean }
+  /** After the code ended: a call or an answer. Never part of the path's order of cause. */
+  | { kind: "late"; words: string; t: number; keys: string[] }
   /** A sequence: Atlas makes call n of m. */
   | { kind: "turn"; n: number; of: number; fn: string; t: number }
   /** A sequence: how an earlier call ended. */
-  | { kind: "turn-end"; n: number; words: string; t: number }
+  | { kind: "turn-end"; n: number; words: string; t: number; good: boolean }
   /** A sequence: Atlas's own scripted wait between calls, not the code's. */
   | { kind: "atlas-wait"; ms: number; t: number };
 
@@ -59,7 +83,12 @@ export interface WhatHappenedInput {
   preExisting?: string;
   /** Collapse loops past this many calls. */
   collapseOver?: number;
+  /** Where the run came from, only when the caller knows. Absent: the drawing says nothing about it (review B5). */
+  origin?: RunOrigin;
 }
+
+/** "this-run": it just ran here. "proof-file": it is read back from a saved proof file. */
+export type RunOrigin = "this-run" | "proof-file";
 
 /** What the n-th call was scripted to answer, in words; null when the script does not say. */
 function scripted(input: WhatHappenedInput, name: string, n: number): { words: string; good: boolean } | null {
@@ -85,8 +114,34 @@ const fingerprint = (e: TraceEvent) => {
   return `${e.t}|${e.event}|${str(d.name) ?? ""}|${num(d.n) ?? ""}|${str(d.errorName) ?? ""}`;
 };
 const BOOKKEEPING = new Set(["call_checks", "clock_moves", "conditions", "log", "control"]);
+/** Both harnesses keep these past the event cap, so they say nothing about where the kept part ended. */
+const ALWAYS_KEPT = new Set(["clock_moves", "python", "start", "call_start", "call_returned", "call_threw", "returned", "threw", "never_settled", "still_running_at_watch_limit", "stopped_watching", "stopped_watching_after_settle", "trace_cut", "conditions"]);
+const END_EVENTS = new Set(["returned", "threw", "returns", "throws", "pending", "stopped_watching", "never_settled", "still_running", "still_running_at_watch_limit"]);
+const ANSWER_EVENTS = new Set(["stand_in_returns", "resolve", "stand_in_throws", "reject", "stand_in_never_answers", "no_answer"]);
 
-/** The path items, read in trace order. Exported for the tests. */
+/**
+ * The events as they happened. JavaScript's trace already is. Python's writes a delayed answer at the call, with `afterMs`
+ * (the answer is due that long after the call), and its ending after the event loop drains, at the clock's last value; the
+ * measured time says when the call really settled. Each entry keeps its original event, for comparing the double run.
+ */
+function inTimeOrder(trace: readonly TraceEvent[], measured: Record<string, unknown>, lastStart: number): { e: TraceEvent; raw: TraceEvent }[] {
+  const isPython = trace.some((e) => e.event === "python");
+  const list = trace.map((raw) => ({ e: raw, raw }));
+  if (!isPython) return list;
+  const settled = num(own(measured, "virtualMs"));
+  const moved = list.map(({ e, raw }) => {
+    const d = rec(e.data);
+    if (e.event === "stand_in_returns" && (num(d.afterMs) ?? 0) > 0) return { e: { ...e, t: e.t + num(d.afterMs)! }, raw };
+    if ((e.event === "returned" || e.event === "threw") && settled !== null) return { e: { ...e, t: lastStart + settled }, raw };
+    return { e, raw };
+  });
+  return moved.map((x, i) => ({ x, i })).sort((a, b) => a.x.e.t - b.x.e.t || a.i - b.i).map(({ x }) => x);
+}
+
+const names = (list: readonly string[]) => (list.length <= 3 ? list.join(list.length === 2 ? " and " : ", ") : `${list.slice(0, 3).join(", ")} and ${list.length - 3} more`);
+const unique = (list: readonly string[]) => [...new Set(list)];
+
+/** The path items, in the order things happened. Exported for the tests. */
 export function pathItems(input: WhatHappenedInput): { items: PathItem[]; notes: string[] } {
   const { run } = input;
   const measured = rec(run.result?.measured);
@@ -100,14 +155,14 @@ export function pathItems(input: WhatHappenedInput): { items: PathItem[]; notes:
   if (!timeOk) notes.push(`Time is not reported: ${str(own(notMeasured, "virtualMs")) ?? str(own(notMeasured, "totalWaitMs")) ?? "Atlas did not measure it"}.`);
 
   // Where the two runs of the double run part, if they do.
-  let divergeAt = Infinity;
+  let divergeAt: TraceEvent | null = null;
   const twin = run.twin?.trace;
   if (Array.isArray(twin)) {
     const a = trace.filter((e) => !BOOKKEEPING.has(e.event) && e.event !== "start");
     const b = twin.filter((e) => !BOOKKEEPING.has(e.event) && e.event !== "start");
     for (let i = 0; i < Math.max(a.length, b.length); i++) {
       if (!a[i] || !b[i] || fingerprint(a[i]!) !== fingerprint(b[i]!)) {
-        divergeAt = a[i] ? trace.indexOf(a[i]!) : Infinity;
+        divergeAt = a[i] ?? null;
         break;
       }
     }
@@ -128,7 +183,8 @@ export function pathItems(input: WhatHappenedInput): { items: PathItem[]; notes:
     const outcome = str(own(measured, "outcome"));
     const raw = num(own(measured, "virtualMs")) ?? num(own(measured, "settledAtMs"));
     const v = raw === null ? null : raw + lastStart;
-    const at = v !== null ? ` at ${grouped(v)} ms` : "";
+    // A two-call test's question is about the last call; the path's clock is the whole test's. Say which is which.
+    const at = v === null ? "" : nCalls > 1 ? ` ${grouped(raw!)} ms into call ${nCalls} (${grouped(v)} ms into the test)` : ` at ${grouped(v)} ms`;
     if (outcome === "returned" || outcome === "returns") {
       const j = str(own(measured, "returnedJson")) ?? str(own(measured, "returned"));
       return { kind: "end", words: j !== null ? `returned ${clip(j, 40)}` : "returned", t: v, good: true };
@@ -142,13 +198,34 @@ export function pathItems(input: WhatHappenedInput): { items: PathItem[]; notes:
     return { kind: "stop", words: `Atlas can't say how it ended: ${str(own(notMeasured, "outcome")) ?? "the run recorded no ending"}` };
   };
 
-  for (let idx = 0; idx < trace.length; idx++) {
-    const e = trace[idx]!;
-    if (idx >= divergeAt) {
+  const events = inTimeOrder(trace, measured, lastStart);
+  // A cut trace: the last event kept, past which nothing but the ending is known.
+  const cutEvent = trace.find((e) => e.event === "trace_cut");
+  let lastKept = events.length - 1;
+  if (cutEvent) {
+    lastKept = -1;
+    events.forEach(({ e }, i) => {
+      if (!ALWAYS_KEPT.has(e.event) && !BOOKKEEPING.has(e.event)) lastKept = i;
+    });
+  }
+
+  /** Calls asked, not yet answered, in the order they were asked. */
+  const open = new Map<string, { name: string; n: number; item: Extract<PathItem, { kind: "call" }> | null }>();
+  const answerOf = (e: TraceEvent, name: string, n: number): { words: string; good: boolean } => {
+    const d = rec(e.data);
+    if (e.event === "stand_in_never_answers" || e.event === "no_answer") return { words: "never answered", good: false };
+    if (e.event === "stand_in_throws" || e.event === "reject") return { words: `threw ${clip(str(d.errorName) ?? str(d.error)?.split(":")[0] ?? "an error", 30)}`, good: false };
+    const s = scripted(input, name, n);
+    return s ?? { words: "answered", good: true };
+  };
+
+  for (let idx = 0; idx <= lastKept; idx++) {
+    const { e, raw } = events[idx]!;
+    if (raw === divergeAt) {
       items.push({ kind: "stop", words: "the second run of this test went differently from here, so Atlas does not claim what came next" });
       break;
     }
-    if (BOOKKEEPING.has(e.event) || e.event === "start") continue;
+    if (BOOKKEEPING.has(e.event) || e.event === "start" || e.event === "python" || e.event === "wake" || e.event === "trace_cut") continue;
     const d = rec(e.data);
     if (e.event === "call_start" && nCalls > 1) {
       const n = num(d.n) ?? 1;
@@ -165,14 +242,8 @@ export function pathItems(input: WhatHappenedInput): { items: PathItem[]; notes:
       addGap(e.t);
       const json = str(d.json);
       const name = str(d.name) ?? str(d.type);
-      items.push({ kind: "turn-end", n: num(d.n) ?? 1, t: e.t, words: e.event === "call_returned" ? (json !== null ? `call ${num(d.n) ?? 1} returned ${clip(json, 30)}` : `call ${num(d.n) ?? 1} returned`) : `call ${num(d.n) ?? 1} threw${name ? ` ${clip(name, 30)}` : ""}` });
+      items.push({ kind: "turn-end", n: num(d.n) ?? 1, t: e.t, good: e.event === "call_returned", words: e.event === "call_returned" ? (json !== null ? `call ${num(d.n) ?? 1} returned ${clip(json, 30)}` : `call ${num(d.n) ?? 1} returned`) : `call ${num(d.n) ?? 1} threw${name ? ` ${clip(name, 30)}` : ""}` });
       continue;
-    }
-    if (e.event === "trace_cut") {
-      const kept = num(d.kept);
-      const more = num(d.dropped) ?? num(d.eventsNotKept);
-      items.push({ kind: "stop", words: `the run made more events than Atlas keeps${kept !== null ? ` (${grouped(kept)} kept${more !== null ? `, ${grouped(more)} more counted` : ""})` : ""}, so the path stops here` });
-      break;
     }
     if (e.event === "stand_in_call" || e.event === "call") {
       const name = str(d.name) ?? "the RPC";
@@ -181,97 +252,210 @@ export function pathItems(input: WhatHappenedInput): { items: PathItem[]; notes:
         ended = true;
         items.push(endItem());
       }
+      if (ended) {
+        items.push({ kind: "late", words: `${name} was called at ${grouped(e.t)} ms, after the code had ended`, t: e.t, keys: [`${name}:${n}`] });
+        open.set(`${name}:${n}`, { name, n, item: null });
+        continue;
+      }
       addGap(e.t);
-      items.push({ kind: "call", name, n, t: e.t, answer: "no answer seen", good: false });
+      const prev = items[items.length - 1];
+      const stillOut = [...open.values()];
+      // The call before it began at this same moment and has no answer yet: they began together.
+      if (prev && (prev.kind === "together" || (prev.kind === "call" && prev.answer === null)) && prev.t === e.t && stillOut.length > 0) {
+        if (prev.kind === "together") prev.calls.push({ name, n });
+        else {
+          const first: PathItem = { kind: "together", calls: [{ name: prev.name, n: prev.n }, { name, n }], t: e.t };
+          items[items.length - 1] = first;
+          for (const o of stillOut) if (o.item === prev) o.item = null;
+        }
+        open.set(`${name}:${n}`, { name, n, item: null });
+        continue;
+      }
+      const item: Extract<PathItem, { kind: "call" }> = { kind: "call", name, n, t: e.t, answer: null, good: false, ...(stillOut.length ? { whileOpen: unique(stillOut.map((o) => o.name)) } : {}) };
+      items.push(item);
+      open.set(`${name}:${n}`, { name, n, item });
       continue;
     }
-    if (e.event === "stand_in_returns" || e.event === "resolve" || e.event === "stand_in_throws" || e.event === "reject" || e.event === "stand_in_never_answers" || e.event === "no_answer") {
+    if (ANSWER_EVENTS.has(e.event)) {
       const name = str(d.name) ?? "the RPC";
       const n = num(d.n) ?? 1;
-      const call = [...items].reverse().find((x): x is Extract<PathItem, { kind: "call" }> => x.kind === "call" && x.name === name && x.n === n);
-      if (!call) continue;
-      if (e.event === "stand_in_never_answers" || e.event === "no_answer") {
-        call.answer = "never answered";
-      } else if (e.event === "stand_in_throws" || e.event === "reject") {
-        const err = str(d.errorName) ?? str(d.error)?.split(":")[0] ?? "an error";
-        call.answer = `threw ${clip(err, 30)}`;
-      } else {
-        const s = scripted(input, name, n);
-        call.answer = s ? s.words : "answered";
-        call.good = s ? s.good : true;
+      const asked = open.get(`${name}:${n}`);
+      if (!asked) continue;
+      open.delete(`${name}:${n}`);
+      const a = answerOf(e, name, n);
+      const never = e.event === "stand_in_never_answers" || e.event === "no_answer";
+      if (ended) {
+        if (!never) items.push({ kind: "late", words: `${name} ${a.words} at ${grouped(e.t)} ms, after the code had ended`, t: e.t, keys: [] });
+        continue;
       }
+      const last = items[items.length - 1];
+      // Straight after the call, at the same moment: the thread leaving the call carries it.
+      if (asked.item && last === asked.item && (e.t === asked.item.t || never)) {
+        asked.item.answer = a.words;
+        asked.item.good = a.good;
+        continue;
+      }
+      if (never) continue;
+      addGap(e.t);
+      const afterGap = items[items.length - 1];
+      const beforeGap = items[items.length - 2];
+      // Only this call was out, and nothing happened but the wait: the wait ends with the answer.
+      if (asked.item && afterGap?.kind === "wait" && beforeGap === asked.item && open.size === 0 && afterGap.t === e.t && afterGap.answerWords === undefined) {
+        afterGap.answerWords = a.words;
+        asked.item.good = a.good;
+        continue;
+      }
+      if (asked.item && afterGap === asked.item && e.t === asked.item.t) {
+        asked.item.answer = a.words;
+        asked.item.good = a.good;
+        continue;
+      }
+      items.push({ kind: "answer", name, n, t: e.t, words: a.words, good: a.good });
       continue;
     }
     if (e.event === "sleep") {
       // Retry scenario: the code asked for this wait; the following "wake" finishes it.
       const ms = num(d.ms);
-      const woke = trace.slice(idx + 1).some((x) => x.event === "wake");
+      const woke = trace.slice(trace.indexOf(raw) + 1).some((x) => x.event === "wake");
       items.push({ kind: "wait", ms: timeOk ? ms : null, t: e.t + (ms ?? 0), ...(woke ? {} : { cut: true }) });
       lastT = e.t + (ms ?? 0);
       continue;
     }
-    if (e.event === "wake") continue;
-    if (e.event === "returned" || e.event === "threw" || e.event === "returns" || e.event === "throws") {
-      if (!ended) {
-        addGap(e.t);
-        ended = true;
-        items.push(endItem());
+    if (END_EVENTS.has(e.event) && !ended) {
+      if (e.event === "returned" || e.event === "threw" || e.event === "returns" || e.event === "throws") addGap(e.t);
+      ended = true;
+      const end = endItem();
+      if (end.kind === "end" && open.size > 0) {
+        const out = [...open.values()];
+        end.open = out.length === 1 && out[0]!.item && items[items.length - 1] === out[0]!.item ? "no answer before the end" : `no answer yet from ${names(unique(out.map((o) => o.name)))}`;
       }
-      continue;
+      items.push(end);
     }
-    if (e.event === "pending" || e.event === "stopped_watching" || e.event === "never_settled" || e.event === "still_running") {
-      if (!ended) {
-        ended = true;
-        items.push(endItem());
-      }
+  }
+
+  if (cutEvent) {
+    const d = rec(cutEvent.data);
+    const kept = num(d.kept);
+    const more = num(d.eventsNotKept) ?? num(d.dropped);
+    const counts = Object.keys(measured)
+      .filter((k) => k.startsWith("calls:") && num(measured[k]) !== null)
+      .map((k) => `${k.slice(6)} ${grouped(num(measured[k])!)} times`);
+    // The call the kept part ended on may have answered in the part not kept: it says that, never "no answer".
+    const lastItem = items[items.length - 1];
+    if (lastItem?.kind === "call" && lastItem.answer === null) lastItem.answer = "its answer is past what Atlas kept";
+    items.push({
+      kind: "stop",
+      cut: true,
+      words: `Atlas kept the first ${kept !== null ? grouped(kept) : "part of the"} events${more !== null ? ` and counted ${grouped(more)} more without keeping them` : ""}, so the path stops here.${counts.length ? ` In all, the code called ${names(counts)}.` : ""}`,
+    });
+    if (!ended) {
+      const end = endItem();
+      if (end.kind === "end") items.push({ ...end, dashed: true });
+      else items.push(end);
+      ended = true;
     }
   }
   if (!ended && !items.some((i) => i.kind === "stop")) items.push(endItem());
   if (!ended && items[items.length - 1]?.kind === "stop" && items.filter((i) => i.kind === "stop").length === 1 && str(own(measured, "outcome"))) {
     const e = endItem();
-    if (e.kind === "end") items.push(e);
+    if (e.kind === "end") items.push({ ...e, dashed: true });
   }
   for (const k of Object.keys(notMeasured)) if (k.startsWith("calls:")) notes.push(`Atlas does not claim a final count of ${k.slice(6)}: ${str(notMeasured[k]) ?? "not measured"}.`);
+  // After the end, a few notes say it; many become one, with exact counts.
+  const lateItems = items.filter((i): i is Extract<PathItem, { kind: "late" }> => i.kind === "late");
+  if (lateItems.length > 3) {
+    const first = items.indexOf(lateItems[0]!);
+    const callsAfter = lateItems.filter((i) => i.keys.length > 0).length;
+    const answersAfter = lateItems.length - callsAfter;
+    const words = [answersAfter ? `${grouped(answersAfter)} answer${answersAfter === 1 ? "" : "s"}` : "", callsAfter ? `${grouped(callsAfter)} call${callsAfter === 1 ? "" : "s"}` : ""].filter(Boolean).join(" and ");
+    const merged: PathItem = { kind: "late", words: `${words} came after the code had ended, the first at ${grouped(lateItems[0]!.t)} ms`, t: lateItems[0]!.t, keys: lateItems.flatMap((i) => i.keys) };
+    const rest: PathItem[] = items.filter((i) => i.kind !== "late");
+    rest.splice(first, 0, merged);
+    return { items: rest, notes };
+  }
   return { items, notes };
 }
 
-/** Runs of 3+ calls with the same answer collapse, past `over` calls in all, keeping `keep` (a call number) on its own. */
+/** What identifies an item as the same step when a pattern repeats. Times differ across rounds; a wait's length does not count. */
+function foldSig(i: PathItem): string | null {
+  switch (i.kind) {
+    case "call":
+      return `c|${i.name}|${i.answer}|${(i.whileOpen ?? []).join()}`;
+    case "together":
+      return `t|${i.calls.map((c) => c.name).join()}`;
+    case "answer":
+      return `a|${i.name}|${i.words}`;
+    case "wait":
+      return i.cut ? null : `w|${i.ms === null ? "?" : ""}|${i.answerWords ?? ""}`;
+    default:
+      return null;
+  }
+}
+
+const itemKeys = (i: PathItem): string[] => {
+  if (i.kind === "call") return [`${i.name}:${i.n}`];
+  if (i.kind === "together") return i.calls.map((c) => `${c.name}:${c.n}`);
+  if (i.kind === "wait") return [`wait:${i.t}`];
+  if (i.kind === "end") return ["end"];
+  if (i.kind === "late") return i.keys;
+  return [];
+};
+
+const FOLD_PERIOD = 8;
+
+/**
+ * Anything that repeats at least three times folds into one ticket, past `over` calls in all, with exact counts: one name
+ * called again and again, or a pattern such as x, y, x, y (review B4). It never folds across a step in `keep`: the step a
+ * ring needs stays on its own (review B3), calls and waits alike.
+ */
 export function collapse(items: PathItem[], over: number, keep: Set<string> = new Set()): PathItem[] {
-  const calls = items.filter((i) => i.kind === "call").length;
-  if (calls <= over) return items;
+  const callsIn = (i: PathItem) => (i.kind === "call" ? 1 : i.kind === "together" ? i.calls.length : 0);
+  if (items.reduce((n, i) => n + callsIn(i), 0) <= over) return items;
+  const sigs = items.map((i) => (itemKeys(i).some((k) => keep.has(k)) ? null : foldSig(i)));
   const out: PathItem[] = [];
   let i = 0;
   while (i < items.length) {
     const a = items[i]!;
-    if (a.kind !== "call" || keep.has(`${a.name}:${a.n}`)) {
+    let best: { len: number; period: number } | null = null;
+    if ((a.kind === "call" || a.kind === "together") && sigs[i] !== null) {
+      for (let period = 1; period <= FOLD_PERIOD && i + period < items.length; period++) {
+        let end = i + period;
+        while (end < items.length && sigs[end] !== null && sigs[end] === sigs[end - period]) end++;
+        // Never end on a wait: the wait after the last round belongs to what follows.
+        while (end > i && items[end - 1]!.kind === "wait") end--;
+        const len = end - i;
+        // At least three rounds, counting a last round cut short by that wait.
+        if (Math.ceil(len / period) >= 3 && (!best || period < best.period)) best = { len, period };
+      }
+    }
+    if (!best) {
       out.push(a);
       i++;
       continue;
     }
-    let j = i;
-    let last = a;
-    let count = 1;
-    const waits: number[] = [];
-    let waitsKnown = true;
-    while (j + 1 < items.length) {
-      const w = items[j + 1]!;
-      const c = w.kind === "wait" ? items[j + 2] : w;
-      if (!c || c.kind !== "call" || c.name !== a.name || c.answer !== a.answer || keep.has(`${c.name}:${c.n}`)) break;
-      if (w.kind === "wait") {
-        if (w.ms === null) waitsKnown = false;
-        else waits.push(w.ms);
-      }
-      j += w.kind === "wait" ? 2 : 1;
-      last = c;
-      count++;
-    }
-    if (count >= 3) {
-      out.push({ kind: "loop", name: a.name, from: a.n, to: last.n, count, t: a.t, answer: a.answer, waits: waitsKnown && waits.length ? { min: Math.min(...waits), max: Math.max(...waits) } : null, good: a.good });
-      i = j + 1;
+    const span = items.slice(i, i + best.len);
+    const waits = span.filter((x): x is Extract<PathItem, { kind: "wait" }> => x.kind === "wait");
+    const waitRange = waits.length && waits.every((w) => w.ms !== null) ? { min: Math.min(...waits.map((w) => w.ms!)), max: Math.max(...waits.map((w) => w.ms!)) } : null;
+    const calls = span.filter((x): x is Extract<PathItem, { kind: "call" }> => x.kind === "call");
+    const allOneName = calls.length === span.filter((x) => x.kind !== "wait").length && unique(calls.map((c) => c.name)).length === 1 && unique(calls.map((c) => c.answer ?? "")).length === 1 && calls.every((c) => c.answer !== null);
+    if (allOneName && !waits.some((w) => w.answerWords !== undefined)) {
+      const first = calls[0]!;
+      const last = calls[calls.length - 1]!;
+      out.push({ kind: "loop", name: first.name, from: first.n, to: last.n, count: calls.length, t: first.t, answer: first.answer, waits: waitRange, good: first.good });
     } else {
-      out.push(a);
-      i++;
+      const counted = new Map<string, number>();
+      for (const x of span) {
+        if (x.kind === "call") counted.set(x.name, (counted.get(x.name) ?? 0) + 1);
+        if (x.kind === "together") for (const c of x.calls) counted.set(c.name, (counted.get(c.name) ?? 0) + 1);
+      }
+      const round = span.slice(0, best.period);
+      const pattern = round
+        .map((x) => (x.kind === "call" ? `${x.name}${x.answer ? ` ${x.answer}` : ""}` : x.kind === "together" ? `${names(unique(x.calls.map((c) => c.name)))} together` : x.kind === "answer" ? `${x.name} ${x.words}` : x.kind === "wait" && x.answerWords ? x.answerWords : ""))
+        .filter(Boolean)
+        .join("; ");
+      out.push({ kind: "cycle", rounds: Math.ceil(best.len / best.period), counts: [...counted].map(([name, count]) => ({ name, count })), t: (a as { t: number }).t, pattern, waits: waitRange, good: !span.some((x) => (x.kind === "call" || x.kind === "answer") && !x.good) });
     }
+    i += best.len;
   }
   return out;
 }
@@ -307,27 +491,58 @@ function measureWords(measures: string): string {
 const whoWords = (who: string) => (who === "human" ? "you" : who.replace(/^model:/, "").replace(/^meta-models\//, ""));
 
 /**
- * The call the bettor's answer and the run part at. A count that was too low parts at the first call past it; one too high,
- * at the ending ("it stopped sooner"). A time parts at the first moment past the range, else at the ending. Anything else
- * (how it ended, what it returned) parts at the ending. Exported for the tests.
+ * The first step on the path that really departs from the bettor's answer, or null when no step honestly does. Exported for
+ * the tests.
+ * - A count too low: the first call past it. Too high: the ending, where the run stopped sooner.
+ * - A time ("how long it takes"): only the last call of a two-call test counts, because that is what is measured, and only
+ *   steps up to its ending. The first step past the range; if none, the ending, where it finished sooner.
+ * - A total wait: the wait that pushed the sum past the range; if none, the ending.
+ * - How it ended, what it returned: the ending.
+ * - The step is past what Atlas kept, or the path has no ending: null.
  */
-export function partingKey(items: PathItem[], bet: Pick<Bet, "measures" | "answer">): string {
+export function partingKey(items: PathItem[], bet: Pick<Bet, "measures" | "answer">): string | null {
+  const endAt = items.findIndex((i) => i.kind === "end");
+  const end = endAt >= 0 ? "end" : null;
+  const wasCut = items.some((i) => i.kind === "stop");
   const range = expectedRange(bet);
-  if (range) {
-    if (bet.measures.startsWith("calls")) {
-      const name = bet.measures.startsWith("calls:") ? bet.measures.slice(6) : null;
-      const past = items.find((i) => i.kind === "call" && (name === null || i.name === name) && i.n > range.max);
-      if (past && past.kind === "call") return `${past.name}:${past.n}`;
-    } else if (bet.measures === "virtualMs" || bet.measures === "totalWaitMs") {
-      const past = items.find((i) => (i.kind === "call" || i.kind === "wait") && i.t > range.max);
-      if (past && past.kind === "call") return `${past.name}:${past.n}`;
-      if (past && past.kind === "wait") return `wait:${past.t}`;
+  if (range && bet.measures.startsWith("calls")) {
+    const name = bet.measures.startsWith("calls:") ? bet.measures.slice(6) : null;
+    let seen = 0;
+    for (const it of items) {
+      const refs = it.kind === "call" ? [{ name: it.name, n: it.n }] : it.kind === "together" ? it.calls : it.kind === "late" ? it.keys.map((k) => ({ name: k.slice(0, k.lastIndexOf(":")), n: Number(k.slice(k.lastIndexOf(":") + 1)) })) : [];
+      for (const r of refs) {
+        if (name !== null && r.name !== name) continue;
+        seen = name !== null ? r.n : seen + 1;
+        if (seen > range.max) return `${r.name}:${r.n}`;
+      }
     }
+    // Too few calls on the path. A cut path cannot say whether the run really stopped short.
+    return wasCut ? null : end;
   }
-  return "end";
+  if (range && (bet.measures === "virtualMs" || bet.measures === "totalWaitMs")) {
+    const lastTurn = items.reduce((at, it, i) => (it.kind === "turn" ? i : at), -1);
+    const from = lastTurn + 1;
+    const stopAt = endAt >= 0 ? endAt : items.length;
+    const lastStart = lastTurn >= 0 ? (items[lastTurn] as { t: number }).t : 0;
+    if (bet.measures === "virtualMs") {
+      for (let i = from; i < stopAt; i++) {
+        const it = items[i]!;
+        if ((it.kind === "call" || it.kind === "wait" || it.kind === "together") && it.t - lastStart > range.max) return itemKeys(it)[0]!;
+      }
+    } else {
+      let sum = 0;
+      for (let i = from; i < stopAt; i++) {
+        const it = items[i]!;
+        if (it.kind === "wait") {
+          sum += it.ms ?? 0;
+          if (sum > range.max) return itemKeys(it)[0]!;
+        }
+      }
+    }
+    return wasCut ? null : end;
+  }
+  return end;
 }
-
-const keyOf = (i: PathItem): string | null => (i.kind === "call" ? `${i.name}:${i.n}` : i.kind === "wait" ? `wait:${i.t}` : i.kind === "end" ? "end" : null);
 
 export function whatHappened(input: WhatHappenedInput): RenderSpec {
   const base: RenderSpec = {
@@ -351,61 +566,86 @@ export function whatHappened(input: WhatHappenedInput): RenderSpec {
   const bets = input.bets ?? [];
   const verdicts = input.verdicts ?? [];
   const verdictOf = (id: string) => verdicts.find((v) => v.betId === id);
-  const parting = new Map<string, string>();
+  const parting = new Map<string, string | null>();
   for (const b of bets) if (verdictOf(b.id)?.outcome === "not_matched") parting.set(b.id, partingKey(raw, b));
-  const keep = new Set([...parting.values()]);
+  const keep = new Set([...parting.values()].filter((k): k is string => k !== null));
   const items = collapse(raw, input.collapseOver ?? 6, keep);
 
   const nodes: SpecNode[] = [];
   const edges: RenderSpec["edges"] = [];
   const steps: SpecStep[] = [];
   const keyToNode = new Map<string, string>();
+  const itemNode = new Map<PathItem, string>();
   let prev: string | null = null;
   let pendingWords: string | undefined;
-  let callNo = 0;
-  const add = (node: SpecNode, step: Omit<SpecStep, "id" | "nodes" | "edges" | "provenance">) => {
+  /** The last node on the unbroken thread. Notes past the end, or past a gap in the trace, hang off it with a dashed line. */
+  let threadEnd: string | null = null;
+  const pathEdges: string[] = [];
+  const add = (node: SpecNode, step: Omit<SpecStep, "id" | "nodes" | "edges" | "provenance">, off = false) => {
     nodes.push(node);
     const edgeIds: string[] = [];
     if (prev) {
       const id = `e${edges.length}`;
-      edges.push({ id, from: prev, to: node.id, ...(pendingWords ? { words: pendingWords } : {}), kind: "thread", provenance: "run" });
+      edges.push({ id, from: prev, to: node.id, ...(pendingWords ? { words: pendingWords } : {}), kind: off ? "dashed-note" : "thread", provenance: "run" });
       edgeIds.push(id);
+      if (!off) pathEdges.push(id);
     }
-    steps.push({ id: `s${steps.length}`, nodes: [node.id], edges: edgeIds, provenance: "run", ...step });
+    steps.push({ id: `s${steps.length}`, nodes: [node.id], edges: edgeIds, provenance: "run", ...step, ...(step.words !== undefined ? { words: cleanWords(step.words) } : {}) });
     prev = node.id;
+    if (!off) threadEnd = node.id;
     pendingWords = undefined;
   };
   for (const it of items) {
     const id = `p${nodes.length}`;
-    const key = keyOf(it);
-    if (key) keyToNode.set(key, id);
+    for (const key of itemKeys(it)) keyToNode.set(key, id);
+    itemNode.set(it, id);
     if (it.kind === "call") {
-      callNo++;
-      add({ id, kind: "ticket", words: `called ${clip(it.name, 30)}`, small: `${ordinal(it.n)} call`, provenance: "run", pin: it.good ? "blue" : "red" }, { beat: "call", device: it.name, words: `called ${it.name}, ${it.answer}` });
-      pendingWords = it.answer;
+      const small = it.whileOpen ? `${ordinal(it.n)} call, while ${names(it.whileOpen)} still had no answer` : `${ordinal(it.n)} call`;
+      add({ id, kind: "ticket", words: `called ${clip(it.name, 30)}`, small: clip(small, 60), provenance: "run", pin: it.answer === null ? "ochre" : it.good ? "blue" : "red" }, { beat: "call", device: it.name, words: `called ${it.name}${it.answer ? `, ${it.answer}` : ""}` });
+      if (it.answer) pendingWords = it.answer;
+    } else if (it.kind === "together") {
+      const nameList = names(unique(it.calls.map((c) => c.name)));
+      const sameName = unique(it.calls.map((c) => c.name)).length === 1;
+      const words = sameName ? `called ${clip(it.calls[0]!.name, 24)} ${grouped(it.calls.length)} times together` : `called ${clip(nameList, 34)} together`;
+      add({ id, kind: "ticket", words, small: `${grouped(it.calls.length)} calls, none waiting for another`, provenance: "run", pin: "ochre" }, { beat: "call", device: it.calls[0]!.name, words: `${words}, at ${grouped(it.t)} ms` });
+    } else if (it.kind === "answer") {
+      add({ id, kind: "ticket", words: `${clip(it.name, 22)} ${clip(it.words, 28)}`, small: `its answer arrived at ${grouped(it.t)} ms`, provenance: "run", pin: it.good ? "blue" : "red" }, { beat: "call", device: it.name, words: `${it.name} ${it.words}, at ${grouped(it.t)} ms` });
     } else if (it.kind === "loop") {
-      callNo += it.count;
       add({ id, kind: "ticket", words: `called ${clip(it.name, 24)} ${grouped(it.count)} times`, small: `calls ${grouped(it.from)} to ${grouped(it.to)}`, provenance: "run", pin: it.good ? "blue" : "red" }, { beat: "call", device: it.name, words: `called ${it.name} ${it.count} times` });
       pendingWords = it.waits ? `each ${it.answer}, waits ${it.waits.min === it.waits.max ? `${grouped(it.waits.min)} ms` : `${grouped(it.waits.min)} to ${grouped(it.waits.max)} ms`}` : `each ${it.answer}`;
+    } else if (it.kind === "cycle") {
+      const counts = it.counts.map((c) => `${clip(c.name, 18)} ${grouped(c.count)} times`);
+      const words = `called ${names(counts)}`;
+      add({ id, kind: "ticket", words: clip(words, 70), small: `the same pattern, ${grouped(it.rounds)} rounds`, provenance: "run", pin: it.good ? "blue" : "red" }, { beat: "call", device: it.counts[0]?.name ?? "the code", words: `${words}: ${it.rounds} rounds` });
+      pendingWords = clip(`each round: ${it.pattern}${it.waits ? `; waits ${it.waits.min === it.waits.max ? `${grouped(it.waits.min)} ms` : `${grouped(it.waits.min)} to ${grouped(it.waits.max)} ms`}` : ""}`, 90);
     } else if (it.kind === "wait") {
       const ms = it.ms;
       const words = ms === null ? "waited (time not reported)" : it.cut ? `was waiting ${grouped(ms)} ms when Atlas stopped` : `waited ${grouped(ms)} ms`;
       // The sweep is on a log scale: enough to feel longer waits without any one filling the dial.
       add({ id, kind: "clock", words, provenance: "run", sweep: ms === null ? 0.05 : Math.max(0.06, Math.min(0.92, Math.log10(1 + ms) / 5)) }, { beat: "wait", device: "clock", words, ...(ms === null ? {} : { ms }) });
+      if (it.answerWords) pendingWords = it.answerWords;
     } else if (it.kind === "turn") {
       add({ id, kind: "ticket", words: `${clip(it.fn, 26)}`, small: `Atlas's call ${it.n} of ${it.of}`, provenance: "run", pin: "ochre" }, { beat: "start", words: `Atlas makes call ${it.n} of ${it.of}: ${it.fn}` });
     } else if (it.kind === "turn-end") {
-      add({ id, kind: "ticket", words: it.words, small: `end of call ${it.n}`, provenance: "run", pin: "blue" }, { beat: "end", words: it.words });
+      add({ id, kind: "ticket", words: it.words, small: `end of call ${it.n}`, provenance: "run", pin: it.good ? "blue" : "red" }, { beat: "end", words: it.words });
     } else if (it.kind === "atlas-wait") {
       const words = `Atlas waited ${grouped(it.ms)} ms, as the test says`;
       add({ id, kind: "clock", words, provenance: "plain-code", sweep: Math.max(0.06, Math.min(0.92, Math.log10(1 + it.ms) / 5)) }, { beat: "wait", device: "clock", words, ms: it.ms });
     } else if (it.kind === "end") {
-      add({ id, kind: "ticket", words: it.words, small: "the end", provenance: "run", pin: it.good ? "blue" : "red" }, { beat: "end", words: it.words });
+      if (it.open) pendingWords = pendingWords ? `${pendingWords}; ${it.open}` : it.open;
+      add({ id, kind: "ticket", words: it.words, small: "the end", provenance: "run", pin: it.good ? "blue" : "red" }, { beat: "end", words: it.words }, it.dashed === true);
+    } else if (it.kind === "late") {
+      prev = prev ?? threadEnd;
+      add({ id, kind: "note", words: it.words, provenance: "run" }, { beat: "note", words: it.words }, true);
     } else {
-      add({ id, kind: "note", words: it.words, provenance: "run" }, { beat: "note", words: it.words });
+      add({ id, kind: "note", words: it.words, provenance: "run" }, { beat: "note", words: it.words }, it.cut === true);
     }
   }
-  void callNo;
+  // Words waiting for a thread that never came (a call that is the last thing on the path) go on the ticket itself.
+  if (pendingWords && nodes.length > 0) {
+    const last = nodes[nodes.length - 1]!;
+    last.small = last.small ? `${last.small}: ${pendingWords}` : pendingWords;
+  }
 
   // ---- marks, from the verdicts only ----
   const marks: SpecMark[] = [];
@@ -420,40 +660,55 @@ export function whatHappened(input: WhatHappenedInput): RenderSpec {
       marks.push({ on: lastNode, kind: "cant-check", who, words: `can't check ${measureWords(b.measures)}, ${clip(v.reason ?? "not measured", 80)}` });
     } else if (v.outcome === "matched") {
       const name = b.measures.startsWith("calls:") ? b.measures.slice(6) : null;
-      const lastCall = [...items].reverse().find((i) => (i.kind === "call" || i.kind === "loop") && (name === null || i.name === name));
-      const on = bets.length === 1 && lastCall && b.measures.startsWith("calls") ? nodes[items.indexOf(lastCall)]!.id : lastNode;
+      const lastCall = [...items].reverse().find((i) => ((i.kind === "call" || i.kind === "loop") && (name === null || i.name === name)) || (i.kind === "cycle" && i.counts.some((c) => name === null || c.name === name)) || (i.kind === "together" && i.calls.some((c) => name === null || c.name === name)));
+      const on = bets.length === 1 && lastCall && b.measures.startsWith("calls") ? (itemNode.get(lastCall) ?? lastNode) : lastNode;
       marks.push({ on, kind: "matched", who, words: `said ${expectedWords(b)} for ${measureWords(b.measures)}, and it matched` });
     } else {
-      const key = parting.get(b.id)!;
-      const on = keyToNode.get(key) ?? lastNode;
-      partsWaysAt ??= on;
-      marks.push({ on, kind: "didnt-match", who, words: `said ${expectedWords(b)} for ${measureWords(b.measures)}. The run parts ways here.` });
+      const key = parting.get(b.id) ?? null;
+      const on = key !== null ? keyToNode.get(key) : undefined;
+      if (on !== undefined) {
+        partsWaysAt ??= on;
+        marks.push({ on, kind: "didnt-match", who, words: `said ${expectedWords(b)} for ${measureWords(b.measures)}. The run parts ways here.` });
+      } else {
+        // No step on this path honestly shows where: no ring, and the sentence says so, with the exact number where there is one.
+        const n = num(own(rec(input.run.result?.measured), b.measures));
+        const count = n !== null && b.measures.startsWith("calls:") ? `; the run made ${grouped(n)}, past what Atlas kept` : ", and it did not match. No step on this path shows where";
+        marks.push({ on: lastNode, kind: "didnt-match", noStep: true, who, words: `said ${expectedWords(b)} for ${measureWords(b.measures)}${count}.` });
+      }
     }
   }
 
   // Several bettors on one step share one mark: fewer words, on clean paper.
   const merged: SpecMark[] = [];
   for (const m of marks) {
-    const same = merged.find((x) => x.on === m.on && x.kind === m.kind);
+    const same = merged.find((x) => x.on === m.on && x.kind === m.kind && !x.noStep === !m.noStep);
     if (!same) merged.push({ ...m });
     else same.words = `${(same.words ?? "").replace(/\.$/, "")}; ${m.who} ${m.words}`;
   }
   const conditions = (input.run.conditions ?? []).map((c) => ({ words: c.says, provenance: "run" as const }));
+  const overlapped = raw.some((i) => i.kind === "together" || i.kind === "answer" || i.kind === "late" || (i.kind === "call" && i.whileOpen !== undefined));
+  const originWords = input.origin === "proof-file" ? " Read back from a saved proof file." : input.origin === "this-run" ? " This run just happened here." : "";
   const captions = [
-    { words: `Every step comes from run ${clip(input.run.id, 24)}'s trace. Atlas's clock is virtual: nothing waited for real.`, provenance: "run" as const },
+    { words: `Every step comes from run ${clip(input.run.id, 24)}'s trace. Atlas's clock is virtual: nothing waited for real.${originWords}`, provenance: "run" as const },
+    ...(overlapped ? [{ words: "Calls overlapped here. The drawing shows when each answer arrived; the trace does not say whether the code used it.", provenance: "run" as const }] : []),
     ...notes.map((words) => ({ words, provenance: "run" as const })),
     ...conditions,
     ...(input.preExisting ? [{ words: input.preExisting, provenance: "plain-code" as const }] : []),
   ];
-  return { ...base, nodes, edges, steps, marks: merged, captions, path: { edges: edges.map((e) => e.id), provenance: "run", ...(partsWaysAt ? { partsWaysAt } : {}) }, ...(nodes.length === 0 ? { notShown: "the run recorded no step that can be drawn" } : {}) };
+  return { ...base, nodes, edges, steps, marks: merged, captions, path: { edges: pathEdges, provenance: "run", ...(partsWaysAt ? { partsWaysAt } : {}) }, ...(nodes.length === 0 ? { notShown: "the run recorded no step that can be drawn" } : {}) };
 }
+
+/** The label PRE-EXISTING.md requires wherever withRpcRetry appears, and the line that keeps "still waiting" from reading as "hangs for ever". */
+export const RETRY_PRE_EXISTING = "Pre-existing: withRpcRetry was written before the hackathon (listed in PRE-EXISTING.md). Atlas checks it; it is not part of Atlas.";
+export const RETRY_VIEM_CAP = " In production, viem's 10 s default caps this at about 62 s.";
 
 /** Author (d): the retry demo. The code is pre-existing, so the drawing says so (PRE-EXISTING.md). */
 export function retryDemo(input: Omit<WhatHappenedInput, "preExisting" | "title" | "kicker"> & { preExisting?: string }): RenderSpec {
+  const outcome = input.run.result?.measured?.outcome;
   return whatHappened({
     ...input,
     title: "withRpcRetry",
     kicker: "the retry demo",
-    preExisting: `${input.preExisting ?? "Pre-existing: withRpcRetry was written before the hackathon (listed in PRE-EXISTING.md). Atlas checks it; it is not part of Atlas. This run replays from a saved file."}${input.run.result?.measured?.outcome === "pending" || input.run.result?.measured?.outcome === "never_settled" ? " In production, viem's 10 s default caps this at about 62 s." : ""}`,
+    preExisting: `${input.preExisting ?? RETRY_PRE_EXISTING}${outcome === "pending" || outcome === "never_settled" ? RETRY_VIEM_CAP : ""}`,
   });
 }

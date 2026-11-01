@@ -34,10 +34,12 @@ export function RunPath({ run, experiment, bets = [], verdicts = [], title, kick
   const dark = useDarkScheme();
   const reduced = useReducedMotion();
   const spec = useMemo(() => {
-    const human = bets.filter((b) => b.who === "human");
-    const input = { run, ...(experiment ? { experiment } : {}), bets: human, verdicts: [...verdicts], ...(title ? { title } : {}), ...(kicker ? { kicker } : {}) };
+    // The retry demo marks each model's bet as well as the person's (D10). On a call's path only the person's are marked.
+    const shown = retry ? [...bets] : bets.filter((b) => b.who === "human");
+    // A proof card reads a saved file. Everywhere else in the app the run has just happened on this server.
+    const input = { run, ...(experiment ? { experiment } : {}), bets: shown, verdicts: [...verdicts], origin: still ? ("proof-file" as const) : ("this-run" as const), ...(title ? { title } : {}), ...(kicker ? { kicker } : {}) };
     return retry ? retryDemo(input) : whatHappened(input);
-  }, [run, experiment, bets, verdicts, title, kicker, retry]);
+  }, [run, experiment, bets, verdicts, title, kicker, retry, still]);
   const [m, setM] = useState<Mounted | null>(null);
   const [token, setToken] = useState(0);
   const first = useRef(true);

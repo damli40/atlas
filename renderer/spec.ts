@@ -74,6 +74,8 @@ export interface SpecMark {
   who: string;
   /** Short plain words beside the mark. */
   words?: string;
+  /** A didn't-match with no step that honestly shows where: the words alone, no ring. */
+  noStep?: boolean;
 }
 
 /** A note on a part drawn before or after a run (a failure label). Never run data before a bet. */

@@ -346,10 +346,12 @@ export class Player {
     const words = el.querySelectorAll(".rr-mark-words");
     const node = this.nodes.get(m.on);
     if (this.fast) {
-      if (m.kind === "didnt-match") this.calm(m.on);
+      if (m.kind === "didnt-match" && !m.noStep) this.calm(m.on);
       return;
     }
-    if (m.kind === "didnt-match") {
+    if (m.kind === "didnt-match" && m.noStep) {
+      await Promise.all([...words].map((w) => this.writeOn(w, 640)));
+    } else if (m.kind === "didnt-match") {
       this.calm(m.on);
       await this.rest(420);
       await this.revealArt(el.querySelector(".rr-mark-ring")!, el.querySelector(".rr-mark-spine")!, 1150, 9);

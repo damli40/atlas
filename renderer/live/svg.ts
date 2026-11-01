@@ -270,6 +270,8 @@ function markSvg(m: SceneMark, node: SceneNode, seed: string): string {
     art =
       `<path class="rr-mark-tick" d="${ribbon(tick, 4.2, R, { taper: true })}"/><path class="rr-mark-spine" d="${linePath(tick)}"/>` +
       [[x + 27, y - 21, 5.4], [x + 33, y + 3, 3.8], [x + 5, y - 32, 4.2]].map(([sx, sy, r]) => `<path class="rr-spark" d="M${n1(sx! - r!)} ${n1(sy!)}H${n1(sx! + r!)}M${n1(sx!)} ${n1(sy! - r!)}V${n1(sy! + r!)}"/>`).join("");
+  } else if (m.kind === "didnt-match" && m.noStep) {
+    art = ""; // No honest step: the words stand alone.
   } else if (m.kind === "didnt-match") {
     // A rounded ring (a superellipse), so it clears the ticket's corners without growing huge; a little past where it began.
     const pts: Pt[] = [];

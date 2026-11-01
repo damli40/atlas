@@ -73,6 +73,8 @@ export interface SceneRegion {
 }
 
 export interface SceneMark {
+  /** A didn't-match with no honest step: the words alone, no ring. */
+  noStep?: boolean;
   on: string;
   kind: MarkKind;
   words: TextBlock;

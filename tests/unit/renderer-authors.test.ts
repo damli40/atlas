@@ -148,19 +148,23 @@ describe("R3 author (c): what happened", () => {
     const items = pathItems({ run: run(loopTrace(20, 10), { outcome: "threw" }), experiment: net(500) }).items;
     const key = partingKey(items, { measures: "calls:fetch", answer: { kind: "integer", value: 7 } });
     expect(key).toBe("fetch:8");
-    const c = collapse(items, 6, new Set([key]));
+    const c = collapse(items, 6, new Set([key!]));
     expect(c.some((i) => i.kind === "call" && i.n === 8)).toBe(true);
     expect(c.filter((i) => i.kind === "loop").map((i) => i.kind === "loop" && i.count)).toEqual([7, 12]);
   });
-  it("different answers are not collapsed together", () => {
+  it("different answers are not folded as one; a repeating pattern of them folds with its exact rounds", () => {
+    const answers = ["answered 200", "answered 503", "answered 404", "answered 500", "answered 429", "answered 201", "answered 301", "answered 302", "answered 303", "answered 304"];
+    const varied = answers.map((answer, n) => ({ kind: "call" as const, name: "f", n: n + 1, t: n, answer, good: false }));
+    expect(collapse(varied, 6).length).toBe(10);
     const items = [...Array(10).keys()].map((n) => ({ kind: "call" as const, name: "f", n: n + 1, t: n, answer: n % 2 ? "answered 200" : "answered 500", good: false }));
-    expect(collapse(items, 6).length).toBe(10);
+    const folded = collapse(items, 6);
+    expect(folded).toMatchObject([{ kind: "cycle", rounds: 5, counts: [{ name: "f", count: 10 }] }]);
   });
   it("a cut trace stops and says so; the ending still comes from the measured fields", () => {
     const tr = [...loopTrace(3, 10).slice(0, 5), { t: 20, event: "trace_cut", data: { kept: 5, dropped: 900 } }] as TraceEvent[];
     const s = whatHappened({ run: run(tr, { outcome: "threw", thrownName: "Error", virtualMs: 9000 }), experiment: net(500) });
     const words = s.nodes.map((n) => n.words).join(" | ");
-    expect(words).toMatch(/5 kept, 900 more counted/);
+    expect(words).toMatch(/kept the first 5 events and counted 900 more/);
     expect(words).toMatch(/threw Error at 9,000 ms/);
   });
   it("can't-check fields say so instead of guessing", () => {
@@ -235,7 +239,7 @@ describe("R3 author (c): a test of several calls", () => {
       { t: 300, event: "threw", data: { name: "Error" } },
     ];
     const s = whatHappened({ run: seq(t, { outcome: "threw", thrownName: "Error", virtualMs: 200 }) });
-    expect(s.nodes[s.nodes.length - 1]?.words).toBe("threw Error at 300 ms");
+    expect(s.nodes[s.nodes.length - 1]?.words).toBe("threw Error 200 ms into call 2 (300 ms into the test)");
     expect(s.nodes.map((n) => n.words)).toContain("call 1 threw Boom");
   });
   it("a single-call run is unchanged: no turn tickets", () => {
@@ -250,7 +254,12 @@ describe("R3 author (d): the retry demo", () => {
     expect(s.nodes.filter((n) => n.small?.endsWith("call")).length).toBe(5);
     expect(s.nodes.filter((n) => n.words === "waited 3,000 ms").length).toBe(4);
     expect(s.captions.map((c) => c.words).join()).toMatch(/Pre-existing/);
-    expect(s.captions.map((c) => c.words).join()).toMatch(/replays from a saved file/);
+    expect(s.captions.map((c) => c.words).join()).not.toMatch(/saved|proof file|just happened/);
+    const fromFile = retryDemo({ run: retryFile.runs[0], experiment: retryFile.experiments[0], origin: "proof-file" });
+    expect(fromFile.captions.map((c) => c.words).join()).toMatch(/saved proof file/);
+    const live = retryDemo({ run: retryFile.runs[0], experiment: retryFile.experiments[0], origin: "this-run" });
+    expect(live.captions.map((c) => c.words).join()).toMatch(/just happened here/);
+    expect(live.captions.map((c) => c.words).join()).not.toMatch(/saved/);
   });
   it("never claims what CLAUDE.md forbids", () => {
     expect(allWords(s)).not.toMatch(/hang|hammer|forever|live\b/i);

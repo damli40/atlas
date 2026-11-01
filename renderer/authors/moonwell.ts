@@ -22,6 +22,8 @@ export interface MoonwellInput {
   /** Captions the proof file says must be shown ("fork of Base one block before…"). */
   fileCaptions?: string[];
   seed?: string;
+  /** Where the run came from, only when the caller knows (review B5). */
+  origin?: "this-run" | "proof-file";
 }
 
 const isUint = (v: unknown): v is string => typeof v === "string" && /^\d+$/.test(v);
@@ -94,7 +96,7 @@ export function moonwellFlow(input: MoonwellInput): RenderSpec {
     captions: [
       { words: MOONWELL_ALLOWED_WORDS, provenance: "plain-code" },
       ...(input.fileCaptions ?? []).map((words) => ({ words, provenance: "run" as const })),
-      { words: `Every number comes from run ${input.run.id}, replayed from its proof file. Atlas shows what the code did; it does not judge it.`, provenance: "run" },
+      { words: `Every number comes from run ${input.run.id}.${input.origin === "proof-file" ? " Read back from its saved proof file." : input.origin === "this-run" ? " This run just happened on a fork." : ""} Atlas shows what the code did; it does not judge it.`, provenance: "run" },
     ],
   };
 }

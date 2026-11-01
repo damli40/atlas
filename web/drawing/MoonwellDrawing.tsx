@@ -13,7 +13,7 @@ export function MoonwellDrawing({ run, bets = [], verdicts = [], theory, caption
   const dark = useDarkScheme();
   const reduced = useReducedMotion();
   const spec = useMemo(() => {
-    const s = moonwellFlow({ run, bets: [...bets], verdicts: [...verdicts], ...(captions ? { fileCaptions: captions } : {}) });
+    const s = moonwellFlow({ run, bets: [...bets], verdicts: [...verdicts], origin: still ? "proof-file" : "this-run", ...(captions ? { fileCaptions: captions } : {}) });
     return theory?.length ? { ...s, captions: [...theory.map((words) => ({ words, provenance: "plain-code" as const })), ...s.captions] } : s;
   }, [run, bets, verdicts, theory, captions]);
   const [height, setHeight] = useState<number | null>(null);
