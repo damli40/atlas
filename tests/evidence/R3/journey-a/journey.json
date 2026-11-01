@@ -1,34 +1,34 @@
 {
  "timings": {
-  "orders: paste → drawing (ms)": 79,
-  "orders: tap a box → next paint (ms)": 28,
-  "orders: tap an answer → next paint (ms)": 27,
-  "orders: seal → first motion (ms)": 734,
-  "orders: run length, first motion → verdict (ms)": 5326,
-  "claim: paste → drawing (ms)": 78,
-  "claim: tap a box → next paint (ms)": 15,
-  "claim: tap an answer → next paint (ms)": 25,
+  "orders: paste → drawing (ms)": 97,
+  "orders: tap a box → next paint (ms)": 29,
+  "orders: tap an answer → next paint (ms)": 32,
+  "orders: seal → first motion (ms)": 716,
+  "orders: run length, first motion → verdict (ms)": 4823,
+  "claim: paste → drawing (ms)": 85,
+  "claim: tap a box → next paint (ms)": 31,
+  "claim: tap an answer → next paint (ms)": 31,
   "claim: seal → first motion (ms)": 733,
-  "claim: run length, first motion → verdict (ms)": 5324,
-  "plan: paste → drawing (ms)": 81,
+  "claim: run length, first motion → verdict (ms)": 4833,
+  "plan: paste → drawing (ms)": 77,
   "plan: tap a box → next paint (ms)": 29,
-  "plan: tap an answer → next paint (ms)": 25,
+  "plan: tap an answer → next paint (ms)": 22,
   "plan: seal → first motion (ms)": 549,
   "plan: run length, first motion → verdict (ms)": 5823,
-  "example: click → drawing (ms)": 70,
-  "example: click → first question (ms)": 152,
-  "example: click → sealed, by keys (ms)": 733
+  "example: click → drawing (ms)": 71,
+  "example: click → first question (ms)": 155,
+  "example: click → sealed, by keys (ms)": 735
  },
  "checks": [
   {
    "name": "orders: reaches a verdict",
    "ok": true,
-   "more": "called fetch1st callcalled fetch | waited 200 mswaited 200 ms | called fetch 3 times and fetchPage 3 timesthe same pattern, 3…called fetch 3 times andfetchPage 3 times | fetchPage threwyour codefetchPage threw | threw Error at 1,400 msthe endthrew Error at 1,400 ms"
+   "more": "called fetch1st callcalled fetch | waited 200 mswaited 200 ms | called fetch 3 times and fetchPage 3 times3 roundscalled fetch 3 times andfetchPage 3 times | fetchPage threwyour codefetchPage threw | threw Error at 1,400 msthe endthrew Error at 1,400 ms"
   },
   {
    "name": "orders: the helper order is drawn, and its caption says where it came from",
    "ok": true,
-   "more": "virtual: nothing waited for real.This run just happened here.Helper order comes from a separate traced run, not the sealed ones. The code itself couldchange it."
+   "more": "virtual: nothingwaited for real. This run just happened here.Helper order comes from a separate traced run, not the sealed ones. The code itselfcould change it."
   },
   {
    "name": "change: the Go button waits for a change",
@@ -38,7 +38,7 @@
   {
    "name": "change: a paid call is shown before the click",
    "ok": true,
-   "more": "The AI bettors answer too: paid AI calls."
+   "more": "The AI bettors answer too. Each is a paid AI call, from your invite's budget where you have one."
   },
   {
    "name": "change: same test again, on changed code",
@@ -63,7 +63,7 @@
   {
    "name": "claim: reaches a verdict",
    "ok": true,
-   "more": "called fetch1st callcalled fetch | waited 200 mswaited 200 ms | called fetch 3 times and fetchPage 3 timesthe same pattern, 3…called fetch 3 times andfetchPage 3 times | fetchPage threwyour codefetchPage threw | threw Error at 1,400 msthe endthrew Error at 1,400 ms"
+   "more": "called fetch1st callcalled fetch | waited 200 mswaited 200 ms | called fetch 3 times and fetchPage 3 times3 roundscalled fetch 3 times andfetchPage 3 times | fetchPage threwyour codefetchPage threw | threw Error at 1,400 msthe endthrew Error at 1,400 ms"
   },
   {
    "name": "claim: a paid call is shown",
@@ -89,14 +89,14 @@
  "orders path": [
   "called fetch1st callcalled fetch",
   "waited 200 mswaited 200 ms",
-  "called fetch 3 times and fetchPage 3 timesthe same pattern, 3…called fetch 3 times andfetchPage 3 times",
+  "called fetch 3 times and fetchPage 3 times3 roundscalled fetch 3 times andfetchPage 3 times",
   "fetchPage threwyour codefetchPage threw",
   "threw Error at 1,400 msthe endthrew Error at 1,400 ms"
  ],
  "claim path": [
   "called fetch1st callcalled fetch",
   "waited 200 mswaited 200 ms",
-  "called fetch 3 times and fetchPage 3 timesthe same pattern, 3…called fetch 3 times andfetchPage 3 times",
+  "called fetch 3 times and fetchPage 3 times3 roundscalled fetch 3 times andfetchPage 3 times",
   "fetchPage threwyour codefetchPage threw",
   "threw Error at 1,400 msthe endthrew Error at 1,400 ms"
  ],

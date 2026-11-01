@@ -163,6 +163,11 @@ describe("M4: an expired job says so and offers a re-run", () => {
       },
     } as unknown as Api;
     mount(<ExplorerFlow api={api} onBet={() => {}} />);
+    await act(async () => {
+      const input = host!.querySelector<HTMLInputElement>('[data-testid="outline-repo"]')!;
+      Object.getOwnPropertyDescriptor(input.ownerDocument.defaultView!.HTMLInputElement.prototype, "value")!.set!.call(input, "damli40/atlas");
+      input.dispatchEvent(new (input.ownerDocument.defaultView!.Event)("input", { bubbles: true }));
+    });
     await act(async () => host!.querySelector<HTMLButtonElement>('[data-testid="outline-start"]')!.click());
     await flush();
     const stage = host!.querySelector<HTMLElement>('[data-testid="explorer-stage"]')!;

@@ -59,8 +59,8 @@ export function parseRepoInput(input: string): { repo: string; ref: string; subf
 
 export function ExplorerFlow({ api, onBet, saved, initialRepo, initialFiles, visible = true }: { api: Api; onBet: (h: BetHandoff) => void; saved?: () => Promise<OutlineView>; initialRepo?: string; initialFiles?: FileList; /** X3: the screen is shown (labels are read again when it is). */ visible?: boolean }) {
   const first = initialRepo ? parseRepoInput(initialRepo) : null;
-  const [repo, setRepo] = useState(first?.repo ?? "damli40/atlas");
-  const [subfolder, setSubfolder] = useState(first ? first.subfolder : "server/meta");
+  const [repo, setRepo] = useState(first?.repo ?? "");
+  const [subfolder, setSubfolder] = useState(first ? first.subfolder : "");
   const [ref, setRef] = useState(first?.ref ?? "");
   const [files, setFiles] = useState<FileList | null>(null);
   const [job, setJob] = useState<OutlineJob | null>(null);
@@ -103,8 +103,8 @@ export function ExplorerFlow({ api, onBet, saved, initialRepo, initialFiles, vis
     if (autoStarted.current) return;
     autoStarted.current = true;
     if (initialFiles && initialFiles.length > 0) {
+      // Choosing files spends nothing: the button that starts the outline says it is a paid AI call.
       setFiles(initialFiles);
-      void start(true, initialFiles);
     } else if (first) void start(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -212,15 +212,15 @@ export function ExplorerFlow({ api, onBet, saved, initialRepo, initialFiles, vis
             Branch, tag or commit <input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="(the default branch)" disabled={running || busy} data-testid="outline-ref" />
           </label>
           <button type="button" onClick={() => start(false)} disabled={running || busy || repo.trim() === ""} data-testid="outline-start">
-            Outline this folder
+            Outline this folder (a paid AI call)
           </button>
         </div>
         <div className="ex-form">
           <label>
-            Or upload files <input type="file" multiple onChange={(e) => setFiles(e.target.files)} disabled={running || busy} data-testid="outline-files" />
+            Or upload files (outlining asks Muse Wonder: a paid AI call) <input type="file" multiple onChange={(e) => setFiles(e.target.files)} disabled={running || busy} data-testid="outline-files" />
           </label>
           <button type="button" onClick={() => start(true)} disabled={running || busy || !files || files.length === 0} data-testid="outline-upload">
-            Outline these files
+            Outline these files (a paid AI call)
           </button>
           {saved ? (
             <button type="button" className="secondary" onClick={openSaved} disabled={running || busy} data-testid="outline-saved">

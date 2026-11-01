@@ -103,7 +103,7 @@ export function ProofImage({ card, file, lines, names, api, download, downloadNa
   const run = file.runs[0];
   const rows = card.bets.map((b) => ({ who: b.who, name: b.who === "human" ? "You" : (names[b.who] ?? b.who), measures: b.measures, question: plainField(b.measures), said: b.said, observed: b.observed, outcome: b.outcome ?? null }));
   const moment = run ? momentOfRows(rows, run, file.target.language) : null;
-  const marks = scoreboardMarks(file.verdicts, file.bets).slice(0, 6);
+  const marks = scoreboardMarks(file.verdicts, file.bets);
   const exp = file.experiments[0];
   // A title per kind of round: the image travels alone, so it has to say what it is about.
   const title = exp?.params.shape === "call-function" ? exp.params.exportName : run?.runner === "evm" ? "Moonwell MIP-X43: 1 cbETH, on a Base fork" : exp?.params.shape === "retry-scenario" ? "withRpcRetry" : "pasted code";
@@ -167,6 +167,11 @@ export function ProofImage({ card, file, lines, names, api, download, downloadNa
     } else setSaid("The link could not be deleted.");
   };
   if (!moment) return null;
+  // The picture closes up around however many lines the run takes.
+  const runEnd = 238 + runLines.length * 56;
+  const changeY = runEnd + 26;
+  const marksY = runEnd + (beforeChange || theory.length > 0 ? 44 : 24);
+  const shownMarks = marks.slice(0, 8);
   return (
     <section className="pc-image-wrap" aria-label="the proof card as one image" data-testid="pc-image">
       <svg ref={ref} className="pc-image" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title}: you bet ${moment.you ?? "nothing"}; the run ${moment.run}`} xmlns="http://www.w3.org/2000/svg">
@@ -189,27 +194,27 @@ export function ProofImage({ card, file, lines, names, api, download, downloadNa
           <text key={i} x="80" y={274 + i * 56} fontFamily={MONO} fontWeight="500" fontSize="44" letterSpacing="-1" fill="#1f1b1d">{l}</text>
         ))}
         <g color="#1f1b1d">
-          {marks.map((m, i) => (
-            <g key={m.key} transform={`translate(${56 + i * 112} 450)`}>
-              <svg x="0" y="0" width="92" height="92" viewBox="0 0 100 100">
-                <Mark mark={m} still names={names} size={92} />
+          {shownMarks.map((m, i) => (
+            <g key={m.key} transform={`translate(${56 + i * 118} ${marksY})`}>
+              <svg x="0" y="0" width="100" height="100" viewBox="0 0 100 100">
+                <Mark mark={m} still names={names} size={100} />
               </svg>
             </g>
           ))}
         </g>
-        <text x="56" y="566" fontFamily={SANS} fontSize="14" fill="#6b6358">{"One mark per question, a dot for each bettor (solid: you). A line reaching the bar: matched. Stopping short: didn't match. Dashed: can't check."}</text>
+        <text x="56" y={marksY + 124} fontFamily={SANS} fontSize="15" fill="#6b6358">{"One mark per question, a dot for each bettor (solid: you). A line reaching the bar: matched. Stopping short: didn't match. Dashed: can't check."}</text>
         {lines.slice(0, 3).map((l, i) => (
-          <text key={l.who} x="56" y={604 + i * 24} fontFamily={SANS} fontSize="16" fill="#1f1b1d">
+          <text key={l.who} x="56" y={marksY + 156 + i * 25} fontFamily={SANS} fontSize="17" fill="#1f1b1d">
             {`${l.who === "human" ? "You" : (names[l.who] ?? l.who).replace(/ · via .*$/, "")}: ${bettorLineWords(l)}`.slice(0, 110)}
           </text>
         ))}
         <text x={W - 56} y="628" textAnchor="end" fontFamily={SANS} fontWeight="500" fontSize="16" fill="#1f1b1d">Judged by plain code</text>
         <text x={W - 56} y="652" textAnchor="end" fontFamily={MONO} fontSize="14" fill="#6b6358">{hash ? `sealed ${hash}` : ""}</text>
         {(beforeChange || theory.length > 0) && (
-          <text x="56" y="436" fontFamily={SANS} fontWeight="500" fontSize="14" fill="#6b4d00" data-testid="pc-image-change">{[beforeChange, ...theory].filter(Boolean).join(" ").slice(0, 170)}</text>
+          <text x="56" y={changeY} fontFamily={SANS} fontWeight="500" fontSize="15" fill="#6b4d00" data-testid="pc-image-change">{[beforeChange, ...theory].filter(Boolean).join(" ").slice(0, 170)}</text>
         )}
-        <text x="56" y="694" fontFamily={SANS} fontSize="12.5" fill="#6b6358">{MARK_PRE_EXISTING_CAPTION}</text>
-        {preExisting && <text x={W - 56} y="694" textAnchor="end" fontFamily={SANS} fontWeight="500" fontSize="12.5" fill="#6b4d00">{preExisting.length > 62 ? "Pre-existing code: listed in PRE-EXISTING.md" : preExisting}</text>}
+        <text x="56" y="694" fontFamily={SANS} fontSize="14" fill="#6b6358">{MARK_PRE_EXISTING_CAPTION}</text>
+        {preExisting && <text x={W - 56} y="694" textAnchor="end" fontFamily={SANS} fontWeight="500" fontSize="13" fill="#6b4d00">{preExisting.length > 62 ? "Pre-existing code: listed in PRE-EXISTING.md" : preExisting}</text>}
       </svg>
       <div className="pc-share">
         <button type="button" className="u1-btn" onClick={() => void copyImage()} data-testid="pc-copy-image">Copy image</button>

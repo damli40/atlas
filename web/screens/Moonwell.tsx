@@ -94,7 +94,7 @@ function MoonwellSaved({ api, onRunAgain }: { api: Api; onRunAgain: () => void }
       <p className="m-saved-label" data-testid="moonwell-saved-label">{`A replay of a saved file: run ${file.runs[0].id}, at Base block ${file.runs[0].forkBlock ?? "?"}. Nothing ran just now.`}</p>
       <div className="m-split" data-testid="m-split">
         {moment && <div className="m-standalone"><MomentView moment={moment} /></div>}
-        <MoonwellDrawing run={file.runs[0]} bets={file.bets} verdicts={file.verdicts} captions={file.captions} still />
+        <MoonwellDrawing run={file.runs[0]} bets={file.bets} verdicts={file.verdicts} captions={file.captions} still compact />
       </div>
       <button type="button" className="primary" onClick={onRunAgain} data-testid="moonwell-run-again">
         Run it again
@@ -345,7 +345,7 @@ export function MoonwellFlow({ api, onRoundOpen, direct = false }: { api: Api; o
         // D60: the film's payoff frame: the moment beside the ring.
         <div className="m-split" data-testid="m-split">
           <MoonwellMoment result={result} />
-          <MoonwellDrawing run={result.run} bets={result.bets} verdicts={result.verdicts} />
+          <MoonwellDrawing run={result.run} bets={result.bets} verdicts={result.verdicts} compact />
         </div>
       )}
 

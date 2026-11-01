@@ -11,7 +11,8 @@
 // - Muse Wonder's test is a proposal: the gate decides. Its claim sentence is shown only after the run (D18).
 // - Verdicts are plain code's (src/judge.ts): matched / didn't match / can't check.
 
-import { visibleText } from "../../src/gate";
+import { describeCall, visibleText } from "../../src/gate";
+import { runEnding } from "../../src/moment";
 import type { JsonValue } from "../../src/types";
 import { PASTE_WORDS } from "../../src/paste-words";
 import EXAMPLE_OUTLINE from "../u1-example-outline.json";
@@ -56,7 +57,8 @@ const FILE_NAME: Record<Lang, string> = { js: "pasted.js", ts: "pasted.ts", py: 
 export function defaultFunction(outline: FileOutline | undefined, exports: readonly { name: string }[]): string | null {
   const names = new Set(exports.map((e) => e.name));
   const fns = (outline?.parts ?? []).filter((p) => p.kind === "function" && names.has(p.name));
-  if (fns.length === 0) return exports[0]?.name ?? null;
+  // A file with an outline and no exported function has nothing to call: no bet is offered on a constant.
+  if (fns.length === 0) return outline ? null : (exports[0]?.name ?? null);
   const out = (n: string) => outline!.joins.filter((j) => j.from === n).length;
   return [...fns].sort((a, b) => out(b.name) - out(a.name) || a.lineStart - b.lineStart)[0]!.name;
 }
@@ -163,6 +165,8 @@ export const CHANGE_WORDS = {
   explain: "Same test, same questions. Your new answers are sealed before anything runs, and the new run is judged the same way.",
   go: "Draw the change and bet again",
   sameTest: "The same test, on your changed code. Bet again: nothing about this code has run yet.",
+  nothingToDraw: "Atlas draws functions and classes, and this has none. Paste a JavaScript, TypeScript or Python file with at least one function.",
+  nothingToCall: "Atlas bets on what a function does when it is called, and this file exports no function to call.",
   claimantAsks: "Changing who bets asks them again: paid AI calls. Your answers stay.",
   sameCode: "Same code as a run you've already seen, apart from spaces or comments, so you may already know the answer.",
   claimAsking: "Asking Muse Wonder for a new test…",
@@ -171,7 +175,7 @@ export const CHANGE_WORDS = {
   earlyWonder: "Muse Wonder is writing a test for this code: a paid AI call.",
   earlyDone: "Muse Wonder wrote a test for this code: a paid AI call, already made. Betting adds the AI bettors: paid AI calls.",
   paidAgain: "The first two start paid AI calls.",
-  paidBets: "The AI bettors answer too: paid AI calls.",
+  paidBets: "The AI bettors answer too. Each is a paid AI call, from your invite's budget where you have one.",
 } as const;
 
 /** The test's values too long for its one sentence, in full: "show the whole test" must show them whole. */
@@ -189,6 +193,26 @@ export function longValues(params: unknown, language: Lang | undefined): string[
   };
   walk(params, "");
   return out;
+}
+
+/** How one test differs from another, by the values that change, so two tests can be told apart. */
+export function whatDiffers(a: unknown, b: unknown, other = "the last"): string {
+  const leaves = (v: unknown, path: string, out: Map<string, unknown>) => {
+    if (v && typeof v === "object") for (const [k, x] of Object.entries(v as Record<string, unknown>)) leaves(x, `${path}/${k}`, out);
+    else out.set(path, v);
+    return out;
+  };
+  const x = leaves(a, "", new Map());
+  const y = leaves(b, "", new Map());
+  const changed = [...new Set([...x.keys(), ...y.keys()])].filter((k) => x.get(k) !== y.get(k));
+  if (changed.length === 0) return `The same as ${other} test.`;
+  const shown = changed
+    .filter((k) => x.has(k) && y.has(k))
+    .slice(0, 3)
+    .map((k) => `${JSON.stringify(y.get(k))} becomes ${JSON.stringify(x.get(k))}`);
+  if (shown.length === 0) return `Differs from ${other} test in its shape.`;
+  const more = changed.length - shown.length;
+  return `Compared with ${other} test: ${visibleText(shown.join(", "))}${more > 0 ? `, and ${more} more` : ""}.`;
 }
 
 /** What this invite code has left today, when the server says. */
@@ -275,7 +299,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const [played, setPlayed] = useState(0);
   // U3 item 5: a round opened by "Test this claim": the sentence it tests (the person's screen only; D18 keeps it from
   // the betting models). Its result is shown beside the run's measured facts, never judged.
-  const [claimRound, setClaimRound] = useState<{ sentence: string } | null>(null);
+  const [claimRound, setClaimRound] = useState<{ sentence: string; closeness?: string } | null>(null);
   // U3 item 6: while Muse Wonder writes tests: when it started and what is happening now (real steps, not a guess).
   const [wonderWait, setWonderWait] = useState<{ started: number; phase: string; claim?: string } | null>(null);
   const ownTest = useRef(false);
@@ -307,6 +331,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const ranCodes = useRef(new Set<string>());
   /** This test has already run on this code, whatever its keys' order and the code's spaces. Offering it again would show its answer. */
   const alreadyRan = (params: unknown) => ranCodes.current.has(`${codeFingerprint(readText, pasted?.target.language ?? undefined)}|${canonicalTest(params)}`);
+  const [beforeChange, setBeforeChange] = useState<string | null>(null);
   // The server's word that this round repeats a test: the person is told what the bettors are told (D19).
   const [repeatNote, setRepeatNote] = useState<string | null>(null);
   // R3 review B7: "Bet on another test" opens a list first. It wipes nothing and spends nothing until something is chosen.
@@ -376,6 +401,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     setWonderWait(null);
     setEditing(null);
     setPicking(false);
+    setBeforeChange(null);
     setPendingClaimant(null);
     setRepeatNote(null);
     setStep(0);
@@ -414,7 +440,11 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       if (first) await start(() => api.experimentFromProposal(target, first.id, { quiz: true }));
       else setChanging(true);
     } catch (e) {
-      if (g === gen.current) setError((e as Error).message);
+      if (g === gen.current) {
+        setError((e as Error).message);
+        // One sentence and one way on: the person can write their own test without paying again.
+        setChanging(true);
+      }
     } finally {
       if (g === gen.current) setWonderWait(null);
     }
@@ -704,8 +734,9 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
         setClaimNoNew(true);
         return;
       }
+      const lastParams = exp.experiment.params;
       reset();
-      setClaimRound({ sentence });
+      setClaimRound({ sentence, closeness: whatDiffers(first.params, lastParams) });
       setProposals(p);
       setOpen(true);
       await start(() => api.experimentFromProposal(target, first.id, { quiz: true }));
@@ -723,6 +754,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     const want = fn ?? undefined;
     const text = editing;
     setCode(text);
+    // What the last run did, for "before" and "after" once the changed code has run. Measured facts only.
+    const before = result ? runEnding(result.run, language) : null;
     // D63: this round already has its test, so Wonder is not asked for one.
     skipEarly.current = true;
     const r = await read(text, language, want);
@@ -730,6 +763,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     // What the note says must match what the bettors are told (D19): the server knows when this exact code and test already ran.
     const seen = ranCodes.current.has(`${codeFingerprint(text, language)}|${canonicalTest(params)}`);
     setOpen(true);
+    setBeforeChange(before);
     await start(async () => {
       const out = await api.experiment(r.target, params, undefined, undefined, { quiz: true });
       setHandoffNote(out.repeatOf ? null : seen ? CHANGE_WORDS.sameCode : CHANGE_WORDS.sameTest);
@@ -748,6 +782,15 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   useEffect(() => {
     if (expId && open) document.querySelector<HTMLElement>('[data-testid="u1-pop"]')?.focus({ preventScroll: true });
   }, [expId, open]);
+  const usingKeys = useRef(false);
+  // A question that takes a typed value shows with its box ready.
+  const activeMeasures = exp?.questions[step]?.measures;
+  useEffect(() => {
+    if (!open || sealed.length > 0 || !activeMeasures) return;
+    // Not for someone answering by keys: there a digit must answer the question, not land in the box.
+    if (exp?.questions[step]?.allowsTyped && !usingKeys.current) document.getElementById(`typed-${activeMeasures}`)?.focus({ preventScroll: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeMeasures, open]);
   // D60: the bet's keys: 1 to 9 answer the question showing, the left arrow goes back, Enter seals on the last step.
   useEffect(() => {
     if (!exp || !open || sealed.length > 0 || changing) return;
@@ -764,6 +807,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
         e.preventDefault();
         void seal();
       } else if (/^[1-9]$/.test(e.key) && step < exp.questions.length) {
+        usingKeys.current = true;
         const q = exp.questions[step]!;
         const ids = [...(q.quiz ?? []).map((o) => o.id), CANT_TELL];
         const id = ids[Number(e.key) - 1];
@@ -905,9 +949,9 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
             }}
           >
             <label htmlFor="u1-repo">A GitHub folder</label>
-            <input id="u1-repo" value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="owner/repo or a folder link" data-testid="u1-repo" />
+            <input id="u1-repo" value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="owner/repo" data-testid="u1-repo" />
             <button type="submit" className="u1-btn" disabled={repo.trim() === ""}>
-              Draw the codebase
+              Draw the codebase (a paid AI call)
             </button>
           </form>
         </div>
@@ -925,6 +969,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
 
   // ---- the drawing ----
   const drawerOpen = drawerChoice ?? (wide && open && exp !== null && !after);
+  const noFunction = pasted.runnable && !fn && pasted.outline !== undefined;
   const notRunnable = !pasted.runnable ? (pasted.reason ?? "Atlas cannot run this language here yet.") : pasted.cantCheck;
   const allowed = proposals?.proposals.filter((p) => p.gate.allowed) ?? [];
   const chosenSays = exp ? allowed.find((p) => p.params && JSON.stringify(p.params) === JSON.stringify(exp.experiment.params))?.says : undefined;
@@ -957,6 +1002,14 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           headnote={
             after && result ? (
               <>
+                {beforeChange && (
+                  <p className="b-beforeafter" data-testid="u1-before-after">
+                    <span className="m-k">Before your change</span>
+                    <span>{beforeChange}</span>
+                    <span className="m-k">After</span>
+                    <span>{runEnding(result.run, pasted?.target.language ?? undefined) ?? "not measured"}</span>
+                  </p>
+                )}
                 <FeltRoundLine bets={result.bets} verdicts={result.verdicts} />
                 {claimRound && <ClaimFacts sentence={claimRound.sentence} marks={after.marks} />}
               </>
@@ -1047,7 +1100,10 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                 .filter((p) => p.gate.allowed && !alreadyRan(p.params))
                 .map((p) => (
                   <li key={p.id}>
-                    <span>{p.says}</span>{" "}
+                    <span>
+                      {p.says}
+                      {exp && <small className="b-differs" data-testid="u1-pick-differs">{whatDiffers(p.params, exp.experiment.params)}</small>}
+                    </span>{" "}
                     <button
                       type="button"
                       className="u1-btn"
@@ -1135,6 +1191,25 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
         </button>
       </div>
 
+      {(shownModel?.notShown || noFunction) && !exp && (
+        <div className="e-dead" data-testid="u1-dead-end">
+          <p>{shownModel?.notShown ? CHANGE_WORDS.nothingToDraw : CHANGE_WORDS.nothingToCall}</p>
+          <button
+            type="button"
+            className="u1-btn u1-primary"
+            onClick={() => {
+              reset();
+              setPasted(null);
+              setCode("");
+              setFn(null);
+              setOpen(false);
+            }}
+            data-testid="u1-dead-new"
+          >
+            Paste another file
+          </button>
+        </div>
+      )}
       {repeatNote && !after && (
         <p className="u1-handoff u1-repeat" role="note" data-testid="repeat-note">
           {repeatNote}
@@ -1170,10 +1245,11 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                   {claimRound && (
                     <p className="u1-sub u1-claim-tested" data-testid="u1-claim-tested">
                       {RESULT_WORDS.testingSentence(claimRound.sentence)}
+                      {claimRound.closeness && <small className="b-differs" data-testid="u1-claim-closeness">{claimRound.closeness}</small>}
                     </p>
                   )}
                   <p className={`u1-test${wholeTest ? "" : " u1-test-clamp"}`} data-testid="u1-test">
-                    <span className="u1-k">{BET_WORDS.testIs}</span> {chosenSays ?? exp.experiment.params.shape}
+                    <span className="u1-k">{BET_WORDS.testIs}</span> {chosenSays ?? (exp.experiment.params.shape === "call-function" ? describeCall(exp.experiment.params, exp.experiment.target.language) : "")}
                   </p>
                   {wholeTest && longValues(exp.experiment.params, exp.experiment.target.language ?? undefined).length > 0 && (
                     <ul className="u1-whole" data-testid="u1-whole-values">
@@ -1365,7 +1441,10 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                       .filter((p) => p.gate.allowed && !alreadyRan(p.params))
                       .map((p, i) => (
                         <li key={p.id}>
-                          <span>{p.says}</span>{" "}
+                          <span>
+                            {p.says}
+                            {(proposals?.proposals ?? []).find((x) => x.gate.allowed && x.id !== p.id) && <small className="b-differs">{whatDiffers(p.params, (proposals?.proposals ?? []).find((x) => x.gate.allowed && x.id !== p.id)!.params, "the next")}</small>}
+                          </span>{" "}
                           <button type="button" className="u1-link" onClick={() => start(() => api.experimentFromProposal(target, p.id, { quiz: true }))} disabled={busy !== null} data-testid={`u1-use-${i}`}>
                             Use this test
                           </button>{" "}

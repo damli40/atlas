@@ -304,3 +304,34 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 .u1-picking .u1-testlist li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:8px 0;border-top:1px solid var(--rule-2)}
 .u1-whole{order:3;list-style:none;margin:6px 0;padding:0;font:400 12px/1.4 var(--mono);overflow-wrap:anywhere;max-height:30vh;overflow:auto}
 .u1-repeat{position:absolute;left:24px;bottom:12px;width:calc(var(--col) - 48px);z-index:7;font-size:12.5px;margin:0}
+
+/* ---- fix round 3 ---- */
+.u1-shell .u1-handoff,.u1-shell .u1-repeat{position:absolute;left:calc(var(--col) + 16px);right:16px;top:10px;bottom:auto;width:auto;max-width:none;transform:none;z-index:7;margin:0;padding:8px 12px;font-size:12.5px;line-height:1.4;background:var(--raised);border:1px solid var(--rule);border-radius:8px}
+.u1-shell .u1-studio[data-drawer] .u1-handoff,.u1-shell .u1-studio[data-drawer] .u1-repeat{right:calc(clamp(320px,29vw,440px) + 16px)}
+.u1-shell .u1-repeat{top:56px}
+.u1-shell .u1-claim-tested{order:-1;margin:0 76px 12px 0;font-size:12.5px}
+.b-differs{display:block;margin-top:3px;font-size:11.5px;color:var(--ink-3)}
+.u1-shell .u1-claim .u1-paid{display:block;margin-top:4px}
+.b-beforeafter{display:grid;grid-template-columns:minmax(0,1fr);gap:2px;margin:0 0 12px;padding:0 0 12px;border-bottom:1px solid var(--rule-2);font:500 13.5px/1.35 var(--mono)}
+.b-beforeafter .m-k{margin:6px 0 0;font-family:var(--ui)}
+.m-others{order:1}
+.m-others summary{font:500 12.5px/1.3 var(--ui);color:var(--ink-2);padding:8px 0}
+.e-dead{position:absolute;left:24px;top:24px;width:calc(var(--col) - 48px);z-index:6;display:grid;gap:14px;justify-items:start;font-size:15px;line-height:1.45;color:var(--ink)}
+.e-dead p{margin:0}
+/* Older screens: no native radios, file inputs or dropdowns in the tool's own language. */
+.u1-shell .u1-sheet input[type="radio"]{position:absolute;opacity:0;width:1px;height:1px}
+.u1-shell .u1-sheet .choice{display:block;padding:10px 12px;border:1px solid var(--rule);border-radius:8px;background:var(--raised);margin:0 0 6px;cursor:pointer;font-size:13.5px;transition:background 60ms linear}
+.u1-shell .u1-sheet .choice:hover{background:#fff}
+.u1-shell .u1-sheet .choice:has(input:checked){border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.u1-shell .u1-sheet .choice:has(input:focus-visible){outline:2px solid var(--ink);outline-offset:2px}
+.u1-shell .u1-sheet fieldset.claimant{display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:12.5px}
+.u1-shell .u1-sheet fieldset.claimant legend{float:left;margin-right:8px;padding:3px 0}
+.u1-shell .u1-sheet fieldset.claimant label{padding:3px 8px;border-radius:5px;cursor:pointer}
+.u1-shell .u1-sheet fieldset.claimant label:has(input:checked){background:var(--rule-2);font-weight:500}
+.u1-shell .u1-sheet input[type="file"]{font:400 12.5px/1 var(--ui);color:var(--ink-3)}
+.u1-shell .u1-sheet input[type="file"]::file-selector-button,.u1-shell .u1-sheet .card button,.u1-shell .r-ex-form button,.u1-shell .u1-sheet button{font:500 13px/1 var(--ui);padding:8px 12px;border:1px solid var(--rule);border-radius:7px;background:var(--raised);color:var(--ink);cursor:pointer;transition:background 60ms linear}
+.u1-shell .u1-sheet input[type="text"],.u1-shell .u1-sheet input:not([type]),.u1-shell .u1-sheet input[type="number"],.u1-shell .r-ex-form input{font:400 13px/1.2 var(--mono);padding:8px 10px;border:1px solid var(--rule);border-radius:7px;background:var(--raised);color:var(--ink)}
+.u1-shell .u1-sheet .card button:hover,.u1-shell .u1-sheet button:hover:not(:disabled){background:#fff}
+.u1-shell .u1-sheet button.primary{background:var(--ink);color:#fbf8ef;border-color:var(--ink)}
+.u1-shell .u1-sheet select{font:400 13px/1.2 var(--ui);padding:7px 9px;border:1px solid var(--rule);border-radius:7px;background:var(--raised)}
+.r-ex-title{font:500 15px/1.3 var(--mono);margin:0 0 6px;overflow-wrap:normal;word-break:normal}

@@ -207,6 +207,11 @@ describe("X2: Bet on this part lands in the paste flow with the right export", (
       outlineAtlas: async () => ({ version: 1, kind: "outline", createdAt: "", outline: { files: [{ path: "redact-secret.ts", text: "THE FILE TEXT" }] } }),
     } as unknown as Api;
     mount(<ExplorerFlow api={api} onBet={(h) => handed.push(h)} />);
+    await act(async () => {
+      const input = host!.querySelector<HTMLInputElement>('[data-testid="outline-repo"]')!;
+      Object.getOwnPropertyDescriptor(input.ownerDocument.defaultView!.HTMLInputElement.prototype, "value")!.set!.call(input, "damli40/atlas");
+      input.dispatchEvent(new (input.ownerDocument.defaultView!.Event)("input", { bubbles: true }));
+    });
     await act(async () => host!.querySelector<HTMLButtonElement>('[data-testid="outline-start"]')!.click());
     await flush();
     expect(host!.querySelector('[data-testid="explorer-machine"]')).not.toBeNull();

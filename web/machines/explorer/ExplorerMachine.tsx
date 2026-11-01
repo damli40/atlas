@@ -44,7 +44,8 @@ export function ExplorerMachine({ model, onBet, betUnavailable, betBusy = null, 
     }
     return out;
   }, [labels]);
-  const spec = useMemo(() => explorerSpec(model, { labels: labelsHeld ? {} : tagWords }), [model, tagWords, labelsHeld]);
+  // The title sits in the page's own type above the sheet, so a long repo name wraps between words.
+  const spec = useMemo(() => ({ ...explorerSpec(model, { labels: labelsHeld ? {} : tagWords }), title: undefined, kicker: undefined, subtitle: undefined }) as ReturnType<typeof explorerSpec>, [model, tagWords, labelsHeld]);
   const mounted = useRef<Mounted | null>(null);
   useEffect(() => {
     mounted.current?.pick(picked);
@@ -92,6 +93,7 @@ export function ExplorerMachine({ model, onBet, betUnavailable, betBusy = null, 
           </div>
         ) : (
           <>
+          <h2 className="r-ex-title" data-testid="explorer-title">{`${model.source}${model.commit ? ` at ${model.commit.slice(0, 7)}` : ""}`}</h2>
           <p id="explorer-described" className="rr-unseen" data-testid="explorer-described">{describeSpec(spec)}</p>
           <div
             className="ex-stage r-ex-stage"

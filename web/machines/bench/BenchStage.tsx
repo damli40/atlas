@@ -280,7 +280,7 @@ export function BenchStage({ seenBefore = false, model, theme, after = null, onP
             {model.notShown}
           </p>
         ) : (
-          <Drawing spec={chart} theme={shown} className="u1-svg r-sheet" maxScale={1.2} hover={!after} onMount={onChart} onSelect={(id) => {
+          <Drawing spec={chart} theme={shown} className="u1-svg r-sheet" maxScale={1.2} minScale={0.3} hover={!after} onMount={onChart} onSelect={(id) => {
               setPinned((p) => (p === id ? null : id));
               onPart?.(id);
             }} />
@@ -431,6 +431,7 @@ function MarkList({ marks, focus, onFocus, footnote, headnote, moment, readout }
   // Questions nobody could check fold to one line with their reason: a real result must not read as a shrug.
   const checkable = marks.filter((m) => !m.picks.every((p) => p.outcome === "cant_check"));
   const unchecked = marks.filter((m) => m.picks.every((p) => p.outcome === "cant_check"));
+  const rest = checkable.filter((m) => m.measures !== moment?.measures);
   const uncheckedWhy = unchecked[0]?.measured.replace(/^can't check: /, "") ?? "";
   return (
     <section className="u1-marks" aria-label="How each answer was judged" data-testid="mark-list">
@@ -449,13 +450,15 @@ function MarkList({ marks, focus, onFocus, footnote, headnote, moment, readout }
             {RESULT_WORDS.sameReason(same)}
           </p>
         )}
-        {checkable.some((m) => m.measures !== moment?.measures) && <h2>Judged by plain code</h2>}
-        <ul>
-          {checkable.map((m) => (
-            // The question that leads is already at the top, whole.
-            <MarkRow key={m.measures} m={m} same={same} focus={focus} onFocus={onFocus} hidden={m.measures === moment?.measures} />
-          ))}
-        </ul>
+        <details className="m-fold m-others" data-testid="m-others" open={rest.length === 1} hidden={rest.length === 0}>
+          <summary>{`Judged by plain code: ${rest.length} more ${rest.length === 1 ? "answer" : "answers"}`}</summary>
+          <ul>
+            {checkable.map((m) => (
+              // The question that leads is already at the top, whole.
+              <MarkRow key={m.measures} m={m} same={same} focus={focus} onFocus={onFocus} hidden={m.measures === moment?.measures} />
+            ))}
+          </ul>
+        </details>
         {unchecked.length > 0 && (
           <details className="m-fold" data-testid="m-cant-fold">
             <summary>{`${unchecked.length} can't check${uncheckedWhy && !same ? `: ${uncheckedWhy}` : ""}`}</summary>

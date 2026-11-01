@@ -10,6 +10,16 @@
 import type { PastedLanguage } from "./pasted-code";
 
 /** Muse Wonder proposes the tests in the paste flow; named by product name AND id (D10). */
+/** An hourly limit in plain words, and when it frees up. Any other reason, as it is, without the wrapping. */
+export function plainLimit(reason: string): string {
+  const inner = reason.replace(/^not asked \((.*)\)$/s, "$1");
+  const m = /call limit reached: one client address may ask for (\d+) (.+?) an hour(?:[.;:,]?\s*(.*))?$/s.exec(inner);
+  if (m) return `You've used this hour's ${m[1]} ${m[2]}.${m[3] ? ` ${m[3]}` : " It frees up within the hour."}`;
+  const s = /call limit reached: this session already asked for tests (\d+) times/.exec(inner);
+  if (s) return `This tab has asked for tests ${s[1]} times, its limit. A new tab starts again.`;
+  return `${inner.charAt(0).toUpperCase()}${inner.slice(1)}${/[.!?]$/.test(inner) ? "" : "."}`;
+}
+
 export const WONDER_MODEL = "muse-wonder-1.0";
 export const WONDER_DISPLAY = "Muse Wonder 1.0 (muse-wonder-1.0)";
 
@@ -240,7 +250,7 @@ export const BET_WORDS = {
   waitExplore: "The drawing stays live meanwhile: hover or click any part.",
   writeOwnNow: "Write my own test instead",
   /** U3: Muse Wonder wrote no test this time; why, in the server's words. */
-  noTests: (reason: string) => `Muse Wonder wrote no test this time (${reason}). You can write your own below.`,
+  noTests: (reason: string) => `Muse Wonder wrote no test this time. ${plainLimit(reason)} You can write your own below.`,
 } as const;
 
 export const STAGE_WORDS = {
@@ -284,7 +294,7 @@ export const FELT_WORDS = {
     `You said '${level}' on ${rounds === 1 ? "1 round" : `${rounds} rounds`} and matched ${matched} of ${n}${percent === null ? "" : ` (${percent}%)`}.`,
   levelUnchecked: (level: string, rounds: number) => `You said '${level}' on ${rounds === 1 ? "1 round" : `${rounds} rounds`}. None of those answers could be checked.`,
   levelsEmpty: "You have not said how sure you were on any round yet.",
-  paths: (nothingMatched: number, nothingN: number, somethingMatched: number, somethingN: number) => `When nothing failed you matched ${nothingMatched} of ${nothingN}. When something failed, ${somethingMatched} of ${somethingN}.`,
+  paths: (nothingMatched: number, nothingN: number, somethingMatched: number, somethingN: number) => `On tests with no scripted failure you matched ${nothingMatched} of ${nothingN}. With a scripted failure, ${somethingMatched} of ${somethingN}.`,
   pathsWait: (min: number, nothingN: number, somethingN: number) => `The line comparing tests where nothing failed with tests where something failed appears once each side has at least ${min} answers. So far: ${nothingN} when nothing failed, ${somethingN} when something failed.`,
   pathsMeaning: "“Something failed” means the test scripts a stand-in or the fake network to throw, answer with an error status, or never answer. Plain code reads that from the test before it runs.",
   pathsCantCheck: (k: number) => `${answersWord(k)} that couldn't be checked ${k === 1 ? "is" : "are"} not counted in that line.`,

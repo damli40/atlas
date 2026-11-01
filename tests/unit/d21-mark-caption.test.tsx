@@ -70,7 +70,7 @@ describe("D21: the pre-existing-logo caption under the scoreboard", () => {
     const offenders = sources.filter((p) => {
       const s = readFileSync(p, "utf8");
       // D60: the proof card's image draws the same marks inside one picture, so it must carry the caption itself.
-      if (p.endsWith("ProofImage.tsx") && s.includes("{MARK_PRE_EXISTING_CAPTION}")) return false;
+      if (p === join(ROOT, "web", "screens", "ProofImage.tsx") && s.includes(">{MARK_PRE_EXISTING_CAPTION}</text>")) return false;
       return /<Mark[\s/>]/.test(s) || /\bscoreboardMarks\(/.test(s) || /className="sb"/.test(s);
     });
     expect(offenders.map((p) => p.slice(ROOT.length + 1))).toEqual([]);

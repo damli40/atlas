@@ -159,7 +159,7 @@ export function createHourlyLimit(perHour: number, what: string, now: () => numb
   const check = (key: string): { ok: true } | { ok: false; reason: string } => {
     const c = of(key);
     c.started = c.started.filter((t) => now() - t < HOUR_MS);
-    return c.started.length >= perHour ? { ok: false, reason: `call limit reached: one client address may ask for ${perHour} ${what} an hour` } : { ok: true };
+    return c.started.length >= perHour ? { ok: false, reason: `call limit reached: one client address may ask for ${perHour} ${what} an hour. The next one frees up in about ${Math.max(1, Math.ceil((HOUR_MS - (now() - (c.started[0] ?? now()))) / 60_000))} min` } : { ok: true };
   };
   return {
     /** X1: say whether one more would be allowed, without counting it. */
@@ -168,7 +168,7 @@ export function createHourlyLimit(perHour: number, what: string, now: () => numb
     take(key: string): { ok: true } | { ok: false; reason: string } {
       const c = of(key);
       c.started = c.started.filter((t) => now() - t < HOUR_MS);
-      if (c.started.length >= perHour) return { ok: false, reason: `call limit reached: one client address may ask for ${perHour} ${what} an hour` };
+      if (c.started.length >= perHour) return { ok: false, reason: `call limit reached: one client address may ask for ${perHour} ${what} an hour. The next one frees up in about ${Math.max(1, Math.ceil((HOUR_MS - (now() - (c.started[0] ?? now()))) / 60_000))} min` };
       c.started.push(now());
       return { ok: true };
     },

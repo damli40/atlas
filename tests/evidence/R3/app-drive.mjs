@@ -363,6 +363,8 @@ if (late) {
   await p.click('[data-testid="mode-explore"]');
   await p.waitForSelector('[data-testid="outline-start"]');
   // Pinned to the commit Wonder's saved answer describes, so plain code confirms a real answer.
+  await p.fill('[data-testid="outline-repo"]', "damli40/atlas");
+  await p.fill('[data-testid="outline-subfolder"]', "server/meta");
   await p.fill('[data-testid="outline-ref"]', "058ab2a");
   await p.click('[data-testid="outline-start"]');
   await p.waitForSelector('[data-testid="explorer-stage"] svg', { timeout: 120000 });

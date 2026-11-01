@@ -137,7 +137,7 @@ describe("S5: model calls per address", () => {
     };
     expect((await slot("m1", "198.51.100.7")).status).toBe("thinking");
     expect((await slot("m2", "198.51.100.7")).status).toBe("thinking");
-    expect(await slot("m3", "198.51.100.7")).toMatchObject({ status: "off", reason: "call limit reached: one client address may ask for 2 model rounds an hour" });
+    expect(await slot("m3", "198.51.100.7")).toMatchObject({ status: "off", reason: expect.stringMatching(/^call limit reached: one client address may ask for 2 model rounds an hour\. The next one frees up in about \d+ min$/) });
     expect((await slot("m4", "203.0.113.9")).status).toBe("thinking");
     await new Promise((r) => setTimeout(r, 20));
     expect(calls).toBe(3);
@@ -155,7 +155,7 @@ describe("S5: model calls per address", () => {
     const first = await ask("i1", "198.51.100.7");
     expect(first.reason ?? "").not.toMatch(/client address/);
     const before = calls;
-    expect((await ask("i2", "198.51.100.7")).reason).toBe("not asked (call limit reached: one client address may ask for 1 investigations an hour)");
+    expect((await ask("i2", "198.51.100.7")).reason).toMatch(/^not asked \(call limit reached: one client address may ask for 1 investigations an hour\. The next one frees up in about \d+ min\)$/);
     expect(calls).toBe(before); // no model call was made
     expect((await ask("i3", "203.0.113.9")).reason ?? "").not.toMatch(/client address/);
   });

@@ -354,7 +354,7 @@ describe("X4 'something failed' is read from the test's own spec", () => {
     expect(first.run.track.after.felt.nothingFailed).toEqual({ n: 3, matched: 2, cantCheck: 0 });
     expect(pathWords(first.run.track.after.felt).line).toBeNull(); // nothing yet on the other side
     const second = await round(c); // allowedA: fetchIt throws once
-    expect(pathWords(second.run.track.after.felt).line).toBe("When nothing failed you matched 2 of 3. When something failed, 2 of 3.");
+    expect(pathWords(second.run.track.after.felt).line).toBe("On tests with no scripted failure you matched 2 of 3. With a scripted failure, 2 of 3.");
     const third = await round(c); // the same test again: sealed as a repeat, left out
     expect(third.sealed.every((b) => b.repeat === true)).toBe(true);
     expect(third.run.track.after.felt).toEqual(second.run.track.after.felt);
@@ -395,7 +395,7 @@ describe("X4 track record lines", () => {
   });
   it("the comparison uses the real counts, with the brief's wording", () => {
     const r = trackRecordOf([...many(6, "matched", { path: "nothing failed" }), ...many(1, "not_matched", { path: "nothing failed" }), ...many(2, "matched", { path: "something failed" }), ...many(5, "not_matched", { path: "something failed" })]);
-    expect(pathWords(r.felt).line).toBe("When nothing failed you matched 6 of 7. When something failed, 2 of 7.");
+    expect(pathWords(r.felt).line).toBe("On tests with no scripted failure you matched 6 of 7. With a scripted failure, 2 of 7.");
   });
   it("hidden until EACH side has 3 answers, with a plain note and the counts so far", () => {
     const short = trackRecordOf([...many(9, "matched", { path: "nothing failed" }), ...many(2, "matched", { path: "something failed" })]);
@@ -403,7 +403,7 @@ describe("X4 track record lines", () => {
     expect(p.line).toBeNull();
     expect(p.notes.join(" ")).toContain("at least 3 answers. So far: 9 when nothing failed, 2 when something failed.");
     const three = trackRecordOf([...many(3, "matched", { path: "nothing failed" }), ...many(3, "not_matched", { path: "something failed" })]);
-    expect(pathWords(three.felt).line).toBe("When nothing failed you matched 3 of 3. When something failed, 0 of 3.");
+    expect(pathWords(three.felt).line).toBe("On tests with no scripted failure you matched 3 of 3. With a scripted failure, 0 of 3.");
   });
   it("can't-check answers do not count towards the 3, and are named when the line shows", () => {
     const r = trackRecordOf([...many(3, "matched", { path: "nothing failed" }), ...many(2, "matched", { path: "something failed" }), ...many(5, "cant_check", { path: "something failed" })]);
@@ -455,6 +455,6 @@ describe("X4 wording", () => {
   });
   it("the words are the brief's", () => {
     expect(FELT_WORDS.pickerLabel).toBe("How sure are you overall?");
-    expect(FELT_WORDS.paths(6, 7, 2, 7)).toBe("When nothing failed you matched 6 of 7. When something failed, 2 of 7.");
+    expect(FELT_WORDS.paths(6, 7, 2, 7)).toBe("On tests with no scripted failure you matched 6 of 7. With a scripted failure, 2 of 7.");
   });
 });

@@ -212,3 +212,23 @@ describe("D63: tests written ahead", () => {
     expect((await m.ask("sstabtabtabtabtab2", code(9), false)).ok).toBe(false);
   }, 30_000);
 });
+
+describe("part B: words and dead ends", () => {
+  it("an hourly limit reads plainly and says when it frees up", async () => {
+    const { plainLimit } = await import("../../src/paste-words");
+    expect(plainLimit("not asked (call limit reached: one client address may ask for 20 model rounds an hour. The next one frees up in about 12 min)")).toBe("You've used this hour's 20 model rounds. The next one frees up in about 12 min");
+    expect(plainLimit("the model call failed")).toBe("The model call failed.");
+  });
+  it("two tests can be told apart by what differs", async () => {
+    const { whatDiffers } = await import("../../web/screens/Studio");
+    const t = (route: string) => ({ exportName: "f", args: [{ kind: "json", value: [{ ms: 10, route }] }] });
+    expect(whatDiffers(t("/b"), t("/a"))).toBe('Compared with the last test: "/a" becomes "/b".');
+    expect(whatDiffers(t("/a"), t("/a"))).toBe("The same as the last test.");
+  });
+  it("a file with no exported function offers no bet", async () => {
+    const { defaultFunction } = await import("../../web/screens/Studio");
+    const { fileOutline } = await import("../../src/file-outline");
+    expect(defaultFunction(fileOutline("export const RATE = 3;\n", "js"), [{ name: "RATE" }])).toBeNull();
+    expect(defaultFunction(fileOutline("export function f(){ return 1; }\n", "js"), [{ name: "f" }])).toBe("f");
+  });
+});

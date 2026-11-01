@@ -170,9 +170,12 @@ serve({ fetch: app.fetch, port }, (info) => {
   if (investigatorOn) {
     void runAs({ kind: "system", label: "the example's tests (D60)", route: "startup" }, async () => {
       const headers = { "content-type": "application/json", "x-atlas-session": "ss_example_warmup" };
-      const post = (path: string, body: unknown) => inner.request(path, { method: "POST", headers, body: JSON.stringify(body) });
-      const p = (await (await post("/paste", { code: U1_EXAMPLE, language: "ts" })).json()) as { target?: { ref: string; codeSha256: string } };
-      if (p.target) await post("/paste/proposals", { target: { ref: p.target.ref, codeSha256: p.target.codeSha256 }, exportName: EXAMPLE_FUNCTION });
+      // With invites on, the owner's code has its own copy of the app, so it gets its own kept answer too.
+      for (const copy of ownerInner ? [inner, ownerInner] : [inner]) {
+        const post = (path: string, body: unknown) => copy.request(path, { method: "POST", headers, body: JSON.stringify(body) });
+        const p = (await (await post("/paste", { code: U1_EXAMPLE, language: "ts" })).json()) as { target?: { ref: string; codeSha256: string } };
+        if (p.target) await post("/paste/proposals", { target: { ref: p.target.ref, codeSha256: p.target.codeSha256 }, exportName: EXAMPLE_FUNCTION });
+      }
     }).catch((e: Error) => console.warn(`note: the example's tests were not prepared: ${e.message}`));
   }
   if (modelBetsOn || investigatorOn) {
