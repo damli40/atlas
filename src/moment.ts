@@ -83,3 +83,18 @@ export function momentOf(marks: readonly MomentMark[], run: Pick<Run, "result" |
     bettors: [...lead.picks].sort((a, b) => rank(a.who) - rank(b.who) || (a.who < b.who ? -1 : 1)).map(({ who, name, pick, outcome }) => ({ who, name, pick, outcome })),
   };
 }
+
+/**
+ * The same moment from a proof file's rows or a chain round: one row per bet, with what the bettor said and what the run measured.
+ * Rows are grouped by question in the order they come.
+ */
+export function momentOfRows(rows: readonly { who: string; name: string; measures: string; question: string; said: string; observed: string; outcome: "matched" | "not_matched" | "cant_check" | null }[], run: Pick<Run, "result" | "trace" | "controlPassed">): Moment | null {
+  const marks = new Map<string, MomentMark>();
+  for (const r of rows) {
+    const m = marks.get(r.measures) ?? { measures: r.measures, question: r.question, measured: r.observed, picks: [] };
+    (m.picks as MomentMark["picks"][number][]).push({ who: r.who, name: r.name, pick: r.said, outcome: r.outcome ?? "cant_check" });
+    if (r.who === "human") m.measured = r.observed;
+    marks.set(r.measures, m);
+  }
+  return momentOf([...marks.values()], run);
+}
