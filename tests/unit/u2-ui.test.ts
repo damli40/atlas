@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { marksOf, playScript, thrownWords, MAX_PLAY_STEPS, type Mark } from "../../web/machines/bench/play";
 import { headlineOf, sharedReason, roundUp } from "../../web/machines/bench/BenchStage";
-import { defaultProposal, waitingParts } from "../../web/screens/Studio";
+import { defaultProposal } from "../../web/screens/Studio";
 import { BET_WORDS, RESULT_WORDS, STAGE_WORDS, WONDER_ROLE, betterByRole } from "../../src/paste-words";
 import { quizQuestionsFor } from "../../src/quiz";
 import type { ExperimentShape, Run } from "../../src/types";
@@ -97,11 +97,6 @@ describe("U2 the default proposal and the waiting parts", () => {
     const good = { id: "c", gate: { allowed: true }, params: fetchTest };
     expect(defaultProposal([degenerate, refused, good])!.id).toBe("c");
     expect(defaultProposal([refused])).toBeUndefined();
-  });
-  it("waiting parts are the boxes whose own lines hold a timer or a sleep", () => {
-    const src = "const sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nexport function f() {\n  return 1;\n}\n";
-    const outline = { parts: [{ name: "sleep", lineStart: 1, lineEnd: 1 }, { name: "f", lineStart: 2, lineEnd: 4 }], joins: [] } as unknown as Parameters<typeof waitingParts>[1];
-    expect(waitingParts(src, outline)).toEqual(["sleep"]);
   });
 });
 
