@@ -12,5 +12,13 @@ function useMedia(q: string): boolean {
     () => false,
   );
 }
-export const useDarkScheme = () => useMedia("(prefers-color-scheme: dark)");
+/**
+ * D60: light is locked for submission, so a judge whose system is dark sees the same product as the film. The dark code stays:
+ * set DARK_FOLLOWS_SYSTEM to true to let it switch by itself again.
+ */
+const DARK_FOLLOWS_SYSTEM = false as boolean;
+export const useDarkScheme = () => {
+  const dark = useMedia("(prefers-color-scheme: dark)");
+  return DARK_FOLLOWS_SYSTEM && dark;
+};
 export const useReducedMotion = () => useMedia("(prefers-reduced-motion: reduce)");

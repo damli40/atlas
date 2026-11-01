@@ -6,6 +6,7 @@ import "./styles.css";
 import "./machines/machines.css";
 import "./drawing/drawing.css";
 import "./screens/proof.css";
+import "./tool.css";
 
 ensureRendererStyle();
 createRoot(document.getElementById("root")!).render(

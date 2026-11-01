@@ -77,6 +77,7 @@ export const CHANGE_WORDS = {
   claimAsking: "Asking Muse Wonder for a new test…",
   claimNoNew: "Muse Wonder's tests for this sentence are ones that have already run here, so there is nothing new to bet on.",
   paidWonder: "Asks Muse Wonder: a paid AI call.",
+  paidAgain: "The first two start paid AI calls.",
   paidBets: "The AI bettors answer too: paid AI calls.",
 } as const;
 
@@ -476,6 +477,28 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     setChanging(true);
     await askWonder({ pick: "list" });
   };
+  // D60: the keys. Never while typing, and never with a modifier. The bet's own keys live in the bet.
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (e.metaKey || e.ctrlKey || e.altKey || t?.closest?.("input, textarea, select")) return;
+      if (e.key === "Escape") {
+        setEditing(null);
+        setProofOpen(false);
+        return;
+      }
+      if (!result) return;
+      const k = e.key.toLowerCase();
+      if (k === "r" && played > 0) setPlays((n) => n + 1);
+      else if (k === "b") void anotherTest();
+      else if (k === "p" && result.proof?.ok) setProofOpen((o) => !o);
+      else if (k === "e" && exp) setEditing((x) => (x === null ? readText : null));
+      else return;
+      e.preventDefault();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
   const nextTries = (labels?.labels ?? []).filter((l) => l.label === "found in this code" || l.label === "reproduced");
 
   // ---- entry ----
@@ -624,30 +647,29 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
         >
           {after && (
             <div className="u1-actions" data-testid="u1-actions">
-              <button type="button" className="u1-btn" onClick={() => setPlays((n) => n + 1)} disabled={played === 0} data-testid="u1-replay">
-                {played === 0 ? STAGE_WORDS.playing : STAGE_WORDS.playAgain}
+              {exp && (
+                <button type="button" className="u1-btn u1-primary" onClick={() => setEditing((t) => (t === null ? readText : null))} aria-expanded={editing !== null} data-testid="u1-change">
+                  {CHANGE_WORDS.open}
+                  <kbd className="k">E</kbd>
+                </button>
+              )}
+              <button type="button" className="u1-btn" onClick={() => void anotherTest()} data-testid="u1-again" title={CHANGE_WORDS.paidWonder}>
+                Bet on another test
+                <kbd className="k">B</kbd>
               </button>
               {result?.proof?.ok ? (
-                <button type="button" className="u1-btn" aria-expanded={proofOpen} onClick={() => setProofOpen((o) => !o)} data-testid="u1-proof">
+                <button type="button" className="u1-btn u1-quiet" aria-expanded={proofOpen} onClick={() => setProofOpen((o) => !o)} data-testid="u1-proof">
                   {RESULT_WORDS.proofTitle}
+                  <kbd className="k">P</kbd>
                 </button>
               ) : result?.proof ? (
                 <span className="u1-sub">{`No proof card: ${result.proof.ok ? "" : result.proof.reason}`}</span>
               ) : null}
-              <button
-                type="button"
-                className="u1-btn"
-                onClick={() => void anotherTest()}
-                data-testid="u1-again"
-              >
-                Bet on another test
+              <button type="button" className="u1-btn u1-quiet" onClick={() => setPlays((n) => n + 1)} disabled={played === 0} data-testid="u1-replay">
+                {played === 0 ? STAGE_WORDS.playing : STAGE_WORDS.playAgain}
+                <kbd className="k">R</kbd>
               </button>
-              <span className="u1-sub u1-paid" data-testid="u1-paid-again">{CHANGE_WORDS.paidWonder}</span>
-              {exp && (
-                <button type="button" className="u1-btn" onClick={() => setEditing((t) => (t === null ? readText : null))} aria-expanded={editing !== null} data-testid="u1-change">
-                  {CHANGE_WORDS.open}
-                </button>
-              )}
+              <span className="u1-sub u1-paid" data-testid="u1-paid-again">{CHANGE_WORDS.paidAgain}</span>
             </div>
           )}
         </BenchStage>

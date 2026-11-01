@@ -5,14 +5,15 @@
   --muted: #5d5650;
   --line: #ddd4c3;
   --accent: #a8443b;
-  --matched: #2f6a45;
+  --matched: #2c5f9e;
   --not-matched: #8f4300;
   --cant: #55557f;
   --label-bg: #f3e8cf;
   --label-ink: #6b4d00;
-  color-scheme: light dark;
+  color-scheme: light;
 }
-@media (prefers-color-scheme: dark) {
+/* D60: light is locked for submission. The dark colours stay, behind this attribute. */
+@media not all {
   :root {
     --bg: #211d1a;
     --card: #2b2622;
@@ -32,9 +33,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
-  font: 16px/1.5 "Atlas Besley", Georgia, serif;
-  font-kerning: none;
-  font-variant-ligatures: none;
+  font: 15px/1.5 "Geist", ui-sans-serif, system-ui, sans-serif;
 }
 main { max-width: 760px; margin: 0 auto; padding: 24px 16px 64px; }
 h1 { margin: 0; font-size: 28px; }
@@ -172,7 +171,7 @@ fieldset { min-width: 0; }
   .verdicts { table-layout: fixed; }
   .verdicts th, .verdicts td { overflow-wrap: anywhere; }
 }
-@media (prefers-color-scheme: dark) {
+@media not all {
   /* E3 (seen in the 390 px dark run): white text on the light dark-mode accent was below 4.5:1. */
   button.primary, .switch button.on { color: #10131c; }
 }

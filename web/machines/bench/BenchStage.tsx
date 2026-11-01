@@ -12,6 +12,7 @@
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent as RPointerEvent, type ReactNode } from "react";
 import { benchSpec } from "../../../renderer/authors/bet-view";
+import { momentOf, type Moment } from "../../../src/moment";
 import { whatHappened } from "../../../renderer/authors/what-happened";
 import type { HelperAnswer } from "../../api";
 import type { Mounted } from "../../../renderer/live/mount";
@@ -126,9 +127,11 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
   // ---- the path: only from `after` ----
   const pathSpec = useMemo(() => {
     if (!after) return null;
-    const spec = whatHappened({ run: after.run, experiment: after.experiment, bets: after.bets.filter((b) => b.who === "human"), verdicts: [...after.verdicts], origin: "this-run", ...(after.helpers ? { helpers: after.helpers } : {}), seed: `path:${after.run.id}` });
+    // D60: one ring or one tick on the drawing, for the question that leads the moment. The list beside it holds every other answer.
+    const lead = momentOf(after.marks, after.run)?.measures ?? null;
+    const spec = whatHappened({ run: after.run, experiment: after.experiment, bets: after.bets.filter((b) => b.who === "human" && b.measures === lead), verdicts: [...after.verdicts], origin: "this-run", ...(after.helpers ? { helpers: after.helpers } : {}), seed: `path:${after.run.id}` });
     return { ...spec, title: undefined, kicker: undefined, subtitle: undefined } as typeof spec;
-  }, [after?.run, after?.experiment, after?.bets, after?.verdicts, after?.helpers]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [after?.run, after?.experiment, after?.bets, after?.verdicts, after?.helpers, after?.marks]); // eslint-disable-line react-hooks/exhaustive-deps
   /** undefined: not drawn yet. null: refused. A mount with no player: the plain list. The last two have nothing to play. */
   const [pathMount, setPathMount] = useState<Mounted | null | undefined>(undefined);
   /** Ends the pause while the chart moves aside, so a click during it counts. */
@@ -237,7 +240,7 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
         <p className="r-kick">{title}</p>
         <h1 className="r-name">{model.tested ?? fileName}</h1>
         <p className="r-sub" data-testid="r-sub">
-          {after ? (marksOn ? readout : STAGE_WORDS.playing) : model.parts[CLOCK_ID] ? "the code, and what Atlas will plug in. Nothing has run." : "what calls what, before anything has run"}
+          {after ? (marksOn ? "" : STAGE_WORDS.playing) : model.parts[CLOCK_ID] ? "the code, and what Atlas will plug in. Nothing has run." : "what calls what, before anything has run"}
         </p>
       </header>
       <p id="bench-described" className="rr-unseen" data-testid="bench-described">{model.plainLabel}</p>
@@ -264,7 +267,7 @@ export function BenchStage({ model, theme, after = null, onTestFunction, title, 
         </p>
       )}
       {cardId && model.parts[cardId] && <PartCard id={cardId} part={model.parts[cardId]!} tested={model.tested} hasTest={Boolean(model.parts[CLOCK_ID])} python={language === "py"} pinned={pinned === cardId} {...(onTestFunction ? { onTest: onTestFunction } : {})} canChange={!after} onClose={() => setPinned(null)} />}
-      {after && marksOn && <MarkList marks={after.marks} focus={focusMark} onFocus={setFocusMark} footnote={footnote} headnote={headnote} />}
+      {after && marksOn && <MarkList marks={after.marks} focus={focusMark} onFocus={setFocusMark} footnote={footnote} headnote={headnote} moment={momentOf(after.marks, after.run)} readout={marksReadout(after.marks)} />}
       {children}
     </div>
   );
@@ -330,46 +333,104 @@ export function sharedReason(marks: readonly Mark[]): string | null {
   return all[0]!.slice("can't check: ".length);
 }
 
-function MarkList({ marks, focus, onFocus, footnote, headnote }: { marks: readonly Mark[]; focus: string | null; onFocus: (m: string | null) => void; footnote: ReactNode; headnote: ReactNode }) {
-  const same = sharedReason(marks);
+/** D60: your bet and what the run did. The run's fact is the largest words on the screen. */
+export function MomentView({ moment }: { moment: Moment }) {
   return (
-    <section className="u1-marks" aria-label="How each answer was judged" data-testid="mark-list">
-      <p className="u1-headline" data-testid="u1-headline">
-        {headlineOf(marks)}
-      </p>
-      {headnote}
-      {same && (
-        <p className="u1-samewhy" data-testid="u1-same-reason">
-          {RESULT_WORDS.sameReason(same)}
+    <section className="m-moment" data-kind={moment.kind} aria-label="What you bet and what the run did" data-testid="moment">
+      {moment.you !== null && (
+        <p className="m-you">
+          <span className="m-k">You bet</span>
+          <span className="m-you-v" data-testid="moment-you">{moment.you}</span>
         </p>
       )}
-      <h2>Judged by plain code</h2>
-      <ul>
-        {marks.map((m) => (
-          <li key={m.measures} data-focus={focus === m.measures ? "" : undefined} data-testid={`mark-${m.measures}`}>
-            <button type="button" className="u1-mark-head" onClick={() => onFocus(focus === m.measures ? null : m.measures)} aria-expanded={focus === m.measures}>
-              {`${marks.indexOf(m) + 1}. ${m.question}`}
-            </button>
-            <p className="u1-measured">
-              <span className="u1-k">The run:</span> {same ? RESULT_WORDS.seeAbove : m.measured}
-            </p>
-            <ul className="u1-picks">
-              {m.picks.map((p) => (
-                <li key={p.who}>
-                  <Glyph outcome={p.outcome} />
-                  <span className="u1-who" title={p.name}>
-                    {shortName(p.name)}
-                  </span>
-                  <span className="u1-pick">{p.pick}</span>
-                  <span className="u1-out">{OUTCOME_WORDS[p.outcome]}</span>
-                  {p.outcome === "cant_check" && p.reason && !same && p.reason !== m.measured.replace(/^can't check: /, "") && focus === m.measures && <span className="u1-why">{p.reason}</span>}
-                </li>
-              ))}
-            </ul>
+      <p className="m-run">
+        <span className="m-k">The run</span>
+        <span className="m-run-v" data-testid="moment-run">{moment.run}</span>
+      </p>
+      {moment.bettors.length > 0 && (
+        <ul className="m-bettors" aria-label={moment.question ?? "the bets"} data-testid="moment-bettors">
+          {moment.bettors.map((b) => (
+            <li key={b.who}>
+              <Glyph outcome={b.outcome} />
+              <span className="m-who" title={b.name}>{shortName(b.name)}</span>
+              <span className="m-pick">{b.pick}</span>
+              <span className="m-out">{OUTCOME_WORDS[b.outcome]}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function MarkRow({ m, same, focus, onFocus, hidden = false }: { m: Mark; same: string | null; focus: string | null; onFocus: (m: string | null) => void; hidden?: boolean }) {
+  return (
+    <li hidden={hidden} data-focus={focus === m.measures ? "" : undefined} data-testid={`mark-${m.measures}`}>
+      <button type="button" className="u1-mark-head" onClick={() => onFocus(focus === m.measures ? null : m.measures)} aria-expanded={focus === m.measures}>
+        {m.question}
+      </button>
+      <p className="u1-measured">
+        <span className="u1-k">The run:</span> {same ? RESULT_WORDS.seeAbove : m.measured}
+      </p>
+      <ul className="u1-picks">
+        {m.picks.map((p) => (
+          <li key={p.who}>
+            <Glyph outcome={p.outcome} />
+            <span className="u1-who" title={p.name}>
+              {shortName(p.name)}
+            </span>
+            <span className="u1-pick">{p.pick}</span>
+            <span className="u1-out">{OUTCOME_WORDS[p.outcome]}</span>
+            {p.outcome === "cant_check" && p.reason && !same && p.reason !== m.measured.replace(/^can't check: /, "") && focus === m.measures && <span className="u1-why">{p.reason}</span>}
           </li>
         ))}
       </ul>
-      {footnote}
+    </li>
+  );
+}
+
+function MarkList({ marks, focus, onFocus, footnote, headnote, moment, readout }: { marks: readonly Mark[]; focus: string | null; onFocus: (m: string | null) => void; footnote: ReactNode; headnote: ReactNode; moment: Moment | null; readout: string }) {
+  const same = sharedReason(marks);
+  // Questions nobody could check fold to one line with their reason: a real result must not read as a shrug.
+  const checkable = marks.filter((m) => !m.picks.every((p) => p.outcome === "cant_check"));
+  const unchecked = marks.filter((m) => m.picks.every((p) => p.outcome === "cant_check"));
+  const uncheckedWhy = unchecked[0]?.measured.replace(/^can't check: /, "") ?? "";
+  return (
+    <section className="u1-marks" aria-label="How each answer was judged" data-testid="mark-list">
+      <div className="m-top">
+        {moment && <MomentView moment={moment} />}
+        <p className="m-count" data-testid="m-count">{readout}</p>
+      </div>
+      <div className="m-pane" data-testid="m-pane">
+        {/* The plain counts stay for a screen reader; the moment is what the eye reads. */}
+        <p className="rr-unseen" data-testid="u1-headline">
+          {headlineOf(marks)}
+        </p>
+        {headnote}
+        {same && (
+          <p className="u1-samewhy" data-testid="u1-same-reason">
+            {RESULT_WORDS.sameReason(same)}
+          </p>
+        )}
+        {checkable.some((m) => m.measures !== moment?.measures) && <h2>Judged by plain code</h2>}
+        <ul>
+          {checkable.map((m) => (
+            // The question that leads is already at the top, whole.
+            <MarkRow key={m.measures} m={m} same={same} focus={focus} onFocus={onFocus} hidden={m.measures === moment?.measures} />
+          ))}
+        </ul>
+        {unchecked.length > 0 && (
+          <details className="m-fold" data-testid="m-cant-fold">
+            <summary>{`${unchecked.length} can't check${uncheckedWhy && !same ? `: ${uncheckedWhy}` : ""}`}</summary>
+            <ul>
+              {unchecked.map((m) => (
+                <MarkRow key={m.measures} m={m} same={same} focus={focus} onFocus={onFocus} />
+              ))}
+            </ul>
+          </details>
+        )}
+        {footnote}
+      </div>
     </section>
   );
 }
