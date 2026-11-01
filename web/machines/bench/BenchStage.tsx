@@ -172,7 +172,7 @@ export function BenchStage({ model, theme, after = null, onPart, onTestFunction,
       setPlaying(true);
       p.rewind();
       // D60: about 5 s to the ring, whatever the path's length, up to about 6 s. The final ring keeps its pace: it is the payoff.
-      p.setRunPace(Math.min(1, 16 / Math.max(1, pathSpec.steps.length * 2)));
+      p.setRunPace(Math.min(0.85, 16 / Math.max(1, pathSpec.steps.length * 2)));
       // The chart moves aside first, so the whole story is seen.
       if (!still && !p.reduced) {
         await new Promise<void>((r) => {

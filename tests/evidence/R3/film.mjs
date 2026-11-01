@@ -7,7 +7,7 @@ const [out, scheme = "light"] = process.argv.slice(2);
 const frames = `${out}/frames`;
 mkdirSync(frames, { recursive: true });
 const b = await chromium.launch({ executablePath: process.env.CHROME });
-const ctx = await b.newContext({ viewport: { width: 1920, height: 1080 }, colorScheme: scheme });
+const ctx = await b.newContext({ viewport: { width: 1440, height: 900 }, colorScheme: scheme });
 const p = await ctx.newPage();
 const cdp = await ctx.newCDPSession(p);
 const list = [];
@@ -30,22 +30,19 @@ await p.evaluate((text) => {
   document.querySelector('[data-testid="u1-code"]').dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true }));
 }, code);
 await p.waitForSelector('[data-testid="bench-stage"]', { state: "visible", timeout: 30000 });
-await p.waitForTimeout(5000);
+await p.waitForTimeout(2600);
 await p.click('[data-testid="u1-bet-toggle"]');
 await p.waitForSelector('[data-testid="u1-seal"]', { timeout: 60000 });
-await p.waitForTimeout(1600);
-const qs = await p.$$(".u1-quiz > li");
-for (const [i, want] of [[0, 1], [2, 1]]) {
-  const o = await qs[i]?.$$(".u1-opt");
-  if (o?.[want]) {
-    await o[want].click();
-    await p.waitForTimeout(700);
-  }
+await p.waitForTimeout(900);
+// One tap each: a person's pace, with a mismatch not scripted to land: the first option, then the second.
+for (const key of ["1", "5", "2", "2"]) {
+  await p.keyboard.press(key);
+  await p.waitForTimeout(800);
 }
-await p.click('[data-testid="u1-seal"]');
+await p.keyboard.press("Enter");
 await p.waitForSelector('[data-testid="mark-list"]', { timeout: 90000 });
 await p.waitForFunction(() => !document.querySelector('[data-testid="u1-replay"]')?.disabled, { timeout: 30000 });
-await p.waitForTimeout(3500);
+await p.waitForTimeout(4500);
 await cdp.send("Page.stopScreencast");
 await ctx.close();
 await b.close();

@@ -155,7 +155,7 @@ export function ProofImage({ card, file, lines, names, api, download, downloadNa
             </g>
           ))}
         </g>
-        <text x="56" y="566" fontFamily={SANS} fontSize="14" fill="#6b6358">{`One mark per question. Dots: ${lines.map((l) => (l.who === "human" ? "you" : (names[l.who] ?? l.who).replace(/\s*\(.*$/, ""))).join(", ")}. Filled: matched. Open: didn't match. Dashed: can't check.`.slice(0, 150)}</text>
+        <text x="56" y="566" fontFamily={SANS} fontSize="14" fill="#6b6358">{"One mark per question, a dot for each bettor (solid: you). A line reaching the bar: matched. Stopping short: didn't match. Dashed: can't check."}</text>
         {lines.slice(0, 3).map((l, i) => (
           <text key={l.who} x="56" y={604 + i * 24} fontFamily={SANS} fontSize="16" fill="#1f1b1d">
             {`${l.who === "human" ? "You" : (names[l.who] ?? l.who).replace(/ · via .*$/, "")}: ${bettorLineWords(l)}`.slice(0, 110)}

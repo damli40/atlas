@@ -42,9 +42,10 @@ const toSeal = async (p, name) => {
   await p.waitForSelector('[data-testid="u1-seal"]', { timeout: 60000 });
 };
 const answerAll = async (p) => {
-  for (const q of await p.$$(".u1-quiz > li")) {
-    const o = await q.$$(".u1-opt");
-    if (o[0]) await o[0].click();
+  const n = (await p.$$(".u1-quiz > li")).length;
+  for (let i = 0; i < n; i++) {
+    await p.keyboard.press("1");
+    await p.waitForTimeout(170);
   }
 };
 const flow = async (name, code, lang) => {
@@ -72,8 +73,9 @@ const flow = async (name, code, lang) => {
   await p.keyboard.press("Escape");
   await toSeal(p, name);
   await answerAll(p);
+  await p.keyboard.press("ArrowLeft");
   const tap = await p.evaluate(async () => {
-    const el = document.querySelector(".u1-quiz > li .u1-opt:not(:checked)") ?? document.querySelector(".u1-quiz > li .u1-opt");
+    const el = document.querySelector(".u1-quiz > li[data-active] .u1-opt");
     const t0 = performance.now();
     el.click();
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -92,9 +94,13 @@ const flow = async (name, code, lang) => {
     };
     look();
   }));
+  await p.waitForTimeout(200);
   await p.click('[data-testid="u1-seal"]');
-  out.timings[`${name}: seal → first motion (ms)`] = await motion;
+  const m0 = await motion;
+  out.timings[`${name}: seal → first motion (ms)`] = m0;
+  const t0 = Date.now();
   await p.waitForSelector('[data-testid="mark-list"]', { timeout: 90000 });
+  out.timings[`${name}: run length, first motion → verdict (ms)`] = Date.now() - t0;
   const words = await p.$$eval('[data-testid="bench-path"] [data-node]', (e) => e.map((x) => x.textContent.replace(/\s+/g, " ").trim()));
   const caps = await p.evaluate(() => document.querySelector('[data-testid="bench-path"]').textContent.replace(/\s+/g, " "));
   out[`${name} path`] = words;
@@ -136,6 +142,21 @@ const none = await c.$('[data-testid="u1-claim-none"]');
 say("claim: a different test opens, or the button goes away and the result stays", ran && (none ? (await c.$('[data-testid="mark-list"]')) !== null && !(await c.$('[data-testid="u1-test-claim"]')) : !(await c.$('[data-testid="mark-list"]'))), none ? "nothing new" : "a new test");
 await c.screenshot({ path: `${OUT}/claim.png` });
 await flow("plan", PLAN, "py");
+// The example, from the first screen, with a machine's keys: the floor under a first-timer's time.
+{
+  const p = await page();
+  const t = performance.now();
+  await p.click('[data-testid="u1-example"]');
+  await p.waitForSelector('[data-testid="bench-stage"] svg');
+  out.timings["example: click → drawing (ms)"] = ms(t);
+  await p.click('[data-testid="u1-bet-toggle"]');
+  await p.waitForSelector('[data-testid="u1-seal"]', { timeout: 60000 });
+  out.timings["example: click → first question (ms)"] = ms(t);
+  await answerAll(p);
+  await p.keyboard.press("Enter");
+  await p.waitForSelector('[data-testid="u1-sealed"]', { timeout: 30000 });
+  out.timings["example: click → sealed, by keys (ms)"] = ms(t);
+}
 writeFileSync(`${OUT}/journey.json`, JSON.stringify(out, null, 1));
 console.log(JSON.stringify(out.timings, null, 1));
 await b.close();
