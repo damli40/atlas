@@ -13,6 +13,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent as RPointerEvent, type ReactNode } from "react";
 import { benchSpec } from "../../../renderer/authors/bet-view";
 import { momentOf, type Moment } from "../../../src/moment";
+import { MachineView, machineOn } from "../../drawing/MachineView";
 import { whatHappened } from "../../../renderer/authors/what-happened";
 import type { HelperAnswer } from "../../api";
 import type { Mounted } from "../../../renderer/live/mount";
@@ -88,7 +89,19 @@ export function roundUp(ms: number): number {
   return 10 * p;
 }
 
+/** The proof's ring: on the chute of the part the run's traced steps say threw, else the function under test. */
+function machineRing(after: After, language: "js" | "ts" | "py", tested: string | null) {
+  const moment = momentOf(after.marks, after.run, language);
+  if (!moment || moment.kind !== "not_matched" || !tested) return null;
+  const steps = after.helpers && "steps" in after.helpers ? after.helpers.steps : [];
+  const threw = [...steps].reverse().find((x) => x.threw)?.name;
+  const m = after.run.result.measured as { outcome?: string };
+  const words = `you said ${moment.you}`;
+  return m.outcome === "threw" ? { part: threw ?? tested, on: "chute" as const, words } : { part: tested, on: "housing" as const, words };
+}
+
 export function BenchStage({ seenBefore = false, codeRan = false, model, theme, after = null, onPart, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null }: BenchStageProps) {
+  const machine = machineOn();
   const playedRef = useRef(onPlayed);
   playedRef.current = onPlayed;
   const dark = useDarkScheme();
@@ -295,14 +308,19 @@ export function BenchStage({ seenBefore = false, codeRan = false, model, theme, 
             {model.notShown}
           </p>
         ) : (
-          <Drawing spec={chart} theme={shown} className="u1-svg r-sheet" maxScale={1.2} minScale={0.3} hover={!after} onMount={onChart} onSelect={(id) => {
+          machine && !after ? <MachineView model={model} outline={outline} source={source} language={language} /> : <Drawing spec={chart} theme={shown} className="u1-svg r-sheet" maxScale={1.2} minScale={0.3} hover={!after} onMount={onChart} onSelect={(id) => {
               setPinned((p) => (p === id ? null : id));
               onPart?.(id);
             }} />
         )}
       </div>
+      {machine && after && marksOn && (
+        <div className="r-viewport r-path m-over" data-testid="machine-result">
+          <MachineView model={model} outline={outline} source={source} language={language} ring={machineRing(after, language, model.tested)} />
+        </div>
+      )}
       {pathSpec && (
-        <div className="r-viewport r-path" data-testid="bench-path">
+        <div className="r-viewport r-path" data-testid="bench-path" style={machine && marksOn ? { visibility: "hidden" } : undefined}>
           <Drawing spec={pathSpec} theme={shown} className="r-sheet" maxScale={1.08} minScale={typeof window !== "undefined" && window.innerWidth <= 760 ? 0.66 : 0.5} hover={false} onPending={() => setPathMount(undefined)} onMount={(m) => setPathMount(m)} />
         </div>
       )}

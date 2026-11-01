@@ -7,6 +7,8 @@ import type { Bet, Run, Verdict } from "../../src/types";
 import { Drawing } from "./Drawing";
 import { useDarkScheme, useReducedMotion } from "./media";
 import { sizedHeight } from "./RunPath";
+import { drawMoonwell } from "../../renderer/machine/machine";
+import { SvgSheet, machineOn } from "./MachineView";
 import type { Mounted } from "../../renderer/live/mount";
 
 // One empty list, kept: a new `[]` each render would redraw the drawing each render.
@@ -25,6 +27,21 @@ export function MoonwellDrawing({ run, bets = NO_BETS, verdicts = NO_VERDICTS, t
     return theory?.length ? { ...s, captions: [...theory.map((words) => ({ words, provenance: "plain-code" as const })), ...s.captions] } : s;
   }, [run, bets, verdicts, theory, captions]);
   const [height, setHeight] = useState<number | null>(null);
+  const machine = useMemo(() => (machineOn() ? drawMoonwell(spec, { ring: new URLSearchParams(location.search).get("ring") !== "0" && Boolean(spec.path?.partsWaysAt) }) : null), [spec]);
+  if (machine) {
+    return (
+      <section className="r-moonwell m-flow-wrap" data-testid="price-pipe" aria-label="The price flow">
+        <p className="m-kicker">{spec.kicker}</p>
+        <p className="m-title">{spec.title}</p>
+        <div className="m-flow" style={{ height: "min(62vh, 620px)" }}>
+          <SvgSheet svg={machine.svg} width={machine.width} height={machine.height} testid="machine" />
+        </div>
+        {spec.captions.map((c) => (
+          <p key={c.words} className="m-cap">{c.words}</p>
+        ))}
+      </section>
+    );
+  }
   const play = (m: Mounted | null) => {
     const p = m?.player;
     if (!p) return;
