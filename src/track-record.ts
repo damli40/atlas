@@ -23,8 +23,9 @@
 import type { Bet, Confidence, ExperimentShape, Outcome, Run, Verdict } from "./types";
 import { CONFIDENCE_LEVELS, failurePathOf, type FailurePath } from "./felt";
 import { FELT_WORDS } from "./paste-words";
-import { verifySeal } from "./seal";
+import { sha256Hex, verifySeal } from "./seal";
 import { SETTLE_FIELD } from "./units";
+import type { Ending } from "./remember";
 
 export const QUESTION_TYPES = ["outcome", "returned value", "timing", "call counts", "Moonwell price"] as const;
 export type QuestionType = (typeof QUESTION_TYPES)[number];
@@ -56,7 +57,20 @@ export interface TrackEntry {
   confidence?: Confidence;
   /** X4 (D56): whether the test scripted a failure (src/felt.ts). Absent on a chain run and on entries from before X4. */
   path?: FailurePath;
+  /** D66, on a bet about how the call ends: which ending the person chose and which the run shows. Words from a fixed list, never a value. */
+  said?: Ending;
+  ended?: Ending;
+  /** D66: a hash of the function's name, so "last time on this function" can be told without keeping the name. */
+  fn?: string;
 }
+
+/** Which ending an answer chose: a tap's own option, or the old screens' word. Null for anything else. */
+function endingSaid(a: Bet["answer"]): Ending | null {
+  const word = a.kind === "quiz" ? a.options.find((o) => o.id === a.choice)?.match : a.kind === "enum" ? { kind: "word" as const, value: (a as { value?: unknown }).value } : null;
+  if (!word || word.kind !== "word") return null;
+  return endingOfWord(word.value);
+}
+const endingOfWord = (w: unknown): Ending | null => (w === "returned" || w === "returns" ? "returned" : w === "threw" || w === "throws" ? "threw" : w === "never_settled" || w === "pending" ? "never finished" : w === "still_running_at_watch_limit" ? "still running" : null);
 
 const numberOf = (v: unknown): number | undefined => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
 
@@ -64,9 +78,10 @@ const numberOf = (v: unknown): number | undefined => (typeof v === "number" && N
  * The person's entries from one finished round: their bets (who "human") whose seal still verifies, each with the
  * verdict the judge gave it on this run. A bet with no verdict, or a group no question type covers, is not kept.
  */
-export function entriesFromRound(bets: readonly Bet[], verdicts: readonly Verdict[], run: Pick<Run, "id" | "finishedAt">, params?: ExperimentShape): TrackEntry[] {
+export function entriesFromRound(bets: readonly Bet[], verdicts: readonly Verdict[], run: Pick<Run, "id" | "finishedAt"> & Partial<Pick<Run, "result">>, params?: ExperimentShape): TrackEntry[] {
   const out: TrackEntry[] = [];
   const path = failurePathOf(params);
+  const fn = params?.shape === "call-function" ? sha256Hex(`fn:${params.exportName}`).slice(0, 16) : undefined;
   for (const b of bets) {
     if (b.who !== "human") continue;
     const type = questionTypeOf(b.measures);
@@ -79,9 +94,17 @@ export function entriesFromRound(bets: readonly Bet[], verdicts: readonly Verdic
       const seen = numberOf(v.observed);
       if (seen !== undefined && b.answer.value !== seen) side = b.answer.value < seen ? "under" : "over";
     }
-    out.push({ runId: run.id, betId: b.id, sealedHash: b.sealedHash, type, outcome: v.outcome, repeat: b.repeat === true, ...(side ? { side } : {}), at: run.finishedAt, ...(b.confidence ? { confidence: b.confidence } : {}), ...(path ? { path } : {}) });
+    out.push({ runId: run.id, betId: b.id, sealedHash: b.sealedHash, type, outcome: v.outcome, repeat: b.repeat === true, ...(side ? { side } : {}), at: run.finishedAt, ...(b.confidence ? { confidence: b.confidence } : {}), ...(path ? { path } : {}), ...memoryOf(b, type, v, run, fn) });
   }
   return out;
+}
+
+/** D66: only on the bet about how it ended, and only when the verdict could compare it with the run. */
+function memoryOf(b: Bet, type: QuestionType, v: Verdict, run: Partial<Pick<Run, "result">>, fn: string | undefined): Pick<TrackEntry, "said" | "ended" | "fn"> {
+  if (type !== "outcome" || v.outcome === "cant_check") return fn ? { fn } : {};
+  const said = endingSaid(b.answer);
+  const ended = endingOfWord((run.result?.measured as { outcome?: unknown } | undefined)?.outcome);
+  return { ...(said && ended ? { said, ended } : {}), ...(fn ? { fn } : {}) };
 }
 
 export interface TypeLine {

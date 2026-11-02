@@ -12,7 +12,9 @@
 // - Verdicts are plain code's (src/judge.ts): matched / didn't match / can't check.
 
 import { describeCall, visibleText } from "../../src/gate";
-import { endingFacts, reachNote, runEnding } from "../../src/moment";
+import { endingFacts, momentOf, reachNote, runEnding } from "../../src/moment";
+import { countChange, weakestWords, type Weakest } from "../../src/remember";
+import { questionTypeOf } from "../../src/track-record";
 import { notShownAsFact } from "../../src/trust";
 import type { JsonValue } from "../../src/types";
 import { PASTE_WORDS } from "../../src/paste-words";
@@ -591,6 +593,21 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const [invite, setInvite] = useState<{ required: boolean; signedIn: boolean; error?: string; busy?: boolean; left?: number | null } | null>(null);
   const [inviteCode, setInviteCode] = useState("");
   const locked = Boolean(invite?.required && !invite.signedIn);
+  // D66: what this person's own record says. A first-time visitor gets nothing, so nothing shows.
+  const [remember, setRemember] = useState<{ last: string | null; weakest: Weakest | null } | null>(null);
+  const betFor = exp?.experiment.params.shape === "call-function" ? exp.experiment.params.exportName : undefined;
+  useEffect(() => {
+    let live = true;
+    Promise.resolve()
+      .then(() => api.remember(betFor))
+      .then((a) => live && setRemember(a), () => live && setRemember(null));
+    return () => {
+      live = false;
+    };
+    // Read again on a new bet, and when a round has been counted.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [api, betFor, plays, invite?.signedIn]);
+
   const useCode = async (typed: string) => {
     setInvite((v) => (v ? { ...v, busy: true } : v));
     const a = await api.signIn(typed);
@@ -922,6 +939,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       <section className="u1-entry" aria-labelledby="u1-entry-h" data-testid="u1-entry">
         <div className="e-left">
         <h1 id="u1-entry-h">See how your code is built</h1>
+        {remember?.last && <p className="u1-remember" data-testid="remember-last">{remember.last}</p>}
         <p className="u1-lede">Paste one file. Atlas draws its functions and how they call each other. Then, if you like, bet on what it will do: Atlas runs it and shows whether your bet matched.</p>
         {invite?.required && !invite.signedIn && (
           <form className="e-invite" onSubmit={(e) => void submitInvite(e)} data-testid="e-invite">
@@ -1033,6 +1051,10 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   // J5: this code has already run here, on some test: the top bar must not say nothing has run.
   const fingerprint = `${codeFingerprint(readText, pasted.target.language ?? undefined)}|`;
   const codeRanHere = [...ranCodes.current].some((k) => k.startsWith(fingerprint));
+  // D66: the count that moved. Once, at the verdict, for this person only.
+  const leadMeasures = after ? momentOf(after.marks, after.run, pasted.target.language ?? undefined)?.measures : null;
+  const leadType = leadMeasures ? questionTypeOf(leadMeasures) : null;
+  const loopLine = result?.track && !("error" in result.track) ? countChange(result.track.before, result.track.after, leadType) : null;
   // C4: a run Atlas could not check has nothing to play and no card to show, so neither is offered.
   const nothingShown = result !== null && notShownAsFact(result.run) !== null;
   const offeredTests = (proposals?.proposals ?? []).filter((p) => p.gate.allowed && !alreadyRan(p.params));
@@ -1051,6 +1073,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           outline={pasted.outline}
           fileName={FILE_NAME[pasted.target.language ?? "ts"]}
           after={after}
+          loop={loopLine}
           seenBefore={repeatNote !== null || handoffNote === CHANGE_WORDS.sameCode}
           codeRan={codeRanHere}
           extraMarks={labelMarks}
@@ -1337,6 +1360,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                       </button>
                     )}
                   </div>
+                  {sealed.length === 0 && step === 0 && remember?.last && <p className="u1-remember u1-remember-bet" data-testid="remember-last-bet">{remember.last}</p>}
                   {sealed.length === 0 && (
                     <div className="b-head" data-testid="b-head">
                       <button type="button" className="b-back" onClick={() => setStep((n) => Math.max(0, n - 1))} disabled={step === 0} aria-label="Back to the question before" data-testid="b-back">
@@ -1356,6 +1380,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                         <p className="u1-q" id={`q-${q.measures}`}>
                           {shortQuestionFor(q.text, exp.experiment.params, exp.experiment.target.language)}
                         </p>
+                        {/* D66: the person's own counts, beside the question, never in it: every bettor reads the same question (D19). */}
+                        {sealed.length === 0 && remember?.weakest && questionTypeOf(q.measures) === remember.weakest.type && <p className="u1-weakest" data-testid="remember-weakest">{weakestWords(remember.weakest)}</p>}
                         <div className="u1-opts" role="radiogroup" aria-labelledby={`q-${q.measures}`}>
                           {[...(q.quiz ?? []).map((o) => ({ id: o.id, label: o.label })), { id: CANT_TELL, label: CANT_TELL }].map((o) => (
                             <button

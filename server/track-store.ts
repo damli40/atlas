@@ -21,6 +21,7 @@ import { join } from "node:path";
 import { ensureDir, writePrivate } from "./access/store";
 import { QUESTION_TYPES, type TrackEntry } from "../src/track-record";
 import { CONFIDENCE_LEVELS, FAILURE_PATHS } from "../src/felt";
+import { ENDINGS, type Ending } from "../src/remember";
 
 export const MAX_ENTRIES_PER_PERSON = 1_000;
 export const MAX_PEOPLE = 2_000;
@@ -63,7 +64,10 @@ function cleanEntry(e: unknown): TrackEntry | null {
   // X4 (D56): absent on entries written before X4; anything else that is not one of the known values is refused.
   if (x.confidence !== undefined && !(CONFIDENCE_LEVELS as readonly unknown[]).includes(x.confidence)) return null;
   if (x.path !== undefined && !(FAILURE_PATHS as readonly unknown[]).includes(x.path)) return null;
-  return { runId: x.runId, betId: x.betId, sealedHash: x.sealedHash, type: x.type as TrackEntry["type"], outcome: x.outcome as TrackEntry["outcome"], repeat: x.repeat, ...(x.side ? { side: x.side as "under" | "over" } : {}), at: x.at, ...(x.confidence ? { confidence: x.confidence as NonNullable<TrackEntry["confidence"]> } : {}), ...(x.path ? { path: x.path as NonNullable<TrackEntry["path"]> } : {}) };
+  // D66: words from a fixed list and a short hash, so a hand-edited file can't put code in here either.
+  for (const k of ["said", "ended"] as const) if (x[k] !== undefined && !(ENDINGS as readonly unknown[]).includes(x[k])) return null;
+  if (x.fn !== undefined && !(typeof x.fn === "string" && /^[0-9a-f]{16}$/.test(x.fn))) return null;
+  return { runId: x.runId, betId: x.betId, sealedHash: x.sealedHash, type: x.type as TrackEntry["type"], outcome: x.outcome as TrackEntry["outcome"], repeat: x.repeat, ...(x.side ? { side: x.side as "under" | "over" } : {}), at: x.at, ...(x.confidence ? { confidence: x.confidence as NonNullable<TrackEntry["confidence"]> } : {}), ...(x.path ? { path: x.path as NonNullable<TrackEntry["path"]> } : {}), ...(x.said ? { said: x.said as Ending } : {}), ...(x.ended ? { ended: x.ended as Ending } : {}), ...(x.fn ? { fn: x.fn as string } : {}) };
 }
 
 function merged(old: readonly TrackEntry[], more: readonly TrackEntry[]): TrackEntry[] {

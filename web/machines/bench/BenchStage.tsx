@@ -15,6 +15,7 @@ import { benchSpec } from "../../../renderer/authors/bet-view";
 import { momentOf, type Moment } from "../../../src/moment";
 import { MachineSheet, machineFirst, rememberView, type MachineControl } from "../../drawing/MachineView";
 import { drawMachine, machineParts, type MachineParts, type MachineRing } from "../../../renderer/authors/machine";
+import type { CountChange } from "../../../src/remember";
 import { machineScript } from "../../../renderer/authors/machine-script";
 import { whatHappened } from "../../../renderer/authors/what-happened";
 import type { HelperAnswer } from "../../api";
@@ -80,6 +81,8 @@ export interface BenchStageProps {
   footnote?: ReactNode;
   /** U3 item 7: called when a replay reaches its end state (the page then offers "Play the run again"). */
   onPlayed?: () => void;
+  /** D66: the count this round moved, for the person who bet. */
+  loop?: CountChange | null;
   /** U3 item 5: words ABOVE the judged answers (a "Test this claim" round's sentence beside the facts). */
   headnote?: ReactNode;
 }
@@ -107,7 +110,7 @@ function machineRing(after: After, language: "js" | "ts" | "py", tested: string 
   return { part: tested, on: "housing", words };
 }
 
-export function BenchStage({ seenBefore = false, codeRan = false, model, theme, after = null, onPart, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null }: BenchStageProps) {
+export function BenchStage({ seenBefore = false, codeRan = false, loop = null, model, theme, after = null, onPart, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null }: BenchStageProps) {
   const [wantMachine, setWantMachine] = useState(machineFirst);
   const playedRef = useRef(onPlayed);
   playedRef.current = onPlayed;
@@ -383,7 +386,7 @@ export function BenchStage({ seenBefore = false, codeRan = false, model, theme, 
         </p>
       )}
       {!after && cardId && model.parts[cardId] && <PartCard id={cardId} part={model.parts[cardId]!} tested={model.tested} hasTest={Boolean(model.parts[CLOCK_ID])} python={language === "py"} pinned={pinned === cardId} {...(onTestFunction ? { onTest: onTestFunction } : {})} canChange={!after} onClose={() => setPinned(null)} />}
-      {after && marksOn && <MarkList marks={after.marks} focus={focusMark} onFocus={setFocusMark} footnote={footnote} headnote={headnote} moment={momentOf(after.marks, after.run, language)} readout={marksReadout(after.marks)} />}
+      {after && marksOn && <MarkList marks={after.marks} focus={focusMark} onFocus={setFocusMark} footnote={footnote} headnote={headnote} moment={momentOf(after.marks, after.run, language)} readout={marksReadout(after.marks)} loop={loop} />}
       {children}
     </div>
   );
@@ -508,7 +511,7 @@ function MarkRow({ m, same, focus, onFocus, hidden = false }: { m: Mark; same: s
   );
 }
 
-function MarkList({ marks, focus, onFocus, footnote, headnote, moment, readout }: { marks: readonly Mark[]; focus: string | null; onFocus: (m: string | null) => void; footnote: ReactNode; headnote: ReactNode; moment: Moment | null; readout: string }) {
+function MarkList({ marks, focus, onFocus, footnote, headnote, moment, readout, loop }: { marks: readonly Mark[]; focus: string | null; onFocus: (m: string | null) => void; footnote: ReactNode; headnote: ReactNode; moment: Moment | null; readout: string; loop: CountChange | null }) {
   const same = sharedReason(marks);
   // Questions nobody could check fold to one line with their reason: a real result must not read as a shrug.
   const checkable = marks.filter((m) => !m.picks.every((p) => p.outcome === "cant_check"));
@@ -520,6 +523,14 @@ function MarkList({ marks, focus, onFocus, footnote, headnote, moment, readout }
       <div className="m-top">
         {moment && <MomentView moment={moment} />}
         <p className="m-count" data-testid="m-count">{readout}</p>
+        {loop && (
+          <p className="m-loop" data-testid="m-loop">
+            {`${loop.words}: `}
+            <span className="m-loop-from">{loop.from}</span>
+            <span className="m-loop-arrow" aria-label="now"> → </span>
+            <span className="m-loop-to">{loop.to}</span>
+          </p>
+        )}
       </div>
       <div className="m-pane" data-testid="m-pane">
         {/* The plain counts stay for a screen reader; the moment is what the eye reads. */}

@@ -463,3 +463,16 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 .m-flow{position:relative;height:min(66vh,640px)}
 .m-cap{font:italic 400 13.5px/1.45 "Atlas Besley",Georgia,serif;color:#5d5650;margin:4px 0 0}
 .u1-shell .u1-test{flex:none}
+
+/* D66: the remember loop: the same quiet type as everything else */
+.u1-shell .u1-remember{margin:0 0 14px;font:400 13.5px/1.45 var(--ui);color:var(--ink-2);padding-left:10px;border-left:2px solid var(--rule)}
+.u1-shell .u1-remember-bet{margin:0 0 10px}
+.u1-shell .u1-weakest{margin:-2px 0 10px;font:400 13px/1.4 var(--ui);color:var(--ink-2)}
+.m-loop{margin:6px 0 0;font:400 13.5px/1.4 var(--ui);color:var(--ink-2)}
+.m-loop-from{font-family:var(--mono);color:var(--ink-3)}
+.m-loop-to{font-family:var(--mono);font-weight:500;color:var(--ink);animation:m-loop-in .5s ease-out .55s both}
+.m-loop-arrow{animation:m-loop-in .3s ease-out .4s both}
+@keyframes m-loop-in{from{opacity:0;transform:translateX(-5px)}to{opacity:1;transform:none}}
+.m-loop-arrow,.m-loop-to{display:inline-block}
+.m-loop-arrow{white-space:pre}
+@media (prefers-reduced-motion:reduce){.m-loop-to,.m-loop-arrow{animation:none}}

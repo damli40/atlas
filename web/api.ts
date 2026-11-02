@@ -17,6 +17,7 @@ import type { OutlineAtlasFile } from "../src/outline/types";
 import type { FileOutline } from "../src/file-outline";
 import type { OutlineView } from "./machines/explorer/outline-data";
 import type { TrackRecord } from "../src/track-record";
+import type { Weakest } from "../src/remember";
 import type { LabelsAnswer } from "../src/failure-labels";
 
 export type { TrackRecord, LabelsAnswer };
@@ -374,6 +375,8 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
     outline: (jobId: string) => get<OutlineView>(`/outline/jobs/${encodeURIComponent(jobId)}/outline`),
     /** X2: the outline-only .atlas.json, which holds the files' text (the "Bet on this part" hand-off reads one file from it). */
     outlineAtlas: (jobId: string) => get<OutlineAtlasFile>(`/outline/jobs/${encodeURIComponent(jobId)}/atlas`),
+    /** D66: this person's last ending and weakest kind of question, for their own screens only. */
+    remember: (fn?: string) => get<{ last: string | null; weakest: Weakest | null }>(`/remember${fn ? `?fn=${encodeURIComponent(fn)}` : ""}`),
     /** X3 (D27): this person's track record; with `before`, also their record before that round. */
     trackRecord: (before?: string) => get<TrackAnswer>(`/track-record${before ? `?before=${encodeURIComponent(before)}` : ""}`),
     /** X3 (D28): common-failure labels for one pasted function (plain code). */

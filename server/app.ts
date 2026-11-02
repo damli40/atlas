@@ -132,6 +132,7 @@ import { pastedSeenCap } from "./meta/roles/claimant-bets";
 import { MAX_PASTED_PROMPT_CHARS } from "./meta/pasted-guard";
 import { createOutlineRoutes, DEFAULT_OUTLINES_PER_IP_PER_HOUR, OUTLINE_BODY_BYTES, type OutlineOptions } from "./outline/routes";
 import { memoryTrackStore, type Person, type TrackStore } from "./track-store";
+import { lastRoundOf, lastRoundWords, weakestKind } from "../src/remember";
 import { entriesFromRound, recordBefore, trackRecordOf, weakSpotSummary, type TrackRecord } from "../src/track-record";
 import { createLabeler, DEFAULT_LABELS_PER_CLIENT_PER_HOUR } from "./labels";
 import { labelsForBettors } from "../src/failure-labels";
@@ -996,6 +997,16 @@ export function createApp(opts: AppOptions = {}) {
       record: trackRecordOf(entries),
       ...(before !== undefined ? { before: /^[A-Za-z0-9_-]{1,64}$/.test(before) ? recordBefore(entries, before) : null } : {}),
     });
+  });
+  // D66: what the page says to this person about their own earlier rounds. Only ever read by them: a proof card and a shared link never ask.
+  app.get("/remember", (c) => {
+    const sessionId = sessionIdOf(c);
+    if (sessionId === null) return c.json({ error: BAD_SESSION }, 400);
+    const entries = trackStore.entries(personOf(c, sessionId));
+    const name = c.req.query("fn") ?? null;
+    const shown = name && /^[\w$.]{1,80}$/.test(name) ? name : null;
+    const last = lastRoundOf(entries, shown ? createHash("sha256").update(`fn:${shown}`).digest("hex").slice(0, 16) : null);
+    return c.json({ last: last ? lastRoundWords(last, shown) : null, weakest: weakestKind(trackRecordOf(entries)) });
   });
   outline.register(app); // X1: POST /outline/jobs, GET /outline/jobs/:id[/outline|/parts/:partId|/atlas]
 

@@ -35,6 +35,7 @@ import { ENV, build, client, logLines, pastedRound, sum, tmp } from "../tools/g1
  * must be either here or in the gate's open list (checked below), so a new route cannot slip past this test.
  */
 const SPENDING: { method: string; route: string; path: string; body?: unknown; spends: string }[] = [
+  { method: "GET", route: "/remember", path: "/remember", spends: "nothing: this person's own counts" },
   { method: "GET", route: "/moonwell/ready", path: "/moonwell/ready", spends: "nothing paid: one read to the chain, before a run that would pay" },
   { method: "DELETE", route: "/proofs/:runId/keep", path: "/proofs/x/keep", spends: "nothing: the maker takes a public link down" },
   { method: "POST", route: "/proofs/:runId/keep", path: "/proofs/x/keep", spends: "a small file on the volume, only when the person asks for a link" },
