@@ -187,9 +187,9 @@ const seek = async (p, T) => {
   await p.reload();
   await p.waitForSelector('[data-testid="remember-last"]');
   say("still there after a reload", true);
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < 3; i++) {
     await p.click('[data-testid="u1-new"]').catch(() => {});
-    const x = `${ORDERS}\n// round ${i}\n`;
+    const x = `${ORDERS}\n// round ${i}\n${"export function other" + i + "() { return " + i + "; }"}\n`;
     await round(p, x, "2");
   }
   let line = "";

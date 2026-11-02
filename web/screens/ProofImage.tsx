@@ -224,7 +224,10 @@ export function ProofImage({ card, file, lines, names, api, download, downloadNa
   const marksY = runEnd + (changeLines.length > 0 ? 24 + changeLines.length * 20 : 24);
   const shownMarks = marks.slice(0, 8);
   const shortRun = machineView ? wrap(runWords, 25, 4) : [];
-  const shortYou = machineView ? wrap(moment.you ?? "", 34, 2) : [];
+  const shortYou = machineView ? wrap(moment.you ?? "", 32, 2) : [];
+  // D20's sentence stays whole here too: a narrower column, more lines.
+  const narrowChange = machineView && changeLines.length > 0 ? wrap(changeLines.join(" "), 62, 8) : [];
+  const titleLines = wrap(title, 30, 2);
   const runTop = 250;
   const shareRow = (
       <div className="pc-share">
@@ -248,26 +251,37 @@ export function ProofImage({ card, file, lines, names, api, download, downloadNa
   );
   if (machineView) {
     const after = runTop + 44 + shortRun.length * 46;
+    const marksY = after + narrowChange.length * 17 + (narrowChange.length ? 10 : 2);
+    const bettorsY = Math.max(marksY + 74, 536);
     return (
       <section className="pc-image-wrap" aria-label="the proof card as one image" data-testid="pc-image">
         <svg ref={ref} className="pc-image" data-machine="" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title}: ${moment.you === null ? "no bet on this" : `${stranger ? "the bet was" : "you bet"} ${moment.you}, on ${(moment.question ?? "").toLowerCase()}`}; the run ${moment.run}`} xmlns="http://www.w3.org/2000/svg">
           <rect x="0" y="0" width={W} height={H} fill="#f5f1e7" />
           <text x="36" y="58" fontFamily={SANS} fontWeight="600" fontSize="24" fill="#1f1b1d">Atlas</text>
-          <text x="112" y="58" fontFamily={MONO} fontWeight="500" fontSize="20" fill="#1f1b1d">{title.length > 30 ? `${title.slice(0, 29)}…` : title}</text>
+          {titleLines.map((l, i) => <text key={i} x="112" y={58 + i * 24} fontFamily={MONO} fontWeight="500" fontSize="20" fill="#1f1b1d">{l}</text>)}
           {callLine && wrap(callLine, 52, 2).map((l, i) => <text key={i} x="36" y={88 + i * 18} fontFamily={MONO} fontSize="14" fill="#6b6358" data-testid="pc-image-call">{l}</text>)}
           {moment.you !== null && (
             <>
               <text x="36" y="154" fontFamily={SANS} fontWeight="500" fontSize="17" letterSpacing=".6" fill="#6b6358" data-testid="pc-image-question">{stranger ? "THE BET" : "YOU BET"}<tspan fontWeight="400" letterSpacing="0">{` on ${moment.question ?? ""}`}</tspan></text>
-              {shortYou.map((l, i) => <text key={i} x="36" y={186 + i * 28} fontFamily={MONO} fontWeight="500" fontSize="24" fill="#1f1b1d">{l}</text>)}
+              {shortYou.map((l, i) => <text key={i} x="36" y={186 + i * 28} fontFamily={MONO} fontWeight="500" fontSize="26" fill="#1f1b1d">{l}</text>)}
             </>
           )}
           <rect x="36" y={runTop} width="6" height={30 + shortRun.length * 46} fill={moment.kind === "not_matched" ? "#b5372c" : moment.kind === "matched" ? "#2c5f9e" : "#1f1b1d"} />
           <text x="58" y={runTop + 18} fontFamily={SANS} fontWeight="500" fontSize="17" letterSpacing=".6" fill="#6b6358">THE RUN</text>
           {shortRun.map((l, i) => <text key={i} x="58" y={runTop + 58 + i * 46} fontFamily={MONO} fontWeight="500" fontSize="36" letterSpacing="-.8" fill="#1f1b1d">{l}</text>)}
-          {changeLines.map((l, i) => <text key={i} x="36" y={after + 18 + i * 17} fontFamily={SANS} fontWeight="500" fontSize="13" fill="#6b4d00" data-testid="pc-image-change">{l.slice(0, 66)}</text>)}
+          {narrowChange.map((l, i) => <text key={i} x="36" y={after + 8 + i * 17} fontFamily={SANS} fontWeight="500" fontSize="13" fill="#6b4d00" data-testid="pc-image-change">{l}</text>)}
+          <g color="#1f1b1d">
+            {shownMarks.slice(0, 6).map((m, i) => (
+              <g key={m.key} transform={`translate(${36 + i * 70} ${marksY})`}>
+                <svg x="0" y="0" width="60" height="60" viewBox="0 0 100 100">
+                  <Mark mark={m} still names={names} size={60} />
+                </svg>
+              </g>
+            ))}
+          </g>
           {lines.slice(0, 3).map((l, i) => (
-            <text key={l.who} x="36" y={Math.max(after + 30 + changeLines.length * 17, 520) + i * 24} fontFamily={SANS} fontSize="16" fill="#1f1b1d">
-              {`${(l.who === "human" ? (names.human ?? "You") : (names[l.who] ?? l.who)).replace(/ \(.*$/, "").replace(/ · via .*$/, "")}: ${bettorLineWords(l)}`.slice(0, 50)}
+            <text key={l.who} x="36" y={bettorsY + i * 23} fontFamily={SANS} fontSize="15" fill="#1f1b1d">
+              {`${(l.who === "human" ? (names.human ?? "You") : (names[l.who] ?? l.who)).replace(/ \(.*$/, "").replace(/ · via .*$/, "")}: ${bettorLineWords(l)}`}
             </text>
           ))}
           <text x="36" y="628" fontFamily={SANS} fontWeight="500" fontSize="16" fill="#1f1b1d">Judged by plain code</text>

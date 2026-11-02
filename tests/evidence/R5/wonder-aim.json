@@ -1,0 +1,58 @@
+[
+ {
+  "weak": false,
+  "ok": true,
+  "says": [
+   null,
+   null,
+   null
+  ],
+  "waits": [
+   0,
+   4,
+   0
+  ]
+ },
+ {
+  "weak": false,
+  "ok": true,
+  "says": [
+   null,
+   null,
+   null
+  ],
+  "waits": [
+   0,
+   4,
+   3
+  ]
+ },
+ {
+  "weak": true,
+  "ok": true,
+  "says": [
+   null,
+   null,
+   null
+  ],
+  "waits": [
+   4,
+   0,
+   3
+  ]
+ },
+ {
+  "weak": true,
+  "ok": true,
+  "says": [
+   null,
+   null,
+   null
+  ],
+  "waits": [
+   4,
+   3,
+   0
+  ]
+ }
+]
