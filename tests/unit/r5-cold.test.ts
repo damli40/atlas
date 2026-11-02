@@ -167,3 +167,12 @@ describe("a leader can be followed", () => {
     expect(d.problems.filter((p) => /leader/.test(p))).toEqual([]);
   });
 });
+
+describe("a cut value never reads as another value", () => {
+  it("cuts between items and says how many are hidden", async () => {
+    const { cutValue } = await import("../../src/cut-value");
+    expect(cutValue('{"count":3,"median":10,"p95":100,"slowest":100}', 40)).toBe('{"count":3,"median":10, … (2 more items)}');
+    expect(cutValue("[1,2,3]", 40)).toBe("[1,2,3]");
+    expect(cutValue("x".repeat(80), 40)).toMatch(/… \(56 more characters\)$/);
+  });
+});

@@ -62,6 +62,8 @@ export interface BenchStageProps {
   after?: After | null;
   /** This code and test have already run here: "nothing has run" would be false. */
   seenBefore?: boolean;
+  /** Atlas won't run this file: nothing on the machine may say Atlas calls it. */
+  wontRun?: boolean;
   /** This code has already run here on some test: nothing on screen may say nothing has run. */
   codeRan?: boolean;
   /** D60: a part was clicked on the drawing: the code drawer jumps to its lines. */
@@ -127,7 +129,7 @@ export function litWithNoThread(beats: readonly { routes: readonly string[]; lam
   return beats.some((b) => b.lamps.some((l) => l !== tested && !reached.has(l)));
 }
 
-export function BenchStage({ seenBefore = false, codeRan = false, loop = null, model, theme, after = null, onPart, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null }: BenchStageProps) {
+export function BenchStage({ wontRun = false, seenBefore = false, codeRan = false, loop = null, model, theme, after = null, onPart, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null }: BenchStageProps) {
   const [wantMachine, setWantMachine] = useState(machineFirst);
   const playedRef = useRef(onPlayed);
   playedRef.current = onPlayed;
@@ -187,10 +189,10 @@ export function BenchStage({ seenBefore = false, codeRan = false, loop = null, m
     return moment ? ringFor({ kind: moment.kind, you: moment.you, end, tested: model.tested }) : null;
   }, [after?.run, after?.marks, end, model.tested]); // eslint-disable-line react-hooks/exhaustive-deps
   const drawn = useMemo(() => {
-    const d = drawMachine(parts, { seed: `machine:${outline.parts.map((p) => p.name).join(",")}`, ring, end });
+    const d = drawMachine(parts, { seed: `machine:${outline.parts.map((p) => p.name).join(",")}`, ring, end, ...(wontRun ? { wontRun } : {}) });
     // The check runs on every drawing: a picture that fails it is not shown, and the words stay plain.
     return d.problems.length > 0 ? { ...d, tooMany: CANT_DRAW } : d;
-  }, [parts, ring, end, outline]);
+  }, [parts, ring, end, outline, wontRun]);
   // The floor: no word under 11 px on screen, whatever the part count. The region is always there to measure, in either view.
   const regionRef = useRef<HTMLDivElement | null>(null);
   const [region, setRegion] = useState<{ w: number; h: number } | null>(null);

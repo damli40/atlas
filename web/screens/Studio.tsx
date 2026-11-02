@@ -886,6 +886,23 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   useEffect(() => {
     if (resultRunId) setDrawer((d) => (d === null ? d : false));
   }, [resultRunId]);
+  // The bet button shows Enter: so when the drawing comes up, the keys go to it (unless something else already has them).
+  const toggleFor = pasted && fn && !exp && !result ? `${pasted.target.codeSha256}|${fn}` : null;
+  useEffect(() => {
+    if (!toggleFor) return;
+    const t = document.activeElement;
+    if (t === null || t === document.body || t.closest?.(".u1-head, header")) document.querySelector<HTMLElement>('[data-testid="u1-bet-toggle"]')?.focus({ preventScroll: true });
+  }, [toggleFor]);
+  // The result column's end must clear the pinned action bar: its real height, whatever wraps.
+  useEffect(() => {
+    const bar = document.querySelector<HTMLElement>('[data-testid="u1-actions"]');
+    if (!bar || typeof ResizeObserver !== "function") return;
+    const set = () => document.documentElement.style.setProperty("--actions-h", `${bar.offsetHeight}px`);
+    const ro = new ResizeObserver(set);
+    ro.observe(bar);
+    set();
+    return () => ro.disconnect();
+  });
   // An error on the first screen can land below a short window: it comes into view.
   useEffect(() => {
     if (error) document.querySelector('.e-left [role="alert"]')?.scrollIntoView({ block: "nearest" });
@@ -1086,6 +1103,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   // Beside the machine, the code panel opens only when asked (the Code button, C or a click): it would squeeze the machine under its reading size.
   const drawerOpen = drawerChoice ?? (wide && open && exp !== null && !after && !machineFirst());
   const noFunction = pasted.runnable && !fn && pasted.outline !== undefined;
+  // A language Atlas doesn't read: one message, the one that says so. "Needs a package" would be about a JavaScript reading of it.
+  const foreign = pasted.outline?.parts.length === 0 ? foreignLanguage(readText) : null;
   const notRunnable = !pasted.runnable ? (pasted.reason ?? "Atlas cannot run this language here yet.") : pasted.cantCheck;
   const allowed = proposals?.proposals.filter((p) => p.gate.allowed) ?? [];
   const chosenSays = exp ? allowed.find((p) => p.params && JSON.stringify(p.params) === JSON.stringify(exp.experiment.params))?.says : undefined;
@@ -1108,6 +1127,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       </button>
       {shownModel && pasted.outline ? (
         <BenchStage
+          wontRun={Boolean(notRunnable)}
           model={shownModel}
           source={readText}
           language={pasted.target.language ?? pasted.language.chosen ?? "ts"}
@@ -1351,12 +1371,12 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           {handoffNote}
         </p>
       )}
-      {notRunnable && (
+      {notRunnable && !foreign && (
         <p className="u1-banner" role="note" data-testid="u1-cant-run">
           {notRunnable}
         </p>
       )}
-      {notRunnable && (
+      {notRunnable && !foreign && !shownModel?.notShown && (
         <div className="u1-cant-next" data-testid="u1-cant-run-next">
           <p>The drawing is still true of this code. To bet on it, Atlas needs a file that runs on its own: take that dependency out, or paste another file.</p>
           <button
@@ -1549,7 +1569,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                         {BET_WORDS.seal}
                         {step >= exp.questions.length && <kbd className="k">↵</kbd>}
                       </button>
-                      <HowSurePicker value={confidence} onChange={setConfidence} disabled={busy !== null} hint={false} />
+                      <HowSurePicker value={confidence} onChange={setConfidence} disabled={busy !== null} hint={false} onEnter={() => void seal()} />
                       <p className="u1-sub">{`${BET_WORDS.untapped} ${FELT_WORDS.pickerHint}`}</p>
                     </div>
                   ) : (

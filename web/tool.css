@@ -511,3 +511,10 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 .u1-shell .u1-root[data-view="machine"] .r-path *{visibility:hidden!important}
 .u1-shell .u1-root[data-noted] .r-machine .rr-host.m-host{top:48px}
 .u1-shell .u1-cant-next{position:absolute;left:0;top:72px;width:var(--col);padding:0 24px;margin:0;z-index:5;font-size:14px}
+
+/* Cold test 9: the result column scrolls as one, and its end clears the pinned action bar, whatever the height. */
+.u1-shell .u1-marks{overflow-y:auto;grid-template-rows:auto auto;align-content:start}
+.u1-shell .u1-marks .m-pane{overflow:visible;padding-bottom:calc(var(--actions-h,170px) + 24px)}
+.u1-shell .u1-menu[open]{position:relative;z-index:60}
+.u1-shell .u1-menu ul{z-index:60}
+.m-lamp[data-on]{r:4.4px;stroke:#fff8f0;stroke-width:1.2px;filter:drop-shadow(0 0 2.5px rgba(184,48,40,.85))}

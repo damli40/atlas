@@ -208,3 +208,51 @@ describe("the line the run threw from", () => {
     expect(await at(`export function f() {\n  return 1;\n}\n`, "js")).toBeNull();
   }, 60_000);
 });
+
+describe("merge gate N1: only a function written in a plain wrapper is callable", () => {
+  const partOf = (src: string) => fileOutline(src, "ts").parts.find((p) => p.name === "f");
+  it("a list method's result, a timer and a promise are not functions", () => {
+    for (const src of [
+      "const nums = [1, 2, 3];\nexport const f = nums.map((n) => n * 2);\n",
+      "const nums = [1, 2, 3];\nexport const f = nums.reduce((a, n) => a + n, 0);\n",
+      "const nums = [1, 2, 3];\nexport const f = nums.filter((n) => n > 1);\n",
+      'export const f = setTimeout(() => { throw new Error("x"); }, 10);\n',
+      "export const f = Promise.resolve().then(() => 1);\n",
+    ]) {
+      expect(partOf(src)?.kind, src).not.toBe("function");
+      expect(defaultFunction(fileOutline(src, "ts"), [{ name: "f" }] as never), src).toBeNull();
+    }
+  });
+  it("memo((x) => ...) is a function, and f does not call memo", () => {
+    const o = fileOutline("const memo = (fn) => fn;\nexport const f = memo((x) => {\n  return x;\n});\n", "ts");
+    expect(o.parts.find((p) => p.name === "f")?.kind).toBe("function");
+    expect(o.joins.map((j) => `${j.from}->${j.to}`)).not.toContain("f->memo");
+  });
+});
+
+describe("merge gate N2: no pasted code runs while Atlas reads the traceback", () => {
+  it("a str subclass as the file name can't run its __eq__ in the window, and the window is shut after", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { runProbedPyCall } = await import("../../runners/py/py-runner");
+    const { createHash } = await import("node:crypto");
+    const base = readFileSync(new URL("./fixtures-py6.py.txt", import.meta.url), "utf8");
+    const src = `${base}\ndef b():\n    try:\n        a()\n    except ValueError:\n        pass\n    LOOT.append("after:" + str(after()))\n    raise RuntimeError(repr(LOOT)[:1500])\n`;
+    const run = async (name: string) => {
+      const exp = { id: "e", target: { kind: "pasted", ref: "p", language: "py", source: src, codeSha256: createHash("sha256").update(src).digest("hex") }, runner: "ts", proposedBy: { role: "human" }, params: { shape: "call-function", exportName: name, args: [] }, gate: { allowed: true } };
+      return (await runProbedPyCall(exp as never, src)) as { reason?: string; result?: { measured: Record<string, unknown> } };
+    };
+    const a = await run("a");
+    expect(a.result?.measured.thrownMessage).toBe("x");
+    const b = await run("b");
+    expect(JSON.stringify(b)).not.toMatch(/own_walk pinned|disarmed|keys=/);
+    expect(b.reason ?? "").toMatch(/stack frame/);
+  }, 60_000);
+});
+
+describe("merge gate minor: two throws on the line the run threw from", () => {
+  it("place nothing", () => {
+    const src = 'export function f(x) { if (x) throw new Error("a"); [1].forEach(() => { throw new Error("b"); }); }\n';
+    const parts = machinePartsOfFile(src, "js", test_("f"), fileOutline(src, "js"));
+    expect(endOfRun({ outcome: "threw", thrown: { name: "Error", message: "b" }, parts, tested: "f", ran: new Set(["f"]), called: () => false, thrownAt: 1 })).toBeNull();
+  });
+});

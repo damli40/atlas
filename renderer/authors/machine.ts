@@ -2,6 +2,7 @@
 // masked source (comments and strings removed) for loops, throws and returns, the call facts for waits, the chosen test for what is faked.
 // Nothing comes from a model. All housings are one size: size says nothing about the code. Pure.
 
+import { cutValue } from "../../src/cut-value";
 import { networkCallSites } from "../../src/call-sites";
 import type { FileOutline } from "../../src/file-outline";
 import { benchModel, type BenchModel, type CallTest } from "../../web/machines/bench/model";
@@ -21,7 +22,7 @@ export const CANT_DRAW = "The machine can't show this file's pipes clearly, so h
 /** Past this many parts the box chart is a tower of tiny boxes: the page lists them instead. */
 export const LIST_FROM_PARTS = 16;
 export const NOTHING_TO_DRAW = "Nothing here to draw.";
-export const TOO_SMALL = "The machine would be too small to read here, so here is the box chart.";
+export const TOO_SMALL = "In a window this size the machine's words would be under 11 px, so here is the box chart. A wider window shows the machine.";
 
 /** The machine's parts from a proof file's own code and test: what a shared picture needs, with no code text in it. */
 export function machinePartsOfFile(source: string, language: "js" | "ts" | "py", test: CallTest, outline: FileOutline): MachineParts {
@@ -228,7 +229,9 @@ export function endOfRun(o: { outcome: unknown; thrown: ThrownFact; parts: Machi
   if (o.outcome !== "threw") return o.outcome === "never_settled" || o.outcome === "still_running_at_watch_limit" ? { part: o.tested, on: "housing" } : null;
   // The direct evidence: the line the run threw from, when it is a throw drawn on a part known to have run. Nothing else makes a chute red by this route.
   const atLine = o.thrownAt ?? null;
-  if (atLine !== null) {
+  // Two throws on that one line (a one-line function and a callback in it): the line can't say which, so it places nothing.
+  const onLine = (o.parts.fileThrows ?? []).filter((t) => t.line === atLine).length;
+  if (atLine !== null && onLine <= 1) {
     const hit = o.parts.housings.find((h) => o.ran.has(h.id) && h.throws.includes(atLine));
     if (hit) return { part: hit.id, on: "chute", line: atLine };
   }
@@ -251,7 +254,7 @@ export function endOfRun(o: { outcome: unknown; thrown: ThrownFact; parts: Machi
   if (fakeIds.length > 0 || could.length !== 1 || !could[0]!.exact) return null;
   const line = could[0]!.line;
   // The traced run named another line: the words matched, the evidence didn't.
-  if (atLine !== null && atLine !== line) return null;
+  if (atLine !== null && (atLine !== line || onLine > 1)) return null;
   const h = o.parts.housings.find((x) => o.ran.has(x.id) && x.throws.includes(line));
   return h ? { part: h.id, on: "chute", line } : null;
 }
@@ -286,7 +289,7 @@ export function ranParts(o: { tested: string | null; steps: readonly { name: str
 /** The miss, placed: the ring on the part that ended the run, or, when that can't be placed, the words alone beside where the call came in. */
 export function ringFor(o: { kind: "not_matched" | "matched" | "ending"; you: string | null; end: MachineEnd | null; tested: string | null; stranger?: boolean }): MachineRing | null {
   if (o.kind !== "not_matched" || !o.tested) return null;
-  const words = `${o.stranger ? "the bet said" : "you said"} ${(o.you ?? "").replace(/^(typed|answered) /, "")}`;
+  const words = `${o.stranger ? "the bet said" : "you said"} ${cutValue((o.you ?? "").replace(/^(typed|answered) /, ""), 48)}`;
   return o.end ? { part: o.end.part, on: o.end.on, words } : { part: o.tested, on: "words", words };
 }
 
@@ -385,7 +388,7 @@ function solidsOf(h: Housing, pl: Plan): Solid[] {
 }
 
 /** Draws at the tightest spacing that comes out clean: more room is tried only when the pipes can't be routed or the audit finds a fault. */
-export function drawMachine(p: MachineParts, o: { seed: string; ring?: MachineRing | null; ended?: boolean; end?: MachineEnd | null }): MachineDrawn {
+export function drawMachine(p: MachineParts, o: { seed: string; ring?: MachineRing | null; ended?: boolean; end?: MachineEnd | null; /** Atlas won't run this file (it needs a package): the entry says where a call would start, not that Atlas calls it. */ wontRun?: boolean }): MachineDrawn {
   let last: MachineDrawn | null = null;
   for (const roomy of [1, 1.3, 1.7, 2.2]) {
     last = drawAt(p, o, roomy);
@@ -395,7 +398,7 @@ export function drawMachine(p: MachineParts, o: { seed: string; ring?: MachineRi
   return last!;
 }
 
-export function drawAt(p: MachineParts, o: { seed: string; ring?: MachineRing | null; ended?: boolean; end?: MachineEnd | null }, roomy: number): MachineDrawn {
+export function drawAt(p: MachineParts, o: { seed: string; ring?: MachineRing | null; ended?: boolean; end?: MachineEnd | null; /** Atlas won't run this file (it needs a package): the entry says where a call would start, not that Atlas calls it. */ wontRun?: boolean }, roomy: number): MachineDrawn {
   const count = p.housings.length + p.ports.length;
   const chart = (why: string): MachineDrawn => ({ svg: "", width: 0, height: 0, label: "", tooMany: why, problems: [], minWords: 0 });
   if (p.partsInFile) return chart(`This file defines ${p.partsInFile.toLocaleString("en-US")} functions and classes, more than the ${MACHINE_PART_LIMIT} parts the machine can draw and still be read. Here are the first ${p.housings.length}.`);
@@ -559,10 +562,10 @@ export function drawAt(p: MachineParts, o: { seed: string; ring?: MachineRing | 
       callouts.push({ part: h.id, text: nameSize * K < 15 ? `${h.name}, ${span(h.lines[0], h.lines[1])}` : span(h.lines[0], h.lines[1]), anchor: iso([pl.x + 8, pl.y + pl.d - 8, top]), cls: "m-soft", ...(nameSize * K < 15 ? {} : { optional: true }) });
       // what stands on top, in a row behind the plate
       if (h.tested) {
-        open(s, `${h.id}#inlet`, `${h.name}: the call starts here. Atlas calls this function.`);
+        open(s, `${h.id}#inlet`, o.wontRun ? `${h.name}: a call would start here. Atlas can't run this file.` : `${h.name}: the call starts here. Atlas calls this function.`);
         hopper(s, pl.x + 30, pl.y + 30, top);
         close(s);
-        callouts.push({ part: h.id, text: "starts here: Atlas calls this", anchor: iso([pl.x + 30, pl.y + 30, top + 66]), size: 14.5 });
+        callouts.push({ part: h.id, text: o.wontRun ? "a call would start here" : "starts here: Atlas calls this", anchor: iso([pl.x + 30, pl.y + 30, top + 66]), size: 14.5 });
       } else if (h.exported) {
         open(s, `${h.id}#inlet`, `${h.name}: can be called from outside the file`);
         drum(s, pl.x + 30, pl.y + 30, 10, top, 7);

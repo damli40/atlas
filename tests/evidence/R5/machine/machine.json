@@ -78,7 +78,7 @@
   {
    "name": "paste to picture: python at 1440",
    "ok": true,
-   "more": "68 ms"
+   "more": "64 ms"
   },
   {
    "name": "no words on words: python at rest, 1440",
@@ -128,7 +128,7 @@
   {
    "name": "paste to picture: branching at 1440",
    "ok": true,
-   "more": "126 ms"
+   "more": "119 ms"
   },
   {
    "name": "no words on words: branching at rest, 1440",
@@ -148,7 +148,7 @@
   {
    "name": "paste to picture: orders at 1280",
    "ok": true,
-   "more": "83 ms"
+   "more": "82 ms"
   },
   {
    "name": "no words on words: orders at rest, 1280",
@@ -213,7 +213,7 @@
   {
    "name": "paste to picture: python at 1280",
    "ok": true,
-   "more": "64 ms"
+   "more": "66 ms"
   },
   {
    "name": "no words on words: python at rest, 1280",
@@ -263,7 +263,7 @@
   {
    "name": "paste to picture: branching at 1280",
    "ok": true,
-   "more": "122 ms"
+   "more": "120 ms"
   },
   {
    "name": "no words on words: branching at rest, 1280",
@@ -373,11 +373,11 @@
  ],
  "pasteToPictureMs": [
   81,
-  68,
-  126,
-  83,
   64,
-  122
+  119,
+  82,
+  66,
+  120
  ],
- "median": 83
+ "median": 82
 }

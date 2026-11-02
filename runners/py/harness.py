@@ -1243,21 +1243,31 @@ def main(key_text):
             return None
         if probe_ctx[0] is not None:
             # The third run only: the line of the pasted file the raise came from, the deepest frame there. A number, never a value.
+            # Nothing pasted may run in this window: every value read is checked by exact type before use, comparisons are str's own, and the
+            # collector is off, so no __eq__, __del__ or gc callback of the file's can run while the frame gate is open. The window closes in finally.
+            gc_was = _gc.isenabled()
+            _gc.disable()
             own_walk[0] = True
+            last = None
             try:
                 tb = BaseException.__traceback__.__get__(e)
-                last = None
                 steps = 0
-                while tb is not None and steps < 5000:
-                    if tb.tb_frame.f_code.co_filename == "<pasted code>":
-                        last = tb.tb_lineno
+                while type(tb) is _types.TracebackType and steps < 5000:
+                    fr = tb.tb_frame
+                    code = fr.f_code if type(fr) is _types.FrameType else None
+                    fn = code.co_filename if type(code) is _types.CodeType else None
+                    if type(fn) is str and str.__eq__(fn, "<pasted code>"):
+                        ln = tb.tb_lineno
+                        last = ln if type(ln) is int else None
                     tb = tb.tb_next
                     steps += 1
-                thrown_line[0] = last if type(last) is int else None
             except BaseException:
-                thrown_line[0] = None
+                last = None
             finally:
                 own_walk[0] = False
+                if gc_was:
+                    _gc.enable()
+            thrown_line[0] = last
         return ("threw", classify_thrown(e))
 
     def run_handle(h, ctx):

@@ -12,17 +12,17 @@
  {
   "name": "the function called inside a comprehension keeps its lit lamp at rest",
   "ok": true,
-  "more": "{\"lamps\":[\"count\",\"dedupe\",\"norm\"],\"ran\":[\"count->dedupe\",\"dedupe->norm\"],\"caption\":\"What is lit comes from run i7LIhtwDN1's trace.Atlas's clock is virtual: nothing waited for real. This run just happened here.Helper order comes from a separate traced run, not the sealed ones. The code itself could change it.\",\"labels\":\"count: a function, lines 2–3, can be called from outside the file, the one Atlas calls | count: the call starts here. Atlas calls this function. | count: returns, line 3 | count calls dedupe | dedupe: a function, lines 5–6, can be called from outside the file | dedupe: can be called from outside the file | dedupe: returns, line 6 | dedupe calls norm | norm: a function, lines 8–9, can be called from outside the file | norm: can be called from outside the file | norm: returns, line 9\"}"
+  "more": "{\"lamps\":[\"count\",\"dedupe\",\"norm\"],\"ran\":[\"count->dedupe\",\"dedupe->norm\"],\"caption\":\"What is lit comes from run WDk-yHgjt7's trace.Atlas's clock is virtual: nothing waited for real. This run just happened here.Helper order comes from a separate traced run, not the sealed ones. The code itself could change it.\",\"labels\":\"count: a function, lines 2–3, can be called from outside the file, the one Atlas calls | count: the call starts here. Atlas calls this function. | count: returns, line 3 | count calls dedupe | dedupe: a function, lines 5–6, can be called from outside the file | dedupe: can be called from outside the file | dedupe: returns, line 6 | dedupe calls norm | norm: a function, lines 8–9, can be called from outside the file | norm: can be called from outside the file | norm: returns, line 9\"}"
  },
  {
   "name": "its thread is drawn, the caller being certain",
   "ok": true,
-  "more": "{\"lamps\":[\"count\",\"dedupe\",\"norm\"],\"ran\":[\"count->dedupe\",\"dedupe->norm\"],\"caption\":\"What is lit comes from run i7LIhtwDN1's trace.Atlas's clock is virtual: nothing waited for real. This run just happened here.Helper order comes from a separate traced run, not the sealed ones. The code itself could change it.\",\"labels\":\"count: a function, lines 2–3, can be called from outside the file, the one Atlas calls | count: the call starts here. Atlas calls this function. | count: returns, line 3 | count calls dedupe | dedupe: a function, lines 5–6, can be called from outside the file | dedupe: can be called from outside the file | dedupe: returns, line 6 | dedupe calls norm | norm: a function, lines 8–9, can be called from outside the file | norm: can be called from outside the file | norm: returns, line 9\"}"
+  "more": "{\"lamps\":[\"count\",\"dedupe\",\"norm\"],\"ran\":[\"count->dedupe\",\"dedupe->norm\"],\"caption\":\"What is lit comes from run WDk-yHgjt7's trace.Atlas's clock is virtual: nothing waited for real. This run just happened here.Helper order comes from a separate traced run, not the sealed ones. The code itself could change it.\",\"labels\":\"count: a function, lines 2–3, can be called from outside the file, the one Atlas calls | count: the call starts here. Atlas calls this function. | count: returns, line 3 | count calls dedupe | dedupe: a function, lines 5–6, can be called from outside the file | dedupe: can be called from outside the file | dedupe: returns, line 6 | dedupe calls norm | norm: a function, lines 8–9, can be called from outside the file | norm: can be called from outside the file | norm: returns, line 9\"}"
  },
  {
   "name": "the sentence speaks of what is lit, not of every step",
   "ok": true,
-  "more": "What is lit comes from run i7LIhtwDN1's trace.Atlas's clock is virtual: nothing waited for real. This run just happened here.Helper order comes from a separate traced run, not the sealed ones. The code itself could change it."
+  "more": "What is lit comes from run WDk-yHgjt7's trace.Atlas's clock is virtual: nothing waited for real. This run just happened here.Helper order comes from a separate traced run, not the sealed ones. The code itself could change it."
  },
  {
   "name": "no Python part says exported",
@@ -147,7 +147,7 @@
  {
   "name": "before the run: the page says who is not betting, and why",
   "ok": true,
-  "more": "[\"Muse Spark 1.3 (Meta) and Muse Spark Open (Meta, open weights): not betting on this round. Call limit reached: one client address may ask for 1 model rounds an hour. The next one frees up in about 60 min.\"]"
+  "more": "[\"Muse Spark 1.3 (Meta) and Muse Spark Open (Meta, open weights): not betting on this round. Call limit reached: one client address may ask for 1 model rounds an hour. The next one frees up in about 48 min.\"]"
  },
  {
   "name": "the reason is not cut off",
@@ -162,6 +162,6 @@
  {
   "name": "after the run: the page says who did not bet, and why",
   "ok": true,
-  "more": "[\"Muse Spark 1.3 did not bet on this round: call limit reached: one client address may ask for 1 model rounds an hour. The next one frees up in about 60 min.\",\"Muse Spark Open did not bet on this round: call limit reached: one client address may ask for 1 model rounds an hour. The next one frees up in about 60 min.\"]"
+  "more": "[\"Muse Spark 1.3 did not bet on this round: call limit reached: one client address may ask for 1 model rounds an hour. The next one frees up in about 48 min.\",\"Muse Spark Open did not bet on this round: call limit reached: one client address may ask for 1 model rounds an hour. The next one frees up in about 48 min.\"]"
  }
 ]

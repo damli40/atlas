@@ -1432,11 +1432,22 @@ const PROBE_MAX = 5000;
  * here; that can only mislead the drawing, like the helper order, and never a verdict.
  */
 let thrownLine: number | null = null;
+/** V8's own stack getter, if it uses one, taken before any pasted code loads. */
+const NATIVE_STACK_GET = (() => {
+  try {
+    return (ReflectApply(ObjectGetOwnPropertyDescriptor, null, [new ErrorCtor("x"), "stack"]) as PropertyDescriptor | undefined)?.get;
+  } catch {
+    return undefined;
+  }
+})();
 export const thrownLineSoFar = (): number | null => thrownLine;
 function lineThrownFrom(e: unknown): number | null {
   atlasReadingStack = true;
   try {
-    const st = (e as { stack?: unknown } | null | undefined)?.stack;
+    // Never runs code of the file's: an own data value, or V8's own getter. A getter the code put there gives no line.
+    if (e === null || (typeof e !== "object" && typeof e !== "function")) return null;
+    const d = ReflectApply(ObjectGetOwnPropertyDescriptor, null, [e, "stack"]) as PropertyDescriptor | undefined;
+    const st = d === undefined ? undefined : "value" in d ? d.value : d.get !== undefined && d.get === NATIVE_STACK_GET ? ReflectApply(d.get, e, []) : undefined;
     if (typeof st !== "string") return null;
     const frame = (ReflectApply(StringSplit, st, ["\n"]) as string[]).find((l) => l.startsWith("    at "));
     const m = frame === undefined ? null : /target\.(?:ts|mjs):(\d{1,7}):\d+\)?$/.exec(frame);

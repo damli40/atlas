@@ -370,6 +370,8 @@ export function parseJsFile(path: string, text: string, language: OutlineLanguag
     // `module.exports = …`, `exports.x = …`) is an export, like an import line: it links only a part holding the
     // whole file. A name inside a function written in that footer is that function's own use.
     if (inExportFooter(id)) form = "export";
+    // `export const f = memo((x) => …)`: memo runs once, when the file loads. f never calls it, so the wrapper call is no join of f's.
+    if (cp && ts.isCallExpression(cp) && wrappedFn(cp) !== null && ts.isVariableDeclaration(cp.parent) && cp.parent.initializer === cp) return;
     out.calls.push({ line: bline(id), local, ...(member ? { member } : {}), form, ...(imp !== undefined ? { imp } : {}), ...(own ? { own: true as const } : {}) });
   };
   const walk = (n: ts.Node): void => {
@@ -455,9 +457,14 @@ export function throwsInFileJs(sf: ts.SourceFile): ThrowSite[] {
   return out;
 }
 
+const NOT_WRAPPERS = new Set(["setTimeout", "setInterval", "setImmediate", "queueMicrotask", "requestAnimationFrame", "Promise", "structuredClone", "Array", "Object", "Number", "String", "Boolean", "Symbol", "BigInt", "Date", "Map", "Set", "WeakMap", "WeakSet", "Reflect", "JSON", "parseInt", "parseFloat"]);
+
 /** The one function written inline as an argument of a call, for a const made by wrapping it. More than one, or none: null. */
 function wrappedFn(e: ts.Node | undefined): ts.ArrowFunction | ts.FunctionExpression | null {
   if (!e || !ts.isCallExpression(e)) return null;
+  // Only a plain name as the wrapper (`memo(...)`, `withAuth(...)`). A method (`nums.map(...)`, `.reduce`, `.filter`) gives back a value, and timers
+  // and promises give back a handle or a promise: none of them is a function to call.
+  if (!ts.isIdentifier(e.expression) || NOT_WRAPPERS.has(e.expression.text)) return null;
   const fns = e.arguments.filter((a): a is ts.ArrowFunction | ts.FunctionExpression => ts.isArrowFunction(a) || ts.isFunctionExpression(a));
   return fns.length === 1 ? fns[0]! : null;
 }

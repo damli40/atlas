@@ -12,7 +12,7 @@ import type { Bet, Confidence, Verdict } from "../../src/types";
 import "./felt.css";
 
 /** `hint`: show the "optional" sentence here. Off when the screen says it itself (the seal bar keeps it to one line). */
-export function HowSurePicker({ value, onChange, disabled = false, hint = true }: { value: Confidence | null; onChange: (v: Confidence | null) => void; disabled?: boolean; hint?: boolean }) {
+export function HowSurePicker({ value, onChange, disabled = false, hint = true, onEnter }: { onEnter?: () => void; value: Confidence | null; onChange: (v: Confidence | null) => void; disabled?: boolean; hint?: boolean }) {
   return (
     <div className="felt-pick" data-testid="felt-pick">
       <span className="felt-pick-label" id="felt-pick-label">
@@ -21,7 +21,13 @@ export function HowSurePicker({ value, onChange, disabled = false, hint = true }
       <div className="felt-opts" role="radiogroup" aria-labelledby="felt-pick-label">
         {CONFIDENCE_LEVELS.map((level) => (
           // A second tap takes the answer back: the question stays optional until the seal.
-          <button type="button" role="radio" key={level} className="felt-opt" aria-checked={value === level} disabled={disabled} onClick={() => onChange(value === level ? null : level)} data-testid={`felt-${level.replace(" ", "-")}`}>
+          <button type="button" role="radio" key={level} className="felt-opt" aria-checked={value === level} disabled={disabled} onKeyDown={(e) => {
+            // Enter seals, as the seal button's ↵ says; Space still picks.
+            if (e.key === "Enter" && onEnter) {
+              e.preventDefault();
+              onEnter();
+            }
+          }} onClick={() => onChange(value === level ? null : level)} data-testid={`felt-${level.replace(" ", "-")}`}>
             {level}
           </button>
         ))}

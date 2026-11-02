@@ -26,6 +26,7 @@
 //
 // Pure; imports types and the pure src/trust.ts rule only.
 
+import { cutValue } from "../../src/cut-value";
 import type { Bet, Experiment, JsonValue, NetworkStep, Run, StandInStep, TraceEvent, Verdict } from "../../src/types";
 import type { HelperStep } from "../../src/helper-steps";
 import { notShownAsFact } from "../../src/trust";
@@ -113,7 +114,7 @@ function scripted(input: WhatHappenedInput, name: string, n: number): { words: s
   for (const a of p.args) {
     if (a.kind !== "stand-in" || a.name !== name) continue;
     const s = pick<StandInStep>(a.calls, a.then);
-    if (s?.do === "return") return { words: `returned ${clip(JSON.stringify(s.value as JsonValue), 26)} (scripted)`, good: true };
+    if (s?.do === "return") return { words: `returned ${cutValue(JSON.stringify(s.value as JsonValue), 36)} (scripted)`, good: true };
   }
   return null;
 }
@@ -198,7 +199,7 @@ export function pathItems(input: WhatHappenedInput): { items: PathItem[]; notes:
     const at = v === null ? "" : nCalls > 1 ? ` ${grouped(raw!)} ms into call ${nCalls} (${grouped(v)} ms into the test)` : ` at ${grouped(v)} ms`;
     if (outcome === "returned" || outcome === "returns") {
       const j = str(own(measured, "returnedJson")) ?? str(own(measured, "returned"));
-      return { kind: "end", words: j !== null ? `returned ${clip(j, 40)}` : "returned", t: v, good: true };
+      return { kind: "end", words: j !== null ? `returned ${cutValue(j, 52)}` : "returned", t: v, good: true };
     }
     if (outcome === "threw" || outcome === "throws") {
       const name = str(own(measured, "thrownName")) ?? str(own(measured, "thrown"))?.split(":")[0] ?? null;
@@ -523,7 +524,7 @@ function expectedWords(bet: Pick<Bet, "answer" | "measures">): string {
   if (a.kind === "quiz") return a.options.find((x) => x.id === a.choice)?.label ?? a.choice;
   if (a.kind === "integer" || a.kind === "number") return bet.measures.startsWith("calls") ? `${grouped(a.value)} call${a.value === 1 ? "" : "s"}` : bet.measures.endsWith("Ms") ? `${grouped(a.value)} ms` : grouped(a.value);
   if (a.kind === "enum") return a.value;
-  if (a.kind === "json") return clip(JSON.stringify(a.value), 30);
+  if (a.kind === "json") return cutValue(JSON.stringify(a.value), 44);
   return "nothing";
 }
 
@@ -644,7 +645,10 @@ export function whatHappened(input: WhatHappenedInput): RenderSpec {
     if (!off) threadEnd = node.id;
     pendingWords = undefined;
   };
+  let prevHelper = false;
   for (const it of items) {
+    const wasHelper = prevHelper;
+    prevHelper = it.kind === "helper";
     const id = `p${nodes.length}`;
     for (const key of itemKeys(it)) keyToNode.set(key, id);
     itemNode.set(it, id);
@@ -654,7 +658,9 @@ export function whatHappened(input: WhatHappenedInput): RenderSpec {
       if (it.answer) pendingWords = it.answer;
     } else if (it.kind === "helper") {
       const words = `${clip(it.name, 30)}${it.threw ? " threw" : ""}`;
-      add({ id, kind: "ticket", words, small: it.inner > 0 ? `your code, and ${grouped(it.inner)} call${it.inner === 1 ? "" : "s"} inside it` : "your code", provenance: "run", pin: it.threw ? "red" : "ochre" }, { beat: "call", words, part: it.name });
+      // Helpers come one after another in the run; the thread between them is order, not a call: its words say so.
+      if (wasHelper) pendingWords = "then";
+      add({ id, kind: "ticket", words, small: it.inner > 0 ? `ran, ${grouped(it.inner)} call${it.inner === 1 ? "" : "s"} inside` : "ran", provenance: "run", pin: it.threw ? "red" : "ochre" }, { beat: "call", words, part: it.name });
     } else if (it.kind === "together") {
       const nameList = names(unique(it.calls.map((c) => c.name)));
       const sameName = unique(it.calls.map((c) => c.name)).length === 1;

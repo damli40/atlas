@@ -50,6 +50,22 @@ for (const [w, h] of [[1440, 900], [1280, 720]]) {
   say(`${w}x${h}: everything drawn sits above the small print`, m.n > 0 && m.low <= m.top + 1, JSON.stringify(m));
   say(`${w}x${h}: the small print is one line`, m.capH < 30, JSON.stringify(m));
   await p.screenshot({ path: `${OUT}/result-${w}.png` });
+  // Every button in the left column can be clicked: scrolled into view, the point at its middle is that button, not the action bar.
+  const blocked = await p.evaluate(async () => {
+    const out = [];
+    for (const el of document.querySelectorAll(".u1-marks button, .u1-marks summary")) {
+      if (el.closest("[hidden]") || el.getBoundingClientRect().width === 0) continue;
+      const fold = el.closest("details");
+      if (fold && !fold.open && el.tagName !== "SUMMARY") continue; // folded: not on screen until opened
+      el.scrollIntoView({ block: "nearest" });
+      await new Promise((r) => requestAnimationFrame(r));
+      const r = el.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      if (!hit || !(hit === el || el.contains(hit))) out.push(`${el.textContent.trim().slice(0, 30)} under ${hit ? `${hit.tagName}.${hit.className}`.slice(0, 50) : "nothing"} at ${Math.round(r.top)}`);
+    }
+    return out;
+  });
+  say(`${w}x${h}: every button in the left column can be clicked`, blocked.length === 0, JSON.stringify(blocked));
   await p.click('[data-testid="machine-captions"] summary');
   await p.waitForTimeout(150);
   const open = await p.$eval('[data-testid="machine-captions"]', (e) => e.textContent);
@@ -67,6 +83,71 @@ const open = async (code, w = 1440, h = 900) => {
   await p.waitForTimeout(1800);
   return { c, p };
 };
+// A typed value is never cut mid-token: whole in the list, cut only between items with a count where space is short.
+{
+  const { c, p } = await open(`// CASE_padded\nexport function report(name) {\n  return { count: 3, median: 10, p95: 100, slowest: 100, name };\n}\n`);
+  await p.click('[data-testid="u1-bet-toggle"]');
+  await p.waitForSelector('[data-testid="u1-seal"]', { timeout: 60000 });
+  const n = (await p.$$(".u1-quiz > li")).length;
+  for (let i = 0; i < n; i++) {
+    const li = await p.$(".u1-quiz > li[data-active]");
+    if (!li) break;
+    const box = await li.$(".u1-typed-in");
+    if (box) {
+      await box.fill('{"count":3,"median":10,"p95":100,"slowest":100,"name":"p50"}');
+      await box.press("Enter");
+    } else await p.keyboard.press(String(await li.$$eval(".u1-opt", (x) => x.length)));
+    await p.waitForTimeout(210);
+  }
+  await p.click('[data-testid="u1-seal"]');
+  await p.waitForSelector('[data-testid="mark-list"]', { timeout: 90000 });
+  await p.waitForTimeout(1500);
+  // Each piece of text that ends a cut: what comes before "…" must end at a space, a comma or a bracket, never inside a token.
+  const bad = await p.evaluate(() => [...document.querySelectorAll('.u1-pick, .m-pick, .m-you-v, [data-testid="machine"] text, [data-testid="bench-path"] text')].map((e) => e.textContent).filter((t) => /[^\s,\]}] ?…$/.test(t.trim()) && !/ …$/.test(t.trim())));
+  say("no value is cut mid-token", bad.length === 0, JSON.stringify(bad));
+  await p.screenshot({ path: `${OUT}/values-whole.png` });
+  await c.close();
+}
+// Keys: what the hint shows is true.
+{
+  const { c, p } = await open(`// CASE_noarg\nexport function f() {\n  return 1;\n}\n`);
+  await p.focus(".u1-mark");
+  await p.keyboard.press("Tab");
+  await p.keyboard.press("Shift+Tab");
+  const before = await p.evaluate(() => document.activeElement?.className);
+  await p.evaluate(() => document.activeElement?.blur());
+  await p.click('[data-testid="u1-new"]').catch(() => {});
+  await p.fill('[data-testid="u1-code"]', `// CASE_noarg\nexport function f() {\n  return 2;\n}\n`);
+  await p.click('[data-testid="u1-draw"]');
+  await p.waitForSelector('[data-testid="bench-stage"]');
+  await p.waitForTimeout(500);
+  await p.keyboard.press("Enter");
+  await p.waitForTimeout(400);
+  say("Enter opens the bet the button's hint promises, after a new drawing", (await p.$('[data-testid="u1-pop"]')) !== null, String(before));
+  await p.waitForSelector('[data-testid="u1-seal"]', { timeout: 60000 });
+  await answerAll(p);
+  const sure = await p.$('.felt-opt');
+  if (sure) {
+    await sure.click();
+    await p.keyboard.press("Enter");
+    await p.waitForSelector('[data-testid="mark-list"]', { timeout: 30000 }).catch(() => {});
+    say("Enter after picking how sure seals, as ↵ says", (await p.$('[data-testid="mark-list"]')) !== null);
+  } else say("the how-sure picker is there", false);
+  await c.close();
+}
+// A language Atlas doesn't read: one message.
+{
+  const c = await b.newContext({ viewport: { width: 1280, height: 720 } });
+  const p = await c.newPage();
+  await p.goto(BASE);
+  await p.fill('[data-testid="u1-code"]', `package main\n\nimport "fmt"\n\nfunc main() {\n\tfmt.Println("hi")\n}\n`);
+  await p.click('[data-testid="u1-draw"]');
+  await p.waitForSelector('[data-testid="u1-nothing-why"]', { timeout: 20000 });
+  const msgs = await p.evaluate(() => ['[data-testid="u1-cant-run"]', '[data-testid="u1-cant-run-next"]', '[data-testid="u1-nothing-why"]'].filter((q) => document.querySelector(q)));
+  say("a Go file shows one message", msgs.length === 1, JSON.stringify(msgs));
+  await p.screenshot({ path: `${OUT}/go-file.png` });
+  await c.close();
+}
 // A busy loop keeps the machine, with a plain stop line.
 {
   const { c, p } = await open(`// CASE_spin\nfunction beat() { return 1; }\nexport function spin() {\n  while (true) { beat(); }\n}\n`);

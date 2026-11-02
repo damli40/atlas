@@ -3,7 +3,7 @@
   {
    "name": "first marks about 100 ms after the click",
    "ok": true,
-   "more": "83 ms"
+   "more": "81 ms"
   },
   {
    "name": "every part is there and can be clicked from frame one",
@@ -13,7 +13,7 @@
   {
    "name": "it pencils itself in",
    "ok": true,
-   "more": "469 strokes"
+   "more": "470 strokes"
   },
   {
    "name": "any key finishes it",
@@ -43,7 +43,7 @@
   {
    "name": "Copy image gives the picture with the machine",
    "ok": true,
-   "more": "625 KB"
+   "more": "623 KB"
   },
   {
    "name": "a reader of a link not yet kept gets the marks",

@@ -158,7 +158,7 @@
   {
    "name": "J2: eight parts at 1280x720: words at a readable size, or the chart in plain words",
    "ok": true,
-   "more": "The machine would be too small to read here, so here is the box chart. smallest null"
+   "more": "In a window this size the machine's words would be under 11 px, so here is the box chart. A wider window shows the machine. smallest null"
   }
  ]
 }

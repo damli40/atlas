@@ -10,6 +10,9 @@
 
 import { canonicalJson } from "./seal";
 import type { JsonValue } from "./types";
+import { cutValue } from "./cut-value";
+
+export { cutValue };
 
 export type CodeLanguage = "js" | "ts" | "py";
 
@@ -51,9 +54,9 @@ function py(v: JsonValue): string {
 
 /** A literal cut for a sentence (the full value is in the test's JSON line). */
 export function shortLiteral(v: JsonValue, language: CodeLanguage | undefined, max = 60): string {
-  const s = literal(v, language);
-  return s.length > max ? `${s.slice(0, max - 1)}…` : s;
+  return cutValue(literal(v, language), max);
 }
+
 
 /** A value the runner stored as canonical JSON text, as the language writes it (display only; never judged). */
 export function literalOfJsonText(json: string, language: CodeLanguage | undefined): string {
