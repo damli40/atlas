@@ -289,7 +289,7 @@ export function ranParts(o: { tested: string | null; steps: readonly { name: str
 /** The miss, placed: the ring on the part that ended the run, or, when that can't be placed, the words alone beside where the call came in. */
 export function ringFor(o: { kind: "not_matched" | "matched" | "ending"; you: string | null; end: MachineEnd | null; tested: string | null; stranger?: boolean }): MachineRing | null {
   if (o.kind !== "not_matched" || !o.tested) return null;
-  const words = `${o.stranger ? "the bet said" : "you said"} ${cutValue((o.you ?? "").replace(/^(typed|answered) /, ""), 48)}`;
+  const words = `${o.stranger ? "the bet said" : "you said"} ${/^(typed|answered) /.test(o.you ?? "") ? cutValue((o.you ?? "").replace(/^(typed|answered) /, ""), 48) : (o.you ?? "")}`;
   return o.end ? { part: o.end.part, on: o.end.on, words } : { part: o.tested, on: "words", words };
 }
 
