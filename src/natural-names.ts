@@ -21,7 +21,8 @@ export const NAME_MAX_CHARS = 16;
 /** The most parts the machine draws (renderer/authors/machine.ts MACHINE_PART_LIMIT; a test holds them equal). More, and the page shows the chart, so no names are asked for. */
 export const NAMES_PART_LIMIT = 8;
 
-const judged = (word: string): boolean => {
+/** True when a word (small letters) is one a name may not use. R9: the file summary uses the same test (src/file-summary.ts). */
+export const judged = (word: string): boolean => {
   const bare = [word, ...["un", "in", "non"].filter((p) => word.startsWith(p) && word.length > p.length + 2).map((p) => word.slice(p.length))];
   return bare.some((w) => (NAME_BANNED_WORDS as readonly string[]).includes(w) || NAME_BANNED_STEMS.some((s) => w.startsWith(s)));
 };

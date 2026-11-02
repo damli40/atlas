@@ -34,15 +34,17 @@ function sameAnswer(recorded: unknown, sealed: unknown): boolean {
   return JSON.stringify(recorded) === JSON.stringify(sealed);
 }
 
-/** R7: the answers recorded once for the built-in example (server/example-round.json), per model. */
+/** R7: the answers recorded for the built-in example (server/example-round.json), per model. R9: a model may have more than one (one per recorded text). */
 function recordedExampleBets(model: string): { measures: string; answer: unknown; rationale?: string }[] {
-  const kept = RECORDED_EXAMPLE.bets.find((b) => b.model === model);
-  if (!kept) return [];
-  try {
-    return (JSON.parse(kept.content) as { bets: { measures: string; answer: unknown; rationale?: string }[] }).bets;
-  } catch {
-    return [];
-  }
+  return RECORDED_EXAMPLE.bets
+    .filter((b) => b.model === model)
+    .flatMap((kept) => {
+      try {
+        return (JSON.parse(kept.content) as { bets: { measures: string; answer: unknown; rationale?: string }[] }).bets;
+      } catch {
+        return [];
+      }
+    });
 }
 import { join } from "node:path";
 import { FORK_BLOCK, PR578_CODE_SHA256 } from "../runners/evm/moonwell-base";

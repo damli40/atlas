@@ -9,6 +9,7 @@ export function PartFacts({ part, className = "c-part", children }: { part: Part
       {part.natural && <p className="c-part-ai" data-testid="part-ai">{part.natural}</p>}
       <h2 className={`c-part-title${part.natural ? " c-part-code" : ""}`}>{part.title}</h2>
       {part.name && <p className="c-part-name">{part.name}</p>}
+      {part.summary && <p className="c-part-ai c-part-sum" data-testid="part-summary">{part.summary}</p>}
       {part.broke && (
         <div className="c-part-broke" data-testid="part-broke">
           {part.broke.map((w) => (

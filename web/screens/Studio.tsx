@@ -44,6 +44,8 @@ import { drawMachine, machineParts } from "../../renderer/authors/machine";
 import type { PartPanel } from "../../renderer/authors/part-panel";
 import { PartFacts } from "../drawing/PartFacts";
 import { EXAMPLE_NAMES } from "../../src/example-names";
+import type { FileSummary } from "../../src/file-summary";
+import { SAMPLE_FILES, SAMPLE_WORDS } from "../sample-files";
 import { Segments, TestForm, emptyForm, formFromParams, type TestFormState } from "./TestForm";
 import { BenchStage, type After } from "../machines/bench/BenchStage";
 import { benchModel, dialFullMs, type CallTest } from "../machines/bench/model";
@@ -577,6 +579,21 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target?.codeSha256, pasted?.outline]);
+  // R9: the file's summary, asked at the same time as the names, once per drawn file. Shown before the bet in the AI's ink; none on failure.
+  const [summ, setSumm] = useState<{ sha: string; model: string; summary: FileSummary } | { sha: string; reason: string } | null>(null);
+  useEffect(() => {
+    if (!target || !api.summary || !pasted?.outline || pasted.outline.parts.length === 0) return;
+    const sha = target.codeSha256;
+    let live = true;
+    void api.summary(target).then(
+      (r) => live && setSumm(r.ok && r.summary ? { sha, model: r.model, summary: r.summary } : { sha, reason: r.reason ?? "no answer" }),
+      () => live && setSumm({ sha, reason: "the request failed" }),
+    );
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target?.codeSha256, pasted?.outline]);
   const writeOwn = () => {
     ownTest.current = true;
     setChanging(true);
@@ -826,9 +843,9 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     if (!next || !target || !fn || exp || proposals || wonderWait) return;
     await askWonder({ pick: "default" });
   };
-  // R7 (D69): on the example, the bet opens by itself on Atlas's default test, once its names are in (so the bettors' text and the
+  // R7 (D69): on the example, the bet opens by itself on Atlas's default test, once its names (R9: and its summary) are in (so the bettors' text and the
   // drawing carry the same names, D19). Its tests and the AIs' answers are recorded, so this spends nothing (server/example-round.ts).
-  const namesIn = !api.names || (pasted !== null && natural !== null && natural.sha === pasted.target.codeSha256);
+  const namesIn = (!api.names || (pasted !== null && natural !== null && natural.sha === pasted.target.codeSha256)) && (!api.summary || (pasted !== null && summ !== null && summ.sha === pasted.target.codeSha256));
   useEffect(() => {
     if (!onExample || !target || !fn || open || exp || proposals || wonderWait || result || !namesIn || pasted?.cantCheck) return;
     if (autoBet.current === target.codeSha256) return;
@@ -1198,6 +1215,30 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                 <Segments label="Language" value={lang} onChange={(v) => setLang(v as Lang | "auto")} testid="u1-lang" options={[["auto", "Guess the language"], ["ts", "TypeScript"], ["js", "JavaScript"], ["py", "Python"]]} />
               )}
             </div>
+            {/* R9: one-click sample files for anyone with no file at hand. The normal paste flow: same consent line, same paid calls. */}
+            <div className="e-samples" data-testid="e-samples">
+              <span className="u1-sub">{SAMPLE_WORDS.heading}</span>
+              <ul>
+                {SAMPLE_FILES.map((f) => (
+                  <li key={f.id}>
+                    <button
+                      type="button"
+                      className="u1-btn"
+                      disabled={busy !== null || locked}
+                      data-testid={`e-sample-${f.id}`}
+                      onClick={() => {
+                        setCode(f.code);
+                        void read(f.code, f.language);
+                      }}
+                    >
+                      {f.label}
+                    </button>
+                    <span className="u1-sub">{SAMPLE_WORDS.about(f)}</span>
+                  </li>
+                ))}
+              </ul>
+              <span className="u1-sub" data-testid="e-samples-consent">{SAMPLE_WORDS.consent}</span>
+            </div>
             <div className="u1-entry-or">
               <label className="u1-file">
                 <span>Upload files</span>
@@ -1337,6 +1378,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           onClosePart={() => setPartId(null)}
           naturalNames={natural && natural.sha === pasted.target.codeSha256 && "names" in natural ? natural.names : null}
           namesNote={natural && natural.sha === pasted.target.codeSha256 && "reason" in natural ? natural.reason : null}
+          fileSummary={!after && summ && summ.sha === pasted.target.codeSha256 && "summary" in summ ? summ.summary : null}
+          partLines={summ && summ.sha === pasted.target.codeSha256 && "summary" in summ ? summ.summary.parts : null}
           onPart={(name, panel) => {
             const part = pasted.outline?.parts.find((p) => p.name === name);
             if (!part && !panel) return;

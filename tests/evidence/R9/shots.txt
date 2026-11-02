@@ -1,0 +1,26 @@
+pass 1280x800: the summary is shown before the bet
+pass 1280x800: it is labelled as Muse Wonder's words (Meta's AI), not a check: Summary: Muse Wonder's words (Meta's AI), not a check
+pass 1280x800: "Lock in my bet" is fully on screen and not covered: {"inView":true,"uncovered":true,"top":533,"bottom":575,"vh":800}
+pass 1280x800: the AIs' answers are still the recorded ones, labelled with their day: Also betting: Muse Spark's recorded answer (Nov 2) and Muse Spark Open's recorded answer (Nov 2). You see their answers after the run. Recorded on Nov 2 from this same text, before anyone answered. Not live.
+pass 1280x800: the summary strip does not sit on the drawing: {"sumBottom":138,"svgTop":173}
+pass 1280x800: one line per drawn part, keyed by its name: ["retry wait time: Calculates the growing wait before another try.","pause execution: Pauses for the given amount of time.","retrying fetch: Tries fetching, pausing longer between tries, then gives up.","price lookup: Fetches a price using the retry helper with preset settings."]
+pass 1280x800: with the part lines open, "Lock in my bet" is still on screen: {"inView":true,"uncovered":true,"top":533,"bottom":575,"vh":800}
+pass 1280x800: a part line opens that part's panel, with its line marked as the AI's words: Meta's AI says this part: Tries fetching, pausing longer between tries, then gives up. (its words, not a check)
+pass 1280x800: "No file handy? Try one of these" is under the paste box
+pass 1280x800: the consent line is shown on the page
+pass 1280x800: the samples' own consent line is on screen beside them: {"inView":true,"uncovered":true,"top":708,"bottom":725,"vh":800}
+pass 1280x800: a sample goes through the normal paste (POST /paste)
+pass 1280x800: the sample's summary (mocked here) is shown, labelled
+pass 1440x900: the summary is shown before the bet
+pass 1440x900: it is labelled as Muse Wonder's words (Meta's AI), not a check: Summary: Muse Wonder's words (Meta's AI), not a check
+pass 1440x900: "Lock in my bet" is fully on screen and not covered: {"inView":true,"uncovered":true,"top":526,"bottom":568,"vh":900}
+pass 1440x900: the AIs' answers are still the recorded ones, labelled with their day: Also betting: Muse Spark's recorded answer (Nov 2) and Muse Spark Open's recorded answer (Nov 2). You see their answers after the run. Recorded on Nov 2 from this same text, before anyone answered. Not live.
+pass 1440x900: the summary strip does not sit on the drawing: {"sumBottom":138,"svgTop":173}
+pass 1440x900: one line per drawn part, keyed by its name: ["retry wait time: Calculates the growing wait before another try.","pause execution: Pauses for the given amount of time.","retrying fetch: Tries fetching, pausing longer between tries, then gives up.","price lookup: Fetches a price using the retry helper with preset settings."]
+pass 1440x900: with the part lines open, "Lock in my bet" is still on screen: {"inView":true,"uncovered":true,"top":526,"bottom":568,"vh":900}
+pass 1440x900: a part line opens that part's panel, with its line marked as the AI's words: Meta's AI says this part: Tries fetching, pausing longer between tries, then gives up. (its words, not a check)
+pass 390x844: the summary is shown before the bet
+pass 390x844: it is labelled as Muse Wonder's words (Meta's AI), not a check: Summary: Muse Wonder's words (Meta's AI), not a check
+pass 390x844: "Lock in my bet" is fully on screen and not covered: {"inView":true,"uncovered":true,"top":709,"bottom":751,"vh":844}
+pass 390x844: the AIs' answers are still the recorded ones, labelled with their day: Also betting: Muse Spark's recorded answer (Nov 2) and Muse Spark Open's recorded answer (Nov 2). You see their answers after the run. Recorded on Nov 2 from this same text, before anyone answered. Not live.
+all 25 passed

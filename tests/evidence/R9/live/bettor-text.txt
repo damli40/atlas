@@ -1,0 +1,36 @@
+Code: one pasted JavaScript file, 15 lines, fingerprint e88f57c28f7d…
+Where it runs: Atlas's sandbox, with no files and no packages, and the real network blocked (this test's fake fetch answers instead, as scripted below), on a virtual clock that starts at 2026-01-01T00:00:00Z (waits cost no real time).
+Atlas runs it on a simulated clock starting 2026-01-01 UTC, in time zone UTC with an en-US locale, with randomness seeded (seed 20260101).
+What will run: Atlas calls getJson("https://example.com/data", 3). Atlas's fake fetch (in place of the network, which stays blocked) answers 500 with {"error":"server error"} on call 1; every later call answers 500 with {"error":"server error"} too.
+Test written by: Muse Wonder 1.0 (muse-wonder-1.0).
+Atlas watches for at most 30,000 ms of virtual time.
+Questions (written by plain code):
+1. What does getJson do? Answer: pick one: (a) returns a value; (b) throws (an Error or any other value); (c) never finishes (waits forever, nothing left to wake it); (d) still running when Atlas stops watching at 30,000 ms; or can't tell.
+The test exactly, as JSON (what Atlas runs): {"args":[{"kind":"json","value":"https://example.com/data"},{"kind":"json","value":3}],"exportName":"getJson","network":{"calls":[{"body":{"error":"server error"},"do":"respond","status":500}],"replaces":"fetch","then":"repeat_last"},"shape":"call-function"}
+Atlas's failure labels for this function (plain code's reading of its text, before any run of this test):
+- no overall timeout (retry): found in this code at lines 3–14. The retries have no deadline as a whole, so a call that never answers can hold the caller forever.
+- timeout (network call): found in this code at line 5. The call sets no time limit, so a silent provider holds the caller (until the client's own default, if it has one).
+- only on Atlas's list, not seen in this code (common pattern): retry storm, duplicate side effect, rate limit, provider outage.
+Names muse-wonder-1.0 (Meta's AI) suggested for the parts, from the code alone. The person's drawing may show some of them. Its words, not a check:
+- getJson: json data fetch
+A summary muse-wonder-1.0 (Meta's AI) wrote from the code alone. The person's page shows the same words. Its words, not a check:
+- What the file is for: This file fetches data from a web address and tries again a few times when needed.
+- In and out: It takes a web address and a retry count and returns the parsed data or nothing.
+- getJson: Fetches data with repeated attempts and pauses between them.
+How to bet: Give your best estimate for each question. Decline only if you cannot form any estimate at all; if you decline, say why.
+The whole file, numbered as on screen, line 2 (where getJson is declared) marked ">":
+  1| // Get JSON from an API, trying again a few times if the request does not go through.
+> 2| export async function getJson(url, tries = 3) {
+  3|   for (let i = 0; i < tries; i++) {
+  4|     try {
+  5|       const res = await fetch(url);
+  6|       if (res.ok) {
+  7|         return await res.json();
+  8|       }
+  9|     } catch (err) {
+  10|       // network hiccup: try again
+  11|     }
+  12|     // wait a little longer each time
+  13|     await new Promise((resolve) => setTimeout(resolve, 250 * (i + 1)));
+  14|   }
+  15| }

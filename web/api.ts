@@ -15,6 +15,7 @@ export type { ClaimantMode, ClaimantsInfo };
 import type { AdversaryAnswer } from "../server/app";
 import type { OutlineAtlasFile } from "../src/outline/types";
 import type { FileOutline } from "../src/file-outline";
+import type { FileSummary } from "../src/file-summary";
 import type { OutlineView } from "./machines/explorer/outline-data";
 import type { TrackRecord } from "../src/track-record";
 import type { Weakest } from "../src/remember";
@@ -370,6 +371,9 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
     /** R6: short natural names for the drawn parts, by Muse Wonder from the code alone; checked by plain code. Not ok: the page keeps the split names. */
     names: (target: Pick<Target, "ref" | "codeSha256">) =>
       post<{ ok: boolean; model: string; names: Record<string, string>; reason?: string }>("/paste/names", { target: { ref: target.ref, codeSha256: target.codeSha256 } }),
+    /** R9: a short plain-English summary of the file, by Muse Wonder from the code alone; checked by plain code. Not ok: the page shows no summary. */
+    summary: (target: Pick<Target, "ref" | "codeSha256">) =>
+      post<{ ok: boolean; model: string; summary: FileSummary | null; reason?: string }>("/paste/summary", { target: { ref: target.ref, codeSha256: target.codeSha256 } }),
     /** E3: a test Muse Wonder proposed, used as proposed. */
     experimentFromProposal: (target: Pick<Target, "ref" | "codeSha256">, proposalId: string, opts: { quiz?: true; one?: true } = {}) =>
       post<ExperimentAnswer>("/experiments", { target: { ref: target.ref, codeSha256: target.codeSha256 }, proposalId, ...(opts.quiz ? { quiz: true } : {}), ...(opts.one ? { one: true } : {}) }),

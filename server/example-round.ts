@@ -1,5 +1,6 @@
 // R7 (D69): the built-in example's round, recorded once from real Meta calls (server/example-round.json, written by
-// tests/evidence/R7/record-example.mts on 2026-11-02). So the first screen's demo path calls no model: nothing to fail, no cost.
+// tests/evidence/R7/record-example.mts on 2026-11-02; R9 added answers recorded from the text with the file summary, the same day, by
+// tests/evidence/R9/record-example.mts). So the first screen's demo path calls no model: nothing to fail, no cost.
 //
 // Plain words on trust:
 // - The recorded answers are replayed through the SAME plain code as a live answer: Wonder's tests through the proposer's

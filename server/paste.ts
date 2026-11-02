@@ -37,6 +37,9 @@ import { NAMER_MODEL, runNamer, type NamerResult } from "./meta/roles/namer";
 import { checkNames, NAMES_PART_LIMIT } from "../src/natural-names";
 import { codeFingerprint } from "../src/code-fingerprint";
 import { EXAMPLE_NAMES, EXAMPLE_NAMES_MODEL } from "../src/example-names";
+import { SUMMARIZER_MODEL, runSummarizer, type SummarizerResult } from "./meta/roles/summarizer";
+import { checkSummary, type FileSummary } from "../src/file-summary";
+import { EXAMPLE_SUMMARY, EXAMPLE_SUMMARY_MODEL } from "../src/example-summary";
 import { U1_EXAMPLE } from "../web/u1-example";
 import { recordedTestsChat } from "./example-round";
 import { oneLine, sessionEmitter, type AgentLog } from "./log/agentlog";
@@ -135,6 +138,8 @@ const proposalsBody = z.object({ target: targetRef, exportName: z.string().min(1
 const namesBody = z.object({ target: targetRef }).strict();
 /** R6: how long a new round's bettor text waits for names already asked for. Past this it is written without them, and they are closed. */
 const NAMES_WAIT_MS = 1_500;
+/** R9: the same wait for the file summary (asked at the same time as the names, and waited for at the same time). */
+const SUMMARY_WAIT_MS = 1_500;
 const claimBody = z.object({ experimentId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/) }).strict();
 
 const reasonOf = (err: z.ZodError) =>
@@ -161,6 +166,8 @@ export interface PasteDeps {
   takeEarlyTests?: (c: Context) => { ok: true } | { ok: false; reason: string };
   /** R6: the natural-names call's own per-client hourly limit. */
   takeNames?: (c: Context) => { ok: true } | { ok: false; reason: string };
+  /** R9: the file-summary call's own per-client hourly limit. */
+  takeSummary?: (c: Context) => { ok: true } | { ok: false; reason: string };
   /** Per-address paste limit. */
   takePaste: (c: Context) => { ok: true } | { ok: false; reason: string };
   /** E3 review r3 B1: where runs happen on this server (the page's privacy sentence is built from it). */
@@ -216,6 +223,14 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
   const namesByCode = new Map<string, Promise<NamerResult>>();
   const sessionNames = new Map<string, Map<string, { p: Promise<NamerResult>; state: "pending" | "shown" | "closed"; names?: Record<string, string>; model: string }>>();
   const namesOf = (sessionId: string) => touch(sessionNames, sessionId, () => new Map<string, { p: Promise<NamerResult>; state: "pending" | "shown" | "closed"; names?: Record<string, string>; model: string }>(), MAX_PASTE_SESSIONS);
+  /**
+   * R9: the file summary, kept exactly like the names: one call per file (by fingerprint), shared; per session and file "pending" until the
+   * page is shown it ("shown") or a round's bettor text is written without it ("closed"), and once closed never shown in that session (D19).
+   */
+  type SummaryEntry = { p: Promise<SummarizerResult>; state: "pending" | "shown" | "closed"; summary?: FileSummary; model: string };
+  const summaryByCode = new Map<string, Promise<SummarizerResult>>();
+  const sessionSummary = new Map<string, Map<string, SummaryEntry>>();
+  const summaryOf = (sessionId: string) => touch(sessionSummary, sessionId, () => new Map<string, SummaryEntry>(), MAX_PASTE_SESSIONS);
   /** E3 review B3: one bet-screen text (its test part) per distinct text, shared by every round that uses it. */
   const contexts = new Map<string, string>();
   /** E3 review r2 B3: the numbered file, one per (file, marked line). */
@@ -551,6 +566,65 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
       return c.json({ ok: true, model: r.model, names: r.names, refused: r.refused });
     });
 
+    // R9: a short plain-English summary of the file, by Muse Wonder from the code alone, in its own call (it never sees a test or a question).
+    // Plain code checks every line; with nothing usable the page shows no summary at all.
+    app.post("/paste/summary", async (c) => {
+      const sessionId = sessionIdOf(c);
+      if (sessionId === null) return c.json({ error: BAD_SESSION }, 400);
+      const raw = await readJson(c.req.raw);
+      if (!raw.ok) return c.json({ error: "the request body is not JSON" }, 400);
+      const parsed = namesBody.safeParse(raw.body);
+      if (!parsed.success) return c.json({ error: reasonOf(parsed.error) }, 400);
+      const entry = entryOf(sessionId, parsed.data.target);
+      if (!entry) return c.json({ error: "this session has no pasted file with that ref and fingerprint: paste it first (POST /paste)" }, 400);
+      const sha = entry.target.codeSha256;
+      const unavailable = (reason: string) => c.json({ ok: false, model: SUMMARIZER_MODEL, reason, summary: null });
+      let parts: { name: string; kind: string; lineStart: number; lineEnd: number }[];
+      try {
+        parts = fileOutline(entry.target.source ?? "", entry.target.language ?? "js").parts;
+      } catch {
+        return unavailable("plain code could not list the parts");
+      }
+      if (parts.length === 0) return unavailable("plain code found no parts in this file");
+      const mine = summaryOf(sessionId);
+      let e = mine.get(sha);
+      if (!e) {
+        if (sha === EXAMPLE_SHA) {
+          // The example's summary is kept, recorded once from a real call: no call, and checked like any answer.
+          const checked = checkSummary(EXAMPLE_SUMMARY, parts.map((p) => p.name));
+          const p: Promise<SummarizerResult> = Promise.resolve(checked.summary ? { ok: true, model: EXAMPLE_SUMMARY_MODEL, summary: checked.summary, refused: checked.refused } : { ok: false, model: EXAMPLE_SUMMARY_MODEL, reason: checked.reason ?? "plain code refused the summary" });
+          e = { p, state: "pending", model: EXAMPLE_SUMMARY_MODEL };
+        } else {
+          if (!opts.proposer || !proposerChat || !deps.budget) return unavailable("this server asks no Meta model");
+          // Shared by copies of the file that differ only in comments or spaces, like the names.
+          const key = `${entry.target.language}:${codeFingerprint(entry.target.source ?? "", entry.target.language ?? undefined)}`;
+          let p = summaryByCode.get(key);
+          if (!p) {
+            const allowed = deps.takeSummary?.(c) ?? { ok: true as const };
+            if (!allowed.ok) return unavailable(allowed.reason);
+            p = runSummarizer({ source: entry.target.source!, language: entry.target.language!, parts, model: SUMMARIZER_MODEL }, { chat: proposerChat, log: sessionEmitter(deps.agentLog, sessionId) }).catch((): SummarizerResult => ({ ok: false, model: SUMMARIZER_MODEL, reason: "the model call failed" }));
+            summaryByCode.set(key, p);
+            while (summaryByCode.size > MAX_PASTE_SESSIONS) summaryByCode.delete(summaryByCode.keys().next().value!);
+            // A failed call is not kept: the next paste of this file may ask again.
+            void p.then((r) => {
+              if (!r.ok && summaryByCode.get(key) === p) summaryByCode.delete(key);
+            });
+          }
+          e = { p, state: "pending", model: SUMMARIZER_MODEL };
+        }
+        mine.set(sha, e);
+      }
+      const r = await e.p;
+      if (e.state === "closed") return unavailable("it arrived after the bettors' text for this file was written");
+      if (!r.ok) {
+        e.state = "closed";
+        return unavailable(r.reason);
+      }
+      e.state = "shown";
+      e.summary = r.summary;
+      return c.json({ ok: true, model: r.model, summary: r.summary, refused: r.refused });
+    });
+
     app.post("/paste/claim", async (c) => {
       const sessionId = sessionIdOf(c);
       if (sessionId === null) return c.json({ error: BAD_SESSION }, 400);
@@ -604,6 +678,28 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
         }
       }
       return e.state === "shown" && e.names ? { model: e.model, names: e.names } : null;
+    },
+    /**
+     * R9 (D19): the file summary a new round's bettor text must hold: the one this session's page shows for this file. Same rules as the
+     * names: a summary still on its way is waited for a little; past that it is closed for this file, and never shown.
+     */
+    async summaryForText(sessionId: string, codeSha256: string): Promise<{ model: string; summary: FileSummary } | null> {
+      const e = sessionSummary.get(sessionId)?.get(codeSha256);
+      if (!e) {
+        summaryOf(sessionId).set(codeSha256, { p: Promise.resolve({ ok: false, model: SUMMARIZER_MODEL, reason: "not asked" }), state: "closed", model: SUMMARIZER_MODEL });
+        return null;
+      }
+      if (e.state === "closed") return null;
+      if (e.state === "pending") {
+        const r = await Promise.race([e.p, new Promise<null>((res) => setTimeout(() => res(null), SUMMARY_WAIT_MS))]);
+        if (e.state === "pending") {
+          if (r && r.ok) {
+            e.state = "shown";
+            e.summary = r.summary;
+          } else e.state = "closed";
+        }
+      }
+      return e.state === "shown" && e.summary ? { model: e.model, summary: e.summary } : null;
     },
     /** D63: a test written ahead is now in use, so it counts. */
     noteProposalUsed(sessionId: string, set: ProposalSet, c: Context) {

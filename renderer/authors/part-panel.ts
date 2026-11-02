@@ -3,6 +3,7 @@
 
 import { nameWords } from "./part-name";
 import { NAMER_WORDS } from "../../src/natural-names";
+import { SUMMARY_WORDS } from "../../src/file-summary";
 import type { MachineParts, MachineRing } from "./machine";
 import { span } from "./machine";
 
@@ -20,6 +21,8 @@ export interface PartPanel {
   /** R6: Meta's AI's short name for the part, marked as its words; or a quiet note on why there is none. */
   natural: string | null;
   note: string | null;
+  /** R9: Meta's AI's one line on what this part does (from the file summary), marked as its words; null when it wrote none. */
+  summary?: string | null;
 }
 
 /** What the run measured, as the page already shows it: the verdict's words, the line it threw from, the test's call. */
@@ -33,7 +36,7 @@ const list = (l: readonly number[]) => (l.length === 1 ? `line ${l[0]}` : `lines
 const cap = (s: string) => `${s.charAt(0).toUpperCase()}${s.slice(1)}`;
 
 /** The panel for one part, or null when the id is no part of this machine. */
-export function partPanel(p: MachineParts, id: string, o: { ring?: MachineRing | null; broke?: BrokeFacts | null; wontRun?: boolean; namesNote?: string | null } = {}): PartPanel | null {
+export function partPanel(p: MachineParts, id: string, o: { ring?: MachineRing | null; broke?: BrokeFacts | null; wontRun?: boolean; namesNote?: string | null; /** R9: the summary's part lines, already checked by plain code. */ partLines?: Readonly<Record<string, string>> | null } = {}): PartPanel | null {
   const ringed = o.ring && o.ring.on !== "words" && o.ring.part === id && o.broke ? brokeWords(o.broke) : null;
   const h = p.housings.find((x) => x.id === id);
   if (h) {
@@ -60,9 +63,11 @@ export function partPanel(p: MachineParts, id: string, o: { ring?: MachineRing |
     says.push(`${cap(span(h.lines[0], h.lines[1]))}.`);
     const words = h.role ?? nameWords(h.name);
     const natural = h.natural ? NAMER_WORDS.panel(h.natural) : null;
+    const line = o.partLines && Object.prototype.hasOwnProperty.call(o.partLines, h.id) ? o.partLines[h.id]! : null;
+    const summary = line ? SUMMARY_WORDS.panel(line) : null;
     // With Meta's AI's name above it, the title is the part's own: its exact name (or the role word when it has none).
-    if (natural) return { id, title: h.role ?? h.name, name: null, says, lines: h.lines, broke: ringed, natural, note: null };
-    return { id, title: words ?? h.name, name: h.role ? null : words ? h.name : null, says, lines: h.lines, broke: ringed, natural: null, note: o.namesNote ? NAMER_WORDS.unavailable(o.namesNote) : null };
+    if (natural) return { id, title: h.role ?? h.name, name: null, says, lines: h.lines, broke: ringed, natural, note: null, summary };
+    return { id, title: words ?? h.name, name: h.role ? null : words ? h.name : null, says, lines: h.lines, broke: ringed, natural: null, note: o.namesNote ? NAMER_WORDS.unavailable(o.namesNote) : null, summary };
   }
   const q = p.ports.find((x) => x.id === id);
   if (q) {
