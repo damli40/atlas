@@ -91,6 +91,56 @@
    "more": ""
   },
   {
+   "name": "same-text-in-class-method: no chute is red",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "same-text-in-class-method: nothing is ringed",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "same-text-in-nested-closure: no chute is red",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "same-text-in-nested-closure: nothing is ringed",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "caught-then-same-text-built-elsewhere: no chute is red",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "caught-then-same-text-built-elsewhere: nothing is ringed",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "template-opening-words: no chute is red",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "template-opening-words: nothing is ringed",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "function-returning-a-function: no throw or loop from the inner function",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "wait-never-reached: the dial stays still: a fake's delay moved the clock",
+   "ok": true,
+   "more": ""
+  },
+  {
    "name": "reduced-motion: reduced motion: the same truth",
    "ok": true,
    "more": ""

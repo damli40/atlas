@@ -134,8 +134,8 @@ import { createOutlineRoutes, DEFAULT_OUTLINES_PER_IP_PER_HOUR, OUTLINE_BODY_BYT
 import { memoryTrackStore, type Person, type TrackStore } from "./track-store";
 import { lastRoundOf, lastRoundWords, weakestKind } from "../src/remember";
 import { fileOutline } from "../src/file-outline";
-import { machinePartsOfFile, type MachineParts } from "../renderer/authors/machine";
-import { entriesFromRound, recordBefore, trackRecordOf, weakSpotSummary, type TrackRecord } from "../src/track-record";
+import { endOfFile, machinePartsOfFile, publicParts, type MachineEnd, type MachineParts } from "../renderer/authors/machine";
+import { entriesFromRound, functionKey, recordBefore, trackRecordOf, weakSpotSummary, type TrackRecord } from "../src/track-record";
 import { createLabeler, DEFAULT_LABELS_PER_CLIENT_PER_HOUR } from "./labels";
 import { labelsForBettors } from "../src/failure-labels";
 import { currentPrincipal } from "./access/context";
@@ -1007,7 +1007,9 @@ export function createApp(opts: AppOptions = {}) {
     const entries = trackStore.entries(personOf(c, sessionId));
     const name = c.req.query("fn") ?? null;
     const shown = name && /^[\w$.]{1,80}$/.test(name) ? name : null;
-    const last = lastRoundOf(entries, shown ? createHash("sha256").update(`fn:${shown}`).digest("hex").slice(0, 16) : null);
+    // The name alone would make another file's `f` "the same": the words name a function only when its code is this code too.
+    const code = c.req.query("code") ?? "";
+    const last = lastRoundOf(entries, shown && /^[0-9a-f]{64}$/.test(code) ? functionKey(shown, code) : null);
     return c.json({ last: last ? lastRoundWords(last, shown) : null, weakest: weakestKind(trackRecordOf(entries)) });
   });
   outline.register(app); // X1: POST /outline/jobs, GET /outline/jobs/:id[/outline|/parts/:partId|/atlas]
@@ -1453,7 +1455,7 @@ export function createApp(opts: AppOptions = {}) {
         // A bet placed after seeing this very result is kept and judged, but never goes on the person's record.
         const seen = experiment.runner === "evm" && sawSavedMoonwell.has(sessionId);
         const person = personOf(c, sessionId);
-        Object.assign(r.body, seen ? { seenFirst: true, track: { person: person.kind, before: recordOf(person), after: recordOf(person) } } : { track: recordRound(person, r.body, experiment.params) });
+        Object.assign(r.body, seen ? { seenFirst: true, track: { person: person.kind, before: recordOf(person), after: recordOf(person) } } : { track: recordRound(person, r.body, experiment.params, experiment.target.codeSha256) });
       }
       return c.json(r.body, r.status);
     } catch (e) {
@@ -1471,14 +1473,17 @@ export function createApp(opts: AppOptions = {}) {
    * X3 (D27): adds the person's judged bets of one finished round to their track record. Returns their record before
    * and after this round. A store that cannot write never changes the run's answer: the reason is returned instead.
    */
-  function recordRound(person: Person, body: Record<string, unknown>, params: ExperimentShape): { person: Person["kind"]; before: TrackRecord; after: TrackRecord } | { error: string } {
+  function recordRound(person: Person, body: Record<string, unknown>, params: ExperimentShape, codeSha?: string): { person: Person["kind"]; before: TrackRecord; after: TrackRecord } | { error: string } {
     try {
       const run = body.run as Run | undefined;
       const bets = body.bets as Bet[] | undefined;
       const verdicts = body.verdicts as Verdict[] | undefined;
       const before = recordOf(person);
       if (!run || !bets || !verdicts) return { person: person.kind, before, after: before };
-      trackStore.add(person, entriesFromRound(bets, verdicts, run, params));
+      // The same code and test again, in any session, counts once: the person has already seen how it came out.
+      const made = entriesFromRound(bets, verdicts, run, params, codeSha);
+      const seen = trackStore.entries(person);
+      trackStore.add(person, made.map((e) => (e.round && seen.some((x) => x.round === e.round && x.runId !== e.runId) ? { ...e, repeat: true } : e)));
       return { person: person.kind, before, after: recordOf(person) };
     } catch (e) {
       return { error: `the track record could not be saved: ${e instanceof Error ? e.message : String(e)}` };
@@ -1998,7 +2003,11 @@ export function createApp(opts: AppOptions = {}) {
   const keptCaps = { days: 30, perClient: 50, total: 500, fileBytes: 256 * 1024, ...opts.keptProofsCaps };
   const keptPath = (runId: string) => (keptDir && /^[\w-]{1,64}$/.test(runId) ? join(keptDir, `${runId}.json`) : null);
   const clientHash = (c: Context) => createHash("sha256").update(clientOf(c)).digest("hex");
-  type KeptEntry = { until: string; maker: string; file: AtlasFile; machine?: MachineParts; helpers?: unknown };
+  type KeptEntry = { until: string; maker: string; file: AtlasFile; machine?: MachineParts; helpers?: unknown; end?: MachineEnd | null };
+  const endOfProof = (file: AtlasFile, parts: MachineParts, helpers: unknown): MachineEnd | null => {
+    const params = file.experiments[0]?.params;
+    return endOfFile({ measured: (file.runs[0]?.result.measured ?? {}) as Record<string, unknown>, parts, tested: params?.shape === "call-function" ? params.exportName : null, test: params, steps: helpers && typeof helpers === "object" && "steps" in helpers ? (helpers as { steps: { name: string; within?: string[] }[] }).steps : [] });
+  };
   /** The parts of a pasted round's machine, read from its code. Names and lines, no code text. Null when the file holds no source. */
   const machineOfFile = (file: AtlasFile): MachineParts | null => {
     const source = file.target.source;
@@ -2075,7 +2084,8 @@ export function createApp(opts: AppOptions = {}) {
     const machine = machineOfFile(file);
     const steps = helperStore.get(runId);
     const helpers = steps ? await Promise.race([steps, new Promise<null>((done) => setTimeout(() => done(null), 1_500))]) : null;
-    const text = JSON.stringify({ until, maker: me, file: file.target.kind === "pasted" ? withheldSource(file) : file, ...(machine ? { machine } : {}), ...(helpers ? { helpers } : {}) });
+    // The end is worked out here, where the code is known. A kept card holds the answer, and no words from the code's throws.
+    const text = JSON.stringify({ until, maker: me, file: file.target.kind === "pasted" ? withheldSource(file) : file, ...(machine ? { machine: publicParts(machine), end: endOfProof(file, machine, helpers) } : {}), ...(helpers ? { helpers } : {}) });
     if (Buffer.byteLength(text) > keptCaps.fileBytes) return c.json({ kept: false, error: "this card is too big to keep as a public link" }, 413);
     try {
       mkdirSync(keptDir!, { recursive: true });
@@ -2132,10 +2142,13 @@ export function createApp(opts: AppOptions = {}) {
       const answer = helperStore.get(runId);
       return answer ? await Promise.race([answer, new Promise<null>((done) => setTimeout(() => done(null), 1_500))]) : null;
     };
-    if (kept?.machine) return c.json({ parts: kept.machine, helpers: kept.helpers ?? (await helpers()) });
+    // A link kept before this rule may hold more in its file: what goes out is cut to the public shape every time.
+    if (kept?.machine) return c.json({ parts: publicParts(kept.machine), helpers: kept.helpers ?? (await helpers()), end: kept.end ?? null });
     const file = proofOf(runId);
-    if (!file || !ranIt(c, runId)) return c.json({ parts: null, helpers: null });
-    return c.json({ parts: machineOfFile(file), helpers: await helpers() });
+    if (!file || !ranIt(c, runId)) return c.json({ parts: null, helpers: null, end: null });
+    const parts = machineOfFile(file);
+    const steps = await helpers();
+    return c.json({ parts: parts ? publicParts(parts) : null, helpers: steps, end: parts ? endOfProof(file, parts, steps) : null });
   });
 
   // What the card's page needs to know about whoever is looking. Kept out of the file itself, which a reader can verify and download.

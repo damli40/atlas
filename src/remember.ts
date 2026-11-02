@@ -1,6 +1,6 @@
 // D66, D27: the remember loop, in plain code and counts. What this person bet last time and what the run did; their weakest kind of question;
-// and how that count moved. Pure. It reads only their own record, which holds no code and no answer values. Under REMEMBER_MIN answers it says
-// nothing: a few answers are not a pattern. Nothing here goes to a model, onto a proof card or to anyone but the person whose record it is.
+// and how that count moved. Pure. It reads only their own record, which holds no code and no answer values. "Last time" shows after one answer: it is one true
+// fact, not a pattern. The weakest kind and the count stay quiet under REMEMBER_MIN answers, because a few answers are not a pattern. Nothing here goes to a model, onto a proof card or to anyone but the person whose record it is.
 
 import type { QuestionType, TrackEntry, TrackRecord, TypeLine } from "./track-record";
 

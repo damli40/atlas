@@ -37,6 +37,22 @@ export function ensureMachineStyle() {
   document.head.append(style);
 }
 
+/** True once the machine's font is in, or soon enough. Parts and words are placed by measuring them: measured in the fallback font, they overrun. */
+export function useFontsIn(): boolean {
+  const [fontsIn, setFontsIn] = useState(() => typeof document === "undefined" || typeof document.fonts?.load !== "function");
+  useEffect(() => {
+    if (fontsIn) return;
+    let live = true;
+    const done = () => live && setFontsIn(true);
+    const fonts = (typeof document !== "undefined" ? document : {}) as { fonts?: { load?: (f: string) => Promise<unknown> } };
+    void Promise.race([Promise.all([fonts.fonts?.load?.('400 20px "Atlas Besley"'), fonts.fonts?.load?.('italic 400 14px "Atlas Besley"')]), new Promise((r) => setTimeout(r, 500))]).then(done, done);
+    return () => {
+      live = false;
+    };
+  }, [fontsIn]);
+  return fontsIn;
+}
+
 export interface MachineControl {
   play(i: number, ms: number): void;
   setScript(beats: MachineBeat[]): void;

@@ -17,5 +17,5 @@ export function runBeats(o: { run: Run; experiment: Pick<Experiment, "params">; 
   const within = new Map(steps.map((s) => [s.name, s.within ?? []]));
   const joins = o.parts.pipes.map((e) => ({ id: `${e.from}->${e.to}`, from: e.from, to: e.to, kind: e.kind }));
   // A part known to have run keeps its lamp lit at rest. A thread is another matter: that needs the true caller.
-  return [...machineScript(spec, o.parts, { joins }, o.tested, within), { routes: [], lamps: [...ran, ...o.parts.ports.filter((q) => called(q.id)).map((q) => q.id)] }];
+  return [...machineScript(spec, o.parts, { joins }, o.tested, within, !/"(?:afterMs|waitMs)"/.test(JSON.stringify(o.experiment.params))), { routes: [], lamps: [...ran, ...o.parts.ports.filter((q) => called(q.id)).map((q) => q.id)] }];
 }

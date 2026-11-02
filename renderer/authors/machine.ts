@@ -53,6 +53,8 @@ export interface MachineParts {
   housings: Housing[];
   ports: Port[];
   pipes: { from: string; to: string; kind: "calls" | "uses" | "wraps" }[];
+  /** Every place in the file that could produce an error. Only for working out a run's end: never sent to a reader (publicParts). */
+  fileThrows?: ThrowSite[];
   /** How many functions and classes the file really defines, when the outline kept fewer. */
   partsInFile?: number;
 }
@@ -100,7 +102,7 @@ export function machineParts(model: BenchModel, outline: FileOutline, source: st
   }
   // The outline's own word for each join: "wraps" only for a real decorator, "uses" for a function merely named.
   const pipes = outline.joins.filter((j) => j.from !== j.to && ids.has(j.from) && ids.has(j.to)).map((j) => ({ from: j.from, to: j.to, kind: j.kind }));
-  return { housings, ports, pipes, ...(outline.partsInFile ? { partsInFile: outline.partsInFile } : {}) };
+  return { housings, ports, pipes, ...(outline.partsInFile ? { partsInFile: outline.partsInFile } : {}), ...(outline.throwsInFile ? { fileThrows: outline.throwsInFile } : {}) };
 }
 
 
@@ -216,8 +218,8 @@ const fakeThrows = (test: unknown): { port: string; name: string; message: strin
 };
 
 /**
- * Which part ended the run, only when plain code can place it. A throw: the one throw in a function known to have run whose class and text are what got out, or the one fake
- * scripted to throw exactly that. Anything else (two candidates, no text to compare, a function not known to have run, an error from a library) is not placed. It returned:
+ * Which part ended the run, only when plain code can place it. A throw: the only site in the whole file that could produce that class and exact text, in a function known to have run, or the
+ * one fake scripted to throw exactly that. Anything else (two candidates, a template's opening words, a throw plain code can't read, a function not known to have run) is not placed. It returned:
  * the function under test ended it.
  */
 export function endOfRun(o: { outcome: unknown; thrown: ThrownFact; parts: MachineParts; tested: string | null; test?: unknown; ran: ReadonlySet<string>; called?: (port: string) => boolean }): MachineEnd | null {
@@ -226,19 +228,39 @@ export function endOfRun(o: { outcome: unknown; thrown: ThrownFact; parts: Machi
   if (o.outcome !== "threw") return o.outcome === "never_settled" || o.outcome === "still_running_at_watch_limit" ? { part: o.tested, on: "housing" } : null;
   const { name, message } = o.thrown;
   if (name === null || message === null) return null;
-  const sites: { part: string; line: number }[] = [];
-  for (const h of o.parts.housings) {
-    if (!o.ran.has(h.id)) continue;
-    for (const t of h.throwSites) {
-      if (t.name !== name || t.message === undefined) continue;
-      if (t.exact ? t.message === message : t.message !== "" && message.startsWith(t.message)) sites.push({ part: h.id, line: t.line });
-    }
-  }
+  // Everything in the whole file that could have produced this class and text, whether drawn or not. A throw that reads as something else can't; one that can't be read can.
+  const could = (o.parts.fileThrows ?? []).filter((t) => {
+    if (t.name === undefined) return true;
+    if (t.name !== name) return false;
+    if (t.message === undefined) return true;
+    return t.exact ? t.message === message : message.startsWith(t.message);
+  });
+  const named = could.filter((t) => t.name !== undefined);
   const fakes = fakeThrows(o.test).filter((f) => f.name === name && f.message === message && (o.called?.(f.port) ?? true) && o.parts.ports.some((p) => p.id === f.port));
   const fakeIds = [...new Set(fakes.map((f) => f.port))];
-  if (sites.length === 1 && fakeIds.length === 0) return { part: sites[0]!.part, on: "chute", line: sites[0]!.line };
-  if (sites.length === 0 && fakeIds.length === 1) return { part: fakeIds[0]!, on: "port" };
-  return null;
+  // A fake scripted to throw exactly this, and nothing in the file that reads as the same: it came from the fake, whether or not the code rethrew it.
+  if (fakeIds.length === 1 && named.length === 0) return { part: fakeIds[0]!, on: "port" };
+  // A chute only for the one site in the whole file that could have done it, exact text, in a function known to have run. Prefer no ring to a wrong ring.
+  if (fakeIds.length > 0 || could.length !== 1 || !could[0]!.exact) return null;
+  const line = could[0]!.line;
+  const h = o.parts.housings.find((x) => o.ran.has(x.id) && x.throws.includes(line));
+  return h ? { part: h.id, on: "chute", line } : null;
+}
+
+/** The parts as a reader of a shared card may have them: names and line numbers, no words from the code. Text of a throw that never ran stays on the server. */
+export function publicParts(p: MachineParts): MachineParts {
+  const { fileThrows: _left, ...rest } = p;
+  return { ...rest, housings: p.housings.map((h) => ({ ...h, throwSites: [] })) };
+}
+
+/** Where a finished run ended, for a card: worked out once where the code is known, and only the answer stored. */
+export function endOfFile(o: { measured: Record<string, unknown>; parts: MachineParts; tested: string | null; test: unknown; steps: readonly { name: string; within?: readonly string[] }[] }): MachineEnd | null {
+  const called = (port: string) => {
+    const v = o.measured[`calls:${port.replace(/^stand-in /, "")}`];
+    return typeof v === "number" && v > 0;
+  };
+  const text = (v: unknown) => (typeof v === "string" ? v : null);
+  return endOfRun({ outcome: o.measured.outcome, thrown: { name: text(o.measured.thrownName), message: text(o.measured.thrownMessage) }, parts: o.parts, tested: o.tested, test: o.test, ran: ranParts({ tested: o.tested, steps: o.steps, parts: o.parts, called }), called });
 }
 
 /** Plain code's facts about which functions ran: the one under test, those the traced steps name, and the only caller of a fake that was called. */

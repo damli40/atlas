@@ -1,10 +1,31 @@
 // D65 review: through the machine view, on real runs: what is red, what is ringed, which threads ran, which dial moved. Models mocked, $0. Every line here failed at 2859dab, or holds a rule that did.
-//   PW=<playwright-core> CHROME=<headless shell> BASE=<page> node tests/evidence/R5/truth.mjs <out dir>
+//   PW=<playwright-core> CHROME=<headless shell> node tests/evidence/R5/truth.mjs <out dir>       (add BASE=<page> to use a page already running)
 import { mkdirSync, writeFileSync } from "node:fs";
+import { spawn } from "node:child_process";
 const { chromium } = await import(process.env.PW);
 const OUT = process.argv[2];
 mkdirSync(OUT, { recursive: true });
-const BASE = process.env.BASE ?? "http://localhost:18942";
+// With no BASE it starts its own mock server and page, and stops them at the end: it needs nothing else running.
+let BASE = process.env.BASE;
+const helpers = [];
+if (!BASE) {
+  const root = new URL("../../../", import.meta.url).pathname;
+  const usage = `${process.env.TMPDIR ?? "/tmp"}/truth-usage-${process.pid}.jsonl`;
+  const start = (bin, args, env) => helpers.push(spawn(`${root}node_modules/.bin/${bin}`, args, { cwd: root, detached: true, stdio: "ignore", env: { ...process.env, ...env } }));
+  start("tsx", ["tests/evidence/U3/mock-server.ts"], { PORT: "18971", ATLAS_MODEL_ROUNDS_PER_IP_PER_HOUR: "2000", ATLAS_PASTES_PER_IP_PER_HOUR: "2000", U3_WONDER_DELAY_MS: "100", U3_QUIET_MOCK: "1", ATLAS_USAGE_PATH: usage });
+  start("vite", ["--port", "18972", "--strictPort"], { ATLAS_API_PORT: "18971" });
+  BASE = "http://localhost:18972";
+  const up = async (url) => {
+    for (let i = 0; i < 120; i++) {
+      if (await fetch(url).then((r) => r.status < 500, () => false)) return;
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    throw new Error(`nothing answered at ${url}`);
+  };
+  await up("http://localhost:18971/health");
+  await up(BASE);
+  process.on("exit", () => helpers.forEach((h) => { try { process.kill(-h.pid); } catch { /* already gone */ } }));
+}
 const b = await chromium.launch({ executablePath: process.env.CHROME });
 const out = [];
 let failed = 0;
@@ -109,6 +130,21 @@ await round("uses-not-wraps", J("noarg", `function fmt(v) {\n  return v;\n}\nexp
 await round("callback-return", J("noarg", `export function f(a = []) {\n  a.forEach((v) => {\n    return v;\n  });\n}\n`), (s, t) => {
   t("no spout from a callback's return", !s.labels.some((l) => /returns/.test(l)));
 }, { bet: RET });
+// The final review's false rings: a throw that exists is not the throw that ended the run. Nothing is placed, and the words stand alone.
+const noRing = (s, t) => {
+  t("no chute is red", s.redChutes.length === 0);
+  t("nothing is ringed", s.ring === null);
+};
+await round("same-text-in-class-method", J("noarg", `class V {\n  check() {\n    throw new Error("invalid");\n  }\n}\nexport function f(x) {\n  if (x === null) throw new Error("invalid");\n  return new V().check();\n}\n`), noRing, { bet: RET });
+await round("same-text-in-nested-closure", J("noarg", `function h(flag) {\n  if (flag) throw new Error("bad");\n  return 1;\n}\nexport function f() {\n  h(false);\n  const g = () => { throw new Error("bad"); };\n  g();\n}\n`), noRing, { bet: RET });
+await round("caught-then-same-text-built-elsewhere", J("noarg", `function h() {\n  throw new Error("x");\n}\nfunction mk() {\n  return new Error("x");\n}\nexport function f() {\n  try { h(); } catch (e) {}\n  throw mk();\n}\n`), noRing, { bet: RET });
+await round("template-opening-words", J("noarg", "export function g(s) {\n  if (s === 1) throw new SyntaxError(`Unexpected ${s}`);\n  return JSON.parse('<');\n}\nexport function f() {\n  return g(0);\n}\n"), noRing, { bet: RET });
+await round("function-returning-a-function", J("noarg", `export const f = (a) => (b) => {\n  for (const v of [a]) if (v) throw new Error("late");\n  return b;\n};\n`), (s, t) => {
+  t("no throw or loop from the inner function", !s.labels.some((l) => /throws|loop/.test(l)));
+}, { bet: THR });
+await round("wait-never-reached", J("flagfalse", `export async function f(x, flag) {\n  await x();\n  if (flag) await new Promise((r) => setTimeout(r, 100));\n  return 1;\n}\n`), (s, t) => {
+  t("the dial stays still: a fake's delay moved the clock", s.needles.length === 0);
+}, { bet: THR });
 await round("reduced-motion", J("noarg", one), (s, t) => {
   t("reduced motion: the same truth", s.redChutes.length === 0 && s.ring?.on === "outlet");
 }, { bet: THR, reduced: true });

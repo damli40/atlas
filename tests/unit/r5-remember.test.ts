@@ -100,7 +100,7 @@ describe("kept, and private", () => {
     await post("/bets", { experimentId: id, who: "human", bets: qs.map((q) => (q.measures === "outcome" ? { measures: q.measures, answer: { kind: "quiz", choice: q.quiz.find((o) => /returns/.test(o.label))!.id } } : { measures: q.measures, answer: { kind: "declined", reason: "can't tell" } })) });
     const run = await post("/runs", { experimentId: id });
     const rid = (run.run as { id: string }).id;
-    const mine = (await (await app.request("/remember?fn=f", { headers: h })).json()) as { last: string };
+    const mine = (await (await app.request(`/remember?fn=f&code=${target.codeSha256}`, { headers: h })).json()) as { last: string };
     expect(mine.last).toBe("Last time on f: you bet returns a value. It threw.");
     const other = (await (await app.request("/remember", { headers: { "x-atlas-session": "ssotherotherother09", "x-atlas-browser": "browser-bbbbbbbbbbbbbbbb" } })).json()) as { last: unknown; weakest: unknown };
     expect(other).toEqual({ last: null, weakest: null });

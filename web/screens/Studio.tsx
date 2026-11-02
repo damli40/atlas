@@ -39,7 +39,7 @@ import type { ClaimantMode } from "../../src/claimants";
 import { didNotFinish, type Api, type ExperimentAnswer, type HumanAnswer, type PasteAnswer, type ProposalsAnswer, type RunAnswer, type ShownBet } from "../api";
 import { absentBettors, useModelSlots } from "./Claimant";
 import { ErrorNotice } from "./ErrorNotice";
-import { MachineSheet, machineFirst } from "../drawing/MachineView";
+import { MachineSheet, machineFirst, useFontsIn } from "../drawing/MachineView";
 import { drawMachine, machineParts } from "../../renderer/authors/machine";
 import { Segments, TestForm, emptyForm, formFromParams, type TestFormState } from "./TestForm";
 import { BenchStage, type After } from "../machines/bench/BenchStage";
@@ -116,17 +116,7 @@ function CodeDrawer({ source, lines, onClose, coversResult = false }: { source: 
 function ExampleDrawing() {
   // The first thing anyone sees: the example's machine, pencilling itself in. Plain code's own parts, kept in the page (a test holds them equal to the parser's). On a phone, or if it can't be drawn clearly, the chart.
   const outline = EXAMPLE_OUTLINE as unknown as FileOutline;
-  // Parts are sized by measuring their names, so the font must be in first: a name measured in the fallback font overruns its plate. Never waits long.
-  const [fontsIn, setFontsIn] = useState(false);
-  useEffect(() => {
-    let live = true;
-    const done = () => live && setFontsIn(true);
-    const fonts = (document as { fonts?: { load?: (f: string) => Promise<unknown> } }).fonts;
-    void Promise.race([Promise.all([fonts?.load?.('400 20px "Atlas Besley"'), fonts?.load?.('italic 400 14px "Atlas Besley"')]), new Promise((r) => setTimeout(r, 500))]).then(done, done);
-    return () => {
-      live = false;
-    };
-  }, []);
+  const fontsIn = useFontsIn();
   const drawn = useMemo(() => {
     if (!fontsIn || !machineFirst()) return null;
     const model = benchModel({ fileName: "example.ts", outline, test: null, source: U1_EXAMPLE, language: "ts" });
@@ -199,7 +189,7 @@ export const CHANGE_WORDS = {
   sameTest: "The same test, on your changed code. Bet again: nothing about this code has run yet.",
   foreign: (name: string) => `This looks like ${name}. Atlas reads JavaScript, TypeScript and Python, so it can't draw this file.`,
   nothingToDraw: "Atlas draws functions and classes, and this has none. Paste a JavaScript, TypeScript or Python file with at least one function.",
-  nothingToCall: "Atlas bets on what a function does when it is called, and this file exports no function to call.",
+  nothingToCall: "Atlas bets on what a function does when it is called, and it can't see one in this file that can be called from outside. It can call one exported by name, like export function f.",
   claimantAsks: "Changing who bets asks them again: paid AI calls. Your answers stay.",
   sameCode: "Same code as a run you've already seen, apart from spaces or comments, so you may already know the answer.",
   pickUsed: "The tests that came with Muse Wonder's sentence can't be used now that the sentence is shown. Ask for a new one, or write your own.",
@@ -627,7 +617,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   useEffect(() => {
     let live = true;
     Promise.resolve()
-      .then(() => api.remember(betFor))
+      .then(() => api.remember(betFor, pasted?.target.codeSha256))
       .then((a) => live && setRemember(a), () => live && setRemember(null));
     return () => {
       live = false;
@@ -954,7 +944,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
         e.preventDefault();
         return;
       }
-      if (e.key === "Enter" && !e.repeat && pasted && fn && !pasted.cantCheck && pasted.runnable && !result && !open && !exp && !proposals && !t?.closest?.("button, a, summary")) {
+      // Enter opens the bet, a paid step, only when nothing that takes keys has focus: a part or a box has its own Enter.
+      if (e.key === "Enter" && !e.repeat && !e.defaultPrevented && (t === document.body || t === document.documentElement || t === null) && pasted && fn && !pasted.cantCheck && pasted.runnable && !result && !open && !exp && !proposals) {
         e.preventDefault();
         void openBet();
         return;

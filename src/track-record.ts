@@ -62,6 +62,8 @@ export interface TrackEntry {
   ended?: Ending;
   /** D66: a hash of the function's name, so "last time on this function" can be told without keeping the name. */
   fn?: string;
+  /** Which code and which test, as a hash: the same pair again is a repeat, in any session. */
+  round?: string;
 }
 
 /** Which ending an answer chose: a tap's own option, or the old screens' word. Null for anything else. */
@@ -74,14 +76,20 @@ const endingOfWord = (w: unknown): Ending | null => (w === "returned" || w === "
 
 const numberOf = (v: unknown): number | undefined => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
 
+/** Which function, in which code: a hash, so another file's `f` isn't this `f`. */
+export const functionKey = (name: string, codeSha: string) => sha256Hex(`fn:${name}:${codeSha}`).slice(0, 16);
+const canonicalJsonOf = (v: unknown): string => JSON.stringify(v, (_k, x: unknown) => (x && typeof x === "object" && !Array.isArray(x) ? Object.fromEntries(Object.entries(x as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : 1))) : x));
+
 /**
  * The person's entries from one finished round: their bets (who "human") whose seal still verifies, each with the
  * verdict the judge gave it on this run. A bet with no verdict, or a group no question type covers, is not kept.
  */
-export function entriesFromRound(bets: readonly Bet[], verdicts: readonly Verdict[], run: Pick<Run, "id" | "finishedAt"> & Partial<Pick<Run, "result">>, params?: ExperimentShape): TrackEntry[] {
+export function entriesFromRound(bets: readonly Bet[], verdicts: readonly Verdict[], run: Pick<Run, "id" | "finishedAt"> & Partial<Pick<Run, "result">>, params?: ExperimentShape, codeSha?: string): TrackEntry[] {
   const out: TrackEntry[] = [];
   const path = failurePathOf(params);
-  const fn = params?.shape === "call-function" ? sha256Hex(`fn:${params.exportName}`).slice(0, 16) : undefined;
+  const fn = params?.shape === "call-function" && codeSha ? functionKey(params.exportName, codeSha) : undefined;
+  // Holds no code: a fingerprint of which code and which test, to count them once.
+  const round = codeSha && params ? sha256Hex(`round:${codeSha}:${canonicalJsonOf(params)}`).slice(0, 16) : undefined;
   for (const b of bets) {
     if (b.who !== "human") continue;
     const type = questionTypeOf(b.measures);
@@ -94,7 +102,7 @@ export function entriesFromRound(bets: readonly Bet[], verdicts: readonly Verdic
       const seen = numberOf(v.observed);
       if (seen !== undefined && b.answer.value !== seen) side = b.answer.value < seen ? "under" : "over";
     }
-    out.push({ runId: run.id, betId: b.id, sealedHash: b.sealedHash, type, outcome: v.outcome, repeat: b.repeat === true, ...(side ? { side } : {}), at: run.finishedAt, ...(b.confidence ? { confidence: b.confidence } : {}), ...(path ? { path } : {}), ...memoryOf(b, type, v, run, fn) });
+    out.push({ runId: run.id, betId: b.id, sealedHash: b.sealedHash, type, outcome: v.outcome, repeat: b.repeat === true, ...(round ? { round } : {}), ...(side ? { side } : {}), at: run.finishedAt, ...(b.confidence ? { confidence: b.confidence } : {}), ...(path ? { path } : {}), ...memoryOf(b, type, v, run, fn) });
   }
   return out;
 }

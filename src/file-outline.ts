@@ -7,8 +7,8 @@
 // Deterministic: parts sorted by line, joins by id. Pure, no I/O.
 
 import { parseJsFile, type ParsedFile } from "./outline/parse-js";
-import type { BodyFacts, CallFacts } from "./outline/types";
-import { pyBodies } from "./outline/py-bodies";
+import type { BodyFacts, CallFacts, ThrowSite } from "./outline/types";
+import { pyBodies, pyThrowsInFile } from "./outline/py-bodies";
 import { maskSource } from "./failure-labels";
 import { parsePyFile } from "./outline/parse-py";
 import { bracketDepth, MAX_BRACKET_DEPTH } from "./outline/codemap";
@@ -47,6 +47,8 @@ export interface FileOutline {
   selfCalls?: { name: string; lines: number[] }[];
   /** D65 review R5: what each function's own body holds, by syntax. A part without an entry draws no fittings. */
   bodies?: Record<string, BodyFacts>;
+  /** Every place in the file that could produce an error, nested and class ones too. Absent: the run's end is not placed on a chute. */
+  throwsInFile?: ThrowSite[];
 }
 
 /** At most this many parts are kept (the drawing's limit is 40). */
@@ -102,5 +104,5 @@ export function fileOutline(source: string, language: "js" | "ts" | "py"): FileO
   }
   const joins = [...byId.values()].map((j) => ({ ...j, lines: [...j.lines].sort((a, b) => a - b) })).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   const selfCalls = [...self.entries()].map(([name, lines]) => ({ name, lines: [...lines].sort((a, b) => a - b) })).sort((a, b) => (a.name < b.name ? -1 : 1));
-  return { parts, ...(partsInFile > parts.length ? { partsInFile } : {}), joins, notes, ...(selfCalls.length ? { selfCalls } : {}), ...(parsed.callFacts ? { callFacts: parsed.callFacts } : {}), bodies: language === "py" ? pyBodies(maskSource(source, "py"), source, parts) : parsed.bodies ?? {} };
+  return { parts, ...(partsInFile > parts.length ? { partsInFile } : {}), joins, notes, ...(selfCalls.length ? { selfCalls } : {}), ...(parsed.callFacts ? { callFacts: parsed.callFacts } : {}), bodies: language === "py" ? pyBodies(maskSource(source, "py"), source, parts) : parsed.bodies ?? {}, throwsInFile: language === "py" ? pyThrowsInFile(maskSource(source, "py"), source) : parsed.throwsInFile ?? [] };
 }

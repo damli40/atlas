@@ -116,9 +116,9 @@ describe("R1, R2: red and the ring go only where the facts place the end", () =>
     const { parts } = model('export function f(a) {\n  if (a) throw new Error("no");\n  throw new Error("no");\n}\n', "js", "f");
     expect(endFor(parts, { outcome: "threw", name: "Error", message: "no" })).toBeNull();
   });
-  it("a template's start is enough, on the right class", () => {
+  it("a template's start is not enough: the words could be a library's", () => {
     const { parts } = model("export function f(s) {\n  throw new TypeError(`HTTP ${s}`);\n}\n", "js", "f");
-    expect(endFor(parts, { outcome: "threw", name: "TypeError", message: "HTTP 429" })).toMatchObject({ on: "chute" });
+    expect(endFor(parts, { outcome: "threw", name: "TypeError", message: "HTTP 429" })).toBeNull();
     expect(endFor(parts, { outcome: "threw", name: "Error", message: "HTTP 429" })).toBeNull();
   });
   it("a matched bet: the chute may be red, but there is no ring", () => {

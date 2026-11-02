@@ -133,6 +133,18 @@ for (const width of [1280, 1600]) {
   say(`${width}: C opens it again`, (await p.$(".c-drawer")) !== null);
   await c.close();
 }
+// Enter on a focused part shows its card and starts nothing paid.
+{
+  const { c, p } = await open(J("panel", `export function pad(a) {\n  return a;\n}\n`));
+  await p.waitForTimeout(800);
+  let paid = 0;
+  p.on("request", (r) => { if (/\/paste\/proposals|\/model-bets/.test(r.url())) paid++; });
+  await p.focus('[data-testid="machine"] [data-part][tabindex], [data-testid="machine"] [data-part]');
+  await p.keyboard.press("Enter");
+  await p.waitForTimeout(600);
+  say("Enter on a focused part opens no bet and calls no model", paid === 0 && (await p.$('[data-testid="u1-pop"]')) === null, String(paid));
+  await c.close();
+}
 // Item 2, the false or unfair.
 {
   const c = await b.newContext({ viewport: { width: 1440, height: 900 } });

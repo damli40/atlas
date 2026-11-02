@@ -27,6 +27,9 @@ Runs on real code in the real sandbox. Models are mocked ($0) unless a line says
 
 ## Limits
 
+- A chute goes red only for the one site in the whole file that could produce that class and exact text. A message built from a template is not placed, so the ring words stand alone on such code. tests/evidence/U3/inputs/orders.ts is that case; `film-orders.ts` is the same file with a plain text error, used for the film and the shots that show a ring.
+- `truth.mjs` starts its own mock and page when BASE is not set. It still needs PW and CHROME.
+
 - The missing bettors in the cold test were reproduced by lowering the hourly limit. The server keeps two such limits: 20 model rounds an hour per address, and 10 per session. Each paste's early Muse Wonder call also takes one of the 20. The server log of that session does not record refusals, so this is the cause that fits, not one read from its log.
 - Wonder's sentence fix is checked on the prompt's words. No real call was made to confirm the letter "Y" no longer appears.
 - A Python comprehension's call is lit from the separate traced run. If that run is too slow or differs, the part stays dark and no thread is drawn.

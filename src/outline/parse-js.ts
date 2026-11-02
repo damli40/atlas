@@ -57,6 +57,7 @@ export interface ParsedFile {
   callFacts?: CallFacts;
   /** D65 review R5: what each top-level function's own body holds. */
   bodies?: Record<string, BodyFacts>;
+  throwsInFile?: ThrowSite[];
 }
 
 const SIG_MAX = 200;
@@ -190,8 +191,12 @@ export function parseJsFile(path: string, text: string, language: OutlineLanguag
         if (!ts.isIdentifier(d.name)) continue;
         const name = d.name.text;
         const head = st.declarationList.declarations.length === 1 ? st : d;
+        const wrapped = wrappedFn(init);
         if (init && (ts.isArrowFunction(init) || ts.isFunctionExpression(init))) {
           addSymbol({ name, kind: "function", exported, lineStart: startLine(head), lineEnd: endLine(head), ...fnInfo(init, head) });
+        } else if (wrapped) {
+          // `export const f = memo((x) => ...)`: a call that wraps one function written right there. What you call is that function, as far as the file shows.
+          addSymbol({ name, kind: "function", exported, lineStart: startLine(head), lineEnd: endLine(head), ...fnInfo(wrapped, head) });
         } else if (init && ts.isClassExpression(init)) {
           addClass(init, name, exported, false, head);
         } else {
@@ -374,6 +379,7 @@ export function parseJsFile(path: string, text: string, language: OutlineLanguag
   ts.forEachChild(bound, walk);
   out.callFacts = callFactsOf(bound, checker);
   out.bodies = bodiesOf(bound);
+  out.throwsInFile = throwsInFileJs(bound);
   return out;
 }
 
@@ -397,7 +403,9 @@ function bodiesOf(sf: ts.SourceFile): Record<string, BodyFacts> {
       else if (ts.isThrowStatement(n)) facts.throws.push(throwSite(n, lineOf(n)));
       ts.forEachChild(n, visit);
     };
-    ts.forEachChild(body, visit);
+    // An arrow's body can be an expression, and that expression can be another function: then what is inside it is that function's, not this one's.
+    if (ts.isBlock(body)) ts.forEachChild(body, visit);
+    else visit(body);
     out[name] = facts;
   };
   const throwSite = (n: ts.ThrowStatement, line: number): ThrowSite => {
@@ -412,11 +420,46 @@ function bodiesOf(sf: ts.SourceFile): Record<string, BodyFacts> {
   for (const st of sf.statements) {
     if (ts.isFunctionDeclaration(st)) read(st.name?.text ?? "default", st);
     else if (ts.isVariableStatement(st)) for (const d of st.declarationList.declarations) {
-      if (ts.isIdentifier(d.name) && isFnValue(d.initializer)) read(d.name.text, d.initializer);
+      if (ts.isIdentifier(d.name) && (isFnValue(d.initializer) || wrappedFn(d.initializer))) read(d.name.text, isFnValue(d.initializer) ? d.initializer : wrappedFn(d.initializer)!);
     }
     else if (ts.isExportAssignment(st) && isFnValue(st.expression)) read("default", st.expression);
   }
   return out;
+}
+
+/**
+ * Every place in the file that could produce an error, with what it can be read to produce: each `throw` (nested functions and class methods too),
+ * and each `new XError("text")` not thrown on the spot (it may be returned, rejected or thrown later). The rule for placing a run's end counts these.
+ */
+export function throwsInFileJs(sf: ts.SourceFile): ThrowSite[] {
+  const out: ThrowSite[] = [];
+  const lineOf = (n: ts.Node) => sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1;
+  const read = (e: ts.Expression | undefined, line: number): ThrowSite => {
+    if (!e || !ts.isNewExpression(e) || !ts.isIdentifier(e.expression)) return { line };
+    const a = e.arguments?.[0];
+    if (a && ts.isStringLiteralLike(a)) return { line, name: e.expression.text, message: a.text, exact: true };
+    if (a && ts.isTemplateExpression(a)) return { line, name: e.expression.text, message: a.head.text, exact: false };
+    return { line, name: e.expression.text };
+  };
+  const visit = (n: ts.Node): void => {
+    if (ts.isThrowStatement(n)) {
+      out.push(read(n.expression, lineOf(n)));
+      if (n.expression && ts.isNewExpression(n.expression)) {
+        for (const a of n.expression.arguments ?? []) visit(a);
+        return;
+      }
+    } else if (ts.isNewExpression(n) && ts.isIdentifier(n.expression) && /(?:Error|Exception)$/.test(n.expression.text)) out.push(read(n, lineOf(n)));
+    ts.forEachChild(n, visit);
+  };
+  visit(sf);
+  return out;
+}
+
+/** The one function written inline as an argument of a call, for a const made by wrapping it. More than one, or none: null. */
+function wrappedFn(e: ts.Node | undefined): ts.ArrowFunction | ts.FunctionExpression | null {
+  if (!e || !ts.isCallExpression(e)) return null;
+  const fns = e.arguments.filter((a): a is ts.ArrowFunction | ts.FunctionExpression => ts.isArrowFunction(a) || ts.isFunctionExpression(a));
+  return fns.length === 1 ? fns[0]! : null;
 }
 
 /** R3: the file's calls, resolved by the binder. See CallFacts. A name a function binds for itself is never the outside thing. */

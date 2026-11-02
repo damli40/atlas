@@ -21,7 +21,7 @@ await p.goto(process.env.BASE ?? "http://localhost:18962/");
 await p.waitForSelector('[data-testid="u1-code"]');
 await cdp.send("Page.startScreencast", { format: "jpeg", quality: 92, everyNthFrame: 1 });
 await p.waitForTimeout(1400);
-const code = readFileSync(new URL("../U3/inputs/orders.ts", import.meta.url), "utf8");
+const code = readFileSync(new URL("../R5/film-orders.ts", import.meta.url), "utf8");
 // A real paste event: the chart starts with no button pressed.
 await p.locator('[data-testid="u1-code"]').focus();
 await p.evaluate((text) => {

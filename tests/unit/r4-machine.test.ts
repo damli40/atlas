@@ -127,7 +127,7 @@ describe("the run through the pipes says only what the path says", () => {
   const parts = model(ORDERS, "ts", "fetchAllOrders");
   it("a call to the fake goes down the one certain route", () => {
     const withFake = { ...parts.parts, ports: [{ id: "stand-in fetch", name: "fetch", faked: true, from: ["fetchPage"] }] };
-    const beats = machineScript({ nodes: [], steps: [{ id: "s0", nodes: ["n"], edges: [], provenance: "run", beat: "call", device: "fetch" }] }, withFake, parts.outline as never, "fetchAllOrders");
+    const beats = machineScript({ nodes: [], steps: [{ id: "s0", nodes: ["n"], edges: [], provenance: "run", beat: "call", device: "fetch" }] }, withFake, parts.outline as never, "fetchAllOrders", new Map(), true);
     expect(beats[0]!.routes).toEqual(["fetchAllOrders->fetchPage", "fetchPage->stand-in fetch"]);
     expect(beats[0]!.lamps).toContain("stand-in fetch");
   });
@@ -137,7 +137,7 @@ describe("the run through the pipes says only what the path says", () => {
   });
   it("a wait moves a dial only on a function that waits", () => {
     const withFake = { ...parts.parts, ports: [{ id: "stand-in fetch", name: "fetch", faked: true, from: ["fetchPage"] }] };
-    const beats = machineScript({ nodes: [{ id: "n", kind: "clock", words: "w", provenance: "run", sweep: 0.3 } as never], steps: [{ id: "s0", nodes: ["m"], edges: [], provenance: "run", beat: "call", device: "fetch" }, { id: "s1", nodes: ["n"], edges: [], provenance: "run", beat: "wait", device: "clock" }] }, withFake, parts.outline as never, "fetchAllOrders");
+    const beats = machineScript({ nodes: [{ id: "n", kind: "clock", words: "w", provenance: "run", sweep: 0.3 } as never], steps: [{ id: "s0", nodes: ["m"], edges: [], provenance: "run", beat: "call", device: "fetch" }, { id: "s1", nodes: ["n"], edges: [], provenance: "run", beat: "wait", device: "clock" }] }, withFake, parts.outline as never, "fetchAllOrders", new Map(), true);
     expect(beats[1]!.dial).toEqual({ part: "fetchPage", sweep: 0.3 });
   });
 });

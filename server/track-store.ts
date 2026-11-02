@@ -67,7 +67,8 @@ function cleanEntry(e: unknown): TrackEntry | null {
   // D66: words from a fixed list and a short hash, so a hand-edited file can't put code in here either.
   for (const k of ["said", "ended"] as const) if (x[k] !== undefined && !(ENDINGS as readonly unknown[]).includes(x[k])) return null;
   if (x.fn !== undefined && !(typeof x.fn === "string" && /^[0-9a-f]{16}$/.test(x.fn))) return null;
-  return { runId: x.runId, betId: x.betId, sealedHash: x.sealedHash, type: x.type as TrackEntry["type"], outcome: x.outcome as TrackEntry["outcome"], repeat: x.repeat, ...(x.side ? { side: x.side as "under" | "over" } : {}), at: x.at, ...(x.confidence ? { confidence: x.confidence as NonNullable<TrackEntry["confidence"]> } : {}), ...(x.path ? { path: x.path as NonNullable<TrackEntry["path"]> } : {}), ...(x.said ? { said: x.said as Ending } : {}), ...(x.ended ? { ended: x.ended as Ending } : {}), ...(x.fn ? { fn: x.fn as string } : {}) };
+  if (x.round !== undefined && !(typeof x.round === "string" && /^[0-9a-f]{16}$/.test(x.round))) return null;
+  return { runId: x.runId, betId: x.betId, sealedHash: x.sealedHash, type: x.type as TrackEntry["type"], outcome: x.outcome as TrackEntry["outcome"], repeat: x.repeat, ...(x.side ? { side: x.side as "under" | "over" } : {}), at: x.at, ...(x.confidence ? { confidence: x.confidence as NonNullable<TrackEntry["confidence"]> } : {}), ...(x.path ? { path: x.path as NonNullable<TrackEntry["path"]> } : {}), ...(x.said ? { said: x.said as Ending } : {}), ...(x.ended ? { ended: x.ended as Ending } : {}), ...(x.fn ? { fn: x.fn as string } : {}), ...(typeof x.round === "string" ? { round: x.round } : {}) };
 }
 
 function merged(old: readonly TrackEntry[], more: readonly TrackEntry[]): TrackEntry[] {

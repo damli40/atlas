@@ -3,12 +3,12 @@
 // Meta's model names, "Judged by plain code", the mark's note (D21), the run id and a short hash.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { drawMachine, drawMoonwell, endOfRun, ranParts, ringFor, type MachineParts } from "../../renderer/authors/machine";
+import { MACHINE_MIN_WORD_PX, drawMachine, drawMoonwell, ringFor, type MachineEnd, type MachineParts } from "../../renderer/authors/machine";
 import { lightMachine } from "../../renderer/authors/machine-script";
 import { runBeats } from "../machines/bench/run-beats";
 import type { HelperAnswer } from "../api";
 import { moonwellFlow } from "../../renderer/authors/moonwell";
-import { ensureMachineStyle } from "../drawing/MachineView";
+import { ensureMachineStyle, useFontsIn } from "../drawing/MachineView";
 import { MARK_PRE_EXISTING_CAPTION } from "../../src/captions";
 import { describeCall } from "../../src/gate";
 import { theoryCaptions } from "../../src/change";
@@ -115,9 +115,10 @@ export interface ProofImageProps {
   /** D66: the machine's parts for this card. Null: the picture keeps its marks alone. */
   machineParts?: MachineParts | null;
   machineHelpers?: HelperAnswer | null;
+  machineEnd?: MachineEnd | null;
 }
 
-export function ProofImage({ card, file, lines, names, api, download, downloadName, preExisting = null, stranger = false, reader: readerGiven = false, keepsCards = true, canKeep = true, machineHelpers = null, machineParts = null }: ProofImageProps) {
+export function ProofImage({ card, file, lines, names, api, download, downloadName, preExisting = null, stranger = false, reader: readerGiven = false, keepsCards = true, canKeep = true, machineHelpers = null, machineEnd = null, machineParts = null }: ProofImageProps) {
   const ref = useRef<SVGSVGElement | null>(null);
   const [said, setSaid] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
@@ -153,32 +154,25 @@ export function ProofImage({ card, file, lines, names, api, download, downloadNa
   // D20's words are required whole, so they wrap: this never cuts them.
   const changeLines = beforeChange || theory.length > 0 ? wrap([beforeChange, ...theory].filter(Boolean).join(" "), 150, 8) : [];
   const hash = (file.bets[0]?.sealedHash ?? "").slice(0, 10);
-  /** The end and ring for the picture, by the same rule as the live screen. The file holds no traced steps, so fewer functions are known to have run. */
-  const imageEnd = (parts: MachineParts) => {
-    const m = (run?.result.measured ?? {}) as Record<string, unknown>;
-    const tested = exp?.params.shape === "call-function" ? exp.params.exportName : null;
-    const called = (port: string) => {
-      const v = m[`calls:${port.replace(/^stand-in /, "")}`];
-      return typeof v === "number" && v > 0;
-    };
-    const end = endOfRun({ outcome: m.outcome, thrown: { name: typeof m.thrownName === "string" ? m.thrownName : null, message: typeof m.thrownMessage === "string" ? m.thrownMessage : null }, parts, tested, test: exp?.params, ran: ranParts({ tested, steps: [], parts, called }), called });
-    return { end, ring: ringFor({ kind: moment!.kind, you: moment!.you, end, tested, stranger }) };
-  };
+  const fontsIn = useFontsIn();
   // D66: the machine in the picture, with its ring, when it can be drawn truthfully and clearly. Otherwise the marks stay, as they were.
   const machineSvg = useMemo(() => {
-    if (!moment) return null;
+    // Words are measured to place them, so the font must be in: on a cold open of a link it may not be yet.
+    if (!moment || !fontsIn) return null;
     ensureMachineStyle();
     const drawn = run?.runner === "evm"
       ? drawMoonwell(moonwellFlow({ run: run as never, bets: file.bets as never, verdicts: file.verdicts as never, origin: "proof-file", stranger, ...(file.change ? { beforeChange: true } : {}) }), { ended: true })
       : machineParts
-        ? drawMachine(machineParts, { seed: `proof:${card.runId}`, ended: true, ...imageEnd(machineParts) })
+        ? drawMachine(machineParts, { seed: `proof:${card.runId}`, ended: true, end: machineEnd, ring: ringFor({ kind: moment.kind, you: moment.you, end: machineEnd, tested: exp?.params.shape === "call-function" ? exp.params.exportName : null, stranger }) })
         : null;
     if (!drawn || drawn.tooMany || drawn.problems.length > 0) return null;
+    // The picture has the page's word-size floor: under it, the picture keeps its marks.
+    if (run?.runner !== "evm" && drawn.minWords * Math.min(756 / drawn.width, 644 / drawn.height) < MACHINE_MIN_WORD_PX) return null;
     // The card is the record of a run, so it is lit as on the result, from the same trace.
     if (run?.runner !== "evm" && machineParts && exp) return { ...drawn, svg: lightMachine(drawn.svg, runBeats({ run: run!, experiment: exp, helpers: machineHelpers, parts: machineParts, tested: exp.params.shape === "call-function" ? exp.params.exportName : null })) };
     return drawn;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [machineParts, machineHelpers, run?.id, moment?.kind, stranger]);
+  }, [machineParts, machineHelpers, machineEnd, fontsIn, run?.id, moment?.kind, stranger]);
   const copyImage = async () => {
     if (!ref.current) return;
     try {

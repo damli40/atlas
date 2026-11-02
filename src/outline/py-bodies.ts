@@ -73,3 +73,21 @@ export function pyBodies(masked: string, raw: string, parts: readonly { name: st
   }
   return out;
 }
+
+/** Every place in a Python file that could raise, nested and class bodies too: each `raise`, each `assert`, and each `SomethingError(...)` built without raising it there. See throwsInFileJs. */
+export function pyThrowsInFile(masked: string, raw: string): ThrowSite[] {
+  const lines = masked.split(/\r\n|\r|\n/);
+  const rawLines = raw.split(/\r\n|\r|\n/);
+  const out: ThrowSite[] = [];
+  lines.forEach((t, i) => {
+    const line = i + 1;
+    const r = /\braise\b/.exec(t);
+    if (r) {
+      out.push(raiseSite((rawLines[i] ?? "").slice(r.index), line));
+      return;
+    }
+    if (/^\s*assert\b/.test(t)) out.push({ line, name: "AssertionError" });
+    for (const m of t.matchAll(/\b([A-Za-z_]\w*(?:Error|Exception))\s*\(/g)) if (!/^\s*class\b/.test(t)) out.push({ line, name: m[1]! });
+  });
+  return out;
+}

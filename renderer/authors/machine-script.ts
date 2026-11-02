@@ -13,7 +13,7 @@ export interface MachineBeat {
   words?: string;
 }
 
-export function machineScript(spec: Pick<RenderSpec, "steps" | "nodes">, parts: MachineParts, outline: { joins: readonly { id: string; from: string; to: string; kind: string }[] }, tested: string | null, within: ReadonlyMap<string, readonly string[]> = new Map()): MachineBeat[] {
+export function machineScript(spec: Pick<RenderSpec, "steps" | "nodes">, parts: MachineParts, outline: { joins: readonly { id: string; from: string; to: string; kind: string }[] }, tested: string | null, within: ReadonlyMap<string, readonly string[]> = new Map(), clockIsTheCodes = false): MachineBeat[] {
   const ids = new Set(parts.housings.map((h) => h.id));
   const start = tested && ids.has(tested) ? tested : null;
   const ran = new Set<string>(start ? [start] : []);
@@ -48,7 +48,8 @@ export function machineScript(spec: Pick<RenderSpec, "steps" | "nodes">, parts: 
     } else if (step.device === "clock") {
       const waiters = parts.housings.filter((h) => h.waits.length > 0 && ran.has(h.id));
       const node = spec.nodes.find((n) => n.id === step.nodes[0]);
-      if (waiters.length === 1) beat.dial = { part: waiters[0]!.id, sweep: node?.sweep ?? 0.2 };
+      // Only when nothing else moves the clock: a fake's scripted delay, or the test's own wait, would also make time pass with this wait never reached.
+      if (clockIsTheCodes && waiters.length === 1) beat.dial = { part: waiters[0]!.id, sweep: node?.sweep ?? 0.2 };
     } else if (step.device) {
       const port = parts.ports.find((q) => q.name === step.device);
       if (port) {

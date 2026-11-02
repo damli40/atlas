@@ -58,6 +58,7 @@ const CASES: Record<string, unknown[]> = {
   gone: [{ shape: "call-function", exportName: "g", args: [{ kind: "json", value: 1 }] }],
   pricing: [{ shape: "call-function", exportName: "quoteOrder", args: [{ kind: "json", value: [{ sku: "a", qty: 1 }] }, si("source", [{ do: "return", value: 100 }]), { kind: "json", value: 0 }] }],
   spin: [{ shape: "call-function", exportName: "spin", args: [] }],
+  flagfalse: [{ shape: "call-function", exportName: "f", args: [si("x", [{ do: "return", value: 1, afterMs: 500 }]), { kind: "json", value: false }] }],
   padded: [{ shape: "call-function", exportName: "report", args: [{ kind: "json", value: "p50" }] }],
   unusedfake: [{ shape: "call-function", exportName: "summarize", args: [si("fetchIt", [{ do: "throw", errorName: "Error", message: "boom" }])] }],
   pynested: [{ shape: "call-function", exportName: "count", args: [{ kind: "json", value: ["a", "b"] }] }],

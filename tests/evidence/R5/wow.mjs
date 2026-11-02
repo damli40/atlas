@@ -6,7 +6,7 @@ const OUT = process.argv[2];
 mkdirSync(OUT, { recursive: true });
 const BASE = process.env.BASE ?? "http://localhost:18942";
 const here = new URL("../U3/inputs/", import.meta.url);
-const ORDERS = readFileSync(new URL("orders.ts", here), "utf8");
+const ORDERS = readFileSync(new URL("../../R5/film-orders.ts", here), "utf8");
 const PLAN = readFileSync(new URL("plan_cache.py", here), "utf8");
 const b = await chromium.launch({ executablePath: process.env.CHROME });
 const out = [];
