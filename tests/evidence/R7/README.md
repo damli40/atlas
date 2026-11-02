@@ -64,10 +64,27 @@ The page for every driver: `tests/evidence/U3/mock-server.ts` (every model mocke
 
 - **Item 9, zooming the first view onto the function, was skipped.** The machine has no camera to move; building one and pulling back when the ink runs would take more than the hour allowed. The first view already draws the machine large (the R6 anatomy drawing).
 - **"Try the Moonwell bug" became "Try the Moonwell example"**, and the foot says "Demos: Moonwell": the codebase's wording test refuses "bug" (Atlas never judges code). Dami may choose other words.
-- **Paid-call lines are behind "Details"**, as asked. So "Try another question", "Try your own code" and, on your own code, "Bet on what it does" no longer say next to them that they start paid AI calls. "Try another question" on the example asks both AIs live (its text was not recorded). The consent line stays visible.
+- **Paid calls are said beside the control that starts them** (review M2, lead's decision): "Try another question (asks the AIs: paid)", and "Bet on what it does" on your own code has its paid line under it again. The longer paid lines stay in "Details", "More" and "More options".
 - **Only the example's first round is recorded.** Any change (all questions, another test, a label from an earlier run) is asked live and is not labelled recorded. If the bettors' text template ever changes, the recording stops matching and the example is asked live (unlabelled); `r7-one-question.test.ts` fails in that case, so it can't drift silently.
 - The one-question rule picks the ending. On the example, Muse Wonder's flaw is about time (700 ms, not 300 ms); the ending question does not test that. It is behind "Answer more questions on this test".
 - "Seal" is replaced on the main flow. The earlier screens (behind "Earlier screens") and the proof card's hash section ("Sealed before the run") keep "seal": the first are kept as they were; the second names the cryptographic seal.
 - The AI line before the bet says "Muse Spark"; the result's marks say "Muse Spark 1.3" (the model's display name).
-- A phone still shows the box chart, not the machine (R6's limit), and the first screen's question sheet covers the lower 58%.
+- A phone still shows the box chart, not the machine (R6's limit). The question sheet covers the lower 66%; the answers, "Lock in my bet" and the consent line are never under the foot, but the consent line needs a short scroll inside the sheet.
+- Muse Wonder's test and the example's names are recorded replays too. The card says "Test written by Muse Wonder", not "(recorded)" (review minor 2, not changed).
 - `pitch/VIDEO-INDEX.md` is not updated: this branch is unmerged and unreviewed.
+
+## After the adversarial review (round 2)
+
+The review: `scratchpad/r7/review-R7.md` (coordinator's copy). Fixed on this branch:
+
+- **B1, consent on paste.** Paste-anywhere now works only while a consent line is on the page and shown (`offsetParent` set). The consent line is now also on the result (in the bar) and before a bet on your own code. `shots.mjs` pastes on the result and checks that the server is reached only with the consent line on screen.
+- **B2, recorded answers in the shareable image.** Every line that names a recorded bettor says so: the picture's bettor lines ("Muse Spark 1.3: matched (answer recorded Nov 2)"), the card's bettor list and answer table, and the result's per-question rows ("Muse Spark 1.3's recorded answer (Nov 2)"). `shots.mjs` reads the picture's own SVG text.
+- **M1.** `vitest.txt` carries `<repo>` instead of a home-folder path; `no-local-paths.test.ts` passes. The stray `.txt` log is deleted.
+- **M2.** Paid triggers say so beside them (see Limits).
+- **minor 1.** `verifyAtlasFile` now refuses a file whose recorded answer (the exact answer and rationale in `server/example-round.json`) is not labelled recorded, and a file that labels as recorded an answer that isn't. Test in `r7-one-question.test.ts`: the example's proof verifies; with the label removed it fails; a live proof with a forged label fails.
+- **minor 3.** Enter on the picked answer (Tab to it, Space, Enter) locks the bet.
+- **minor 4.** On a phone the foot is one short line, and the sheet ends above it. `shots.mjs` checks that no answer, Lock button or consent line is under anything.
+- **minor 6.** Restored as separate tests: `u1-stage.test.tsx` "every question, from the fine print" (four marks, an untapped question is can't check, not recorded); `d60-first-screen.test.ts` "without a recorded answer for its model, the example asks Muse Wonder once".
+- **Found while rerunning visual.mjs:** with the consent line in the bar and "More" open, the bar covered result rows at 1280x720, and the old `scroll-padding` never worked (it had passed only because the bar was short). Now the result column ends where the bar starts, and "More"'s buttons sit at the top of the result column, not in the bar.
+
+Final numbers after round 2: `tsc` clean; `npx vitest run` 163 files, **2,661 passed**, 35 skipped, 0 failed (`vitest.txt`, paths written as `<repo>`). In one earlier full run under load, the 50 ms timing test (`x3-server` M3) took 52.8 ms and a step-limit test in `call-function` timed out; run alone they passed (the timing one 2 of 3 times). Drivers: `shots.txt` 56 of 56, `truth.txt` 32 of 32, `visual.txt` 21 of 21, `panel.txt` 53 of 53 (one more driver change: scroll "Change the code" into view before checking it can be clicked, as `visual.mjs` already does), `ring-shots.txt` rings unchanged. Control counts unchanged (15 / 15 / 12).

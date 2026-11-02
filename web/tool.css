@@ -585,7 +585,7 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 .u1-shell .u1-pop .u1-fine{order:8;margin-top:auto}
 .u1-shell .u1-pop>.u1-fine{padding-bottom:6px}
 /* Before a bet on your own code: the one button, and fine print under it. */
-.u1-shell .u1-fine-rest{position:absolute;left:24px;right:24px;top:84px;border-top:0;padding-top:0}
+.u1-shell .u1-fine-rest{position:absolute;left:24px;right:24px;top:112px;border-top:0;padding-top:0}
 /* The result: the verdict is the largest words, with its shape. */
 .m-verdict{display:flex;align-items:center;gap:10px;margin:0 0 14px}
 .m-verdict .u1-glyph{width:28px!important;height:28px!important;stroke-width:1.6!important}
@@ -631,4 +631,35 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
   .u1-shell .r-head{max-width:calc(100vw - 190px)}
   .u1-shell .u1-marks{height:56%}
   .u1-shell .u1-root[data-stage="verdict"] .r-path{top:56%;height:calc(44% - 150px)}
+}
+/* R7 review: the paid word beside a link; and a phone keeps the consent line, the button and the answers clear of the foot. */
+.u1-shell .u1-paid-tag{font-size:11.5px;color:var(--ink-3);text-decoration:none;display:inline-block}
+.u1-shell .u1-consent-result{flex-basis:100%;margin:0;font-size:11.5px;color:var(--ink-3)}
+@media (max-width:760px){
+  .u1-shell .u1-foot{flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;padding:3px 10px;gap:10px;height:18px;white-space:nowrap}
+  .u1-shell .u1-foot .u1-earlier ul{position:fixed;left:8px;right:8px;bottom:26px;width:auto}
+  .u1-shell .u1-bet:has(.u1-pop){top:34%;bottom:25px}
+  .u1-shell .u1-root[data-pop] .r-chart{height:34%}
+  .u1-shell .u1-pop .u1-test{order:4;margin-top:8px}
+  .u1-shell .u1-pop .u1-testrow{order:4}
+  .u1-shell .u1-pop .u1-opt{padding:7px 10px}
+  .u1-shell .u1-pop .u1-q{margin-bottom:8px}
+  .u1-shell .u1-pop .u1-sealbar{padding-top:8px!important}
+  .u1-shell .u1-pop .u1-fine{margin-top:10px}
+  .u1-shell .u1-bet:not(:has(.u1-pop)){top:auto;bottom:25px;height:auto;padding:8px 14px;display:flex;flex-direction:column;align-items:flex-start;gap:6px;background:var(--paper);border-top:1px solid var(--rule)}
+  .u1-shell .u1-bet:not(:has(.u1-pop))>*{position:static!important}
+  .u1-shell .u1-bet>.u1-paid{display:block}
+  .u1-shell .u1-fine-rest{margin:0;padding:0}
+  .u1-shell .u1-actions[data-simple]{bottom:25px}
+}
+/* R7 review: the bar stays short with "More" open, so the result column can always scroll a button clear of it. */
+.u1-shell .u1-actions[data-simple] .u1-more-body .u1-btn{padding:5px 9px;font-size:12.5px}
+.u1-shell .u1-actions[data-simple] .u1-more-body .u1-paid{flex-basis:auto}
+.u1-shell .u1-actions[data-simple] .u1-consent-result{line-height:1.35}
+.u1-shell .u1-more-actions{order:-2;padding:4px 0 12px;margin-bottom:10px;border-bottom:1px solid var(--rule-2)}
+.u1-shell .u1-more-actions[hidden]{display:none!important}
+/* R7 review: on a wide screen the result column ends where the pinned bar starts, so no row can ever sit under the bar. */
+@media (min-width:761px){
+  .u1-shell .u1-marks{bottom:var(--actions-h,170px)}
+  .u1-shell .u1-marks .m-pane{padding-bottom:24px}
 }

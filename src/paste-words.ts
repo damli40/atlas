@@ -365,6 +365,8 @@ export const SIMPLE_WORDS = {
   details: "Details",
   share: "Share proof card",
   tryAnother: "Try another question",
+  /** R7 review M2: beside a link that starts paid AI calls. */
+  paidTag: "(asks the AIs: paid)",
   tryMoonwell: "Try the Moonwell example",
   more: "More",
   pickTest: "Pick a test",

@@ -35,6 +35,19 @@ for (const [w, h] of [[1280, 800], [390, 844]]) {
   say(`${w}: the AIs' answers are labelled recorded, with their day`, /Muse Spark's recorded answer \(Nov 2\)/.test(ais) && /Muse Spark Open's recorded answer \(Nov 2\)/.test(ais) && /Not live/.test(ais), ais);
   say(`${w}: no model-bets call failed or was made live`, !(await text(p, '[data-testid="u1-ais"]'))?.includes("no usable"));
   say(`${w}: the button says Lock in my bet`, /Lock in my bet/.test((await text(p, '[data-testid="u1-seal"]')) ?? ""));
+  // Review B1/m4: the answers, the Lock button and the consent line are never under the foot; scrolled into view, each is itself at its middle.
+  const covered = await p.evaluate(async () => {
+    const out = [];
+    for (const el of document.querySelectorAll('.u1-quiz .u1-opt, [data-testid="u1-seal"], [data-testid="e-consent"]')) {
+      el.scrollIntoView({ block: "nearest" });
+      await new Promise((r) => requestAnimationFrame(r));
+      const r = el.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + Math.min(20, r.width / 2), r.top + r.height / 2);
+      if (!hit || !(hit === el || el.contains(hit))) out.push(`${el.textContent.trim().slice(0, 24)} under ${hit ? hit.className : "nothing"}`);
+    }
+    return out;
+  });
+  say(`${w}: no answer, Lock button or consent line is covered (the foot included)`, covered.length === 0, JSON.stringify(covered));
   // Hidden controls' keys do nothing: C (code), M (box chart) while Details is closed.
   const view = await p.$eval('[data-testid="bench-stage"]', (e) => e.dataset.view);
   await p.keyboard.press("c");
@@ -58,6 +71,8 @@ for (const [w, h] of [[1280, 800], [390, 844]]) {
   say(`${w}: each AI's mark is labelled, recorded and dated`, /Muse Spark( [0-9.]+)?'s recorded answer \(Nov 2\)/.test(bettors) && /Muse Spark Open's recorded answer \(Nov 2\)/.test(bettors), bettors);
   say(`${w}: one primary button, Share proof card`, (await p.$$('[data-testid="u1-actions"] .u1-primary')).length === 1 && /Share proof card/.test((await text(p, '[data-testid="u1-proof"]')) ?? ""));
   for (const id of ["u1-try-another", "u1-own", "u1-try-moonwell"]) say(`${w}: the ${id} link is there`, await p.isVisible(`[data-testid="${id}"]`));
+  say(`${w}: review B1: the consent line is on the result screen`, await p.isVisible('[data-testid="u1-actions"] [data-testid="e-consent"]'));
+  say(`${w}: review M2: "Try another question" says it is paid, beside it`, /asks the AIs: paid/.test((await text(p, '[data-testid="u1-try-another"]')) ?? ""));
   say(`${w}: Change the code, Bet on another test and Play again are folded`, !(await p.isVisible('[data-testid="u1-change"]')) && !(await p.isVisible('[data-testid="u1-again"]')) && !(await p.isVisible('[data-testid="u1-replay"]')));
   await p.keyboard.press("e");
   await p.keyboard.press("b");
@@ -75,9 +90,25 @@ for (const [w, h] of [[1280, 800], [390, 844]]) {
   const credit = (await text(p, '[data-testid="pc-credit"]')) ?? "";
   say(`${w}: the proof card credits Meta's tools`, /^Test written by Muse Wonder · bet by Muse Spark .*and Muse Spark Open/.test(credit), credit);
   say(`${w}: the proof card says the answers were recorded`, /recorded Nov 2/.test(credit));
+  await p.waitForSelector('[data-testid="pc-image"] svg', { timeout: 15000 }).catch(() => {});
+  const image = (await p.$eval('[data-testid="pc-image"] svg', (e) => [...e.querySelectorAll("text")].map((t) => t.textContent).join(" | ")).catch(() => "")) ?? "";
+  say(`${w}: review B2: the shareable image itself says each AI's answer was recorded`, /Muse Spark[^|]*answer recorded Nov 2/.test(image) && /Muse Spark Open[^|]*answer recorded Nov 2/.test(image), image.split(" | ").filter((x) => /Muse|You:/.test(x)).join(" / "));
+  const rows = (await text(p, '[data-testid="mark-outcome"]')) ?? "";
+  say(`${w}: review B2: the per-question row labels the recorded answers too`, (rows.match(/recorded answer \(Nov 2\)/g) ?? []).length === 2, rows);
+  const table = (await p.$$eval('[data-testid="pc-bets"] .pc-who', (x) => x.map((e) => e.textContent).join(" / ")).catch(() => "")) ?? "";
+  say(`${w}: review B2: the card's answer table labels them`, table === "" || (table.match(/answer recorded Nov 2/g) ?? []).length >= 2, table);
   say(`${w}: the proof card has no remember line`, !(await p.$('[data-testid="u1-proof-panel"] [data-testid^="remember"]')));
   await p.waitForTimeout(500);
   await p.screenshot({ path: `${OUT}/5-proof-card-${w}.png` });
+  // Review B1: pasting on the result draws your code only while the consent line is on the page.
+  await p.keyboard.press("Escape");
+  await p.waitForTimeout(300);
+  const consentShown = await p.isVisible('[data-testid="e-consent"]');
+  const before = calls.length;
+  await p.evaluate(() => { const d = new DataTransfer(); d.setData("text", "export function pasted(x) {\n  return x + 1;\n}\n"); document.body.dispatchEvent(new ClipboardEvent("paste", { clipboardData: d, bubbles: true })); });
+  await p.waitForTimeout(1500);
+  const sent = calls.slice(before).some((u) => /\/paste\b|proposals|names/.test(u));
+  say(`${w}: review B1: a paste on the result reaches the server only with the consent line on screen`, consentShown || !sent, JSON.stringify({ consentShown, sent }));
   say(`${w}: the example made no model-bets network wait`, calls.filter((u) => /model-bets/.test(u)).length <= 2);
   await c.close();
 }

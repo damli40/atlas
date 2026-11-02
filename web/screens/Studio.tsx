@@ -707,6 +707,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     if (pasted && !(onExample && !(sealed.length > 0 && !result))) return;
     const onDocPaste = (e: globalThis.ClipboardEvent) => {
       if (offScreen()) return;
+      // R7 review B1: pasted code goes to Meta's AI at once, so paste-anywhere works only while the consent line is on the page.
+      if (![...document.querySelectorAll<HTMLElement>('[data-testid="e-consent"]')].some((c) => c.offsetParent !== null)) return;
       if ((e.target as HTMLElement | null)?.closest?.("input, textarea, select")) return;
       const text = e.clipboardData?.getData("text") ?? "";
       if (text.trim() === "") return;
@@ -1051,7 +1053,9 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       if (document.querySelector('[data-testid="part-panel"]')) return;
       // R7: one question stays on screen; Enter locks the bet once it has an answer.
       const single = exp.questions.length === 1;
-      if (single && e.key === "Enter" && !t?.closest?.("button, a, summary") && busy === null) {
+      // R7 review minor 3: Enter also locks it from the answer already picked (Tab to it, Space, Enter). On an answer not picked yet, Enter picks it.
+      const onPickedAnswer = t?.matches?.('.u1-opt[aria-checked="true"]') === true;
+      if (single && e.key === "Enter" && (onPickedAnswer || !t?.closest?.("button, a, summary")) && busy === null) {
         const q = exp.questions[0]!;
         if ((picked[q.measures] ?? "") !== "" || (typed[q.measures] ?? "").trim() !== "") {
           e.preventDefault();
@@ -1343,8 +1347,31 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           }}
           headnote={
             // R7 (D69): the round's extra lines (before and after a change, how sure, a claim's facts) are under "More".
-            more && after && result ? (
+            after && result ? (
               <>
+                {/* R7 review: "More"'s buttons sit at the top of the result column, so the pinned bar stays short. In the page while folded (hidden), as before. */}
+                <div className="u1-more-body u1-linkrow u1-more-actions" data-testid="u1-more-actions" hidden={!more}>
+                  {exp && (
+                    <button type="button" className="u1-btn" onClick={() => setEditing((t) => (t === null ? readText : null))} aria-expanded={editing !== null} data-testid="u1-change">
+                      {CHANGE_WORDS.open}
+                      <kbd className="k">E</kbd>
+                    </button>
+                  )}
+                  <button type="button" className="u1-btn" onClick={() => setPicking(true)} data-testid="u1-again">
+                    Bet on another test
+                    <kbd className="k">B</kbd>
+                  </button>
+                  {!nothingShown && (
+                    <button type="button" className="u1-btn u1-quiet" onClick={() => setPlays((n) => n + 1)} disabled={played === 0} data-testid="u1-replay">
+                      {played === 0 ? STAGE_WORDS.playing : STAGE_WORDS.playAgain}
+                      <kbd className="k">R</kbd>
+                    </button>
+                  )}
+                  <span className="u1-sub u1-paid" data-testid="u1-paid-again">{CHANGE_WORDS.paidAgain}</span>
+                </div>
+                {more && (
+                <>
+
                 {beforeChange && notShownAsFact(result.run) === null && (
                   <p className="b-beforeafter" data-testid="u1-before-after">
                     <span className="m-k">Before your change</span>
@@ -1355,6 +1382,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                 )}
                 <FeltRoundLine bets={result.bets} verdicts={result.verdicts} />
                 {claimRound && <ClaimFacts sentence={claimRound.sentence} marks={after.marks} reach={notShownAsFact(result.run) === null ? reachNote(result.run, claimRound.lastEnding ?? null, pasted?.target.language ?? undefined) : null} />}
+                </>
+                )}
               </>
             ) : null
           }
@@ -1407,9 +1436,11 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
               ) : result?.proof ? (
                 <span className="u1-sub">{`No proof card: ${result.proof.ok ? "" : result.proof.reason}`}</span>
               ) : null}
+              {/* R7 review B1: pasting here draws your code too, so the consent line is here too. */}
+              <p className="u1-sub e-consent u1-consent-result" data-testid="e-consent">{CONSENT_LINE}</p>
               <p className="u1-textlinks">
                 <button type="button" className="u1-link" onClick={tryAnother} disabled={busy !== null} data-testid="u1-try-another">
-                  {SIMPLE_WORDS.tryAnother}
+                  {SIMPLE_WORDS.tryAnother} <span className="u1-paid-tag">{SIMPLE_WORDS.paidTag}</span>
                 </button>
                 <button type="button" className="u1-link" onClick={tryOwn} data-testid="u1-own">
                   {SIMPLE_WORDS.tryOwn}
@@ -1422,25 +1453,6 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
               </p>
               <details className="u1-more" open={more} data-testid="u1-result-more">
                 <summary onClick={(e) => { e.preventDefault(); setMore((m) => !m); }}>{SIMPLE_WORDS.more}</summary>
-                <div className="u1-more-body u1-linkrow">
-                  {exp && (
-                    <button type="button" className="u1-btn" onClick={() => setEditing((t) => (t === null ? readText : null))} aria-expanded={editing !== null} data-testid="u1-change">
-                      {CHANGE_WORDS.open}
-                      <kbd className="k">E</kbd>
-                    </button>
-                  )}
-                  <button type="button" className="u1-btn" onClick={() => setPicking(true)} data-testid="u1-again">
-                    Bet on another test
-                    <kbd className="k">B</kbd>
-                  </button>
-                  {!nothingShown && (
-                    <button type="button" className="u1-btn u1-quiet" onClick={() => setPlays((n) => n + 1)} disabled={played === 0} data-testid="u1-replay">
-                      {played === 0 ? STAGE_WORDS.playing : STAGE_WORDS.playAgain}
-                      <kbd className="k">R</kbd>
-                    </button>
-                  )}
-                  <span className="u1-sub u1-paid" data-testid="u1-paid-again">{CHANGE_WORDS.paidAgain}</span>
-                </div>
               </details>
               {detailsFold}
             </div>
@@ -1607,8 +1619,11 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
               <kbd className="k" aria-hidden="true">Enter</kbd>
             </button>
           )}
+          {/* R7 review M2: a control that starts paid AI calls says so beside it. */}
+          {!open && <span className="u1-sub u1-paid u1-paid-beside" data-testid="u1-paid-bet-beside">{earlyState === "busy" ? CHANGE_WORDS.earlyWonder : earlyState === "done" ? CHANGE_WORDS.earlyDone : CHANGE_WORDS.paidWonder}</span>}
           {!open && (
             <div className="u1-fine u1-fine-rest" data-testid="u1-fine">
+              <p className="e-consent" data-testid="e-consent">{CONSENT_LINE}</p>
               <p className="u1-fine-links">
                 <button type="button" className="u1-link" onClick={tryOwn} data-testid="u1-own">
                   {SIMPLE_WORDS.tryOwn}
@@ -1763,7 +1778,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                   )}
                   {/* R7 (D69): fine print. Everything else about this bet is one fold away; nothing here is removed. */}
                   <div className="u1-fine" data-testid="u1-fine">
-                    {onExample && <p className="e-consent" data-testid="e-consent">{CONSENT_LINE}</p>}
+                    <p className="e-consent" data-testid="e-consent">{CONSENT_LINE}</p>
                     <p className="u1-fine-links">
                       <button type="button" className="u1-link" onClick={tryOwn} data-testid="u1-own">
                         {SIMPLE_WORDS.tryOwn}

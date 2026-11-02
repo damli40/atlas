@@ -134,4 +134,27 @@ describe("U1 drawing-first screen", () => {
     expect($('[data-testid="u1-proof"]')!.tagName).toBe("BUTTON");
     expect($('[data-testid="u1-proof"]')!.textContent).toContain("Share proof card");
   }, 120_000);
+  it("review minor 6: every question, from the fine print: four marks, and an untapped question is can't check", async () => {
+    const app = createApp({ modelBets: { chat: mockChat, budget: createModelBudget({ spendCeilingUsd: 5 }), sparkOpen: { available: true } }, paste: { proposer: { chat: mockChat } } });
+    const api = createApi(async (url, init) => app.request(url.replace(/^\/api/, ""), init));
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    act(() => root!.render(<App api={api} />));
+    await until(() => $('[data-testid="u1-seal"]') !== null, "the example's one question", 60000);
+    click($('[data-testid="u1-bet-more"] > summary'));
+    click($('[data-testid="u1-more-questions"]'));
+    await until(() => host!.querySelectorAll(".u1-quiz > li").length === 4, "every question", 60000);
+    // the bettors were asked again on the new text: not the recorded answers
+    expect(host!.textContent).not.toMatch(/recorded answer/);
+    click($('[data-testid="opt-outcome-a"]'));
+    click($('[data-testid="opt-calls:fetchIt-c"]'));
+    click($('[data-testid="opt-virtualMs-a"]'));
+    click($('[data-testid="u1-seal"]'));
+    await until(() => $('[data-testid="bench-stage"]')?.getAttribute("data-phase") === "marked", "the marked drawing", 60000);
+    const list = $('[data-testid="mark-list"]')!;
+    for (const m of ["outcome", "returnedJson", "calls:fetchIt", "virtualMs"]) expect(list.querySelector(`[data-testid="mark-${m}"]`)).not.toBeNull();
+    expect(list.querySelector('[data-testid="mark-returnedJson"]')!.textContent).toMatch(/You.*can't tell.*can't check/);
+    expect(list.textContent).toContain("Muse Spark Open");
+  }, 120_000);
 });

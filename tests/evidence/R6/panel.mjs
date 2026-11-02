@@ -146,7 +146,7 @@ for (const [W, H] of [[1280, 720], [1100, 700], [390, 844]]) {
     say(`${W}: review M3: after a run the panel covers no verdict, answer list, action bar, ring or part`, clear.ok, clear.more);
     await openMore(p); // R7: "Change the code" is under "More"
     await p.waitForTimeout(200);
-    say(`${W}: the actions are still clickable`, await p.evaluate(() => { const r = document.querySelector('[data-testid="u1-change"]').getBoundingClientRect(); return Boolean(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('[data-testid="u1-change"]')); }));
+    say(`${W}: the actions are still clickable`, await p.evaluate(async () => { const el = document.querySelector('[data-testid="u1-change"]'); el.scrollIntoView({ block: "nearest" }); await new Promise((f) => requestAnimationFrame(f)); const r = el.getBoundingClientRect(); return Boolean(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('[data-testid="u1-change"]')); }));
     await p.screenshot({ path: `${OUT}/5-panel-ringed-example-${W}.png` });
     await p.keyboard.press("Escape");
     // The shared picture: no model names, no code type.

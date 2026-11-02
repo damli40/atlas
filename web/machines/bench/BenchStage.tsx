@@ -650,7 +650,7 @@ export function MomentView({ moment, stranger = false, recorded = {} }: { moment
   );
 }
 
-function MarkRow({ m, same, focus, onFocus, hidden = false }: { m: Mark; same: string | null; focus: string | null; onFocus: (m: string | null) => void; hidden?: boolean }) {
+function MarkRow({ m, same, focus, onFocus, hidden = false, recorded = {} }: { m: Mark; same: string | null; focus: string | null; onFocus: (m: string | null) => void; hidden?: boolean; recorded?: Readonly<Record<string, string>> }) {
   return (
     <li hidden={hidden} data-focus={focus === m.measures ? "" : undefined} data-testid={`mark-${m.measures}`}>
       <button type="button" className="u1-mark-head" onClick={() => onFocus(focus === m.measures ? null : m.measures)} aria-expanded={focus === m.measures}>
@@ -663,8 +663,8 @@ function MarkRow({ m, same, focus, onFocus, hidden = false }: { m: Mark; same: s
         {m.picks.map((p) => (
           <li key={p.who}>
             <Glyph outcome={p.outcome} />
-            <span className="u1-who" title={p.name}>
-              {shortName(p.name)}
+            <span className="u1-who" title={p.name} data-recorded={recorded[p.who] ? "" : undefined}>
+              {recorded[p.who] ? SIMPLE_WORDS.recordedName(shortName(p.name), recorded[p.who]!) : shortName(p.name)}
             </span>
             <span className="u1-pick">{p.pick}</span>
             <span className="u1-out">{OUTCOME_WORDS[p.outcome]}</span>
@@ -728,7 +728,7 @@ function MarkList({ marks, focus, onFocus, footnote, headnote, moment, notes, re
           <ul>
             {checkable.map((m) => (
               // The question that leads is already at the top, whole.
-              <MarkRow key={m.measures} m={m} same={same} focus={focus} onFocus={onFocus} hidden={m.measures === moment?.measures} />
+              <MarkRow recorded={recorded} key={m.measures} m={m} same={same} focus={focus} onFocus={onFocus} hidden={m.measures === moment?.measures} />
             ))}
           </ul>
         </details>
@@ -737,7 +737,7 @@ function MarkList({ marks, focus, onFocus, footnote, headnote, moment, notes, re
             <summary>{`${unchecked.length} can't check${uncheckedWhy && !same ? `: ${uncheckedWhy}` : ""}`}</summary>
             <ul>
               {unchecked.map((m) => (
-                <MarkRow key={m.measures} m={m} same={same} focus={focus} onFocus={onFocus} />
+                <MarkRow recorded={recorded} key={m.measures} m={m} same={same} focus={focus} onFocus={onFocus} />
               ))}
             </ul>
           </details>

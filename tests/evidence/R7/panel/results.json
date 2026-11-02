@@ -82,7 +82,7 @@
  {
   "name": "1280: review M3: after a run the panel covers no verdict, answer list, action bar, ring or part",
   "ok": true,
-  "more": "{\"panel\":{\"x0\":24,\"y0\":347.9375,\"x1\":448.59375,\"y1\":597.9375},\"covered\":[]}"
+  "more": "{\"panel\":{\"x0\":24,\"y0\":289.9375,\"x1\":448.59375,\"y1\":540.40625},\"covered\":[]}"
  },
  {
   "name": "1280: the actions are still clickable",
@@ -177,7 +177,7 @@
  {
   "name": "1100: review M3: after a run the panel covers no verdict, answer list, action bar, ring or part",
   "ok": true,
-  "more": "{\"panel\":{\"x0\":24,\"y0\":286.828125,\"x1\":382,\"y1\":557.59375},\"covered\":[]}"
+  "more": "{\"panel\":{\"x0\":24,\"y0\":249.828125,\"x1\":382,\"y1\":520.59375},\"covered\":[]}"
  },
  {
   "name": "1100: the actions are still clickable",
@@ -197,7 +197,7 @@
  {
   "name": "390: the sheet leaves the box in sight",
   "ok": true,
-  "more": "{\"panel\":{\"x0\":0,\"y0\":422,\"x1\":390,\"y1\":844},\"box\":{\"x0\":140.98707580566406,\"y0\":142.57351684570312,\"x1\":262.01654052734375,\"y1\":192.30267333984375}}"
+  "more": "{\"panel\":{\"x0\":0,\"y0\":422,\"x1\":390,\"y1\":844},\"box\":{\"x0\":151.1732635498047,\"y0\":124.73479461669922,\"x1\":249.3738250732422,\"y1\":165.0839080810547}}"
  },
  {
   "name": "390: no pinned chart card as well",
@@ -222,7 +222,7 @@
  {
   "name": "1280: orders: review M3: the panel covers no verdict, answer list, action bar, ring or part",
   "ok": true,
-  "more": "{\"panel\":{\"x0\":24,\"y0\":78.9375,\"x1\":448.59375,\"y1\":597.9375},\"covered\":[]}"
+  "more": "{\"panel\":{\"x0\":24,\"y0\":77.9375,\"x1\":448.59375,\"y1\":540.9375},\"covered\":[]}"
  },
  {
   "name": "1280: review B2: after a change the old part panel is gone",
@@ -247,7 +247,7 @@
  {
   "name": "1100: orders: review M3: the panel covers no verdict, answer list, action bar, ring or part",
   "ok": true,
-  "more": "{\"panel\":{\"x0\":24,\"y0\":77.828125,\"x1\":382,\"y1\":557.828125},\"covered\":[]}"
+  "more": "{\"panel\":{\"x0\":24,\"y0\":77.828125,\"x1\":382,\"y1\":520.828125},\"covered\":[]}"
  },
  {
   "name": "1100: review B2: after a change the old part panel is gone",

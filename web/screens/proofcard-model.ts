@@ -210,6 +210,8 @@ export interface BettorLine {
   reason?: string;
   /** Outcome words for a bettor with bets, e.g. "didn't match" or "2 matched, 1 can't check". */
   outcomes?: string;
+  /** R7 (D69): this bettor's answer was recorded on this day (ISO date): every line that names it says so. */
+  recorded?: string;
 }
 
 /** "the model call failed: network error (TypeError: fetch failed)" → "network error". Any other reason as is. */
@@ -251,13 +253,16 @@ export function bettorLines(file: Pick<AtlasFile, "bets" | "verdicts" | "agentLo
     const mine = file.bets.filter((b) => b.who === s.who).map((b) => file.verdicts.find((v) => v.betId === b.id)?.outcome);
     const n = (o: Outcome) => mine.filter((x) => x === o).length;
     const parts = ORDER.filter((o) => n(o) > 0).map((o) => (mine.length === 1 ? SAY[o] : `${n(o)} ${SAY[o]}`));
-    return { who: s.who, status: "sealed", outcomes: parts.join(", ") || "no verdict" };
+    return { who: s.who, status: "sealed", outcomes: parts.join(", ") || "no verdict", ...(s.recorded ? { recorded: s.recorded } : {}) };
   });
 }
 
 /** What a bettor line says after its name. */
 export const bettorLineWords = (l: BettorLine): string =>
-  l.status === "sealed" ? l.outcomes ?? "no verdict" : `${l.status === "not_asked" ? "not asked" : "no usable answer"}${l.reason ? ` (${l.reason})` : ""}`;
+  l.status === "sealed" ? `${l.outcomes ?? "no verdict"}${l.recorded ? ` (${recordedTag(l.recorded)})` : ""}` : `${l.status === "not_asked" ? "not asked" : "no usable answer"}${l.reason ? ` (${l.reason})` : ""}`;
+
+/** R7 (D69): the words beside a recorded answer, wherever it is named: "answer recorded Nov 2". */
+export const recordedTag = (iso: string): string => `answer recorded ${shortDay(iso)}`;
 
 /**
  * R7 (D69): the card credits Meta's tools in plain words, from the file alone: who wrote the test, who bet. A recorded answer

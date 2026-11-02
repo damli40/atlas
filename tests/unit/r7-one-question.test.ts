@@ -92,3 +92,46 @@ describe("the proof card's credit line (plain code, from the file alone)", () =>
     expect(creditLine({ experiments: [{ proposedBy: { role: "human" } }] as never, bets: [{ who: "human" }] as never, bettors: [] })).toBe("Test written by the person");
   });
 });
+
+describe("review minor 1: verify ties the recorded label to the recorded answers", () => {
+  it("a proof of the example verifies; with the label removed, or added to a live answer, it does not", async () => {
+    const { verifyAtlasFile } = await import("../../src/atlasfile");
+    const { app } = makeApp();
+    const c = client(app);
+    const p = await c.post("/paste", { code: U1_EXAMPLE, language: "ts" });
+    const t = { ref: p.json.target.ref, codeSha256: p.json.target.codeSha256 };
+    await c.post("/paste/names", { target: t });
+    const props = await c.post("/paste/proposals", { target: t, exportName: "fetchWithRetry" });
+    const first = (props.json.proposals as { id: string; gate: { allowed: boolean } }[]).find((x) => x.gate.allowed)!;
+    const e = await c.post("/experiments", { target: t, proposalId: first.id, quiz: true, one: true }, { "x-atlas-claimant": "both" });
+    await c.post(`/experiments/${e.json.experiment.id}/model-bets`, {});
+    await c.post("/bets", { experimentId: e.json.experiment.id, who: "human", bets: [{ measures: "outcome", answer: { kind: "quiz", choice: "a" } }] });
+    const run = await c.post("/runs", { experimentId: e.json.experiment.id });
+    expect(run.status).toBe(200);
+    const proof = await c.get(`/proofs/${run.json.run.id}`);
+    const file = proof.json as { bettors: { who: string; recorded?: string }[] };
+    expect(file.bettors.filter((s) => s.recorded).length).toBe(2);
+    const ok = verifyAtlasFile(file);
+    expect(ok.ok, JSON.stringify(ok)).toBe(true);
+    const stripped = JSON.parse(JSON.stringify(file));
+    for (const s of stripped.bettors) delete s.recorded;
+    expect(verifyAtlasFile(stripped).ok).toBe(false);
+    // and a label on an answer that is not the recorded one is refused
+    // Models mocked with usable answers (the U1 mock), so the live round has sealed model bets to mislabel.
+    const { mockChat } = await import("../evidence/U1/mock-server");
+    const { app: app2 } = makeApp({ modelBets: { chat: mockChat, budget: (await import("../../server/meta/budget")).createModelBudget({ spendCeilingUsd: 5 }), sparkOpen: { available: true } } });
+    const c2 = client(app2);
+    const p2 = await c2.post("/paste", { code: RETRY_SRC, language: "ts" });
+    const t2 = { ref: p2.json.target.ref, codeSha256: p2.json.target.codeSha256 };
+    const e2 = await c2.post("/experiments", { target: t2, params: { shape: "call-function", exportName: p2.json.exports[0].name, args: [{ kind: "stand-in", name: "fetchIt", async: true, then: "repeat_last", calls: [{ do: "throw", errorName: "Error", message: "x" }] }] }, quiz: true, one: true }, { "x-atlas-claimant": "both" });
+    await c2.post(`/experiments/${e2.json.experiment.id}/model-bets`, {});
+    await c2.post("/bets", { experimentId: e2.json.experiment.id, who: "human", bets: [{ measures: "outcome", answer: { kind: "quiz", choice: "a" } }] });
+    const run2 = await c2.post("/runs", { experimentId: e2.json.experiment.id });
+    const live = (await c2.get(`/proofs/${run2.json.run.id}`)).json as { bettors: { who: string; status: string; recorded?: string }[] };
+    expect(verifyAtlasFile(live).ok).toBe(true);
+    const faked = JSON.parse(JSON.stringify(live));
+    for (const s of faked.bettors) if (s.who !== "human" && s.status === "sealed") s.recorded = "2026-11-02";
+    expect(faked.bettors.some((s: { recorded?: string }) => s.recorded)).toBe(true);
+    expect(verifyAtlasFile(faked).ok).toBe(false);
+  }, 60_000);
+});
