@@ -39,6 +39,7 @@ import type { ClaimantMode } from "../../src/claimants";
 import { didNotFinish, type Api, type ExperimentAnswer, type HumanAnswer, type PasteAnswer, type ProposalsAnswer, type RunAnswer, type ShownBet } from "../api";
 import { useModelSlots } from "./Claimant";
 import { ErrorNotice } from "./ErrorNotice";
+import { machineFirst } from "../drawing/MachineView";
 import { Segments, TestForm, emptyForm, formFromParams, type TestFormState } from "./TestForm";
 import { BenchStage, type After } from "../machines/bench/BenchStage";
 import { benchModel, dialFullMs, type CallTest } from "../machines/bench/model";
@@ -913,7 +914,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
         return;
       }
       if (e.key.toLowerCase() === "c" && pasted) {
-        setDrawer((d) => !(d ?? (wide && open && exp !== null && !result)));
+        setDrawer((d) => !(d ?? (wide && open && exp !== null && !result && !machineFirst())));
         e.preventDefault();
         return;
       }
@@ -1043,7 +1044,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   }
 
   // ---- the drawing ----
-  const drawerOpen = drawerChoice ?? (wide && open && exp !== null && !after);
+  // Beside the machine, the code panel opens only when asked (the Code button, C or a click): it would squeeze the machine under its reading size.
+  const drawerOpen = drawerChoice ?? (wide && open && exp !== null && !after && !machineFirst());
   const noFunction = pasted.runnable && !fn && pasted.outline !== undefined;
   const notRunnable = !pasted.runnable ? (pasted.reason ?? "Atlas cannot run this language here yet.") : pasted.cantCheck;
   const allowed = proposals?.proposals.filter((p) => p.gate.allowed) ?? [];

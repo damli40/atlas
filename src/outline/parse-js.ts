@@ -19,7 +19,7 @@
 // (a parameter or a local) hides the import of the same name inside that function (review minor 1).
 
 import ts from "typescript-api";
-import { emptyCallFacts, type CallFacts } from "./types";
+import { emptyCallFacts, type BodyFacts, type CallFacts, type ThrowSite } from "./types";
 import type { CodeSymbol, ImportKind, ImportName, OutlineLanguage } from "./types";
 
 export interface RawImport {
@@ -55,6 +55,8 @@ export interface ParsedFile {
   notes: string[];
   /** R3: calls with their names resolved by real scope. */
   callFacts?: CallFacts;
+  /** D65 review R5: what each top-level function's own body holds. */
+  bodies?: Record<string, BodyFacts>;
 }
 
 const SIG_MAX = 200;
@@ -371,6 +373,49 @@ export function parseJsFile(path: string, text: string, language: OutlineLanguag
   };
   ts.forEachChild(bound, walk);
   out.callFacts = callFactsOf(bound, checker);
+  out.bodies = bodiesOf(bound);
+  return out;
+}
+
+/** D65 review R5: each top-level function's own body, from the tree. A regex, a method called `.throw()`, a `{ throw: 1 }` and a callback's `return` are not this function's. */
+function bodiesOf(sf: ts.SourceFile): Record<string, BodyFacts> {
+  const lineOf = (n: ts.Node) => sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1;
+  const endOf = (n: ts.Node) => sf.getLineAndCharacterOfPosition(n.getEnd()).line + 1;
+  const out: Record<string, BodyFacts> = {};
+  const read = (name: string, fn: ts.FunctionLikeDeclaration) => {
+    const body = fn.body;
+    if (!body) return;
+    const facts: BodyFacts = { loops: [], throws: [], returns: [], nested: [] };
+    if (!ts.isBlock(body)) facts.returns.push(lineOf(body));
+    const visit = (n: ts.Node): void => {
+      if (ts.isFunctionLike(n) || ts.isClassLike(n)) {
+        facts.nested.push([lineOf(n), endOf(n)]);
+        return;
+      }
+      if (ts.isForStatement(n) || ts.isForInStatement(n) || ts.isForOfStatement(n) || ts.isWhileStatement(n) || ts.isDoStatement(n)) facts.loops.push(lineOf(n));
+      else if (ts.isReturnStatement(n)) facts.returns.push(lineOf(n));
+      else if (ts.isThrowStatement(n)) facts.throws.push(throwSite(n, lineOf(n)));
+      ts.forEachChild(n, visit);
+    };
+    ts.forEachChild(body, visit);
+    out[name] = facts;
+  };
+  const throwSite = (n: ts.ThrowStatement, line: number): ThrowSite => {
+    const e = n.expression;
+    if (!e || !ts.isNewExpression(e) || !ts.isIdentifier(e.expression)) return { line };
+    const a = e.arguments?.[0];
+    if (a && ts.isStringLiteralLike(a)) return { line, name: e.expression.text, message: a.text, exact: true };
+    if (a && ts.isTemplateExpression(a)) return { line, name: e.expression.text, message: a.head.text, exact: false };
+    return { line };
+  };
+  const isFnValue = (e: ts.Node | undefined): e is ts.ArrowFunction | ts.FunctionExpression => !!e && (ts.isArrowFunction(e) || ts.isFunctionExpression(e));
+  for (const st of sf.statements) {
+    if (ts.isFunctionDeclaration(st)) read(st.name?.text ?? "default", st);
+    else if (ts.isVariableStatement(st)) for (const d of st.declarationList.declarations) {
+      if (ts.isIdentifier(d.name) && isFnValue(d.initializer)) read(d.name.text, d.initializer);
+    }
+    else if (ts.isExportAssignment(st) && isFnValue(st.expression)) read("default", st.expression);
+  }
   return out;
 }
 

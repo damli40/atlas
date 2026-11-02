@@ -67,7 +67,7 @@ describe("the parts come from the code", () => {
     expect(parts.housings[0]).toMatchObject({ throws: [], loops: [], waits: [] });
   });
   it("Python: a raise, a loop and a sleep", () => {
-    const { parts } = model('import time\ndef f(n):\n    for i in range(n):\n        time.sleep(1)\n    raise ValueError("no")\n', "py");
+    const { parts } = model('import time\ndef f(n):\n    for i in range(n):\n        time.sleep(1)\n    raise ValueError("no")\n', "py", "f");
     expect(parts.housings[0]!.loops).toEqual([3]);
     expect(parts.housings[0]!.throws).toEqual([5]);
     expect(parts.housings[0]!.waits).toEqual([4]);
@@ -106,12 +106,12 @@ describe("the audit passes on real files and fails on broken pictures", () => {
     const f = drawMachine(parts, { seed: "x" }).facts!;
     const other = f.owners.find((o) => o.part === "parse")!;
     const c: [number, number] = [(other.solid.x0 + other.solid.x1) / 2, (other.solid.y0 + other.solid.y1) / 2];
-    const bad = { ...f, routes: [{ id: "a->b", from: "getPrice", to: "fetchWithRetry", page: [[c[0] - 40, c[1]], [c[0] + 40, c[1]]] as [number, number][], chevrons: 1, endsAtParts: true, nearEnds: [[9999, 9999], [9999, 9999]] as [[number, number], [number, number]] }] };
+    const bad = { ...f, routes: [{ id: "a->b", from: "getPrice", to: "fetchWithRetry", page: [[c[0] - 40, c[1]], [c[0] + 40, c[1]]] as [number, number][], chevrons: 1, ends: [], plans: {}, nearEnds: [[9999, 9999], [9999, 9999]] as [[number, number], [number, number]] }] };
     expect(auditMachine(bad).join()).toMatch(/does not join/);
   });
   it("a pipe with no direction, and words on words, fail", () => {
     const r = { x0: 0, x1: 50, y0: 5000, y1: 5020 };
-    const out = auditMachine({ owners: [], routes: [{ id: "p", from: "a", to: "b", page: [[0, 0], [1, 1]], chevrons: 0, endsAtParts: true, nearEnds: [[0, 0], [0, 0]] }], labels: [{ part: "a", text: "one", rect: r }, { part: "b", text: "two", rect: r }] });
+    const out = auditMachine({ reds: [], housings: [], owners: [], routes: [{ id: "p", from: "a", to: "b", page: [[0, 0], [1, 1]], chevrons: 0, ends: [], plans: {}, nearEnds: [[0, 0], [0, 0]] }], labels: [{ part: "a", text: "one", rect: r }, { part: "b", text: "two", rect: r }] });
     expect(out.join()).toMatch(/which way/);
     expect(out.join()).toMatch(/words overlap/);
   });
@@ -136,7 +136,8 @@ describe("the run through the pipes says only what the path says", () => {
     expect(beats[0]).toMatchObject({ routes: [], lamps: [] });
   });
   it("a wait moves a dial only on a function that waits", () => {
-    const beats = machineScript({ nodes: [{ id: "n", kind: "clock", words: "w", provenance: "run", sweep: 0.3 } as never], steps: [{ id: "s0", nodes: ["n"], edges: [], provenance: "run", beat: "wait", device: "clock" }] }, parts.parts, parts.outline as never, "fetchAllOrders");
-    expect(beats[0]!.dial).toEqual({ part: "fetchPage", sweep: 0.3 });
+    const withFake = { ...parts.parts, ports: [{ id: "stand-in fetch", name: "fetch", faked: true, from: ["fetchPage"] }] };
+    const beats = machineScript({ nodes: [{ id: "n", kind: "clock", words: "w", provenance: "run", sweep: 0.3 } as never], steps: [{ id: "s0", nodes: ["m"], edges: [], provenance: "run", beat: "call", device: "fetch" }, { id: "s1", nodes: ["n"], edges: [], provenance: "run", beat: "wait", device: "clock" }] }, withFake, parts.outline as never, "fetchAllOrders");
+    expect(beats[1]!.dial).toEqual({ part: "fetchPage", sweep: 0.3 });
   });
 });

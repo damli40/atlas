@@ -57,7 +57,7 @@ function penTime(): number {
   }
 }
 
-export const MachineSheet = forwardRef<MachineControl, { drawn: MachineDrawn; reduced?: boolean; onPart?: (id: string) => void; testid?: string; /** A new value pencils the machine in: a new paste, not a new test on it. */ penKey?: string | null }>(function MachineSheet({ drawn, reduced = false, onPart, testid = "machine", penKey = null }, ref) {
+export const MachineSheet = forwardRef<MachineControl, { drawn: MachineDrawn; reduced?: boolean; onPart?: (id: string) => void; testid?: string; /** A new value pencils the machine in: a new paste, not a new test on it. */ penKey?: string | null; /** The run's beats, and whether its result has landed: a machine that mounts after that (M, or the chart first) shows the same result at once. */ beats?: MachineBeat[]; landed?: boolean }>(function MachineSheet({ drawn, reduced = false, onPart, testid = "machine", penKey = null, beats, landed = false }, ref) {
   ensureMachineStyle();
   const host = useRef<HTMLDivElement | null>(null);
   const player = useRef<MachinePlayer | null>(null);
@@ -73,11 +73,12 @@ export const MachineSheet = forwardRef<MachineControl, { drawn: MachineDrawn; re
       player.current = svg ? new MachinePlayer(svg as SVGSVGElement, reduced) : null;
       playerOf.current = svg ?? null;
     }
+    if (landed && beats && player.current && !player.current.hasLanded()) player.current.settleAt(beats);
     if (penKey !== null && penKey !== penned.current) {
       penned.current = penKey;
       player.current?.penIn(penTime());
     }
-  }, [drawn.svg, reduced, penKey]);
+  }, [drawn.svg, reduced, penKey, landed]);
   useImperativeHandle(ref, () => ({
     play: (i, ms) => void player.current?.play(i, ms),
     setScript: (b) => player.current?.setScript(b),

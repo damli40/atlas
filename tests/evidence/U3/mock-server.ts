@@ -50,6 +50,14 @@ const CLAIM_PLAN = {
 const WEATHER = { claim: "People expect getTemperature to validate the API payload; the code does not.", experiments: [{ shape: "call-function", exportName: "getTemperature", args: [{ kind: "json", value: "Lagos" }], network: { replaces: "fetch", then: "repeat_last", calls: [{ do: "respond", status: 200, body: { current: { temp_c: 31 } } }] } }] };
 const CLAIM_WEATHER = { claim: "People expect getTemperature to validate the API payload; the code does not.", experiments: [{ shape: "call-function", exportName: "getTemperature", args: [{ kind: "json", value: "Abuja" }], network: { replaces: "fetch", then: "repeat_last", calls: [{ do: "respond", status: 200, body: { current: { temp_c: "hot" } } }] } }] };
 const LOOP = { claim: "People expect waitForJob to poll until the job finishes; it spins forever.", experiments: [{ shape: "call-function", exportName: "waitForJob", args: [{ kind: "json", value: { id: "a", done: false } }] }] };
+// The machine's truth driver (tests/evidence/R5/truth.mjs): a paste names its test with // CASE_name.
+const si = (name: string, calls: unknown[]) => ({ kind: "stand-in", name, async: true, then: "repeat_last", calls });
+const CASES: Record<string, unknown[]> = {
+  noarg: [{ shape: "call-function", exportName: "f", args: [] }],
+  plain: [{ shape: "call-function", exportName: "f", args: [si("x", [{ do: "return", value: 1 }])] }],
+  xthrows: [{ shape: "call-function", exportName: "f", args: [si("x", [{ do: "throw", errorName: "Error", message: "from fake" }])] }],
+  xwait: [{ shape: "call-function", exportName: "f", args: [si("x", [{ do: "return", value: 1, afterMs: 500 }])] }],
+};
 const delay = Number(process.env.U3_WONDER_DELAY_MS ?? 6000);
 const EXAMPLE = {
   claim: `People expect fetchWithRetry to wait and try again until the source answers; after its last try it throws what the source threw.${MOCK ? ` ${MOCK}` : ""}`,
@@ -63,6 +71,8 @@ export const mockChat = async (a: ChatArgs): Promise<ChatResult> => {
   if (a.role === "investigator") {
     await new Promise((r) => setTimeout(r, delay));
     const claimRound = /check this sentence/.test(all);
+    const caseName = /CASE_(\w+)/.exec(all)?.[1];
+    if (caseName && CASES[caseName]) return { ok: true, finishReason: "stop", usage, content: JSON.stringify({ claim: "A mock sentence.", experiments: CASES[caseName] }) };
     const py = /get_user_plan/.test(all);
     if (/getTemperature/.test(all)) return { ok: true, finishReason: "stop", usage, content: JSON.stringify(claimRound ? CLAIM_WEATHER : WEATHER) };
     if (/waitForJob/.test(all)) return { ok: true, finishReason: "stop", usage, content: JSON.stringify(LOOP) };

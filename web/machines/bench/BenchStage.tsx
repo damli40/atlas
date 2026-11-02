@@ -14,7 +14,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerE
 import { benchSpec } from "../../../renderer/authors/bet-view";
 import { momentOf, type Moment } from "../../../src/moment";
 import { MachineSheet, machineFirst, rememberView, type MachineControl } from "../../drawing/MachineView";
-import { drawMachine, machineParts, ringFor, type MachineParts, type MachineRing } from "../../../renderer/authors/machine";
+import { CANT_DRAW, MACHINE_MIN_WORD_PX, TOO_SMALL, drawMachine, endOfRun, machineParts, ranParts, ringFor, type MachineEnd, type MachineParts } from "../../../renderer/authors/machine";
 import type { CountChange } from "../../../src/remember";
 import { machineScript } from "../../../renderer/authors/machine-script";
 import { whatHappened } from "../../../renderer/authors/what-happened";
@@ -94,10 +94,15 @@ export function roundUp(ms: number): number {
   return 10 * p;
 }
 
-function machineRing(after: After, language: "js" | "ts" | "py", tested: string | null, parts: MachineParts): MachineRing | null {
-  const moment = momentOf(after.marks, after.run, language);
-  if (!moment) return null;
-  return ringFor({ kind: moment.kind, you: moment.you, outcome: (after.run.result.measured as { outcome?: unknown }).outcome, steps: after.helpers && "steps" in after.helpers ? after.helpers.steps : [], parts, tested });
+/** Which part the run ended in, when plain code can place it, from what it measured, the traced steps and the test. */
+function machineEnd(after: After, parts: MachineParts, tested: string | null): MachineEnd | null {
+  const m = after.run.result.measured as Record<string, unknown>;
+  const steps = after.helpers && "steps" in after.helpers ? after.helpers.steps : [];
+  const called = (port: string) => {
+    const name = port.replace(/^stand-in /, "");
+    return typeof m[`calls:${name}`] === "number" && (m[`calls:${name}`] as number) > 0;
+  };
+  return endOfRun({ outcome: m.outcome, thrown: { name: typeof m.thrownName === "string" ? m.thrownName : null, message: typeof m.thrownMessage === "string" ? m.thrownMessage : null }, parts, tested, test: after.experiment.params, ran: ranParts({ tested, steps, parts, called }), called });
 }
 
 export function BenchStage({ seenBefore = false, codeRan = false, loop = null, model, theme, after = null, onPart, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null }: BenchStageProps) {
@@ -154,18 +159,45 @@ export function BenchStage({ seenBefore = false, codeRan = false, loop = null, m
   // D65: the machine, drawn by plain code from the same model as the chart. It holds its ring from the start, hidden until the run lands it.
   const machineRef = useRef<MachineControl | null>(null);
   const parts = useMemo(() => machineParts(model, outline, source, language), [model, outline, source, language]);
-  const ring = useMemo(() => (after ? machineRing(after, language, model.tested, parts) : null), [after?.run, after?.marks, after?.helpers, model.tested, parts]); // eslint-disable-line react-hooks/exhaustive-deps
+  const end = useMemo(() => (after ? machineEnd(after, parts, model.tested) : null), [after?.run, after?.helpers, after?.experiment, model.tested, parts]); // eslint-disable-line react-hooks/exhaustive-deps
+  const ring = useMemo(() => {
+    const moment = after ? momentOf(after.marks, after.run, language) : null;
+    return moment ? ringFor({ kind: moment.kind, you: moment.you, end, tested: model.tested }) : null;
+  }, [after?.run, after?.marks, end, model.tested]); // eslint-disable-line react-hooks/exhaustive-deps
   const drawn = useMemo(() => {
-    const d = drawMachine(parts, { seed: `machine:${outline.parts.map((p) => p.name).join(",")}`, ring });
-    // The check runs on every drawing: a picture that fails it is not shown.
-    return d.problems.length > 0 ? { ...d, tooMany: `The machine could not be drawn clearly (${d.problems[0]}), so here is the box chart.` } : d;
-  }, [parts, ring, outline]);
+    const d = drawMachine(parts, { seed: `machine:${outline.parts.map((p) => p.name).join(",")}`, ring, end });
+    // The check runs on every drawing: a picture that fails it is not shown, and the words stay plain.
+    return d.problems.length > 0 ? { ...d, tooMany: CANT_DRAW } : d;
+  }, [parts, ring, end, outline]);
+  // The floor: no word under 11 px on screen, whatever the part count. The region is always there to measure, in either view.
+  const regionRef = useRef<HTMLDivElement | null>(null);
+  const [region, setRegion] = useState<{ w: number; h: number } | null>(null);
+  useEffect(() => {
+    const el = regionRef.current;
+    if (!el || typeof ResizeObserver !== "function") return;
+    const ro = new ResizeObserver(() => setRegion({ w: el.clientWidth, h: el.clientHeight }));
+    ro.observe(el);
+    setRegion({ w: el.clientWidth, h: el.clientHeight });
+    return () => ro.disconnect();
+  }, []);
+  const tooSmall = !drawn.tooMany && region !== null && region.w > 0 && drawn.minWords * Math.min(1.7, (region.w - 20) / drawn.width, (region.h - 20 - (after ? 74 : 0)) / drawn.height) < MACHINE_MIN_WORD_PX;
   const noRunToShow = Boolean(after && (after.script.notShown !== null || pathSpec?.notShown !== undefined));
-  const showMachine = wantMachine && !drawn.tooMany && !noRunToShow && model.notShown === null;
-  const beats = useMemo(() => (pathSpec ? machineScript(pathSpec, parts, outline, model.tested) : []), [pathSpec, parts, outline, model.tested]);
+  const showMachine = wantMachine && !drawn.tooMany && !tooSmall && !noRunToShow && model.notShown === null;
+  const beats = useMemo(() => {
+    if (!pathSpec || !after) return [];
+    const m = after.run.result.measured as Record<string, unknown>;
+    const called = (port: string) => {
+      const v = m[`calls:${port.replace(/^stand-in /, "")}`];
+      return typeof v === "number" && v > 0;
+    };
+    const steps = after.helpers && "steps" in after.helpers ? after.helpers.steps : [];
+    const ran = ranParts({ tested: model.tested, steps, parts, called });
+    // A part known to have run keeps its lamp lit at rest. A thread is another matter: that needs the true caller.
+    return [...machineScript(pathSpec, parts, outline, model.tested), { routes: [], lamps: [...ran, ...parts.ports.filter((q) => called(q.id)).map((q) => q.id)] }];
+  }, [pathSpec, parts, outline, model.tested, after?.run, after?.helpers]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const onM = (e: globalThis.KeyboardEvent) => {
-      if (e.key.toLowerCase() !== "m" || e.metaKey || e.ctrlKey || e.altKey || (e.target as HTMLElement | null)?.closest?.("input, textarea, select")) return;
+      if (e.key.toLowerCase() !== "m" || e.metaKey || e.ctrlKey || e.altKey || (e.target as HTMLElement | null)?.closest?.("input, textarea, select") || document.querySelector<HTMLElement>(".u1-fill")?.hidden === true) return;
       setWantMachine((w) => {
         rememberView(w ? "chart" : "machine");
         return !w;
@@ -342,20 +374,18 @@ export function BenchStage({ seenBefore = false, codeRan = false, loop = null, m
             }} />
         )}
       </div>
-      {showMachine && (
-        <div className="r-machine" data-testid="machine-region" data-captions={after && marksOn && pathSpec?.captions.length ? "" : undefined}>
-          <MachineSheet ref={machineRef} drawn={drawn} reduced={still} penKey={after ? null : source} onPart={(id) => model.parts[id]?.kind === "code" && document.querySelector(".c-drawer") && onPart?.(id)} />
-          {after && marksOn && pathSpec?.captions.length ? (
-            <p className="m-captions" data-testid="machine-captions">
-              {pathSpec.captions.map((c) => (
-                <span key={c.words}>{c.words}</span>
-              ))}
-            </p>
-          ) : null}
-        </div>
-      )}
-      {wantMachine && drawn.tooMany && !noRunToShow && <p className="r-view-note" role="note" data-testid="machine-too-many">{drawn.tooMany}</p>}
-      {!drawn.tooMany && !noRunToShow && model.notShown === null && typeof window !== "undefined" && window.innerWidth >= 760 && (
+      <div className="r-machine" ref={regionRef} hidden={undefined} style={showMachine ? undefined : { visibility: "hidden", pointerEvents: "none" }} data-testid="machine-region" data-captions={after && marksOn && pathSpec?.captions.length ? "" : undefined}>
+        {showMachine && <MachineSheet ref={machineRef} drawn={drawn} reduced={still} penKey={after ? null : source} beats={beats} landed={Boolean(after && marksOn)} onPart={(id) => model.parts[id]?.kind === "code" && document.querySelector(".c-drawer") && onPart?.(id)} />}
+        {showMachine && after && marksOn && pathSpec?.captions.length ? (
+          <p className="m-captions" data-testid="machine-captions">
+            {pathSpec.captions.map((c) => (
+              <span key={c.words}>{c.words}</span>
+            ))}
+          </p>
+        ) : null}
+      </div>
+      {wantMachine && (drawn.tooMany || tooSmall) && !noRunToShow && <p className="r-view-note" role="note" data-testid="machine-too-many">{drawn.tooMany ?? TOO_SMALL}</p>}
+      {!drawn.tooMany && !tooSmall && !noRunToShow && model.notShown === null && typeof window !== "undefined" && window.innerWidth >= 760 && (
         <button type="button" className="r-view-toggle" onClick={() => setWantMachine((w) => { rememberView(w ? "chart" : "machine"); return !w; })} data-testid="view-toggle">
           {showMachine ? "Box chart" : "Machine"}
           <kbd className="k">M</kbd>

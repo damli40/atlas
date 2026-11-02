@@ -6,8 +6,10 @@ import { handLine, hatchPath, inkPoly, linePath, ribbon, rng, TAU, type Pt, type
 export type W = [number, number, number];
 const C = Math.cos(Math.PI / 6);
 const S = 0.5;
+/** The machine's size against its words: parts draw smaller than their world units, words don't, so more fits above the 11 px floor. */
+export const K = 0.72;
 /** World to page. x runs down to the right, y down to the left, z up. */
-export const iso = (p: W): Pt => [(p[0] - p[1]) * C, (p[0] + p[1]) * S - p[2]];
+export const iso = (p: W): Pt => [(p[0] - p[1]) * C * K, ((p[0] + p[1]) * S - p[2]) * K];
 
 export interface Plan {
   x: number;
@@ -17,7 +19,21 @@ export interface Plan {
 }
 const n1 = (v: number) => (Math.round(v * 10) / 10).toString();
 
+let meter: CanvasRenderingContext2D | null | undefined;
+/** Real text width where there is a page to measure in; off the page, a careful guess that knows wide characters. */
+export function textWidth(text: string, size: number, italic = false): number {
+  if (meter === undefined) meter = typeof document !== "undefined" && typeof document.createElement === "function" ? (() => { try { return document.createElement("canvas").getContext("2d"); } catch { return null; } })() : null;
+  if (meter) {
+    meter.font = `${italic ? "italic " : ""}${size}px "Atlas Besley", Georgia, serif`;
+    return meter.measureText(text).width * 1.04;
+  }
+  let w = 0;
+  for (const ch of text) w += /[\u1100-\u11ff\u2e80-\ua4cf\uac00-\ud7a3\uf900-\ufaff\ufe30-\ufe6f\uff00-\uff60]/u.test(ch) ? 1.02 : 0.58;
+  return w * size;
+}
+
 export class Sheet {
+  smallest = Infinity;
   out: string[] = [];
   xs: number[] = [];
   ys: number[] = [];
@@ -54,7 +70,9 @@ export class Sheet {
     this.out.push(`<circle class="${cls}" cx="${n1(p[0])}" cy="${n1(p[1])}" r="${r}"/>`);
   }
   /** Words lying flat on the top of a part, along x, as if engraved on its plate. */
-  onTop(at: W, words: string, size: number, o: { cls?: string; italic?: boolean; anchor?: "start" | "middle" } = {}) {
+  onTop(at: W, words: string, world: number, o: { cls?: string; italic?: boolean; anchor?: "start" | "middle" } = {}) {
+    const size = world * K;
+    this.smallest = Math.min(this.smallest, size);
     const p = iso(at);
     this.out.push(`<text class="m-t ${o.italic ? "m-i" : ""} ${o.cls ?? ""}" text-anchor="${o.anchor ?? "middle"}" font-size="${size}" transform="matrix(${C} ${S} ${-C} ${S} ${n1(p[0])} ${n1(p[1])})">${esc(words)}</text>`);
   }
@@ -65,7 +83,8 @@ export class Sheet {
   }
   /** Upright words on the paper beside a part: the same italic as the other drawings. */
   note(at: Pt, words: string, size = 13, o: { cls?: string; anchor?: "start" | "middle" | "end" } = {}) {
-    const w = words.length * size * 0.56;
+    this.smallest = Math.min(this.smallest, size);
+    const w = textWidth(words, size, true);
     const a = o.anchor ?? "start";
     this.seen([[at[0] - (a === "start" ? 0 : a === "middle" ? w / 2 : w), at[1] - size], [at[0] + (a === "start" ? w : a === "middle" ? w / 2 : 0), at[1] + 4]]);
     this.out.push(`<text class="m-t m-i ${o.cls ?? ""}" text-anchor="${a}" font-size="${size}" x="${n1(at[0])}" y="${n1(at[1])}">${esc(words)}</text>`);
@@ -184,9 +203,10 @@ function rounded(pts: readonly Pt[], r: number): Pt[] {
 }
 
 /** A pipe along a route: a filled band, two pencil edges, and shading ticks along its underside. */
-export function pipe(s: Sheet, route: readonly W[], r = 6.5, o: { cls?: string; bend?: number; dashed?: boolean } = {}): Pt[] {
+export function pipe(s: Sheet, route: readonly W[], worldR = 6.5, o: { cls?: string; bend?: number; dashed?: boolean } = {}): Pt[] {
+  const r = worldR * K;
   const page = route.map(iso);
-  const line = rounded(page, o.bend ?? r * 2.4);
+  const line = rounded(page, (o.bend ?? worldR * 2.4) * K);
   // resample evenly so the band and the ticks stay even round a bend
   const pts: Pt[] = [];
   for (let i = 0; i + 1 < line.length; i++) {

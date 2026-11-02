@@ -145,6 +145,15 @@ export class MachinePlayer {
     if (ring) this.running.push(ring.animate([{ transform: "scale(1)", offset: 0 }, { transform: "scale(1)", offset: 0.72 }, { transform: "scale(1.035)", offset: 0.84 }, { transform: "scale(1)", offset: 1 }], { duration: 860, easing: "ease-out" }));
     if (words) this.running.push(words.animate([{ opacity: 0 }, { opacity: 0, offset: 0.65 }, { opacity: 1 }], { duration: 920, easing: "ease-out" }));
   }
+  hasLanded() {
+    return this.svg.hasAttribute("data-ended");
+  }
+  /** A machine that arrives after the result: the same end state, with no motion. */
+  settleAt(beats: MachineBeat[]) {
+    this.beats = beats;
+    this.skip();
+    this.svg.setAttribute("data-ended", "");
+  }
   skip() {
     for (const a of this.running) {
       try {

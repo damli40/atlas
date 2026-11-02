@@ -2,11 +2,15 @@
 // machine is not shown: the page says so and shows the chart. If you can't see where a pipe goes, the picture would claim something it does not show.
 import type { Pt } from "../hand";
 import { inside, rectsOverlap, sample, solidHitsRect, type Rect, type Solid } from "./geometry";
+import type { Plan, W } from "./pencil";
 import { PIPE_R } from "./route";
 
 export interface MachineFacts {
   owners: { part: string; solid: Solid }[];
-  routes: { id: string; from: string; to: string; page: Pt[]; chevrons: number; endsAtParts: boolean; nearEnds: [Pt, Pt] }[];
+  routes: { id: string; from: string; to: string; page: Pt[]; chevrons: number; ends: { part: string; at: W }[]; plans: Record<string, Plan>; nearEnds: [Pt, Pt] }[];
+  /** Every red mark on the sheet, with the run fact that placed it. */
+  reds: { kind: "chute"; part: string; line: number }[];
+  housings: { id: string; throws: number[] }[];
   labels: { part: string; text: string; rect: Rect; unplaced?: boolean }[];
 }
 
@@ -15,7 +19,11 @@ export function auditMachine(f: MachineFacts): string[] {
   const out: string[] = [];
   for (const r of f.routes) {
     if (r.chevrons < 1) out.push(`pipe ${r.id} does not show which way it flows`);
-    if (!r.endsAtParts) out.push(`pipe ${r.id} ends on nothing`);
+    // Each end must land on the part it says it joins: within a pipe's reach of that part's edge on the floor plan.
+    for (const e of r.ends) {
+      const pl = r.plans[e.part];
+      if (!pl || e.at[0] < pl.x - 12 || e.at[0] > pl.x + pl.w + 12 || e.at[1] < pl.y - 12 || e.at[1] > pl.y + pl.d + 12) out.push(`pipe ${r.id} ends on nothing at ${e.part}`);
+    }
     for (const p of sample(r.page, 6)) {
       for (const o of f.owners) {
         const own = o.part === r.from || o.part === r.to;
@@ -36,6 +44,10 @@ export function auditMachine(f: MachineFacts): string[] {
     for (let j = i + 1; j < f.labels.length; j++) if (!f.labels[j]!.unplaced && rectsOverlap(a.rect, f.labels[j]!.rect)) out.push(`words overlap: "${a.text}" and "${f.labels[j]!.text}"`);
     for (const o of f.owners) if (solidHitsRect(o.solid, a.rect)) out.push(`words "${a.text}" sit on the part ${o.part}`);
     for (const r of f.routes) if (sample(r.page, 6).some((p) => p[0] > a.rect.x0 && p[0] < a.rect.x1 && p[1] > a.rect.y0 && p[1] < a.rect.y1)) out.push(`words "${a.text}" sit on pipe ${r.id}`);
+  }
+  // Red is a claim about the run. Each one must trace to a throw this part really has.
+  for (const red of f.reds) {
+    if (!f.housings.find((h) => h.id === red.part)?.throws.includes(red.line)) out.push(`a red chute on ${red.part} has no throw at line ${red.line}`);
   }
   return [...new Set(out)];
 }

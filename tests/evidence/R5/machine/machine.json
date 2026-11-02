@@ -3,7 +3,7 @@
   {
    "name": "paste to picture: orders at 1440",
    "ok": true,
-   "more": "42 ms"
+   "more": "45 ms"
   },
   {
    "name": "no words on words: orders at rest, 1440",
@@ -78,7 +78,7 @@
   {
    "name": "paste to picture: python at 1440",
    "ok": true,
-   "more": "31 ms"
+   "more": "32 ms"
   },
   {
    "name": "no words on words: python at rest, 1440",
@@ -128,7 +128,7 @@
   {
    "name": "paste to picture: branching at 1440",
    "ok": true,
-   "more": "66 ms"
+   "more": "67 ms"
   },
   {
    "name": "no words on words: branching at rest, 1440",
@@ -148,7 +148,7 @@
   {
    "name": "paste to picture: orders at 1280",
    "ok": true,
-   "more": "42 ms"
+   "more": "39 ms"
   },
   {
    "name": "no words on words: orders at rest, 1280",
@@ -213,7 +213,7 @@
   {
    "name": "paste to picture: python at 1280",
    "ok": true,
-   "more": "30 ms"
+   "more": "31 ms"
   },
   {
    "name": "no words on words: python at rest, 1280",
@@ -263,7 +263,7 @@
   {
    "name": "paste to picture: branching at 1280",
    "ok": true,
-   "more": "67 ms"
+   "more": "66 ms"
   },
   {
    "name": "no words on words: branching at rest, 1280",
@@ -348,7 +348,7 @@
   {
    "name": "$1.12 and the reference are flat and the largest words: 1440",
    "ok": true,
-   "more": "[{\"t\":\"$1.12\",\"h\":63},{\"t\":\"$2,206.68\",\"h\":63}]"
+   "more": "[{\"t\":\"$1.12\",\"h\":76},{\"t\":\"$2,206.68\",\"h\":76}]"
   },
   {
    "name": "no words on words: Moonwell, 1280",
@@ -368,16 +368,16 @@
   {
    "name": "$1.12 and the reference are flat and the largest words: 1280",
    "ok": true,
-   "more": "[{\"t\":\"$1.12\",\"h\":54},{\"t\":\"$2,206.68\",\"h\":54}]"
+   "more": "[{\"t\":\"$1.12\",\"h\":64},{\"t\":\"$2,206.68\",\"h\":64}]"
   }
  ],
  "pasteToPictureMs": [
-  42,
+  45,
+  32,
+  67,
+  39,
   31,
-  66,
-  42,
-  30,
-  67
+  66
  ],
- "median": 42
+ "median": 45
 }

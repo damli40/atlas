@@ -3,7 +3,7 @@
 // Meta's model names, "Judged by plain code", the mark's note (D21), the run id and a short hash.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { drawMachine, drawMoonwell, ringFor, type MachineParts } from "../../renderer/authors/machine";
+import { drawMachine, drawMoonwell, endOfRun, ranParts, ringFor, type MachineParts } from "../../renderer/authors/machine";
 import { moonwellFlow } from "../../renderer/authors/moonwell";
 import { ensureMachineStyle } from "../drawing/MachineView";
 import { MARK_PRE_EXISTING_CAPTION } from "../../src/captions";
@@ -149,6 +149,17 @@ export function ProofImage({ card, file, lines, names, api, download, downloadNa
   // D20's words are required whole, so they wrap: this never cuts them.
   const changeLines = beforeChange || theory.length > 0 ? wrap([beforeChange, ...theory].filter(Boolean).join(" "), 150, 8) : [];
   const hash = (file.bets[0]?.sealedHash ?? "").slice(0, 10);
+  /** The end and ring for the picture, by the same rule as the live screen. The file holds no traced steps, so fewer functions are known to have run. */
+  const imageEnd = (parts: MachineParts) => {
+    const m = (run?.result.measured ?? {}) as Record<string, unknown>;
+    const tested = exp?.params.shape === "call-function" ? exp.params.exportName : null;
+    const called = (port: string) => {
+      const v = m[`calls:${port.replace(/^stand-in /, "")}`];
+      return typeof v === "number" && v > 0;
+    };
+    const end = endOfRun({ outcome: m.outcome, thrown: { name: typeof m.thrownName === "string" ? m.thrownName : null, message: typeof m.thrownMessage === "string" ? m.thrownMessage : null }, parts, tested, test: exp?.params, ran: ranParts({ tested, steps: [], parts, called }), called });
+    return { end, ring: ringFor({ kind: moment!.kind, you: moment!.you, end, tested, stranger }) };
+  };
   // D66: the machine in the picture, with its ring, when it can be drawn truthfully and clearly. Otherwise the marks stay, as they were.
   const machineSvg = useMemo(() => {
     if (!moment) return null;
@@ -156,7 +167,7 @@ export function ProofImage({ card, file, lines, names, api, download, downloadNa
     const drawn = run?.runner === "evm"
       ? drawMoonwell(moonwellFlow({ run: run as never, bets: file.bets as never, verdicts: file.verdicts as never, origin: "proof-file", stranger, ...(file.change ? { beforeChange: true } : {}) }), { ended: true })
       : machineParts
-        ? drawMachine(machineParts, { seed: `proof:${card.runId}`, ended: true, ring: ringFor({ kind: moment.kind, you: moment.you, outcome: (run?.result.measured as { outcome?: unknown } | undefined)?.outcome, steps: [], parts: machineParts, tested: exp?.params.shape === "call-function" ? exp.params.exportName : null, stranger }) })
+        ? drawMachine(machineParts, { seed: `proof:${card.runId}`, ended: true, ...imageEnd(machineParts) })
         : null;
     return drawn && !drawn.tooMany && drawn.problems.length === 0 ? drawn : null;
     // eslint-disable-next-line react-hooks/exhaustive-deps

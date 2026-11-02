@@ -107,6 +107,8 @@ export function routeAll(jobs: readonly Job[], owners: readonly Owner[], bounds:
       }
       for (let nd = 0; nd < 4; nd++) {
         if ((nd + 2) % 4 === d) continue;
+        // A pipe leaves its port square: it goes straight out before it may turn.
+        if (st === startState && nd !== 0) continue;
         const nc = c + dirs[nd]![0];
         const nr = r + dirs[nd]![1];
         if (nc < 0 || nr < 0 || nc >= cols || nr >= rows) continue;
@@ -114,7 +116,10 @@ export function routeAll(jobs: readonly Job[], owners: readonly Owner[], bounds:
         const axis = nd % 2 === 0 ? 1 : 2;
         const used = taken.get(key(nc, nr)) ?? 0;
         if (used & axis) continue; // never along another pipe
-        const nextCost = cost + 1 + (nd === d ? 0 : 7) + (used ? 22 : 0);
+        // Beside another pipe costs a little, so they spread out when there is room and can still run side by side when there isn't.
+        const axisOf = nd % 2 === 0 ? 1 : 2;
+        const beside = axisOf === 1 ? (taken.get(key(nc, nr + 1)) ?? 0) | (nr > 0 ? taken.get(key(nc, nr - 1)) ?? 0 : 0) : (taken.get(key(nc + 1, nr)) ?? 0) | (nc > 0 ? taken.get(key(nc - 1, nr)) ?? 0 : 0);
+        const nextCost = cost + 1 + (nd === d ? 0 : 7) + (used ? 22 : 0) + (beside & axisOf ? 4 : 0);
         const ns = key(nc, nr) * 4 + nd;
         if (nextCost < (best.get(ns) ?? Infinity)) {
           best.set(ns, nextCost);
@@ -134,10 +139,8 @@ export function routeAll(jobs: readonly Job[], owners: readonly Owner[], bounds:
     for (let i = 1; i < path.length; i++) {
       const [c, r, d] = path[i]!;
       const axis = d % 2 === 0 ? 1 : 2;
-      for (const [dc, dr] of axis === 1 ? [[0, 0], [0, 1], [0, -1]] : [[0, 0], [1, 0], [-1, 0]]) {
-        const k = key(c + dc!, r + dr!);
-        taken.set(k, (taken.get(k) ?? 0) | axis);
-      }
+      const k = key(c, r);
+      taken.set(k, (taken.get(k) ?? 0) | axis);
       const turn = i + 1 < path.length && path[i + 1]![2] !== d;
       if (turn) route.push([worldX(c), worldY(r), PIPE_Z]);
     }

@@ -479,3 +479,4 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 .m-lamp{transform-box:fill-box;transform-origin:center}
 /* D66: the machine inside the shared picture needs the drawing's paper and pencils */
 .pc-image{--rr-paper:#f5f1e7;--rr-ink:#1f1b1d;--rr-soft:#5d5650;--rr-card:#fdfaf2;--rr-red:#a8443b;--rr-red-pen:#b93a30;--rr-pencil-cream:#dcc594;--rr-pencil-blue:#8fb2c9;--rr-tick:#4d4448}
+.u1-shell .r-machine[hidden]{display:block}

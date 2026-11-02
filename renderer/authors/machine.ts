@@ -3,18 +3,22 @@
 // Nothing comes from a model. All housings are one size: size says nothing about the code. Pure.
 
 import { networkCallSites } from "../../src/call-sites";
-import { maskSource } from "../../src/failure-labels";
 import type { FileOutline } from "../../src/file-outline";
 import { benchModel, type BenchModel, type CallTest } from "../../web/machines/bench/model";
+import type { ThrowSite } from "../../src/outline/types";
 import type { Pt } from "../hand";
 import type { RenderSpec } from "../spec";
 import { auditMachine, type MachineFacts } from "../machine/audit";
 import { rectsOverlap, sample, solidHitsRect, solidOf, segDist, type Rect, type Solid } from "../machine/geometry";
-import { block, chevrons, dial, drum, esc, flange, floorShadow, hopper, iso, pipe, ringAround, screws, sheetOf, stemDial, threadPath, ticket, topOf, wheel, type Plan, type Sheet, type W } from "../machine/pencil";
+import { K, textWidth, block, chevrons, dial, drum, esc, flange, floorShadow, hopper, iso, pipe, ringAround, screws, sheetOf, stemDial, threadPath, ticket, topOf, wheel, type Plan, type Sheet, type W } from "../machine/pencil";
 import { PIPE_R, PIPE_Z, routeAll, type Job, type Owner } from "../machine/route";
 
 /** Past this the machine can't be drawn large enough to read: the page says so in words and shows the chart. */
 export const MACHINE_PART_LIMIT = 8;
+/** The smallest any word may be on screen: below this the page shows the chart. */
+export const MACHINE_MIN_WORD_PX = 11;
+export const CANT_DRAW = "The machine can't show this file's pipes clearly, so here is the box chart.";
+export const TOO_SMALL = "The machine would be too small to read here, so here is the box chart.";
 
 /** The machine's parts from a proof file's own code and test: what a shared picture needs, with no code text in it. */
 export function machinePartsOfFile(source: string, language: "js" | "ts" | "py", test: CallTest, outline: FileOutline): MachineParts {
@@ -25,6 +29,7 @@ export function machinePartsOfFile(source: string, language: "js" | "ts" | "py",
 export interface Housing {
   id: string;
   name: string;
+  kind: "function" | "class";
   lines: [number, number];
   exported: boolean;
   tested: boolean;
@@ -33,6 +38,7 @@ export interface Housing {
   waits: number[];
   throws: number[];
   returns: number[];
+  throwSites: ThrowSite[];
 }
 export interface Port {
   id: string;
@@ -43,18 +49,11 @@ export interface Port {
 export interface MachineParts {
   housings: Housing[];
   ports: Port[];
-  pipes: { from: string; to: string; kind: "calls" | "wraps" }[];
+  pipes: { from: string; to: string; kind: "calls" | "uses" | "wraps" }[];
 }
 
-const linesMatching = (masked: readonly string[], a: number, b: number, re: RegExp) => {
-  const out: number[] = [];
-  for (let n = a; n <= b; n++) if (re.test(masked[n - 1] ?? "")) out.push(n);
-  return out;
-};
-
-/** What the machine is made of. Every field comes from the code's text, or the test the person is looking at. */
+/** What the machine is made of. Every field comes from the syntax of the code, or the test the person is looking at. When unsure, the part is left off. */
 export function machineParts(model: BenchModel, outline: FileOutline, source: string, language: "js" | "ts" | "py"): MachineParts {
-  const masked = maskSource(source, language === "py" ? "py" : "js").split("\n");
   const waits = (outline as { callFacts?: { waits: { line: number }[] } }).callFacts?.waits ?? [];
   const housings: Housing[] = [];
   for (const b of model.boxes) {
@@ -62,17 +61,22 @@ export function machineParts(model: BenchModel, outline: FileOutline, source: st
     if (!p || p.kind !== "code") continue;
     const a = p.part.lineStart;
     const z = p.part.lineEnd;
+    const body = outline.bodies?.[p.part.name];
+    const own = (line: number) => !(body?.nested ?? []).some(([from, to]) => from <= line && line <= to);
+    const isFn = p.part.kind === "function";
     housings.push({
       id: b.id,
       name: p.part.name,
+      kind: isFn ? "function" : "class",
       lines: [a, z],
       exported: p.part.exported,
       tested: model.tested === b.id,
-      selfCalls: p.selfCalls ?? [],
-      loops: linesMatching(masked, a, z, language === "py" ? /^\s*(for|while)\b/ : /\b(for|while)\s*\(/),
-      waits: waits.filter((w) => w.line >= a && w.line <= z).map((w) => w.line),
-      throws: linesMatching(masked, a, z, language === "py" ? /^\s*raise\b/ : /\bthrow\b/),
-      returns: linesMatching(masked, a, z, /\breturn\b/),
+      selfCalls: isFn && body ? (p.selfCalls ?? []).filter(own) : [],
+      loops: isFn ? (body?.loops ?? []) : [],
+      waits: isFn ? waits.filter((w) => w.line >= a && w.line <= z).map((w) => w.line) : [],
+      throws: isFn ? (body?.throws ?? []).map((t) => t.line) : [],
+      throwSites: isFn ? (body?.throws ?? []) : [],
+      returns: isFn ? (body?.returns ?? []) : [],
     });
   }
   const ids = new Set(housings.map((h) => h.id));
@@ -89,9 +93,8 @@ export function machineParts(model: BenchModel, outline: FileOutline, source: st
       if (sites.length > 0) ports.push({ id: `outside ${lib}`, name: lib, faked: false, from: sites.map((c) => c.part) });
     }
   }
-  const pipes = model.lines
-    .filter((l) => l.from !== l.to && ids.has(l.from) && ids.has(l.to))
-    .map((l) => ({ from: l.from, to: l.to, kind: (l.kind === "calls" ? "calls" : "wraps") as "calls" | "wraps" }));
+  // The outline's own word for each join: "wraps" only for a real decorator, "uses" for a function merely named.
+  const pipes = outline.joins.filter((j) => j.from !== j.to && ids.has(j.from) && ids.has(j.to)).map((j) => ({ from: j.from, to: j.to, kind: j.kind }));
   return { housings, ports, pipes };
 }
 
@@ -102,7 +105,7 @@ const BODY = 46;
 const STEP_X = WIDE + 124;
 /** Each column also steps toward the viewer, so the machine runs down the page as well as across it, and fills the space. */
 const DRIFT_Y = 0.24;
-const STEP_Y = DEEP + 150;
+const STEP_Y = DEEP + 118;
 const LABEL = 13.5;
 const span = (a: number, b: number) => (a === b ? `line ${a}` : `lines ${a}–${b}`);
 const at = (l: readonly number[]) => (l.length === 1 ? `line ${l[0]}` : `lines ${l.slice(0, 3).join(", ")}${l.length > 3 ? "…" : ""}`);
@@ -133,7 +136,7 @@ function feet(s: Sheet, p: Plan) {
 }
 
 /** The chute a throw leaves by. The red pencil is there from the start and only shows once a run has ended through it. */
-function chute(s: Sheet, x: number, face: number, zTop: number) {
+function chute(s: Sheet, x: number, face: number, zTop: number, hit: boolean) {
   const w = 34;
   const len = 50;
   const mouth = [iso([x, face, zTop]), iso([x + w, face, zTop]), iso([x + w, face, zTop + 14]), iso([x, face, zTop + 14])];
@@ -145,9 +148,12 @@ function chute(s: Sheet, x: number, face: number, zTop: number) {
   s.edges(far, { width: 0.9 });
   s.fill(floor);
   s.hatch(floor, "m-pencil-cream", 8, 2.6);
-  s.raw(`<g class="m-hit-only">`);
-  s.hatch(floor, "m-pencil-red", 8, 2);
-  s.raw(`</g>`);
+  // Red only on the chute plain code placed the run's end in.
+  if (hit) {
+    s.raw(`<g class="m-hit-only" data-red="chute">`);
+    s.hatch(floor, "m-pencil-red", 8, 2);
+    s.raw(`</g>`);
+  }
   s.edges(floor, { width: 0.9 });
   s.fill(near);
   s.hatch(near, "m-pencil-cream", 72, 2.6);
@@ -175,6 +181,8 @@ export interface MachineDrawn {
   label: string;
   facts?: MachineFacts;
   problems: string[];
+  /** The smallest words on the sheet, in its own units. The page checks this against the scale it can give. */
+  minWords: number;
 }
 
 function finish(s: Sheet, seed: string, label: string, facts: MachineFacts, ended: boolean): MachineDrawn {
@@ -184,27 +192,76 @@ function finish(s: Sheet, seed: string, label: string, facts: MachineFacts, ende
   const w = Math.max(...s.xs) + pad - x0;
   const h = Math.max(...s.ys) + pad - y0;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" class="m-sheet" viewBox="${x0.toFixed(1)} ${y0.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}" data-seed="${esc(seed)}"${ended ? " data-ended=\"\"" : ""} role="group" aria-label="${esc(label)}">${s.out.join("")}</svg>`;
-  return { svg, width: w, height: h, label, facts, problems: auditMachine(facts) };
+  return { svg, width: w, height: h, label, facts, problems: auditMachine(facts), minWords: s.smallest };
 }
 
+/** What the run measured about how it threw. */
+export interface ThrownFact {
+  name: string | null;
+  message: string | null;
+}
+
+/** The fakes' scripted throws, from the test: a fake is known to have ended the run only if what got out is what it was scripted to throw. */
+const fakeThrows = (test: unknown): { port: string; name: string; message: string }[] => {
+  const t = test as { args?: { kind?: string; name?: string; calls?: { do?: string; errorName?: string; message?: string }[] }[]; network?: { replaces?: string; calls?: { do?: string; errorName?: string; message?: string }[] } } | null | undefined;
+  const out: { port: string; name: string; message: string }[] = [];
+  for (const a of t?.args ?? []) if (a.kind === "stand-in") for (const c of a.calls ?? []) if (c.do === "throw") out.push({ port: `stand-in ${a.name}`, name: c.errorName ?? "", message: c.message ?? "" });
+  for (const c of t?.network?.calls ?? []) if (c.do === "throw") out.push({ port: `stand-in ${t?.network?.replaces}`, name: c.errorName ?? "", message: c.message ?? "" });
+  return out;
+};
+
 /**
- * Where the ring lands when the bet missed: on the chute of the function that threw, the first the traced steps name with a chute, or the only
- * chute there is; on the outlet the value came out of; else on the function under test. Null when the lead bet matched.
+ * Which part ended the run, only when plain code can place it. A throw: the one throw in a function known to have run whose class and text are what got out, or the one fake
+ * scripted to throw exactly that. Anything else (two candidates, no text to compare, a function not known to have run, an error from a library) is not placed. It returned:
+ * the function under test ended it.
  */
-export function ringFor(o: { kind: "not_matched" | "matched" | "ending"; you: string | null; outcome: unknown; steps: readonly { name: string; threw?: boolean }[]; parts: MachineParts; tested: string | null; stranger?: boolean }): MachineRing | null {
+export function endOfRun(o: { outcome: unknown; thrown: ThrownFact; parts: MachineParts; tested: string | null; test?: unknown; ran: ReadonlySet<string>; called?: (port: string) => boolean }): MachineEnd | null {
+  if (!o.tested) return null;
+  if (o.outcome === "returned") return o.parts.housings.find((h) => h.id === o.tested)?.returns.length ? { part: o.tested, on: "outlet" } : { part: o.tested, on: "housing" };
+  if (o.outcome !== "threw") return o.outcome === "never_settled" || o.outcome === "still_running_at_watch_limit" ? { part: o.tested, on: "housing" } : null;
+  const { name, message } = o.thrown;
+  if (name === null || message === null) return null;
+  const sites: { part: string; line: number }[] = [];
+  for (const h of o.parts.housings) {
+    if (!o.ran.has(h.id)) continue;
+    for (const t of h.throwSites) {
+      if (t.name !== name || t.message === undefined) continue;
+      if (t.exact ? t.message === message : t.message !== "" && message.startsWith(t.message)) sites.push({ part: h.id, line: t.line });
+    }
+  }
+  const fakes = fakeThrows(o.test).filter((f) => f.name === name && f.message === message && (o.called?.(f.port) ?? true) && o.parts.ports.some((p) => p.id === f.port));
+  const fakeIds = [...new Set(fakes.map((f) => f.port))];
+  if (sites.length === 1 && fakeIds.length === 0) return { part: sites[0]!.part, on: "chute", line: sites[0]!.line };
+  if (sites.length === 0 && fakeIds.length === 1) return { part: fakeIds[0]!, on: "port" };
+  return null;
+}
+
+/** Plain code's facts about which functions ran: the one under test, those the traced steps name, and the only caller of a fake that was called. */
+export function ranParts(o: { tested: string | null; steps: readonly { name: string }[]; parts: MachineParts; called: (port: string) => boolean }): Set<string> {
+  const ran = new Set<string>(o.tested ? [o.tested] : []);
+  for (const s of o.steps) ran.add(s.name);
+  for (const p of o.parts.ports) if (p.from.length === 1 && o.called(p.id)) ran.add(p.from[0]!);
+  return ran;
+}
+
+/** The miss, placed: the ring on the part that ended the run, or, when that can't be placed, the words alone beside where the call came in. */
+export function ringFor(o: { kind: "not_matched" | "matched" | "ending"; you: string | null; end: MachineEnd | null; tested: string | null; stranger?: boolean }): MachineRing | null {
   if (o.kind !== "not_matched" || !o.tested) return null;
   const words = `${o.stranger ? "the bet said" : "you said"} ${o.you ?? ""}`;
-  const withChute = new Set(o.parts.housings.filter((h) => h.throws.length > 0).map((h) => h.id));
-  const threw = o.steps.find((x) => x.threw && withChute.has(x.name))?.name ?? (withChute.size === 1 ? [...withChute][0] : undefined);
-  if (o.outcome === "threw" && threw) return { part: threw, on: "chute", words };
-  if (o.outcome === "returned" && o.parts.housings.find((h) => h.id === o.tested)?.returns.length) return { part: o.tested, on: "outlet", words };
-  return { part: o.tested, on: "housing", words };
+  return o.end ? { part: o.end.part, on: o.end.on, words } : { part: o.tested, on: "words", words };
+}
+
+export interface MachineEnd {
+  part: string;
+  on: "chute" | "outlet" | "housing" | "port";
+  /** The chute's own throw, for the audit. */
+  line?: number;
 }
 
 export interface MachineRing {
   part: string;
-  /** Which of the part's fittings the run ended at. */
-  on: "chute" | "outlet" | "housing";
+  /** Which of the part's fittings the run ended at. "words": it can't be placed, so no part is ringed. */
+  on: "chute" | "outlet" | "housing" | "port" | "words";
   words: string;
 }
 
@@ -226,7 +283,7 @@ function placeCallouts(s: Sheet, list: readonly Callout[], solids: readonly Soli
   const free = (r: Rect) => !taken.some((t) => rectsOverlap(t, r, 3)) && !solids.some((o) => solidHitsRect(o, r, 3)) && !pipePoints.some((q) => q[0] > r.x0 - PIPE_R - 2 && q[0] < r.x1 + PIPE_R + 2 && q[1] > r.y0 - PIPE_R - 2 && q[1] < r.y1 + PIPE_R + 2);
   for (const c of list) {
     const size = c.size ?? LABEL;
-    const w = c.text.length * size * 0.56 + 8;
+    const w = textWidth(c.text, size, true) + 8;
     const h = size * 1.45 + 2;
     let best: { r: Rect; score: number; x: number; y: number; anchor: "start" | "end" } | null = null;
     for (const dist of [22, 34, 48, 64, 84, 108, 136, 170, 210, 260, 320]) {
@@ -275,9 +332,20 @@ function solidsOf(h: Housing, pl: Plan): Solid[] {
   return out;
 }
 
-export function drawMachine(p: MachineParts, o: { seed: string; ring?: MachineRing | null; ended?: boolean }): MachineDrawn {
+/** Draws at the tightest spacing that comes out clean: more room is tried only when the pipes can't be routed or the audit finds a fault. */
+export function drawMachine(p: MachineParts, o: { seed: string; ring?: MachineRing | null; ended?: boolean; end?: MachineEnd | null }): MachineDrawn {
+  let last: MachineDrawn | null = null;
+  for (const roomy of [1, 1.3, 1.7, 2.2]) {
+    last = drawAt(p, o, roomy);
+    if (last.tooMany === undefined && last.problems.length === 0) return last;
+    if (last.tooMany && last.tooMany !== CANT_DRAW) return last;
+  }
+  return last!;
+}
+
+export function drawAt(p: MachineParts, o: { seed: string; ring?: MachineRing | null; ended?: boolean; end?: MachineEnd | null }, roomy: number): MachineDrawn {
   const count = p.housings.length + p.ports.length;
-  const chart = (why: string): MachineDrawn => ({ svg: "", width: 0, height: 0, label: "", tooMany: why, problems: [] });
+  const chart = (why: string): MachineDrawn => ({ svg: "", width: 0, height: 0, label: "", tooMany: why, problems: [], minWords: 0 });
   if (count > MACHINE_PART_LIMIT) return chart(`This file has ${count} parts, more than the ${MACHINE_PART_LIMIT} the machine can draw and still be read, so here is the box chart.`);
   if (count === 0) return chart("Nothing here to draw as a machine, so here is the box chart.");
   const s = sheetOf(o.seed);
@@ -293,6 +361,16 @@ export function drawMachine(p: MachineParts, o: { seed: string; ring?: MachineRi
   }
   const orderOf = new Map<string, number>();
   const place = new Map<string, Plan>();
+  // A column with many pipes leaving it gets a wider gap, so each has a lane of its own.
+  const colX = new Map<number, number>();
+  {
+    let x = 0;
+    for (const c of [...cols.keys()].sort((a, b) => a - b)) {
+      colX.set(c, x);
+      const leaving = cols.get(c)!.reduce((n, id) => n + p.pipes.filter((e) => e.from === id).length + p.ports.filter((q) => q.from.includes(id)).length, 0);
+      x += (STEP_X + Math.max(0, leaving - 2) * 28) * roomy;
+    }
+  }
   for (const c of [...cols.keys()].sort((a, b) => a - b)) {
     const parentsOf = (id: string) => [...p.pipes.filter((e) => e.to === id).map((e) => e.from), ...(p.ports.find((x) => x.id === id)?.from ?? [])];
     const score = (id: string) => {
@@ -304,7 +382,7 @@ export function drawMachine(p: MachineParts, o: { seed: string; ring?: MachineRi
       const off = i - (list.length - 1) / 2;
       orderOf.set(id, off);
       const port = p.ports.some((x) => x.id === id);
-      place.set(id, { x: c * STEP_X, y: c * STEP_X * DRIFT_Y + off * STEP_Y + (port ? 14 : 0), w: port ? 150 : WIDE, d: port ? 96 : DEEP });
+      place.set(id, { x: colX.get(c)!, y: colX.get(c)! * DRIFT_Y + off * STEP_Y * roomy + (port ? 14 : 0), w: port ? 150 : WIDE, d: port ? 96 : DEEP });
     });
   }
   const house = new Map(p.housings.map((h) => [h.id, h]));
@@ -343,11 +421,13 @@ export function drawMachine(p: MachineParts, o: { seed: string; ring?: MachineRi
   const xs = [...place.values()];
   const bounds: Plan = { x: Math.min(...xs.map((q) => q.x)) - 208, y: Math.min(...xs.map((q) => q.y)) - 208, w: Math.max(...xs.map((q) => q.x + q.w)) - Math.min(...xs.map((q) => q.x)) + 416, d: Math.max(...xs.map((q) => q.y + q.d)) - Math.min(...xs.map((q) => q.y)) + 416 };
   const routes = routeAll(jobs, owners, bounds);
-  if ("failed" in routes) return chart(`The machine could not route its pipes clearly (${routes.failed}), so here is the box chart.`);
+  if ("failed" in routes) return { ...chart(CANT_DRAW), problems: [routes.failed] };
 
+  const reds: MachineFacts["reds"] = [];
   const callouts: Callout[] = [];
   const pipesDrawn: MachineFacts["routes"] = [];
   let ringAt: { c: Pt; rx: number; ry: number; words: string[] } | null = null;
+  let wordsOnly: { anchor: Pt; words: string } | null = null;
   const paintRoutes = (list: typeof jobs) => {
     for (const job of list) {
       const route = routes.get(job.id)!;
@@ -357,16 +437,18 @@ export function drawMachine(p: MachineParts, o: { seed: string; ring?: MachineRi
       const yIn = route[route.length - 1]![1];
       const full: W[] = [[a.x + a.w + 3, yOut, PIPE_Z], ...route.slice(1, -1), job.back ? [b.x + b.w + 3, yIn, PIPE_Z] : [b.x - 6, yIn, PIPE_Z]];
       const kind = edges.find((e) => `${e.from}->${e.to}` === job.id)!.kind;
-      open(s, job.id, kind === "wraps" ? `${job.to} wraps ${job.from}` : `${job.from} calls ${job.to.replace(/^stand-in |^outside /, "")}`);
+      open(s, job.id, kind === "wraps" ? `${job.to} wraps ${job.from}` : kind === "uses" ? `${job.from} uses ${job.to}` : `${job.from} calls ${job.to.replace(/^stand-in |^outside /, "")}`);
       const line = pipe(s, full, PIPE_R);
       const marks = chevrons(s, full.map(iso));
       threadPath(s, job.id, line);
-      flange(s, [a.x + a.w, yOut, PIPE_Z], "x", 10, 3);
-      if (job.back) flange(s, [b.x + b.w, yIn, PIPE_Z], "x", 10, 3);
-      else flange(s, [b.x - 7, yIn, PIPE_Z], "x", 10, 3);
+      // Flanges fit the spacing on a crowded face.
+      const fr = (n: number, d: number) => Math.min(10, (d / (n + 1)) * 0.46);
+      flange(s, [a.x + a.w, yOut, PIPE_Z], "x", fr(edges.filter((x) => x.from === job.from).length, a.d), 3);
+      if (job.back) flange(s, [b.x + b.w, yIn, PIPE_Z], "x", fr(edges.filter((x) => x.to === job.to).length, b.d), 3);
+      else flange(s, [b.x - 7, yIn, PIPE_Z], "x", fr(edges.filter((x) => x.to === job.to).length, b.d), 3);
       close(s);
-      pipesDrawn.push({ id: job.id, from: job.from, to: job.to, page: full.map(iso), chevrons: marks, endsAtParts: true, nearEnds: [iso([a.x + a.w, yOut, PIPE_Z]), iso(job.back ? [b.x + b.w, yIn, PIPE_Z] : [b.x, yIn, PIPE_Z])] });
-      if (kind === "wraps") callouts.push({ part: job.id, text: `${job.to} wraps ${job.from}`, anchor: iso(full[Math.floor(full.length / 2)]!) });
+      pipesDrawn.push({ id: job.id, from: job.from, to: job.to, page: full.map(iso), chevrons: marks, ends: [{ part: job.from, at: full[0]! }, { part: job.to, at: full[full.length - 1]! }], plans: { [job.from]: a, [job.to]: b }, nearEnds: [iso([a.x + a.w, yOut, PIPE_Z]), iso(job.back ? [b.x + b.w, yIn, PIPE_Z] : [b.x, yIn, PIPE_Z])] });
+      if (kind !== "calls") callouts.push({ part: job.id, text: kind === "wraps" ? `${job.to} wraps ${job.from}` : `${job.from} uses ${job.to}`, anchor: iso(full[Math.floor(full.length / 2)]!) });
     }
   };
 
@@ -383,9 +465,13 @@ export function drawMachine(p: MachineParts, o: { seed: string; ring?: MachineRi
         const plate = { x: pl.x + 10, y: pl.y + 24, w: pl.w - 20, d: pl.d - 40 };
         block(s, plate, 34, 1.5, { tone: "bare", width: 0.9 });
         screws(s, plate, 35.5, 4);
-        s.onTop([pl.x + pl.w / 2, pl.y + pl.d / 2 + 6, 35.5], q.name, Math.min(22, (plate.w - 14) / (q.name.length * 0.56)));
+        s.onTop([pl.x + pl.w / 2, pl.y + pl.d / 2 + 6, 35.5], q.name, Math.min(26, ((plate.w * K - 10) / textWidth(q.name, 100, false)) * 100) / K);
         lamp(s, q.id, [pl.x + pl.w - 16, pl.y + 13, 34]);
         close(s);
+        if (o.ring?.part === q.id && o.ring.on === "port") {
+          const c = iso([pl.x + pl.w / 2, pl.y + pl.d / 2, 34]);
+          ringAt = { c, rx: 112 * K, ry: 66 * K, words: [o.ring.words] };
+        }
         callouts.push({ part: q.id, text: q.faked ? "faked by the test" : "outside this file: not run", anchor: iso([pl.x + pl.w - 2, pl.y + pl.d, 18]), cls: q.faked ? "m-bluew" : "m-soft" });
         continue;
       }
@@ -393,7 +479,7 @@ export function drawMachine(p: MachineParts, o: { seed: string; ring?: MachineRi
       const top = topOfBody(h);
       const wheelhouse = hasWheel(h);
       const lid = { x: pl.x + 5, y: pl.y + 5, w: pl.w - 10, d: pl.d - 10 };
-      open(s, h.id, `${h.name}: a function, ${span(h.lines[0], h.lines[1])}${h.exported ? ", exported" : ""}${h.tested ? ", the one Atlas calls" : ""}`);
+      open(s, h.id, `${h.name}: a ${h.kind}, ${span(h.lines[0], h.lines[1])}${h.exported ? ", exported" : ""}${h.tested ? ", the one Atlas calls" : ""}`);
       floorShadow(s, pl, 18);
       feet(s, pl);
       block(s, pl, 4, bodyHeight(h));
@@ -402,11 +488,12 @@ export function drawMachine(p: MachineParts, o: { seed: string; ring?: MachineRi
       const plate = { x: pl.x + 12, y: pl.y + 62, w: pl.w - 24, d: 50 };
       block(s, plate, top, 1.6, { tone: "bare", width: 0.9 });
       const shortName = h.name.length > 22 ? `${h.name.slice(0, 21)}…` : h.name;
-      const nameSize = Math.min(24, (plate.w - 10) / (shortName.length * 0.56));
-      s.onTop([pl.x + pl.w / 2, pl.y + 87 + nameSize * 0.3, top + 1.6], shortName, nameSize);
+      // The plate's width and the words are in different units here: world and page.
+      const nameSize = Math.min(30, ((plate.w * K - 10) / textWidth(shortName, 100, false)) * 100) / K;
+      if (nameSize * K >= 13) s.onTop([pl.x + pl.w / 2, pl.y + 87 + nameSize * 0.3, top + 1.6], shortName, nameSize);
       lamp(s, h.id, [pl.x + pl.w - 17, pl.y + 70, top + 1.6]);
       close(s);
-      callouts.push({ part: h.id, text: nameSize < 15 ? `${h.name}, ${span(h.lines[0], h.lines[1])}` : span(h.lines[0], h.lines[1]), anchor: iso([pl.x + 8, pl.y + pl.d - 8, top]), cls: "m-soft" });
+      callouts.push({ part: h.id, text: nameSize * K < 15 ? `${h.name}, ${span(h.lines[0], h.lines[1])}` : span(h.lines[0], h.lines[1]), anchor: iso([pl.x + 8, pl.y + pl.d - 8, top]), cls: "m-soft" });
       // what stands on top, in a row behind the plate
       if (h.tested) {
         open(s, `${h.id}#inlet`, `${h.name}: the call starts here. Atlas calls this function.`);
@@ -447,19 +534,20 @@ export function drawMachine(p: MachineParts, o: { seed: string; ring?: MachineRi
         outlet(s, pl.x + 34, face);
         close(s);
         callouts.push({ part: h.id, text: `returns, ${at(h.returns)}`, anchor: iso([pl.x + 26, face + 28, 2]) });
-        if (o.ring?.part === h.id && o.ring.on === "outlet") ringAt = { c: iso([pl.x + 34, face + 16, 14]), rx: 46, ry: 40, words: [o.ring.words] };
+        if (o.ring?.part === h.id && o.ring.on === "outlet") ringAt = { c: iso([pl.x + 34, face + 16, 14]), rx: 46 * K, ry: 40 * K, words: [o.ring.words] };
       }
       if (h.throws.length > 0) {
         const cx = pl.x + WIDE - 70;
         open(s, `${h.id}#chute`, `${h.name}: throws, ${at(h.throws)}`);
-        chute(s, cx, face, Math.min(26, bodyHeight(h) - 14));
+        const hit = o.end?.part === h.id && o.end.on === "chute";
+        chute(s, cx, face, Math.min(26, bodyHeight(h) - 14), hit);
+        if (hit) reds.push({ kind: "chute", part: h.id, line: o.end?.line ?? -1 });
         close(s);
         callouts.push({ part: h.id, text: `throws, ${at(h.throws)}`, anchor: iso([cx + 17, face + 46, 3]) });
-        if (o.ring?.part === h.id && o.ring.on === "chute") ringAt = { c: iso([cx + 17, face + 22, 14]), rx: 60, ry: 52, words: [o.ring.words] };
+        if (o.ring?.part === h.id && o.ring.on === "chute") ringAt = { c: iso([cx + 17, face + 22, 14]), rx: 60 * K, ry: 52 * K, words: [o.ring.words] };
       }
-      if (o.ring?.part === h.id && !ringAt) {
-        ringAt = { c: iso([pl.x + pl.w / 2, pl.y + 87, top]), rx: 118, ry: 72, words: [o.ring.words] };
-      }
+      if (o.ring?.part === h.id && o.ring.on === "housing") ringAt = { c: iso([pl.x + pl.w / 2, pl.y + 87, top]), rx: 118 * K, ry: 72 * K, words: [o.ring.words] };
+      if (o.ring?.part === h.id && o.ring.on === "words") wordsOnly = { anchor: iso([pl.x + 30, pl.y + 30, top + 40]), words: o.ring.words };
     }
     paintRoutes(jobs.filter((j) => !j.back && col.get(j.from) === c));
   }
@@ -471,9 +559,15 @@ export function drawMachine(p: MachineParts, o: { seed: string; ring?: MachineRi
   const ring = ringAt as { c: Pt; rx: number; ry: number; words: string[] } | null;
   if (ring) keepOut.push({ x0: ring.c[0] - ring.rx - 4, x1: ring.c[0] + ring.rx + 4, y0: ring.c[1] - ring.ry - 4, y1: ring.c[1] + ring.ry + 4 });
   const labels = placeCallouts(s, callouts, solids, pipeLines, keepOut);
-  const facts: MachineFacts = { owners: owners.map((q) => ({ part: q.part, solid: q.solid })), routes: pipesDrawn, labels };
+  const facts: MachineFacts = { owners: owners.map((q) => ({ part: q.part, solid: q.solid })), routes: pipesDrawn, labels, reds, housings: p.housings };
+  const flat = wordsOnly as { anchor: Pt; words: string } | null;
+  if (flat) {
+    s.raw(`<g class="m-end m-end-words">`);
+    facts.labels.push(...placeCallouts(s, [{ part: "words", text: flat.words, anchor: flat.anchor, size: 17, cls: "m-redw" }], solids, pipeLines, labels.map((l) => l.rect)));
+    s.raw(`</g>`);
+  }
   if (ring) {
-    s.raw(`<g class="m-end">`);
+    s.raw(`<g class="m-end" data-ring="${esc(o.ring?.part ?? "")}" data-ring-on="${o.ring?.on ?? ""}">`);
     ringAround(s, ring.c, ring.rx, ring.ry);
     s.raw(`</g><g class="m-end m-end-words">`);
     const words = placeCallouts(s, ring.words.map((text) => ({ part: "ring", text, anchor: [ring.c[0] - ring.rx * 0.7, ring.c[1] + ring.ry * 0.7] as Pt, size: 17, cls: "m-redw" })), solids, pipeLines, [...keepOut, ...labels.map((l) => l.rect)]);
@@ -514,7 +608,7 @@ export function drawMoonwell(spec: RenderSpec, o: { ended: boolean }): MachineDr
   screws(s, fl, 55, 5);
   const fp = { x: feed.x + 12, y: feed.y + 34, w: feed.w - 24, d: 52 };
   block(s, fp, 55, 1.6, { tone: "bare", width: 0.9 });
-  s.onTop([feed.x + feed.w / 2, feed.y + 66, 56.6], feedName, Math.min(20, (fp.w - 14) / (feedName.length * 0.74)));
+  s.onTop([feed.x + feed.w / 2, feed.y + 66, 56.6], feedName, Math.max(13, Math.min(24, ((fp.w * K - 10) / textWidth(feedName, 100, false)) * 100)) / K);
   lamp(s, "feed", [feed.x + feed.w - 18, feed.y + 22, 55]);
   close(s);
   solid("feed", feed, 60);
@@ -540,7 +634,7 @@ export function drawMoonwell(spec: RenderSpec, o: { ended: boolean }): MachineDr
   screws(s, lid, 66, 5);
   const wp = { x: oracle.x + 12, y: oracle.y + 38, w: oracle.w - 24, d: 58 };
   block(s, wp, 66, 1.6, { tone: "bare", width: 0.9 });
-  s.onTop([oracle.x + oracle.w / 2, oracle.y + 74, 67.6], "oracle", 24);
+  s.onTop([oracle.x + oracle.w / 2, oracle.y + 74, 67.6], "oracle", 30);
   lamp(s, "price", [oracle.x + oracle.w - 18, oracle.y + 24, 66]);
   close(s);
   solid("price", oracle, 68);
@@ -575,7 +669,7 @@ export function drawMoonwell(spec: RenderSpec, o: { ended: boolean }): MachineDr
     const pl = { x: ref.x + 10, y: ref.y + 22, w: ref.w - 20, d: ref.d - 38 };
     block(s, pl, 32, 1.5, { tone: "bare", width: 0.9 });
     screws(s, pl, 33.5, 4);
-    s.onTop([ref.x + ref.w / 2, ref.y + 56, 33.5], "reference", 20);
+    s.onTop([ref.x + ref.w / 2, ref.y + 56, 33.5], "reference", 26);
     close(s);
     solid("ref", ref, 34);
     s.raw(`<path class="m-dash" d="M${a[0].toFixed(1)} ${a[1].toFixed(1)}L${b[0].toFixed(1)} ${b[1].toFixed(1)}"/>`);
@@ -601,7 +695,7 @@ export function drawMoonwell(spec: RenderSpec, o: { ended: boolean }): MachineDr
   }
   const solids = owners.map((q) => q.solid);
   const placed = placeCallouts(s, callouts, solids, [route.map(iso)], labelsT.map((l) => l.rect));
-  const facts: MachineFacts = { owners, routes: [{ id: "e-price", from: "feed", to: "price", page: route.map(iso), chevrons: marks, endsAtParts: true, nearEnds: [iso([feed.x + feed.w, y, PIPE_Z]), iso([oracle.x, toY, PIPE_Z])] }], labels: [...labelsT, ...placed] };
+  const facts: MachineFacts = { reds: [], housings: [], owners, routes: [{ id: "e-price", from: "feed", to: "price", page: route.map(iso), chevrons: marks, ends: [{ part: "feed", at: route[0]! }, { part: "price", at: route[route.length - 1]! }], plans: { feed, price: oracle }, nearEnds: [iso([feed.x + feed.w, y, PIPE_Z]), iso([oracle.x, toY, PIPE_Z])] }], labels: [...labelsT, ...placed] };
   if (spec.path?.partsWaysAt) {
     s.raw(`<g class="m-end">`);
     ringAround(s, [t1.x0 + 150, t1.y0 + 70], 104, 37);

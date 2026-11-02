@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { drawMachine, machineParts, MACHINE_PART_LIMIT, ringFor } from "../../renderer/authors/machine";
+import { drawMachine, machineParts, MACHINE_PART_LIMIT } from "../../renderer/authors/machine";
 import { MARK_PRE_EXISTING_CAPTION } from "../../src/captions";
 import { fileOutline } from "../../src/file-outline";
 import type { AtlasFile } from "../../src/types";
@@ -16,35 +16,6 @@ const parts = (src: string, tested: string) => {
 };
 const moonwell = JSON.parse(readFileSync(new URL("../evidence/R3/moonwell-real/mcmqYUk3lI.atlas.json", import.meta.url), "utf8")) as AtlasFile;
 const retry = JSON.parse(readFileSync(new URL("../evidence/D04-04/fixture-eRopGsrp2a.atlas.json", import.meta.url), "utf8")) as AtlasFile;
-
-describe("where the ring lands", () => {
-  const p = parts(ORDERS, "fetchAllOrders");
-  const base = { you: "returns a value", parts: p, tested: "fetchAllOrders" };
-  it("a matched bet: no ring", () => {
-    expect(ringFor({ ...base, kind: "matched", outcome: "threw", steps: [] })).toBeNull();
-  });
-  it("a throw: on the chute of the function that has one, not on the caller it passed through", () => {
-    expect(ringFor({ ...base, kind: "not_matched", outcome: "threw", steps: [{ name: "fetchPage", threw: true }, { name: "fetchAllOrders", threw: true }] })).toMatchObject({ part: "fetchPage", on: "chute" });
-  });
-  it("it returned: on the outlet", () => {
-    expect(ringFor({ ...base, kind: "not_matched", outcome: "returned", steps: [] })).toMatchObject({ part: "fetchAllOrders", on: "outlet" });
-  });
-  it("a stranger's words", () => {
-    expect(ringFor({ ...base, kind: "not_matched", outcome: "returned", steps: [], stranger: true })!.words).toBe("the bet said returns a value");
-  });
-  it("the ring is hidden until the run has ended", () => {
-    const d = drawMachine(p, { seed: "x", ring: { part: "fetchPage", on: "chute", words: "you said x" } });
-    expect(d.svg).toContain('class="m-end"');
-    expect(d.svg).not.toContain("data-ended");
-    expect(drawMachine(p, { seed: "x", ended: true }).svg).toContain("data-ended");
-  });
-  it("the same drawing with and without a ring: nothing else moves", () => {
-    const strip = (s: string) => s.slice(s.indexOf(">") + 1).split('<g class="m-end"')[0];
-    const a = drawMachine(p, { seed: "same" }).svg;
-    const b = drawMachine(p, { seed: "same", ring: { part: "fetchPage", on: "chute", words: "you said x" } }).svg;
-    expect(strip(b).startsWith(strip(a).slice(0, 4000))).toBe(true);
-  });
-});
 
 describe("the picture", () => {
   it("Moonwell: the machine, its two numbers, the D21 caption", () => {
