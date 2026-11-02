@@ -2,57 +2,37 @@
  {
   "weak": false,
   "ok": true,
-  "says": [
-   null,
-   null,
-   null
-  ],
-  "waits": [
-   0,
-   4,
-   0
+  "tests": [
+   "{\"shape\":\"call-function\",\"exportName\":\"fetchAllOrders\",\"args\":[{\"kind\":\"json\",\"value\":\"https://example.test/orders\"},{\"kind\":\"json\",\"value\":5}],\"network\":{\"replaces\":\"fetch\",\"calls\":[{\"do\":\"respond\",\"status\":200,\"body\":{\"items\":[{\"id\":\"o1\"}],\"nextCursor\":\"c1\"}},{\"do\":\"respond\",\"status\":200,\"body\":{\"items\":[{\"id\":\"o2\"}],\"nextCursor\":\"c2\"}},{\"do\":\"respond\",\"status\":200,\"body\":{\"items\":[{\"id\":\"o3\"}],\"nextCursor\":\"c3\"}},{\"do\":\"respond\",\"status\":200,\"body\":{\"items\":[{\"id\":\"o4\"}],\"nextCursor\":\"c4\"}},{\"do\":\"respond\",\"status\":200,\"body\":{\"items\":[{\"id\":\"o5\"}],\"nextCursor\":\"c5\"}},{\"do\":\"respond\",\"status\":200,\"body\":{\"items\":[{\"id\":\"o6\"}],\"nextCursor\":null}}],\"then\":\"throw_exhausted\"}}",
+   "{\"shape\":\"call-function\",\"exportName\":\"fetchAllOrders\",\"args\":[{\"kind\":\"json\",\"value\":\"https://example.test/orders\"}],\"network\":{\"replaces\":\"fetch\",\"calls\":[{\"do\":\"respond\",\"status\":429,\"body\":{}},{\"do\":\"respond\",\"status\":429,\"body\":{}},{\"do\":\"respond\",\"status\":429,\"body\":{}},{\"do\":\"respond\",\"status\":429,\"body\":{}}],\"then\":\"throw_exhausted\"}}",
+   "{\"shape\":\"call-function\",\"exportName\":\"fetchAllOrders\",\"args\":[{\"kind\":\"json\",\"value\":\"https://example.test/orders\"}],\"network\":{\"replaces\":\"fetch\",\"calls\":[{\"do\":\"respond\",\"status\":429,\"body\":{}},{\"do\":\"respond\",\"status\":429,\"body\":{}},{\"do\":\"respond\",\"status\":429,\"body\":{}},{\"do\":\"respond\",\"status\":200,\"body\":{\"items\":[{\"id\":\"o1\"}],\"nextCursor\":null}}],\"then\":\"throw_exhausted\"}}"
   ]
  },
  {
   "weak": false,
   "ok": true,
-  "says": [
-   null,
-   null,
-   null
-  ],
-  "waits": [
-   0,
-   4,
-   3
+  "tests": [
+   "{\"shape\":\"call-function\",\"exportName\":\"fetchAllOrders\",\"args\":[{\"kind\":\"json\",\"value\":\"https://example.test/orders\"}],\"network\":{\"replaces\":\"fetch\",\"calls\":[{\"do\":\"respond\",\"status\":429,\"body\":{}},{\"do\":\"respond\",\"status\":429,\"body\":{}},{\"do\":\"respond\",\"status\":429,\"body\":{}},{\"do\":\"respond\",\"status\":429,\"body\":{}}],\"then\":\"repeat_last\"}}",
+   "{\"shape\":\"call-function\",\"exportName\":\"fetchAllOrders\",\"args\":[{\"kind\":\"json\",\"value\":\"https://example.test/orders\"}],\"network\":{\"replaces\":\"fetch\",\"calls\":[{\"do\":\"respond\",\"status\":200,\"body\":{\"items\":[{\"id\":\"p1\"}],\"nextCursor\":\"c1\"}},{\"do\":\"respond\",\"status\":200,\"body\":{\"items\":[{\"id\":\"p2\"}],\"nextCursor\":\"c2\"}},{\"do\":\"respond\",\"status\":200,\"body\":{\"items\":[{\"id\":\"p3\"}],\"nextCursor\":\"c3\"}},{\"do\":\"respond\",\"status\":200,\"body\":{\"items\":[{\"id\":\"p4\"}],\"nextCursor\":\"c4\"}},{\"do\":\"respond\",\"status\":200,\"body\":{\"items\":[{\"id\":\"p5\"}],\"nextCursor\":\"c5\"}},{\"do\":\"respond\",\"status\":200,\"body\":{\"items\":[{\"id\":\"p6\"}],\"nextCursor\":null}}],\"then\":\"repeat_last\"}}",
+   "{\"shape\":\"call-function\",\"exportName\":\"fetchAllOrders\",\"args\":[{\"kind\":\"json\",\"value\":\"https://example.test/orders\"}],\"network\":{\"replaces\":\"fetch\",\"calls\":[{\"do\":\"respond\",\"status\":429,\"body\":{}},{\"do\":\"respond\",\"status\":429,\"body\":{}},{\"do\":\"respond\",\"status\":429,\"body\":{}},{\"do\":\"respond\",\"status\":200,\"body\":{\"items\":[{\"id\":\"only\"}],\"nextCursor\":null}}],\"then\":\"repeat_last\"}}"
   ]
  },
  {
   "weak": true,
   "ok": true,
-  "says": [
-   null,
-   null,
-   null
-  ],
-  "waits": [
-   4,
-   0,
-   3
+  "tests": [
+   "{\"shape\":\"call-function\",\"exportName\":\"fetchAllOrders\",\"args\":[{\"kind\":\"json\",\"value\":\"https://example.test/orders\"},{\"kind\":\"json\",\"value\":5}],\"network\":{\"replaces\":\"fetch\",\"calls\":[{\"do\":\"respond\",\"status\":200,\"body\":{\"items\":[{\"id\":\"1\"}],\"nextCursor\":\"c1\"}},{\"do\":\"respond\",\"status\":200,\"body\":{\"items\":[{\"id\":\"2\"}],\"nextCursor\":\"c2\"}},{\"do\":\"respond\",\"status\":200,\"body\":{\"items\":[{\"id\":\"3\"}],\"nextCursor\":\"c3\"}},{\"do\":\"respond\",\"status\":200,\"body\":{\"items\":[{\"id\":\"4\"}],\"nextCursor\":\"c4\"}},{\"do\":\"respond\",\"status\":200,\"body\":{\"items\":[{\"id\":\"5\"}],\"nextCursor\":\"c5\"}},{\"do\":\"respond\",\"status\":200,\"body\":{\"items\":[{\"id\":\"6\"}],\"nextCursor\":null}}],\"then\":\"repeat_last\"}}",
+   "{\"shape\":\"call-function\",\"exportName\":\"fetchAllOrders\",\"args\":[{\"kind\":\"json\",\"value\":\"https://example.test/orders\"},{\"kind\":\"json\",\"value\":5}],\"network\":{\"replaces\":\"fetch\",\"calls\":[{\"do\":\"respond\",\"status\":429,\"body\":{}},{\"do\":\"respond\",\"status\":429,\"body\":{}},{\"do\":\"respond\",\"status\":429,\"body\":{}},{\"do\":\"respond\",\"status\":429,\"body\":{}}],\"then\":\"repeat_last\"}}",
+   "{\"shape\":\"call-function\",\"exportName\":\"fetchAllOrders\",\"args\":[{\"kind\":\"json\",\"value\":\"https://example.test/orders\"},{\"kind\":\"json\",\"value\":5}],\"network\":{\"replaces\":\"fetch\",\"calls\":[{\"do\":\"respond\",\"status\":429,\"body\":{}},{\"do\":\"respond\",\"status\":429,\"body\":{}},{\"do\":\"respond\",\"status\":429,\"body\":{}},{\"do\":\"respond\",\"status\":200,\"body\":{\"items\":[{\"id\":\"ok\"}],\"nextCursor\":null}}],\"then\":\"repeat_last\"}}"
   ]
  },
  {
   "weak": true,
   "ok": true,
-  "says": [
-   null,
-   null,
-   null
-  ],
-  "waits": [
-   4,
-   3,
-   0
+  "tests": [
+   "{\"shape\":\"call-function\",\"exportName\":\"fetchAllOrders\",\"args\":[{\"kind\":\"json\",\"value\":\"https://example.test/orders\"}],\"network\":{\"replaces\":\"fetch\",\"calls\":[{\"do\":\"respond\",\"status\":429,\"body\":{}},{\"do\":\"respond\",\"status\":429,\"body\":{}},{\"do\":\"respond\",\"status\":429,\"body\":{}},{\"do\":\"respond\",\"status\":429,\"body\":{}},{\"do\":\"respond\",\"status\":200,\"body\":{\"items\":[{\"id\":\"o1\"}],\"nextCursor\":null}}],\"then\":\"repeat_last\"}}",
+   "{\"shape\":\"call-function\",\"exportName\":\"fetchAllOrders\",\"args\":[{\"kind\":\"json\",\"value\":\"https://example.test/orders\"}],\"network\":{\"replaces\":\"fetch\",\"calls\":[{\"do\":\"respond\",\"status\":200,\"body\":{\"items\":[{\"id\":\"p1\"}],\"nextCursor\":\"c1\"}},{\"do\":\"respond\",\"status\":200,\"body\":{\"items\":[{\"id\":\"p2\"}],\"nextCursor\":\"c2\"}},{\"do\":\"respond\",\"status\":200,\"body\":{\"items\":[{\"id\":\"p3\"}],\"nextCursor\":\"c3\"}},{\"do\":\"respond\",\"status\":200,\"body\":{\"items\":[{\"id\":\"p4\"}],\"nextCursor\":\"c4\"}},{\"do\":\"respond\",\"status\":200,\"body\":{\"items\":[{\"id\":\"p5\"}],\"nextCursor\":\"c5\"}},{\"do\":\"respond\",\"status\":200,\"body\":{\"items\":[{\"id\":\"p6\"}],\"nextCursor\":null}}],\"then\":\"repeat_last\"}}",
+   "{\"shape\":\"call-function\",\"exportName\":\"fetchAllOrders\",\"args\":[{\"kind\":\"json\",\"value\":\"https://example.test/orders\"}],\"network\":{\"replaces\":\"fetch\",\"calls\":[{\"do\":\"respond\",\"status\":429,\"body\":{}},{\"do\":\"respond\",\"status\":429,\"body\":{}},{\"do\":\"respond\",\"status\":429,\"body\":{}},{\"do\":\"respond\",\"status\":200,\"body\":{\"items\":[{\"id\":\"o1\"}],\"nextCursor\":null}}],\"then\":\"repeat_last\"}}"
   ]
  }
 ]

@@ -378,7 +378,16 @@ export function drawAt(p: MachineParts, o: { seed: string; ring?: MachineRing | 
       x += (STEP_X + Math.max(0, leaving - 2) * 28) * roomy;
     }
   }
-  for (const c of [...cols.keys()].sort((a, b) => a - b)) {
+  // A deep chain of calls would run off as one long diagonal, too small to read: past four columns it carries on in a second row, like a line of text.
+  const ordered = [...cols.keys()].sort((a, b) => a - b);
+  const wrapAt = ordered.length > 4 ? Math.ceil(ordered.length / 2) : Infinity;
+  const rowOf = new Map(ordered.map((c, i) => [c, Math.floor(i / wrapAt)]));
+  if (wrapAt !== Infinity) {
+    const firstX = colX.get(ordered[wrapAt]!)!;
+    for (const c of ordered.slice(wrapAt)) colX.set(c, colX.get(c)! - firstX);
+  }
+  const tallest = Math.max(...ordered.map((c) => cols.get(c)!.length));
+  for (const c of ordered) {
     const parentsOf = (id: string) => [...p.pipes.filter((e) => e.to === id).map((e) => e.from), ...(p.ports.find((x) => x.id === id)?.from ?? [])];
     const score = (id: string) => {
       const ps = parentsOf(id).map((f) => orderOf.get(f)).filter((v): v is number => v !== undefined);
@@ -389,7 +398,7 @@ export function drawAt(p: MachineParts, o: { seed: string; ring?: MachineRing | 
       const off = i - (list.length - 1) / 2;
       orderOf.set(id, off);
       const port = p.ports.some((x) => x.id === id);
-      place.set(id, { x: colX.get(c)!, y: colX.get(c)! * DRIFT_Y + off * STEP_Y * roomy + (port ? 14 : 0), w: port ? 150 : WIDE, d: port ? 96 : DEEP });
+      place.set(id, { x: colX.get(c)!, y: colX.get(c)! * DRIFT_Y + off * STEP_Y * roomy + (port ? 14 : 0) + rowOf.get(c)! * (tallest * STEP_Y * roomy + 170), w: port ? 150 : WIDE, d: port ? 96 : DEEP });
     });
   }
   const house = new Map(p.housings.map((h) => [h.id, h]));

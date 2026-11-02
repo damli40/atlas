@@ -3,7 +3,7 @@
   {
    "name": "paste to picture: orders at 1440",
    "ok": true,
-   "more": "45 ms"
+   "more": "43 ms"
   },
   {
    "name": "no words on words: orders at rest, 1440",
@@ -43,7 +43,7 @@
   {
    "name": "the thread is running in a pipe: 1440",
    "ok": true,
-   "more": "2 pipes"
+   "more": "1 pipes"
   },
   {
    "name": "no words on words: orders result, 1440",
@@ -78,7 +78,7 @@
   {
    "name": "paste to picture: python at 1440",
    "ok": true,
-   "more": "32 ms"
+   "more": "30 ms"
   },
   {
    "name": "no words on words: python at rest, 1440",
@@ -128,7 +128,7 @@
   {
    "name": "paste to picture: branching at 1440",
    "ok": true,
-   "more": "67 ms"
+   "more": "65 ms"
   },
   {
    "name": "no words on words: branching at rest, 1440",
@@ -148,7 +148,7 @@
   {
    "name": "paste to picture: orders at 1280",
    "ok": true,
-   "more": "39 ms"
+   "more": "40 ms"
   },
   {
    "name": "no words on words: orders at rest, 1280",
@@ -213,7 +213,7 @@
   {
    "name": "paste to picture: python at 1280",
    "ok": true,
-   "more": "31 ms"
+   "more": "32 ms"
   },
   {
    "name": "no words on words: python at rest, 1280",
@@ -263,7 +263,7 @@
   {
    "name": "paste to picture: branching at 1280",
    "ok": true,
-   "more": "66 ms"
+   "more": "64 ms"
   },
   {
    "name": "no words on words: branching at rest, 1280",
@@ -372,12 +372,12 @@
   }
  ],
  "pasteToPictureMs": [
-  45,
+  43,
+  30,
+  65,
+  40,
   32,
-  67,
-  39,
-  31,
-  66
+  64
  ],
- "median": 45
+ "median": 43
 }
