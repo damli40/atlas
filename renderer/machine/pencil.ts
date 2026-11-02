@@ -32,6 +32,16 @@ export function textWidth(text: string, size: number, italic = false): number {
   return w * size;
 }
 
+/** The width of words in code type (the exact name under the plain words on a lid). Measured where there is a page, else a careful guess. */
+export function codeWidth(text: string, size: number): number {
+  if (meter === undefined) textWidth("", size);
+  if (meter) {
+    meter.font = `${size}px "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace`;
+    return meter.measureText(text).width * 1.02;
+  }
+  return Array.from(text).length * 0.62 * size;
+}
+
 export class Sheet {
   smallest = Infinity;
   out: string[] = [];
@@ -410,6 +420,10 @@ export const MACHINE_CSS = `
 .m-part:focus-visible{outline:1.5px dashed var(--rr-ink);outline-offset:3px}
 .m-t{fill:var(--rr-ink);font-family:"Atlas Besley",Georgia,serif;font-kerning:none;font-variant-ligatures:none;text-rendering:geometricPrecision}
 .m-i{font-style:italic}
+.m-t.m-code{font-family:"Geist Mono",ui-monospace,"SF Mono",Menlo,monospace;fill:var(--rr-soft)}
+.m-t.m-ai{fill:#4a4f57}
+.m-ai-mark{fill:#4a4f57;stroke:none}
+.m-part:hover .m-card,.m-part[data-picked] .m-card{fill:#efe6cf}
 .m-soft{fill:var(--rr-soft)}
 .m-redw{fill:var(--rr-red)}
 .m-part{cursor:pointer}

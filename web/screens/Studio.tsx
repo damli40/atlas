@@ -41,6 +41,9 @@ import { absentBettors, useModelSlots } from "./Claimant";
 import { ErrorNotice } from "./ErrorNotice";
 import { MachineSheet, machineFirst, useFontsIn } from "../drawing/MachineView";
 import { drawMachine, machineParts } from "../../renderer/authors/machine";
+import type { PartPanel } from "../../renderer/authors/part-panel";
+import { PartFacts } from "../drawing/PartFacts";
+import { EXAMPLE_NAMES } from "../../src/example-names";
 import { Segments, TestForm, emptyForm, formFromParams, type TestFormState } from "./TestForm";
 import { BenchStage, type After } from "../machines/bench/BenchStage";
 import { benchModel, dialFullMs, type CallTest } from "../machines/bench/model";
@@ -57,7 +60,7 @@ import { FELT_WORDS } from "../../src/paste-words";
 
 type Lang = "js" | "ts" | "py";
 const EXAMPLE_FUNCTION_NAME = "fetchWithRetry";
-const CONSENT_LINE = "When you paste, your code goes to Meta's model, which writes a test for it.";
+const CONSENT_LINE = "Your code goes to Meta's AI as soon as Atlas draws it, so a test is ready when you bet.";
 const FILE_NAME: Record<Lang, string> = { js: "pasted.js", ts: "pasted.ts", py: "pasted.py" };
 
 /** The function drawn as "under test" by default: the exported function with the most calls out, then the first. */
@@ -81,8 +84,8 @@ export function defaultProposal<P extends { gate: { allowed: boolean }; params: 
  * that on code keeping state between calls a single call cannot show the state working, so a two-call test comes first.
  */
 /** D60: the example's real drawing, drawing itself on the first screen: the same parser's output, kept in the page (a test holds them equal). */
-/** D60: the code beside the drawing. Clicking a part on the drawing jumps here. */
-function CodeDrawer({ source, lines, onClose, coversResult = false }: { source: string; lines: [number, number] | null; onClose: () => void; coversResult?: boolean }) {
+/** D60: the code beside the drawing. Clicking a part on the drawing jumps here. R6: and says what that part is, from the machine's own facts, above its lines. */
+function CodeDrawer({ source, lines, onClose, coversResult = false, part = null }: { source: string; lines: [number, number] | null; onClose: () => void; coversResult?: boolean; part?: PartPanel | null }) {
   const host = useRef<HTMLDivElement | null>(null);
   // A newline at the end of a file ends its last line: it does not start another.
   const all = useMemo(() => source.replace(/(?:\r\n|\r|\n)$/, "").split(/\r\n|\r|\n/), [source]);
@@ -90,14 +93,16 @@ function CodeDrawer({ source, lines, onClose, coversResult = false }: { source: 
     if (lines) host.current?.querySelector<HTMLElement>(`[data-line="${lines[0]}"]`)?.scrollIntoView({ block: "center" });
   }, [lines]);
   return (
-    <aside className="c-drawer" aria-label="Your code" data-testid="c-drawer">
+    <aside className="c-drawer" aria-label={part ? `About ${part.title}` : "Your code"} data-testid="c-drawer" data-part={part?.id}>
       <div className="c-head">
-        <span>Your code</span>
-        <button type="button" className="u1-close" onClick={onClose} aria-label="Close the code">
+        <span>{part ? "This part" : "Your code"}</span>
+        <button type="button" className="u1-close" onClick={onClose} aria-label={part ? "Close this panel" : "Close the code"}>
           ×
         </button>
       </div>
-      {coversResult && <p className="c-covers" role="note" data-testid="c-covers">Your result is under this panel. C closes it.</p>}
+      {coversResult && <p className="c-covers" role="note" data-testid="c-covers">{`Your result is under this panel. ${part ? "Esc" : "C"} closes it.`}</p>}
+      {part && <PartFacts part={part} />}
+      {part && !lines ? null : (
       <div className="c-body" ref={host} tabIndex={0}>
         {all.map((text, i) => {
           const n = i + 1;
@@ -109,6 +114,7 @@ function CodeDrawer({ source, lines, onClose, coversResult = false }: { source: 
           );
         })}
       </div>
+      )}
     </aside>
   );
 }
@@ -120,7 +126,10 @@ function ExampleDrawing() {
   const drawn = useMemo(() => {
     if (!fontsIn || !machineFirst()) return null;
     const model = benchModel({ fileName: "example.ts", outline, test: null, source: U1_EXAMPLE, language: "ts" });
-    const d = drawMachine(machineParts({ ...model, tested: EXAMPLE_FUNCTION_NAME }, outline, U1_EXAMPLE, "ts"), { seed: "machine:example" });
+    // R6: the example's natural names are kept in the page (recorded once from a real call), so they cost nothing here.
+    const parts = machineParts({ ...model, tested: EXAMPLE_FUNCTION_NAME }, outline, U1_EXAMPLE, "ts");
+    const named = { ...parts, housings: parts.housings.map((h) => (EXAMPLE_NAMES[h.id] ? { ...h, natural: EXAMPLE_NAMES[h.id]! } : h)) };
+    const d = drawMachine(named, { seed: "machine:example", nameLines: true });
     return d.tooMany || d.problems.length > 0 ? null : d;
   }, [outline, fontsIn]);
   const reduced = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
@@ -149,34 +158,9 @@ function ExampleDrawing() {
   );
 }
 
-/**
- * The code with comments and spaces taken out, keeping strings as they are. A label's fingerprint only: it decides one sentence on
- * the screen, never a seal, a verdict or a repeat mark. Good enough to be wrong only on the side of saying less.
- */
-export function codeFingerprint(source: string, language: string | undefined): string {
-  let out = "";
-  const py = language === "py";
-  for (let i = 0; i < source.length; i++) {
-    const c = source[i]!;
-    if (c === '"' || c === "'" || (c === "`" && !py)) {
-      let j = i + 1;
-      while (j < source.length && source[j] !== c) j += source[j] === "\\" ? 2 : 1;
-      out += source.slice(i, j + 1);
-      i = j;
-    } else if (py ? c === "#" : c === "/" && source[i + 1] === "/") {
-      while (i < source.length && source[i] !== "\n") i++;
-      if (py && out !== "" && !out.endsWith("\n")) out += "\n";
-    } else if (!py && c === "/" && source[i + 1] === "*") {
-      const end = source.indexOf("*/", i + 2);
-      i = end < 0 ? source.length : end + 1;
-    } else if (py ? (c === " " || c === "\t") && out.slice(out.lastIndexOf("\n") + 1).trim() !== "" : /\s/.test(c)) {
-      continue;
-    } else if (py && c === "\n" && (out === "" || out.endsWith("\n"))) {
-      continue;
-    } else out += c;
-  }
-  return out;
-}
+// The code with comments and spaces taken out (src/code-fingerprint.ts): kept exported here for the page's older importers.
+export { codeFingerprint } from "../../src/code-fingerprint";
+import { codeFingerprint } from "../../src/code-fingerprint";
 
 const HELPER_WAIT_MS = 2500;
 const HELPER_TOO_SLOW = "Helper order is not shown: the separate traced run took too long.";
@@ -387,6 +371,10 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   // D60: the code drawer. Closed on the drawing, open during the bet on a wide screen, because the AIs read the code and you should too.
   const [drawerChoice, setDrawer] = useState<boolean | null>(null);
   const [drawerLines, setDrawerLines] = useState<[number, number] | null>(null);
+  // R6: the part the panel is about: its id only. The panel's words are worked out again on every render from the current code and run
+  // (BenchStage hands them back), so they can never describe an older file or run. C opens the plain code.
+  const [partId, setPartId] = useState<string | null>(null);
+  const [partPanel, setPartPanel] = useState<PartPanel | null>(null);
   const wide = typeof window !== "undefined" && window.innerWidth >= 1400;
   // D60: the bet is one question at a time. All of them stay in the page (D19); CSS shows the current one.
   const [step, setStep] = useState(0);
@@ -455,6 +443,9 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const changeTest = useRef<string | null>(null);
   const reset = () => {
     changeTest.current = null;
+    // R6: a new round starts with no part panel open.
+    setPartId(null);
+    setDrawer(null);
     setProposals(null);
     setExp(null);
     setPicked({});
@@ -556,6 +547,21 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   }, [target?.codeSha256, fn]);
   const targetKey = useRef("");
   targetKey.current = target && fn ? `${target.codeSha256}|${fn}` : "";
+  // R6: the parts' natural names, asked once per drawn file. The machine draws at once with split names; these arrive later or not at all.
+  const [natural, setNatural] = useState<{ sha: string; model: string; names: Record<string, string> } | { sha: string; reason: string } | null>(null);
+  useEffect(() => {
+    if (!target || !api.names || !pasted?.outline || pasted.outline.parts.length === 0) return;
+    const sha = target.codeSha256;
+    let live = true;
+    void api.names(target).then(
+      (r) => live && setNatural(r.ok ? { sha, model: r.model, names: r.names } : { sha, reason: r.reason ?? "no answer" }),
+      () => live && setNatural({ sha, reason: "the request failed" }),
+    );
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target?.codeSha256, pasted?.outline]);
   const writeOwn = () => {
     ownTest.current = true;
     setChanging(true);
@@ -886,6 +892,9 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   useEffect(() => {
     if (resultRunId) setDrawer((d) => (d === null ? d : false));
   }, [resultRunId]);
+  // R6: a part panel belongs to one file and one run: a new one of either closes it.
+  const fileSha = pasted?.target.codeSha256;
+  useEffect(() => setPartId(null), [fileSha, resultRunId]);
   // The bet button shows Enter: so when the drawing comes up, the keys go to it (unless something else already has them).
   const toggleFor = pasted && fn && !exp && !result ? `${pasted.target.codeSha256}|${fn}` : null;
   useEffect(() => {
@@ -920,6 +929,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     const onKey = (e: globalThis.KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
       if (offScreen() || e.metaKey || e.ctrlKey || e.altKey || e.repeat || t?.closest?.("input, textarea, select")) return;
+      // R6: while a part panel covers the questions, the bet's keys answer nothing.
+      if (document.querySelector('[data-testid="part-panel"]')) return;
       if (e.key === "ArrowLeft") {
         setStep((n) => Math.max(0, n - 1));
         e.preventDefault();
@@ -958,10 +969,14 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           setEditing(null);
           setProofOpen(false);
           setPicking(false);
-        } else if (!e.defaultPrevented) setDrawer(false);
+        } else if (!e.defaultPrevented) {
+          setDrawer(false);
+          setPartId(null);
+        }
         return;
       }
       if (e.key.toLowerCase() === "c" && pasted) {
+        setPartId(null);
         setDrawer((d) => !(d ?? (wide && open && exp !== null && !result && !machineFirst())));
         e.preventDefault();
         return;
@@ -993,9 +1008,9 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     return (
       <section className="u1-entry" aria-labelledby="u1-entry-h" data-testid="u1-entry">
         <div className="e-left">
-        <h1 id="u1-entry-h">See how your code is built</h1>
+        <h1 id="u1-entry-h">Think you know what your code does? Bet on it.</h1>
         {remember?.last && <p className="u1-remember" data-testid="remember-last">{remember.last}</p>}
-        <p className="u1-lede">Paste one file. Atlas draws its functions and how they call each other. Then, if you like, bet on what it will do: Atlas runs it and shows whether your bet matched.</p>
+        <p className="u1-lede">Paste a file and Atlas draws it as a machine. Bet on what it will do. Meta's AI bets too, then Atlas runs it in a sandbox and shows whose bet matched.</p>
         {invite?.required && !invite.signedIn && (
           <form className="e-invite" onSubmit={(e) => void submitInvite(e)} data-testid="e-invite">
             <label htmlFor="e-invite-code">Your invite code</label>
@@ -1019,9 +1034,9 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
             disabled={busy !== null || locked}
             data-testid="u1-example"
           >
-            Try the example
+            Draw the example
           </button>
-          <span className="u1-sub e-or">or paste a file anywhere on this page</span>
+          <span className="u1-sub e-or">or paste your own file anywhere on this page</span>
         </div>
         {/* PLACEHOLDER: Dami's final words go here. The fact it must keep: pasted code goes to a paid model at once, before any other click. */}
         <p className="u1-sub e-consent" data-testid="e-consent">{CONSENT_LINE}</p>
@@ -1046,7 +1061,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
         />
         <div className="u1-entry-row">
           <button type="button" className="u1-btn" onClick={() => read(code, lang === "auto" ? undefined : lang)} disabled={busy !== null || code.trim() === "" || locked} data-testid="u1-draw">
-            Draw it
+            Draw my code
             <kbd className="k">⌘↵</kbd>
           </button>
           {/* The language is guessed. The choice appears only if a guess did not work. */}
@@ -1080,10 +1095,10 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
               if (repo.trim() !== "") onExplore({ repo: repo.trim() });
             }}
           >
-            <label htmlFor="u1-repo">A GitHub folder</label>
+            <label htmlFor="u1-repo">Or a GitHub repo</label>
             <input id="u1-repo" value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="owner/repo" data-testid="u1-repo" />
             <button type="submit" className="u1-btn" disabled={repo.trim() === ""}>
-              Draw the codebase (a paid AI call)
+              Draw the repo (a paid AI call)
             </button>
           </form>
         </div>
@@ -1102,6 +1117,10 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   // ---- the drawing ----
   // Beside the machine, the code panel opens only when asked (the Code button, C or a click): it would squeeze the machine under its reading size.
   const drawerOpen = drawerChoice ?? (wide && open && exp !== null && !after && !machineFirst());
+  // Before a run the panel is the code drawer; once a result is up it sits under the verdict instead (BenchStage), so it never covers the result.
+  // The layout follows the part's id at once; its words follow one render later. Deciding the layout from the words briefly squeezed the machine.
+  const partMode = drawerOpen && partId !== null && !after;
+  const partShown = partMode && partPanel?.id === partId ? partPanel : null;
   const noFunction = pasted.runnable && !fn && pasted.outline !== undefined;
   // A language Atlas doesn't read: one message, the one that says so. "Needs a package" would be about a JavaScript reading of it.
   const foreign = pasted.outline?.parts.length === 0 ? foreignLanguage(readText) : null;
@@ -1120,8 +1139,17 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const offeredTests = (proposals?.proposals ?? []).filter((p) => p.gate.allowed && !alreadyRan(p.params));
   const title = `${source ?? (pasted.outline?.parts.length === 0 ? "pasted file" : FILE_NAME[pasted.target.language ?? "ts"])} · ${plural(pasted.lines, "line")}${drawnMs !== null ? ` · drawn in ${drawnMs} ms` : ""}`;
   return (
-    <div className="u1-studio" data-drawer={drawerOpen ? "" : undefined}>
-      <button type="button" className="u1-link u1-code-toggle" aria-pressed={drawerOpen} onClick={() => setDrawer(!drawerOpen)} data-testid="u1-code-toggle">
+    <div className="u1-studio" data-drawer={drawerOpen && !partMode ? "" : undefined} data-drawer-part={partMode ? "" : undefined}>
+      <button
+        type="button"
+        className="u1-link u1-code-toggle"
+        aria-pressed={drawerOpen}
+        onClick={() => {
+          setPartId(null);
+          setDrawer(!drawerOpen);
+        }}
+        data-testid="u1-code-toggle"
+      >
         Code
         <kbd className="k">C</kbd>
       </button>
@@ -1141,11 +1169,18 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           title={title}
           side={open}
           onPlayed={() => setPlayed((n) => n + 1)}
-          onPart={(name) => {
+          picked={partId}
+          onPanel={setPartPanel}
+          onClosePart={() => setPartId(null)}
+          naturalNames={natural && natural.sha === pasted.target.codeSha256 && "names" in natural ? natural.names : null}
+          namesNote={natural && natural.sha === pasted.target.codeSha256 && "reason" in natural ? natural.reason : null}
+          onPart={(name, panel) => {
             const part = pasted.outline?.parts.find((p) => p.name === name);
-            if (!part) return;
-            setDrawerLines([part.lineStart, part.lineEnd]);
-            setDrawer(true);
+            if (!part && !panel) return;
+            setDrawerLines(panel ? panel.lines : [part!.lineStart, part!.lineEnd]);
+            setPartId(panel ? name : null);
+            // After a run the panel opens under the verdict, not as a drawer: C still shows the code at these lines.
+            if (!after) setDrawer(true);
           }}
           headnote={
             after && result ? (
@@ -1233,7 +1268,10 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
         </BenchStage>
       ) : null}
       {drawerOpen && (
-        <CodeDrawer source={readText} lines={drawerLines} onClose={() => setDrawer(false)} coversResult={after !== null && typeof window !== "undefined" && window.innerWidth >= 761 && window.innerWidth < 1800} />
+        <CodeDrawer source={readText} lines={drawerLines} part={partShown} onClose={() => {
+          setDrawer(false);
+          setPartId(null);
+        }} coversResult={after !== null && typeof window !== "undefined" && window.innerWidth >= 761 && (partShown !== null || window.innerWidth < 1800)} />
       )}
       {after && picking && (
         <section className="u1-proof u1-picking" role="dialog" aria-modal="false" aria-label={CHANGE_WORDS.pickTitle} data-testid="u1-pick-panel">
@@ -1400,11 +1438,11 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
         <div className="u1-bet">
           {!open && !exp && !proposals && <span className="u1-sub u1-paid" data-testid="u1-paid-bet">{earlyState === "busy" ? CHANGE_WORDS.earlyWonder : earlyState === "done" ? CHANGE_WORDS.earlyDone : CHANGE_WORDS.paidWonder}</span>}
           <button type="button" className="u1-btn u1-primary u1-toggle" aria-expanded={open} aria-controls="u1-pop" onClick={openBet} data-testid="u1-bet-toggle">
-            {open ? "Hide the bet" : "Bet on your understanding"}
+            {open ? "Hide the bet" : "Bet on what it does"}
             {!open && <kbd className="k" aria-hidden="true">Enter</kbd>}
           </button>
           {open && (
-            <section id="u1-pop" className="u1-pop" tabIndex={-1} aria-label="Bet on your understanding" data-testid="u1-pop">
+            <section id="u1-pop" className="u1-pop" tabIndex={-1} aria-label="Bet on what it does" data-testid="u1-pop">
               {wonderWait && !exp && <WonderWaiting wait={wonderWait} fn={fn} onOwn={changing ? null : writeOwn} />}
               {!exp && !changing && busy && !wonderWait && (
                 <p className="u1-status" role="status">

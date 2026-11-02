@@ -33,6 +33,10 @@ import { PASTED_RUNNERS, type PastedRunners } from "../runners/pasted-registry";
 import type { ChatArgs, ChatResult } from "./meta/client";
 import { guardPastedChat } from "./meta/pasted-guard";
 import { PROPOSER_MODEL, runProposer, type Proposal } from "./meta/roles/proposer";
+import { NAMER_MODEL, runNamer, type NamerResult } from "./meta/roles/namer";
+import { checkNames, NAMES_PART_LIMIT } from "../src/natural-names";
+import { codeFingerprint } from "../src/code-fingerprint";
+import { EXAMPLE_NAMES, EXAMPLE_NAMES_MODEL } from "../src/example-names";
 import { U1_EXAMPLE } from "../web/u1-example";
 import { oneLine, sessionEmitter, type AgentLog } from "./log/agentlog";
 import { BAD_SESSION, sessionIdOf } from "./log/sse";
@@ -127,6 +131,9 @@ const targetRef = z.object({ ref: z.string().min(1).max(200), codeSha256: z.stri
 // U2 (D53, "Test this claim"): `claimOf` names an experiment whose Muse Wonder sentence was already shown (after its run);
 // Wonder is asked for tests that check that sentence. The server looks the sentence up itself: no text from the page.
 const proposalsBody = z.object({ target: targetRef, exportName: z.string().min(1).max(100), claimOf: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/).optional(), early: z.literal(true).optional() }).strict();
+const namesBody = z.object({ target: targetRef }).strict();
+/** R6: how long a new round's bettor text waits for names already asked for. Past this it is written without them, and they are closed. */
+const NAMES_WAIT_MS = 1_500;
 const claimBody = z.object({ experimentId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/) }).strict();
 
 const reasonOf = (err: z.ZodError) =>
@@ -151,6 +158,8 @@ export interface PasteDeps {
   /** Per-address model-round limit, shared with model bets (S5). */
   takeModelRound: (c: Context) => { ok: true } | { ok: false; reason: string };
   takeEarlyTests?: (c: Context) => { ok: true } | { ok: false; reason: string };
+  /** R6: the natural-names call's own per-client hourly limit. */
+  takeNames?: (c: Context) => { ok: true } | { ok: false; reason: string };
   /** Per-address paste limit. */
   takePaste: (c: Context) => { ok: true } | { ok: false; reason: string };
   /** E3 review r3 B1: where runs happen on this server (the page's privacy sentence is built from it). */
@@ -196,6 +205,14 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
     );
     return exampleAnswer;
   };
+  /**
+   * R6: natural names. One call per file (by fingerprint), shared. Per session, each file's names are "pending" until the page is shown them
+   * ("shown") or a round's bettor text is written without them ("closed"): after that they are never shown, so the screen and the bettors
+   * always have the same names (D19).
+   */
+  const namesByCode = new Map<string, Promise<NamerResult>>();
+  const sessionNames = new Map<string, Map<string, { p: Promise<NamerResult>; state: "pending" | "shown" | "closed"; names?: Record<string, string>; model: string }>>();
+  const namesOf = (sessionId: string) => touch(sessionNames, sessionId, () => new Map<string, { p: Promise<NamerResult>; state: "pending" | "shown" | "closed"; names?: Record<string, string>; model: string }>(), MAX_PASTE_SESSIONS);
   /** E3 review B3: one bet-screen text (its test part) per distinct text, shared by every round that uses it. */
   const contexts = new Map<string, string>();
   /** E3 review r2 B3: the numbered file, one per (file, marked line). */
@@ -472,6 +489,65 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
       });
     });
 
+    // R6: short natural names for the drawn parts, by Muse Wonder from the code alone. Plain code checks each one; the page falls back to split names.
+    app.post("/paste/names", async (c) => {
+      const sessionId = sessionIdOf(c);
+      if (sessionId === null) return c.json({ error: BAD_SESSION }, 400);
+      const raw = await readJson(c.req.raw);
+      if (!raw.ok) return c.json({ error: "the request body is not JSON" }, 400);
+      const parsed = namesBody.safeParse(raw.body);
+      if (!parsed.success) return c.json({ error: reasonOf(parsed.error) }, 400);
+      const entry = entryOf(sessionId, parsed.data.target);
+      if (!entry) return c.json({ error: "this session has no pasted file with that ref and fingerprint: paste it first (POST /paste)" }, 400);
+      const sha = entry.target.codeSha256;
+      const unavailable = (reason: string) => c.json({ ok: false, model: NAMER_MODEL, reason, names: {} });
+      let parts: { name: string; kind: string; lineStart: number; lineEnd: number }[];
+      try {
+        parts = fileOutline(entry.target.source ?? "", entry.target.language ?? "js").parts;
+      } catch {
+        return unavailable("plain code could not list the parts");
+      }
+      if (parts.length === 0) return unavailable("there are no parts to name");
+      // More parts than the machine draws: the page shows the chart, which has no room for names, so nothing is asked or paid for.
+      if (parts.length > NAMES_PART_LIMIT) return unavailable(`this file has more than ${NAMES_PART_LIMIT} parts, so the page shows the chart`);
+      const mine = namesOf(sessionId);
+      let e = mine.get(sha);
+      if (!e) {
+        if (sha === EXAMPLE_SHA) {
+          // The example's names are kept, recorded once from a real call: no call, and checked like any answer.
+          const names = checkNames({ names: EXAMPLE_NAMES }, parts.map((p) => p.name)).names;
+          e = { p: Promise.resolve({ ok: true, model: EXAMPLE_NAMES_MODEL, names, refused: 0 }), state: "pending", model: EXAMPLE_NAMES_MODEL };
+        } else {
+          if (!opts.proposer || !proposerChat || !deps.budget) return unavailable("this server asks no Meta model");
+          // Shared by copies of the file that differ only in comments or spaces (review m5): the parts and what they are for are the same.
+          const key = `${entry.target.language}:${codeFingerprint(entry.target.source ?? "", entry.target.language ?? undefined)}`;
+          let p = namesByCode.get(key);
+          if (!p) {
+            const allowed = deps.takeNames?.(c) ?? { ok: true as const };
+            if (!allowed.ok) return unavailable(allowed.reason);
+            p = runNamer({ source: entry.target.source!, language: entry.target.language!, parts, model: NAMER_MODEL }, { chat: proposerChat, log: sessionEmitter(deps.agentLog, sessionId) }).catch((): NamerResult => ({ ok: false, model: NAMER_MODEL, reason: "the model call failed" }));
+            namesByCode.set(key, p);
+            while (namesByCode.size > MAX_PASTE_SESSIONS) namesByCode.delete(namesByCode.keys().next().value!);
+            // A failed call is not kept: the next paste of this file may ask again.
+            void p.then((r) => {
+              if (!r.ok && namesByCode.get(key) === p) namesByCode.delete(key);
+            });
+          }
+          e = { p, state: "pending", model: NAMER_MODEL };
+        }
+        mine.set(sha, e);
+      }
+      const r = await e.p;
+      if (e.state === "closed") return unavailable("they arrived after the bettors' text for this file was written");
+      if (!r.ok) {
+        e.state = "closed";
+        return unavailable(r.reason);
+      }
+      e.state = "shown";
+      e.names = r.names;
+      return c.json({ ok: true, model: r.model, names: r.names, refused: r.refused });
+    });
+
     app.post("/paste/claim", async (c) => {
       const sessionId = sessionIdOf(c);
       if (sessionId === null) return c.json({ error: BAD_SESSION }, 400);
@@ -503,6 +579,29 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
      * A proposal of this session on this code, for POST /experiments {proposalId} (as proposed: it must be allowed)
      * or {editedFrom} (edited by the person: any proposal). Refused once the set's claim was shown (B2).
      */
+    /**
+     * R6 (D19): the natural names a new round's bettor text must hold: the ones this session's page shows for this file. Names still on their
+     * way are waited for a little; past that they are closed for this file, and never shown.
+     */
+    async namesForText(sessionId: string, codeSha256: string): Promise<{ model: string; names: Record<string, string> } | null> {
+      const e = sessionNames.get(sessionId)?.get(codeSha256);
+      // Not asked for yet: this round's text is written without names, so this file's names are closed in this session and never shown.
+      if (!e) {
+        namesOf(sessionId).set(codeSha256, { p: Promise.resolve({ ok: false, model: NAMER_MODEL, reason: "not asked" }), state: "closed", model: NAMER_MODEL });
+        return null;
+      }
+      if (e.state === "closed") return null;
+      if (e.state === "pending") {
+        const r = await Promise.race([e.p, new Promise<null>((res) => setTimeout(() => res(null), NAMES_WAIT_MS))]);
+        if (e.state === "pending") {
+          if (r && r.ok) {
+            e.state = "shown";
+            e.names = r.names;
+          } else e.state = "closed";
+        }
+      }
+      return e.state === "shown" && e.names ? { model: e.model, names: e.names } : null;
+    },
     /** D63: a test written ahead is now in use, so it counts. */
     noteProposalUsed(sessionId: string, set: ProposalSet, c: Context) {
       if (!set.ahead) return;

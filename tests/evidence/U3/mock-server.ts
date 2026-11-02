@@ -77,6 +77,12 @@ const EXAMPLE = {
 };
 export const mockChat = async (a: ChatArgs): Promise<ChatResult> => {
   const all = a.messages.map((m) => m.content).join("\n");
+  // R6: the natural-names call. Plain mock words, one per part, so the drawing and the truth driver run with names present.
+  if (/NAME THE PARTS/.test(all)) {
+    const parts = [...all.matchAll(/^- (\S+) \((?:function|class)/gm)].map((m) => m[1]!);
+    const words = ["mock helper step", "mock main step", "mock middle step", "mock side task", "mock quick check", "mock outer step", "mock inner task", "mock last step"];
+    return { ok: true, finishReason: "stop", usage, content: JSON.stringify({ names: Object.fromEntries(parts.map((p, i) => [p, words[i % words.length]])) }) };
+  }
   if (a.role === "investigator") {
     await new Promise((r) => setTimeout(r, delay));
     const claimRound = /check this sentence/.test(all);

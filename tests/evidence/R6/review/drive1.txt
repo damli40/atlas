@@ -1,0 +1,21 @@
+REQ 68484 /paste
+REQ 68614 /paste/names
+view machine
+lids after names []
+all lid texts ["fetch all orders","fetchAllOrders","fetch page","fetchPage","fetch","lines 13–23","starts here: Atlas calls this","loop, lines 16, 18","returns, line 22","lines 3–11","waits, line 6","calls itself, line 7","returns, lines 7, 10","throws, line 9","outside this file: not run"]
+aria []
+REQ 74674 /experiments
+bettor names round 1: - none: plain code saw none of the kinds of code on Atlas's list.
+ring ["fetchPage","chute"]
+broke: The run threw Error: HTTP 429 at 1,400 ms, after 4 calls to fetch. |  | It threw from line 9. |  | Atlas calls fetchAllOrders("https://example.com/orders"). Atlas's fake fetch (in place of the network, which stays blocked) answers 429 with {} on call 1; every later call answers 429 with {} too.
+panel text: × | FETCH PAGE |  | fetchPage |  | The run threw Error: HTTP 429 at 1,400 ms, after 4 calls to fetch. |  | It threw from line 9. |  | Atlas calls fetchAllOrders("https://example.com/orders"). Atlas's fake fetch (in place of the network, which stays blocked) answers 429 with {} on call 1; every later call answers 429 with {} too. |  | A function. | Calls itself (line 7). | Waits (line 6). | Has a throw (line 9). | Returns (lines 7 and 10). | Calls: fetch (faked by the test). | Called by: fetchAllOrders. | Lines 3–11. |  | Natural names unavailable: plain code refused every name
+covered by panel: {"moment-run":null,"u1-change":null,"u1-again":null,"u1-actions":null,"mark-list":null}
+u1-change covered by panel at its centre: false
+REQ 87064 /paste
+REQ 87072 /experiments
+REQ 87147 /paste/names
+after change+bet: part-broke still on screen: none
+after change+bet: panel: none
+bettor names round 2 (changed code): - none: plain code saw none of the kinds of code on Atlas's list.
+lids during round 2 after 5s: []
+bettor names round 2 again: - none: plain code saw none of the kinds of code on Atlas's list.

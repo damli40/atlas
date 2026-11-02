@@ -57,6 +57,7 @@ const SPENDING: { method: string; route: string; path: string; body?: unknown; s
   { method: "GET", route: "/events/:sessionId", path: "/events/x", spends: "nothing in dollars; an open live-log stream holds a connection (closed since review round 2)" },
   { method: "POST", route: "/paste", path: "/paste", body: { code: RETRY_SRC }, spends: "nothing itself (holds the code for later spends)" },
   { method: "POST", route: "/paste/proposals", path: "/paste/proposals", body: {}, spends: "Muse Wonder test proposals (Meta)" },
+  { method: "POST", route: "/paste/names", path: "/paste/names", body: {}, spends: "Muse Wonder natural names for the parts (Meta)" },
   { method: "POST", route: "/paste/claim", path: "/paste/claim", body: {}, spends: "nothing (shows a held claim)" },
   { method: "POST", route: "/outline/jobs", path: "/outline/jobs", body: { files: [{ path: "a.ts", text: "export const a = 1;\n" }] }, spends: "Muse Wonder Outliner (Meta) + GitHub reads" },
   // X3: read only and free, but they are about a person's own code and record, so closed by default.

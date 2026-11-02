@@ -1,0 +1,4 @@
+example 1440 {"ring":["stand-in fetchIt","port"],"run":"threw TypeError: fetch failed at 700 ms, after 3 calls to fetchIt"}
+orders 1440 {"ring":["fetchPage","chute"],"run":"threw Error: HTTP 429 at 1,400 ms, after 4 calls to fetch"}
+example 1280 {"ring":["stand-in fetchIt","port"],"run":"threw TypeError: fetch failed at 700 ms, after 3 calls to fetchIt"}
+orders 1280 {"ring":["fetchPage","chute"],"run":"threw Error: HTTP 429 at 1,400 ms, after 4 calls to fetch"}

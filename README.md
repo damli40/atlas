@@ -2,6 +2,33 @@
 
 Know what your AI-written code does before you trust it.
 
+## Test me (2 minutes)
+
+<!-- DAMI: confirm this address and the invite-code line after the Fly deploy. -->
+**Online, nothing to install:** open **https://atlas-dami.fly.dev** and enter the invite code from the submission form.
+
+1. Click **Draw the example**. Atlas draws the file as a machine, one box per function.
+2. Click **Bet on what it does**, answer the questions and seal your bets. Meta's AI seals its own bets on the same questions.
+3. Atlas runs the code in a sandbox. Each bet shows **matched**, **didn't match** or **can't check**, and the drawing shows what ran.
+4. Open **Demos → The Moonwell pull request**: a saved replay of a real oracle bug on a Base fork. It needs no key and costs nothing.
+
+**On your own machine** (Node 22.13 or newer, and pnpm):
+
+```sh
+git clone https://github.com/damli40/atlas.git && cd atlas
+pnpm install
+cp .env.example .env   # put your Meta API key after META_API_KEY=
+pnpm dev:all
+```
+
+Then open http://localhost:5173.
+
+- **No Meta API key?** You can still draw any file and open the Moonwell replay. The tests and the AI bets need the key.
+- `BASETEN_API_KEY` is optional. It adds Muse Spark Open as a second AI bettor.
+- Tested on macOS only.
+
+"Matched" means the code did what you bet in this one test. It does not mean the code is correct.
+
 Work in progress: built Oct 27 – Nov 4, 2026. See PRE-EXISTING.md for what existed before.
 
 ## Open-weights mode
