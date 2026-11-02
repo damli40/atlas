@@ -154,8 +154,9 @@ if (process.env.BASE_LIMIT) {
   await p.click('[data-testid="u1-bet-toggle"]');
   await p.waitForSelector('[data-testid="u1-seal"]', { timeout: 60000 });
   const before = await p.$$eval('[data-testid^="u1-model-off-"]', (x) => x.map((e) => e.textContent));
-  say("before the run: the page says who is not betting, and why", before.length > 0 && before.every((t) => /is not betting on this round: .*limit/.test(t)), JSON.stringify(before));
-  say("the reason is not cut off", await p.$$eval('[data-testid^="u1-model-off-"]', (x) => x.every((e) => e.scrollWidth <= e.clientWidth + 1 && getComputedStyle(e).textOverflow !== "ellipsis")));
+  say("before the run: the page says who is not betting, and why", before.length > 0 && before.every((t) => /not betting on this round\. .*limit/.test(t)), JSON.stringify(before));
+  say("the reason is not cut off", await p.$$eval('[data-testid^="u1-model-off-"]', (x) => x.every((e) => e.scrollHeight <= e.clientHeight + 1 && e.getBoundingClientRect().height > 20 && getComputedStyle(e).webkitLineClamp !== "1")));
+  say("the line does not sit on what follows it", await p.evaluate(() => { const l = [...document.querySelectorAll('[data-testid^="u1-model-off-"]')].pop().getBoundingClientRect(); const w = document.querySelector(".u1-who").getBoundingClientRect(); return l.bottom <= w.top + 1; }));
   await p.screenshot({ path: `${OUT}/2-bettors-not-asked-bet.png` });
   await answerAll(p);
   await toResult(p);

@@ -1653,8 +1653,8 @@ function ModelsLine({ slots, claimant, onClaimant, locked }: { slots: ReturnType
     <div className="u1-models" data-testid="u1-models">
       <p>{BET_WORDS.ais(on.map((s) => betterByRole(s.model)))}</p>
       {on.length > 0 && <p className="u1-sub">{on.map((s) => BET_WORDS.aiStatus(betterByRole(s.model), say(s.status))).join(" · ")}</p>}
-      {off.map((s) => (
-        <p className="u1-sub" key={s.who} data-testid={`u1-model-off-${s.who}`}>{BET_WORDS.aiOff(betterByRole(s.model), s.reason ?? "no reason given")}</p>
+      {[...new Set(off.map((s) => s.reason ?? "no reason given"))].map((why) => (
+        <p className="u1-sub" key={why} data-testid={`u1-model-off-${off.find((s) => (s.reason ?? "no reason given") === why)!.who}`}>{BET_WORDS.aiOff(off.filter((s) => (s.reason ?? "no reason given") === why).map((s) => betterByRole(s.model)).join(" and "), why)}</p>
       ))}
       {!locked && (
         <div className="u1-who" role="radiogroup" aria-label={BET_WORDS.whoBets}>
