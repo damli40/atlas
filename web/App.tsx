@@ -161,7 +161,7 @@ function Shell({ api: given }: { api?: Api }) {
             Your record
           </button>
           <button type="button" className="u1-link" aria-expanded={logOpen} aria-controls="u1-log" onClick={() => setLogOpen((o) => !o)} data-testid="u1-log-toggle">
-            {logOpen ? "Hide agent log" : "Agent log"}
+            Agent log
           </button>
         </nav>
       </header>
@@ -379,6 +379,8 @@ function FixtureFlow({ api, onRoundOpen }: { api: Api; onRoundOpen?: (open: bool
       models.fromRun(r);
       setRunFailed(null);
       setResult(r);
+      // A retry may start far above where its result lands: bring the result into view.
+      requestAnimationFrame(() => document.querySelector('[aria-label="run"]')?.scrollIntoView({ block: "start" }));
     } catch (e) {
       if (didNotFinish(e)) setRunFailed((e as Error).message);
       else setError((e as Error).message);

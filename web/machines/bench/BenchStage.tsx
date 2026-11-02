@@ -14,7 +14,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerE
 import { benchSpec } from "../../../renderer/authors/bet-view";
 import { momentOf, type Moment } from "../../../src/moment";
 import { MachineSheet, machineFirst, rememberView, type MachineControl } from "../../drawing/MachineView";
-import { CANT_DRAW, MACHINE_MIN_WORD_PX, TOO_SMALL, drawMachine, endOfRun, machineParts, ranParts, ringFor, type MachineEnd, type MachineParts } from "../../../renderer/authors/machine";
+import { CANT_DRAW, MACHINE_MIN_WORD_PX, NOTHING_TO_DRAW, TOO_SMALL, drawMachine, endOfRun, machineParts, ranParts, ringFor, type MachineEnd, type MachineParts } from "../../../renderer/authors/machine";
 import type { CountChange } from "../../../src/remember";
 import { machineScript } from "../../../renderer/authors/machine-script";
 import { whatHappened } from "../../../renderer/authors/what-happened";
@@ -27,7 +27,8 @@ import type { Bet, Experiment, Run, Verdict } from "../../../src/types";
 import { Drawing } from "../../drawing/Drawing";
 import { useDarkScheme, useReducedMotion } from "../../drawing/media";
 import { CLOCK_ID, deviceId, type BenchModel, type BenchPart } from "./model";
-import { OUTCOME_WORDS, type Mark, type Script } from "./play";
+import { OUTCOME_WORDS, unusedFakes, type Mark, type Script } from "./play";
+import { notShownAsFact } from "../../../src/trust";
 import { lineSpan } from "../../../src/words";
 import { RESULT_WORDS, STAGE_WORDS } from "../../../src/paste-words";
 import { CANT_TELL } from "../../../src/quiz";
@@ -48,6 +49,8 @@ export interface After {
   verdicts: readonly Verdict[];
   /** R3: the code's own steps, from a third run made only for this drawing. */
   helpers?: HelperAnswer | null;
+  /** Bettors asked for that have no bet in this round, with why. */
+  absent?: readonly string[];
 }
 
 export interface BenchStageProps {
@@ -103,6 +106,15 @@ function machineEnd(after: After, parts: MachineParts, tested: string | null): M
     return typeof m[`calls:${name}`] === "number" && (m[`calls:${name}`] as number) > 0;
   };
   return endOfRun({ outcome: m.outcome, thrown: { name: typeof m.thrownName === "string" ? m.thrownName : null, message: typeof m.thrownMessage === "string" ? m.thrownMessage : null }, parts, tested, test: after.experiment.params, ran: ranParts({ tested, steps, parts, called }), called });
+}
+
+/** The path's first caption is about a path of steps. On the machine only what is lit comes from the trace, and a thread needs a known caller: the sentence says that. */
+export const machineCaption = (words: string, litWithNoThread: boolean) => words.replace(/^Every step comes from run (\S+)'s trace\./, `What is lit comes from run $1's trace.${litWithNoThread ? " A part lit with no thread ran, but which part called it is not known." : ""}`);
+
+/** A part lit by the run, other than the one Atlas calls, that no thread reaches. */
+export function litWithNoThread(beats: readonly { routes: readonly string[]; lamps: readonly string[] }[], tested: string | null): boolean {
+  const reached = new Set(beats.flatMap((b) => b.routes.map((r) => r.split("->")[1]!)));
+  return beats.some((b) => b.lamps.some((l) => l !== tested && !reached.has(l)));
 }
 
 export function BenchStage({ seenBefore = false, codeRan = false, loop = null, model, theme, after = null, onPart, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null }: BenchStageProps) {
@@ -193,7 +205,8 @@ export function BenchStage({ seenBefore = false, codeRan = false, loop = null, m
     const steps = after.helpers && "steps" in after.helpers ? after.helpers.steps : [];
     const ran = ranParts({ tested: model.tested, steps, parts, called });
     // A part known to have run keeps its lamp lit at rest. A thread is another matter: that needs the true caller.
-    return [...machineScript(pathSpec, parts, outline, model.tested), { routes: [], lamps: [...ran, ...parts.ports.filter((q) => called(q.id)).map((q) => q.id)] }];
+    const within = new Map(steps.map((s) => [s.name, s.within ?? []]));
+    return [...machineScript(pathSpec, parts, outline, model.tested, within), { routes: [], lamps: [...ran, ...parts.ports.filter((q) => called(q.id)).map((q) => q.id)] }];
   }, [pathSpec, parts, outline, model.tested, after?.run, after?.helpers]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const onM = (e: globalThis.KeyboardEvent) => {
@@ -353,7 +366,7 @@ export function BenchStage({ seenBefore = false, codeRan = false, loop = null, m
   const readout = after && marksOn ? marksReadout(after.marks) : model.tested ? `testing ${model.tested}` : `${model.boxes.length} ${model.boxes.length === 1 ? "part" : "parts"} · ${model.lines.length} ${model.lines.length === 1 ? "join" : "joins"}`;
 
   return (
-    <div className={`rr-host u1-root${marksOn ? " u1-marked" : ""}`} data-view={showMachine ? "machine" : "chart"} data-theme={shown} data-stage={stage} data-phase={!after ? "rest" : marksOn ? "marked" : "playing"} data-pop={side && !after ? "" : undefined} data-testid="bench-stage" onPointerUp={onRootPointerUp} onKeyDown={onKey} tabIndex={-1}>
+    <div className={`rr-host u1-root${marksOn ? " u1-marked" : ""}`} data-noted={wantMachine && (drawn.tooMany || tooSmall) && drawn.tooMany !== NOTHING_TO_DRAW && !noRunToShow ? "" : undefined} data-view={showMachine ? "machine" : "chart"} data-theme={shown} data-stage={stage} data-phase={!after ? "rest" : marksOn ? "marked" : "playing"} data-pop={side && !after ? "" : undefined} data-testid="bench-stage" onPointerUp={onRootPointerUp} onKeyDown={onKey} tabIndex={-1}>
       <header className="r-head">
         <p className="r-kick">{title}</p>
         <h1 className="r-name">{model.tested ?? fileName}</h1>
@@ -379,12 +392,12 @@ export function BenchStage({ seenBefore = false, codeRan = false, loop = null, m
         {showMachine && after && marksOn && pathSpec?.captions.length ? (
           <p className="m-captions" data-testid="machine-captions">
             {pathSpec.captions.map((c) => (
-              <span key={c.words}>{c.words}</span>
+              <span key={c.words}>{machineCaption(c.words, litWithNoThread(beats, model.tested))}</span>
             ))}
           </p>
         ) : null}
       </div>
-      {wantMachine && (drawn.tooMany || tooSmall) && !noRunToShow && <p className="r-view-note" role="note" data-testid="machine-too-many">{drawn.tooMany ?? TOO_SMALL}</p>}
+      {wantMachine && (drawn.tooMany || tooSmall) && drawn.tooMany !== NOTHING_TO_DRAW && !noRunToShow && <p className="r-view-note" role="note" data-testid="machine-too-many">{drawn.tooMany ?? TOO_SMALL}</p>}
       {!drawn.tooMany && !tooSmall && !noRunToShow && model.notShown === null && typeof window !== "undefined" && window.innerWidth >= 760 && (
         <button type="button" className="r-view-toggle" onClick={() => setWantMachine((w) => { rememberView(w ? "chart" : "machine"); return !w; })} data-testid="view-toggle">
           {showMachine ? "Box chart" : "Machine"}
@@ -406,7 +419,7 @@ export function BenchStage({ seenBefore = false, codeRan = false, loop = null, m
         </p>
       )}
       {!after && cardId && model.parts[cardId] && <PartCard id={cardId} part={model.parts[cardId]!} tested={model.tested} hasTest={Boolean(model.parts[CLOCK_ID])} python={language === "py"} pinned={pinned === cardId} {...(onTestFunction ? { onTest: onTestFunction } : {})} canChange={!after} onClose={() => setPinned(null)} />}
-      {after && marksOn && <MarkList marks={after.marks} focus={focusMark} onFocus={setFocusMark} footnote={footnote} headnote={headnote} moment={momentOf(after.marks, after.run, language)} readout={marksReadout(after.marks)} loop={loop} />}
+      {after && marksOn && <MarkList marks={after.marks} focus={focusMark} onFocus={setFocusMark} footnote={footnote} headnote={headnote} moment={momentOf(after.marks, after.run, language)} notes={resultNotes(after)} readout={marksReadout(after.marks)} loop={loop} />}
       {children}
     </div>
   );
@@ -531,7 +544,18 @@ function MarkRow({ m, same, focus, onFocus, hidden = false }: { m: Mark; same: s
   );
 }
 
-function MarkList({ marks, focus, onFocus, footnote, headnote, moment, readout, loop }: { marks: readonly Mark[]; focus: string | null; onFocus: (m: string | null) => void; footnote: ReactNode; headnote: ReactNode; moment: Moment | null; readout: string; loop: CountChange | null }) {
+/** What a reader would otherwise miss about this result, in plain words. Measured facts and the round's own slots only. */
+export function resultNotes(after: Pick<After, "marks" | "run" | "experiment" | "absent">): string[] {
+  const shown = notShownAsFact(after.run) === null;
+  const unused = shown ? unusedFakes(after.experiment.params as never, after.run.result.measured) : null;
+  return [
+    ...(shown && after.marks.some((m) => m.spacesOnly) ? ["The bet and the run's value differ only in their spaces, so they can look the same. Atlas compares them character by character."] : []),
+    ...(unused ? [unused] : []),
+    ...(after.absent ?? []),
+  ];
+}
+
+function MarkList({ marks, focus, onFocus, footnote, headnote, moment, notes, readout, loop }: { notes: readonly string[]; marks: readonly Mark[]; focus: string | null; onFocus: (m: string | null) => void; footnote: ReactNode; headnote: ReactNode; moment: Moment | null; readout: string; loop: CountChange | null }) {
   const same = sharedReason(marks);
   // Questions nobody could check fold to one line with their reason: a real result must not read as a shrug.
   const checkable = marks.filter((m) => !m.picks.every((p) => p.outcome === "cant_check"));
@@ -542,6 +566,9 @@ function MarkList({ marks, focus, onFocus, footnote, headnote, moment, readout, 
     <section className="u1-marks" aria-label="How each answer was judged" data-testid="mark-list">
       <div className="m-top">
         {moment && <MomentView moment={moment} />}
+        {notes.map((n) => (
+          <p className="m-note" key={n} data-testid="result-note">{n}</p>
+        ))}
         <p className="m-count" data-testid="m-count">{readout}</p>
         {loop && (
           <p className="m-loop" data-testid="m-loop">

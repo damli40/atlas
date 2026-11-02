@@ -38,6 +38,8 @@ export interface FileOutline {
   /** R3: calls with names resolved by real scope (the parsers read them). Absent: no device gets a wire. */
   callFacts?: CallFacts;
   parts: FilePart[];
+  /** How many functions and classes the file really defines, when that is more than the outline keeps. */
+  partsInFile?: number;
   joins: FileJoin[];
   /** Why the outline is empty or partial, in plain words (parser notes). */
   notes: string[];
@@ -64,6 +66,7 @@ export function fileOutline(source: string, language: "js" | "ts" | "py"): FileO
     .map((s) => ({ name: s.name, kind: s.kind, exported: s.exported, lineStart: s.lineStart, lineEnd: s.lineEnd, ...(s.signature ? { signature: s.signature } : {}) }))
     .sort((a, b) => a.lineStart - b.lineStart || (a.name < b.name ? -1 : 1));
   const notes = [...parsed.notes];
+  const partsInFile = parts.length;
   if (parts.length > FILE_OUTLINE_MAX_PARTS) {
     notes.push(`the file defines ${parts.length} functions and classes; the drawing shows the first ${FILE_OUTLINE_MAX_PARTS}`);
     parts.length = FILE_OUTLINE_MAX_PARTS;
@@ -99,5 +102,5 @@ export function fileOutline(source: string, language: "js" | "ts" | "py"): FileO
   }
   const joins = [...byId.values()].map((j) => ({ ...j, lines: [...j.lines].sort((a, b) => a - b) })).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   const selfCalls = [...self.entries()].map(([name, lines]) => ({ name, lines: [...lines].sort((a, b) => a - b) })).sort((a, b) => (a.name < b.name ? -1 : 1));
-  return { parts, joins, notes, ...(selfCalls.length ? { selfCalls } : {}), ...(parsed.callFacts ? { callFacts: parsed.callFacts } : {}), bodies: language === "py" ? pyBodies(maskSource(source, "py"), source, parts) : parsed.bodies ?? {} };
+  return { parts, ...(partsInFile > parts.length ? { partsInFile } : {}), joins, notes, ...(selfCalls.length ? { selfCalls } : {}), ...(parsed.callFacts ? { callFacts: parsed.callFacts } : {}), bodies: language === "py" ? pyBodies(maskSource(source, "py"), source, parts) : parsed.bodies ?? {} };
 }

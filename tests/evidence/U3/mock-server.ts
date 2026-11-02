@@ -53,6 +53,12 @@ const LOOP = { claim: "People expect waitForJob to poll until the job finishes; 
 // The machine's truth driver (tests/evidence/R5/truth.mjs): a paste names its test with // CASE_name.
 const si = (name: string, calls: unknown[]) => ({ kind: "stand-in", name, async: true, then: "repeat_last", calls });
 const CASES: Record<string, unknown[]> = {
+  panel: [{ shape: "call-function", exportName: "pad", args: [{ kind: "json", value: 1 }] }],
+  fone: [{ shape: "call-function", exportName: "f", args: [{ kind: "json", value: 1 }] }],
+  gone: [{ shape: "call-function", exportName: "g", args: [{ kind: "json", value: 1 }] }],
+  padded: [{ shape: "call-function", exportName: "report", args: [{ kind: "json", value: "p50" }] }],
+  unusedfake: [{ shape: "call-function", exportName: "summarize", args: [si("fetchIt", [{ do: "throw", errorName: "Error", message: "boom" }])] }],
+  pynested: [{ shape: "call-function", exportName: "count", args: [{ kind: "json", value: ["a", "b"] }] }],
   noarg: [{ shape: "call-function", exportName: "f", args: [] }],
   plain: [{ shape: "call-function", exportName: "f", args: [si("x", [{ do: "return", value: 1 }])] }],
   xthrows: [{ shape: "call-function", exportName: "f", args: [si("x", [{ do: "throw", errorName: "Error", message: "from fake" }])] }],

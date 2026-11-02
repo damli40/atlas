@@ -229,6 +229,23 @@ export interface Mark {
   /** What the run measured, as the option that holds it (or the reason it can't be checked). */
   measured: string;
   picks: MarkPick[];
+  /** Someone's answer and the run's value differ only in their spaces, which are easy to miss. */
+  spacesOnly?: boolean;
+}
+
+/** Two JSON texts that are different, and the same once their spaces, tabs and line ends are gone. */
+export function differOnlyInSpaces(a: string, b: string): boolean {
+  const plain = (s: string) => s.replace(/\s|\\[ntr]/g, "");
+  return a !== b && plain(a) === plain(b);
+}
+
+/** The test scripted a fake's answer and the run never called it: nothing scripted was used, and the page says so. */
+export function unusedFakes(test: { args?: readonly { kind: string; name?: string }[]; network?: { replaces: string } | null } | null | undefined, measured: Readonly<Record<string, unknown>>): string | null {
+  if (!test) return null;
+  const names = [...(test.args ?? []).filter((a) => a.kind === "stand-in" && a.name).map((a) => a.name!), ...(test.network ? [test.network.replaces] : [])];
+  const unused = [...new Set(names)].filter((n) => measured[`calls:${n}`] === 0);
+  if (unused.length === 0) return null;
+  return unused.length === 1 ? `The scripted answer was never used: ${unused[0]} was called 0 times.` : `The scripted answers were never used: ${unused.join(" and ")} were each called 0 times.`;
 }
 
 const SHORT_Q: Record<string, string> = { outcome: "How it ends", returnedJson: "What it returns", virtualMs: "How long it takes" };
@@ -280,7 +297,8 @@ export function marksOf(questions: readonly Question[], bets: readonly Bet[], ve
       })
       .sort(bettorOrder);
     const short = q.measures.startsWith("calls:") ? `Calls to ${q.measures.slice(6)}` : (SHORT_Q[q.measures] ?? q.measures);
-    return { measures: q.measures, anchor: anchorOf(q.measures, tested), question: short, measured, picks };
+    const spacesOnly = notShown === null && typeof observed === "string" && bets.some((b) => b.measures === q.measures && b.answer.kind === "json" && verdicts.find((v) => v.betId === b.id)?.outcome === "not_matched" && differOnlyInSpaces(JSON.stringify(b.answer.value), observed));
+    return { measures: q.measures, anchor: anchorOf(q.measures, tested), question: short, measured, picks, ...(spacesOnly ? { spacesOnly } : {}) };
   });
 }
 

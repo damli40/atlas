@@ -480,3 +480,11 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 /* D66: the machine inside the shared picture needs the drawing's paper and pencils */
 .pc-image{--rr-paper:#f5f1e7;--rr-ink:#1f1b1d;--rr-soft:#5d5650;--rr-card:#fdfaf2;--rr-red:#a8443b;--rr-red-pen:#b93a30;--rr-pencil-cream:#dcc594;--rr-pencil-blue:#8fb2c9;--rr-tick:#4d4448}
 .u1-shell .r-machine[hidden]{display:block}
+
+/* Cold test: a value is shown exactly as it is: runs of spaces stay, and code never merges === or => into one glyph. */
+.m-you-v,.m-run-v,.m-pick,.u1-shell .u1-pick,.u1-shell .u1-measured{white-space:pre-wrap}
+.u1-root svg text{white-space:pre}
+.m-note{margin:8px 0 0;font-size:12.5px;line-height:1.4;color:var(--ink-2)}
+.c-line,.m-run-v,.m-pick,.m-you-v,.u1-sig,.u1-shell code,.u1-shell pre,.u1-shell .u1-pick,.u1-shell .u1-measured,.u1-typed-in{font-variant-ligatures:none;font-feature-settings:"liga" 0,"calt" 0}
+.c-line{white-space:pre-wrap;overflow-wrap:anywhere;min-width:0}
+.u1-shell .u1-root[data-noted] .r-chart{top:48px;height:calc(100% - 48px)}

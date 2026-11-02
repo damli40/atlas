@@ -12,7 +12,7 @@ export interface MachineBeat {
   words?: string;
 }
 
-export function machineScript(spec: Pick<RenderSpec, "steps" | "nodes">, parts: MachineParts, outline: { joins: readonly { id: string; from: string; to: string; kind: string }[] }, tested: string | null): MachineBeat[] {
+export function machineScript(spec: Pick<RenderSpec, "steps" | "nodes">, parts: MachineParts, outline: { joins: readonly { id: string; from: string; to: string; kind: string }[] }, tested: string | null, within: ReadonlyMap<string, readonly string[]> = new Map()): MachineBeat[] {
   const ids = new Set(parts.housings.map((h) => h.id));
   const start = tested && ids.has(tested) ? tested : null;
   const ran = new Set<string>(start ? [start] : []);
@@ -21,7 +21,8 @@ export function machineScript(spec: Pick<RenderSpec, "steps" | "nodes">, parts: 
     if (start === target) return { routes: [], lamps: [] };
     const path = certainPath(outline as never, start, target);
     if (!path) return null;
-    return { routes: path.parts.slice(1).map((p, i) => `${path.parts[i]}->${p}`), lamps: path.parts.slice(1) };
+    // Only the joins every way there goes through: parts certain to run need not be neighbours, and a thread between them would be a pipe the code doesn't have.
+    return { routes: path.joins, lamps: path.parts.slice(1) };
   };
   const beats: MachineBeat[] = [];
   for (const step of spec.steps) {
@@ -35,6 +36,14 @@ export function machineScript(spec: Pick<RenderSpec, "steps" | "nodes">, parts: 
         for (const r of go.lamps) ran.add(r);
       }
       beat.lamps = [step.part];
+      // The calls this helper made in turn, known from the same trace: lit, and threaded only where the way there is the only one.
+      for (const n of within.get(step.part) ?? []) {
+        if (!ids.has(n)) continue;
+        ran.add(n);
+        const way = pathFromStart(n);
+        for (const r of way?.routes ?? []) if (!beat.routes.includes(r)) beat.routes.push(r);
+        beat.lamps.push(n);
+      }
     } else if (step.device === "clock") {
       const waiters = parts.housings.filter((h) => h.waits.length > 0 && ran.has(h.id));
       const node = spec.nodes.find((n) => n.id === step.nodes[0]);

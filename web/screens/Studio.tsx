@@ -37,7 +37,7 @@ import { CALL_DEFAULT_WATCH_LIMIT_MS } from "../../src/gate";
 import { ProofCardPage } from "./ProofCard";
 import type { ClaimantMode } from "../../src/claimants";
 import { didNotFinish, type Api, type ExperimentAnswer, type HumanAnswer, type PasteAnswer, type ProposalsAnswer, type RunAnswer, type ShownBet } from "../api";
-import { useModelSlots } from "./Claimant";
+import { absentBettors, useModelSlots } from "./Claimant";
 import { ErrorNotice } from "./ErrorNotice";
 import { machineFirst } from "../drawing/MachineView";
 import { Segments, TestForm, emptyForm, formFromParams, type TestFormState } from "./TestForm";
@@ -218,10 +218,10 @@ export function whatDiffers(a: unknown, b: unknown, other = "the last"): string 
   const shown = changed
     .filter((k) => x.has(k) && y.has(k) && isValue(k))
     .slice(0, 3)
-    .map((k) => `${JSON.stringify(y.get(k))} becomes ${JSON.stringify(x.get(k))}`);
+    .map((k) => `${JSON.stringify(x.get(k))} where ${other} test has ${JSON.stringify(y.get(k))}`);
   if (shown.length === 0) return `Differs from ${other} test in what its fakes do.`;
   const more = changed.filter(isValue).length - shown.length;
-  return `Compared with ${other} test: ${visibleText(shown.join(", "))}${more > 0 ? `, and ${more} more` : ""}.`;
+  return `This test has ${visibleText(shown.join(", "))}${more > 0 ? `, and ${more} more` : ""}.`;
 }
 
 /** How many arguments a function needs, from its signature: a default, a ? or a * makes one optional. Null when it can't be told. */
@@ -563,7 +563,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
         requestAnimationFrame(() => requestAnimationFrame(() => setDrawnMs(Math.round(performance.now() - drawStart.current))));
         // Review M4: a function the explorer named that this file does not export is said plainly, never swapped silently.
         if (want && !r.exports.some((e) => e.name === want)) {
-          setHandoffNote(`${want} is not exported by this file, and Atlas can only call exported functions. Pick one on the drawing.`);
+          setHandoffNote(`${want} can't be called from outside this file, and Atlas can only call functions that can. Pick one on the drawing.`);
           setFn(null);
         } else setFn(want ?? defaultFunction(r.outline, r.exports));
         return r;
@@ -788,8 +788,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     const callers = Object.fromEntries(Object.entries(model?.parts ?? {}).flatMap(([id, p]) => (p.kind === "device" ? [[id, (p.calledBy ?? []).map((c) => c.part)]] : [])));
     const language = pasted?.target.language ?? pasted?.language.chosen;
     const wiring = pasted?.outline ? { outline: pasted.outline, callers, ...(language ? { language } : {}) } : undefined;
-    return { token: plays, script: playScript(result.run, test, tested, pasted?.outline ? waitingPartsOf(pasted.outline) : [], wiring), marks: marksOf(exp.questions, result.bets, result.verdicts, result.run, tested, language), dialFullMs: fullMs, ...(helpers ? { helpers } : {}), run: result.run, experiment: exp.experiment, bets: result.bets, verdicts: result.verdicts };
-  }, [result, exp, test, sealed, plays, model, fullMs, readText, pasted, helpers]);
+    return { token: plays, script: playScript(result.run, test, tested, pasted?.outline ? waitingPartsOf(pasted.outline) : [], wiring), marks: marksOf(exp.questions, result.bets, result.verdicts, result.run, tested, language), absent: absentBettors(models.slots, result.bets), dialFullMs: fullMs, ...(helpers ? { helpers } : {}), run: result.run, experiment: exp.experiment, bets: result.bets, verdicts: result.verdicts };
+  }, [result, exp, test, sealed, plays, model, fullMs, readText, pasted, helpers, models.slots]);
 
   // U2 (D53, "Test this claim"): Muse Wonder writes tests aimed at its own sentence (shown only after this run, D18); the gate
   // checks them as usual. R3: the round opens only on a test that is really different from what has already run here, compared
@@ -859,6 +859,11 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     setChanging(true);
     await askWonder({ pick: "list" });
   };
+  // The result is the payoff: when it arrives the code panel closes, once, whatever the width. C opens it again.
+  const resultRunId = result?.run.id;
+  useEffect(() => {
+    if (resultRunId) setDrawer((d) => (d === null ? d : false));
+  }, [resultRunId]);
   // D60: when the questions arrive, the keys belong to them, not to the button that opened the bet.
   const expId = exp?.experiment.id;
   useEffect(() => {
@@ -916,6 +921,11 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       if (e.key.toLowerCase() === "c" && pasted) {
         setDrawer((d) => !(d ?? (wide && open && exp !== null && !result && !machineFirst())));
         e.preventDefault();
+        return;
+      }
+      if (e.key === "Enter" && !e.repeat && pasted && fn && !pasted.cantCheck && pasted.runnable && !result && !open && !exp && !proposals && !t?.closest?.("button, a, summary")) {
+        e.preventDefault();
+        void openBet();
         return;
       }
       // Only once the verdict has landed and nothing is playing. While a run plays, keys only skip.
@@ -1323,6 +1333,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           {!open && !exp && !proposals && <span className="u1-sub u1-paid" data-testid="u1-paid-bet">{earlyState === "busy" ? CHANGE_WORDS.earlyWonder : earlyState === "done" ? CHANGE_WORDS.earlyDone : CHANGE_WORDS.paidWonder}</span>}
           <button type="button" className="u1-btn u1-primary u1-toggle" aria-expanded={open} aria-controls="u1-pop" onClick={openBet} data-testid="u1-bet-toggle">
             {open ? "Hide the bet" : "Bet on your understanding"}
+            {!open && <kbd className="k" aria-hidden="true">Enter</kbd>}
           </button>
           {open && (
             <section id="u1-pop" className="u1-pop" tabIndex={-1} aria-label="Bet on your understanding" data-testid="u1-pop">
@@ -1636,11 +1647,15 @@ function SealTags({ sealed, slots }: { sealed: readonly { sealedHash?: string }[
 
 function ModelsLine({ slots, claimant, onClaimant, locked }: { slots: ReturnType<typeof useModelSlots>["slots"]; claimant: ClaimantMode; onClaimant: (m: ClaimantMode) => void; locked: boolean }) {
   const on = slots.filter((s) => s.status !== "off");
+  const off = slots.filter((s) => s.status === "off");
   const say = (st: string) => (st === "thinking" ? "answering" : st === "sealed" ? "sealed" : st === "no_usable_answer" ? "no usable answer" : st);
   return (
     <div className="u1-models" data-testid="u1-models">
       <p>{BET_WORDS.ais(on.map((s) => betterByRole(s.model)))}</p>
       {on.length > 0 && <p className="u1-sub">{on.map((s) => BET_WORDS.aiStatus(betterByRole(s.model), say(s.status))).join(" · ")}</p>}
+      {off.map((s) => (
+        <p className="u1-sub" key={s.who} data-testid={`u1-model-off-${s.who}`}>{BET_WORDS.aiOff(betterByRole(s.model), s.reason ?? "no reason given")}</p>
+      ))}
       {!locked && (
         <div className="u1-who" role="radiogroup" aria-label={BET_WORDS.whoBets}>
           <span>{BET_WORDS.whoBets}</span>

@@ -39,7 +39,7 @@ export const MEDIUM_EFFORT_ABOVE_TOKENS = 50_000;
 export const INVESTIGATE_INSTRUCTION =
   // The Investigator's instruction, word for word. A prompt to the model, never shown as a verdict.
   // Final review M13: neutral wording ("most likely to differ"), so the public prompt files carry no judgement word.
-  "Find up to 3 places where what a reader expects this code to do is most likely to differ from what it does. These are behaviours, not bugs. For each: file, lineStart, lineEnd, kind (retry/price/other), a one-sentence claim written as 'People expect X; the code does Y', and quotedSnippet copied exactly from those lines.";
+  "Find up to 3 places where what a reader expects this code to do is most likely to differ from what it does. These are behaviours, not bugs. For each: file, lineStart, lineEnd, kind (retry/price/other), a one-sentence claim starting 'People expect' that says what people expect and then what the code really does, in concrete words about this code, never a letter standing in for either part, and quotedSnippet copied exactly from those lines.";
 
 const KINDS: readonly FindingKind[] = ["retry", "price", "other"];
 
@@ -147,7 +147,7 @@ export function buildInvestigatorMessages(input: InvestigatorInput): ChatMessage
     '- kind: "retry", "price" or "other".',
     "",
     "Return only this JSON object:",
-    '{"findings": [{"file": "<path>", "lineStart": 1, "lineEnd": 1, "kind": "other", "claim": "People expect X; the code does Y.", "quotedSnippet": "<exact lines>"}]}',
+    '{"findings": [{"file": "<path>", "lineStart": 1, "lineEnd": 1, "kind": "other", "claim": "<one sentence>", "quotedSnippet": "<exact lines>"}]}',
   ].join("\n");
   return [
     { role: "system", content: SYSTEM_PREAMBLE },

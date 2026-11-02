@@ -1,10 +1,28 @@
-// Cold test: ordinary files should draw as a machine. Ten realistic files of 2 to 8 functions, written for this measure, not for the router.
+// Cold test: ordinary files should draw as a machine. Eleven realistic files of 2 to 8 functions, written for this measure, not for the router.
 import { describe, expect, it } from "vitest";
 import { drawMachine, machineParts } from "../../renderer/authors/machine";
 import { fileOutline } from "../../src/file-outline";
 import { benchModel } from "../../web/machines/bench/model";
 
 export const FILES: Record<string, [string, "js" | "ts" | "py", string]> = {
+  // Rebuilt from the cold tester's chart (its own file is not on disk): the same six functions and seven calls.
+  latency: [`type Hit = { route: string; ms: number; ok: boolean };
+function percentile(xs: number[], p: number) { const s = [...xs].sort(); return s[Math.floor((s.length - 1) * p)]; }
+function onlySuccessful(hits: Hit[]) { return hits.filter((h) => h.ok); }
+function groupByRoute(hits: Hit[]) { const m = new Map<string, number[]>(); for (const h of hits) m.set(h.route, [...(m.get(h.route) ?? []), h.ms]); return m; }
+function formatRow(route: string, p50: number, p95: number) { return route.padEnd(8) + " p50=" + p50 + "ms p95=" + p95 + "ms"; }
+export function latencyReport(hits: Hit[]) {
+  const rows: string[] = [];
+  for (const [route, xs] of groupByRoute(onlySuccessful(hits))) rows.push(formatRow(route, percentile(xs, 0.5), percentile(xs, 0.95)));
+  return rows;
+}
+export function slowestRoute(hits: Hit[]) {
+  let worst = "";
+  let most = -1;
+  for (const [route, xs] of groupByRoute(onlySuccessful(hits))) { const p = percentile(xs, 0.95); if (p > most) { most = p; worst = route; } }
+  return worst;
+}
+`, "ts", "latencyReport"],
   routes: [`type Route = { name: string; ms: number; ok: boolean };
 function onlySuccessful(rs: Route[]) { return rs.filter((r) => r.ok); }
 function byLatency(rs: Route[]) { return [...rs].sort((a, b) => a.ms - b.ms); }
@@ -135,7 +153,8 @@ describe("ordinary files draw as a machine", () => {
   });
   it("the measure", () => {
     console.log(JSON.stringify(results));
-    expect(results.filter((r) => r.ok).length).toBeGreaterThanOrEqual(9);
+    expect(results.filter((r) => r.ok).length).toBeGreaterThanOrEqual(10);
+    expect(results.find((r) => r.name === "latency")!.ok).toBe(true);
   });
   it("what the fallback says has no pipe's name in it", () => {
     for (const r of results) if (r.why) expect(r.why).not.toMatch(/->|pipe [a-z]+/);

@@ -164,7 +164,7 @@ describe("a person's own test", () => {
   it("D: two tests are told apart by their values, never the test's internal words", () => {
     const t = (then: string, value: number) => ({ args: [{ kind: "stand-in", name: "x", then, calls: [{ do: "return", value }] }] });
     expect(whatDiffers(t("throw_exhausted", 1), t("repeat_last", 1))).toBe("Differs from the last test in what its fakes do.");
-    expect(whatDiffers(t("throw_exhausted", 2), t("repeat_last", 1))).toBe("Compared with the last test: 1 becomes 2.");
+    expect(whatDiffers(t("throw_exhausted", 2), t("repeat_last", 1))).toBe("This test has 2 where the last test has 1.");
   });
 });
 

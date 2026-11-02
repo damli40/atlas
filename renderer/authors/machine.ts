@@ -18,6 +18,7 @@ export const MACHINE_PART_LIMIT = 8;
 /** The smallest any word may be on screen: below this the page shows the chart. */
 export const MACHINE_MIN_WORD_PX = 11;
 export const CANT_DRAW = "The machine can't show this file's pipes clearly, so here is the box chart.";
+export const NOTHING_TO_DRAW = "Nothing here to draw.";
 export const TOO_SMALL = "The machine would be too small to read here, so here is the box chart.";
 
 /** The machine's parts from a proof file's own code and test: what a shared picture needs, with no code text in it. */
@@ -50,6 +51,8 @@ export interface MachineParts {
   housings: Housing[];
   ports: Port[];
   pipes: { from: string; to: string; kind: "calls" | "uses" | "wraps" }[];
+  /** How many functions and classes the file really defines, when the outline kept fewer. */
+  partsInFile?: number;
 }
 
 /** What the machine is made of. Every field comes from the syntax of the code, or the test the person is looking at. When unsure, the part is left off. */
@@ -95,7 +98,7 @@ export function machineParts(model: BenchModel, outline: FileOutline, source: st
   }
   // The outline's own word for each join: "wraps" only for a real decorator, "uses" for a function merely named.
   const pipes = outline.joins.filter((j) => j.from !== j.to && ids.has(j.from) && ids.has(j.to)).map((j) => ({ from: j.from, to: j.to, kind: j.kind }));
-  return { housings, ports, pipes };
+  return { housings, ports, pipes, ...(outline.partsInFile ? { partsInFile: outline.partsInFile } : {}) };
 }
 
 
@@ -237,9 +240,12 @@ export function endOfRun(o: { outcome: unknown; thrown: ThrownFact; parts: Machi
 }
 
 /** Plain code's facts about which functions ran: the one under test, those the traced steps name, and the only caller of a fake that was called. */
-export function ranParts(o: { tested: string | null; steps: readonly { name: string }[]; parts: MachineParts; called: (port: string) => boolean }): Set<string> {
+export function ranParts(o: { tested: string | null; steps: readonly { name: string; within?: readonly string[] }[]; parts: MachineParts; called: (port: string) => boolean }): Set<string> {
   const ran = new Set<string>(o.tested ? [o.tested] : []);
-  for (const s of o.steps) ran.add(s.name);
+  for (const s of o.steps) {
+    ran.add(s.name);
+    for (const n of s.within ?? []) ran.add(n);
+  }
   for (const p of o.parts.ports) if (p.from.length === 1 && o.called(p.id)) ran.add(p.from[0]!);
   return ran;
 }
@@ -247,7 +253,7 @@ export function ranParts(o: { tested: string | null; steps: readonly { name: str
 /** The miss, placed: the ring on the part that ended the run, or, when that can't be placed, the words alone beside where the call came in. */
 export function ringFor(o: { kind: "not_matched" | "matched" | "ending"; you: string | null; end: MachineEnd | null; tested: string | null; stranger?: boolean }): MachineRing | null {
   if (o.kind !== "not_matched" || !o.tested) return null;
-  const words = `${o.stranger ? "the bet said" : "you said"} ${o.you ?? ""}`;
+  const words = `${o.stranger ? "the bet said" : "you said"} ${(o.you ?? "").replace(/^(typed|answered) /, "")}`;
   return o.end ? { part: o.end.part, on: o.end.on, words } : { part: o.tested, on: "words", words };
 }
 
@@ -346,8 +352,9 @@ export function drawMachine(p: MachineParts, o: { seed: string; ring?: MachineRi
 export function drawAt(p: MachineParts, o: { seed: string; ring?: MachineRing | null; ended?: boolean; end?: MachineEnd | null }, roomy: number): MachineDrawn {
   const count = p.housings.length + p.ports.length;
   const chart = (why: string): MachineDrawn => ({ svg: "", width: 0, height: 0, label: "", tooMany: why, problems: [], minWords: 0 });
+  if (p.partsInFile) return chart(`This file defines ${p.partsInFile.toLocaleString("en-US")} functions and classes, more than the ${MACHINE_PART_LIMIT} parts the machine can draw and still be read. The box chart shows the first ${p.housings.length}.`);
   if (count > MACHINE_PART_LIMIT) return chart(`This file has ${count} parts, more than the ${MACHINE_PART_LIMIT} the machine can draw and still be read, so here is the box chart.`);
-  if (count === 0) return chart("Nothing here to draw as a machine, so here is the box chart.");
+  if (count === 0) return chart(NOTHING_TO_DRAW);
   const s = sheetOf(o.seed);
   const col = columns(p);
   // Each column's order follows its callers', so pipes cross as little as they can.
@@ -479,7 +486,7 @@ export function drawAt(p: MachineParts, o: { seed: string; ring?: MachineRing | 
       const top = topOfBody(h);
       const wheelhouse = hasWheel(h);
       const lid = { x: pl.x + 5, y: pl.y + 5, w: pl.w - 10, d: pl.d - 10 };
-      open(s, h.id, `${h.name}: a ${h.kind}, ${span(h.lines[0], h.lines[1])}${h.exported ? ", exported" : ""}${h.tested ? ", the one Atlas calls" : ""}`);
+      open(s, h.id, `${h.name}: a ${h.kind}, ${span(h.lines[0], h.lines[1])}${h.exported ? ", can be called from outside the file" : ""}${h.tested ? ", the one Atlas calls" : ""}`);
       floorShadow(s, pl, 18);
       feet(s, pl);
       block(s, pl, 4, bodyHeight(h));
@@ -501,7 +508,7 @@ export function drawAt(p: MachineParts, o: { seed: string; ring?: MachineRing | 
         close(s);
         callouts.push({ part: h.id, text: "starts here: Atlas calls this", anchor: iso([pl.x + 30, pl.y + 30, top + 66]), size: 14.5 });
       } else if (h.exported) {
-        open(s, `${h.id}#inlet`, `${h.name}: exported, so it can be called from outside the file`);
+        open(s, `${h.id}#inlet`, `${h.name}: can be called from outside the file`);
         drum(s, pl.x + 30, pl.y + 30, 10, top, 7);
         drum(s, pl.x + 30, pl.y + 30, 6, top + 7, 2.4, { tone: "bare" });
         close(s);

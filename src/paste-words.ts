@@ -228,6 +228,7 @@ export const BET_WORDS = {
   network: (lib: string) => `The real network is blocked. Atlas's fake ${lib} answers instead, exactly as this test scripts it, and counts each call.`,
   ais: (names: readonly string[]) =>
     names.length === 0 ? "No AI bets on this test." : `${names.length === 1 ? "One AI bets" : `${names.length === 2 ? "Two" : String(names.length)} AIs bet`} too, without seeing your answers: ${names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`}.`,
+  aiOff: (who: string, why: string) => `${who} is not betting on this round: ${String(why).replace(/\.$/, "")}.`,
   aiStatus: (name: string, status: string) => `${name}: ${status}`,
   whoBets: "Who bets with you",
   seal: "Seal my answers",
