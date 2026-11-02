@@ -421,6 +421,8 @@ export const MACHINE_CSS = `
 .m-t{fill:var(--rr-ink);font-family:"Atlas Besley",Georgia,serif;font-kerning:none;font-variant-ligatures:none;text-rendering:geometricPrecision}
 .m-i{font-style:italic}
 .m-t.m-code{font-family:"Geist Mono",ui-monospace,"SF Mono",Menlo,monospace;fill:var(--rr-soft)}
+.m-t.m-ai{fill:#4a4f57}
+.m-ai-mark{fill:#4a4f57;stroke:none}
 .m-part:hover .m-card,.m-part[data-picked] .m-card{fill:#efe6cf}
 .m-soft{fill:var(--rr-soft)}
 .m-redw{fill:var(--rr-red)}

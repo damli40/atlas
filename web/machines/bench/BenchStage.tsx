@@ -72,6 +72,9 @@ export interface BenchStageProps {
   onPart?: (name: string, panel: PartPanel | null) => void;
   /** R6: the part the page's panel is about, marked on the machine. */
   picked?: string | null;
+  /** R6: Meta's AI's short names for the parts, already checked by plain code, or why there are none. */
+  naturalNames?: Record<string, string> | null;
+  namesNote?: string | null;
   /** A code box was chosen as the function to test. */
   onTestFunction?: (name: string) => void;
   /** The file and its size, above the name. */
@@ -133,7 +136,7 @@ export function litWithNoThread(beats: readonly { routes: readonly string[]; lam
   return beats.some((b) => b.lamps.some((l) => l !== tested && !reached.has(l)));
 }
 
-export function BenchStage({ wontRun = false, seenBefore = false, codeRan = false, loop = null, model, theme, after = null, onPart, picked = null, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null }: BenchStageProps) {
+export function BenchStage({ wontRun = false, seenBefore = false, codeRan = false, loop = null, model, theme, after = null, onPart, picked = null, naturalNames = null, namesNote = null, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null }: BenchStageProps) {
   const [wantMachine, setWantMachine] = useState(machineFirst);
   const playedRef = useRef(onPlayed);
   playedRef.current = onPlayed;
@@ -192,11 +195,17 @@ export function BenchStage({ wontRun = false, seenBefore = false, codeRan = fals
     const moment = after ? momentOf(after.marks, after.run, language) : null;
     return moment ? ringFor({ kind: moment.kind, you: moment.you, end, tested: model.tested }) : null;
   }, [after?.run, after?.marks, end, model.tested]); // eslint-disable-line react-hooks/exhaustive-deps
+  // R6: names that arrive while a run plays wait for it to end: a new drawing would restart the player mid-story.
+  const [shownNames, setShownNames] = useState<Record<string, string> | null>(null);
+  useEffect(() => {
+    if (!playing) setShownNames(naturalNames);
+  }, [naturalNames, playing]);
+  const namedParts = useMemo(() => (shownNames ? { ...parts, housings: parts.housings.map((h) => (shownNames[h.id] ? { ...h, natural: shownNames[h.id]! } : h)) } : parts), [parts, shownNames]);
   const drawn = useMemo(() => {
-    const d = drawMachine(parts, { seed: `machine:${outline.parts.map((p) => p.name).join(",")}`, ring, end, nameLines: true, ...(wontRun ? { wontRun } : {}) });
+    const d = drawMachine(namedParts, { seed: `machine:${outline.parts.map((p) => p.name).join(",")}`, ring, end, nameLines: true, ...(wontRun ? { wontRun } : {}) });
     // The check runs on every drawing: a picture that fails it is not shown, and the words stay plain.
     return d.problems.length > 0 ? { ...d, tooMany: CANT_DRAW } : d;
-  }, [parts, ring, end, outline, wontRun]);
+  }, [namedParts, ring, end, outline, wontRun]);
   // The floor: no word under 11 px on screen, whatever the part count. The region is always there to measure, in either view.
   const regionRef = useRef<HTMLDivElement | null>(null);
   const [region, setRegion] = useState<{ w: number; h: number } | null>(null);
@@ -393,7 +402,7 @@ export function BenchStage({ wontRun = false, seenBefore = false, codeRan = fals
     const moment = after && marksOn ? momentOf(after.marks, after.run, language) : null;
     const params = after?.experiment.params;
     const broke = moment && ring ? { run: moment.run, line: end?.on === "chute" ? (end.line ?? null) : null, input: params && params.shape === "call-function" ? describeCall(params, language) : null } : null;
-    return partPanel(parts, id, { ring, broke, wontRun });
+    return partPanel(namedParts, id, { ring, broke, wontRun, namesNote });
   };
   const stage = !after ? "structure" : marksOn ? "verdict" : "run";
   const readout = after && marksOn ? marksReadout(after.marks) : model.tested ? `testing ${model.tested}` : `${model.boxes.length} ${model.boxes.length === 1 ? "part" : "parts"} · ${model.lines.length} ${model.lines.length === 1 ? "join" : "joins"}`;

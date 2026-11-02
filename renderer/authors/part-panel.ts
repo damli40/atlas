@@ -2,6 +2,7 @@
 // so the panel can't say what the machine doesn't. After a run, the ringed part also says what broke, in words the verdict already shows. Pure.
 
 import { nameWords } from "./part-name";
+import { NAMER_WORDS } from "../../src/natural-names";
 import type { MachineParts, MachineRing } from "./machine";
 import { span } from "./machine";
 
@@ -16,6 +17,9 @@ export interface PartPanel {
   lines: [number, number] | null;
   /** Only on the ringed part after a run: what the run did there. */
   broke: string[] | null;
+  /** R6: Meta's AI's short name for the part, marked as its words; or a quiet note on why there is none. */
+  natural: string | null;
+  note: string | null;
 }
 
 /** What the run measured, as the page already shows it: the verdict's words, the line it threw from, the test's call. */
@@ -29,7 +33,7 @@ const list = (l: readonly number[]) => (l.length === 1 ? `line ${l[0]}` : `lines
 const cap = (s: string) => `${s.charAt(0).toUpperCase()}${s.slice(1)}`;
 
 /** The panel for one part, or null when the id is no part of this machine. */
-export function partPanel(p: MachineParts, id: string, o: { ring?: MachineRing | null; broke?: BrokeFacts | null; wontRun?: boolean } = {}): PartPanel | null {
+export function partPanel(p: MachineParts, id: string, o: { ring?: MachineRing | null; broke?: BrokeFacts | null; wontRun?: boolean; namesNote?: string | null } = {}): PartPanel | null {
   const ringed = o.ring && o.ring.on !== "words" && o.ring.part === id && o.broke ? brokeWords(o.broke) : null;
   const h = p.housings.find((x) => x.id === id);
   if (h) {
@@ -55,13 +59,16 @@ export function partPanel(p: MachineParts, id: string, o: { ring?: MachineRing |
     if (by.length) says.push(`Called by: ${by.join(", ")}.`);
     says.push(`${cap(span(h.lines[0], h.lines[1]))}.`);
     const words = h.role ?? nameWords(h.name);
-    return { id, title: words ?? h.name, name: h.role ? null : words ? h.name : null, says, lines: h.lines, broke: ringed };
+    const natural = h.natural ? NAMER_WORDS.panel(h.natural) : null;
+    // With Meta's AI's name above it, the title is the part's own: its exact name (or the role word when it has none).
+    if (natural) return { id, title: h.role ?? h.name, name: null, says, lines: h.lines, broke: ringed, natural, note: null };
+    return { id, title: words ?? h.name, name: h.role ? null : words ? h.name : null, says, lines: h.lines, broke: ringed, natural: null, note: o.namesNote ? NAMER_WORDS.unavailable(o.namesNote) : null };
   }
   const q = p.ports.find((x) => x.id === id);
   if (q) {
     const says = [q.faked ? "An outside call. Atlas fakes it, so the real one never runs: the test scripts what it does." : "An outside call this code makes. Nothing has run."];
     says.push(`Called by: ${q.from.join(", ")}.`);
-    return { id, title: q.name, name: null, says, lines: null, broke: ringed };
+    return { id, title: q.name, name: null, says, lines: null, broke: ringed, natural: null, note: null };
   }
   return null;
 }

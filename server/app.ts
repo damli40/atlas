@@ -138,6 +138,7 @@ import { endOfFile, machinePartsOfFile, publicParts, type MachineEnd, type Machi
 import { entriesFromRound, functionKey, recordBefore, trackRecordOf, weakSpotSummary, type TrackRecord } from "../src/track-record";
 import { createLabeler, DEFAULT_LABELS_PER_CLIENT_PER_HOUR } from "./labels";
 import { labelsForBettors } from "../src/failure-labels";
+import { namesForBettors } from "../src/natural-names";
 import { currentPrincipal } from "./access/context";
 
 const REPO_ROOT = fileURLToPath(new URL("../", import.meta.url));
@@ -652,6 +653,8 @@ export function createApp(opts: AppOptions = {}) {
   const proofOf = (runId: string) => proofStore.get(runId) ?? pastedProofs.get(runId);
   // D63: tests written before anyone asked don't count against the limits until used, so they have their own small limit here.
   const earlyTestsByClient = createHourlyLimit(envCount(process.env.ATLAS_EARLY_TESTS_PER_CLIENT_PER_HOUR, 12), "tests written ahead");
+  // R6: the natural-names call, one per file, its own small limit like the tests written ahead (and the same model budget).
+  const namesByClient = createHourlyLimit(envCount(process.env.ATLAS_NAMES_PER_CLIENT_PER_HOUR, 12), "natural names");
   // R3: the third run behind the drawing's helper steps, per invite code an hour (by address when there is no code).
   const helperRunsByClient = createHourlyLimit(envCount(process.env.ATLAS_HELPER_RUNS_PER_CLIENT_PER_HOUR, 200), "helper runs");
   const helperStore = createHelperStore();
@@ -681,6 +684,7 @@ export function createApp(opts: AppOptions = {}) {
     ...(budget ? { budget } : {}),
     takeModelRound: (c) => modelRoundsByIp.take(clientOf(c)),
     takeEarlyTests: (c) => earlyTestsByClient.take(clientOf(c)),
+    takeNames: (c) => namesByClient.take(clientOf(c)),
     takePaste: (c) => pastesByIp.take(clientOf(c)),
     executorKind: executor.kind,
     // X3: Muse Wonder is told only the kinds of question where this person's bets most often didn't match (counts).
@@ -1168,7 +1172,9 @@ export function createApp(opts: AppOptions = {}) {
       const line = pastedEntry.exports.find((e) => e.name === call.exportName)?.line ?? 0;
       // U1: the questions are part of the text (a quiz lists its options), so they are part of the key.
       // X3 review round 2 (D50): the called function's failure labels, in the text every bettor gets (and in the key).
-      const labels = labelsForBettors(labeler.forPaste(sessionId, target, call.exportName));
+      // R6 (D19): the natural names the person's screen shows for this file, labelled as the naming model's words.
+      const named = await paste.namesForText(sessionId, target.codeSha256);
+      const labels = [...labelsForBettors(labeler.forPaste(sessionId, target, call.exportName)), ...(named ? namesForBettors(named.names, named.model) : [])];
       const key = [target.codeSha256, target.language, line, canonicalJson(experiment.proposedBy), canonicalJson(experiment.params), round.repeatOf ?? "", body.quiz ? "quiz" : "", ...labels].join("\n");
       const block = paste.fileBlock(target.codeSha256, target.source ?? "", line);
       const cap = pastedSeenCap(round.questions, MAX_PASTED_PROMPT_CHARS);

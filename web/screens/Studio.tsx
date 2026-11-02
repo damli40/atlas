@@ -42,6 +42,7 @@ import { ErrorNotice } from "./ErrorNotice";
 import { MachineSheet, machineFirst, useFontsIn } from "../drawing/MachineView";
 import { drawMachine, machineParts } from "../../renderer/authors/machine";
 import type { PartPanel } from "../../renderer/authors/part-panel";
+import { EXAMPLE_NAMES } from "../../src/example-names";
 import { Segments, TestForm, emptyForm, formFromParams, type TestFormState } from "./TestForm";
 import { BenchStage, type After } from "../machines/bench/BenchStage";
 import { benchModel, dialFullMs, type CallTest } from "../machines/bench/model";
@@ -101,7 +102,8 @@ function CodeDrawer({ source, lines, onClose, coversResult = false, part = null 
       {coversResult && <p className="c-covers" role="note" data-testid="c-covers">{`Your result is under this panel. ${part ? "Esc" : "C"} closes it.`}</p>}
       {part && (
         <section className="c-part" aria-live="polite" data-testid="part-panel">
-          <h2 className="c-part-title">{part.title}</h2>
+          {part.natural && <p className="c-part-ai" data-testid="part-ai">{part.natural}</p>}
+          <h2 className={`c-part-title${part.natural ? " c-part-code" : ""}`}>{part.title}</h2>
           {part.name && <p className="c-part-name">{part.name}</p>}
           {part.broke && (
             <div className="c-part-broke" data-testid="part-broke">
@@ -115,6 +117,7 @@ function CodeDrawer({ source, lines, onClose, coversResult = false, part = null 
               <li key={w}>{w}</li>
             ))}
           </ul>
+          {part.note && <p className="c-part-note" data-testid="part-names-note">{part.note}</p>}
         </section>
       )}
       {part && !lines ? null : (
@@ -141,7 +144,10 @@ function ExampleDrawing() {
   const drawn = useMemo(() => {
     if (!fontsIn || !machineFirst()) return null;
     const model = benchModel({ fileName: "example.ts", outline, test: null, source: U1_EXAMPLE, language: "ts" });
-    const d = drawMachine(machineParts({ ...model, tested: EXAMPLE_FUNCTION_NAME }, outline, U1_EXAMPLE, "ts"), { seed: "machine:example", nameLines: true });
+    // R6: the example's natural names are kept in the page (recorded once from a real call), so they cost nothing here.
+    const parts = machineParts({ ...model, tested: EXAMPLE_FUNCTION_NAME }, outline, U1_EXAMPLE, "ts");
+    const named = { ...parts, housings: parts.housings.map((h) => (EXAMPLE_NAMES[h.id] ? { ...h, natural: EXAMPLE_NAMES[h.id]! } : h)) };
+    const d = drawMachine(named, { seed: "machine:example", nameLines: true });
     return d.tooMany || d.problems.length > 0 ? null : d;
   }, [outline, fontsIn]);
   const reduced = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
@@ -579,6 +585,21 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   }, [target?.codeSha256, fn]);
   const targetKey = useRef("");
   targetKey.current = target && fn ? `${target.codeSha256}|${fn}` : "";
+  // R6: the parts' natural names, asked once per drawn file. The machine draws at once with split names; these arrive later or not at all.
+  const [natural, setNatural] = useState<{ sha: string; model: string; names: Record<string, string> } | { sha: string; reason: string } | null>(null);
+  useEffect(() => {
+    if (!target || !api.names || !pasted?.outline || pasted.outline.parts.length === 0) return;
+    const sha = target.codeSha256;
+    let live = true;
+    void api.names(target).then(
+      (r) => live && setNatural(r.ok ? { sha, model: r.model, names: r.names } : { sha, reason: r.reason ?? "no answer" }),
+      () => live && setNatural({ sha, reason: "the request failed" }),
+    );
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target?.codeSha256, pasted?.outline]);
   const writeOwn = () => {
     ownTest.current = true;
     setChanging(true);
@@ -1179,6 +1200,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           side={open}
           onPlayed={() => setPlayed((n) => n + 1)}
           picked={partShown?.id ?? null}
+          naturalNames={natural && natural.sha === pasted.target.codeSha256 && "names" in natural ? natural.names : null}
+          namesNote={natural && natural.sha === pasted.target.codeSha256 && "reason" in natural ? natural.reason : null}
           onPart={(name, panel) => {
             const part = pasted.outline?.parts.find((p) => p.name === name);
             if (!part && !panel) return;

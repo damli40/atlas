@@ -9,6 +9,7 @@ import { benchModel, type BenchModel, type CallTest } from "../../web/machines/b
 import type { ThrowSite } from "../../src/outline/types";
 import type { Pt } from "../hand";
 import { nameWords, roleOf } from "./part-name";
+import { NAMER_WORDS } from "../../src/natural-names";
 import type { RenderSpec } from "../spec";
 import { auditMachine, type MachineFacts } from "../machine/audit";
 import { rectsOverlap, sample, solidHitsRect, solidOf, segDist, type Rect, type Solid, segmentsCross } from "../machine/geometry";
@@ -46,6 +47,8 @@ export interface Housing {
   throwSites: ThrowSite[];
   /** A word for a part with no name of its own (an unnamed default export), from syntax alone. */
   role?: string;
+  /** R6: a short natural name by Meta's AI, already checked by plain code (src/natural-names.ts). The person's screen only: never a shared picture. */
+  natural?: string;
 }
 export interface Port {
   id: string;
@@ -402,33 +405,52 @@ const LAMP = { dx: WIDE - 17, dy: 70, clear: 6.5 };
  * Both lines stay at or above the size a name alone may be (13 px on the sheet), so the page's 11 px floor is met exactly as before. Null: no room.
  * `top` is how far into the plate the first line's tallest letters reach: below the lamp when the words are wide enough to meet it.
  */
-export function lidLines(h: Pick<Housing, "name" | "role">, twoLines: boolean): { big: string; bigSize: number; small?: string; smallSize?: number; top?: number; plate: typeof PLATE_ONE } | null {
+export function lidLines(h: Pick<Housing, "name" | "role" | "natural">, twoLines: boolean): { big: string; bigSize: number; small?: string; smallSize?: number; top?: number; plate: typeof PLATE_ONE; ai?: true } | null {
   const shortName = h.name.length > 22 ? `${h.name.slice(0, 21)}…` : h.name;
   // The plate's width and the words are in different units here: world and page.
   const fit = (room: number, w: number, max: number) => Math.min(max, ((room * K) / w) * 100) / K;
   const one = fit(PLATE_ONE.w - 10 / K, textWidth(shortName, 100, false), 30);
   const alone = one * K >= 13 ? { big: shortName, bigSize: one, plate: PLATE_ONE } : null;
   if (!twoLines) return alone;
-  // No name of its own: the role word, alone. The lid never shows "default" as if it were a name.
+  // No name of its own: the role word (or Meta's AI's name for it), alone. The lid never shows "default" as if it were a name.
   if (h.role) {
-    const r = fit(PLATE_ONE.w - 10 / K, textWidth(h.role, 100, false), 26);
-    return r * K >= 13 ? { big: h.role, bigSize: r, plate: PLATE_ONE } : null;
+    const w = h.natural ?? h.role;
+    const r = fit(PLATE_ONE.w - 10 / K - (h.natural ? MARK : 0), textWidth(w, 100, Boolean(h.natural)), 26);
+    return r * K >= 13 ? { big: w, bigSize: r, plate: PLATE_ONE, ...(h.natural ? { ai: true as const } : {}) } : null;
   }
-  const words = nameWords(h.name);
+  // Meta's AI's name, in italic with its mark, when there is one; else the name split by plain code.
+  const words = h.natural ?? nameWords(h.name);
   if (!words) return alone;
+  const ai = h.natural !== undefined;
   const wide = PLATE_TWO.w - 8;
   // Centred words narrower than this stop short of the lamp, so they may start at the plate's back edge.
-  const clearOfLamp = 2 * (LAMP.dx - LAMP.clear - (PLATE_TWO.dx + PLATE_TWO.w / 2));
+  const clearOfLamp = 2 * (LAMP.dx - LAMP.clear - 5 - (PLATE_TWO.dx + PLATE_TWO.w / 2));
   const small = Math.min(fit(wide, codeWidth(shortName, 100), 13.5 / K), 13.5 / K);
   let best: { big: number; top: number } | null = null;
   for (const [room, top] of [[clearOfLamp, 3], [wide, LAMP.dy + LAMP.clear - PLATE_TWO.dy]] as const) {
     // A letter's height above and below its line: about 0.72 and 0.22 of its size. Then a small gap, then the code line.
     const deep = (PLATE_TWO.d - top - 3 - 2 - small * 0.94) / 0.94;
-    const big = Math.min(fit(room, textWidth(words, 100, false), 26), deep);
+    const big = Math.min(fit(room - (ai ? MARK : 0), textWidth(words, 100, ai), 26), deep);
     if (!best || big > best.big) best = { big, top };
   }
-  if (!best || best.big * K < 13 || small * K < 13 || small > best.big) return alone;
-  return { big: words, bigSize: best.big, small: shortName, smallSize: small, top: best.top, plate: PLATE_TWO };
+  // The code line is never larger than the words above it: it shrinks to match them, but never under 13 on the sheet.
+  const code = best ? Math.min(small, best.big) : small;
+  if (!best || best.big * K < 13 || code * K < 13) return alone;
+  return { big: words, bigSize: best.big, small: shortName, smallSize: code, top: best.top, plate: PLATE_TWO, ...(ai ? { ai: true as const } : {}) };
+}
+
+/** Room kept before a Meta AI name for its mark, in world units. */
+const MARK = 14;
+/** The mark beside words Meta's AI wrote: a small four-point star in graphite, on the lid, just before the words. No text, so no word gets smaller. */
+function aiMark(s: Sheet, x: number, y: number, z: number) {
+  const r = 4.2;
+  const pts: Pt[] = [];
+  for (let i = 0; i < 8; i++) {
+    const t = (i / 8) * Math.PI * 2;
+    const d = i % 2 === 0 ? r : r * 0.32;
+    pts.push(iso([x + Math.cos(t) * d, y + Math.sin(t) * d, z]));
+  }
+  s.raw(`<path class="m-ai-mark" d="M${pts.map((q) => `${q[0].toFixed(1)} ${q[1].toFixed(1)}`).join("L")}Z"/>`);
 }
 
 /** Draws at the tightest spacing that comes out clean: more room is tried only when the pipes can't be routed or the audit finds a fault. */
@@ -589,7 +611,7 @@ export function drawAt(p: MachineParts, o: { seed: string; ring?: MachineRing | 
       const top = topOfBody(h);
       const wheelhouse = hasWheel(h);
       const lid = { x: pl.x + 5, y: pl.y + 5, w: pl.w - 10, d: pl.d - 10 };
-      open(s, h.id, `${h.name}: a ${h.kind}, ${span(h.lines[0], h.lines[1])}${h.exported ? ", can be called from outside the file" : ""}${h.tested ? ", the one Atlas calls" : ""}`);
+      open(s, h.id, `${h.name}: a ${h.kind}, ${span(h.lines[0], h.lines[1])}${h.exported ? ", can be called from outside the file" : ""}${h.tested ? ", the one Atlas calls" : ""}${o.nameLines && h.natural ? `. Its short name, "${h.natural}", is ${NAMER_WORDS.marker}` : ""}`);
       floorShadow(s, pl, 18);
       feet(s, pl);
       block(s, pl, 4, bodyHeight(h));
@@ -602,8 +624,17 @@ export function drawAt(p: MachineParts, o: { seed: string; ring?: MachineRing | 
       if (onLid?.small !== undefined) {
         // Two lines: the plain words, then the exact name in code type, centred together on the plate.
         const first = plate.y + onLid.top! + onLid.bigSize * 0.72;
-        s.onTop([pl.x + pl.w / 2, first, top + 1.6], onLid.big, onLid.bigSize);
+        if (onLid.ai) {
+          // Shifted right by half the mark's room, with the mark just before the words' first letter.
+          const half = textWidth(onLid.big, onLid.bigSize * K, true) / K / 2;
+          s.onTop([pl.x + pl.w / 2 + MARK / 2, first, top + 1.6], onLid.big, onLid.bigSize, { cls: "m-ai", italic: true });
+          aiMark(s, pl.x + pl.w / 2 + MARK / 2 - half - 7, first - onLid.bigSize * 0.3, top + 1.6);
+        } else s.onTop([pl.x + pl.w / 2, first, top + 1.6], onLid.big, onLid.bigSize);
         s.onTop([pl.x + pl.w / 2, first + onLid.bigSize * 0.22 + 2 + onLid.smallSize! * 0.72, top + 1.6], onLid.small, onLid.smallSize!, { cls: "m-code" });
+      } else if (onLid?.ai) {
+        const half = textWidth(onLid.big, onLid.bigSize * K, true) / K / 2;
+        s.onTop([pl.x + pl.w / 2 + MARK / 2, pl.y + 87 + onLid.bigSize * 0.3, top + 1.6], onLid.big, onLid.bigSize, { cls: "m-ai", italic: true });
+        aiMark(s, pl.x + pl.w / 2 + MARK / 2 - half - 7, pl.y + 87, top + 1.6);
       } else if (onLid) s.onTop([pl.x + pl.w / 2, pl.y + 87 + onLid.bigSize * 0.3, top + 1.6], onLid.big, onLid.bigSize);
       lamp(s, h.id, [pl.x + LAMP.dx, pl.y + LAMP.dy, top + 1.6]);
       close(s);

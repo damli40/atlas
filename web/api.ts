@@ -367,6 +367,9 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
     // U2 (D53): `claimOf` asks Muse Wonder for tests that check the sentence it wrote about that experiment (after its run).
     proposals: (target: Pick<Target, "ref" | "codeSha256">, exportName: string, opts: { claimOf?: string; early?: boolean } = {}) =>
       post<ProposalsAnswer>("/paste/proposals", { target: { ref: target.ref, codeSha256: target.codeSha256 }, exportName, ...(opts.claimOf ? { claimOf: opts.claimOf } : {}), ...(opts.early ? { early: true } : {}) }),
+    /** R6: short natural names for the drawn parts, by Muse Wonder from the code alone; checked by plain code. Not ok: the page keeps the split names. */
+    names: (target: Pick<Target, "ref" | "codeSha256">) =>
+      post<{ ok: boolean; model: string; names: Record<string, string>; reason?: string }>("/paste/names", { target: { ref: target.ref, codeSha256: target.codeSha256 } }),
     /** E3: a test Muse Wonder proposed, used as proposed. */
     experimentFromProposal: (target: Pick<Target, "ref" | "codeSha256">, proposalId: string, opts: { quiz?: true } = {}) =>
       post<ExperimentAnswer>("/experiments", { target: { ref: target.ref, codeSha256: target.codeSha256 }, proposalId, ...(opts.quiz ? { quiz: true } : {}) }),
