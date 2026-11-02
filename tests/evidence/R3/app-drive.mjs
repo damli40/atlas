@@ -227,11 +227,19 @@ if (early) {
   say("reduced motion: the chart is there at once", await p.evaluate(() => document.querySelectorAll(".rr-pending").length === 0 && document.getAnimations().filter((a) => a.playState === "running").length === 0));
   await p.click('[data-testid="u1-bet-toggle"]');
   await p.waitForSelector('[data-testid="u1-seal"]', { timeout: 60000 });
+  // Timed inside the page, from the drawing of the run appearing to the verdict appearing. Timing it from here counted the sandbox's run and Playwright's own polling.
+  await p.evaluate(() => {
+    const seen = (window.__rm = {});
+    new MutationObserver(() => {
+      if (!seen.path && document.querySelector('[data-testid="bench-path"]')) seen.path = performance.now();
+      if (!seen.marks && document.querySelector('[data-testid="mark-list"]')) seen.marks = performance.now();
+    }).observe(document.body, { subtree: true, childList: true });
+  });
   await p.click('[data-testid="u1-seal"]');
-  const t = Date.now();
   await p.waitForSelector('[data-testid="bench-path"]', { timeout: 90000 });
   await p.waitForSelector('[data-testid="mark-list"]', { timeout: 8000 });
-  say("reduced motion: the verdict arrives finished", Date.now() - t < 1000, `${Date.now() - t} ms`);
+  const gap = await p.evaluate(() => Math.round(window.__rm.marks - window.__rm.path));
+  say("reduced motion: the verdict arrives finished", gap < 200, `${gap} ms after the run's drawing`);
   await shot(p, "reduced-motion-verdict");
   await p.context().close();
 }
