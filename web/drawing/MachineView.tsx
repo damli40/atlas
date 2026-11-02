@@ -6,6 +6,7 @@ import { MACHINE_CSS } from "../../renderer/machine/pencil";
 import type { MachineDrawn } from "../../renderer/authors/machine";
 import type { MachineBeat } from "../../renderer/authors/machine-script";
 import { ensureRendererStyle } from "./Drawing";
+import { NAMER_WORDS } from "../../src/natural-names";
 
 const VIEW_KEY = "atlas-view";
 /** The machine is the first view unless this person chose the chart, or the screen is a phone. */
@@ -147,7 +148,9 @@ export const MachineSheet = forwardRef<MachineControl, { drawn: MachineDrawn; re
         }
       }}
     >
-      <div className="m-svg" dangerouslySetInnerHTML={html} style={{ ["--m-w" as string]: `${drawn.width}px`, ["--m-h" as string]: `${drawn.height}px` }} />
+      {/* R6: whenever a lid carries a name Meta's AI wrote, the page says so in words, not only with the star. */}
+      {drawn.aiNames ? <p className="m-legend" data-testid="machine-names-legend">{NAMER_WORDS.legend}</p> : null}
+      <div className="m-svg" data-legend={drawn.aiNames ? "" : undefined} dangerouslySetInnerHTML={html} style={{ ["--m-w" as string]: `${drawn.width}px`, ["--m-h" as string]: `${drawn.height}px` }} />
       {card && (
         <p className="m-card-pop" role="status" data-testid="machine-card" style={{ left: Math.max(170, card.x), top: Math.max(8, card.y - 8) }}>
           {card.words}

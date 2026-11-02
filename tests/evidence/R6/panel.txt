@@ -1,0 +1,54 @@
+pass 1280: first screen lids show Meta's AI names over the exact names: ["price lookup","getPrice","retrying fetch","fetchWithRetry","retry wait time","backoffMs","pause execution","sleep"]
+pass 1280: review B1: words on the first screen say whose names they are: ★ names: Muse Wonder's words (Meta's AI), not a check
+pass 1280: the machine is shown
+pass 1280: review B1: the names legend is on screen, above the drawing, not on it: {"legend":{"x0":487.59375,"y0":56,"x1":808.71875,"y1":72.25},"sheet":{"x0":483.59375,"y0":82,"x1":1269.984375,"y1":710}}
+pass 1280: hover opens no panel
+pass 1280: Enter on a part opens its panel: Meta's AI calls this: retrying fetch (its words, not a check) |  | fetchWithRetry | A function that can be called from outside the file. Atlas calls this one. | Runs a loop (line 12). | Has a throw (line 20). | Returns (line 14). | Calls: backoffMs, sleep. | Called by: getPrice. | Lines 10–21.
+pass 1280: the panel says whose words the name is
+pass 1280: the panel shows the part's code, lines 10 to 21 marked
+pass 1280: no small card as well (one place says what a part is)
+pass 1280: the panel does not cover the part: {"panel":{"x0":0,"y0":48,"x1":473.59375,"y1":720},"part":{"x0":788.1907958984375,"y0":293.38983154296875,"x1":1011.949951171875,"y1":459.59246826171875}}
+pass 1280: the machine kept its view (not swapped for the chart)
+pass 1280: Esc closes it
+pass 1280: with a part panel open, a digit key answers no hidden question: 000 → 000
+pass 1280: every bettor's text has the names the page was sent, and claims no more: Names muse-wonder-1.0 (Meta's AI) suggested for the parts, from the code alone. The person's drawing may show some of them. Its words, not a check: / - backoffMs: retry wait time / - sleep: pause execution / - fetchWithRetry: retrying fetch / - getPrice: price lookup
+pass 1280: the example's ring is on a part: stand-in fetchIt
+pass 1280: the ringed part's panel says what broke, in the verdict's words: The run threw TypeError: fetch failed at 700 ms, after 3 calls to fetchIt. |  | Atlas calls fetchWithRetry(fetchIt). fetchIt (async) throws TypeError ("fetch failed") on call 1; every later call throws TypeError ("fetch failed") too.
+pass 1280: review M3: after a run the panel covers no verdict, answer list, action bar, ring or part: {"panel":{"x0":24,"y0":421,"x1":448.59375,"y1":584},"covered":[]}
+pass 1280: the actions are still clickable
+pass 1280: the proof picture has no AI names and no code type: 0 marks
+pass 1100: first screen lids show Meta's AI names over the exact names: ["price lookup","getPrice","retrying fetch","fetchWithRetry","retry wait time","backoffMs","pause execution","sleep"]
+pass 1100: review B1: words on the first screen say whose names they are: ★ names: Muse Wonder's words (Meta's AI), not a check
+pass 1100: the machine is shown
+pass 1100: review B1: the names legend is on screen, above the drawing, not on it: {"legend":{"x0":421,"y0":56,"x1":742.125,"y1":72.25},"sheet":{"x0":417,"y0":82,"x1":1090,"y1":690}}
+pass 1100: hover opens no panel
+pass 1100: Enter on a part opens its panel: Meta's AI calls this: retrying fetch (its words, not a check) |  | fetchWithRetry | A function that can be called from outside the file. Atlas calls this one. | Runs a loop (line 12). | Has a throw (line 20). | Returns (line 14). | Calls: backoffMs, sleep. | Called by: getPrice. | Lines 10–21.
+pass 1100: the panel says whose words the name is
+pass 1100: the panel shows the part's code, lines 10 to 21 marked
+pass 1100: no small card as well (one place says what a part is)
+pass 1100: the panel does not cover the part: {"panel":{"x0":0,"y0":48,"x1":407,"y1":700},"part":{"x0":677.6768188476562,"y0":298.185302734375,"x1":869.171875,"y1":440.4230041503906}}
+pass 1100: the machine kept its view (not swapped for the chart)
+pass 1100: Esc closes it
+pass 1100: with a part panel open, a digit key answers no hidden question: 000 → 000
+pass 1100: every bettor's text has the names the page was sent, and claims no more: Names muse-wonder-1.0 (Meta's AI) suggested for the parts, from the code alone. The person's drawing may show some of them. Its words, not a check: / - backoffMs: retry wait time / - sleep: pause execution / - fetchWithRetry: retrying fetch / - getPrice: price lookup
+pass 1100: the example's ring is on a part: stand-in fetchIt
+pass 1100: the ringed part's panel says what broke, in the verdict's words: The run threw TypeError: fetch failed at 700 ms, after 3 calls to fetchIt. |  | Atlas calls fetchWithRetry(fetchIt). fetchIt (async) throws TypeError ("fetch failed") on call 1; every later call throws TypeError ("fetch failed") too.
+pass 1100: review M3: after a run the panel covers no verdict, answer list, action bar, ring or part: {"panel":{"x0":24,"y0":249.359375,"x1":382,"y1":520.125},"covered":[]}
+pass 1100: the actions are still clickable
+pass 1100: the proof picture has no AI names and no code type: 0 marks
+pass 390: a tap on a box opens its panel: Meta's AI calls this: retrying fetch (its words, not a check) |  | fetchWithRetry | A function that can be called from outside the file. Atlas calls this one. | Runs a loop (line 12). | Has a throw (line 20). | Returns (line 14). | Calls: backoffMs, sleep. | Called by: getPrice. | Lines 10–21.
+pass 390: the sheet leaves the box in sight: {"panel":{"x0":0,"y0":422,"x1":390,"y1":844},"box":{"x0":90.19754791259766,"y0":199.9238739013672,"x1":258.2129592895508,"y1":268.93292236328125}}
+pass 390: no pinned chart card as well
+pass 390: every bettor's text has the names the page was sent, and claims no more: Names muse-wonder-1.0 (Meta's AI) suggested for the parts, from the code alone. The person's drawing may show some of them. Its words, not a check: / - backoffMs: retry wait time / - sleep: pause execution / - fetchWithRetry: retrying fetch / - getPrice: price lookup
+pass 390: a phone shows the chart, so no machine ring to click (the path's ring is not a part): null
+pass 1280: orders: the ringed chute's panel has the verdict's words and the thrown line: The run threw Error: HTTP 429 at 1,400 ms, after 4 calls to fetch. |  | It threw from line 9. |  | Atlas calls fetchAllOrders("https://example.com/orders"). Atlas's fake fetch (in place of the network, which stays blocked) answers 429 with {} on call 1; every later call answers 429 with {} too.
+pass 1280: orders: review M3: the panel covers no verdict, answer list, action bar, ring or part: {"panel":{"x0":24,"y0":421,"x1":448.59375,"y1":584},"covered":[]}
+pass 1280: review B2: after a change the old part panel is gone: null
+pass 1280: review B2: a panel opened now has the new lines and no old run: fetch page |  | fetchPage |  | A function. | Calls itself (line 8). | Waits (line 7). | Has a throw (line 10). | Returns (lines 8 and 11). | Calls: fetch (faked by the test). | Called by: fetchAllOrders. | Lines 4–12. |  | Natural names unavailable: they arrived after the bettors' text for this file was written
+pass 1280: orders: an unringed part adds nothing about the run
+pass 1100: orders: the ringed chute's panel has the verdict's words and the thrown line: The run threw Error: HTTP 429 at 1,400 ms, after 4 calls to fetch. |  | It threw from line 9. |  | Atlas calls fetchAllOrders("https://example.com/orders"). Atlas's fake fetch (in place of the network, which stays blocked) answers 429 with {} on call 1; every later call answers 429 with {} too.
+pass 1100: orders: review M3: the panel covers no verdict, answer list, action bar, ring or part: {"panel":{"x0":24,"y0":78.359375,"x1":382,"y1":520.359375},"covered":[]}
+pass 1100: review B2: after a change the old part panel is gone: null
+pass 1100: review B2: a panel opened now has the new lines and no old run: fetch page |  | fetchPage |  | A function. | Calls itself (line 8). | Waits (line 7). | Has a throw (line 10). | Returns (lines 8 and 11). | Calls: fetch (faked by the test). | Called by: fetchAllOrders. | Lines 4–12. |  | Natural names unavailable: they arrived after the bettors' text for this file was written
+pass 1100: orders: an unringed part adds nothing about the run
+all pass

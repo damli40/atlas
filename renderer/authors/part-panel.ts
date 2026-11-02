@@ -43,7 +43,7 @@ export function partPanel(p: MachineParts, id: string, o: { ring?: MachineRing |
     if (h.loops.length) says.push(`Runs a loop (${list(h.loops)}).`);
     if (h.selfCalls.length) says.push(`Calls itself (${list(h.selfCalls)}).`);
     if (h.waits.length) says.push(`Waits (${list(h.waits)}).`);
-    if (h.throws.length) says.push(`Can throw (${list(h.throws)}).`);
+    if (h.throws.length) says.push(`Has a throw (${list(h.throws)}).`);
     if (h.returns.length) says.push(`Returns (${list(h.returns)}).`);
     const out = p.pipes.filter((e) => e.from === id);
     const calls = [...out.filter((e) => e.kind === "calls").map((e) => e.to), ...p.ports.filter((q) => q.from.includes(id)).map((q) => `${q.name} (${q.faked ? "faked by the test" : "outside this file"})`)];

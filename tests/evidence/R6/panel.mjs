@@ -26,8 +26,30 @@ const answer = async (p, re) => {
     await p.waitForTimeout(210);
   }
 };
-const runIt = async (p) => {
+const picks = (p) => p.$$eval(".u1-quiz > li", (x) => x.map((l) => (l.querySelector("[aria-pressed=true], [aria-checked=true], .u1-opt[data-picked]") ? 1 : 0)).join(""));
+/** Review M3: after a run the panel may cover none of these. */
+const KEEP_CLEAR = ['[data-testid="moment-run"]', '[data-testid="m-pane"]', '[data-testid="u1-actions"]', '[data-testid="machine"] svg .m-end[data-ring]'];
+const coversNothing = async (p, part) => {
+  const panel = await rect(p, '[data-testid="part-panel"]');
+  const hit = [];
+  for (const sel of [...KEEP_CLEAR, part]) if (overlap(panel, await rect(p, sel))) hit.push(sel);
+  return { ok: panel !== null && hit.length === 0, more: JSON.stringify({ panel, covered: hit }) };
+};
+const runIt = async (p, W) => {
   await p.click('[data-testid="u1-bet-toggle"]');
+  if (W && W >= 760 && (await p.$('[data-testid="machine"] [data-part="getPrice"]'))) {
+    // Review m1: a panel over the questions must not let a digit answer the hidden one.
+    await p.waitForSelector('[data-testid="u1-seal"]', { timeout: 60000 });
+    await p.waitForTimeout(300);
+    await p.click('[data-testid="machine"] [data-part="getPrice"]', { force: true });
+    await p.waitForTimeout(300);
+    const before = await picks(p);
+    await p.keyboard.press("1");
+    await p.waitForTimeout(300);
+    say(`${W}: with a part panel open, a digit key answers no hidden question`, (await picks(p)) === before && (await p.$('[data-testid="part-panel"]')) !== null, `${before} → ${await picks(p)}`);
+    await p.keyboard.press("Escape");
+    await p.waitForTimeout(300);
+  }
   await answer(p, /returns a value/);
   // What every bettor sees, before sealing: it must carry the names the screen shows.
   const seen = await p.$eval('pre[aria-label="What every bettor sees"]', (e) => e.textContent).catch(() => "");
@@ -39,7 +61,7 @@ const runIt = async (p) => {
 };
 const lidTexts = (p, scope) => p.$$eval(`${scope} svg text[transform]`, (x) => x.map((t) => ({ text: t.textContent, cls: t.getAttribute("class"), px: t.getBoundingClientRect().height })));
 
-for (const [W, H] of [[1280, 720], [390, 844]]) {
+for (const [W, H] of [[1280, 720], [1100, 700], [390, 844]]) {
   const c = await b.newContext({ viewport: { width: W, height: H } });
   const p = await c.newPage();
   await p.goto(BASE);
@@ -48,6 +70,8 @@ for (const [W, H] of [[1280, 720], [390, 844]]) {
   if (W >= 760) {
     const lids = await lidTexts(p, '[data-testid="e-drawing"]');
     say(`${W}: first screen lids show Meta's AI names over the exact names`, lids.some((l) => l.text === "retrying fetch" && /m-ai/.test(l.cls)) && lids.some((l) => l.text === "fetchWithRetry" && /m-code/.test(l.cls)), JSON.stringify(lids.map((l) => l.text)));
+    const legend = await p.$eval('[data-testid="e-drawing"] [data-testid="machine-names-legend"]', (e) => e.textContent).catch(() => "");
+    say(`${W}: review B1: words on the first screen say whose names they are`, /Muse Wonder's words \(Meta's AI\), not a check/.test(legend), legend);
   }
   await p.click('[data-testid="u1-example"]');
   await p.waitForSelector('[data-testid="bench-stage"]');
@@ -56,6 +80,9 @@ for (const [W, H] of [[1280, 720], [390, 844]]) {
   const machine = await p.$('[data-testid="machine"] [data-part="fetchWithRetry"]');
   if (W >= 760) {
     say(`${W}: the machine is shown`, Boolean(machine));
+    const legend = await rect(p, '[data-testid="machine"] [data-testid="machine-names-legend"]');
+    const sheet = await rect(p, '[data-testid="machine"] svg');
+    say(`${W}: review B1: the names legend is on screen, above the drawing, not on it`, legend !== null && inView(legend, W, H) && !overlap(legend, sheet), JSON.stringify({ legend, sheet }));
     // Hover only marks the part: no panel.
     await p.hover('[data-testid="machine"] [data-part="getPrice"]');
     await p.waitForTimeout(300);
@@ -92,8 +119,9 @@ for (const [W, H] of [[1280, 720], [390, 844]]) {
     await p.waitForTimeout(300);
   }
   // A run on the example: the ring lands on the fake fetchIt.
-  const seen = await runIt(p);
-  say(`${W}: every bettor's text carries the names the screen shows`, /written by muse-wonder-1\.0 \(Meta's AI\)/.test(seen) && /- fetchWithRetry: retrying fetch/.test(seen), seen.split("\n").filter((l) => /Short names|^- \w+: /.test(l)).join(" / "));
+  const seen = await runIt(p, W);
+  // Review M1: the bettors are told the names Meta's AI suggested, and only that the drawing MAY show them (a phone shows the box chart, with none).
+  say(`${W}: every bettor's text has the names the page was sent, and claims no more`, /Names muse-wonder-1\.0 \(Meta's AI\) suggested for the parts/.test(seen) && /The person's drawing may show some of them/.test(seen) && /- fetchWithRetry: retrying fetch/.test(seen) && !/shown on the person's screen/.test(seen), seen.split("\n").filter((l) => /suggested for the parts|^- \w+: /.test(l)).join(" / "));
   await p.screenshot({ path: `${OUT}/4-result-${W}.png` });
   const ring = await p.evaluate(() => { const e = document.querySelector('[data-testid="machine"] svg .m-end[data-ring]'); return e && getComputedStyle(e).visibility === "visible" ? e.dataset.ring : null; });
   if (W >= 760) {
@@ -103,9 +131,9 @@ for (const [W, H] of [[1280, 720], [390, 844]]) {
     const broke = await p.$eval('[data-testid="part-broke"]', (e) => e.innerText).catch(() => "");
     const verdict = await p.$eval('[data-testid="moment-run"]', (e) => e.textContent).catch(() => "");
     say(`${W}: the ringed part's panel says what broke, in the verdict's words`, broke.includes(verdict) && /Atlas calls fetchWithRetry\(fetchIt\)/.test(broke), broke.replace(/\n/g, " | "));
-    const panel = await rect(p, '[data-testid="c-drawer"]');
-    const ringBox = await rect(p, '[data-testid="machine"] svg .m-end[data-ring]');
-    say(`${W}: the panel never covers the ring`, !overlap(panel, ringBox) && inView(ringBox, W, H), JSON.stringify({ panel, ringBox }));
+    const clear = await coversNothing(p, `[data-testid="machine"] [data-part="${ring}"]`);
+    say(`${W}: review M3: after a run the panel covers no verdict, answer list, action bar, ring or part`, clear.ok, clear.more);
+    say(`${W}: the actions are still clickable`, await p.evaluate(() => { const r = document.querySelector('[data-testid="u1-change"]').getBoundingClientRect(); return Boolean(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('[data-testid="u1-change"]')); }));
     await p.screenshot({ path: `${OUT}/5-panel-ringed-example-${W}.png` });
     await p.keyboard.press("Escape");
     // The shared picture: no model names, no code type.
@@ -121,7 +149,7 @@ for (const [W, H] of [[1280, 720], [390, 844]]) {
   await c.close();
 }
 // The orders file: the ring lands on a chute, so the panel adds the thrown line.
-for (const [W, H] of [[1280, 720], [1024, 700]]) {
+for (const [W, H] of [[1280, 720], [1100, 700]]) {
   const c = await b.newContext({ viewport: { width: W, height: H } });
   const p = await c.newPage();
   await p.goto(BASE);
@@ -129,7 +157,7 @@ for (const [W, H] of [[1280, 720], [1024, 700]]) {
   await p.click('[data-testid="u1-draw"]');
   await p.waitForSelector('[data-testid="bench-stage"]');
   await p.waitForTimeout(1500);
-  await runIt(p);
+  await runIt(p, W);
   const ring = await p.evaluate(() => { const e = document.querySelector('[data-testid="machine"] svg .m-end[data-ring]'); return e ? [e.dataset.ring, e.dataset.ringOn] : null; });
   if (!ring) {
     // Not a pass or a fail: at this width the page already showed the box chart for this file before R6 (the 11 px rule), so there is no machine ring.
@@ -144,11 +172,27 @@ for (const [W, H] of [[1280, 720], [1024, 700]]) {
   await p.waitForSelector('[data-testid="part-broke"]', { timeout: 3000 }).catch(() => {});
   const broke = await p.$eval('[data-testid="part-broke"]', (e) => e.innerText).catch(() => "");
   say(`${W}: orders: the ringed chute's panel has the verdict's words and the thrown line`, /The run threw Error: HTTP 429/.test(broke) && /It threw from line 9\./.test(broke), broke.replace(/\n/g, " | "));
-  const panel = await rect(p, '[data-testid="c-drawer"]');
-  const ringBox = await rect(p, '[data-testid="machine"] svg .m-end[data-ring]');
-  const part = await rect(p, `[data-testid="machine"] [data-part="${ring[0]}"]`);
-  say(`${W}: orders: the panel covers neither the ring nor the part`, !overlap(panel, ringBox) && !overlap(panel, part) && inView(ringBox, W, H), JSON.stringify({ panel, ringBox, part }));
+  const clear = await coversNothing(p, `[data-testid="machine"] [data-part="${ring[0]}"]`);
+  say(`${W}: orders: review M3: the panel covers no verdict, answer list, action bar, ring or part`, clear.ok, clear.more);
   await p.screenshot({ path: `${OUT}/7-panel-ringed-orders-${W}.png` });
+  // Review B2: "Change the code and bet again" with the ringed panel open. The new round must not show the old run's words or lines.
+  await p.keyboard.press("e");
+  await p.waitForSelector('[data-testid="u1-change-code"]');
+  const cur = await p.$eval('[data-testid="u1-change-code"]', (e) => e.value);
+  await p.fill('[data-testid="u1-change-code"]', `// one line added\n${cur}`);
+  await p.click('[data-testid="u1-change-go"]');
+  await p.waitForTimeout(1500);
+  const stale = await p.$eval('[data-testid="part-panel"]', (e) => e.innerText).catch(() => null);
+  say(`${W}: review B2: after a change the old part panel is gone`, stale === null && (await p.$('[data-testid="part-broke"]')) === null, String(stale).replace(/\n/g, " | "));
+  await p.screenshot({ path: `${OUT}/8-after-change-${W}.png` });
+  // And the panel opened now speaks of the new code: fetchPage moved one line down.
+  if (await p.$('[data-testid="machine"] [data-part="fetchPage"]')) {
+    await p.click('[data-testid="machine"] [data-part="fetchPage"]', { force: true });
+    await p.waitForSelector('[data-testid="part-panel"]', { timeout: 3000 }).catch(() => {});
+    const fresh = await p.$eval('[data-testid="part-panel"]', (e) => e.innerText).catch(() => "");
+    say(`${W}: review B2: a panel opened now has the new lines and no old run`, /Lines 4–12\./.test(fresh) && /Has a throw \(line 10\)/.test(fresh) && !/The run/.test(fresh), fresh.replace(/\n/g, " | "));
+    await p.screenshot({ path: `${OUT}/9-panel-after-change-${W}.png` });
+  }
   // A part that is not ringed says nothing about the run.
   await p.click('[data-testid="machine"] [data-part="fetchAllOrders"]');
   await p.waitForTimeout(300);

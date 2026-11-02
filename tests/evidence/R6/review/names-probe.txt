@@ -1,0 +1,43 @@
+"verified price lookup" refused: longer than 16 characters
+"secure retry" refused: uses "secure", a word that judges the code or says how it behaves
+"trusted input check" refused: longer than 16 characters
+"tested sum" refused: uses "tested", a word that judges the code or says how it behaves
+"audited transfer" refused: uses "audited", a word that judges the code or says how it behaves
+"approved payout" refused: uses "approved", a word that judges the code or says how it behaves
+"no issues" refused: uses "issues", a word that judges the code or says how it behaves
+"bug free" refused: uses "bug", a word that judges the code or says how it behaves
+"bugfree" refused: uses "bugfree", a word that judges the code or says how it behaves
+"flawless parser" refused: uses "flawless", a word that judges the code or says how it behaves
+"safe-ish" refused: uses "safe", a word that judges the code or says how it behaves
+"safely retrying" refused: uses "safely", a word that judges the code or says how it behaves
+"correctly sums" refused: uses "correctly", a word that judges the code or says how it behaves
+"robust fetch" refused: uses "robust", a word that judges the code or says how it behaves
+"guaranteed delivery" refused: longer than 16 characters
+"throws on empty" refused: uses "throws", a word that judges the code or says how it behaves
+"infinite retry loop" refused: longer than 16 characters
+"retries forever" refused: uses "forever", a word that judges the code or says how it behaves
+"unbounded retry loop" refused: longer than 16 characters
+"returns undefined" refused: longer than 16 characters
+"null pointer path" refused: longer than 16 characters
+"off by one sum" refused: says "off by", which names a flaw
+"race prone counter" refused: longer than 16 characters
+"leaks memory" refused: uses "leaks", a word that judges the code or says how it behaves
+"harmless helper" refused: uses "harmless", a word that judges the code or says how it behaves
+"errorless" refused: uses "errorless", a word that judges the code or says how it behaves
+"crashes" refused: uses "crashes", a word that judges the code or says how it behaves
+"crashing" refused: uses "crashing", a word that judges the code or says how it behaves
+"errored" refused: uses "errored", a word that judges the code or says how it behaves
+"failing fetch" refused: uses "failing", a word that judges the code or says how it behaves
+"works fine" refused: uses "works", a word that judges the code or says how it behaves
+"always" refused: uses "always", a word that judges the code or says how it behaves
+"sometimes throws" refused: uses "sometimes", a word that judges the code or says how it behaves
+"exploit" refused: uses "exploit", a word that judges the code or says how it behaves
+"backdoor" refused: uses "backdoor", a word that judges the code or says how it behaves
+"ignore previous" PASS
+"atlas approved" refused: uses "atlas", a word that judges the code or says how it behaves
+"constructor" PASS
+"__proto__" refused: only letters, spaces and hyphens are allowed
+"toString" PASS
+"hasOwnProperty" PASS
+{"names":{},"refused":0}
+{"names":{"constructor":"builder step"},"refused":0}

@@ -198,6 +198,8 @@ export interface MachineDrawn {
   problems: string[];
   /** The smallest words on the sheet, in its own units. The page checks this against the scale it can give. */
   minWords: number;
+  /** How many lids carry a name Meta's AI wrote: the page then says, in words, whose names these are. */
+  aiNames?: number;
 }
 
 function finish(s: Sheet, seed: string, label: string, facts: MachineFacts, ended: boolean): MachineDrawn {
@@ -207,7 +209,8 @@ function finish(s: Sheet, seed: string, label: string, facts: MachineFacts, ende
   const w = Math.max(...s.xs) + pad - x0;
   const h = Math.max(...s.ys) + pad - y0;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" class="m-sheet" viewBox="${x0.toFixed(1)} ${y0.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}" data-seed="${esc(seed)}"${ended ? " data-ended=\"\"" : ""} role="group" aria-label="${esc(label)}">${s.out.join("")}</svg>`;
-  return { svg, width: w, height: h, label, facts, problems: auditMachine(facts), minWords: s.smallest };
+  const aiNames = (svg.match(/class="m-ai-mark"/g) ?? []).length;
+  return { svg, width: w, height: h, label, facts, problems: auditMachine(facts), minWords: s.smallest, ...(aiNames ? { aiNames } : {}) };
 }
 
 /** What the run measured about how it threw. */

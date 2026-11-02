@@ -1,11 +1,11 @@
 // R6: natural names. Meta's AI proposes a short name per part; plain code checks each one; the screen and every AI bettor get the same names (D19);
 // the shared picture never has them. Every model mocked, $0.
 import { describe, expect, it } from "vitest";
-import { drawMachine, machineParts } from "../../renderer/authors/machine";
+import { drawMachine, machineParts, MACHINE_PART_LIMIT } from "../../renderer/authors/machine";
 import { partPanel } from "../../renderer/authors/part-panel";
 import { buildNamerMessages, NAME_TASK } from "../../server/meta/roles/namer";
 import type { ChatArgs, ChatResult } from "../../server/meta/client";
-import { checkName, checkNames, namesForBettors } from "../../src/natural-names";
+import { checkName, checkNames, namesForBettors, NAMES_PART_LIMIT } from "../../src/natural-names";
 import { EXAMPLE_NAMES } from "../../src/example-names";
 import { fileOutline } from "../../src/file-outline";
 import { benchModel } from "../../web/machines/bench/model";
@@ -27,7 +27,26 @@ describe("checkName: plain code decides which names stand", () => {
     expect(checkName(42).ok).toBe(false);
   });
   it("refuses words that judge the code, plurals and hyphenated pieces too", () => {
-    for (const bad of ["buggy loop".replace("buggy", "bug"), "safe fetch", "always retries".replace("retries", "retry"), "error handler", "errors list", "crash-proof loop", "correct total", "fixed price", "broken cache", "never ending"]) expect(checkName(bad).ok, bad).toBe(false);
+    for (const bad of ["bug loop", "safe fetch", "always retry", "error handler", "errors list", "crash-proof loop", "correct total", "fixed price", "broken cache", "never ending"]) expect(checkName(bad).ok, bad).toBe(false);
+  });
+  it("review B1: refuses trust, status and flaw words, by their beginnings, and after un, in or non", () => {
+    const attacks = ["verified total", "secure retry", "trusted input check", "tested sum", "audited fetch", "approved payout", "no issues", "bugfree", "flawless parser", "safely retrying", "correctly sums", "robust fetch", "guaranteed sends", "harmless helper", "errorless", "crashing", "errored", "failing fetch", "works fine", "exploit", "backdoor", "atlas approved", "throws on empty", "retries forever", "infinite retry", "unbounded loop", "off by one sum", "race prone count", "leaks memory", "sometimes throws", "unsafe parse", "insecure store", "untrusted input", "unverified sum", "hangs on empty", "valid input", "perfect parser", "risky fetch", "danger zone", "proven sum"];
+    for (const name of attacks) expect(checkName(name).ok, name).toBe(false);
+  });
+  it("still keeps names of purpose, retry included", () => {
+    for (const name of ["retrying fetch", "retry wait time", "price lookup", "pause execution", "order pages", "cache reader", "input checker", "back-off timer"]) expect(checkName(name).ok, name).toBe(true);
+  });
+  it("review M1: refuses a name too long for a lid", () => {
+    expect(checkName("growing wait calculation").ok).toBe(false);
+    expect(checkName("timed pause help").ok).toBe(true);
+  });
+  it("review m4: two parts with one name both keep their own, and so does a name that reads as another part's identifier", () => {
+    expect(checkNames({ names: { a: "mock helper step", b: "mock helper step", c: "price lookup" } }, ["a", "b", "c"]).names).toEqual({ c: "price lookup" });
+    expect(checkNames({ names: { sleep: "get price", getPrice: "price lookup" } }, ["sleep", "getPrice"]).names).toEqual({ getPrice: "price lookup" });
+    expect(checkNames({ names: { sleep: "getprice" } }, ["sleep", "getPrice"]).names).toEqual({});
+  });
+  it("names are asked only for files the machine can draw", () => {
+    expect(NAMES_PART_LIMIT).toBe(MACHINE_PART_LIMIT);
   });
   it("checkNames keeps one name per known part and drops the rest", () => {
     const r = checkNames({ names: { a: "price lookup", b: "safe step", ghost: "not here", ["__proto__"]: "x" } }, ["a", "b", "c"]);
@@ -80,7 +99,8 @@ describe("POST /paste/names on the real server", () => {
     const e = await c.post("/experiments", { target: t, params: NEVER }, { "x-atlas-claimant": "both" });
     const seen = e.json.seenContext as string;
     for (const line of namesForBettors(n.json.names, n.json.model)) expect(seen).toContain(line);
-    expect(seen).toContain("Its words, not a check");
+    expect(seen).toContain("The person's drawing may show some of them. Its words, not a check");
+    expect(seen).not.toContain("shown on the person's screen");
     await c.post(`/experiments/${e.json.experiment.id}/model-bets`, {});
     const bettors = m.calls.filter((x) => x.role === "claimant");
     expect(bettors.length).toBeGreaterThan(0);
@@ -112,7 +132,7 @@ describe("POST /paste/names on the real server", () => {
     const p = await c.post("/paste", { code: RETRY_SRC });
     const t = { ref: p.json.target.ref, codeSha256: p.json.target.codeSha256 };
     const asked = c.post("/paste/names", { target: t });
-    // The round waits up to 20 s for names on their way; here they never come in time.
+    // The round waits at most 1.5 s for names on their way; here they never come in time.
     const { vi } = await import("vitest");
     vi.useFakeTimers({ toFake: ["setTimeout"] });
     const made = c.post("/experiments", { target: t, params: NEVER });
@@ -124,6 +144,44 @@ describe("POST /paste/names on the real server", () => {
     const n = await asked;
     expect(n.json.ok).toBe(false);
     expect(n.json.reason).toMatch(/after the bettors' text/);
+  });
+
+  it("review B3: a round made before names were asked closes them for that file: the page never shows names the bettors lack", async () => {
+    const m = namingModels(() => ({ names: { retryWithBackoff: "retry with waits" } }));
+    const { app } = makeApp({ paste: { proposer: { chat: m.chat } } });
+    const c = client(app);
+    const p = await c.post("/paste", { code: RETRY_SRC });
+    const t = { ref: p.json.target.ref, codeSha256: p.json.target.codeSha256 };
+    const e = await c.post("/experiments", { target: t, params: NEVER });
+    expect(e.json.seenContext).not.toContain("suggested for the parts");
+    const n = await c.post("/paste/names", { target: t });
+    expect(n.json.ok).toBe(false);
+    expect(n.json.reason).toMatch(/after the bettors' text/);
+    expect(m.calls.some((x) => x.messages.some((y) => y.content.includes(NAME_TASK)))).toBe(false);
+  });
+
+  it("review m5: a copy that differs only in comments reuses the names: no second call", async () => {
+    const m = namingModels(() => ({ names: { retryWithBackoff: "retry with waits" } }));
+    const { app } = makeApp({ paste: { proposer: { chat: m.chat } } });
+    const c = client(app);
+    for (const code of [RETRY_SRC, `// a comment added\n${RETRY_SRC}`]) {
+      const p = await c.post("/paste", { code });
+      const n = await c.post("/paste/names", { target: { ref: p.json.target.ref, codeSha256: p.json.target.codeSha256 } });
+      expect(n.json.names).toEqual({ retryWithBackoff: "retry with waits" });
+    }
+    expect(m.calls.filter((x) => x.messages.some((y) => y.content.includes(NAME_TASK)))).toHaveLength(1);
+  });
+
+  it("review M1: a file with more parts than the machine draws asks for no names", async () => {
+    const m = namingModels(() => ({ names: {} }));
+    const { app } = makeApp({ paste: { proposer: { chat: m.chat } } });
+    const c = client(app);
+    const code = Array.from({ length: NAMES_PART_LIMIT + 1 }, (_, i) => `export function f${String.fromCharCode(97 + i)}(x: number) { return x + ${i}; }`).join("\n");
+    const p = await c.post("/paste", { code, language: "ts" });
+    const n = await c.post("/paste/names", { target: { ref: p.json.target.ref, codeSha256: p.json.target.codeSha256 } });
+    expect(n.json.ok).toBe(false);
+    expect(n.json.reason).toMatch(/more than 8 parts/);
+    expect(m.calls.some((x) => x.messages.some((y) => y.content.includes(NAME_TASK)))).toBe(false);
   });
 
   it("the example's names are kept: no model call", async () => {

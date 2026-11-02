@@ -84,7 +84,7 @@ describe("partPanel: plain sentences from the machine's facts", () => {
     const panel = partPanel(p, "fetchWithRetry")!;
     expect(panel.title).toBe("fetch with retry");
     expect(panel.name).toBe("fetchWithRetry");
-    expect(panel.says).toEqual(["A function that can be called from outside the file. Atlas calls this one.", "Runs a loop (line 12).", "Can throw (line 20).", "Returns (line 14).", "Calls: backoffMs, sleep.", "Called by: getPrice.", "Lines 10–21."]);
+    expect(panel.says).toEqual(["A function that can be called from outside the file. Atlas calls this one.", "Runs a loop (line 12).", "Has a throw (line 20).", "Returns (line 14).", "Calls: backoffMs, sleep.", "Called by: getPrice.", "Lines 10–21."]);
     expect(panel.lines).toEqual([10, 21]);
     expect(panel.broke).toBeNull();
   });

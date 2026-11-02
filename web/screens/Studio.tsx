@@ -42,6 +42,7 @@ import { ErrorNotice } from "./ErrorNotice";
 import { MachineSheet, machineFirst, useFontsIn } from "../drawing/MachineView";
 import { drawMachine, machineParts } from "../../renderer/authors/machine";
 import type { PartPanel } from "../../renderer/authors/part-panel";
+import { PartFacts } from "../drawing/PartFacts";
 import { EXAMPLE_NAMES } from "../../src/example-names";
 import { Segments, TestForm, emptyForm, formFromParams, type TestFormState } from "./TestForm";
 import { BenchStage, type After } from "../machines/bench/BenchStage";
@@ -100,26 +101,7 @@ function CodeDrawer({ source, lines, onClose, coversResult = false, part = null 
         </button>
       </div>
       {coversResult && <p className="c-covers" role="note" data-testid="c-covers">{`Your result is under this panel. ${part ? "Esc" : "C"} closes it.`}</p>}
-      {part && (
-        <section className="c-part" aria-live="polite" data-testid="part-panel">
-          {part.natural && <p className="c-part-ai" data-testid="part-ai">{part.natural}</p>}
-          <h2 className={`c-part-title${part.natural ? " c-part-code" : ""}`}>{part.title}</h2>
-          {part.name && <p className="c-part-name">{part.name}</p>}
-          {part.broke && (
-            <div className="c-part-broke" data-testid="part-broke">
-              {part.broke.map((w) => (
-                <p key={w}>{w}</p>
-              ))}
-            </div>
-          )}
-          <ul className="c-part-says">
-            {part.says.map((w) => (
-              <li key={w}>{w}</li>
-            ))}
-          </ul>
-          {part.note && <p className="c-part-note" data-testid="part-names-note">{part.note}</p>}
-        </section>
-      )}
+      {part && <PartFacts part={part} />}
       {part && !lines ? null : (
       <div className="c-body" ref={host} tabIndex={0}>
         {all.map((text, i) => {
@@ -176,34 +158,9 @@ function ExampleDrawing() {
   );
 }
 
-/**
- * The code with comments and spaces taken out, keeping strings as they are. A label's fingerprint only: it decides one sentence on
- * the screen, never a seal, a verdict or a repeat mark. Good enough to be wrong only on the side of saying less.
- */
-export function codeFingerprint(source: string, language: string | undefined): string {
-  let out = "";
-  const py = language === "py";
-  for (let i = 0; i < source.length; i++) {
-    const c = source[i]!;
-    if (c === '"' || c === "'" || (c === "`" && !py)) {
-      let j = i + 1;
-      while (j < source.length && source[j] !== c) j += source[j] === "\\" ? 2 : 1;
-      out += source.slice(i, j + 1);
-      i = j;
-    } else if (py ? c === "#" : c === "/" && source[i + 1] === "/") {
-      while (i < source.length && source[i] !== "\n") i++;
-      if (py && out !== "" && !out.endsWith("\n")) out += "\n";
-    } else if (!py && c === "/" && source[i + 1] === "*") {
-      const end = source.indexOf("*/", i + 2);
-      i = end < 0 ? source.length : end + 1;
-    } else if (py ? (c === " " || c === "\t") && out.slice(out.lastIndexOf("\n") + 1).trim() !== "" : /\s/.test(c)) {
-      continue;
-    } else if (py && c === "\n" && (out === "" || out.endsWith("\n"))) {
-      continue;
-    } else out += c;
-  }
-  return out;
-}
+// The code with comments and spaces taken out (src/code-fingerprint.ts): kept exported here for the page's older importers.
+export { codeFingerprint } from "../../src/code-fingerprint";
+import { codeFingerprint } from "../../src/code-fingerprint";
 
 const HELPER_WAIT_MS = 2500;
 const HELPER_TOO_SLOW = "Helper order is not shown: the separate traced run took too long.";
@@ -414,8 +371,10 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   // D60: the code drawer. Closed on the drawing, open during the bet on a wide screen, because the AIs read the code and you should too.
   const [drawerChoice, setDrawer] = useState<boolean | null>(null);
   const [drawerLines, setDrawerLines] = useState<[number, number] | null>(null);
-  // R6: the part the panel is about. Only while the panel is open; C opens the plain code.
-  const [drawerPart, setDrawerPart] = useState<PartPanel | null>(null);
+  // R6: the part the panel is about: its id only. The panel's words are worked out again on every render from the current code and run
+  // (BenchStage hands them back), so they can never describe an older file or run. C opens the plain code.
+  const [partId, setPartId] = useState<string | null>(null);
+  const [partPanel, setPartPanel] = useState<PartPanel | null>(null);
   const wide = typeof window !== "undefined" && window.innerWidth >= 1400;
   // D60: the bet is one question at a time. All of them stay in the page (D19); CSS shows the current one.
   const [step, setStep] = useState(0);
@@ -484,6 +443,9 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const changeTest = useRef<string | null>(null);
   const reset = () => {
     changeTest.current = null;
+    // R6: a new round starts with no part panel open.
+    setPartId(null);
+    setDrawer(null);
     setProposals(null);
     setExp(null);
     setPicked({});
@@ -930,6 +892,9 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   useEffect(() => {
     if (resultRunId) setDrawer((d) => (d === null ? d : false));
   }, [resultRunId]);
+  // R6: a part panel belongs to one file and one run: a new one of either closes it.
+  const fileSha = pasted?.target.codeSha256;
+  useEffect(() => setPartId(null), [fileSha, resultRunId]);
   // The bet button shows Enter: so when the drawing comes up, the keys go to it (unless something else already has them).
   const toggleFor = pasted && fn && !exp && !result ? `${pasted.target.codeSha256}|${fn}` : null;
   useEffect(() => {
@@ -964,6 +929,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     const onKey = (e: globalThis.KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
       if (offScreen() || e.metaKey || e.ctrlKey || e.altKey || e.repeat || t?.closest?.("input, textarea, select")) return;
+      // R6: while a part panel covers the questions, the bet's keys answer nothing.
+      if (document.querySelector('[data-testid="part-panel"]')) return;
       if (e.key === "ArrowLeft") {
         setStep((n) => Math.max(0, n - 1));
         e.preventDefault();
@@ -1004,12 +971,12 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           setPicking(false);
         } else if (!e.defaultPrevented) {
           setDrawer(false);
-          setDrawerPart(null);
+          setPartId(null);
         }
         return;
       }
       if (e.key.toLowerCase() === "c" && pasted) {
-        setDrawerPart(null);
+        setPartId(null);
         setDrawer((d) => !(d ?? (wide && open && exp !== null && !result && !machineFirst())));
         e.preventDefault();
         return;
@@ -1150,7 +1117,10 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   // ---- the drawing ----
   // Beside the machine, the code panel opens only when asked (the Code button, C or a click): it would squeeze the machine under its reading size.
   const drawerOpen = drawerChoice ?? (wide && open && exp !== null && !after && !machineFirst());
-  const partShown = drawerOpen ? drawerPart : null;
+  // Before a run the panel is the code drawer; once a result is up it sits under the verdict instead (BenchStage), so it never covers the result.
+  // The layout follows the part's id at once; its words follow one render later. Deciding the layout from the words briefly squeezed the machine.
+  const partMode = drawerOpen && partId !== null && !after;
+  const partShown = partMode && partPanel?.id === partId ? partPanel : null;
   const noFunction = pasted.runnable && !fn && pasted.outline !== undefined;
   // A language Atlas doesn't read: one message, the one that says so. "Needs a package" would be about a JavaScript reading of it.
   const foreign = pasted.outline?.parts.length === 0 ? foreignLanguage(readText) : null;
@@ -1169,13 +1139,13 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const offeredTests = (proposals?.proposals ?? []).filter((p) => p.gate.allowed && !alreadyRan(p.params));
   const title = `${source ?? (pasted.outline?.parts.length === 0 ? "pasted file" : FILE_NAME[pasted.target.language ?? "ts"])} · ${plural(pasted.lines, "line")}${drawnMs !== null ? ` · drawn in ${drawnMs} ms` : ""}`;
   return (
-    <div className="u1-studio" data-drawer={drawerOpen && !partShown ? "" : undefined} data-drawer-part={partShown ? "" : undefined}>
+    <div className="u1-studio" data-drawer={drawerOpen && !partMode ? "" : undefined} data-drawer-part={partMode ? "" : undefined}>
       <button
         type="button"
         className="u1-link u1-code-toggle"
         aria-pressed={drawerOpen}
         onClick={() => {
-          setDrawerPart(null);
+          setPartId(null);
           setDrawer(!drawerOpen);
         }}
         data-testid="u1-code-toggle"
@@ -1199,15 +1169,18 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           title={title}
           side={open}
           onPlayed={() => setPlayed((n) => n + 1)}
-          picked={partShown?.id ?? null}
+          picked={partId}
+          onPanel={setPartPanel}
+          onClosePart={() => setPartId(null)}
           naturalNames={natural && natural.sha === pasted.target.codeSha256 && "names" in natural ? natural.names : null}
           namesNote={natural && natural.sha === pasted.target.codeSha256 && "reason" in natural ? natural.reason : null}
           onPart={(name, panel) => {
             const part = pasted.outline?.parts.find((p) => p.name === name);
             if (!part && !panel) return;
             setDrawerLines(panel ? panel.lines : [part!.lineStart, part!.lineEnd]);
-            setDrawerPart(panel);
-            setDrawer(true);
+            setPartId(panel ? name : null);
+            // After a run the panel opens under the verdict, not as a drawer: C still shows the code at these lines.
+            if (!after) setDrawer(true);
           }}
           headnote={
             after && result ? (
@@ -1297,7 +1270,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       {drawerOpen && (
         <CodeDrawer source={readText} lines={drawerLines} part={partShown} onClose={() => {
           setDrawer(false);
-          setDrawerPart(null);
+          setPartId(null);
         }} coversResult={after !== null && typeof window !== "undefined" && window.innerWidth >= 761 && (partShown !== null || window.innerWidth < 1800)} />
       )}
       {after && picking && (

@@ -34,7 +34,8 @@ import type { ChatArgs, ChatResult } from "./meta/client";
 import { guardPastedChat } from "./meta/pasted-guard";
 import { PROPOSER_MODEL, runProposer, type Proposal } from "./meta/roles/proposer";
 import { NAMER_MODEL, runNamer, type NamerResult } from "./meta/roles/namer";
-import { checkNames } from "../src/natural-names";
+import { checkNames, NAMES_PART_LIMIT } from "../src/natural-names";
+import { codeFingerprint } from "../src/code-fingerprint";
 import { EXAMPLE_NAMES, EXAMPLE_NAMES_MODEL } from "../src/example-names";
 import { U1_EXAMPLE } from "../web/u1-example";
 import { oneLine, sessionEmitter, type AgentLog } from "./log/agentlog";
@@ -131,10 +132,8 @@ const targetRef = z.object({ ref: z.string().min(1).max(200), codeSha256: z.stri
 // Wonder is asked for tests that check that sentence. The server looks the sentence up itself: no text from the page.
 const proposalsBody = z.object({ target: targetRef, exportName: z.string().min(1).max(100), claimOf: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/).optional(), early: z.literal(true).optional() }).strict();
 const namesBody = z.object({ target: targetRef }).strict();
-/** R6: the most parts one naming call is asked about: past this the page lists the parts and draws none. */
-const NAMES_MAX_PARTS = 16;
-/** R6: how long a new round's bettor text waits for names already asked for. Past this it is written without them, and the page is told. */
-const NAMES_WAIT_MS = 20_000;
+/** R6: how long a new round's bettor text waits for names already asked for. Past this it is written without them, and they are closed. */
+const NAMES_WAIT_MS = 1_500;
 const claimBody = z.object({ experimentId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/) }).strict();
 
 const reasonOf = (err: z.ZodError) =>
@@ -504,11 +503,13 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
       const unavailable = (reason: string) => c.json({ ok: false, model: NAMER_MODEL, reason, names: {} });
       let parts: { name: string; kind: string; lineStart: number; lineEnd: number }[];
       try {
-        parts = fileOutline(entry.target.source ?? "", entry.target.language ?? "js").parts.slice(0, NAMES_MAX_PARTS);
+        parts = fileOutline(entry.target.source ?? "", entry.target.language ?? "js").parts;
       } catch {
         return unavailable("plain code could not list the parts");
       }
       if (parts.length === 0) return unavailable("there are no parts to name");
+      // More parts than the machine draws: the page shows the chart, which has no room for names, so nothing is asked or paid for.
+      if (parts.length > NAMES_PART_LIMIT) return unavailable(`this file has more than ${NAMES_PART_LIMIT} parts, so the page shows the chart`);
       const mine = namesOf(sessionId);
       let e = mine.get(sha);
       if (!e) {
@@ -518,16 +519,18 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
           e = { p: Promise.resolve({ ok: true, model: EXAMPLE_NAMES_MODEL, names, refused: 0 }), state: "pending", model: EXAMPLE_NAMES_MODEL };
         } else {
           if (!opts.proposer || !proposerChat || !deps.budget) return unavailable("this server asks no Meta model");
-          let p = namesByCode.get(sha);
+          // Shared by copies of the file that differ only in comments or spaces (review m5): the parts and what they are for are the same.
+          const key = `${entry.target.language}:${codeFingerprint(entry.target.source ?? "", entry.target.language ?? undefined)}`;
+          let p = namesByCode.get(key);
           if (!p) {
             const allowed = deps.takeNames?.(c) ?? { ok: true as const };
             if (!allowed.ok) return unavailable(allowed.reason);
             p = runNamer({ source: entry.target.source!, language: entry.target.language!, parts, model: NAMER_MODEL }, { chat: proposerChat, log: sessionEmitter(deps.agentLog, sessionId) }).catch((): NamerResult => ({ ok: false, model: NAMER_MODEL, reason: "the model call failed" }));
-            namesByCode.set(sha, p);
+            namesByCode.set(key, p);
             while (namesByCode.size > MAX_PASTE_SESSIONS) namesByCode.delete(namesByCode.keys().next().value!);
             // A failed call is not kept: the next paste of this file may ask again.
             void p.then((r) => {
-              if (!r.ok && namesByCode.get(sha) === p) namesByCode.delete(sha);
+              if (!r.ok && namesByCode.get(key) === p) namesByCode.delete(key);
             });
           }
           e = { p, state: "pending", model: NAMER_MODEL };
@@ -582,7 +585,12 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
      */
     async namesForText(sessionId: string, codeSha256: string): Promise<{ model: string; names: Record<string, string> } | null> {
       const e = sessionNames.get(sessionId)?.get(codeSha256);
-      if (!e || e.state === "closed") return null;
+      // Not asked for yet: this round's text is written without names, so this file's names are closed in this session and never shown.
+      if (!e) {
+        namesOf(sessionId).set(codeSha256, { p: Promise.resolve({ ok: false, model: NAMER_MODEL, reason: "not asked" }), state: "closed", model: NAMER_MODEL });
+        return null;
+      }
+      if (e.state === "closed") return null;
       if (e.state === "pending") {
         const r = await Promise.race([e.p, new Promise<null>((res) => setTimeout(() => res(null), NAMES_WAIT_MS))]);
         if (e.state === "pending") {

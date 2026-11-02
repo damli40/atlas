@@ -32,6 +32,7 @@ import { notShownAsFact } from "../../../src/trust";
 import { runBeats } from "./run-beats";
 import { lineSpan } from "../../../src/words";
 import { partPanel, type PartPanel } from "../../../renderer/authors/part-panel";
+import { PartFacts } from "../../drawing/PartFacts";
 import { describeCall } from "../../../src/gate";
 import { RESULT_WORDS, STAGE_WORDS } from "../../../src/paste-words";
 import { CANT_TELL } from "../../../src/quiz";
@@ -70,8 +71,11 @@ export interface BenchStageProps {
   codeRan?: boolean;
   /** D60: a part was clicked on the drawing: the code drawer jumps to its lines. R6: with what the panel says about it, from the machine's own facts. */
   onPart?: (name: string, panel: PartPanel | null) => void;
-  /** R6: the part the page's panel is about, marked on the machine. */
+  /** R6: the part the page's panel is about, marked on the machine. Its words are worked out here on every render and handed back by onPanel. */
   picked?: string | null;
+  onPanel?: (panel: PartPanel | null) => void;
+  /** R6: the panel under the verdict was closed. */
+  onClosePart?: () => void;
   /** R6: Meta's AI's short names for the parts, already checked by plain code, or why there are none. */
   naturalNames?: Record<string, string> | null;
   namesNote?: string | null;
@@ -129,6 +133,8 @@ const stopLine = (why: string) => {
 const showMachineWords = (run: string) => `What is lit comes from run ${run}'s trace.`;
 /** The height kept under the machine for that one line. */
 const CAPTION_LINE = 40;
+/** The strip kept above the machine for the line that says whose names the starred ones are (R6). */
+const LEGEND_LINE = 24;
 
 /** A part lit by the run, other than the one Atlas calls, that no thread reaches. */
 export function litWithNoThread(beats: readonly { routes: readonly string[]; lamps: readonly string[] }[], tested: string | null): boolean {
@@ -136,7 +142,7 @@ export function litWithNoThread(beats: readonly { routes: readonly string[]; lam
   return beats.some((b) => b.lamps.some((l) => l !== tested && !reached.has(l)));
 }
 
-export function BenchStage({ wontRun = false, seenBefore = false, codeRan = false, loop = null, model, theme, after = null, onPart, picked = null, naturalNames = null, namesNote = null, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null }: BenchStageProps) {
+export function BenchStage({ wontRun = false, seenBefore = false, codeRan = false, loop = null, model, theme, after = null, onPart, picked = null, onPanel, onClosePart, naturalNames = null, namesNote = null, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null }: BenchStageProps) {
   const [wantMachine, setWantMachine] = useState(machineFirst);
   const playedRef = useRef(onPlayed);
   playedRef.current = onPlayed;
@@ -217,7 +223,7 @@ export function BenchStage({ wontRun = false, seenBefore = false, codeRan = fals
     setRegion({ w: el.clientWidth, h: el.clientHeight });
     return () => ro.disconnect();
   }, []);
-  const tooSmall = !drawn.tooMany && region !== null && region.w > 0 && drawn.minWords * Math.min(1.7, (region.w - 20) / drawn.width, (region.h - 20 - (after ? CAPTION_LINE : 0)) / drawn.height) < MACHINE_MIN_WORD_PX;
+  const tooSmall = !drawn.tooMany && region !== null && region.w > 0 && drawn.minWords * Math.min(1.7, (region.w - 20) / drawn.width, (region.h - 20 - (after ? CAPTION_LINE : 0) - (drawn.aiNames ? LEGEND_LINE : 0)) / drawn.height) < MACHINE_MIN_WORD_PX;
   // On a wide screen the small print is the fold below, for either view; on a phone it stays with the chart.
   const chartPath = useMemo(() => (pathSpec && typeof window !== "undefined" && window.innerWidth > 760 ? { ...pathSpec, captions: [] } : pathSpec), [pathSpec]);
   // The small print: one short line, the rest under a fold. Every word stays there, unchanged.
@@ -404,6 +410,33 @@ export function BenchStage({ wontRun = false, seenBefore = false, codeRan = fals
     const broke = moment && ring ? { run: moment.run, line: end?.on === "chute" ? (end.line ?? null) : null, input: params && params.shape === "call-function" ? describeCall(params, language) : null } : null;
     return partPanel(namedParts, id, { ring, broke, wontRun, namesNote });
   };
+  const pickedPanel = picked ? panelFor(picked) : null;
+  const panelKey = JSON.stringify(pickedPanel);
+  useEffect(() => onPanel?.(pickedPanel), [panelKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  // After a run the panel sits under the verdict: it comes into view in that column, and never covers the result.
+  const inlinePanel = after && marksOn && pickedPanel ? pickedPanel : null;
+  useEffect(() => {
+    if (!inlinePanel) return;
+    // The column scrolls so the panel ends above the pinned action bar: the bar never sits on it, and it never sits on the bar.
+    const id = requestAnimationFrame(() => {
+      const el = document.querySelector<HTMLElement>('.m-partnote[data-testid="part-panel"]');
+      const col = el?.closest<HTMLElement>(".u1-marks");
+      const bar = document.querySelector('[data-testid="u1-actions"]')?.getBoundingClientRect();
+      if (!el || !col) return;
+      const floor = (bar ? bar.top : col.getBoundingClientRect().bottom) - 10;
+      // Room enough under the verdict: the panel fits itself into it and scrolls inside, so the verdict stays where it is.
+      const room = floor - el.getBoundingClientRect().top;
+      if (room >= 140) {
+        el.style.maxHeight = `${Math.floor(room)}px`;
+        return;
+      }
+      // Too little room: the column scrolls just enough to show the panel above the bar.
+      el.style.maxHeight = "";
+      const r = el.getBoundingClientRect();
+      if (r.bottom > floor) col.scrollTop += Math.min(r.bottom - floor, r.top - col.getBoundingClientRect().top - 8);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [inlinePanel?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const stage = !after ? "structure" : marksOn ? "verdict" : "run";
   const readout = after && marksOn ? marksReadout(after.marks) : model.tested ? `testing ${model.tested}` : `${model.boxes.length} ${model.boxes.length === 1 ? "part" : "parts"} · ${model.lines.length} ${model.lines.length === 1 ? "join" : "joins"}`;
 
@@ -485,7 +518,13 @@ export function BenchStage({ wontRun = false, seenBefore = false, codeRan = fals
         </p>
       )}
       {!after && cardId && model.parts[cardId] && <PartCard id={cardId} part={model.parts[cardId]!} tested={model.tested} hasTest={Boolean(model.parts[CLOCK_ID])} python={language === "py"} pinned={pinned === cardId} {...(onTestFunction ? { onTest: onTestFunction } : {})} canChange={!after} onClose={() => setPinned(null)} />}
-      {after && marksOn && <MarkList marks={after.marks} focus={focusMark} onFocus={setFocusMark} footnote={footnote} headnote={headnote} moment={momentOf(after.marks, after.run, language)} notes={resultNotes(after)} readout={marksReadout(after.marks)} loop={loop} />}
+      {after && marksOn && <MarkList partNote={inlinePanel ? (
+        <PartFacts part={inlinePanel} className="c-part m-partnote">
+          <button type="button" className="u1-close m-partnote-close" onClick={() => onClosePart?.()} aria-label="Close this part's panel">
+            ×
+          </button>
+        </PartFacts>
+      ) : null} marks={after.marks} focus={focusMark} onFocus={setFocusMark} footnote={footnote} headnote={headnote} moment={momentOf(after.marks, after.run, language)} notes={resultNotes(after)} readout={marksReadout(after.marks)} loop={loop} />}
       {children}
     </div>
   );
@@ -621,7 +660,7 @@ export function resultNotes(after: Pick<After, "marks" | "run" | "experiment" | 
   ];
 }
 
-function MarkList({ marks, focus, onFocus, footnote, headnote, moment, notes, readout, loop }: { notes: readonly string[]; marks: readonly Mark[]; focus: string | null; onFocus: (m: string | null) => void; footnote: ReactNode; headnote: ReactNode; moment: Moment | null; readout: string; loop: CountChange | null }) {
+function MarkList({ marks, focus, onFocus, footnote, headnote, moment, notes, readout, loop, partNote = null }: { partNote?: ReactNode; notes: readonly string[]; marks: readonly Mark[]; focus: string | null; onFocus: (m: string | null) => void; footnote: ReactNode; headnote: ReactNode; moment: Moment | null; readout: string; loop: CountChange | null }) {
   const same = sharedReason(marks);
   // Questions nobody could check fold to one line with their reason: a real result must not read as a shrug.
   const checkable = marks.filter((m) => !m.picks.every((p) => p.outcome === "cant_check"));
@@ -636,6 +675,7 @@ function MarkList({ marks, focus, onFocus, footnote, headnote, moment, notes, re
           <p className="m-note" key={n} data-testid="result-note">{n}</p>
         ))}
         <p className="m-count" data-testid="m-count">{readout}</p>
+        {partNote}
         {loop && (
           <p className="m-loop" data-testid="m-loop">
             {`${loop.words}: `}
