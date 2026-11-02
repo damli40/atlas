@@ -78,7 +78,7 @@ describe("G1 gate: every spending route refuses without a code, and nothing is s
     expect(unaccounted).toEqual([]);
     // And every open route really is one of the read-only ones listed in the gate.
     const open = routes.filter((r) => !spending.has(r));
-    expect(open.sort()).toEqual(["GET /claimants", "GET /health", "GET /moonwell/saved", "GET /outline/jobs/:id", "GET /outline/jobs/:id/atlas", "GET /outline/jobs/:id/outline", "GET /outline/jobs/:id/parts/:partId", "GET /paste/languages", "GET /proofs/:runId", "GET /proofs/:runId/viewer"]);
+    expect(open.sort()).toEqual(["GET /claimants", "GET /health", "GET /moonwell/saved", "GET /outline/jobs/:id", "GET /outline/jobs/:id/atlas", "GET /outline/jobs/:id/outline", "GET /outline/jobs/:id/parts/:partId", "GET /paste/languages", "GET /proofs/:runId", "GET /proofs/:runId/machine", "GET /proofs/:runId/viewer"]);
     expect(OPEN_ROUTES.every((r) => r.method === "GET" || /invite/.test(r.path.source))).toBe(true);
   });
 

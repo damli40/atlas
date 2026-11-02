@@ -27,7 +27,7 @@ export const rememberView = (view: "machine" | "chart") => {
 };
 
 let styled = false;
-function ensureMachineStyle() {
+export function ensureMachineStyle() {
   ensureRendererStyle();
   if (styled || typeof document === "undefined") return;
   styled = true;

@@ -5,7 +5,7 @@
 import { networkCallSites } from "../../src/call-sites";
 import { maskSource } from "../../src/failure-labels";
 import type { FileOutline } from "../../src/file-outline";
-import type { BenchModel } from "../../web/machines/bench/model";
+import { benchModel, type BenchModel, type CallTest } from "../../web/machines/bench/model";
 import type { Pt } from "../hand";
 import type { RenderSpec } from "../spec";
 import { auditMachine, type MachineFacts } from "../machine/audit";
@@ -15,6 +15,12 @@ import { PIPE_R, PIPE_Z, routeAll, type Job, type Owner } from "../machine/route
 
 /** Past this the machine can't be drawn large enough to read: the page says so in words and shows the chart. */
 export const MACHINE_PART_LIMIT = 8;
+
+/** The machine's parts from a proof file's own code and test: what a shared picture needs, with no code text in it. */
+export function machinePartsOfFile(source: string, language: "js" | "ts" | "py", test: CallTest, outline: FileOutline): MachineParts {
+  const model = benchModel({ fileName: "pasted", outline, test, source, language });
+  return machineParts({ ...model, tested: test.exportName }, outline, source, language);
+}
 
 export interface Housing {
   id: string;
@@ -179,6 +185,20 @@ function finish(s: Sheet, seed: string, label: string, facts: MachineFacts, ende
   const h = Math.max(...s.ys) + pad - y0;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" class="m-sheet" viewBox="${x0.toFixed(1)} ${y0.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}" data-seed="${esc(seed)}"${ended ? " data-ended=\"\"" : ""} role="group" aria-label="${esc(label)}">${s.out.join("")}</svg>`;
   return { svg, width: w, height: h, label, facts, problems: auditMachine(facts) };
+}
+
+/**
+ * Where the ring lands when the bet missed: on the chute of the function that threw, the first the traced steps name with a chute, or the only
+ * chute there is; on the outlet the value came out of; else on the function under test. Null when the lead bet matched.
+ */
+export function ringFor(o: { kind: "not_matched" | "matched" | "ending"; you: string | null; outcome: unknown; steps: readonly { name: string; threw?: boolean }[]; parts: MachineParts; tested: string | null; stranger?: boolean }): MachineRing | null {
+  if (o.kind !== "not_matched" || !o.tested) return null;
+  const words = `${o.stranger ? "the bet said" : "you said"} ${o.you ?? ""}`;
+  const withChute = new Set(o.parts.housings.filter((h) => h.throws.length > 0).map((h) => h.id));
+  const threw = o.steps.find((x) => x.threw && withChute.has(x.name))?.name ?? (withChute.size === 1 ? [...withChute][0] : undefined);
+  if (o.outcome === "threw" && threw) return { part: threw, on: "chute", words };
+  if (o.outcome === "returned" && o.parts.housings.find((h) => h.id === o.tested)?.returns.length) return { part: o.tested, on: "outlet", words };
+  return { part: o.tested, on: "housing", words };
 }
 
 export interface MachineRing {

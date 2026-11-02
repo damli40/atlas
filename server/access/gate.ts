@@ -31,6 +31,7 @@ export const OPEN_ROUTES: readonly { method: string; path: RegExp; why: string }
   { method: "GET", path: /^\/claimants$/, why: "which models the page can offer (known at startup, no call)" },
   { method: "GET", path: /^\/paste\/languages$/, why: "which languages can be pasted (no call)" },
   { method: "GET", path: /^\/proofs\/[^/]+$/, why: "a public proof card (.atlas.json), read only" },
+  { method: "GET", path: /^\/proofs\/[^/]+\/machine$/, why: "a shared card's machine: parts' names and lines, only once its maker has made a public link; read only" },
   { method: "GET", path: /^\/proofs\/[^/]+\/viewer$/, why: "whether a card's reader placed its bets, and whether this server keeps cards: read only" },
   { method: "GET", path: /^\/moonwell\/saved$/, why: "the saved Moonwell result, a public proof card, read only" },
   { method: "GET", path: /^\/outline\/jobs\/[^/]+(?:\/outline|\/atlas|\/parts\/[^/]+)?$/, why: "an outline job's result, read only" },

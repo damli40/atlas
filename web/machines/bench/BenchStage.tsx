@@ -14,7 +14,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerE
 import { benchSpec } from "../../../renderer/authors/bet-view";
 import { momentOf, type Moment } from "../../../src/moment";
 import { MachineSheet, machineFirst, rememberView, type MachineControl } from "../../drawing/MachineView";
-import { drawMachine, machineParts, type MachineParts, type MachineRing } from "../../../renderer/authors/machine";
+import { drawMachine, machineParts, ringFor, type MachineParts, type MachineRing } from "../../../renderer/authors/machine";
 import type { CountChange } from "../../../src/remember";
 import { machineScript } from "../../../renderer/authors/machine-script";
 import { whatHappened } from "../../../renderer/authors/what-happened";
@@ -94,20 +94,10 @@ export function roundUp(ms: number): number {
   return 10 * p;
 }
 
-/** Where the ring lands: on the chute of the part the run's traced steps say threw, else on the function under test. Only when the bet missed. */
 function machineRing(after: After, language: "js" | "ts" | "py", tested: string | null, parts: MachineParts): MachineRing | null {
   const moment = momentOf(after.marks, after.run, language);
-  if (!moment || moment.kind !== "not_matched" || !tested) return null;
-  const steps = after.helpers && "steps" in after.helpers ? after.helpers.steps : [];
-  // A throw passes up through every caller: the ring goes where the code itself throws, the first traced function that has a chute.
-  const withChute = new Set(parts.housings.filter((h) => h.throws.length > 0).map((h) => h.id));
-  const threw = steps.find((x) => x.threw && withChute.has(x.name))?.name ?? (withChute.size === 1 ? [...withChute][0] : undefined);
-  const m = after.run.result.measured as { outcome?: string };
-  const words = `you said ${moment.you}`;
-  if (m.outcome === "threw" && threw) return { part: threw, on: "chute", words };
-  // It returned, and the bet said otherwise: the ring is on the outlet the value came out of.
-  if (m.outcome === "returned" && parts.housings.find((h) => h.id === tested)?.returns.length) return { part: tested, on: "outlet", words };
-  return { part: tested, on: "housing", words };
+  if (!moment) return null;
+  return ringFor({ kind: moment.kind, you: moment.you, outcome: (after.run.result.measured as { outcome?: unknown }).outcome, steps: after.helpers && "steps" in after.helpers ? after.helpers.steps : [], parts, tested });
 }
 
 export function BenchStage({ seenBefore = false, codeRan = false, loop = null, model, theme, after = null, onPart, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null }: BenchStageProps) {

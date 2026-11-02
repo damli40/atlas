@@ -133,6 +133,8 @@ import { MAX_PASTED_PROMPT_CHARS } from "./meta/pasted-guard";
 import { createOutlineRoutes, DEFAULT_OUTLINES_PER_IP_PER_HOUR, OUTLINE_BODY_BYTES, type OutlineOptions } from "./outline/routes";
 import { memoryTrackStore, type Person, type TrackStore } from "./track-store";
 import { lastRoundOf, lastRoundWords, weakestKind } from "../src/remember";
+import { fileOutline } from "../src/file-outline";
+import { machinePartsOfFile, type MachineParts } from "../renderer/authors/machine";
 import { entriesFromRound, recordBefore, trackRecordOf, weakSpotSummary, type TrackRecord } from "../src/track-record";
 import { createLabeler, DEFAULT_LABELS_PER_CLIENT_PER_HOUR } from "./labels";
 import { labelsForBettors } from "../src/failure-labels";
@@ -1986,7 +1988,19 @@ export function createApp(opts: AppOptions = {}) {
   const keptCaps = { days: 30, perClient: 50, total: 500, fileBytes: 256 * 1024, ...opts.keptProofsCaps };
   const keptPath = (runId: string) => (keptDir && /^[\w-]{1,64}$/.test(runId) ? join(keptDir, `${runId}.json`) : null);
   const clientHash = (c: Context) => createHash("sha256").update(clientOf(c)).digest("hex");
-  type KeptEntry = { until: string; maker: string; file: AtlasFile };
+  type KeptEntry = { until: string; maker: string; file: AtlasFile; machine?: MachineParts };
+  /** The parts of a pasted round's machine, read from its code. Names and lines, no code text. Null when the file holds no source. */
+  const machineOfFile = (file: AtlasFile): MachineParts | null => {
+    const source = file.target.source;
+    const language = file.target.language;
+    const params = file.experiments[0]?.params;
+    if (file.target.kind !== "pasted" || typeof source !== "string" || !language || params?.shape !== "call-function") return null;
+    try {
+      return machinePartsOfFile(source, language, params, fileOutline(source, language));
+    } catch {
+      return null;
+    }
+  };
   const readKept = (at: string): KeptEntry | null => {
     try {
       const e = JSON.parse(readFileSync(at, "utf8")) as KeptEntry;
@@ -2048,7 +2062,8 @@ export function createApp(opts: AppOptions = {}) {
     if (live.length >= keptCaps.total) return c.json({ kept: false, error: "this server already holds as many public links as it keeps" }, 429);
     if (live.filter((e) => e.maker === me).length >= keptCaps.perClient) return c.json({ kept: false, error: `you already have ${keptCaps.perClient} public links; delete one to make another` }, 429);
     const until = new Date(Date.now() + keptCaps.days * 86_400_000).toISOString();
-    const text = JSON.stringify({ until, maker: me, file: file.target.kind === "pasted" ? withheldSource(file) : file });
+    const machine = machineOfFile(file);
+    const text = JSON.stringify({ until, maker: me, file: file.target.kind === "pasted" ? withheldSource(file) : file, ...(machine ? { machine } : {}) });
     if (Buffer.byteLength(text) > keptCaps.fileBytes) return c.json({ kept: false, error: "this card is too big to keep as a public link" }, 413);
     try {
       mkdirSync(keptDir!, { recursive: true });
@@ -2093,6 +2108,17 @@ export function createApp(opts: AppOptions = {}) {
     // E3 review r2 minor 5: the source only when an owner is on record AND the header names it.
     if (file.target.kind === "pasted" && (owner === undefined || session !== owner)) return c.json({ ...withheldSource(file), ...about });
     return c.json({ ...file, ...about });
+  });
+
+  // D66: the parts of the card's machine, for its picture: the session that ran it, or anyone once its maker has made a public link. Names and lines, never code.
+  app.get("/proofs/:runId/machine", (c) => {
+    const runId = c.req.param("runId");
+    if (goneFor(c, runId)) return c.json({ error: GONE_WORDS }, 410);
+    const kept = keptProof(runId);
+    if (kept?.machine) return c.json({ parts: kept.machine });
+    const file = proofOf(runId);
+    if (!file || !ranIt(c, runId)) return c.json({ parts: null });
+    return c.json({ parts: machineOfFile(file) });
   });
 
   // What the card's page needs to know about whoever is looking. Kept out of the file itself, which a reader can verify and download.

@@ -18,6 +18,7 @@ import type { FileOutline } from "../src/file-outline";
 import type { OutlineView } from "./machines/explorer/outline-data";
 import type { TrackRecord } from "../src/track-record";
 import type { Weakest } from "../src/remember";
+import type { MachineParts } from "../renderer/authors/machine";
 import type { LabelsAnswer } from "../src/failure-labels";
 
 export type { TrackRecord, LabelsAnswer };
@@ -288,6 +289,7 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
     /** D06-03: a round's .atlas.json, as the server kept it. */
     proof: (runId: string) => get<AtlasFile>(`/proofs/${encodeURIComponent(runId)}`),
     moonwellReady: () => get<{ ready: boolean; words?: string }>("/moonwell/ready"),
+    proofMachine: (runId: string) => get<{ parts: MachineParts | null }>(`/proofs/${encodeURIComponent(runId)}/machine`),
     proofViewer: (runId: string) => get<{ yours: boolean; keepsCards: boolean; canKeep: boolean }>(`/proofs/${encodeURIComponent(runId)}/viewer`),
     /** D63: the saved Moonwell result the menu opens. */
     moonwellSaved: () => get<AtlasFile>("/moonwell/saved"),
