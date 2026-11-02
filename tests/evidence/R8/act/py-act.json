@@ -1,0 +1,62 @@
+{
+ "perf": {
+  "frames": 233,
+  "worst": 17.6,
+  "p95": 17.2,
+  "median": 16.7,
+  "over50": 0,
+  "over34": 0,
+  "maxAnimations": 4,
+  "act": {
+   "frames": 179,
+   "worst": 17.6,
+   "p95": 17.2,
+   "over34": 0
+  },
+  "seen": {
+   "wheelTurns": 0,
+   "flashes": 0,
+   "dialLabels": [
+    "500 ms"
+   ]
+  },
+  "steps": [
+   {
+    "at": 3614,
+    "words": "Atlas calls get_user_plan"
+   },
+   {
+    "at": 4114,
+    "words": "inner runs"
+   },
+   {
+    "at": 4614,
+    "words": "waits 500 ms"
+   },
+   {
+    "at": 6114,
+    "words": "returned \"pro\""
+   }
+  ],
+  "slow": []
+ },
+ "end": {
+  "ended": true,
+  "red": 0,
+  "ran": [],
+  "lamps": [
+   "get_user_plan"
+  ],
+  "needles": [
+   "translate(34.9px, -17.6px) matrix(0.866025, 0.5, -0.866025, 0.5, 0, 0) rotate(194.388deg) matrix(0.57735, -0.57735, 1, 1, 0, 0) translate(-34.9px, 17.6px)"
+  ],
+  "ring": null,
+  "overlays": 0,
+  "animations": 0,
+  "markup": 90875
+ },
+ "ms": {
+  "lockToPlaying": 298,
+  "playingToMarked": 3517
+ }
+}

@@ -1,0 +1,27 @@
+# shared proof picture machine SVG (ProofImage's build), per fixture run and ring kind; main 3203228:
+example-never.json not_matched c7650fa68198c434 235540
+example-never.json matched 0e1d27f122e6b780 229523
+example-returns.json not_matched daa1619fe1a76dab 232241
+example-returns.json matched 3c2e0aea18fa3941 229317
+example.json not_matched 263dbbe1826de70b 236612
+example.json matched 067cf61045206a6f 230840
+orders-returns.json not_matched 54c7492affe454ad 149581
+orders-returns.json matched 19fc244d0b3535ee 146672
+orders-throws.json not_matched 857e3e08fcd91662 151614
+orders-throws.json matched e35ee3c3a3f853bc 147749
+py-plan.json not_matched 233d712f6eb9a76a 90789
+py-plan.json matched 5bc369dbf74a6faa 87885
+# this branch:
+example-never.json not_matched c7650fa68198c434 235540
+example-never.json matched 0e1d27f122e6b780 229523
+example-returns.json not_matched daa1619fe1a76dab 232241
+example-returns.json matched 3c2e0aea18fa3941 229317
+example.json not_matched 263dbbe1826de70b 236612
+example.json matched 067cf61045206a6f 230840
+orders-returns.json not_matched 54c7492affe454ad 149581
+orders-returns.json matched 19fc244d0b3535ee 146672
+orders-throws.json not_matched 857e3e08fcd91662 151614
+orders-throws.json matched e35ee3c3a3f853bc 147749
+py-plan.json not_matched 233d712f6eb9a76a 90789
+py-plan.json matched 5bc369dbf74a6faa 87885
+# diff: none

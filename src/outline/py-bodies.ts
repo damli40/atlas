@@ -39,10 +39,16 @@ export function pyBodies(masked: string, raw: string, parts: readonly { name: st
     depth = 0;
     let skipOver: number | null = null;
     let from = 0;
+    // R8: loops still open, with their indent: a statement at or left of that indent ends them.
+    const openLoops: { line: number; at: number }[] = [];
+    const spans: [number, number][] = [];
+    let lastLine = n;
     for (let i = n + 1; i <= p.lineEnd; i++) {
       const t = lines[i - 1] ?? "";
       if (t.trim() === "") continue;
       const at = indent(t);
+      if (depth === 0) while (openLoops.length && at <= openLoops[openLoops.length - 1]!.at) spans.push([openLoops.pop()!.line, lastLine]);
+      lastLine = i;
       if (skipOver !== null) {
         if (depth === 0 && at > skipOver) {
           for (const ch of t) depth += "([{".includes(ch) ? 1 : ")]}".includes(ch) ? -1 : 0;
@@ -64,11 +70,16 @@ export function pyBodies(masked: string, raw: string, parts: readonly { name: st
         from = i;
         continue;
       }
-      if (/^(for|while|async\s+for)\b/.test(s)) facts.loops.push(i);
-      else if (/^raise\b/.test(s)) (facts.throws as ThrowSite[]).push(raiseSite(rawLines[i - 1] ?? "", i));
+      if (/^(for|while|async\s+for)\b/.test(s)) {
+        facts.loops.push(i);
+        openLoops.push({ line: i, at });
+      } else if (/^raise\b/.test(s)) (facts.throws as ThrowSite[]).push(raiseSite(rawLines[i - 1] ?? "", i));
       else if (/^return\b/.test(s)) facts.returns.push(i);
     }
     if (skipOver !== null) facts.nested.push([from, p.lineEnd]);
+    while (openLoops.length) spans.push([openLoops.pop()!.line, lastLine]);
+    // In the same order as `loops`.
+    facts.loopSpans = spans.sort((a, b) => a[0] - b[0]);
     out[p.name] = facts;
   }
   return out;

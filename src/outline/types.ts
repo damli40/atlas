@@ -47,6 +47,8 @@ export interface ThrowSite {
  */
 export interface BodyFacts {
   loops: number[];
+  /** R8: each loop's first and last line, in the same order as `loops`. The run's motion turns a loop's wheel only for a call whose line sits inside it. */
+  loopSpans?: [number, number][];
   throws: ThrowSite[];
   returns: number[];
   /** Line spans of nested functions and classes: anything found in them is not this function's own. */

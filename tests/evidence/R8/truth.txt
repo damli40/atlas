@@ -1,0 +1,33 @@
+pass returned-with-a-chute: it returned, so no chute is red
+pass returned-with-a-chute: a matched bet has no ring
+pass returned-bet-throws: no chute is red
+pass returned-bet-throws: the ring is on the outlet
+pass own-throw: its chute is red
+pass own-throw: the ring is on that chute
+pass fake-threw-unrelated-chute: the chute of a function that never ran is not red
+pass fake-threw-unrelated-chute: the ring is on the fake
+pass caught-upstream: a throw caught upstream draws no red
+pass caught-then-other: not the one that was caught
+pass library-threw: an error no throw here made: nothing red, nothing ringed
+pass library-threw: the words stand alone
+pass dial-not-run: the dial of a function that never ran does not move
+pass stale-helper: no thread for a call that didn't happen
+pass two-callers: a fake with two possible callers: no thread into it
+pass two-callers: its lamp is lit: it was called
+pass uses-not-wraps: says uses, never wraps
+pass callback-return: no spout from a callback's return
+pass same-text-in-class-method: no chute is red
+pass same-text-in-class-method: nothing is ringed
+pass same-text-in-nested-closure: no chute is red
+pass same-text-in-nested-closure: nothing is ringed
+pass caught-then-same-text-built-elsewhere: no chute is red
+pass caught-then-same-text-built-elsewhere: nothing is ringed
+pass template-opening-words: no chute is red
+pass template-opening-words: nothing is ringed
+pass function-returning-a-function: no throw or loop from the inner function
+pass wait-never-reached: the dial stays still: a fake's delay moved the clock
+pass reduced-motion: reduced motion: the same truth
+pass J1: M twice keeps the result on the machine: {"ended":true,"ring":{"part":"f","on":"chute"}}
+pass J1: chart first, then M, shows the result: {"ended":true,"red":["f#chute"]}
+pass J2: eight parts at 1280x720: words at a readable size, or the chart in plain words: In a window this size the machine's words would be under 11 px, so here is the box chart. A wider window shows the machine. smallest null
+all pass

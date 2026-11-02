@@ -393,15 +393,17 @@ function bodiesOf(sf: ts.SourceFile): Record<string, BodyFacts> {
   const read = (name: string, fn: ts.FunctionLikeDeclaration) => {
     const body = fn.body;
     if (!body) return;
-    const facts: BodyFacts = { loops: [], throws: [], returns: [], nested: [] };
+    const facts: BodyFacts = { loops: [], loopSpans: [], throws: [], returns: [], nested: [] };
     if (!ts.isBlock(body)) facts.returns.push(lineOf(body));
     const visit = (n: ts.Node): void => {
       if (ts.isFunctionLike(n) || ts.isClassLike(n)) {
         facts.nested.push([lineOf(n), endOf(n)]);
         return;
       }
-      if (ts.isForStatement(n) || ts.isForInStatement(n) || ts.isForOfStatement(n) || ts.isWhileStatement(n) || ts.isDoStatement(n)) facts.loops.push(lineOf(n));
-      else if (ts.isReturnStatement(n)) facts.returns.push(lineOf(n));
+      if (ts.isForStatement(n) || ts.isForInStatement(n) || ts.isForOfStatement(n) || ts.isWhileStatement(n) || ts.isDoStatement(n)) {
+        facts.loops.push(lineOf(n));
+        facts.loopSpans!.push([lineOf(n), endOf(n)]);
+      } else if (ts.isReturnStatement(n)) facts.returns.push(lineOf(n));
       else if (ts.isThrowStatement(n)) facts.throws.push(throwSite(n, lineOf(n)));
       ts.forEachChild(n, visit);
     };

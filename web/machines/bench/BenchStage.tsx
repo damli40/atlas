@@ -29,7 +29,8 @@ import { useDarkScheme, useReducedMotion } from "../../drawing/media";
 import { CLOCK_ID, deviceId, type BenchModel, type BenchPart } from "./model";
 import { OUTCOME_WORDS, unusedFakes, type Mark, type Script } from "./play";
 import { notShownAsFact } from "../../../src/trust";
-import { runBeats } from "./run-beats";
+import { runActFor, runBeats } from "./run-beats";
+import { actTimes } from "../../../renderer/authors/run-act";
 import { lineSpan } from "../../../src/words";
 import { partPanel, type PartPanel } from "../../../renderer/authors/part-panel";
 import { PartFacts } from "../../drawing/PartFacts";
@@ -247,6 +248,14 @@ export function BenchStage({ viewToggle = true, traceNote = true, recorded = {},
     if (!pathSpec || !after || after.script.notShown !== null || pathSpec.notShown !== undefined) return [];
     return runBeats({ run: after.run, experiment: after.experiment, helpers: after.helpers ?? null, parts, tested: model.tested, spec: pathSpec });
   }, [pathSpec, parts, outline, model.tested, after?.run, after?.helpers]); // eslint-disable-line react-hooks/exhaustive-deps
+  // R8: the run acted out on the machine, from the same recorded fields. Box chart, phones and too many parts keep the story as before.
+  const act = useMemo(() => {
+    if (!after || after.script.notShown !== null || pathSpec?.notShown !== undefined || !pathSpec) return null;
+    return runActFor({ run: after.run, experiment: after.experiment, helpers: after.helpers ?? null, parts, model, outline, tested: model.tested, end });
+  }, [pathSpec, parts, model, outline, end, after?.run, after?.helpers]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [actAt, setActAt] = useState<number | null>(null);
+  const machineShown = useRef(false);
+  machineShown.current = showMachine;
   // R7: M answers only while its switch is on screen.
   const toggleShown = useRef(viewToggle);
   toggleShown.current = viewToggle;
@@ -313,6 +322,7 @@ export function BenchStage({ viewToggle = true, traceNote = true, recorded = {},
       // D60: about 5 s to the ring, whatever the path's length, up to about 6 s. The final ring keeps its pace: it is the payoff.
       p.setRunPace(Math.max(0.12, Math.min(0.85, 4400 / Math.max(1, pathSpec.steps.length * 1000))));
       // The chart moves aside first, so the whole story is seen.
+      setActAt(null);
       if (!still && !p.reduced) {
         await new Promise<void>((r) => {
           const t = setTimeout(r, 420);
@@ -323,7 +333,16 @@ export function BenchStage({ viewToggle = true, traceNote = true, recorded = {},
         });
         endPause.current = null;
       }
-      for (let i = 0; i < pathSpec.steps.length && live; i++) {
+      const machine = machineRef.current;
+      if (machine && machineShown.current && act && act.steps.length > 0 && !still && !p.reduced) {
+        // R8: the machine acts the run out from its trace; the hidden path drawing goes straight to its end. A key in the pause skips the act too.
+        if (!skipAsked.current) {
+          const keep = { routes: new Set(beats.flatMap((b) => b.routes)), lamps: new Set(beats.flatMap((b) => b.lamps)) };
+          await machine.act(act.steps, actTimes(act.steps), { keep, onStep: (i) => live && setActAt(i) });
+        }
+        if (live) setActAt(null);
+        p.skip();
+      } else for (let i = 0; i < pathSpec.steps.length && live; i++) {
         lit(pathSpec.steps[i]!);
         machineRef.current?.play(i, Math.max(120, Math.min(800, 4400 / pathSpec.steps.length)));
         // The thread takes the centre and the view follows its head.
@@ -348,6 +367,7 @@ export function BenchStage({ viewToggle = true, traceNote = true, recorded = {},
     return () => {
       live = false;
       p.skip();
+      machineRef.current?.skip();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [after?.token, after?.helpersPending, pathMount, pathSpec, still]);
@@ -489,6 +509,11 @@ export function BenchStage({ viewToggle = true, traceNote = true, recorded = {},
           onPart!(id, panel);
           return true;
         }} />}
+        {showMachine && after && !marksOn && act ? (
+          <p className="m-act-step" role="status" aria-live="polite" data-testid="machine-act-step">
+            {actAt !== null ? (act.steps[actAt]?.words ?? "") : ""}
+          </p>
+        ) : null}
       </div>
       {showMachine && after && noRunToShow ? <p className="r-view-note" role="note" data-testid="machine-stop">{stopLine(after.script.notShown ?? pathSpec?.notShown ?? "")}</p> : null}
       {traceNote && after && marksOn && !noRunToShow && pathSpec?.captions.length ? (
@@ -542,7 +567,17 @@ export function BenchStage({ viewToggle = true, traceNote = true, recorded = {},
             ×
           </button>
         </PartFacts>
-      ) : null} marks={after.marks} focus={focusMark} onFocus={setFocusMark} footnote={footnote} headnote={headnote} moment={momentOf(after.marks, after.run, language)} notes={resultNotes(after)} readout={marksReadout(after.marks)} loop={loop} recorded={recorded} />}
+      ) : null} marks={after.marks} focus={focusMark} onFocus={setFocusMark} footnote={footnote} headnote={headnote} actList={showMachine && still && act && act.steps.length > 0 ? (
+          // R8: with reduced motion nothing moves; the act's steps are here as text, beside the still end state.
+          <details className="m-act-list" open data-testid="machine-act-list">
+            <summary>{`What the run did, step by step (${act.steps.length})`}</summary>
+            <ol>
+              {act.steps.map((s, i) => (
+                <li key={i}>{s.words}</li>
+              ))}
+            </ol>
+          </details>
+        ) : null} moment={momentOf(after.marks, after.run, language)} notes={resultNotes(after)} readout={marksReadout(after.marks)} loop={loop} recorded={recorded} />}
       {children}
     </div>
   );
@@ -687,7 +722,7 @@ export function resultNotes(after: Pick<After, "marks" | "run" | "experiment" | 
   ];
 }
 
-function MarkList({ marks, focus, onFocus, footnote, headnote, moment, notes, readout, loop, partNote = null, recorded = {} }: { recorded?: Readonly<Record<string, string>>; partNote?: ReactNode; notes: readonly string[]; marks: readonly Mark[]; focus: string | null; onFocus: (m: string | null) => void; footnote: ReactNode; headnote: ReactNode; moment: Moment | null; readout: string; loop: CountChange | null }) {
+function MarkList({ actList = null, marks, focus, onFocus, footnote, headnote, moment, notes, readout, loop, partNote = null, recorded = {} }: { actList?: ReactNode; recorded?: Readonly<Record<string, string>>; partNote?: ReactNode; notes: readonly string[]; marks: readonly Mark[]; focus: string | null; onFocus: (m: string | null) => void; footnote: ReactNode; headnote: ReactNode; moment: Moment | null; readout: string; loop: CountChange | null }) {
   const same = sharedReason(marks);
   // Questions nobody could check fold to one line with their reason: a real result must not read as a shrug.
   const checkable = marks.filter((m) => !m.picks.every((p) => p.outcome === "cant_check"));
@@ -703,6 +738,7 @@ function MarkList({ marks, focus, onFocus, footnote, headnote, moment, notes, re
         ))}
         <p className="m-count" data-testid="m-count">{readout}</p>
         {partNote}
+        {actList}
         {loop && (
           <p className="m-loop" data-testid="m-loop">
             {`${loop.words}: `}

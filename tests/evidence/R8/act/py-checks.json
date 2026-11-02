@@ -1,0 +1,42 @@
+[
+ {
+  "name": "the act's captions came from the run, in order",
+  "ok": true,
+  "more": "Atlas calls get_user_plan / inner runs / waits 500 ms / returned \"pro\""
+ },
+ {
+  "name": "the act ran 3 to 6 s (Lock in to verdict, including the server's run)",
+  "ok": true,
+  "more": "3517 ms from playing to marked; 3815 ms from Lock in"
+ },
+ {
+  "name": "no overlay left after the act",
+  "ok": true,
+  "more": "{\"ended\":true,\"red\":0,\"ran\":[],\"lamps\":[\"get_user_plan\"],\"needles\":[\"translate(34.9px, -17.6px) matrix(0.866025, 0.5, -0.866025, 0.5, 0, 0) rotate(194.388deg) matrix(0.57735, -0.57735, 1, 1, 0, 0) translate(-34.9px, 17.6px)\"],\"ring\":null,\"overlays\":0,\"animations\":0,\"markup\":90875}"
+ },
+ {
+  "name": "no animation still running on the machine 1.5 s after the verdict",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "a key skips to the end state",
+  "ok": true,
+  "more": "7 ms after the key"
+ },
+ {
+  "name": "skipped and played end states are the same drawing",
+  "ok": true,
+  "more": "{\"end\":{\"ended\":true,\"red\":0,\"ran\":[],\"lamps\":[\"get_user_plan\"],\"needles\":[\"translate(34.9px, -17.6px) matrix(0.866025, 0.5, -0.866025, 0.5, 0, 0) rotate(194.388deg) matrix(0.57735, -0.57735, 1, 1, 0, 0) translate(-34.9px, 17.6px)\"],\"ring\":null,\"overlays\":0,\"animations\":0,\"markup\":90875},\"skipped\":{\"ended\":true,\"red\":0,\"ran\":[],\"lamps\":[\"get_user_plan\"],\"needles\":[\"translate(34.9px, -17.6px) matrix(0.866025, 0.5, -0.866025, 0.5, 0, 0) rotate(194.388deg) matrix(0.57735, -0.57735, 1, 1, 0, 0) translate(-34.9px, 17.6px)\"],\"ring\":null,\"overlays\":0,\"animations\":0,\"markup\":90875}}"
+ },
+ {
+  "name": "reduced motion: the step list is shown as text",
+  "ok": true,
+  "more": "Atlas calls get_user_plan / inner runs / waits 500 ms / returned \"pro\""
+ },
+ {
+  "name": "reduced motion: the same end drawing",
+  "ok": true,
+  "more": "{\"ended\":true,\"red\":0,\"ran\":[],\"lamps\":[\"get_user_plan\"],\"needles\":[\"translate(34.9px, -17.6px) matrix(0.866025, 0.5, -0.866025, 0.5, 0, 0) rotate(194.388deg) matrix(0.57735, -0.57735, 1, 1, 0, 0) translate(-34.9px, 17.6px)\"],\"ring\":null,\"overlays\":0,\"animations\":0,\"markup\":90875}"
+ }
+]

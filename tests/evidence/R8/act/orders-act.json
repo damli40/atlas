@@ -1,0 +1,108 @@
+{
+ "perf": {
+  "frames": 315,
+  "worst": 17.8,
+  "p95": 17.3,
+  "median": 16.7,
+  "over50": 0,
+  "over34": 0,
+  "maxAnimations": 51,
+  "act": {
+   "frames": 257,
+   "worst": 17.8,
+   "p95": 17.3,
+   "over34": 0
+  },
+  "seen": {
+   "wheelTurns": 0,
+   "flashes": 4,
+   "dialLabels": [
+    "200 ms",
+    "400 ms",
+    "800 ms"
+   ]
+  },
+  "steps": [
+   {
+    "at": 3719,
+    "words": "Atlas calls fetchAllOrders"
+   },
+   {
+    "at": 4003,
+    "words": "call 1 to fetch: answered 429 (scripted)"
+   },
+   {
+    "at": 4302,
+    "words": "waits 200 ms"
+   },
+   {
+    "at": 4669,
+    "words": "call 2 to fetch: answered 429 (scripted)"
+   },
+   {
+    "at": 4953,
+    "words": "fetchPage runs"
+   },
+   {
+    "at": 5236,
+    "words": "waits 400 ms"
+   },
+   {
+    "at": 5686,
+    "words": "call 3 to fetch: answered 429 (scripted)"
+   },
+   {
+    "at": 5969,
+    "words": "fetchPage runs"
+   },
+   {
+    "at": 6269,
+    "words": "waits 800 ms"
+   },
+   {
+    "at": 6852,
+    "words": "call 4 to fetch: answered 429 (scripted)"
+   },
+   {
+    "at": 7136,
+    "words": "fetchPage runs"
+   },
+   {
+    "at": 7436,
+    "words": "fetchPage runs and throws"
+   },
+   {
+    "at": 7719,
+    "words": "threw Error at 1,400 ms, out of line 9"
+   }
+  ],
+  "slow": []
+ },
+ "end": {
+  "ended": true,
+  "red": 1,
+  "ran": [
+   "fetchAllOrders->fetchPage",
+   "fetchPage->stand-in fetch"
+  ],
+  "lamps": [
+   "fetchAllOrders",
+   "fetchPage",
+   "stand-in fetch"
+  ],
+  "needles": [
+   "translate(176.2px, 126.9px) matrix(0.866025, 0.5, -0.866025, 0.5, 0, 0) rotate(165.83deg) matrix(0.57735, -0.57735, 1, 1, 0, 0) translate(-176.2px, -126.9px)"
+  ],
+  "ring": [
+   "fetchPage",
+   "chute"
+  ],
+  "overlays": 0,
+  "animations": 0,
+  "markup": 156850
+ },
+ "ms": {
+  "lockToPlaying": 327,
+  "playingToMarked": 4870
+ }
+}

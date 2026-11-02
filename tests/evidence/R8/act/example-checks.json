@@ -1,0 +1,42 @@
+[
+ {
+  "name": "the act's captions came from the run, in order",
+  "ok": true,
+  "more": "Atlas calls fetchWithRetry / call 1 to fetchIt: threw Error / backoffMs runs / sleep runs / waits 100 ms / call 2 to fetchIt: threw Error / backoffMs runs / sleep runs / waits 200 ms / call 3 to fetchIt: threw Error / backoffMs runs / sleep runs / waits 400 ms / threw Error at 700 ms"
+ },
+ {
+  "name": "the act ran 3 to 6 s (Lock in to verdict, including the server's run)",
+  "ok": true,
+  "more": "5180 ms from playing to marked; 5538 ms from Lock in"
+ },
+ {
+  "name": "no overlay left after the act",
+  "ok": true,
+  "more": "{\"ended\":true,\"red\":0,\"ran\":[\"fetchWithRetry->stand-in fetchIt\"],\"lamps\":[\"backoffMs\",\"fetchWithRetry\",\"sleep\",\"stand-in fetchIt\"],\"needles\":[\"\"],\"ring\":[\"stand-in fetchIt\",\"port\"],\"overlays\":0,\"animations\":0,\"markup\":242132}"
+ },
+ {
+  "name": "no animation still running on the machine 1.5 s after the verdict",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "a key skips to the end state",
+  "ok": true,
+  "more": "4 ms after the key"
+ },
+ {
+  "name": "skipped and played end states are the same drawing",
+  "ok": true,
+  "more": "{\"end\":{\"ended\":true,\"red\":0,\"ran\":[\"fetchWithRetry->stand-in fetchIt\"],\"lamps\":[\"backoffMs\",\"fetchWithRetry\",\"sleep\",\"stand-in fetchIt\"],\"needles\":[\"\"],\"ring\":[\"stand-in fetchIt\",\"port\"],\"overlays\":0,\"animations\":0,\"markup\":242132},\"skipped\":{\"ended\":true,\"red\":0,\"ran\":[\"fetchWithRetry->stand-in fetchIt\"],\"lamps\":[\"backoffMs\",\"fetchWithRetry\",\"sleep\",\"stand-in fetchIt\"],\"needles\":[\"\"],\"ring\":[\"stand-in fetchIt\",\"port\"],\"overlays\":0,\"animations\":0,\"markup\":242132}}"
+ },
+ {
+  "name": "reduced motion: the step list is shown as text",
+  "ok": true,
+  "more": "Atlas calls fetchWithRetry / call 1 to fetchIt: threw Error / backoffMs runs / sleep runs / waits 100 ms / call 2 to fetchIt: threw Error / backoffMs runs / sleep runs / waits 200 ms / call 3 to fetchIt: threw Error / backoffMs runs / sleep runs / waits 400 ms / threw Error at 700 ms"
+ },
+ {
+  "name": "reduced motion: the same end drawing",
+  "ok": true,
+  "more": "{\"ended\":true,\"red\":0,\"ran\":[\"fetchWithRetry->stand-in fetchIt\"],\"lamps\":[\"backoffMs\",\"fetchWithRetry\",\"sleep\",\"stand-in fetchIt\"],\"needles\":[\"\"],\"ring\":[\"stand-in fetchIt\",\"port\"],\"overlays\":0,\"animations\":0,\"markup\":242132}"
+ }
+]

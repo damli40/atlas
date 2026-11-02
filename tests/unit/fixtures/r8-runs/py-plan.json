@@ -1,0 +1,246 @@
+{
+ "name": "py-plan",
+ "language": "py",
+ "source": "import time\n\n_cache = {}\n\n\ndef cached(ttl_seconds):\n    def wrap(fn):\n        def inner(user_id):\n            now = time.time()\n            hit = _cache.get(user_id)\n            if hit is not None and now - hit[0] < ttl_seconds:\n                return hit[1]\n            value = fn(user_id)\n            _cache[user_id] = (now, value)\n            return value\n        return inner\n    return wrap\n\n\n@cached(ttl_seconds=60)\ndef get_user_plan(user_id):\n    time.sleep(0.5)  # the database is slow\n    return \"pro\" if user_id % 2 else \"free\"\n",
+ "outline": {
+  "parts": [
+   {
+    "name": "cached",
+    "kind": "function",
+    "exported": true,
+    "lineStart": 6,
+    "lineEnd": 17,
+    "signature": "def cached(ttl_seconds)"
+   },
+   {
+    "name": "get_user_plan",
+    "kind": "function",
+    "exported": true,
+    "lineStart": 20,
+    "lineEnd": 23,
+    "signature": "def get_user_plan(user_id)"
+   }
+  ],
+  "joins": [
+   {
+    "id": "get_user_plan->cached",
+    "from": "get_user_plan",
+    "to": "cached",
+    "kind": "wraps",
+    "lines": [
+     20
+    ]
+   }
+  ],
+  "notes": [],
+  "callFacts": {
+   "freeCalls": [],
+   "importCalls": [
+    {
+     "module": "time",
+     "imported": "",
+     "member": "time",
+     "line": 9
+    },
+    {
+     "module": "time",
+     "imported": "",
+     "member": "sleep",
+     "line": 22
+    }
+   ],
+   "paramCalls": [],
+   "handoffs": [],
+   "waits": [
+    {
+     "line": 22
+    }
+   ]
+  },
+  "bodies": {
+   "cached": {
+    "loops": [],
+    "throws": [],
+    "returns": [
+     17
+    ],
+    "nested": [
+     [
+      7,
+      16
+     ]
+    ]
+   },
+   "get_user_plan": {
+    "loops": [],
+    "throws": [],
+    "returns": [
+     23
+    ],
+    "nested": []
+   }
+  },
+  "throwsInFile": []
+ },
+ "params": {
+  "shape": "call-function",
+  "exportName": "get_user_plan",
+  "args": [
+   {
+    "kind": "json",
+    "value": 1
+   }
+  ]
+ },
+ "run": {
+  "id": "PgJzsyRge3",
+  "trace": [
+   {
+    "data": {
+     "implementation": "cpython",
+     "version": "3.14.7"
+    },
+    "event": "python",
+    "t": 0
+   },
+   {
+    "data": {
+     "args": 1,
+     "exportName": "get_user_plan",
+     "watchLimitMs": 30000
+    },
+    "event": "start",
+    "t": 0
+   },
+   {
+    "data": {
+     "type": "string"
+    },
+    "event": "returned",
+    "t": 500
+   },
+   {
+    "data": {
+     "at": [
+      500
+     ]
+    },
+    "event": "clock_moves",
+    "t": 500
+   },
+   {
+    "data": {
+     "kinds": [
+      "clock"
+     ]
+    },
+    "event": "conditions",
+    "t": 500
+   },
+   {
+    "t": 500,
+    "event": "call_checks",
+    "data": {
+     "harnessSha256": "d91ff17e58d8164453141c4a8a0c74228d47f3dd7d5ad8004790bed8c99210fc",
+     "language": "py",
+     "controlRunId": "L75uMRTFzl",
+     "controlPassed": true,
+     "controlFinishedAt": "2026-11-02T16:45:51.845Z",
+     "python": "3.14.7",
+     "implementation": "cpython"
+    }
+   }
+  ],
+  "result": {
+   "measured": {
+    "outcome": "returned",
+    "returnedJson": "\"pro\"",
+    "returnedType": "string",
+    "virtualMs": 500
+   },
+   "notMeasured": {
+    "thrownMessage": "the call returned, so nothing was thrown",
+    "thrownName": "the call returned, so nothing was thrown"
+   }
+  },
+  "controlPassed": true,
+  "twin": {
+   "trace": [
+    {
+     "data": {
+      "implementation": "cpython",
+      "version": "3.14.7"
+     },
+     "event": "python",
+     "t": 0
+    },
+    {
+     "data": {
+      "args": 1,
+      "exportName": "get_user_plan",
+      "watchLimitMs": 30000
+     },
+     "event": "start",
+     "t": 0
+    },
+    {
+     "data": {
+      "type": "string"
+     },
+     "event": "returned",
+     "t": 500
+    },
+    {
+     "data": {
+      "at": [
+       500
+      ]
+     },
+     "event": "clock_moves",
+     "t": 500
+    },
+    {
+     "data": {
+      "kinds": [
+       "clock"
+      ]
+     },
+     "event": "conditions",
+     "t": 500
+    }
+   ],
+   "result": {
+    "measured": {
+     "outcome": "returned",
+     "returnedJson": "\"pro\"",
+     "returnedType": "string",
+     "virtualMs": 500
+    },
+    "notMeasured": {
+     "thrownMessage": "the call returned, so nothing was thrown",
+     "thrownName": "the call returned, so nothing was thrown"
+    }
+   }
+  },
+  "conditions": [
+   {
+    "kind": "clock",
+    "says": "This code read the clock. Atlas's clock is simulated (it starts at 2026-01-01T00:00:00Z and moves only while the code waits), so time-based values are Atlas's, not your machine's."
+   }
+  ]
+ },
+ "helpers": {
+  "steps": [
+   {
+    "name": "inner",
+    "t": 0,
+    "at": 0,
+    "inner": 1,
+    "within": [
+     "get_user_plan"
+    ]
+   }
+  ],
+  "cut": false
+ }
+}

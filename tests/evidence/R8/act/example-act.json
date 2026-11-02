@@ -1,0 +1,119 @@
+{
+ "perf": {
+  "frames": 336,
+  "worst": 33.6,
+  "p95": 17.2,
+  "median": 16.7,
+  "over50": 0,
+  "over34": 0,
+  "maxAnimations": 29,
+  "act": {
+   "frames": 276,
+   "worst": 17.7,
+   "p95": 17.2,
+   "over34": 0
+  },
+  "seen": {
+   "wheelTurns": 3,
+   "flashes": 3,
+   "dialLabels": [
+    "100 ms",
+    "200 ms",
+    "400 ms"
+   ]
+  },
+  "steps": [
+   {
+    "at": 3093,
+    "words": "Atlas calls fetchWithRetry"
+   },
+   {
+    "at": 3377,
+    "words": "call 1 to fetchIt: threw Error"
+   },
+   {
+    "at": 3677,
+    "words": "backoffMs runs"
+   },
+   {
+    "at": 3960,
+    "words": "sleep runs"
+   },
+   {
+    "at": 4243,
+    "words": "waits 100 ms"
+   },
+   {
+    "at": 4627,
+    "words": "call 2 to fetchIt: threw Error"
+   },
+   {
+    "at": 4910,
+    "words": "backoffMs runs"
+   },
+   {
+    "at": 5193,
+    "words": "sleep runs"
+   },
+   {
+    "at": 5493,
+    "words": "waits 200 ms"
+   },
+   {
+    "at": 5943,
+    "words": "call 3 to fetchIt: threw Error"
+   },
+   {
+    "at": 6226,
+    "words": "backoffMs runs"
+   },
+   {
+    "at": 6527,
+    "words": "sleep runs"
+   },
+   {
+    "at": 6810,
+    "words": "waits 400 ms"
+   },
+   {
+    "at": 7427,
+    "words": "threw Error at 700 ms"
+   }
+  ],
+  "slow": [
+   {
+    "at": 2527,
+    "ms": 33.6,
+    "phase": "playing",
+    "caption": ""
+   }
+  ]
+ },
+ "end": {
+  "ended": true,
+  "red": 0,
+  "ran": [
+   "fetchWithRetry->stand-in fetchIt"
+  ],
+  "lamps": [
+   "backoffMs",
+   "fetchWithRetry",
+   "sleep",
+   "stand-in fetchIt"
+  ],
+  "needles": [
+   ""
+  ],
+  "ring": [
+   "stand-in fetchIt",
+   "port"
+  ],
+  "overlays": 0,
+  "animations": 0,
+  "markup": 242132
+ },
+ "ms": {
+  "lockToPlaying": 358,
+  "playingToMarked": 5180
+ }
+}
