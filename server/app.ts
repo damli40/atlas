@@ -89,8 +89,9 @@ import { createHelperStore, helperRun, HELPER_WORDS } from "./helpers";
 import { createPencil, PENCIL_WORDS, type PencilOptions } from "./pencil";
 import { checkAnswer, createBetStore, humanBetBody, humanBetsBody, MAX_BETS, MAX_EXPERIMENTS, modelSlotsOf, modelSlotView, modelSlotViews, newExperimentId, newRound, publicBet, sealedAfter, sealHumanBet, type BetStore, type ModelSlot, type Round } from "./bets";
 import type { ChatArgs, ChatResult } from "./meta/client";
-import { CLAIMANT_MODEL } from "./meta/roles/claimant";
-import { modelDisplay, runClaimantBets } from "./meta/roles/claimant-bets";
+import { CLAIMANT_MODEL, NO_USAGE } from "./meta/roles/claimant";
+import { buildBetOnlyMessages, modelDisplay, runClaimantBets } from "./meta/roles/claimant-bets";
+import { EXAMPLE_RECORDED_ON, recordedBet } from "./example-round";
 import { AUTONOMOUS_PERSON_REASON, CLAIMANT_HEADER, CLAIMANT_MODES, DEFAULT_CLAIMANT_MODE, SPARK_OPEN_MODEL, modelsFor, parseClaimantMode, type ClaimantMode, type ClaimantsInfo } from "../src/claimants";
 import { moonwellBetContext, moonwellLevelOf } from "../src/bet-context";
 import { CHAIN_FACTS_BLOCK, type ChainFactsResult, type MoonwellChainFacts } from "../src/chain-facts";
@@ -121,13 +122,13 @@ import { MUSE_CODE, type MuseExec } from "./meta/roles/fixer";
 import { ADVERSARY_MODEL, runAdversary } from "./meta/roles/adversary";
 import { functionDefaults } from "../src/experiment-name";
 import { fileLines } from "../src/words";
-import { createPaste, DEFAULT_PASTES_PER_IP_PER_HOUR, PASTE_BODY_BYTES, PASTE_SWEEP_MS, type PasteOptions } from "./paste";
+import { createPaste, DEFAULT_PASTES_PER_IP_PER_HOUR, EXAMPLE_SHA, PASTE_BODY_BYTES, PASTE_SWEEP_MS, type PasteOptions } from "./paste";
 
 /** E3 review r3: all pasted proof files together, at most this many characters (the oldest drops first). */
 export const MAX_PASTED_PROOF_CHARS = 64 * 1024 * 1024;
 import { guardPastedChat } from "./meta/pasted-guard";
 import { pastedBetHead } from "../src/paste-context";
-import { quizQuestionsFor } from "../src/quiz";
+import { oneQuestion, quizQuestionsFor } from "../src/quiz";
 import { pastedSeenCap } from "./meta/roles/claimant-bets";
 import { MAX_PASTED_PROMPT_CHARS } from "./meta/pasted-guard";
 import { createOutlineRoutes, DEFAULT_OUTLINES_PER_IP_PER_HOUR, OUTLINE_BODY_BYTES, type OutlineOptions } from "./outline/routes";
@@ -179,6 +180,8 @@ const experimentBody = z.object({
   params: z.unknown().optional(),
   /** U1 (D47/D48): ask the questions as a quiz (options written by plain code, src/quiz.ts). Pasted call-function tests only. */
   quiz: z.literal(true).optional(),
+  /** R7 (D69): ask one question (src/quiz.ts oneQuestion), the same one for the person and every model. Quiz rounds only. */
+  one: z.literal(true).optional(),
   // Human-proposed only, for now (the Claimant's model bets arrive through the server, not this route).
   proposedBy: z.object({ role: z.literal("human") }).optional(),
 });
@@ -805,7 +808,7 @@ export function createApp(opts: AppOptions = {}) {
     else if (bets.some((b) => b.who === "human")) out.push({ who: "human", status: "sealed" });
     for (const s of modelSlotsOf(round)) {
       const who = s.who as BettorSlot["who"];
-      if (bets.some((b) => b.who === who)) out.push({ who, status: "sealed" });
+      if (bets.some((b) => b.who === who)) out.push({ who, status: "sealed", ...(s.recorded ? { recorded: s.recorded } : {}) });
       else out.push({ who, status: s.status === "no_usable_answer" ? "no_usable_answer" : "not_asked", ...(s.reason ? { reason: oneLine(redactRpc(s.reason), 300) } : {}) });
     }
     for (const b of bets) if (!out.some((s) => s.who === b.who)) out.push({ who: b.who, status: "sealed" });
@@ -898,14 +901,6 @@ export function createApp(opts: AppOptions = {}) {
       for (const s of askable) s.reason = `no finding chosen yet for ${exp.target.ref}`;
       return;
     }
-    if (!slotTaken) {
-      const byIp = modelRoundsByIp.take(clientIp);
-      const allowed = byIp.ok ? budget.startExperiment(sessionId) : byIp;
-      if (!allowed.ok) {
-        for (const s of askable) s.reason = allowed.reason; // e.g. "call limit reached": the person's round goes on without the model
-        return;
-      }
-    }
     const { finding, label: findingLabelText, fileText } = picked;
     // The retry defaults sit more than 20 lines above the loop, so for the fixture the model sees the
     // whole verbatim block whichever finding is used (fixture-finding.ts explains why).
@@ -916,6 +911,25 @@ export function createApp(opts: AppOptions = {}) {
     if (exp.target.kind === "pasted" && seenContext === undefined) {
       for (const s of askable) s.reason = "the bet screen's text was not built, so no model is asked";
       return;
+    }
+    // The one input every bettor gets, whatever answers it (live, or recorded below).
+    const inputFor = (model: string) => ({ experiment: exp, questions: round.questions, finding, findingLabel: findingLabelText, ...(contextRange ? { contextRange } : {}), ...(seenContext !== undefined ? { seenContext } : {}), ...(exp.target.kind === "pasted" ? { seenInstruction: null } : {}), ...(round.repeatOf ? { repeat: true as const } : {}), fileText, gateContext: round.gateContext ?? TS_GATE_CONTEXT, model });
+    // R7 (D69): on the built-in example, a model's answer recorded from this exact prompt is replayed (server/example-round.ts):
+    // no call, no cost, and the slot says it is recorded so the page labels it. Any other prompt is asked live.
+    const recorded = new Map<string, string>();
+    if (exp.target.kind === "pasted" && exp.target.codeSha256 === EXAMPLE_SHA) {
+      for (const s of askable) {
+        const answer = recordedBet(s.model, buildBetOnlyMessages(inputFor(s.model)));
+        if (answer !== null) recorded.set(s.model, answer);
+      }
+    }
+    if (!slotTaken && recorded.size < askable.length) {
+      const byIp = modelRoundsByIp.take(clientIp);
+      const allowed = byIp.ok ? budget.startExperiment(sessionId) : byIp;
+      if (!allowed.ok) {
+        for (const s of askable) s.reason = allowed.reason; // e.g. "call limit reached": the person's round goes on without the model
+        return;
+      }
     }
     // E3: a call carrying pasted code may only reach a non-contributor Meta model (server/meta/pasted-guard.ts).
     const chat = exp.target.kind === "pasted" ? guardPastedChat(modelChat) : modelChat;
@@ -930,11 +944,10 @@ export function createApp(opts: AppOptions = {}) {
         timer = setTimeout(() => ok({ ok: false, reason: why, detail: why }), deadlineMs);
         (timer as { unref?: () => void }).unref?.();
       });
+      const kept = recorded.get(model);
+      const ask = kept !== undefined ? async (): Promise<ChatResult> => ({ ok: true, content: kept, finishReason: "stop", usage: NO_USAGE }) : chat;
       slot.settled = Promise.race([
-        runClaimantBets(
-          { experiment: exp, questions: round.questions, finding, findingLabel: findingLabelText, ...(contextRange ? { contextRange } : {}), ...(seenContext !== undefined ? { seenContext } : {}), ...(exp.target.kind === "pasted" ? { seenInstruction: null } : {}), ...(round.repeatOf ? { repeat: true as const } : {}), fileText, gateContext: round.gateContext ?? TS_GATE_CONTEXT, model },
-          { chat, log: sessionEmitter(agentLog, sessionId), ...(now ? { now } : {}) },
-        ),
+        runClaimantBets(inputFor(model), { chat: ask, log: sessionEmitter(agentLog, sessionId), ...(now ? { now } : {}) }),
         late, // an answer after the deadline is never sealed into this round
       ]).finally(() => clearTimeout(timer)).then(
         (r) => {
@@ -949,6 +962,7 @@ export function createApp(opts: AppOptions = {}) {
           } else {
             round.bets.push(...r.bets);
             slot.status = "sealed";
+            if (kept !== undefined) slot.recorded = EXAMPLE_RECORDED_ON;
           }
         },
         (e: unknown) => {
@@ -1085,6 +1099,7 @@ export function createApp(opts: AppOptions = {}) {
     const runnerKind = target.kind === "github-pr" ? ("evm" as const) : ("ts" as const);
     const gateCtx: GateContext = pastedEntry ? { shapes: ["call-function"], exportNames: pastedEntry.exports.map((e) => e.name), ...(pastedEntry.target.language ? { language: pastedEntry.target.language } : {}) } : runnerKind === "evm" ? EVM_GATE_CONTEXT : TS_GATE_CONTEXT;
     if (body.quiz && !pastedEntry) return c.json({ error: "quiz is for pasted code only" }, 400);
+    if (body.one && !body.quiz) return c.json({ error: "one is for quiz rounds only" }, 400);
     // E3: a test Muse Wonder proposed in this session, used as proposed (an edited one comes as params, from the person).
     if (body.params === undefined && body.proposalId === undefined) return c.json({ error: "body: send params (the experiment) or, for pasted code, proposalId" }, 400);
     let fromProposal: { setId: string; model: string; params: unknown } | undefined;
@@ -1145,6 +1160,8 @@ export function createApp(opts: AppOptions = {}) {
     // U1 (D48): the quiz replaces the free answers with plain code's options; the person and every model get the same ones.
     if (body.quiz && decision.allowed) {
       round.questions = quizQuestionsFor(experiment.params, gateCtx.exportNames, gateCtx.language);
+      // R7 (D69): one question, chosen by plain code before any bettor's text is written, so everyone gets the same one.
+      if (body.one) round.questions = oneQuestion(round.questions);
       round.extraQuestions = [];
     }
     if (finding) round.finding = finding;
@@ -1175,7 +1192,7 @@ export function createApp(opts: AppOptions = {}) {
       // R6 (D19): the natural names the person's screen shows for this file, labelled as the naming model's words.
       const named = await paste.namesForText(sessionId, target.codeSha256);
       const labels = [...labelsForBettors(labeler.forPaste(sessionId, target, call.exportName)), ...(named ? namesForBettors(named.names, named.model) : [])];
-      const key = [target.codeSha256, target.language, line, canonicalJson(experiment.proposedBy), canonicalJson(experiment.params), round.repeatOf ?? "", body.quiz ? "quiz" : "", ...labels].join("\n");
+      const key = [target.codeSha256, target.language, line, canonicalJson(experiment.proposedBy), canonicalJson(experiment.params), round.repeatOf ?? "", body.quiz ? "quiz" : "", body.one ? "one" : "", ...labels].join("\n");
       const block = paste.fileBlock(target.codeSha256, target.source ?? "", line);
       const cap = pastedSeenCap(round.questions, MAX_PASTED_PROMPT_CHARS);
       const got = paste.headFor(

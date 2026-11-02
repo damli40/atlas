@@ -24,6 +24,26 @@ import { z } from "zod";
 import { TIMING_RULE, judge } from "./judge";
 import { quizQuestionsFor } from "./quiz";
 import { readFileSync } from "node:fs";
+import RECORDED_EXAMPLE from "../server/example-round.json";
+
+/** A recorded answer as the model wrote it, against the sealed one (a sealed quiz answer also carries its options). */
+function sameAnswer(recorded: unknown, sealed: unknown): boolean {
+  const r = recorded as { kind?: string; choice?: string };
+  const s = sealed as { kind?: string; choice?: string };
+  if (r?.kind === "quiz" || s?.kind === "quiz") return r?.kind === s?.kind && r?.choice === s?.choice;
+  return JSON.stringify(recorded) === JSON.stringify(sealed);
+}
+
+/** R7: the answers recorded once for the built-in example (server/example-round.json), per model. */
+function recordedExampleBets(model: string): { measures: string; answer: unknown; rationale?: string }[] {
+  const kept = RECORDED_EXAMPLE.bets.find((b) => b.model === model);
+  if (!kept) return [];
+  try {
+    return (JSON.parse(kept.content) as { bets: { measures: string; answer: unknown; rationale?: string }[] }).bets;
+  } catch {
+    return [];
+  }
+}
 import { join } from "node:path";
 import { FORK_BLOCK, PR578_CODE_SHA256 } from "../runners/evm/moonwell-base";
 import { evaluateReplayRule, falseAlarmFromRun } from "./falsealarm";
@@ -322,6 +342,8 @@ export const atlasFileSchema = z
             who: z.string().regex(/^(human|model:[A-Za-z0-9][A-Za-z0-9._:/-]{0,79})$/),
             status: z.enum(["sealed", "no_usable_answer", "not_asked"]),
             reason: z.string().min(1).max(300).optional(),
+            // R7 (D69): this bettor's answer was recorded on this day from the same text, and replayed (never live).
+            recorded: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
           })
           .strict(),
       )
@@ -803,6 +825,15 @@ function verifyAtlasFileChecked(raw: unknown): Verification {
     for (const b of file.bets) if (!whos.includes(b.who)) say(`bet ${b.id} is from ${b.who}, who is not in bettors`);
     const autonomous = file.experiments[0]!.proposedBy.role === "adversary";
     if (autonomous && file.bets.some((b) => b.who === "human")) say("an autonomous round (proposed by the Adversary) cannot hold a person's bet");
+  }
+  // R7 (D69) review minor 1: a model's recorded answer (server/example-round.json) is in no seal, so the file must say it is
+  // recorded: a copy with the label removed would show it as live. And a label on an answer that is not the recorded one is false.
+  for (const b of file.bets) {
+    if (b.who === "human") continue;
+    const slot = file.bettors?.find((s) => s.who === b.who);
+    const isRecorded = recordedExampleBets(b.who.slice("model:".length)).some((r) => r.measures === b.measures && r.rationale === b.rationale && sameAnswer(r.answer, b.answer));
+    if (isRecorded && !slot?.recorded) say(`bet ${b.id} is ${b.who}'s answer recorded on ${RECORDED_EXAMPLE.recordedOn}, but the file does not say it is recorded`);
+    if (!isRecorded && slot?.recorded) say(`bettors says ${b.who}'s answer was recorded, but bet ${b.id} is not the recorded answer`);
   }
   // Final review S2: an attempt that did not finish ran before the run that did, on the SAME frozen bets: every
   // bet was sealed before the first attempt started, and every attempt stopped before the run started.

@@ -2,6 +2,16 @@
 //   PW=<playwright-core> CHROME=<headless shell> BASE=<page> node tests/evidence/R5/ring-shots.mjs <out dir>
 import { mkdirSync, readFileSync } from "node:fs";
 const { chromium } = await import(process.env.PW);
+// R7 (D69): the first screen is the example with its question; the paste box is behind "Try your own code".
+const own = async (p) => {
+  await p.waitForSelector('[data-testid="u1-own"], [data-testid="u1-code"]');
+  if (!(await p.$('[data-testid="u1-code"]'))) await p.click('[data-testid="u1-own"]');
+  await p.waitForSelector('[data-testid="u1-code"]');
+};
+// R7: the result's other controls are under "More"; the bet's extra questions under "More options for this bet".
+const openMore = async (p) => {
+  if (!(await p.$eval('[data-testid="u1-result-more"]', (d) => d.open).catch(() => true))) await p.click('[data-testid="u1-result-more"] > summary');
+};
 const OUT = process.argv[2];
 mkdirSync(OUT, { recursive: true });
 const BASE = process.env.BASE ?? "http://localhost:18942";
@@ -12,14 +22,15 @@ for (const [w, h] of [[1440, 900], [1280, 720]]) {
     const c = await b.newContext({ viewport: { width: w, height: h } });
     const p = await c.newPage();
     await p.goto(BASE);
-    if (name === "example") await p.click('[data-testid="u1-example"]');
-    else {
-      await p.fill('[data-testid="u1-code"]', orders);
+    // R7: the example is the first screen, already drawn, its question open.
+    if (name !== "example") {
+      await own(p);
+  await p.fill('[data-testid="u1-code"]', orders);
       await p.click('[data-testid="u1-draw"]');
     }
     await p.waitForSelector('[data-testid="bench-stage"]');
     await p.waitForTimeout(400);
-    await p.click('[data-testid="u1-bet-toggle"]');
+    if (name !== "example") await p.click('[data-testid="u1-bet-toggle"]');
     await p.waitForSelector('[data-testid="u1-seal"]', { timeout: 60000 });
     await p.waitForTimeout(250);
     const n = (await p.$$(".u1-quiz > li")).length;

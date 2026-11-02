@@ -3,6 +3,16 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 const { chromium } = await import(process.env.PW);
+// R7 (D69): the first screen is the example with its question; the paste box is behind "Try your own code".
+const own = async (p) => {
+  await p.waitForSelector('[data-testid="u1-own"], [data-testid="u1-code"]');
+  if (!(await p.$('[data-testid="u1-code"]'))) await p.click('[data-testid="u1-own"]');
+  await p.waitForSelector('[data-testid="u1-code"]');
+};
+// R7: the result's other controls are under "More"; the bet's extra questions under "More options for this bet".
+const openMore = async (p) => {
+  if (!(await p.$eval('[data-testid="u1-result-more"]', (d) => d.open).catch(() => true))) await p.click('[data-testid="u1-result-more"] > summary');
+};
 const OUT = process.argv[2];
 mkdirSync(OUT, { recursive: true });
 // With no BASE it starts its own mock server and page, and stops them at the end: it needs nothing else running.
@@ -57,6 +67,7 @@ const round = async (name, code, want, o = {}) => {
   const p = await c.newPage();
   p.on("pageerror", (e) => say("no page error", false, e.message));
   await p.goto(BASE);
+  await own(p);
   await p.fill('[data-testid="u1-code"]', code);
   await p.click('[data-testid="u1-draw"]');
   await p.waitForSelector('[data-testid="bench-stage"]');
@@ -166,6 +177,7 @@ await round("m-twice", J("noarg", `export function f() {\n  throw new Error("min
   await c.addInitScript(() => sessionStorage.setItem("atlas-view", "chart"));
   const p = await c.newPage();
   await p.goto(BASE);
+  await own(p);
   await p.fill('[data-testid="u1-code"]', J("noarg", `export function f() {\n  throw new Error("mine");\n}\n`));
   await p.click('[data-testid="u1-draw"]');
   await p.waitForSelector('[data-testid="bench-stage"]');
@@ -175,6 +187,8 @@ await round("m-twice", J("noarg", `export function f() {\n  throw new Error("min
   await p.click('[data-testid="u1-seal"]');
   await p.waitForSelector('[data-testid="mark-list"]', { timeout: 90000 });
   await p.waitForFunction(() => !document.querySelector('[data-testid="u1-replay"]')?.disabled, null, { timeout: 15000 }).catch(() => {});
+  // R7: M answers only while its switch shows, under "Details".
+  await p.click('[data-testid="u1-details"] > summary');
   await p.keyboard.press("m");
   await p.waitForTimeout(500);
   const s = await state(p);
@@ -187,6 +201,7 @@ await round("m-twice", J("noarg", `export function f() {\n  throw new Error("min
   const p = await c.newPage();
   await p.goto(BASE);
   const eight = Array.from({ length: 7 }, (_, i) => `function h${i}() {\n  return ${i};\n}`).join("\n") + `\nexport function f() {\n  return ${Array.from({ length: 7 }, (_, i) => `h${i}()`).join(" + ")};\n}\n`;
+  await own(p);
   await p.fill('[data-testid="u1-code"]', eight);
   await p.click('[data-testid="u1-draw"]');
   await p.waitForSelector('[data-testid="bench-stage"]');

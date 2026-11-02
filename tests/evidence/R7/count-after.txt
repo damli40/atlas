@@ -1,0 +1,1 @@
+{"bet-1280":{"controls":15,"drawingParts":18},"first-1280":{"controls":15,"drawingParts":18},"result-1280":{"controls":12,"drawingParts":18},"bet-390":{"controls":15,"drawingParts":5},"first-390":{"controls":15,"drawingParts":5},"result-390":{"controls":12,"drawingParts":9}}

@@ -2,6 +2,16 @@
 //   PW=<playwright-core> CHROME=<headless shell> BASE=<page> node tests/evidence/R5/visual.mjs <out dir>
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 const { chromium } = await import(process.env.PW);
+// R7 (D69): the first screen is the example with its question; the paste box is behind "Try your own code".
+const own = async (p) => {
+  await p.waitForSelector('[data-testid="u1-own"], [data-testid="u1-code"]');
+  if (!(await p.$('[data-testid="u1-code"]'))) await p.click('[data-testid="u1-own"]');
+  await p.waitForSelector('[data-testid="u1-code"]');
+};
+// R7: the result's other controls are under "More"; the bet's extra questions under "More options for this bet".
+const openMore = async (p) => {
+  if (!(await p.$eval('[data-testid="u1-result-more"]', (d) => d.open).catch(() => true))) await p.click('[data-testid="u1-result-more"] > summary');
+};
 const OUT = process.argv[2];
 mkdirSync(OUT, { recursive: true });
 const BASE = process.env.BASE ?? "http://localhost:18942";
@@ -25,13 +35,15 @@ for (const [w, h] of [[1440, 900], [1280, 720]]) {
   const c = await b.newContext({ viewport: { width: w, height: h } });
   const p = await c.newPage();
   await p.goto(BASE);
-  await p.waitForSelector('[data-testid="e-drawing"] .m-sheet', { timeout: 3000 }).catch(() => {});
-  const first = await p.evaluate(() => Boolean(document.querySelector('[data-testid="e-drawing"] .m-sheet')));
+  // R7: the first screen is the example's real machine (the entry's drawing only shows while it is read).
+  await p.waitForSelector('[data-testid="machine"] .m-sheet, [data-testid="e-drawing"] .m-sheet', { timeout: 3000 }).catch(() => {});
+  const first = await p.evaluate(() => Boolean(document.querySelector('[data-testid="machine"] .m-sheet, [data-testid="e-drawing"] .m-sheet')));
   say(`${w}: the first screen shows the machine`, first);
   await p.waitForTimeout(700);
   await p.screenshot({ path: `${OUT}/first-${w}-pencilling.png` });
   await p.waitForTimeout(2500);
   await p.screenshot({ path: `${OUT}/first-${w}.png` });
+  await own(p);
   await p.fill('[data-testid="u1-code"]', pricing);
   await p.click('[data-testid="u1-draw"]');
   await p.waitForSelector('[data-testid="bench-stage"]');
@@ -42,6 +54,8 @@ for (const [w, h] of [[1440, 900], [1280, 720]]) {
   await p.waitForSelector('[data-testid="mark-list"]', { timeout: 90000 });
   await p.waitForFunction(() => { const r = document.querySelector('[data-testid="u1-replay"]'); return r && !r.disabled; }, null, { timeout: 30000 });
   await p.waitForTimeout(800);
+  await openMore(p); // R7: the trace note is fine print under "More"
+  await p.waitForTimeout(300);
   const m = await p.evaluate(() => {
     const parts = [...document.querySelectorAll('[data-testid="machine"] svg [data-part], [data-testid="machine"] svg text')].map((e) => e.getBoundingClientRect()).filter((r) => r.width > 0);
     const cap = document.querySelector('[data-testid="machine-captions"]').getBoundingClientRect();
@@ -77,6 +91,7 @@ const open = async (code, w = 1440, h = 900) => {
   const c = await b.newContext({ viewport: { width: w, height: h } });
   const p = await c.newPage();
   await p.goto(BASE);
+  await own(p);
   await p.fill('[data-testid="u1-code"]', code);
   await p.click('[data-testid="u1-draw"]');
   await p.waitForSelector('[data-testid="bench-stage"]');
@@ -88,6 +103,10 @@ const open = async (code, w = 1440, h = 900) => {
   const { c, p } = await open(`// CASE_padded\nexport function report(name) {\n  return { count: 3, median: 10, p95: 100, slowest: 100, name };\n}\n`);
   await p.click('[data-testid="u1-bet-toggle"]');
   await p.waitForSelector('[data-testid="u1-seal"]', { timeout: 60000 });
+  // R7: one question by default; this check needs the typed-value question, so ask every question (fine print).
+  await p.click('[data-testid="u1-bet-more"] > summary');
+  await p.click('[data-testid="u1-more-questions"]');
+  await p.waitForFunction(() => document.querySelectorAll(".u1-quiz > li").length > 1, null, { timeout: 60000 });
   const n = (await p.$$(".u1-quiz > li")).length;
   for (let i = 0; i < n; i++) {
     const li = await p.$(".u1-quiz > li[data-active]");
@@ -117,6 +136,7 @@ const open = async (code, w = 1440, h = 900) => {
   const before = await p.evaluate(() => document.activeElement?.className);
   await p.evaluate(() => document.activeElement?.blur());
   await p.click('[data-testid="u1-new"]').catch(() => {});
+  await own(p);
   await p.fill('[data-testid="u1-code"]', `// CASE_noarg\nexport function f() {\n  return 2;\n}\n`);
   await p.click('[data-testid="u1-draw"]');
   await p.waitForSelector('[data-testid="bench-stage"]');
@@ -126,6 +146,8 @@ const open = async (code, w = 1440, h = 900) => {
   say("Enter opens the bet the button's hint promises, after a new drawing", (await p.$('[data-testid="u1-pop"]')) !== null, String(before));
   await p.waitForSelector('[data-testid="u1-seal"]', { timeout: 60000 });
   await answerAll(p);
+  // R7: "How sure" is under "More options for this bet".
+  await p.click('[data-testid="u1-bet-more"] > summary');
   const sure = await p.$('.felt-opt');
   if (sure) {
     // Tab to "sure" without picking it, then Enter: it picks "sure" and seals.
@@ -145,6 +167,7 @@ const open = async (code, w = 1440, h = 900) => {
   const c = await b.newContext({ viewport: { width: 1280, height: 720 } });
   const p = await c.newPage();
   await p.goto(BASE);
+  await own(p);
   await p.fill('[data-testid="u1-code"]', `package main\n\nimport "fmt"\n\nfunc main() {\n\tfmt.Println("hi")\n}\n`);
   await p.click('[data-testid="u1-draw"]');
   await p.waitForSelector('[data-testid="u1-nothing-why"]', { timeout: 20000 });
@@ -189,6 +212,7 @@ const open = async (code, w = 1440, h = 900) => {
   const c = await b.newContext({ viewport: { width: 1280, height: 720 } });
   const p = await c.newPage();
   await p.goto(BASE);
+  await own(p);
   await p.fill('[data-testid="u1-code"]', `export function f() { return 1; }\n${"x".repeat(200000)}`);
   await p.click('[data-testid="u1-draw"]');
   await p.waitForTimeout(1500);

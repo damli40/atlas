@@ -38,6 +38,7 @@ import { checkNames, NAMES_PART_LIMIT } from "../src/natural-names";
 import { codeFingerprint } from "../src/code-fingerprint";
 import { EXAMPLE_NAMES, EXAMPLE_NAMES_MODEL } from "../src/example-names";
 import { U1_EXAMPLE } from "../web/u1-example";
+import { recordedTestsChat } from "./example-round";
 import { oneLine, sessionEmitter, type AgentLog } from "./log/agentlog";
 import { BAD_SESSION, sessionIdOf } from "./log/sse";
 import type { ModelBudget } from "./meta/budget";
@@ -173,7 +174,7 @@ export interface PasteDeps {
 
 /** D60: the first screen's example, and the function its round opens on (a test holds this to the page's own default). */
 export const EXAMPLE_FUNCTION = "fetchWithRetry";
-const EXAMPLE_SHA = makePastedTarget(U1_EXAMPLE, "ts").codeSha256;
+export const EXAMPLE_SHA = makePastedTarget(U1_EXAMPLE, "ts").codeSha256;
 
 export function createPaste(opts: PasteOptions, deps: PasteDeps) {
   const runners = opts.runners ?? PASTED_RUNNERS;
@@ -190,9 +191,11 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
   let exampleAnswer: Promise<Awaited<ReturnType<typeof runProposer>> | null> | null = null;
   const keptExample = (entry: PastedEntry, exp: FoundExport) => {
     if (!proposerChat) return Promise.resolve(null);
+    // R7 (D69): the example's tests are Muse Wonder's recorded answer (server/example-round.ts), checked by the same plain code; no call.
+    const recorded = exp.name === EXAMPLE_FUNCTION ? recordedTestsChat(proposerModel) : null;
     exampleAnswer ??= runProposer(
       { source: entry.target.source!, language: entry.target.language!, exportName: exp.name, exportLine: exp.line, exportNames: entry.exports.map((e) => e.name), model: proposerModel },
-      { chat: proposerChat, log: sessionEmitter(deps.agentLog, "example-tests") },
+      { chat: recorded ?? proposerChat, log: sessionEmitter(deps.agentLog, "example-tests") },
     ).then(
       (r) => {
         if (!r.ok) exampleAnswer = null;

@@ -1,0 +1,107 @@
+[
+ {
+  "name": "1440: the first screen shows the machine",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "1440x900: everything drawn sits above the small print",
+  "ok": true,
+  "more": "{\"low\":779.5990600585938,\"top\":873.15625,\"n\":41,\"capH\":18.84375,\"words\":\"What is lit comes from run O_lGilSwfd's trace.\"}"
+ },
+ {
+  "name": "1440x900: the small print is one line",
+  "ok": true,
+  "more": "{\"low\":779.5990600585938,\"top\":873.15625,\"n\":41,\"capH\":18.84375,\"words\":\"What is lit comes from run O_lGilSwfd's trace.\"}"
+ },
+ {
+  "name": "1440x900: every button in the left column can be clicked",
+  "ok": true,
+  "more": "[]"
+ },
+ {
+  "name": "1440: the fold holds every sentence",
+  "ok": true,
+  "more": "What is lit comes from run O_lGilSwfd's trace.Atlas's clock is virtual: nothing waited for real. This run just happened here.Helper order comes from a separate traced run, not the sealed ones. The code itself could change it.This code read the clock. Atlas's clock is simulated (it starts at 2026-01-"
+ },
+ {
+  "name": "1280: the first screen shows the machine",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "1280x720: everything drawn sits above the small print",
+  "ok": true,
+  "more": "{\"low\":652.6065063476562,\"top\":693.15625,\"n\":41,\"capH\":18.84375,\"words\":\"What is lit comes from run VpeUBC0-Np's trace.\"}"
+ },
+ {
+  "name": "1280x720: the small print is one line",
+  "ok": true,
+  "more": "{\"low\":652.6065063476562,\"top\":693.15625,\"n\":41,\"capH\":18.84375,\"words\":\"What is lit comes from run VpeUBC0-Np's trace.\"}"
+ },
+ {
+  "name": "1280x720: every button in the left column can be clicked",
+  "ok": true,
+  "more": "[]"
+ },
+ {
+  "name": "1280: the fold holds every sentence",
+  "ok": true,
+  "more": "What is lit comes from run VpeUBC0-Np's trace.Atlas's clock is virtual: nothing waited for real. This run just happened here.Helper order comes from a separate traced run, not the sealed ones. The code itself could change it.This code read the clock. Atlas's clock is simulated (it starts at 2026-01-"
+ },
+ {
+  "name": "no value is cut mid-token",
+  "ok": true,
+  "more": "[]"
+ },
+ {
+  "name": "Enter opens the bet the button's hint promises, after a new drawing",
+  "ok": true,
+  "more": "u1-mark"
+ },
+ {
+  "name": "Enter on a how-sure level picks it before sealing",
+  "ok": true,
+  "more": "sure"
+ },
+ {
+  "name": "Enter after picking how sure seals, as ↵ says",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "a Go file shows one message",
+  "ok": true,
+  "more": "[\"[data-testid=\\\"u1-nothing-why\\\"]\"]"
+ },
+ {
+  "name": "a busy loop keeps the machine on screen",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "with the plain stop line, and no 'Nothing to draw'",
+  "ok": true,
+  "more": "The code ran past Atlas's 10000 ms limit of REAL time (it may loop without ever handing control back), so Atlas stopped it."
+ },
+ {
+  "name": "a file that needs a package has a next step",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "sixty functions: a plain list",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "the list's note gives the true count",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "the too-long message is not clipped at 1280x720",
+  "ok": true,
+  "more": "{\"top\":371.25,\"bottom\":411.546875,\"h\":720,\"cut\":false}"
+ }
+]

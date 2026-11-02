@@ -11,7 +11,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { AtlasFile } from "../../src/types";
 import { ApiError, type Api, type HelperAnswer, type ReplayAnswer } from "../api";
 import { Scoreboard, bettorName } from "../machines/scoreboard/Scoreboard";
-import { SAY, bettorLineWords, bettorLines, proofCardModel, replayWords } from "./proofcard-model";
+import { SAY, bettorLineWords, bettorLines, creditLine, proofCardModel, recordedTag, replayWords } from "./proofcard-model";
 import { DiffView } from "./Change";
 import { BettorCounts } from "./Claimant";
 import { bettorNames, changeProposer, orderModelBettors } from "../../src/claimants";
@@ -203,6 +203,8 @@ export function ProofCard({ file, api, replay: given, stranger = false, reader =
   const sayCaption = (c: string) => (stranger && c === CHANGE_CAPTION ? CHANGE_CAPTION_READER : c);
   const fp = (h: string) => `${h.slice(0, 12)}…${h.slice(-6)}`;
   const saidHowSure = file.bets.find((b) => b.who === "human" && b.confidence)?.confidence;
+  // R7 (D69): a recorded answer is said to be recorded on every line that names its bettor.
+  const recordedOf = (who: string) => file.bettors?.find((s) => s.who === who)?.recorded;
 
   return (
     <article className="proof-card" data-testid="proof-card" aria-label={`proof card for run ${card.runId}`}>
@@ -248,6 +250,12 @@ export function ProofCard({ file, api, replay: given, stranger = false, reader =
       <p className="pc-plain" data-testid="pc-plain">
         {PROOF_WORDS.what}
       </p>
+      {/* R7 (D69): Meta's tools, credited plainly. */}
+      {creditLine(file) && (
+        <p className="pc-plain pc-credit" data-testid="pc-credit">
+          {creditLine(file)}
+        </p>
+      )}
 
       {/* D07-04: the film's end frame. The scoreboard is the Atlas mark, large and centred, then who bet and how it came out. */}
       <section className="pc-hero" aria-label="the marks">
@@ -284,7 +292,7 @@ export function ProofCard({ file, api, replay: given, stranger = false, reader =
           <tbody>
             {card.bets.map((b) => (
               <tr key={b.betId} data-outcome={b.outcome ?? "none"}>
-                <td className="pc-who">{bettorName(b.who, names)}</td>
+                <td className="pc-who">{bettorName(b.who, names)}{recordedOf(b.who) ? ` (${recordedTag(recordedOf(b.who)!)})` : ""}</td>
                 <td title={b.measures}>{plainField(b.measures)}</td>
                 <td>{b.said}</td>
                 <td>{card.notShownAsFact ? "not shown" : b.observed}</td>
