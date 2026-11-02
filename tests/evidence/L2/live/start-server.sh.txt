@@ -1,0 +1,6 @@
+#!/bin/sh
+# Scratch Atlas server for L2: port 8822, invites required, every store in the scratch folder. Key from the file, never printed.
+set -a; . <home>/.config/meta-model-api/env; set +a
+export PORT=8822 ATLAS_REQUIRE_INVITE=1 ATLAS_INVITES_DIR=<scratch>/invites ATLAS_USAGE_PATH=<scratch>/atlas-usage.jsonl ATLAS_SPEND_CEILING_USD=1.5 ATLAS_SPARK_OPEN=off ATLAS_PUBLIC_ORIGIN=http://localhost:8822 ATLAS_PROOFS_DIR=<scratch>/proofs
+cd <repo>
+exec npx tsx server/index.ts

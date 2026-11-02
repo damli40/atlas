@@ -1,0 +1,69 @@
+Do you trust this workspace?
+Workspace: <scratch>/ws2
+
+Trusting allows project-local skills, rules, hooks, and plugin config to load before the model runs.
+Only trust this workspace when you trust its contents.
+⟩ 1  Trust and continue
+  2  Quit
+
+Use Up/Down or 1/2, then Enter. Esc quits.
+
+  Muse Code 1.4.14
+
+❯ /atlas retry.ts retryWithBackoff
+
+◆ Carrying your bet on retryWithBackoff — opening the Atlas round.
+
+◆ 2 MCP calls · plugin:atlas:atlas · ✓ ×2 · 5.1s · ctrl+o
+
+◆ Proposals for retryWithBackoff in retry.ts:
+
+  1) [bGS_o_hGgB] allowed: Atlas calls retryWithBackoff(fetchIt, 3, 100). fetchIt (async) throws Error ("boom") on call 1; every later call throws Error ("boom") too.
+  2) [6ecNMTweby] allowed: Atlas calls retryWithBackoff(fetchIt, 3, 100). fetchIt (async) throws Error ("boom") on calls 1–2, then returns "ok" on call 3; every later call returns "ok" too.
+  3) [BNBYjOWVEx] allowed: Atlas calls retryWithBackoff(fetchIt, 3, 100). fetchIt (async) returns "ok" on call 1; every later call returns "ok" too.
+
+  Which allowed test do you want to use? Reply with its id.
+
+── Voice input (alt(option)+v to start) ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  muse-spark-1.3 · low · <scratch>/ws2 · Launch overrides
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

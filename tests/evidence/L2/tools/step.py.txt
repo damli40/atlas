@@ -1,0 +1,25 @@
+# step.py <framedir> <frame> <maxwait> [text] [tail]: type text, Enter, wait until the pane stops changing (6 s), save frame.
+import sys,subprocess,time,os
+d,frame,maxw=sys.argv[1],sys.argv[2],float(sys.argv[3]); text=sys.argv[4] if len(sys.argv)>4 and sys.argv[4]!='-' else None
+tail=int(sys.argv[5]) if len(sys.argv)>5 else 30
+T=['tmux','-L',os.environ.get('TSOCK','atlas-l2')]
+cap=lambda: subprocess.run(T+['capture-pane','-p','-S','-','-t','l2'],capture_output=True,text=True).stdout
+os.makedirs(d,exist_ok=True)
+STOPF=os.path.join(os.path.dirname(d.rstrip('/')),'STOP')
+if text is not None and os.path.exists(STOPF):
+    print('REFUSED: the meter wrote STOP; no new paid step is typed.'); sys.exit(3)
+if text is not None:
+    subprocess.run(T+['send-keys','-t','l2','-l',text]); time.sleep(0.8)
+    open(f'{d}/{frame}-typed.txt','w').write(cap())
+    subprocess.run(T+['send-keys','-t','l2','Enter'])
+t0=time.time(); time.sleep(2); last=cap(); same=0
+while time.time()-t0<maxw:
+    time.sleep(1); c=cap()
+    same = same+1 if c==last else 0
+    last=c
+    if same>=6: break
+open(f'{d}/{frame}.txt','w').write(last)
+lines=[l for l in last.split('\n') if l.strip()]
+print('\n'.join(l[:150] for l in lines[-tail:]))
+m=os.path.join(os.path.dirname(d.rstrip('/')),'muse-meter.txt')
+if os.path.exists(m): print(open(m).read()[:400])

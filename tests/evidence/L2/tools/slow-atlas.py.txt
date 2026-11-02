@@ -1,0 +1,11 @@
+# A fake Atlas server that answers every request after 30 s (to press Esc while a tool call is in flight).
+import http.server,time,sys
+class H(http.server.BaseHTTPRequestHandler):
+    def log_message(self,*a): pass
+    def go(self):
+        time.sleep(30); b=b'{"error":"slow fake"}'
+        try:
+            self.send_response(500); self.send_header('content-type','application/json'); self.send_header('content-length',str(len(b))); self.end_headers(); self.wfile.write(b)
+        except Exception: pass
+    do_GET=go; do_POST=go
+http.server.ThreadingHTTPServer(('127.0.0.1',8823),H).serve_forever()

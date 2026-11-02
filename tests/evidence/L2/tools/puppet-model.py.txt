@@ -1,0 +1,52 @@
+# Puppet model for $0 Muse runs (Responses API, streamed). Never forwards anything anywhere.
+# User message "CALL <tool> <json args>" -> a function call; a tool result -> "RESULT: <text>"; anything else -> "ECHO: <text>".
+import http.server,json,sys,time,itertools
+LOG=sys.argv[2]; ids=itertools.count(1)
+def sse(w,obj): w.write(f"event: {obj['type']}\ndata: {json.dumps(obj)}\n\n".encode()); w.flush()
+def text_of(item):
+    c=item.get('content') or item.get('output')
+    if isinstance(c,str): return c
+    if isinstance(c,list): return ' '.join(x.get('text','') for x in c if isinstance(x,dict))
+    return ''
+class H(http.server.BaseHTTPRequestHandler):
+    protocol_version='HTTP/1.1'
+    def log_message(self,*a): pass
+    def do_GET(self):
+        open(LOG,'a').write(json.dumps({'t':time.time(),'GET':self.path})+'\n')
+        if 'models' in self.path:
+            b=json.dumps({'object':'list','data':[{'id':'muse-spark-1.3','object':'model'}]}).encode(); code=200
+        else:
+            b=b'{"error":"not found"}'; code=404
+        self.send_response(code); self.send_header('content-type','application/json'); self.send_header('content-length',str(len(b))); self.end_headers(); self.wfile.write(b)
+    def do_POST(self):
+        n=int(self.headers.get('content-length') or 0); j=json.loads(self.rfile.read(n))
+        inp=j.get('input',[]); last=inp[-1] if inp else {}
+        tools=[t.get('name') for t in j.get('tools',[])]
+        open(LOG,'a').write(json.dumps({'t':time.time(),'POST':self.path,'last':last,'tools':tools,'n_input':len(inp)})[:20000]+'\n')
+        k=next(ids); rid=f'resp_{k}'
+        if last.get('type')=='function_call_output':
+            item={'type':'message','id':f'msg_{k}','role':'assistant','status':'completed','content':[{'type':'output_text','text':'RESULT: '+text_of(last)[:600],'annotations':[]}]}
+        else:
+            t=text_of(last).strip()
+            if t.startswith('CALL '):
+                parts=t[5:].split(' ',1); name=parts[0]; args=parts[1] if len(parts)>1 else '{}'
+                full=next((x for x in tools if x and x.endswith(name)),name)
+                item={'type':'function_call','id':f'fc_{k}','call_id':f'call_{k}','name':full,'arguments':args,'status':'completed'}
+            else:
+                item={'type':'message','id':f'msg_{k}','role':'assistant','status':'completed','content':[{'type':'output_text','text':'ECHO: '+t[:300],'annotations':[]}]}
+        self.send_response(200); self.send_header('content-type','text/event-stream'); self.send_header('cache-control','no-cache'); self.send_header('connection','close'); self.end_headers()
+        base={'id':rid,'object':'response','model':j.get('model'),'created_at':int(time.time())}
+        sse(self.wfile,{'type':'response.created','sequence_number':0,'response':{**base,'status':'in_progress','output':[]}})
+        added=dict(item); 
+        if item['type']=='message': added={**item,'status':'in_progress','content':[]}
+        sse(self.wfile,{'type':'response.output_item.added','sequence_number':1,'output_index':0,'item':added})
+        if item['type']=='message':
+            sse(self.wfile,{'type':'response.output_text.delta','sequence_number':2,'item_id':item['id'],'output_index':0,'content_index':0,'delta':item['content'][0]['text']})
+            sse(self.wfile,{'type':'response.output_text.done','sequence_number':3,'item_id':item['id'],'output_index':0,'content_index':0,'text':item['content'][0]['text']})
+        else:
+            sse(self.wfile,{'type':'response.function_call_arguments.delta','sequence_number':2,'item_id':item['id'],'output_index':0,'delta':item['arguments']})
+            sse(self.wfile,{'type':'response.function_call_arguments.done','sequence_number':3,'item_id':item['id'],'output_index':0,'arguments':item['arguments']})
+        sse(self.wfile,{'type':'response.output_item.done','sequence_number':4,'output_index':0,'item':item})
+        sse(self.wfile,{'type':'response.completed','sequence_number':5,'response':{**base,'status':'completed','output':[item],'usage':{'input_tokens':0,'output_tokens':0,'total_tokens':0,'input_tokens_details':{'cached_tokens':0},'output_tokens_details':{'reasoning_tokens':0}}}})
+        self.close_connection=True
+http.server.ThreadingHTTPServer(('127.0.0.1',int(sys.argv[1])),H).serve_forever()
