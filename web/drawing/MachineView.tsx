@@ -45,16 +45,39 @@ export interface MachineControl {
   skip(): void;
 }
 
-export const MachineSheet = forwardRef<MachineControl, { drawn: MachineDrawn; reduced?: boolean; onPart?: (id: string) => void; testid?: string }>(function MachineSheet({ drawn, reduced = false, onPart, testid = "machine" }, ref) {
+const DRAWN_KEY = "atlas-machine-drawn";
+/** How long the machine takes to pencil itself in: the first ever about 850 ms; after that it just arrives quickly. */
+function penTime(): number {
+  try {
+    const seen = window.localStorage.getItem(DRAWN_KEY);
+    window.localStorage.setItem(DRAWN_KEY, "1");
+    return seen ? 240 : 850;
+  } catch {
+    return 240;
+  }
+}
+
+export const MachineSheet = forwardRef<MachineControl, { drawn: MachineDrawn; reduced?: boolean; onPart?: (id: string) => void; testid?: string; /** A new value pencils the machine in: a new paste, not a new test on it. */ penKey?: string | null }>(function MachineSheet({ drawn, reduced = false, onPart, testid = "machine", penKey = null }, ref) {
   ensureMachineStyle();
   const host = useRef<HTMLDivElement | null>(null);
   const player = useRef<MachinePlayer | null>(null);
+  const penned = useRef<string | null>(null);
+  const playerOf = useRef<Element | null>(null);
   const [card, setCard] = useState<{ words: string; x: number; y: number } | null>(null);
   const html = useMemo(() => ({ __html: drawn.svg }), [drawn.svg]);
   useLayoutEffect(() => {
     const svg = host.current?.querySelector("svg");
-    player.current = svg ? new MachinePlayer(svg as SVGSVGElement, reduced) : null;
-  }, [drawn.svg, reduced]);
+    // React's strict mode runs this twice for one drawing: the same SVG keeps its player, and its pencilling goes on.
+    if (svg !== playerOf.current) {
+      player.current?.finishPen();
+      player.current = svg ? new MachinePlayer(svg as SVGSVGElement, reduced) : null;
+      playerOf.current = svg ?? null;
+    }
+    if (penKey !== null && penKey !== penned.current) {
+      penned.current = penKey;
+      player.current?.penIn(penTime());
+    }
+  }, [drawn.svg, reduced, penKey]);
   useImperativeHandle(ref, () => ({
     play: (i, ms) => void player.current?.play(i, ms),
     setScript: (b) => player.current?.setScript(b),

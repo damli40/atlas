@@ -476,3 +476,4 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 .m-loop-arrow,.m-loop-to{display:inline-block}
 .m-loop-arrow{white-space:pre}
 @media (prefers-reduced-motion:reduce){.m-loop-to,.m-loop-arrow{animation:none}}
+.m-lamp{transform-box:fill-box;transform-origin:center}

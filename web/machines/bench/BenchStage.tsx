@@ -354,7 +354,7 @@ export function BenchStage({ seenBefore = false, codeRan = false, loop = null, m
       </div>
       {showMachine && (
         <div className="r-machine" data-testid="machine-region" data-captions={after && marksOn && pathSpec?.captions.length ? "" : undefined}>
-          <MachineSheet ref={machineRef} drawn={drawn} reduced={still} onPart={(id) => model.parts[id]?.kind === "code" && document.querySelector(".c-drawer") && onPart?.(id)} />
+          <MachineSheet ref={machineRef} drawn={drawn} reduced={still} penKey={after ? null : source} onPart={(id) => model.parts[id]?.kind === "code" && document.querySelector(".c-drawer") && onPart?.(id)} />
           {after && marksOn && pathSpec?.captions.length ? (
             <p className="m-captions" data-testid="machine-captions">
               {pathSpec.captions.map((c) => (

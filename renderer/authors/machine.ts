@@ -455,6 +455,7 @@ export function drawMachine(p: MachineParts, o: { seed: string; ring?: MachineRi
   if (ring) {
     s.raw(`<g class="m-end">`);
     ringAround(s, ring.c, ring.rx, ring.ry);
+    s.raw(`</g><g class="m-end m-end-words">`);
     const words = placeCallouts(s, ring.words.map((text) => ({ part: "ring", text, anchor: [ring.c[0] - ring.rx * 0.7, ring.c[1] + ring.ry * 0.7] as Pt, size: 17, cls: "m-redw" })), solids, pipeLines, [...keepOut, ...labels.map((l) => l.rect)]);
     s.raw(`</g>`);
     facts.labels.push(...words);

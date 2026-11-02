@@ -341,27 +341,21 @@ export function wheel(s: Sheet, cx: number, cy: number, r: number, z: number) {
   drum(s, cx, cy, 3.4, z - 1, 3, { tone: "bare" });
 }
 
-/** The pen's ring, the same one as the Moonwell drawing's, round a place on the page. */
-export function ringAround(s: Sheet, c: Pt, rx: number, ry: number, o: { dashed?: boolean } = {}) {
+let ringIds = 0;
+/** The pen's ring, one stroke: the ribbon sits behind a mask the player can draw along, so it goes on the way a hand would. */
+export function ringAround(s: Sheet, c: Pt, rx: number, ry: number) {
   const n = Math.max(30, Math.round(rx));
-  const start = s.R() * TAU;
+  const start = -Math.PI / 2 - 0.5 + s.R() * 0.4;
   const pts: Pt[] = [];
   for (let i = 0; i <= n; i++) {
-    const t = start + (i / n) * 1.05 * TAU;
+    const t = start + (i / n) * 1.06 * TAU;
     const k = 1 + 0.018 * Math.sin(t * 2 + start);
     pts.push([c[0] + Math.cos(t) * rx * k, c[1] + Math.sin(t) * ry * k]);
   }
   s.seen(pts);
   const line = handLine(pts, s.R, { bow: 0.1, tremor: 0.5, step: 3, smooth: 1 });
-  s.raw(`<path class="m-ring" d="${ribbon(line, 2.6, s.R)}"/>`);
-  if (!o.dashed) return;
-  const dash: Pt[] = [];
-  for (let i = 0; i <= n; i++) {
-    const t = (i / n) * TAU;
-    dash.push([c[0] + Math.cos(t) * (rx + 11), c[1] + Math.sin(t) * (ry + 10)]);
-  }
-  s.seen(dash);
-  s.raw(`<path class="m-ring-dash" d="${linePath(dash)}Z"/>`);
+  const id = `m-ring-${s.R().toString(36).slice(2, 8)}-${ringIds++ % 1000}`;
+  s.raw(`<g class="m-ring-g"><mask id="${id}" maskUnits="userSpaceOnUse" x="${n1(c[0] - rx - 12)}" y="${n1(c[1] - ry - 12)}" width="${n1(rx * 2 + 24)}" height="${n1(ry * 2 + 24)}"><path class="m-ring-draw" pathLength="1" d="${linePath(line)}"/></mask><path class="m-ring" mask="url(#${id})" d="${ribbon(line, 2.6, s.R)}"/></g>`);
 }
 
 export const MACHINE_CSS = `
@@ -376,7 +370,9 @@ export const MACHINE_CSS = `
 .m-shadow{fill:none;stroke:var(--rr-tick);stroke-width:.6;stroke-linecap:round;opacity:.5}
 .m-knurl{fill:none;stroke:var(--rr-ink);stroke-width:.55}
 .m-ring{fill:var(--rr-red-pen)}
-.m-ring-dash{fill:none;stroke:var(--rr-soft);stroke-width:1.1;stroke-dasharray:5 6;stroke-linecap:round}
+.m-ring-draw{fill:none;stroke:#fff;stroke-width:9;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:0}
+.m-ring-g{transform-box:fill-box;transform-origin:center}
+.m-head{fill:var(--rr-red-pen);pointer-events:none}
 .m-missing{fill:none;stroke:var(--rr-red);stroke-width:1.4;stroke-dasharray:6 5;stroke-linecap:round}
 .m-thread{fill:none;stroke:var(--rr-red-pen);stroke-width:3;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1;pointer-events:none}
 .m-sheet[data-ended] .m-thread[data-ran]{stroke-dashoffset:0}
