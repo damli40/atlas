@@ -47,7 +47,7 @@ The server allows 3 re-runs per round. After the third miss, Atlas stops and han
 
 **You review the change.** "Matched" means the code did what you bet on in this one test, nothing more. An edit that deletes or hard-codes the behaviour under test can also match, and plain code cannot know that. So each try shows its size and its changed lines. Atlas never says the code is fixed.
 
-**Limit of this claim:** the loop has never completed inside real Muse Code. It has run live only over the plugin's real MCP program, with scripted edits (`tests/evidence/L1/README.md`). That stays true until Dami's filmed take.
+**Limit of this claim:** the loop has completed once inside real Muse Code 1.4.14. Muse made the edit itself, the server re-judged the same sealed bets, and every answer matched on the first re-run (`tests/evidence/L2/README.md`). It was one run, the build agent typed as the person, and the 3-try stop has not yet run inside Muse.
 
 If the plugin's program stops, `last-error.log` in Muse's data folder for the plugin says what happened. Rounds are saved there too, so restarting Muse in the same folder can continue the round, as long as the Atlas server still holds it.
 
