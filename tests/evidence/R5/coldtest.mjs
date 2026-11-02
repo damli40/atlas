@@ -155,6 +155,7 @@ if (process.env.BASE_LIMIT) {
   await p.waitForSelector('[data-testid="u1-seal"]', { timeout: 60000 });
   const before = await p.$$eval('[data-testid^="u1-model-off-"]', (x) => x.map((e) => e.textContent));
   say("before the run: the page says who is not betting, and why", before.length > 0 && before.every((t) => /is not betting on this round: .*limit/.test(t)), JSON.stringify(before));
+  say("the reason is not cut off", await p.$$eval('[data-testid^="u1-model-off-"]', (x) => x.every((e) => e.scrollWidth <= e.clientWidth + 1 && getComputedStyle(e).textOverflow !== "ellipsis")));
   await p.screenshot({ path: `${OUT}/2-bettors-not-asked-bet.png` });
   await answerAll(p);
   await toResult(p);

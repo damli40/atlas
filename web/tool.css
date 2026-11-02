@@ -489,3 +489,4 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 .c-line{white-space:pre-wrap;overflow-wrap:anywhere;min-width:0}
 .u1-shell .u1-root[data-noted] .r-chart{top:48px;height:calc(100% - 48px)}
 .u1-shell [aria-label="run"]{scroll-margin-top:60px}
+.u1-shell .u1-models p[data-testid^="u1-model-off-"]{white-space:normal;overflow:visible;text-overflow:clip}
