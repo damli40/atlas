@@ -57,7 +57,7 @@ import { FELT_WORDS } from "../../src/paste-words";
 
 type Lang = "js" | "ts" | "py";
 const EXAMPLE_FUNCTION_NAME = "fetchWithRetry";
-const CONSENT_LINE = "When you paste, your code goes to Meta's model, which writes a test for it.";
+const CONSENT_LINE = "Your code goes to Meta's AI as soon as Atlas draws it, so a test is ready when you bet.";
 const FILE_NAME: Record<Lang, string> = { js: "pasted.js", ts: "pasted.ts", py: "pasted.py" };
 
 /** The function drawn as "under test" by default: the exported function with the most calls out, then the first. */
@@ -993,9 +993,9 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     return (
       <section className="u1-entry" aria-labelledby="u1-entry-h" data-testid="u1-entry">
         <div className="e-left">
-        <h1 id="u1-entry-h">See how your code is built</h1>
+        <h1 id="u1-entry-h">Think you know what your code does? Bet on it.</h1>
         {remember?.last && <p className="u1-remember" data-testid="remember-last">{remember.last}</p>}
-        <p className="u1-lede">Paste one file. Atlas draws its functions and how they call each other. Then, if you like, bet on what it will do: Atlas runs it and shows whether your bet matched.</p>
+        <p className="u1-lede">Paste a file and Atlas draws it as a machine. Bet on what it will do. Meta's AI bets too, then Atlas runs it in a sandbox and shows whose bet matched.</p>
         {invite?.required && !invite.signedIn && (
           <form className="e-invite" onSubmit={(e) => void submitInvite(e)} data-testid="e-invite">
             <label htmlFor="e-invite-code">Your invite code</label>
@@ -1019,9 +1019,9 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
             disabled={busy !== null || locked}
             data-testid="u1-example"
           >
-            Try the example
+            Draw the example
           </button>
-          <span className="u1-sub e-or">or paste a file anywhere on this page</span>
+          <span className="u1-sub e-or">or paste your own file anywhere on this page</span>
         </div>
         {/* PLACEHOLDER: Dami's final words go here. The fact it must keep: pasted code goes to a paid model at once, before any other click. */}
         <p className="u1-sub e-consent" data-testid="e-consent">{CONSENT_LINE}</p>
@@ -1046,7 +1046,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
         />
         <div className="u1-entry-row">
           <button type="button" className="u1-btn" onClick={() => read(code, lang === "auto" ? undefined : lang)} disabled={busy !== null || code.trim() === "" || locked} data-testid="u1-draw">
-            Draw it
+            Draw my code
             <kbd className="k">⌘↵</kbd>
           </button>
           {/* The language is guessed. The choice appears only if a guess did not work. */}
@@ -1080,10 +1080,10 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
               if (repo.trim() !== "") onExplore({ repo: repo.trim() });
             }}
           >
-            <label htmlFor="u1-repo">A GitHub folder</label>
+            <label htmlFor="u1-repo">Or a GitHub repo</label>
             <input id="u1-repo" value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="owner/repo" data-testid="u1-repo" />
             <button type="submit" className="u1-btn" disabled={repo.trim() === ""}>
-              Draw the codebase (a paid AI call)
+              Draw the repo (a paid AI call)
             </button>
           </form>
         </div>
@@ -1400,11 +1400,11 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
         <div className="u1-bet">
           {!open && !exp && !proposals && <span className="u1-sub u1-paid" data-testid="u1-paid-bet">{earlyState === "busy" ? CHANGE_WORDS.earlyWonder : earlyState === "done" ? CHANGE_WORDS.earlyDone : CHANGE_WORDS.paidWonder}</span>}
           <button type="button" className="u1-btn u1-primary u1-toggle" aria-expanded={open} aria-controls="u1-pop" onClick={openBet} data-testid="u1-bet-toggle">
-            {open ? "Hide the bet" : "Bet on your understanding"}
+            {open ? "Hide the bet" : "Bet on what it does"}
             {!open && <kbd className="k" aria-hidden="true">Enter</kbd>}
           </button>
           {open && (
-            <section id="u1-pop" className="u1-pop" tabIndex={-1} aria-label="Bet on your understanding" data-testid="u1-pop">
+            <section id="u1-pop" className="u1-pop" tabIndex={-1} aria-label="Bet on what it does" data-testid="u1-pop">
               {wonderWait && !exp && <WonderWaiting wait={wonderWait} fn={fn} onOwn={changing ? null : writeOwn} />}
               {!exp && !changing && busy && !wonderWait && (
                 <p className="u1-status" role="status">
