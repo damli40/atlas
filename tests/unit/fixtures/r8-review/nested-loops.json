@@ -1,0 +1,311 @@
+{
+ "source": "export async function f(x) {\n  for (let i = 0; i < 2; i++) {\n    for (let j = 0; j < 3; j++) {\n      await x();\n    }\n  }\n  return 1;\n}\n",
+ "language": "ts",
+ "params": {
+  "shape": "call-function",
+  "exportName": "f",
+  "args": [
+   {
+    "kind": "stand-in",
+    "name": "x",
+    "async": true,
+    "then": "repeat_last",
+    "calls": [
+     {
+      "do": "return",
+      "value": 1
+     }
+    ]
+   }
+  ]
+ },
+ "run": {
+  "id": "ObgJe7Z5mP",
+  "experimentId": "VUhN5-HBNU",
+  "runner": "ts",
+  "executor": "local",
+  "codeSha256": "ee4b32ffef912bcea9d4981ae1af11f50e7b07bb8b4ced7d57b6a73bfe18405e",
+  "seed": "20260101",
+  "timeZone": "UTC",
+  "locale": "en-US",
+  "conditions": [],
+  "twin": {
+   "trace": [
+    {
+     "t": 0,
+     "event": "start",
+     "data": {
+      "exportName": "f",
+      "args": 1,
+      "watchLimitMs": 30000
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_call",
+     "data": {
+      "name": "x",
+      "n": 1
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_returns",
+     "data": {
+      "name": "x",
+      "n": 1
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_call",
+     "data": {
+      "name": "x",
+      "n": 2
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_returns",
+     "data": {
+      "name": "x",
+      "n": 2
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_call",
+     "data": {
+      "name": "x",
+      "n": 3
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_returns",
+     "data": {
+      "name": "x",
+      "n": 3
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_call",
+     "data": {
+      "name": "x",
+      "n": 4
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_returns",
+     "data": {
+      "name": "x",
+      "n": 4
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_call",
+     "data": {
+      "name": "x",
+      "n": 5
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_returns",
+     "data": {
+      "name": "x",
+      "n": 5
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_call",
+     "data": {
+      "name": "x",
+      "n": 6
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_returns",
+     "data": {
+      "name": "x",
+      "n": 6
+     }
+    },
+    {
+     "t": 0,
+     "event": "returned",
+     "data": {
+      "type": "number"
+     }
+    }
+   ],
+   "result": {
+    "measured": {
+     "outcome": "returned",
+     "virtualMs": 0,
+     "returnedType": "number",
+     "returnedJson": "1",
+     "calls:x": 6
+    },
+    "notMeasured": {
+     "thrownName": "the call returned, so nothing was thrown",
+     "thrownMessage": "the call returned, so nothing was thrown"
+    }
+   }
+  },
+  "startedAt": "2026-11-02T17:18:53.114Z",
+  "finishedAt": "2026-11-02T17:18:53.398Z",
+  "trace": [
+   {
+    "t": 0,
+    "event": "start",
+    "data": {
+     "exportName": "f",
+     "args": 1,
+     "watchLimitMs": 30000
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_call",
+    "data": {
+     "name": "x",
+     "n": 1
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_returns",
+    "data": {
+     "name": "x",
+     "n": 1
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_call",
+    "data": {
+     "name": "x",
+     "n": 2
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_returns",
+    "data": {
+     "name": "x",
+     "n": 2
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_call",
+    "data": {
+     "name": "x",
+     "n": 3
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_returns",
+    "data": {
+     "name": "x",
+     "n": 3
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_call",
+    "data": {
+     "name": "x",
+     "n": 4
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_returns",
+    "data": {
+     "name": "x",
+     "n": 4
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_call",
+    "data": {
+     "name": "x",
+     "n": 5
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_returns",
+    "data": {
+     "name": "x",
+     "n": 5
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_call",
+    "data": {
+     "name": "x",
+     "n": 6
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_returns",
+    "data": {
+     "name": "x",
+     "n": 6
+    }
+   },
+   {
+    "t": 0,
+    "event": "returned",
+    "data": {
+     "type": "number"
+    }
+   },
+   {
+    "t": 0,
+    "event": "call_checks",
+    "data": {
+     "harnessSha256": "303d02a8f9a7066c1745c89a6025c74e2ee8b8b68a2f4f3919f23b9540449ad5",
+     "controlRunId": "OfK4TVvcKC",
+     "controlPassed": true,
+     "controlFinishedAt": "2026-11-02T17:18:51.316Z",
+     "runtime": {
+      "executor": "local",
+      "node": "v25.8.1"
+     }
+    }
+   }
+  ],
+  "result": {
+   "measured": {
+    "outcome": "returned",
+    "virtualMs": 0,
+    "returnedType": "number",
+    "returnedJson": "1",
+    "calls:x": 6
+   },
+   "notMeasured": {
+    "thrownName": "the call returned, so nothing was thrown",
+    "thrownMessage": "the call returned, so nothing was thrown"
+   }
+  },
+  "controlPassed": true,
+  "controlRunId": "OfK4TVvcKC"
+ },
+ "helpers": {
+  "steps": [],
+  "cut": false
+ }
+}

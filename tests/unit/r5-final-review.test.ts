@@ -99,8 +99,11 @@ describe("M2: no certain fact, no motion", () => {
   it("a fake's scripted delay moves no dial", () => {
     expect(machineScript(spec, parts, o, "f", new Map(), false)[0]!.dial).toBeUndefined();
   });
-  it("with nothing else to move the clock, the one wait does", () => {
-    expect(machineScript(spec, parts, o, "f", new Map(), true)[0]!.dial?.part).toBe("f");
+  it("R8 review MAJOR-1: with nothing else to move the clock, the one wait still needs a helper step of its own part just before it", () => {
+    // f waits in its own lines, but no recorded step says f's code (not an undrawn timer or method) made this wait: no dial.
+    expect(machineScript(spec, parts, o, "f", new Map(), true)[0]!.dial).toBeUndefined();
+    const after = { steps: [{ part: "f", nodes: ["c"] }, { device: "clock", nodes: ["c"] }], nodes: [{ id: "c", sweep: 0.3 }] } as never;
+    expect(machineScript(after, parts, o, "f", new Map(), true)[1]!.dial?.part).toBe("f");
   });
 });
 

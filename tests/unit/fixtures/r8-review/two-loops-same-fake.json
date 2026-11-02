@@ -1,0 +1,279 @@
+{
+ "source": "export async function f(x) {\n  for (let i = 0; i < 2; i++) await x();\n  for (let j = 0; j < 3; j++) {\n    await x();\n  }\n  return 1;\n}\n",
+ "language": "ts",
+ "params": {
+  "shape": "call-function",
+  "exportName": "f",
+  "args": [
+   {
+    "kind": "stand-in",
+    "name": "x",
+    "async": true,
+    "then": "repeat_last",
+    "calls": [
+     {
+      "do": "return",
+      "value": 1
+     }
+    ]
+   }
+  ]
+ },
+ "run": {
+  "id": "WmNB5hZW9Y",
+  "experimentId": "KbTrr00a-G",
+  "runner": "ts",
+  "executor": "local",
+  "codeSha256": "8520f53ad74ce44a84500eb28ab872a68ce6ca9762eecf1fcabccf3629554f80",
+  "seed": "20260101",
+  "timeZone": "UTC",
+  "locale": "en-US",
+  "conditions": [],
+  "twin": {
+   "trace": [
+    {
+     "t": 0,
+     "event": "start",
+     "data": {
+      "exportName": "f",
+      "args": 1,
+      "watchLimitMs": 30000
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_call",
+     "data": {
+      "name": "x",
+      "n": 1
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_returns",
+     "data": {
+      "name": "x",
+      "n": 1
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_call",
+     "data": {
+      "name": "x",
+      "n": 2
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_returns",
+     "data": {
+      "name": "x",
+      "n": 2
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_call",
+     "data": {
+      "name": "x",
+      "n": 3
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_returns",
+     "data": {
+      "name": "x",
+      "n": 3
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_call",
+     "data": {
+      "name": "x",
+      "n": 4
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_returns",
+     "data": {
+      "name": "x",
+      "n": 4
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_call",
+     "data": {
+      "name": "x",
+      "n": 5
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_returns",
+     "data": {
+      "name": "x",
+      "n": 5
+     }
+    },
+    {
+     "t": 0,
+     "event": "returned",
+     "data": {
+      "type": "number"
+     }
+    }
+   ],
+   "result": {
+    "measured": {
+     "outcome": "returned",
+     "virtualMs": 0,
+     "returnedType": "number",
+     "returnedJson": "1",
+     "calls:x": 5
+    },
+    "notMeasured": {
+     "thrownName": "the call returned, so nothing was thrown",
+     "thrownMessage": "the call returned, so nothing was thrown"
+    }
+   }
+  },
+  "startedAt": "2026-11-02T17:20:00.172Z",
+  "finishedAt": "2026-11-02T17:20:00.457Z",
+  "trace": [
+   {
+    "t": 0,
+    "event": "start",
+    "data": {
+     "exportName": "f",
+     "args": 1,
+     "watchLimitMs": 30000
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_call",
+    "data": {
+     "name": "x",
+     "n": 1
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_returns",
+    "data": {
+     "name": "x",
+     "n": 1
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_call",
+    "data": {
+     "name": "x",
+     "n": 2
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_returns",
+    "data": {
+     "name": "x",
+     "n": 2
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_call",
+    "data": {
+     "name": "x",
+     "n": 3
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_returns",
+    "data": {
+     "name": "x",
+     "n": 3
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_call",
+    "data": {
+     "name": "x",
+     "n": 4
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_returns",
+    "data": {
+     "name": "x",
+     "n": 4
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_call",
+    "data": {
+     "name": "x",
+     "n": 5
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_returns",
+    "data": {
+     "name": "x",
+     "n": 5
+    }
+   },
+   {
+    "t": 0,
+    "event": "returned",
+    "data": {
+     "type": "number"
+    }
+   },
+   {
+    "t": 0,
+    "event": "call_checks",
+    "data": {
+     "harnessSha256": "303d02a8f9a7066c1745c89a6025c74e2ee8b8b68a2f4f3919f23b9540449ad5",
+     "controlRunId": "OfK4TVvcKC",
+     "controlPassed": true,
+     "controlFinishedAt": "2026-11-02T17:18:51.316Z",
+     "runtime": {
+      "executor": "local",
+      "node": "v25.8.1"
+     }
+    }
+   }
+  ],
+  "result": {
+   "measured": {
+    "outcome": "returned",
+    "virtualMs": 0,
+    "returnedType": "number",
+    "returnedJson": "1",
+    "calls:x": 5
+   },
+   "notMeasured": {
+    "thrownName": "the call returned, so nothing was thrown",
+    "thrownMessage": "the call returned, so nothing was thrown"
+   }
+  },
+  "controlPassed": true,
+  "controlRunId": "OfK4TVvcKC"
+ },
+ "helpers": {
+  "steps": [],
+  "cut": false
+ }
+}

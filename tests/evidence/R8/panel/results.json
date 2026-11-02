@@ -1,0 +1,267 @@
+[
+ {
+  "name": "1280: first screen lids show Meta's AI names over the exact names",
+  "ok": true,
+  "more": "[\"price lookup\",\"getPrice\",\"retrying fetch\",\"fetchWithRetry\",\"retry wait time\",\"backoffMs\",\"pause execution\",\"sleep\",\"fetchIt\"]"
+ },
+ {
+  "name": "1280: review B1: words on the first screen say whose names they are",
+  "ok": true,
+  "more": "★ names: Muse Wonder's words (Meta's AI), not a check"
+ },
+ {
+  "name": "1280: the machine is shown",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "1280: review B1: the names legend is on screen, above the drawing, not on it",
+  "ok": true,
+  "more": "{\"legend\":{\"x0\":487.59375,\"y0\":56,\"x1\":808.71875,\"y1\":72.25},\"sheet\":{\"x0\":483.59375,\"y0\":82,\"x1\":1269.984375,\"y1\":710}}"
+ },
+ {
+  "name": "1280: hover opens no panel",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "1280: Enter on a part opens its panel",
+  "ok": true,
+  "more": "Meta's AI calls this: retrying fetch (its words, not a check) |  | fetchWithRetry | A function that can be called from outside the file. Atlas calls this one. | Runs a loop (line 12). | Has a throw (line 20). | Returns (line 14). | Calls: backoffMs, sleep, fetchIt (faked by the test). | Called by: getPrice. | Lines 10–21."
+ },
+ {
+  "name": "1280: the panel says whose words the name is",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "1280: the panel shows the part's code, lines 10 to 21 marked",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "1280: no small card as well (one place says what a part is)",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "1280: the panel does not cover the part",
+  "ok": true,
+  "more": "{\"panel\":{\"x0\":0,\"y0\":48,\"x1\":473.59375,\"y1\":720},\"part\":{\"x0\":755.173828125,\"y0\":286.34930419921875,\"x1\":954.6785888671875,\"y1\":434.53631591796875}}"
+ },
+ {
+  "name": "1280: the machine kept its view (not swapped for the chart)",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "1280: Esc closes it",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "1280: with a part panel open, a digit key answers no hidden question",
+  "ok": true,
+  "more": "0 → 0"
+ },
+ {
+  "name": "1280: every bettor's text has the names the page was sent, and claims no more",
+  "ok": true,
+  "more": "Names muse-wonder-1.0 (Meta's AI) suggested for the parts, from the code alone. The person's drawing may show some of them. Its words, not a check: / - backoffMs: retry wait time / - sleep: pause execution / - fetchWithRetry: retrying fetch / - getPrice: price lookup"
+ },
+ {
+  "name": "1280: the example's ring is on a part",
+  "ok": true,
+  "more": "stand-in fetchIt"
+ },
+ {
+  "name": "1280: the ringed part's panel says what broke, in the verdict's words",
+  "ok": true,
+  "more": "The run threw Error: flaky source failed at 700 ms, after 3 calls to fetchIt. |  | Atlas calls fetchWithRetry(fetchIt, 3, 100). fetchIt (async) throws Error (\"flaky source failed\") on call 1; every later call throws Error (\"flaky source failed\") too."
+ },
+ {
+  "name": "1280: review M3: after a run the panel covers no verdict, answer list, action bar, ring or part",
+  "ok": true,
+  "more": "{\"panel\":{\"x0\":24,\"y0\":289.9375,\"x1\":448.59375,\"y1\":540.40625},\"covered\":[]}"
+ },
+ {
+  "name": "1280: the actions are still clickable",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "1280: the proof picture has no AI names and no code type",
+  "ok": true,
+  "more": "0 marks"
+ },
+ {
+  "name": "1100: first screen lids show Meta's AI names over the exact names",
+  "ok": true,
+  "more": "[\"price lookup\",\"getPrice\",\"retrying fetch\",\"fetchWithRetry\",\"retry wait time\",\"backoffMs\",\"pause execution\",\"sleep\",\"fetchIt\"]"
+ },
+ {
+  "name": "1100: review B1: words on the first screen say whose names they are",
+  "ok": true,
+  "more": "★ names: Muse Wonder's words (Meta's AI), not a check"
+ },
+ {
+  "name": "1100: the machine is shown",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "1100: review B1: the names legend is on screen, above the drawing, not on it",
+  "ok": true,
+  "more": "{\"legend\":{\"x0\":421,\"y0\":56,\"x1\":742.125,\"y1\":72.25},\"sheet\":{\"x0\":417,\"y0\":82,\"x1\":1090,\"y1\":690}}"
+ },
+ {
+  "name": "1100: hover opens no panel",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "1100: Enter on a part opens its panel",
+  "ok": true,
+  "more": "Meta's AI calls this: retrying fetch (its words, not a check) |  | fetchWithRetry | A function that can be called from outside the file. Atlas calls this one. | Runs a loop (line 12). | Has a throw (line 20). | Returns (line 14). | Calls: backoffMs, sleep, fetchIt (faked by the test). | Called by: getPrice. | Lines 10–21."
+ },
+ {
+  "name": "1100: the panel says whose words the name is",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "1100: the panel shows the part's code, lines 10 to 21 marked",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "1100: no small card as well (one place says what a part is)",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "1100: the panel does not cover the part",
+  "ok": true,
+  "more": "{\"panel\":{\"x0\":0,\"y0\":48,\"x1\":407,\"y1\":700},\"part\":{\"x0\":649.420654296875,\"y0\":292.15997314453125,\"x1\":820.1585083007812,\"y1\":418.9797058105469}}"
+ },
+ {
+  "name": "1100: the machine kept its view (not swapped for the chart)",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "1100: Esc closes it",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "1100: with a part panel open, a digit key answers no hidden question",
+  "ok": true,
+  "more": "0 → 0"
+ },
+ {
+  "name": "1100: every bettor's text has the names the page was sent, and claims no more",
+  "ok": true,
+  "more": "Names muse-wonder-1.0 (Meta's AI) suggested for the parts, from the code alone. The person's drawing may show some of them. Its words, not a check: / - backoffMs: retry wait time / - sleep: pause execution / - fetchWithRetry: retrying fetch / - getPrice: price lookup"
+ },
+ {
+  "name": "1100: the example's ring is on a part",
+  "ok": true,
+  "more": "stand-in fetchIt"
+ },
+ {
+  "name": "1100: the ringed part's panel says what broke, in the verdict's words",
+  "ok": true,
+  "more": "The run threw Error: flaky source failed at 700 ms, after 3 calls to fetchIt. |  | Atlas calls fetchWithRetry(fetchIt, 3, 100). fetchIt (async) throws Error (\"flaky source failed\") on call 1; every later call throws Error (\"flaky source failed\") too."
+ },
+ {
+  "name": "1100: review M3: after a run the panel covers no verdict, answer list, action bar, ring or part",
+  "ok": true,
+  "more": "{\"panel\":{\"x0\":24,\"y0\":249.828125,\"x1\":382,\"y1\":520.59375},\"covered\":[]}"
+ },
+ {
+  "name": "1100: the actions are still clickable",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "1100: the proof picture has no AI names and no code type",
+  "ok": true,
+  "more": "0 marks"
+ },
+ {
+  "name": "390: a tap on a box opens its panel",
+  "ok": true,
+  "more": "Meta's AI calls this: retrying fetch (its words, not a check) |  | fetchWithRetry | A function that can be called from outside the file. Atlas calls this one. | Runs a loop (line 12). | Has a throw (line 20). | Returns (line 14). | Calls: backoffMs, sleep, fetchIt (faked by the test). | Called by: getPrice. | Lines 10–21."
+ },
+ {
+  "name": "390: the sheet leaves the box in sight",
+  "ok": true,
+  "more": "{\"panel\":{\"x0\":0,\"y0\":422,\"x1\":390,\"y1\":844},\"box\":{\"x0\":151.1732635498047,\"y0\":124.73479461669922,\"x1\":249.3738250732422,\"y1\":165.0839080810547}}"
+ },
+ {
+  "name": "390: no pinned chart card as well",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "390: every bettor's text has the names the page was sent, and claims no more",
+  "ok": true,
+  "more": "Names muse-wonder-1.0 (Meta's AI) suggested for the parts, from the code alone. The person's drawing may show some of them. Its words, not a check: / - backoffMs: retry wait time / - sleep: pause execution / - fetchWithRetry: retrying fetch / - getPrice: price lookup"
+ },
+ {
+  "name": "390: a phone shows the chart, so no machine ring to click (the path's ring is not a part)",
+  "ok": true,
+  "more": "null"
+ },
+ {
+  "name": "1280: orders: the ringed chute's panel has the verdict's words and the thrown line",
+  "ok": true,
+  "more": "The run threw Error: HTTP 429 at 1,400 ms, after 4 calls to fetch. |  | It threw from line 9. |  | Atlas calls fetchAllOrders(\"https://example.com/orders\"). Atlas's fake fetch (in place of the network, which stays blocked) answers 429 with {} on call 1; every later call answers 429 with {} too."
+ },
+ {
+  "name": "1280: orders: review M3: the panel covers no verdict, answer list, action bar, ring or part",
+  "ok": true,
+  "more": "{\"panel\":{\"x0\":24,\"y0\":77.9375,\"x1\":448.59375,\"y1\":539.9375},\"covered\":[]}"
+ },
+ {
+  "name": "1280: review B2: after a change the old part panel is gone",
+  "ok": true,
+  "more": "null"
+ },
+ {
+  "name": "1280: review B2: a panel opened now has the new lines and no old run",
+  "ok": true,
+  "more": "fetch page |  | fetchPage |  | A function. | Calls itself (line 8). | Waits (line 7). | Has a throw (line 10). | Returns (lines 8 and 11). | Calls: fetch (faked by the test). | Called by: fetchAllOrders. | Lines 4–12. |  | Natural names unavailable: they arrived after the bettors' text for this file was written"
+ },
+ {
+  "name": "1280: orders: an unringed part adds nothing about the run",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "1100: orders: the ringed chute's panel has the verdict's words and the thrown line",
+  "ok": true,
+  "more": "The run threw Error: HTTP 429 at 1,400 ms, after 4 calls to fetch. |  | It threw from line 9. |  | Atlas calls fetchAllOrders(\"https://example.com/orders\"). Atlas's fake fetch (in place of the network, which stays blocked) answers 429 with {} on call 1; every later call answers 429 with {} too."
+ },
+ {
+  "name": "1100: orders: review M3: the panel covers no verdict, answer list, action bar, ring or part",
+  "ok": true,
+  "more": "{\"panel\":{\"x0\":24,\"y0\":77.828125,\"x1\":382,\"y1\":520.828125},\"covered\":[]}"
+ },
+ {
+  "name": "1100: review B2: after a change the old part panel is gone",
+  "ok": true,
+  "more": "null"
+ },
+ {
+  "name": "1100: review B2: a panel opened now has the new lines and no old run",
+  "ok": true,
+  "more": "fetch page |  | fetchPage |  | A function. | Calls itself (line 8). | Waits (line 7). | Has a throw (line 10). | Returns (lines 8 and 11). | Calls: fetch (faked by the test). | Called by: fetchAllOrders. | Lines 4–12. |  | Natural names unavailable: they arrived after the bettors' text for this file was written"
+ },
+ {
+  "name": "1100: orders: an unringed part adds nothing about the run",
+  "ok": true,
+  "more": ""
+ }
+]

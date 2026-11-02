@@ -663,3 +663,10 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
   .u1-shell .u1-marks{bottom:var(--actions-h,170px)}
   .u1-shell .u1-marks .m-pane{padding-bottom:24px}
 }
+
+/* R8: the run acted out on the machine. One line under the machine says the step that is on, from the run's own data. */
+.m-act-step{position:absolute;left:24px;right:24px;bottom:48px;margin:0;z-index:4;text-align:center;min-height:1.4em;font:italic 400 16px/1.4 "Atlas Besley",Georgia,serif;color:var(--rr-ink,#1f1b1d);pointer-events:none}
+/* With reduced motion nothing moves: the steps are a list in the result column instead, beside the still end state. */
+.m-act-list{margin:10px 0 0;padding:8px 10px;border:1px solid var(--rule-2,#ddd4c3);font:400 12.5px/1.45 "Atlas Besley",Georgia,serif;color:#4a4440;max-height:132px;overflow:auto}
+.m-act-list summary{cursor:pointer}
+.m-act-list ol{margin:6px 0 0;padding-left:20px}

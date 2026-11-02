@@ -1,0 +1,375 @@
+{
+ "name": "example-returns",
+ "language": "ts",
+ "source": "// Fetch a price, retrying a flaky source with a growing wait.\nfunction backoffMs(attempt: number, baseMs: number): number {\n  return baseMs * 2 ** attempt;\n}\n\nfunction sleep(ms: number): Promise<void> {\n  return new Promise((resolve) => setTimeout(resolve, ms));\n}\n\nexport async function fetchWithRetry(fetchIt: () => Promise<unknown>, attempts: number = 3, baseMs: number = 100) {\n  let last: unknown;\n  for (let i = 0; i < attempts; i++) {\n    try {\n      return await fetchIt();\n    } catch (e) {\n      last = e;\n      await sleep(backoffMs(i, baseMs));\n    }\n  }\n  throw last;\n}\n\nexport async function getPrice(fetchQuote: () => Promise<unknown>) {\n  return fetchWithRetry(fetchQuote, 3, 100);\n}\n",
+ "outline": {
+  "parts": [
+   {
+    "name": "backoffMs",
+    "kind": "function",
+    "exported": false,
+    "lineStart": 2,
+    "lineEnd": 4,
+    "signature": "function backoffMs(attempt: number, baseMs: number): number"
+   },
+   {
+    "name": "sleep",
+    "kind": "function",
+    "exported": false,
+    "lineStart": 6,
+    "lineEnd": 8,
+    "signature": "function sleep(ms: number): Promise<void>"
+   },
+   {
+    "name": "fetchWithRetry",
+    "kind": "function",
+    "exported": true,
+    "lineStart": 10,
+    "lineEnd": 21,
+    "signature": "export async function fetchWithRetry(fetchIt: () => Promise<unknown>, attempts: number = 3, baseMs: number = 100)"
+   },
+   {
+    "name": "getPrice",
+    "kind": "function",
+    "exported": true,
+    "lineStart": 23,
+    "lineEnd": 25,
+    "signature": "export async function getPrice(fetchQuote: () => Promise<unknown>)"
+   }
+  ],
+  "joins": [
+   {
+    "id": "fetchWithRetry->backoffMs",
+    "from": "fetchWithRetry",
+    "to": "backoffMs",
+    "kind": "calls",
+    "lines": [
+     17
+    ]
+   },
+   {
+    "id": "fetchWithRetry->sleep",
+    "from": "fetchWithRetry",
+    "to": "sleep",
+    "kind": "calls",
+    "lines": [
+     17
+    ]
+   },
+   {
+    "id": "getPrice->fetchWithRetry",
+    "from": "getPrice",
+    "to": "fetchWithRetry",
+    "kind": "calls",
+    "lines": [
+     24
+    ]
+   }
+  ],
+  "notes": [],
+  "callFacts": {
+   "freeCalls": [
+    {
+     "name": "setTimeout",
+     "line": 7
+    }
+   ],
+   "importCalls": [],
+   "paramCalls": [
+    {
+     "fn": "fetchWithRetry",
+     "index": 0,
+     "line": 14
+    }
+   ],
+   "handoffs": [
+    {
+     "fn": "fetchWithRetry",
+     "index": 2,
+     "to": "backoffMs",
+     "toIndex": 1,
+     "line": 17
+    },
+    {
+     "fn": "getPrice",
+     "index": 0,
+     "to": "fetchWithRetry",
+     "toIndex": 0,
+     "line": 24
+    }
+   ],
+   "waits": [
+    {
+     "line": 7
+    }
+   ]
+  },
+  "bodies": {
+   "backoffMs": {
+    "loops": [],
+    "throws": [],
+    "returns": [
+     3
+    ],
+    "nested": []
+   },
+   "sleep": {
+    "loops": [],
+    "throws": [],
+    "returns": [
+     7
+    ],
+    "nested": [
+     [
+      7,
+      7
+     ]
+    ]
+   },
+   "fetchWithRetry": {
+    "loops": [
+     12
+    ],
+    "throws": [
+     {
+      "line": 20
+     }
+    ],
+    "returns": [
+     14
+    ],
+    "nested": []
+   },
+   "getPrice": {
+    "loops": [],
+    "throws": [],
+    "returns": [
+     24
+    ],
+    "nested": []
+   }
+  },
+  "throwsInFile": [
+   {
+    "line": 20
+   }
+  ]
+ },
+ "params": {
+  "shape": "call-function",
+  "exportName": "fetchWithRetry",
+  "args": [
+   {
+    "kind": "stand-in",
+    "name": "fetchIt",
+    "async": true,
+    "then": "repeat_last",
+    "calls": [
+     {
+      "do": "throw",
+      "errorName": "Error",
+      "message": "flaky source failed"
+     },
+     {
+      "do": "return",
+      "value": {
+       "price": 42
+      }
+     }
+    ]
+   },
+   {
+    "kind": "json",
+    "value": 3
+   },
+   {
+    "kind": "json",
+    "value": 100
+   }
+  ]
+ },
+ "run": {
+  "id": "_vPH_BrTA4",
+  "trace": [
+   {
+    "t": 0,
+    "event": "start",
+    "data": {
+     "exportName": "fetchWithRetry",
+     "args": 3,
+     "watchLimitMs": 30000
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_call",
+    "data": {
+     "name": "fetchIt",
+     "n": 1
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_throws",
+    "data": {
+     "name": "fetchIt",
+     "n": 1,
+     "errorName": "Error"
+    }
+   },
+   {
+    "t": 100,
+    "event": "stand_in_call",
+    "data": {
+     "name": "fetchIt",
+     "n": 2
+    }
+   },
+   {
+    "t": 100,
+    "event": "stand_in_returns",
+    "data": {
+     "name": "fetchIt",
+     "n": 2
+    }
+   },
+   {
+    "t": 100,
+    "event": "returned",
+    "data": {
+     "type": "object"
+    }
+   },
+   {
+    "t": 100,
+    "event": "clock_moves",
+    "data": {
+     "at": [
+      100
+     ]
+    }
+   },
+   {
+    "t": 100,
+    "event": "call_checks",
+    "data": {
+     "harnessSha256": "303d02a8f9a7066c1745c89a6025c74e2ee8b8b68a2f4f3919f23b9540449ad5",
+     "controlRunId": "hc9vgNXE79",
+     "controlPassed": true,
+     "controlFinishedAt": "2026-11-02T16:37:52.820Z",
+     "runtime": {
+      "executor": "local",
+      "node": "v25.8.1"
+     }
+    }
+   }
+  ],
+  "result": {
+   "measured": {
+    "outcome": "returned",
+    "virtualMs": 100,
+    "returnedType": "object",
+    "returnedJson": "{\"price\":42}",
+    "calls:fetchIt": 2
+   },
+   "notMeasured": {
+    "thrownName": "the call returned, so nothing was thrown",
+    "thrownMessage": "the call returned, so nothing was thrown"
+   }
+  },
+  "controlPassed": true,
+  "twin": {
+   "trace": [
+    {
+     "t": 0,
+     "event": "start",
+     "data": {
+      "exportName": "fetchWithRetry",
+      "args": 3,
+      "watchLimitMs": 30000
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_call",
+     "data": {
+      "name": "fetchIt",
+      "n": 1
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_throws",
+     "data": {
+      "name": "fetchIt",
+      "n": 1,
+      "errorName": "Error"
+     }
+    },
+    {
+     "t": 100,
+     "event": "stand_in_call",
+     "data": {
+      "name": "fetchIt",
+      "n": 2
+     }
+    },
+    {
+     "t": 100,
+     "event": "stand_in_returns",
+     "data": {
+      "name": "fetchIt",
+      "n": 2
+     }
+    },
+    {
+     "t": 100,
+     "event": "returned",
+     "data": {
+      "type": "object"
+     }
+    },
+    {
+     "t": 100,
+     "event": "clock_moves",
+     "data": {
+      "at": [
+       100
+      ]
+     }
+    }
+   ],
+   "result": {
+    "measured": {
+     "outcome": "returned",
+     "virtualMs": 100,
+     "returnedType": "object",
+     "returnedJson": "{\"price\":42}",
+     "calls:fetchIt": 2
+    },
+    "notMeasured": {
+     "thrownName": "the call returned, so nothing was thrown",
+     "thrownMessage": "the call returned, so nothing was thrown"
+    }
+   }
+  },
+  "conditions": []
+ },
+ "helpers": {
+  "steps": [
+   {
+    "name": "backoffMs",
+    "t": 0,
+    "at": 2,
+    "inner": 0
+   },
+   {
+    "name": "sleep",
+    "t": 0,
+    "at": 2,
+    "inner": 0
+   }
+  ],
+  "cut": false
+ }
+}

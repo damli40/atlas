@@ -1,0 +1,418 @@
+{
+ "name": "orders-throws",
+ "language": "ts",
+ "source": "type Page<T> = { items: T[]; nextCursor: string | null };\n\nasync function fetchPage<T>(url: string, cursor: string | null, attempt = 0): Promise<Page<T>> {\n  const res = await fetch(cursor ? `${url}?cursor=${cursor}` : url);\n  if (res.status === 429 && attempt < 3) {\n    await new Promise((r) => setTimeout(r, 200 * 2 ** attempt));\n    return fetchPage<T>(url, cursor, attempt + 1);\n  }\n  if (!res.ok) throw new Error(`HTTP ${res.status}`);\n  return (await res.json()) as Page<T>;\n}\n\nexport async function fetchAllOrders(url: string, maxPages = 5): Promise<string[]> {\n  const ids: string[] = [];\n  let cursor: string | null = null;\n  for (let page = 0; page < maxPages; page++) {\n    const data: Page<{ id: string }> = await fetchPage(url, cursor);\n    for (const o of data.items) ids.push(o.id);\n    if (!data.nextCursor) break;\n    cursor = data.nextCursor;\n  }\n  return ids;\n}\n",
+ "outline": {
+  "parts": [
+   {
+    "name": "fetchPage",
+    "kind": "function",
+    "exported": false,
+    "lineStart": 3,
+    "lineEnd": 11,
+    "signature": "async function fetchPage<T>(url: string, cursor: string | null, attempt = 0): Promise<Page<T>>"
+   },
+   {
+    "name": "fetchAllOrders",
+    "kind": "function",
+    "exported": true,
+    "lineStart": 13,
+    "lineEnd": 23,
+    "signature": "export async function fetchAllOrders(url: string, maxPages = 5): Promise<string[]>"
+   }
+  ],
+  "joins": [
+   {
+    "id": "fetchAllOrders->fetchPage",
+    "from": "fetchAllOrders",
+    "to": "fetchPage",
+    "kind": "calls",
+    "lines": [
+     17
+    ]
+   }
+  ],
+  "notes": [],
+  "selfCalls": [
+   {
+    "name": "fetchPage",
+    "lines": [
+     7
+    ]
+   }
+  ],
+  "callFacts": {
+   "freeCalls": [
+    {
+     "name": "fetch",
+     "line": 4
+    },
+    {
+     "name": "setTimeout",
+     "line": 6
+    }
+   ],
+   "importCalls": [],
+   "paramCalls": [],
+   "handoffs": [
+    {
+     "fn": "fetchPage",
+     "index": 0,
+     "to": "fetchPage",
+     "toIndex": 0,
+     "line": 7
+    },
+    {
+     "fn": "fetchPage",
+     "index": 1,
+     "to": "fetchPage",
+     "toIndex": 1,
+     "line": 7
+    },
+    {
+     "fn": "fetchAllOrders",
+     "index": 0,
+     "to": "fetchPage",
+     "toIndex": 0,
+     "line": 17
+    }
+   ],
+   "waits": [
+    {
+     "line": 6
+    }
+   ]
+  },
+  "bodies": {
+   "fetchPage": {
+    "loops": [],
+    "throws": [
+     {
+      "line": 9,
+      "name": "Error",
+      "message": "HTTP ",
+      "exact": false
+     }
+    ],
+    "returns": [
+     7,
+     10
+    ],
+    "nested": [
+     [
+      6,
+      6
+     ]
+    ]
+   },
+   "fetchAllOrders": {
+    "loops": [
+     16,
+     18
+    ],
+    "throws": [],
+    "returns": [
+     22
+    ],
+    "nested": []
+   }
+  },
+  "throwsInFile": [
+   {
+    "line": 9,
+    "name": "Error",
+    "message": "HTTP ",
+    "exact": false
+   }
+  ]
+ },
+ "params": {
+  "shape": "call-function",
+  "exportName": "fetchAllOrders",
+  "args": [
+   {
+    "kind": "json",
+    "value": "https://shop.example/orders"
+   }
+  ],
+  "network": {
+   "replaces": "fetch",
+   "then": "repeat_last",
+   "calls": [
+    {
+     "do": "respond",
+     "status": 429,
+     "body": {}
+    }
+   ]
+  }
+ },
+ "run": {
+  "id": "atrVRstpg1",
+  "trace": [
+   {
+    "t": 0,
+    "event": "start",
+    "data": {
+     "exportName": "fetchAllOrders",
+     "args": 1,
+     "watchLimitMs": 30000
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_call",
+    "data": {
+     "name": "fetch",
+     "n": 1
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_returns",
+    "data": {
+     "name": "fetch",
+     "n": 1
+    }
+   },
+   {
+    "t": 200,
+    "event": "stand_in_call",
+    "data": {
+     "name": "fetch",
+     "n": 2
+    }
+   },
+   {
+    "t": 200,
+    "event": "stand_in_returns",
+    "data": {
+     "name": "fetch",
+     "n": 2
+    }
+   },
+   {
+    "t": 600,
+    "event": "stand_in_call",
+    "data": {
+     "name": "fetch",
+     "n": 3
+    }
+   },
+   {
+    "t": 600,
+    "event": "stand_in_returns",
+    "data": {
+     "name": "fetch",
+     "n": 3
+    }
+   },
+   {
+    "t": 1400,
+    "event": "stand_in_call",
+    "data": {
+     "name": "fetch",
+     "n": 4
+    }
+   },
+   {
+    "t": 1400,
+    "event": "stand_in_returns",
+    "data": {
+     "name": "fetch",
+     "n": 4
+    }
+   },
+   {
+    "t": 1400,
+    "event": "threw",
+    "data": {
+     "type": "Error",
+     "name": "Error"
+    }
+   },
+   {
+    "t": 1400,
+    "event": "clock_moves",
+    "data": {
+     "at": [
+      200,
+      600,
+      1400
+     ]
+    }
+   },
+   {
+    "t": 1400,
+    "event": "call_checks",
+    "data": {
+     "harnessSha256": "303d02a8f9a7066c1745c89a6025c74e2ee8b8b68a2f4f3919f23b9540449ad5",
+     "controlRunId": "hc9vgNXE79",
+     "controlPassed": true,
+     "controlFinishedAt": "2026-11-02T16:37:52.820Z",
+     "runtime": {
+      "executor": "local",
+      "node": "v25.8.1"
+     }
+    }
+   }
+  ],
+  "result": {
+   "measured": {
+    "outcome": "threw",
+    "virtualMs": 1400,
+    "thrownType": "Error",
+    "thrownName": "Error",
+    "thrownMessage": "HTTP 429",
+    "calls:fetch": 4
+   },
+   "notMeasured": {
+    "returnedJson": "the call threw, so it returned nothing",
+    "returnedType": "the call threw, so it returned nothing"
+   }
+  },
+  "controlPassed": true,
+  "twin": {
+   "trace": [
+    {
+     "t": 0,
+     "event": "start",
+     "data": {
+      "exportName": "fetchAllOrders",
+      "args": 1,
+      "watchLimitMs": 30000
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_call",
+     "data": {
+      "name": "fetch",
+      "n": 1
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_returns",
+     "data": {
+      "name": "fetch",
+      "n": 1
+     }
+    },
+    {
+     "t": 200,
+     "event": "stand_in_call",
+     "data": {
+      "name": "fetch",
+      "n": 2
+     }
+    },
+    {
+     "t": 200,
+     "event": "stand_in_returns",
+     "data": {
+      "name": "fetch",
+      "n": 2
+     }
+    },
+    {
+     "t": 600,
+     "event": "stand_in_call",
+     "data": {
+      "name": "fetch",
+      "n": 3
+     }
+    },
+    {
+     "t": 600,
+     "event": "stand_in_returns",
+     "data": {
+      "name": "fetch",
+      "n": 3
+     }
+    },
+    {
+     "t": 1400,
+     "event": "stand_in_call",
+     "data": {
+      "name": "fetch",
+      "n": 4
+     }
+    },
+    {
+     "t": 1400,
+     "event": "stand_in_returns",
+     "data": {
+      "name": "fetch",
+      "n": 4
+     }
+    },
+    {
+     "t": 1400,
+     "event": "threw",
+     "data": {
+      "type": "Error",
+      "name": "Error"
+     }
+    },
+    {
+     "t": 1400,
+     "event": "clock_moves",
+     "data": {
+      "at": [
+       200,
+       600,
+       1400
+      ]
+     }
+    }
+   ],
+   "result": {
+    "measured": {
+     "outcome": "threw",
+     "virtualMs": 1400,
+     "thrownType": "Error",
+     "thrownName": "Error",
+     "thrownMessage": "HTTP 429",
+     "calls:fetch": 4
+    },
+    "notMeasured": {
+     "returnedJson": "the call threw, so it returned nothing",
+     "returnedType": "the call threw, so it returned nothing"
+    }
+   }
+  },
+  "conditions": []
+ },
+ "helpers": {
+  "steps": [
+   {
+    "name": "fetchPage",
+    "t": 200,
+    "at": 4,
+    "inner": 0
+   },
+   {
+    "name": "fetchPage",
+    "t": 600,
+    "at": 6,
+    "inner": 0
+   },
+   {
+    "name": "fetchPage",
+    "t": 1400,
+    "at": 8,
+    "inner": 0
+   },
+   {
+    "name": "fetchPage",
+    "t": 1400,
+    "at": 8,
+    "threw": true,
+    "inner": 0
+   }
+  ],
+  "cut": false,
+  "thrownAt": 9
+ }
+}

@@ -1,0 +1,176 @@
+{
+ "source": "export async function f(x) {\n  setTimeout(() => x(), 10);\n  throw new Error(\"early\");\n}\n",
+ "language": "ts",
+ "params": {
+  "shape": "call-function",
+  "exportName": "f",
+  "args": [
+   {
+    "kind": "stand-in",
+    "name": "x",
+    "async": true,
+    "then": "repeat_last",
+    "calls": [
+     {
+      "do": "return",
+      "value": 1
+     }
+    ]
+   }
+  ]
+ },
+ "run": {
+  "id": "Xtm0MMMt3c",
+  "experimentId": "NLgQYcqKI-",
+  "runner": "ts",
+  "executor": "local",
+  "codeSha256": "95be8d2b5384d6ee1ec453d8f2991119819ee2df93c31c5ab0ff03ffa082f293",
+  "seed": "20260101",
+  "timeZone": "UTC",
+  "locale": "en-US",
+  "conditions": [],
+  "twin": {
+   "trace": [
+    {
+     "t": 0,
+     "event": "start",
+     "data": {
+      "exportName": "f",
+      "args": 1,
+      "watchLimitMs": 30000
+     }
+    },
+    {
+     "t": 0,
+     "event": "threw",
+     "data": {
+      "type": "Error",
+      "name": "Error"
+     }
+    },
+    {
+     "t": 10,
+     "event": "stand_in_call",
+     "data": {
+      "name": "x",
+      "n": 1,
+      "afterSettle": true
+     }
+    },
+    {
+     "t": 10,
+     "event": "stand_in_returns",
+     "data": {
+      "name": "x",
+      "n": 1
+     }
+    },
+    {
+     "t": 10,
+     "event": "clock_moves",
+     "data": {
+      "at": [
+       10
+      ]
+     }
+    }
+   ],
+   "result": {
+    "measured": {
+     "outcome": "threw",
+     "virtualMs": 0,
+     "thrownType": "Error",
+     "thrownName": "Error",
+     "thrownMessage": "early",
+     "calls:x": 1
+    },
+    "notMeasured": {
+     "returnedJson": "the call threw, so it returned nothing",
+     "returnedType": "the call threw, so it returned nothing"
+    }
+   }
+  },
+  "startedAt": "2026-11-02T17:18:57.550Z",
+  "finishedAt": "2026-11-02T17:18:57.845Z",
+  "trace": [
+   {
+    "t": 0,
+    "event": "start",
+    "data": {
+     "exportName": "f",
+     "args": 1,
+     "watchLimitMs": 30000
+    }
+   },
+   {
+    "t": 0,
+    "event": "threw",
+    "data": {
+     "type": "Error",
+     "name": "Error"
+    }
+   },
+   {
+    "t": 10,
+    "event": "stand_in_call",
+    "data": {
+     "name": "x",
+     "n": 1,
+     "afterSettle": true
+    }
+   },
+   {
+    "t": 10,
+    "event": "stand_in_returns",
+    "data": {
+     "name": "x",
+     "n": 1
+    }
+   },
+   {
+    "t": 10,
+    "event": "clock_moves",
+    "data": {
+     "at": [
+      10
+     ]
+    }
+   },
+   {
+    "t": 10,
+    "event": "call_checks",
+    "data": {
+     "harnessSha256": "303d02a8f9a7066c1745c89a6025c74e2ee8b8b68a2f4f3919f23b9540449ad5",
+     "controlRunId": "OfK4TVvcKC",
+     "controlPassed": true,
+     "controlFinishedAt": "2026-11-02T17:18:51.316Z",
+     "runtime": {
+      "executor": "local",
+      "node": "v25.8.1"
+     }
+    }
+   }
+  ],
+  "result": {
+   "measured": {
+    "outcome": "threw",
+    "virtualMs": 0,
+    "thrownType": "Error",
+    "thrownName": "Error",
+    "thrownMessage": "early",
+    "calls:x": 1
+   },
+   "notMeasured": {
+    "returnedJson": "the call threw, so it returned nothing",
+    "returnedType": "the call threw, so it returned nothing"
+   }
+  },
+  "controlPassed": true,
+  "controlRunId": "OfK4TVvcKC"
+ },
+ "helpers": {
+  "steps": [],
+  "cut": false,
+  "thrownAt": 3
+ }
+}

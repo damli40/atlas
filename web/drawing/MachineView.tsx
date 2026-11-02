@@ -1,7 +1,8 @@
 // D65: the machine on the page. Plain SVG text from renderer/machine; React never touches what is inside it. Each part is a button, and
 // clicking one says what it stands for and its lines: in the page's part panel (R6) when the page has one, else in a small card.
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { MachinePlayer } from "../../renderer/machine/player";
+import { ACT_CSS, MachinePlayer } from "../../renderer/machine/player";
+import type { ActStep } from "../../renderer/authors/run-act";
 import { MACHINE_CSS } from "../../renderer/machine/pencil";
 import type { MachineDrawn } from "../../renderer/authors/machine";
 import type { MachineBeat } from "../../renderer/authors/machine-script";
@@ -34,7 +35,7 @@ export function ensureMachineStyle() {
   styled = true;
   const style = document.createElement("style");
   style.dataset.atlas = "machine";
-  style.textContent = MACHINE_CSS;
+  style.textContent = MACHINE_CSS + ACT_CSS;
   document.head.append(style);
 }
 
@@ -60,6 +61,8 @@ export interface MachineControl {
   rewind(): void;
   land(): void;
   skip(): void;
+  /** R8: plays the run's act; ends when it does, or at once on skip(). */
+  act(steps: readonly ActStep[], times: readonly { at: number; ms: number }[], o: { keep: { routes: ReadonlySet<string>; lamps: ReadonlySet<string> }; onStep?: (i: number) => void }): Promise<void>;
 }
 
 const DRAWN_KEY = "atlas-machine-drawn";
@@ -96,12 +99,15 @@ export const MachineSheet = forwardRef<MachineControl, { drawn: MachineDrawn; re
       player.current?.penIn(penTime());
     }
   }, [drawn.svg, reduced, penKey, landed]);
+  // R8: a machine taken off the page (M, or a new paste) ends its act, so the page's story goes on to the result.
+  useEffect(() => () => player.current?.stopAct(), []);
   useImperativeHandle(ref, () => ({
     play: (i, ms) => void player.current?.play(i, ms),
     setScript: (b) => player.current?.setScript(b),
     rewind: () => player.current?.rewind(),
     land: () => player.current?.land(),
     skip: () => player.current?.skip(),
+    act: (steps, times, o) => player.current?.act(steps, times, o) ?? Promise.resolve(),
   }), []);
   useEffect(() => {
     if (!card) return;

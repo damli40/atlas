@@ -1,0 +1,184 @@
+{
+ "source": "class Pause {\n  wait(ms) {\n    return new Promise((r) => setTimeout(r, ms));\n  }\n}\nfunction sleep(ms) {\n  return new Promise((r) => setTimeout(r, ms));\n}\nexport async function f(x) {\n  await sleep(100);\n  await x();\n  await new Pause().wait(300);\n  return 1;\n}\n",
+ "language": "ts",
+ "params": {
+  "shape": "call-function",
+  "exportName": "f",
+  "args": [
+   {
+    "kind": "stand-in",
+    "name": "x",
+    "async": true,
+    "then": "repeat_last",
+    "calls": [
+     {
+      "do": "return",
+      "value": 1
+     }
+    ]
+   }
+  ]
+ },
+ "run": {
+  "id": "eYMVIxWMam",
+  "experimentId": "qiDu4-r9nc",
+  "runner": "ts",
+  "executor": "local",
+  "codeSha256": "d49336cbde3e20b8b3d25a00d436a12764a54c1db122f396f17a2848ecb3b511",
+  "seed": "20260101",
+  "timeZone": "UTC",
+  "locale": "en-US",
+  "conditions": [],
+  "twin": {
+   "trace": [
+    {
+     "t": 0,
+     "event": "start",
+     "data": {
+      "exportName": "f",
+      "args": 1,
+      "watchLimitMs": 30000
+     }
+    },
+    {
+     "t": 100,
+     "event": "stand_in_call",
+     "data": {
+      "name": "x",
+      "n": 1
+     }
+    },
+    {
+     "t": 100,
+     "event": "stand_in_returns",
+     "data": {
+      "name": "x",
+      "n": 1
+     }
+    },
+    {
+     "t": 400,
+     "event": "returned",
+     "data": {
+      "type": "number"
+     }
+    },
+    {
+     "t": 400,
+     "event": "clock_moves",
+     "data": {
+      "at": [
+       100,
+       400
+      ]
+     }
+    }
+   ],
+   "result": {
+    "measured": {
+     "outcome": "returned",
+     "virtualMs": 400,
+     "returnedType": "number",
+     "returnedJson": "1",
+     "calls:x": 1
+    },
+    "notMeasured": {
+     "thrownName": "the call returned, so nothing was thrown",
+     "thrownMessage": "the call returned, so nothing was thrown"
+    }
+   }
+  },
+  "startedAt": "2026-11-02T17:18:54.439Z",
+  "finishedAt": "2026-11-02T17:18:54.737Z",
+  "trace": [
+   {
+    "t": 0,
+    "event": "start",
+    "data": {
+     "exportName": "f",
+     "args": 1,
+     "watchLimitMs": 30000
+    }
+   },
+   {
+    "t": 100,
+    "event": "stand_in_call",
+    "data": {
+     "name": "x",
+     "n": 1
+    }
+   },
+   {
+    "t": 100,
+    "event": "stand_in_returns",
+    "data": {
+     "name": "x",
+     "n": 1
+    }
+   },
+   {
+    "t": 400,
+    "event": "returned",
+    "data": {
+     "type": "number"
+    }
+   },
+   {
+    "t": 400,
+    "event": "clock_moves",
+    "data": {
+     "at": [
+      100,
+      400
+     ]
+    }
+   },
+   {
+    "t": 400,
+    "event": "call_checks",
+    "data": {
+     "harnessSha256": "303d02a8f9a7066c1745c89a6025c74e2ee8b8b68a2f4f3919f23b9540449ad5",
+     "controlRunId": "OfK4TVvcKC",
+     "controlPassed": true,
+     "controlFinishedAt": "2026-11-02T17:18:51.316Z",
+     "runtime": {
+      "executor": "local",
+      "node": "v25.8.1"
+     }
+    }
+   }
+  ],
+  "result": {
+   "measured": {
+    "outcome": "returned",
+    "virtualMs": 400,
+    "returnedType": "number",
+    "returnedJson": "1",
+    "calls:x": 1
+   },
+   "notMeasured": {
+    "thrownName": "the call returned, so nothing was thrown",
+    "thrownMessage": "the call returned, so nothing was thrown"
+   }
+  },
+  "controlPassed": true,
+  "controlRunId": "OfK4TVvcKC"
+ },
+ "helpers": {
+  "steps": [
+   {
+    "name": "sleep",
+    "t": 0,
+    "at": 0,
+    "inner": 0
+   },
+   {
+    "name": "Pause.wait",
+    "t": 100,
+    "at": 2,
+    "inner": 0
+   }
+  ],
+  "cut": false
+ }
+}

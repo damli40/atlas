@@ -47,6 +47,8 @@ export interface ThrowSite {
  */
 export interface BodyFacts {
   loops: number[];
+  /** R8: each loop's body, first and last line, in the same order as `loops`: the lines strictly inside its braces (JS), or after its header (Python). Empty ([0, -1]) when there is no such body. The run's motion turns a loop's wheel only for a call whose line sits inside exactly one of these. */
+  loopSpans?: [number, number][];
   throws: ThrowSite[];
   returns: number[];
   /** Line spans of nested functions and classes: anything found in them is not this function's own. */

@@ -1,0 +1,288 @@
+{
+ "source": "function sleep(ms) {\n  return new Promise((r) => setTimeout(r, ms));\n}\nfunction withTimeout(p, ms) {\n  return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error(\"timeout\")), ms))]);\n}\nexport async function fetchWithRetry(fetchIt, attempts = 3) {\n  let last;\n  for (let i = 0; i < attempts; i++) {\n    try {\n      return await withTimeout(fetchIt(), 1000);\n    } catch (e) {\n      last = e;\n      await sleep(100 * 2 ** i);\n    }\n  }\n  throw last;\n}\n",
+ "language": "ts",
+ "params": {
+  "shape": "call-function",
+  "exportName": "fetchWithRetry",
+  "args": [
+   {
+    "kind": "stand-in",
+    "name": "fetchIt",
+    "async": true,
+    "then": "repeat_last",
+    "calls": [
+     {
+      "do": "never_settle"
+     }
+    ]
+   },
+   {
+    "kind": "json",
+    "value": 3
+   }
+  ]
+ },
+ "run": {
+  "id": "APfQ6EbNkg",
+  "experimentId": "PjdzkU5sAt",
+  "runner": "ts",
+  "executor": "local",
+  "codeSha256": "3581663b4cdab9bb4d1326d1e2d6d1ba8133af5c1b85ef58234a25535327b179",
+  "seed": "20260101",
+  "timeZone": "UTC",
+  "locale": "en-US",
+  "conditions": [],
+  "twin": {
+   "trace": [
+    {
+     "t": 0,
+     "event": "start",
+     "data": {
+      "exportName": "fetchWithRetry",
+      "args": 2,
+      "watchLimitMs": 30000
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_call",
+     "data": {
+      "name": "fetchIt",
+      "n": 1
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_never_answers",
+     "data": {
+      "name": "fetchIt",
+      "n": 1
+     }
+    },
+    {
+     "t": 1100,
+     "event": "stand_in_call",
+     "data": {
+      "name": "fetchIt",
+      "n": 2
+     }
+    },
+    {
+     "t": 1100,
+     "event": "stand_in_never_answers",
+     "data": {
+      "name": "fetchIt",
+      "n": 2
+     }
+    },
+    {
+     "t": 2300,
+     "event": "stand_in_call",
+     "data": {
+      "name": "fetchIt",
+      "n": 3
+     }
+    },
+    {
+     "t": 2300,
+     "event": "stand_in_never_answers",
+     "data": {
+      "name": "fetchIt",
+      "n": 3
+     }
+    },
+    {
+     "t": 3700,
+     "event": "threw",
+     "data": {
+      "type": "Error",
+      "name": "Error"
+     }
+    },
+    {
+     "t": 3700,
+     "event": "clock_moves",
+     "data": {
+      "at": [
+       1000,
+       1100,
+       2100,
+       2300,
+       3300,
+       3700
+      ]
+     }
+    }
+   ],
+   "result": {
+    "measured": {
+     "outcome": "threw",
+     "virtualMs": 3700,
+     "thrownType": "Error",
+     "thrownName": "Error",
+     "thrownMessage": "timeout",
+     "calls:fetchIt": 3
+    },
+    "notMeasured": {
+     "returnedJson": "the call threw, so it returned nothing",
+     "returnedType": "the call threw, so it returned nothing"
+    }
+   }
+  },
+  "startedAt": "2026-11-02T17:20:42.689Z",
+  "finishedAt": "2026-11-02T17:20:42.970Z",
+  "trace": [
+   {
+    "t": 0,
+    "event": "start",
+    "data": {
+     "exportName": "fetchWithRetry",
+     "args": 2,
+     "watchLimitMs": 30000
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_call",
+    "data": {
+     "name": "fetchIt",
+     "n": 1
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_never_answers",
+    "data": {
+     "name": "fetchIt",
+     "n": 1
+    }
+   },
+   {
+    "t": 1100,
+    "event": "stand_in_call",
+    "data": {
+     "name": "fetchIt",
+     "n": 2
+    }
+   },
+   {
+    "t": 1100,
+    "event": "stand_in_never_answers",
+    "data": {
+     "name": "fetchIt",
+     "n": 2
+    }
+   },
+   {
+    "t": 2300,
+    "event": "stand_in_call",
+    "data": {
+     "name": "fetchIt",
+     "n": 3
+    }
+   },
+   {
+    "t": 2300,
+    "event": "stand_in_never_answers",
+    "data": {
+     "name": "fetchIt",
+     "n": 3
+    }
+   },
+   {
+    "t": 3700,
+    "event": "threw",
+    "data": {
+     "type": "Error",
+     "name": "Error"
+    }
+   },
+   {
+    "t": 3700,
+    "event": "clock_moves",
+    "data": {
+     "at": [
+      1000,
+      1100,
+      2100,
+      2300,
+      3300,
+      3700
+     ]
+    }
+   },
+   {
+    "t": 3700,
+    "event": "call_checks",
+    "data": {
+     "harnessSha256": "303d02a8f9a7066c1745c89a6025c74e2ee8b8b68a2f4f3919f23b9540449ad5",
+     "controlRunId": "OfK4TVvcKC",
+     "controlPassed": true,
+     "controlFinishedAt": "2026-11-02T17:18:51.316Z",
+     "runtime": {
+      "executor": "local",
+      "node": "v25.8.1"
+     }
+    }
+   }
+  ],
+  "result": {
+   "measured": {
+    "outcome": "threw",
+    "virtualMs": 3700,
+    "thrownType": "Error",
+    "thrownName": "Error",
+    "thrownMessage": "timeout",
+    "calls:fetchIt": 3
+   },
+   "notMeasured": {
+    "returnedJson": "the call threw, so it returned nothing",
+    "returnedType": "the call threw, so it returned nothing"
+   }
+  },
+  "controlPassed": true,
+  "controlRunId": "OfK4TVvcKC"
+ },
+ "helpers": {
+  "steps": [
+   {
+    "name": "withTimeout",
+    "t": 0,
+    "at": 2,
+    "inner": 0
+   },
+   {
+    "name": "sleep",
+    "t": 1000,
+    "at": 2,
+    "inner": 0
+   },
+   {
+    "name": "withTimeout",
+    "t": 1100,
+    "at": 4,
+    "inner": 0
+   },
+   {
+    "name": "sleep",
+    "t": 2100,
+    "at": 4,
+    "inner": 0
+   },
+   {
+    "name": "withTimeout",
+    "t": 2300,
+    "at": 6,
+    "inner": 0
+   },
+   {
+    "name": "sleep",
+    "t": 3300,
+    "at": 6,
+    "inner": 0
+   }
+  ],
+  "cut": false,
+  "thrownAt": 5
+ }
+}

@@ -1,6 +1,6 @@
 // D65: the run, told through the machine's pipes. Only what the run's path says and plain code is certain of. A thread needs the true caller: a fake with more than one
-// caller, or a route that isn't the only one, gets no thread on that step. A dial sweeps only for a wait in a function known to have run, and only if it is the one such
-// function. Helper steps come from the third traced run, with D61's limits and caption: names and order only, never its values. Pure.
+// caller, or a route that isn't the only one, gets no thread on that step. A dial sweeps only for a wait in a function known to have run, only if it is the one such
+// function, and only when the helper step just before the wait is that function (or a helper that called it). Helper steps come from the third traced run, with D61's limits and caption: names and order only, never its values. Pure.
 import { certainPath } from "../../src/call-sites";
 import type { RenderSpec } from "../spec";
 import type { MachineParts } from "./machine";
@@ -26,8 +26,11 @@ export function machineScript(spec: Pick<RenderSpec, "steps" | "nodes">, parts: 
     return { routes: path.joins, lamps: path.parts.slice(1) };
   };
   const beats: MachineBeat[] = [];
+  // R8 review MAJOR-1: the helper step just before a wait, if any. A dial claims a wait only after a step of its own part (or of a helper that called it).
+  let lastPart: string | null = null;
   for (const step of spec.steps) {
     const beat: MachineBeat = { routes: [], lamps: [], ...(step.words ? { words: step.words } : {}) };
+    if (step.part) lastPart = step.part;
     if (step.part && ids.has(step.part)) {
       // Helper steps are the functions the tested one called: every one starts from it.
       ran.add(step.part);
@@ -49,7 +52,9 @@ export function machineScript(spec: Pick<RenderSpec, "steps" | "nodes">, parts: 
       const waiters = parts.housings.filter((h) => h.waits.length > 0 && ran.has(h.id));
       const node = spec.nodes.find((n) => n.id === step.nodes[0]);
       // Only when nothing else moves the clock: a fake's scripted delay, or the test's own wait, would also make time pass with this wait never reached.
-      if (clockIsTheCodes && waiters.length === 1) beat.dial = { part: waiters[0]!.id, sweep: node?.sweep ?? 0.2 };
+      const w = waiters.length === 1 ? waiters[0]!.id : null;
+      if (clockIsTheCodes && w && lastPart !== null && (lastPart === w || (within.get(lastPart) ?? []).includes(w))) beat.dial = { part: w, sweep: node?.sweep ?? 0.2 };
+      lastPart = null;
     } else if (step.device) {
       const port = parts.ports.find((q) => q.name === step.device);
       if (port) {

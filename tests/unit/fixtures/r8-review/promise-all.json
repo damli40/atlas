@@ -1,0 +1,215 @@
+{
+ "source": "export async function f(x) {\n  const ids = [1, 2, 3];\n  return Promise.all(ids.map((id) => x(id)));\n}\n",
+ "language": "ts",
+ "params": {
+  "shape": "call-function",
+  "exportName": "f",
+  "args": [
+   {
+    "kind": "stand-in",
+    "name": "x",
+    "async": true,
+    "then": "repeat_last",
+    "calls": [
+     {
+      "do": "return",
+      "value": 1
+     }
+    ]
+   }
+  ]
+ },
+ "run": {
+  "id": "8jJtalzMOm",
+  "experimentId": "a8Jn8lOQUW",
+  "runner": "ts",
+  "executor": "local",
+  "codeSha256": "97d0993ca55fb8a1d25f8bd97ef25f033d61bf5cb00bae943ea11ae3573ca1f4",
+  "seed": "20260101",
+  "timeZone": "UTC",
+  "locale": "en-US",
+  "conditions": [],
+  "twin": {
+   "trace": [
+    {
+     "t": 0,
+     "event": "start",
+     "data": {
+      "exportName": "f",
+      "args": 1,
+      "watchLimitMs": 30000
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_call",
+     "data": {
+      "name": "x",
+      "n": 1
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_returns",
+     "data": {
+      "name": "x",
+      "n": 1
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_call",
+     "data": {
+      "name": "x",
+      "n": 2
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_returns",
+     "data": {
+      "name": "x",
+      "n": 2
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_call",
+     "data": {
+      "name": "x",
+      "n": 3
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_returns",
+     "data": {
+      "name": "x",
+      "n": 3
+     }
+    },
+    {
+     "t": 0,
+     "event": "returned",
+     "data": {
+      "type": "array"
+     }
+    }
+   ],
+   "result": {
+    "measured": {
+     "outcome": "returned",
+     "virtualMs": 0,
+     "returnedType": "array",
+     "returnedJson": "[1,1,1]",
+     "calls:x": 3
+    },
+    "notMeasured": {
+     "thrownName": "the call returned, so nothing was thrown",
+     "thrownMessage": "the call returned, so nothing was thrown"
+    }
+   }
+  },
+  "startedAt": "2026-11-02T17:18:53.550Z",
+  "finishedAt": "2026-11-02T17:18:53.829Z",
+  "trace": [
+   {
+    "t": 0,
+    "event": "start",
+    "data": {
+     "exportName": "f",
+     "args": 1,
+     "watchLimitMs": 30000
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_call",
+    "data": {
+     "name": "x",
+     "n": 1
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_returns",
+    "data": {
+     "name": "x",
+     "n": 1
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_call",
+    "data": {
+     "name": "x",
+     "n": 2
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_returns",
+    "data": {
+     "name": "x",
+     "n": 2
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_call",
+    "data": {
+     "name": "x",
+     "n": 3
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_returns",
+    "data": {
+     "name": "x",
+     "n": 3
+    }
+   },
+   {
+    "t": 0,
+    "event": "returned",
+    "data": {
+     "type": "array"
+    }
+   },
+   {
+    "t": 0,
+    "event": "call_checks",
+    "data": {
+     "harnessSha256": "303d02a8f9a7066c1745c89a6025c74e2ee8b8b68a2f4f3919f23b9540449ad5",
+     "controlRunId": "OfK4TVvcKC",
+     "controlPassed": true,
+     "controlFinishedAt": "2026-11-02T17:18:51.316Z",
+     "runtime": {
+      "executor": "local",
+      "node": "v25.8.1"
+     }
+    }
+   }
+  ],
+  "result": {
+   "measured": {
+    "outcome": "returned",
+    "virtualMs": 0,
+    "returnedType": "array",
+    "returnedJson": "[1,1,1]",
+    "calls:x": 3
+   },
+   "notMeasured": {
+    "thrownName": "the call returned, so nothing was thrown",
+    "thrownMessage": "the call returned, so nothing was thrown"
+   }
+  },
+  "controlPassed": true,
+  "controlRunId": "OfK4TVvcKC"
+ },
+ "helpers": {
+  "steps": [],
+  "cut": false
+ }
+}

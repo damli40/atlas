@@ -1,0 +1,199 @@
+{
+ "source": "import time\n\nclass Pause:\n    def wait(self, s):\n        time.sleep(s)\n\ndef nap():\n    time.sleep(0.1)\n\ndef f(x):\n    nap()\n    x()\n    Pause().wait(0.3)\n    return 1\n",
+ "language": "py",
+ "params": {
+  "shape": "call-function",
+  "exportName": "f",
+  "args": [
+   {
+    "kind": "stand-in",
+    "name": "x",
+    "async": false,
+    "then": "repeat_last",
+    "calls": [
+     {
+      "do": "return",
+      "value": 1
+     }
+    ]
+   }
+  ]
+ },
+ "run": {
+  "id": "_OQQA5hafQ",
+  "experimentId": "caN0k7nGIH",
+  "runner": "ts",
+  "executor": "local",
+  "codeSha256": "003c71e66bbff0627e33bb5a635e7705fc7886f5a0a5a6fbe092dee7c24f6383",
+  "seed": "20260101",
+  "timeZone": "UTC",
+  "locale": "C",
+  "conditions": [],
+  "twin": {
+   "trace": [
+    {
+     "data": {
+      "implementation": "cpython",
+      "version": "3.14.7"
+     },
+     "event": "python",
+     "t": 0
+    },
+    {
+     "data": {
+      "args": 1,
+      "exportName": "f",
+      "watchLimitMs": 30000
+     },
+     "event": "start",
+     "t": 0
+    },
+    {
+     "data": {
+      "n": 1,
+      "name": "x"
+     },
+     "event": "stand_in_call",
+     "t": 100
+    },
+    {
+     "data": {
+      "n": 1,
+      "name": "x"
+     },
+     "event": "stand_in_returns",
+     "t": 100
+    },
+    {
+     "data": {
+      "type": "number"
+     },
+     "event": "returned",
+     "t": 400
+    },
+    {
+     "data": {
+      "at": [
+       100,
+       400
+      ]
+     },
+     "event": "clock_moves",
+     "t": 400
+    }
+   ],
+   "result": {
+    "measured": {
+     "calls:x": 1,
+     "outcome": "returned",
+     "returnedJson": "1",
+     "returnedType": "number",
+     "virtualMs": 400
+    },
+    "notMeasured": {
+     "thrownMessage": "the call returned, so nothing was thrown",
+     "thrownName": "the call returned, so nothing was thrown"
+    }
+   }
+  },
+  "startedAt": "2026-11-02T17:20:01.920Z",
+  "finishedAt": "2026-11-02T17:20:02.086Z",
+  "trace": [
+   {
+    "data": {
+     "implementation": "cpython",
+     "version": "3.14.7"
+    },
+    "event": "python",
+    "t": 0
+   },
+   {
+    "data": {
+     "args": 1,
+     "exportName": "f",
+     "watchLimitMs": 30000
+    },
+    "event": "start",
+    "t": 0
+   },
+   {
+    "data": {
+     "n": 1,
+     "name": "x"
+    },
+    "event": "stand_in_call",
+    "t": 100
+   },
+   {
+    "data": {
+     "n": 1,
+     "name": "x"
+    },
+    "event": "stand_in_returns",
+    "t": 100
+   },
+   {
+    "data": {
+     "type": "number"
+    },
+    "event": "returned",
+    "t": 400
+   },
+   {
+    "data": {
+     "at": [
+      100,
+      400
+     ]
+    },
+    "event": "clock_moves",
+    "t": 400
+   },
+   {
+    "t": 400,
+    "event": "call_checks",
+    "data": {
+     "harnessSha256": "d91ff17e58d8164453141c4a8a0c74228d47f3dd7d5ad8004790bed8c99210fc",
+     "language": "py",
+     "controlRunId": "QL6H-gMlzd",
+     "controlPassed": true,
+     "controlFinishedAt": "2026-11-02T17:20:01.147Z",
+     "python": "3.14.7",
+     "implementation": "cpython"
+    }
+   }
+  ],
+  "result": {
+   "measured": {
+    "calls:x": 1,
+    "outcome": "returned",
+    "returnedJson": "1",
+    "returnedType": "number",
+    "virtualMs": 400
+   },
+   "notMeasured": {
+    "thrownMessage": "the call returned, so nothing was thrown",
+    "thrownName": "the call returned, so nothing was thrown"
+   }
+  },
+  "controlPassed": true,
+  "controlRunId": "QL6H-gMlzd"
+ },
+ "helpers": {
+  "steps": [
+   {
+    "name": "nap",
+    "t": 0,
+    "at": 0,
+    "inner": 0
+   },
+   {
+    "name": "Pause.wait",
+    "t": 100,
+    "at": 2,
+    "inner": 0
+   }
+  ],
+  "cut": false
+ }
+}

@@ -1,0 +1,234 @@
+{
+ "source": "async function walk(x, n) {\n  await x();\n  if (n > 0) return walk(x, n - 1);\n  return n;\n}\nexport async function f(x) {\n  for (let i = 0; i < 1; i++) {\n    await walk(x, 2);\n  }\n  return 1;\n}\n",
+ "language": "ts",
+ "params": {
+  "shape": "call-function",
+  "exportName": "f",
+  "args": [
+   {
+    "kind": "stand-in",
+    "name": "x",
+    "async": true,
+    "then": "repeat_last",
+    "calls": [
+     {
+      "do": "return",
+      "value": 1
+     }
+    ]
+   }
+  ]
+ },
+ "run": {
+  "id": "jWfB9nHG8j",
+  "experimentId": "cKEbEUoVDC",
+  "runner": "ts",
+  "executor": "local",
+  "codeSha256": "4bfb3f5bc4b4f0151009e9917b670839e3d250a49a74b2b8a8dbd574f34252f5",
+  "seed": "20260101",
+  "timeZone": "UTC",
+  "locale": "en-US",
+  "conditions": [],
+  "twin": {
+   "trace": [
+    {
+     "t": 0,
+     "event": "start",
+     "data": {
+      "exportName": "f",
+      "args": 1,
+      "watchLimitMs": 30000
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_call",
+     "data": {
+      "name": "x",
+      "n": 1
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_returns",
+     "data": {
+      "name": "x",
+      "n": 1
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_call",
+     "data": {
+      "name": "x",
+      "n": 2
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_returns",
+     "data": {
+      "name": "x",
+      "n": 2
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_call",
+     "data": {
+      "name": "x",
+      "n": 3
+     }
+    },
+    {
+     "t": 0,
+     "event": "stand_in_returns",
+     "data": {
+      "name": "x",
+      "n": 3
+     }
+    },
+    {
+     "t": 0,
+     "event": "returned",
+     "data": {
+      "type": "number"
+     }
+    }
+   ],
+   "result": {
+    "measured": {
+     "outcome": "returned",
+     "virtualMs": 0,
+     "returnedType": "number",
+     "returnedJson": "1",
+     "calls:x": 3
+    },
+    "notMeasured": {
+     "thrownName": "the call returned, so nothing was thrown",
+     "thrownMessage": "the call returned, so nothing was thrown"
+    }
+   }
+  },
+  "startedAt": "2026-11-02T17:18:57.112Z",
+  "finishedAt": "2026-11-02T17:18:57.402Z",
+  "trace": [
+   {
+    "t": 0,
+    "event": "start",
+    "data": {
+     "exportName": "f",
+     "args": 1,
+     "watchLimitMs": 30000
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_call",
+    "data": {
+     "name": "x",
+     "n": 1
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_returns",
+    "data": {
+     "name": "x",
+     "n": 1
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_call",
+    "data": {
+     "name": "x",
+     "n": 2
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_returns",
+    "data": {
+     "name": "x",
+     "n": 2
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_call",
+    "data": {
+     "name": "x",
+     "n": 3
+    }
+   },
+   {
+    "t": 0,
+    "event": "stand_in_returns",
+    "data": {
+     "name": "x",
+     "n": 3
+    }
+   },
+   {
+    "t": 0,
+    "event": "returned",
+    "data": {
+     "type": "number"
+    }
+   },
+   {
+    "t": 0,
+    "event": "call_checks",
+    "data": {
+     "harnessSha256": "303d02a8f9a7066c1745c89a6025c74e2ee8b8b68a2f4f3919f23b9540449ad5",
+     "controlRunId": "OfK4TVvcKC",
+     "controlPassed": true,
+     "controlFinishedAt": "2026-11-02T17:18:51.316Z",
+     "runtime": {
+      "executor": "local",
+      "node": "v25.8.1"
+     }
+    }
+   }
+  ],
+  "result": {
+   "measured": {
+    "outcome": "returned",
+    "virtualMs": 0,
+    "returnedType": "number",
+    "returnedJson": "1",
+    "calls:x": 3
+   },
+   "notMeasured": {
+    "thrownName": "the call returned, so nothing was thrown",
+    "thrownMessage": "the call returned, so nothing was thrown"
+   }
+  },
+  "controlPassed": true,
+  "controlRunId": "OfK4TVvcKC"
+ },
+ "helpers": {
+  "steps": [
+   {
+    "name": "walk",
+    "t": 0,
+    "at": 4,
+    "inner": 0
+   },
+   {
+    "name": "walk",
+    "t": 0,
+    "at": 6,
+    "inner": 0
+   },
+   {
+    "name": "walk",
+    "t": 0,
+    "at": 6,
+    "inner": 0
+   }
+  ],
+  "cut": false
+ }
+}

@@ -393,15 +393,19 @@ function bodiesOf(sf: ts.SourceFile): Record<string, BodyFacts> {
   const read = (name: string, fn: ts.FunctionLikeDeclaration) => {
     const body = fn.body;
     if (!body) return;
-    const facts: BodyFacts = { loops: [], throws: [], returns: [], nested: [] };
+    const facts: BodyFacts = { loops: [], loopSpans: [], throws: [], returns: [], nested: [] };
     if (!ts.isBlock(body)) facts.returns.push(lineOf(body));
     const visit = (n: ts.Node): void => {
       if (ts.isFunctionLike(n) || ts.isClassLike(n)) {
         facts.nested.push([lineOf(n), endOf(n)]);
         return;
       }
-      if (ts.isForStatement(n) || ts.isForInStatement(n) || ts.isForOfStatement(n) || ts.isWhileStatement(n) || ts.isDoStatement(n)) facts.loops.push(lineOf(n));
-      else if (ts.isReturnStatement(n)) facts.returns.push(lineOf(n));
+      if (ts.isForStatement(n) || ts.isForInStatement(n) || ts.isForOfStatement(n) || ts.isWhileStatement(n) || ts.isDoStatement(n)) {
+        facts.loops.push(lineOf(n));
+        // The body's own lines, inside its braces: the header (which runs n + 1 times) and a one-line loop are not in it.
+        const body = (n as ts.IterationStatement).statement;
+        facts.loopSpans!.push(ts.isBlock(body) ? [lineOf(body) + 1, endOf(body) - 1] : [0, -1]);
+      } else if (ts.isReturnStatement(n)) facts.returns.push(lineOf(n));
       else if (ts.isThrowStatement(n)) facts.throws.push(throwSite(n, lineOf(n)));
       ts.forEachChild(n, visit);
     };

@@ -1,0 +1,8 @@
+# machine SVG on the page after the run lands (sha256 prefix, length), main 3203228 vs this branch, after the review fixes.
+# orders.ts differs on purpose: the resting needle of fetchPage's dial no longer sweeps for the first 200 ms gap, which no helper step of fetchPage came before (review MAJOR-1 rule, now in machine-script.ts too).
+main example 160c8eb80d9439d8 242132	r8 example 160c8eb80d9439d8 242132
+main example reduced a7da51f3005a2b9a 242132	r8 example reduced a7da51f3005a2b9a 242132
+main orders 6b3a7ee31cff5b3a 156850	r8 orders c0aa466f32bef0f9 156672
+main orders reduced 5482e3abedee1b1f 156850	r8 orders reduced 7d298d03e7fd041a 156672
+main py 5deb102994887167 90875	r8 py 5deb102994887167 90875
+main py reduced 5deb102994887167 90875	r8 py reduced 5deb102994887167 90875
