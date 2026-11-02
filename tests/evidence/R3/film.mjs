@@ -53,5 +53,6 @@ await cdp.send("Page.stopScreencast");
 await ctx.close();
 await b.close();
 const lines = list.map((f, i) => `file '${f.file}'\nduration ${((list[i + 1]?.t ?? f.t + 2.5) - f.t).toFixed(4)}`);
-writeFileSync(`${frames}/list.txt`, `${lines.join("\n")}\n`);
+// ffmpeg's concat ignores the last entry's duration unless that file is listed once more.
+writeFileSync(`${frames}/list.txt`, `${lines.join("\n")}\nfile '${list[list.length - 1].file}'\n`);
 console.log(`${list.length} frames, ${(list[list.length - 1].t - list[0].t).toFixed(1)} s`);
