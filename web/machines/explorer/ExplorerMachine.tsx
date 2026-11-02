@@ -233,9 +233,13 @@ function Lists({ model }: { model: ExplorerModel }) {
       <p className="ex-muted">Joins only Muse Wonder ({model.model}) states, with the parts named in its words. A chalk tag is not a connection.</p>
       <ul className="ex-chalks">
         {model.chalk.length === 0 ? <li className="ex-muted">None: plain code found every join Wonder named.</li> : null}
-        {model.chalk.map((c) => (
-          <li className="ex-chalk" key={c.id} data-chalk={c.id}>
-            <span className="ex-chalk-tag">{`${nameOf(c.from)} → ${nameOf(c.to)} · ${c.kind}`}</span> <span className="ex-chalk-words">{chalkText(c)}</span>
+        {/* The same reason is said once, with every join it covers. */}
+        {[...new Set(model.chalk.map((c) => chalkText(c)))].map((why) => (
+          <li className="ex-chalk" key={why}>
+            {model.chalk.filter((c) => chalkText(c) === why).map((c) => (
+              <span className="ex-chalk-tag" key={c.id} data-chalk={c.id} style={{ display: "block" }}>{`${nameOf(c.from)} → ${nameOf(c.to)} · ${c.kind}`}</span>
+            ))}
+            <span className="ex-chalk-words">{why}</span>
           </li>
         ))}
       </ul>

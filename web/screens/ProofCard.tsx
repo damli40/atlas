@@ -9,7 +9,7 @@
 import { ProofImage } from "./ProofImage";
 import { useEffect, useMemo, useState } from "react";
 import type { AtlasFile } from "../../src/types";
-import { ApiError, type Api, type ReplayAnswer } from "../api";
+import { ApiError, type Api, type HelperAnswer, type ReplayAnswer } from "../api";
 import { Scoreboard, bettorName } from "../machines/scoreboard/Scoreboard";
 import { SAY, bettorLineWords, bettorLines, proofCardModel, replayWords } from "./proofcard-model";
 import { DiffView } from "./Change";
@@ -24,6 +24,7 @@ import { MoonwellDrawing } from "../drawing/MoonwellDrawing";
 import { PASTE_WORDS } from "../../src/paste-words";
 import { ConditionsLine } from "./Conditions";
 import { RecordBefore } from "./TrackRecord";
+import type { MachineEnd, MachineParts } from "../../renderer/authors/machine";
 import { FELT_WORDS } from "../../src/paste-words";
 
 /** S6: the pre-existing label, from the file when it carries one. */
@@ -98,6 +99,27 @@ export function ProofCardPage({ api, runId, embedded = false }: { api: Api; runI
       live = false;
     };
   }, [api, runId]);
+  // D66: the machine for the picture, when this reader may have it. Otherwise the picture keeps its marks.
+  const [machineParts, setMachineParts] = useState<MachineParts | null>(null);
+  const [machineHelpers, setMachineHelpers] = useState<HelperAnswer | null>(null);
+  const [machineEnd, setMachineEnd] = useState<MachineEnd | null>(null);
+  useEffect(() => {
+    let live = true;
+    void Promise.resolve()
+      .then(() => api.proofMachine(runId))
+      .then(
+        (m) => {
+          if (!live) return;
+          setMachineParts(m.parts);
+          setMachineHelpers(m.helpers ?? null);
+          setMachineEnd(m.end ?? null);
+        },
+        () => live && setMachineParts(null),
+      );
+    return () => {
+      live = false;
+    };
+  }, [api, runId]);
   useEffect(() => {
     let live = true;
     api.proof(runId).then(
@@ -115,7 +137,7 @@ export function ProofCardPage({ api, runId, embedded = false }: { api: Api; runI
       {file && viewer ? (
         <div className="proof-stack">
           {/* Inside the round's own screen the bettor is looking. Elsewhere only the server's record says so: where nothing records whose bet it was, the words stay neutral. */}
-          <ProofCard file={file} api={api} reader={loggedOut} keepsCards={viewer.keepsCards} canKeep={viewer.canKeep} stranger={!embedded && !viewer.yours} />
+          <ProofCard file={file} api={api} machineParts={machineParts} machineHelpers={machineHelpers} machineEnd={machineEnd} reader={loggedOut} keepsCards={viewer.keepsCards} canKeep={viewer.canKeep} stranger={!embedded && !viewer.yours} />
           {/* X3 (D27): only for the person whose round this was (the server answers null for anyone else). */}
           <RecordBefore api={api} runId={runId} />
         </div>
@@ -142,7 +164,7 @@ export function modelNames(file: Pick<AtlasFile, "bets">): Record<string, string
   return bettorNames(file.bets.map((b) => b.who));
 }
 
-export function ProofCard({ file, api, replay: given, stranger = false, reader = false, keepsCards = true, canKeep = true }: { file: AtlasFile; api?: Api; replay?: ReplayAnswer; /** Whoever is looking did not place these bets, so nothing says "you". */ stranger?: boolean; /** Logged out: nothing that runs or keeps is offered. */ reader?: boolean; /** False: this server has no volume to keep a card on. */ keepsCards?: boolean; /** False: whoever is looking did not run this round, so the link stays the file's own address. */ canKeep?: boolean }) {
+export function ProofCard({ file, api, replay: given, stranger = false, reader = false, keepsCards = true, canKeep = true, machineParts = null, machineHelpers = null, machineEnd = null }: { machineParts?: MachineParts | null; machineHelpers?: HelperAnswer | null; machineEnd?: MachineEnd | null; file: AtlasFile; api?: Api; replay?: ReplayAnswer; /** Whoever is looking did not place these bets, so nothing says "you". */ stranger?: boolean; /** Logged out: nothing that runs or keeps is offered. */ reader?: boolean; /** False: this server has no volume to keep a card on. */ keepsCards?: boolean; /** False: whoever is looking did not run this round, so the link stays the file's own address. */ canKeep?: boolean }) {
   const card = useMemo(() => proofCardModel(file), [file]);
   // D10 + D07-01: every model bettor by product name AND id (src/claimants.ts), e.g.
   // "Muse Spark Open (meta-models/muse-spark-open-1026) · via Baseten". An unknown id is shown as itself.
@@ -184,7 +206,7 @@ export function ProofCard({ file, api, replay: given, stranger = false, reader =
 
   return (
     <article className="proof-card" data-testid="proof-card" aria-label={`proof card for run ${card.runId}`}>
-      <ProofImage stranger={stranger} reader={reader} keepsCards={keepsCards} canKeep={canKeep} card={card} file={file} lines={lines} names={names} preExisting={card.target.kind === "ts-fixture" ? preExistingLabel(file) : null} {...(api ? { api } : {})} {...(download ? { download, downloadName: `${card.runId}.atlas.json` } : {})} />
+      <ProofImage stranger={stranger} reader={reader} keepsCards={keepsCards} canKeep={canKeep} machineParts={machineParts} machineHelpers={machineHelpers} machineEnd={machineEnd} card={card} file={file} lines={lines} names={names} preExisting={card.target.kind === "ts-fixture" ? preExistingLabel(file) : null} {...(api ? { api } : {})} {...(download ? { download, downloadName: `${card.runId}.atlas.json` } : {})} />
       <header className="pc-head">
         <div>
           <p className="pc-kicker">Atlas · proof card</p>

@@ -24,8 +24,8 @@ const page = (id: string, next: string | null) => ({ do: "respond", status: 200,
 const ORDERS = {
   claim: `People expect fetchAllOrders to return every order or fail loudly; it silently stops after maxPages pages and gives up on a 4th 429 with a bare "HTTP 429".${MOCK ? ` ${MOCK}` : ""}`,
   experiments: [
-    { shape: "call-function", exportName: "fetchAllOrders", args: [url], network: { replaces: "fetch", then: "throw_exhausted", calls: [{ do: "respond", status: 429, body: {} }, { do: "respond", status: 429, body: {} }, { do: "respond", status: 200, body: { items: [{ id: "o1" }, { id: "o2" }], nextCursor: null } }] } },
     { shape: "call-function", exportName: "fetchAllOrders", args: [url], network: { replaces: "fetch", then: "repeat_last", calls: [{ do: "respond", status: 429, body: {} }] } },
+    { shape: "call-function", exportName: "fetchAllOrders", args: [url], network: { replaces: "fetch", then: "throw_exhausted", calls: [{ do: "respond", status: 429, body: {} }, { do: "respond", status: 429, body: {} }, { do: "respond", status: 200, body: { items: [{ id: "o1" }, { id: "o2" }], nextCursor: null } }] } },
     { shape: "call-function", exportName: "fetchAllOrders", args: [url, { kind: "json", value: 2 }], network: { replaces: "fetch", then: "repeat_last", calls: [page("o1", "c2"), page("o2", "c3"), page("o3", null)] } },
   ],
 };
@@ -50,6 +50,23 @@ const CLAIM_PLAN = {
 const WEATHER = { claim: "People expect getTemperature to validate the API payload; the code does not.", experiments: [{ shape: "call-function", exportName: "getTemperature", args: [{ kind: "json", value: "Lagos" }], network: { replaces: "fetch", then: "repeat_last", calls: [{ do: "respond", status: 200, body: { current: { temp_c: 31 } } }] } }] };
 const CLAIM_WEATHER = { claim: "People expect getTemperature to validate the API payload; the code does not.", experiments: [{ shape: "call-function", exportName: "getTemperature", args: [{ kind: "json", value: "Abuja" }], network: { replaces: "fetch", then: "repeat_last", calls: [{ do: "respond", status: 200, body: { current: { temp_c: "hot" } } }] } }] };
 const LOOP = { claim: "People expect waitForJob to poll until the job finishes; it spins forever.", experiments: [{ shape: "call-function", exportName: "waitForJob", args: [{ kind: "json", value: { id: "a", done: false } }] }] };
+// The machine's truth driver (tests/evidence/R5/truth.mjs): a paste names its test with // CASE_name.
+const si = (name: string, calls: unknown[]) => ({ kind: "stand-in", name, async: true, then: "repeat_last", calls });
+const CASES: Record<string, unknown[]> = {
+  panel: [{ shape: "call-function", exportName: "pad", args: [{ kind: "json", value: 1 }] }],
+  fone: [{ shape: "call-function", exportName: "f", args: [{ kind: "json", value: 1 }] }],
+  gone: [{ shape: "call-function", exportName: "g", args: [{ kind: "json", value: 1 }] }],
+  pricing: [{ shape: "call-function", exportName: "quoteOrder", args: [{ kind: "json", value: [{ sku: "a", qty: 1 }] }, si("source", [{ do: "return", value: 100 }]), { kind: "json", value: 0 }] }],
+  spin: [{ shape: "call-function", exportName: "spin", args: [] }],
+  flagfalse: [{ shape: "call-function", exportName: "f", args: [si("x", [{ do: "return", value: 1, afterMs: 500 }]), { kind: "json", value: false }] }],
+  padded: [{ shape: "call-function", exportName: "report", args: [{ kind: "json", value: "p50" }] }],
+  unusedfake: [{ shape: "call-function", exportName: "summarize", args: [si("fetchIt", [{ do: "throw", errorName: "Error", message: "boom" }])] }],
+  pynested: [{ shape: "call-function", exportName: "count", args: [{ kind: "json", value: ["a", "b"] }] }],
+  noarg: [{ shape: "call-function", exportName: "f", args: [] }],
+  plain: [{ shape: "call-function", exportName: "f", args: [si("x", [{ do: "return", value: 1 }])] }],
+  xthrows: [{ shape: "call-function", exportName: "f", args: [si("x", [{ do: "throw", errorName: "Error", message: "from fake" }])] }],
+  xwait: [{ shape: "call-function", exportName: "f", args: [si("x", [{ do: "return", value: 1, afterMs: 500 }])] }],
+};
 const delay = Number(process.env.U3_WONDER_DELAY_MS ?? 6000);
 const EXAMPLE = {
   claim: `People expect fetchWithRetry to wait and try again until the source answers; after its last try it throws what the source threw.${MOCK ? ` ${MOCK}` : ""}`,
@@ -63,6 +80,8 @@ export const mockChat = async (a: ChatArgs): Promise<ChatResult> => {
   if (a.role === "investigator") {
     await new Promise((r) => setTimeout(r, delay));
     const claimRound = /check this sentence/.test(all);
+    const caseName = /CASE_(\w+)/.exec(all)?.[1];
+    if (caseName && CASES[caseName]) return { ok: true, finishReason: "stop", usage, content: JSON.stringify({ claim: "A mock sentence.", experiments: CASES[caseName] }) };
     const py = /get_user_plan/.test(all);
     if (/getTemperature/.test(all)) return { ok: true, finishReason: "stop", usage, content: JSON.stringify(claimRound ? CLAIM_WEATHER : WEATHER) };
     if (/waitForJob/.test(all)) return { ok: true, finishReason: "stop", usage, content: JSON.stringify(LOOP) };

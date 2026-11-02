@@ -1,0 +1,164 @@
+{
+ "checks": [
+  {
+   "name": "returned-with-a-chute: it returned, so no chute is red",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "returned-with-a-chute: a matched bet has no ring",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "returned-bet-throws: no chute is red",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "returned-bet-throws: the ring is on the outlet",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "own-throw: its chute is red",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "own-throw: the ring is on that chute",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "fake-threw-unrelated-chute: the chute of a function that never ran is not red",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "fake-threw-unrelated-chute: the ring is on the fake",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "caught-upstream: a throw caught upstream draws no red",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "caught-then-other: not the one that was caught",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "library-threw: an error no throw here made: nothing red, nothing ringed",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "library-threw: the words stand alone",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "dial-not-run: the dial of a function that never ran does not move",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "stale-helper: no thread for a call that didn't happen",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "two-callers: a fake with two possible callers: no thread into it",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "two-callers: its lamp is lit: it was called",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "uses-not-wraps: says uses, never wraps",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "callback-return: no spout from a callback's return",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "same-text-in-class-method: no chute is red",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "same-text-in-class-method: nothing is ringed",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "same-text-in-nested-closure: no chute is red",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "same-text-in-nested-closure: nothing is ringed",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "caught-then-same-text-built-elsewhere: no chute is red",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "caught-then-same-text-built-elsewhere: nothing is ringed",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "template-opening-words: no chute is red",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "template-opening-words: nothing is ringed",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "function-returning-a-function: no throw or loop from the inner function",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "wait-never-reached: the dial stays still: a fake's delay moved the clock",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "reduced-motion: reduced motion: the same truth",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "J1: M twice keeps the result on the machine",
+   "ok": true,
+   "more": "{\"ended\":true,\"ring\":{\"part\":\"f\",\"on\":\"chute\"}}"
+  },
+  {
+   "name": "J1: chart first, then M, shows the result",
+   "ok": true,
+   "more": "{\"ended\":true,\"red\":[\"f#chute\"]}"
+  },
+  {
+   "name": "J2: eight parts at 1280x720: words at a readable size, or the chart in plain words",
+   "ok": true,
+   "more": "In a window this size the machine's words would be under 11 px, so here is the box chart. A wider window shows the machine. smallest null"
+  }
+ ]
+}

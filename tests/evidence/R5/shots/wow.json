@@ -1,0 +1,84 @@
+{
+ "checks": [
+  {
+   "name": "first marks about 100 ms after the click",
+   "ok": true,
+   "more": "81 ms"
+  },
+  {
+   "name": "every part is there and can be clicked from frame one",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "it pencils itself in",
+   "ok": true,
+   "more": "470 strokes"
+  },
+  {
+   "name": "any key finishes it",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "a later paste is faster",
+   "ok": true,
+   "more": "308 ms"
+  },
+  {
+   "name": "reduced motion: no pencilling",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "the ring sits on the chute of the function that threw",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "the picture has the bet, the run, and the D21 caption",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "Copy image gives the picture with the machine",
+   "ok": true,
+   "more": "623 KB"
+  },
+  {
+   "name": "a reader of a link not yet kept gets the marks",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "a first visit says nothing about earlier rounds",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "one round: no count yet",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "back on the first screen: last time",
+   "ok": true,
+   "more": "Last time: you bet returns a value. It threw."
+  },
+  {
+   "name": "still there after a reload",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "the count moves at the verdict",
+   "ok": true,
+   "more": "how many calls it makes: 0 of 3 → 0 of 4"
+  },
+  {
+   "name": "beside a question of the weakest kind: the count",
+   "ok": true,
+   "more": "Your weakest so far: how many calls it makes, 0 of 4."
+  }
+ ]
+}

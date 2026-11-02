@@ -23,7 +23,7 @@ describe("R3 boundaries", () => {
     for (const f of files.filter((x) => x.includes("/authors/"))) {
       for (const i of imports(f)) {
         expect(i).not.toMatch(/server|runners|\/meta|node:/);
-        if (i.includes("src/") && !i.endsWith("/types") && !i.endsWith("file-outline") && !i.endsWith("outline/types")) expect(i).toMatch(/src\/(trust|units|network-fake|call-sites|change|helper-steps|captions|moonwell-blocks)$/);
+        if (i.includes("src/") && !i.endsWith("/types") && !i.endsWith("file-outline") && !i.endsWith("outline/types")) expect(i).toMatch(/src\/(failure-labels|trust|units|network-fake|call-sites|change|helper-steps|captions|moonwell-blocks|cut-value)$/);
         // The bench and explorer models are pure: plain code's reading of the code, no run and no server.
         if (i.includes("web/")) expect(i).toMatch(/web\/machines\/(bench|explorer)\/model$/);
       }

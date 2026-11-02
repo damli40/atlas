@@ -17,6 +17,8 @@ import type { OutlineAtlasFile } from "../src/outline/types";
 import type { FileOutline } from "../src/file-outline";
 import type { OutlineView } from "./machines/explorer/outline-data";
 import type { TrackRecord } from "../src/track-record";
+import type { Weakest } from "../src/remember";
+import type { MachineEnd, MachineParts } from "../renderer/authors/machine";
 import type { LabelsAnswer } from "../src/failure-labels";
 
 export type { TrackRecord, LabelsAnswer };
@@ -68,6 +70,8 @@ export interface ExperimentAnswer {
 }
 
 export interface RunAnswer {
+  /** The saved result was on screen before this bet: it is judged, and never goes on the record. */
+  seenFirst?: boolean;
   run: Run;
   verdicts: Verdict[];
   /** Every bet in full, nonce included, revealed after the run. */
@@ -204,7 +208,7 @@ export interface ReplayAnswer {
 }
 
 /** R3: what GET /runs/:id/helpers answers (server/helpers.ts). */
-export type HelperAnswer = { steps: HelperStep[]; cut: boolean } | { none: string };
+export type HelperAnswer = { steps: HelperStep[]; cut: boolean; thrownAt?: number } | { none: string };
 
 export class ApiError extends Error {
   constructor(
@@ -287,6 +291,7 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
     /** D06-03: a round's .atlas.json, as the server kept it. */
     proof: (runId: string) => get<AtlasFile>(`/proofs/${encodeURIComponent(runId)}`),
     moonwellReady: () => get<{ ready: boolean; words?: string }>("/moonwell/ready"),
+    proofMachine: (runId: string) => get<{ parts: MachineParts | null; helpers?: HelperAnswer | null; end?: MachineEnd | null }>(`/proofs/${encodeURIComponent(runId)}/machine`),
     proofViewer: (runId: string) => get<{ yours: boolean; keepsCards: boolean; canKeep: boolean }>(`/proofs/${encodeURIComponent(runId)}/viewer`),
     /** D63: the saved Moonwell result the menu opens. */
     moonwellSaved: () => get<AtlasFile>("/moonwell/saved"),
@@ -374,6 +379,8 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
     outline: (jobId: string) => get<OutlineView>(`/outline/jobs/${encodeURIComponent(jobId)}/outline`),
     /** X2: the outline-only .atlas.json, which holds the files' text (the "Bet on this part" hand-off reads one file from it). */
     outlineAtlas: (jobId: string) => get<OutlineAtlasFile>(`/outline/jobs/${encodeURIComponent(jobId)}/atlas`),
+    /** D66: this person's last ending and weakest kind of question, for their own screens only. */
+    remember: (fn?: string, code?: string) => get<{ last: string | null; weakest: Weakest | null }>(`/remember${fn && code ? `?fn=${encodeURIComponent(fn)}&code=${encodeURIComponent(code)}` : ""}`),
     /** X3 (D27): this person's track record; with `before`, also their record before that round. */
     trackRecord: (before?: string) => get<TrackAnswer>(`/track-record${before ? `?before=${encodeURIComponent(before)}` : ""}`),
     /** X3 (D28): common-failure labels for one pasted function (plain code). */

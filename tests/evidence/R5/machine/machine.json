@@ -1,0 +1,383 @@
+{
+ "checks": [
+  {
+   "name": "paste to picture: orders at 1440",
+   "ok": true,
+   "more": "137 ms"
+  },
+  {
+   "name": "no words on words: orders at rest, 1440",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "no words off the window: orders at rest, 1440",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "flat words large enough to read: orders at rest, 1440",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "axe 0: machine at rest",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "no words on words: orders during the bet, 1440",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "no words off the window: orders during the bet, 1440",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "flat words large enough to read: orders during the bet, 1440",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "the thread is running in a pipe: 1440",
+   "ok": true,
+   "more": "2 pipes"
+  },
+  {
+   "name": "no words on words: orders result, 1440",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "no words off the window: orders result, 1440",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "flat words large enough to read: orders result, 1440",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "the ring landed: 1440",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "D61's caption stays with the run: 1440",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "axe 0: machine on a result",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "paste to picture: python at 1440",
+   "ok": true,
+   "more": "70 ms"
+  },
+  {
+   "name": "no words on words: python at rest, 1440",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "no words off the window: python at rest, 1440",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "flat words large enough to read: python at rest, 1440",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "no words on words: python during the bet, 1440",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "no words off the window: python during the bet, 1440",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "flat words large enough to read: python during the bet, 1440",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "no words on words: python result, 1440",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "no words off the window: python result, 1440",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "flat words large enough to read: python result, 1440",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "paste to picture: branching at 1440",
+   "ok": true,
+   "more": "124 ms"
+  },
+  {
+   "name": "no words on words: branching at rest, 1440",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "no words off the window: branching at rest, 1440",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "flat words large enough to read: branching at rest, 1440",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "paste to picture: orders at 1280",
+   "ok": true,
+   "more": "82 ms"
+  },
+  {
+   "name": "no words on words: orders at rest, 1280",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "no words off the window: orders at rest, 1280",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "flat words large enough to read: orders at rest, 1280",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "no words on words: orders during the bet, 1280",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "no words off the window: orders during the bet, 1280",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "flat words large enough to read: orders during the bet, 1280",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "the thread is running in a pipe: 1280",
+   "ok": true,
+   "more": "2 pipes"
+  },
+  {
+   "name": "no words on words: orders result, 1280",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "no words off the window: orders result, 1280",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "flat words large enough to read: orders result, 1280",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "the ring landed: 1280",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "D61's caption stays with the run: 1280",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "paste to picture: python at 1280",
+   "ok": true,
+   "more": "67 ms"
+  },
+  {
+   "name": "no words on words: python at rest, 1280",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "no words off the window: python at rest, 1280",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "flat words large enough to read: python at rest, 1280",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "no words on words: python during the bet, 1280",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "no words off the window: python during the bet, 1280",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "flat words large enough to read: python during the bet, 1280",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "no words on words: python result, 1280",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "no words off the window: python result, 1280",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "flat words large enough to read: python result, 1280",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "paste to picture: branching at 1280",
+   "ok": true,
+   "more": "121 ms"
+  },
+  {
+   "name": "no words on words: branching at rest, 1280",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "no words off the window: branching at rest, 1280",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "flat words large enough to read: branching at rest, 1280",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "the machine is the first view",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "M swaps to the chart",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "M swaps back",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "clicking a part gives its name and lines",
+   "ok": true,
+   "more": "fetchPage: a function, lines 3–11"
+  },
+  {
+   "name": "Escape closes that first",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "the keyboard reaches a part",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "reduced motion: the ring is there, nothing is animating",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "any key skips to the ring",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "past the limit: words and the chart",
+   "ok": true,
+   "more": "This file has 10 parts, more than the 8 the machine can draw and still be read, so here is the box chart."
+  },
+  {
+   "name": "a phone gets the chart",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "no words on words: Moonwell, 1440",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "no words off the window: Moonwell, 1440",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "flat words large enough to read: Moonwell, 1440",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "$1.12 and the reference are flat and the largest words: 1440",
+   "ok": true,
+   "more": "[{\"t\":\"$1.12\",\"h\":76},{\"t\":\"$2,206.68\",\"h\":76}]"
+  },
+  {
+   "name": "no words on words: Moonwell, 1280",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "no words off the window: Moonwell, 1280",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "flat words large enough to read: Moonwell, 1280",
+   "ok": true,
+   "more": ""
+  },
+  {
+   "name": "$1.12 and the reference are flat and the largest words: 1280",
+   "ok": true,
+   "more": "[{\"t\":\"$1.12\",\"h\":64},{\"t\":\"$2,206.68\",\"h\":64}]"
+  }
+ ],
+ "pasteToPictureMs": [
+  137,
+  70,
+  124,
+  82,
+  67,
+  121
+ ],
+ "median": 121
+}

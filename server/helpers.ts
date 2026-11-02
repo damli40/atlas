@@ -17,7 +17,7 @@ import { pythonExecutorFor } from "../runners/ts/control";
 import { runProbedCall } from "../runners/ts/call-runner";
 import { runProbedPyCall } from "../runners/py/py-runner";
 
-export type HelperAnswer = { steps: HelperStep[]; cut: boolean } | { none: string };
+export type HelperAnswer = { steps: HelperStep[]; cut: boolean; thrownAt?: number } | { none: string };
 
 export const HELPER_WORDS = {
   different: "Helper order is not shown: the separate traced run did not match the sealed run on what it measured or the steps it took.",
@@ -58,7 +58,7 @@ export async function helperRun(exp: Experiment, sealed: Run, o: { executor?: Ex
   const language = exp.target.language;
   if (source === undefined || language === undefined) return { none: HELPER_WORDS.notPasted };
   const opts = { ...(o.executor ? { executor: language === "py" ? pythonExecutorFor(o.executor) : o.executor } : {}), ...(o.wallClockMs ? { wallClockMs: o.wallClockMs } : {}), ...seed };
-  let third: { trace: TraceEvent[]; result: Run["result"]; probes: unknown; probesCut: unknown } | { reason: string };
+  let third: { trace: TraceEvent[]; result: Run["result"]; probes: unknown; probesCut: unknown; thrownLine: unknown } | { reason: string };
   let names: string[] | undefined;
   if (language === "py") {
     third = await runProbedPyCall(exp, source, opts);
@@ -75,7 +75,11 @@ export async function helperRun(exp: Experiment, sealed: Run, o: { executor?: Ex
   if (differsFrom(sealed, third) !== null) return { none: HELPER_WORDS.different };
   // Python's names come from the run, so they must at least be words of the file.
   const allowed = language === "py" ? (n: string) => n.split(".").every((part) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(part) && source.includes(part)) : undefined;
-  return helperSteps(third.probes, { ...(names ? { names } : {}), tested: testedNames(exp.params), trace: third.trace, ...(allowed ? { allowed } : {}), cut: third.probesCut });
+  const steps = helperSteps(third.probes, { ...(names ? { names } : {}), tested: testedNames(exp.params), trace: third.trace, ...(allowed ? { allowed } : {}), cut: third.probesCut });
+  // Read strictly: a whole number that is a line of this file, on a run that threw. Anything else is no line at all.
+  const line = third.thrownLine;
+  const lines = source.split(/\r\n|\r|\n/).length;
+  return third.result.measured.outcome === "threw" && typeof line === "number" && Number.isSafeInteger(line) && line >= 1 && line <= lines ? { ...steps, thrownAt: line } : steps;
 }
 
 /** What was started for each run, kept briefly: the page asks for it right after the run's answer. */

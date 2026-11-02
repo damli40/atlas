@@ -81,6 +81,12 @@ function Shell({ api: given }: { api?: Api }) {
   }, [view]);
   const [claimant, setClaimant] = useState<ClaimantMode>("spark");
   const [logOpen, setLogOpen] = useState(false);
+  useEffect(() => {
+    if (!logOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setLogOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [logOpen]);
   const [roundOpen, setRoundOpen] = useState(false);
   // Both Meta models bet by default when the server can ask Muse Spark Open (D07-01); otherwise Muse Spark alone.
   useEffect(() => {
@@ -119,7 +125,7 @@ function Shell({ api: given }: { api?: Api }) {
   return (
     <div className={`iso u1-shell${logOpen ? " u1-log-open" : ""}`} data-theme={dark ? undefined : "light"}>
       <header className="u1-bar">
-        <button type="button" className="u1-mark" onClick={() => setView("studio")} aria-label="Atlas: back to your drawing">
+        <button type="button" className="u1-mark" onClick={() => setView("studio")} aria-label="Atlas: back to the drawing in this tab">
           Atlas
         </button>
         <nav className="u1-nav" aria-label="more">
@@ -161,7 +167,7 @@ function Shell({ api: given }: { api?: Api }) {
             Your record
           </button>
           <button type="button" className="u1-link" aria-expanded={logOpen} aria-controls="u1-log" onClick={() => setLogOpen((o) => !o)} data-testid="u1-log-toggle">
-            {logOpen ? "Hide agent log" : "Agent log"}
+            Agent log
           </button>
         </nav>
       </header>
@@ -227,7 +233,13 @@ function Rounds({ api: given, initial = "fixture", embedded = false }: { api?: A
     pasteApi.setClaimant(m);
   };
   // D05-04: the agent log strip. A side panel on a wide screen (toggled), under the flow on a phone.
-  const [stripOpen, setStripOpen] = useState(true);
+  // Closed until asked: open, it covered the screen and the Demos menu.
+  const [stripOpen, setStripOpen] = useState(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setStripOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   // D05-05: how many "Ask why" sentences were dropped (no run evidence), per target, for the strip.
   const [dropped, setDropped] = useState<Record<RoundMode, { count: number; at: string } | null>>({ fixture: null, pr: null, paste: null });
   const reportDropped = useCallback(
@@ -379,6 +391,8 @@ function FixtureFlow({ api, onRoundOpen }: { api: Api; onRoundOpen?: (open: bool
       models.fromRun(r);
       setRunFailed(null);
       setResult(r);
+      // A retry may start far above where its result lands: bring the result into view.
+      requestAnimationFrame(() => document.querySelector('[aria-label="run"]')?.scrollIntoView({ block: "start" }));
     } catch (e) {
       if (didNotFinish(e)) setRunFailed((e as Error).message);
       else setError((e as Error).message);

@@ -85,7 +85,10 @@ export function wrapWords(text: string, max: number, size: number, face: Face, m
   if (lines.length <= maxLines) return lines.length ? lines : [""];
   const kept = lines.slice(0, maxLines);
   let last = kept[maxLines - 1]!;
-  while (last.length > 1 && textWidth(`${last}…`, size, face) > max) last = Array.from(last).slice(0, -1).join("");
-  kept[maxLines - 1] = `${last.trimEnd()}…`;
+  while (last.length > 1 && textWidth(`${last} …`, size, face) > max) last = Array.from(last).slice(0, -1).join("");
+  // Never in the middle of a word, a number or a key: back to the last space or item break, when there is one on the line.
+  const at = Math.max(last.lastIndexOf(" "), last.lastIndexOf(",") + 1);
+  if (at > 2) last = last.slice(0, at);
+  kept[maxLines - 1] = `${last.trimEnd()} …`;
   return kept;
 }

@@ -2,7 +2,13 @@
 // page, so what you see is exactly what Copy image gives. The moment's two lines, the marks in one row, the three bettors by
 // Meta's model names, "Judged by plain code", the mark's note (D21), the run id and a short hash.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { MACHINE_MIN_WORD_PX, drawMachine, drawMoonwell, ringFor, type MachineEnd, type MachineParts } from "../../renderer/authors/machine";
+import { lightMachine } from "../../renderer/authors/machine-script";
+import { runBeats } from "../machines/bench/run-beats";
+import type { HelperAnswer } from "../api";
+import { moonwellFlow } from "../../renderer/authors/moonwell";
+import { ensureMachineStyle, useFontsIn } from "../drawing/MachineView";
 import { MARK_PRE_EXISTING_CAPTION } from "../../src/captions";
 import { describeCall } from "../../src/gate";
 import { theoryCaptions } from "../../src/change";
@@ -49,7 +55,7 @@ async function asFile(svg: SVGSVGElement): Promise<string> {
   from.forEach((el, i) => {
     const cs = getComputedStyle(el);
     const t = to[i] as SVGElement;
-    for (const k of ["fill", "stroke", "stroke-width", "stroke-dasharray", "stroke-linecap", "opacity", "color"]) t.setAttribute(k, cs.getPropertyValue(k));
+    for (const k of ["fill", "stroke", "stroke-width", "stroke-dasharray", "stroke-dashoffset", "stroke-linecap", "opacity", "color", "visibility", "font-family", "font-style"]) t.setAttribute(k, cs.getPropertyValue(k));
   });
   const font = async (url: string, family: string) => {
     const buf = new Uint8Array(await (await fetch(url)).arrayBuffer());
@@ -58,7 +64,8 @@ async function asFile(svg: SVGSVGElement): Promise<string> {
     return `@font-face{font-family:"${family}";src:url(data:font/woff2;base64,${btoa(bin)}) format("woff2");font-weight:100 900}`;
   };
   const style = document.createElementNS("http://www.w3.org/2000/svg", "style");
-  style.textContent = (await font("/fonts/geist-latin-wght.woff2", "Geist")) + (await font("/fonts/geist-mono-latin-wght.woff2", "Geist Mono"));
+  const besley = async (file: string, italic: boolean) => (await font(new URL(`../../renderer/fonts/${file}`, import.meta.url).href, "Atlas Besley")).replace("font-weight:100 900", `font-weight:400;font-style:${italic ? "italic" : "normal"}`);
+  style.textContent = (await font("/fonts/geist-latin-wght.woff2", "Geist")) + (await font("/fonts/geist-mono-latin-wght.woff2", "Geist Mono")) + (svg.querySelector(".m-sheet") ? (await besley("besley-latin-400-normal.woff2", false)) + (await besley("besley-latin-400-italic.woff2", true)) : "");
   copy.prepend(style);
   copy.setAttribute("width", String(W * 2));
   copy.setAttribute("height", String(H * 2));
@@ -85,7 +92,7 @@ async function asPng(svg: SVGSVGElement): Promise<Blob> {
 }
 
 /** D63, said before anything is written. A placeholder for Dami's final words. */
-export const KEEP_WORDS = "This makes a public link: anyone with it can read this card for 30 days. The file's text is left out, but the values it returned or threw and the AI bettors' reasons stay on the card, and those can quote your code. You can delete the link.";
+export const KEEP_WORDS = "This makes a public link: anyone with it can read this card for 30 days. The file's text is left out, but its functions' names and line numbers, the values it returned or threw and the AI bettors' reasons stay on the card, and those can quote your code. You can delete the link.";
 
 export interface ProofImageProps {
   card: ReturnType<typeof proofCardModel>;
@@ -105,9 +112,13 @@ export interface ProofImageProps {
   keepsCards?: boolean;
   /** False: whoever is looking did not run this round. Copy link gives the file's own address, and no public link is offered. */
   canKeep?: boolean;
+  /** D66: the machine's parts for this card. Null: the picture keeps its marks alone. */
+  machineParts?: MachineParts | null;
+  machineHelpers?: HelperAnswer | null;
+  machineEnd?: MachineEnd | null;
 }
 
-export function ProofImage({ card, file, lines, names, api, download, downloadName, preExisting = null, stranger = false, reader: readerGiven = false, keepsCards = true, canKeep = true }: ProofImageProps) {
+export function ProofImage({ card, file, lines, names, api, download, downloadName, preExisting = null, stranger = false, reader: readerGiven = false, keepsCards = true, canKeep = true, machineHelpers = null, machineEnd = null, machineParts = null }: ProofImageProps) {
   const ref = useRef<SVGSVGElement | null>(null);
   const [said, setSaid] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
@@ -143,6 +154,25 @@ export function ProofImage({ card, file, lines, names, api, download, downloadNa
   // D20's words are required whole, so they wrap: this never cuts them.
   const changeLines = beforeChange || theory.length > 0 ? wrap([beforeChange, ...theory].filter(Boolean).join(" "), 150, 8) : [];
   const hash = (file.bets[0]?.sealedHash ?? "").slice(0, 10);
+  const fontsIn = useFontsIn();
+  // D66: the machine in the picture, with its ring, when it can be drawn truthfully and clearly. Otherwise the marks stay, as they were.
+  const machineSvg = useMemo(() => {
+    // Words are measured to place them, so the font must be in: on a cold open of a link it may not be yet.
+    if (!moment || !fontsIn) return null;
+    ensureMachineStyle();
+    const drawn = run?.runner === "evm"
+      ? drawMoonwell(moonwellFlow({ run: run as never, bets: file.bets as never, verdicts: file.verdicts as never, origin: "proof-file", stranger, ...(file.change ? { beforeChange: true } : {}) }), { ended: true })
+      : machineParts
+        ? drawMachine(machineParts, { seed: `proof:${card.runId}`, ended: true, end: machineEnd, ring: ringFor({ kind: moment.kind, you: moment.you, end: machineEnd, tested: exp?.params.shape === "call-function" ? exp.params.exportName : null, stranger }) })
+        : null;
+    if (!drawn || drawn.tooMany || drawn.problems.length > 0) return null;
+    // The picture has the page's word-size floor: under it, the picture keeps its marks.
+    if (run?.runner !== "evm" && drawn.minWords * Math.min(756 / drawn.width, 644 / drawn.height) < MACHINE_MIN_WORD_PX) return null;
+    // The card is the record of a run, so it is lit as on the result, from the same trace.
+    if (run?.runner !== "evm" && machineParts && exp) return { ...drawn, svg: lightMachine(drawn.svg, runBeats({ run: run!, experiment: exp, helpers: machineHelpers, parts: machineParts, tested: exp.params.shape === "call-function" ? exp.params.exportName : null })) };
+    return drawn;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [machineParts, machineHelpers, machineEnd, fontsIn, run?.id, moment?.kind, stranger]);
   const copyImage = async () => {
     if (!ref.current) return;
     try {
@@ -199,11 +229,83 @@ export function ProofImage({ card, file, lines, names, api, download, downloadNa
     } else setSaid("The link could not be deleted.");
   };
   if (!moment) return null;
+  const machineView = machineSvg ? { svg: machineSvg.svg.replace(/<svg xmlns="[^"]*"/, '<svg x="500" y="22" width="756" height="644"').replace(/ tabindex="0"/g, "").replace(/ role="(button|group)"/g, "") } : null;
   // The picture closes up around however many lines the run takes.
   const runEnd = 238 + runLines.length * 56;
   const changeY = runEnd + 26;
   const marksY = runEnd + (changeLines.length > 0 ? 24 + changeLines.length * 20 : 24);
   const shownMarks = marks.slice(0, 8);
+  const shortRun = machineView ? wrap(runWords, 25, 4) : [];
+  const shortYou = machineView ? wrap(moment.you ?? "", 32, 2) : [];
+  // D20's sentence stays whole here too: a narrower column, more lines.
+  const narrowChange = machineView && changeLines.length > 0 ? wrap(changeLines.join(" "), 62, 8) : [];
+  const titleLines = wrap(title, 30, 2);
+  const runTop = 250;
+  const shareRow = (
+      <div className="pc-share">
+        <button type="button" className="u1-btn" onClick={() => void copyImage()} data-testid="pc-copy-image">Copy image</button>
+        <button type="button" className="u1-btn" onClick={() => void copyLink()} data-testid="pc-copy-link">Copy link</button>
+        {download && (
+          <a className="u1-btn pc-dl" href={download} download={downloadName} data-testid="pc-download-top">Download file</a>
+        )}
+        {keptUntil && keptMine && api && !readerGiven && (
+          <button type="button" className="u1-btn" onClick={() => void deleteLink()} data-testid="pc-delete-link">Delete public link</button>
+        )}
+        {asking && (
+          <div className="pc-ask" ref={askRef} role="group" aria-label="Make a public link" data-testid="pc-link-ask">
+            <p>{KEEP_WORDS}</p>
+            <button type="button" className="u1-btn u1-primary" onClick={() => void makeLink()} data-testid="pc-link-yes">Make the public link</button>
+            <button type="button" className="u1-btn" onClick={() => setAsking(false)} data-testid="pc-link-no">Not now</button>
+          </div>
+        )}
+        {said && <span className="u1-sub pc-said" ref={saidRef} role="status" data-testid="pc-share-said">{said}</span>}
+      </div>
+  );
+  if (machineView) {
+    const after = runTop + 44 + shortRun.length * 46;
+    const marksY = after + narrowChange.length * 17 + (narrowChange.length ? 10 : 2);
+    const bettorsY = Math.max(marksY + 74, 536);
+    return (
+      <section className="pc-image-wrap" aria-label="the proof card as one image" data-testid="pc-image">
+        <svg ref={ref} className="pc-image" data-machine="" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title}: ${moment.you === null ? "no bet on this" : `${stranger ? "the bet was" : "you bet"} ${moment.you}, on ${(moment.question ?? "").toLowerCase()}`}; the run ${moment.run}`} xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width={W} height={H} fill="#f5f1e7" />
+          <text x="36" y="58" fontFamily={SANS} fontWeight="600" fontSize="24" fill="#1f1b1d">Atlas</text>
+          {titleLines.map((l, i) => <text key={i} x="112" y={58 + i * 24} fontFamily={MONO} fontWeight="500" fontSize="20" fill="#1f1b1d">{l}</text>)}
+          {callLine && wrap(callLine, 52, 2).map((l, i) => <text key={i} x="36" y={88 + i * 18} fontFamily={MONO} fontSize="14" fill="#6b6358" data-testid="pc-image-call">{l}</text>)}
+          {moment.you !== null && (
+            <>
+              <text x="36" y="154" fontFamily={SANS} fontWeight="500" fontSize="17" letterSpacing=".6" fill="#6b6358" data-testid="pc-image-question">{stranger ? "THE BET" : "YOU BET"}<tspan fontWeight="400" letterSpacing="0">{` on ${moment.question ?? ""}`}</tspan></text>
+              {shortYou.map((l, i) => <text key={i} x="36" y={186 + i * 28} fontFamily={MONO} fontWeight="500" fontSize="26" fill="#1f1b1d">{l}</text>)}
+            </>
+          )}
+          <rect x="36" y={runTop} width="6" height={30 + shortRun.length * 46} fill={moment.kind === "not_matched" ? "#b5372c" : moment.kind === "matched" ? "#2c5f9e" : "#1f1b1d"} />
+          <text x="58" y={runTop + 18} fontFamily={SANS} fontWeight="500" fontSize="17" letterSpacing=".6" fill="#6b6358">THE RUN</text>
+          {shortRun.map((l, i) => <text key={i} x="58" y={runTop + 58 + i * 46} fontFamily={MONO} fontWeight="500" fontSize="36" letterSpacing="-.8" fill="#1f1b1d">{l}</text>)}
+          {narrowChange.map((l, i) => <text key={i} x="36" y={after + 8 + i * 17} fontFamily={SANS} fontWeight="500" fontSize="13" fill="#6b4d00" data-testid="pc-image-change">{l}</text>)}
+          <g color="#1f1b1d">
+            {shownMarks.slice(0, 6).map((m, i) => (
+              <g key={m.key} transform={`translate(${36 + i * 70} ${marksY})`}>
+                <svg x="0" y="0" width="60" height="60" viewBox="0 0 100 100">
+                  <Mark mark={m} still names={names} size={60} />
+                </svg>
+              </g>
+            ))}
+          </g>
+          {lines.slice(0, 3).map((l, i) => (
+            <text key={l.who} x="36" y={bettorsY + i * 23} fontFamily={SANS} fontSize="15" fill="#1f1b1d">
+              {`${(l.who === "human" ? (names.human ?? "You") : (names[l.who] ?? l.who)).replace(/ \(.*$/, "").replace(/ · via .*$/, "")}: ${bettorLineWords(l)}`}
+            </text>
+          ))}
+          <text x="36" y="628" fontFamily={SANS} fontWeight="500" fontSize="16" fill="#1f1b1d">Judged by plain code</text>
+          <text x="36" y="650" fontFamily={MONO} fontSize="14" fill="#6b6358">{`${hash ? `sealed ${hash} · ` : ""}run ${card.runId}`}</text>
+          <g dangerouslySetInnerHTML={{ __html: machineView.svg }} />
+          <text x="36" y="696" fontFamily={SANS} fontSize="14" fill="#6b6358">{MARK_PRE_EXISTING_CAPTION}</text>
+          {preExisting && <text x={W - 36} y="696" textAnchor="end" fontFamily={SANS} fontWeight="500" fontSize="13" fill="#6b4d00">{preExisting.length > 62 ? "Pre-existing code: listed in PRE-EXISTING.md" : preExisting}</text>}
+        </svg>
+        {shareRow}
+      </section>
+    );
+  }
   return (
     <section className="pc-image-wrap" aria-label="the proof card as one image" data-testid="pc-image">
       <svg ref={ref} className="pc-image" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title}: ${moment.you === null ? "no bet on this" : `${stranger ? "the bet was" : "you bet"} ${moment.you}, on ${(moment.question ?? "").toLowerCase()}`}; the run ${moment.run}`} xmlns="http://www.w3.org/2000/svg">
@@ -249,24 +351,7 @@ export function ProofImage({ card, file, lines, names, api, download, downloadNa
         <text x="56" y="694" fontFamily={SANS} fontSize="14" fill="#6b6358">{MARK_PRE_EXISTING_CAPTION}</text>
         {preExisting && <text x={W - 56} y="694" textAnchor="end" fontFamily={SANS} fontWeight="500" fontSize="13" fill="#6b4d00">{preExisting.length > 62 ? "Pre-existing code: listed in PRE-EXISTING.md" : preExisting}</text>}
       </svg>
-      <div className="pc-share">
-        <button type="button" className="u1-btn" onClick={() => void copyImage()} data-testid="pc-copy-image">Copy image</button>
-        <button type="button" className="u1-btn" onClick={() => void copyLink()} data-testid="pc-copy-link">Copy link</button>
-        {download && (
-          <a className="u1-btn pc-dl" href={download} download={downloadName} data-testid="pc-download-top">Download file</a>
-        )}
-        {keptUntil && keptMine && api && !readerGiven && (
-          <button type="button" className="u1-btn" onClick={() => void deleteLink()} data-testid="pc-delete-link">Delete public link</button>
-        )}
-        {asking && (
-          <div className="pc-ask" ref={askRef} role="group" aria-label="Make a public link" data-testid="pc-link-ask">
-            <p>{KEEP_WORDS}</p>
-            <button type="button" className="u1-btn u1-primary" onClick={() => void makeLink()} data-testid="pc-link-yes">Make the public link</button>
-            <button type="button" className="u1-btn" onClick={() => setAsking(false)} data-testid="pc-link-no">Not now</button>
-          </div>
-        )}
-        {said && <span className="u1-sub pc-said" ref={saidRef} role="status" data-testid="pc-share-said">{said}</span>}
-      </div>
+      {shareRow}
     </section>
   );
 }

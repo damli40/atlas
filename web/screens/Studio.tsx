@@ -12,7 +12,9 @@
 // - Verdicts are plain code's (src/judge.ts): matched / didn't match / can't check.
 
 import { describeCall, visibleText } from "../../src/gate";
-import { endingFacts, reachNote, runEnding } from "../../src/moment";
+import { endingFacts, momentOf, reachNote, runEnding } from "../../src/moment";
+import { countChange, weakestWords, type Weakest } from "../../src/remember";
+import { questionTypeOf } from "../../src/track-record";
 import { notShownAsFact } from "../../src/trust";
 import type { JsonValue } from "../../src/types";
 import { PASTE_WORDS } from "../../src/paste-words";
@@ -28,15 +30,17 @@ import { CANT_TELL, timeOptions } from "../../src/quiz";
 import { literal, parseTyped } from "../../src/literal";
 import { WONDER_DISPLAY, BET_WORDS, RESULT_WORDS, STAGE_WORDS, betterByRole } from "../../src/paste-words";
 import type { Mark } from "../machines/bench/play";
-import { pickDefaultTest, type CodeContext } from "../../src/default-test";
-import { keptState } from "../../src/code-facts";
+import { foreignLanguage } from "../../src/paste-language";
+import { keptState, type CodeContext } from "../../src/code-facts";
 import { LIBRARY_WORDS } from "../../src/network-fake";
 import { CALL_DEFAULT_WATCH_LIMIT_MS } from "../../src/gate";
 import { ProofCardPage } from "./ProofCard";
 import type { ClaimantMode } from "../../src/claimants";
 import { didNotFinish, type Api, type ExperimentAnswer, type HumanAnswer, type PasteAnswer, type ProposalsAnswer, type RunAnswer, type ShownBet } from "../api";
-import { useModelSlots } from "./Claimant";
+import { absentBettors, useModelSlots } from "./Claimant";
 import { ErrorNotice } from "./ErrorNotice";
+import { MachineSheet, machineFirst, useFontsIn } from "../drawing/MachineView";
+import { drawMachine, machineParts } from "../../renderer/authors/machine";
 import { Segments, TestForm, emptyForm, formFromParams, type TestFormState } from "./TestForm";
 import { BenchStage, type After } from "../machines/bench/BenchStage";
 import { benchModel, dialFullMs, type CallTest } from "../machines/bench/model";
@@ -52,6 +56,8 @@ import { FeltRecord, FeltRoundLine, HowSurePicker } from "./FeltPanel";
 import { FELT_WORDS } from "../../src/paste-words";
 
 type Lang = "js" | "ts" | "py";
+const EXAMPLE_FUNCTION_NAME = "fetchWithRetry";
+const CONSENT_LINE = "When you paste, your code goes to Meta's model, which writes a test for it.";
 const FILE_NAME: Record<Lang, string> = { js: "pasted.js", ts: "pasted.ts", py: "pasted.py" };
 
 /** The function drawn as "under test" by default: the exported function with the most calls out, then the first. */
@@ -64,12 +70,10 @@ export function defaultFunction(outline: FileOutline | undefined, exports: reado
   return [...fns].sort((a, b) => out(b.name) - out(a.name) || a.lineStart - b.lineStart)[0]!.name;
 }
 
-/** U2 (D53): the plain-code rule's pick among the allowed proposals (src/default-test.ts), or undefined. */
-export function defaultProposal<P extends { gate: { allowed: boolean }; params: unknown }>(proposals: readonly P[], code?: CodeContext): P | undefined {
-  const allowed = proposals.filter((p) => p.gate.allowed);
-  // U3: the rule prefers a test that hits an edge, read from the file's text (a second call on a cache, the Nth failure).
-  const i = pickDefaultTest(allowed.map((p) => p.params as CallTest), code);
-  return i >= 0 ? allowed[i] : undefined;
+/** The test a round opens on, or undefined. */
+export function defaultProposal<P extends { gate: { allowed: boolean }; params: unknown }>(proposals: readonly P[]): P | undefined {
+  // Wonder's first allowed test: it is asked to make that one show the flaw its sentence names, so the person's first bet can fail. Every bettor gets the same test (D19).
+  return proposals.find((p) => p.gate.allowed);
 }
 
 /**
@@ -80,7 +84,8 @@ export function defaultProposal<P extends { gate: { allowed: boolean }; params: 
 /** D60: the code beside the drawing. Clicking a part on the drawing jumps here. */
 function CodeDrawer({ source, lines, onClose, coversResult = false }: { source: string; lines: [number, number] | null; onClose: () => void; coversResult?: boolean }) {
   const host = useRef<HTMLDivElement | null>(null);
-  const all = useMemo(() => source.split(/\r\n|\r|\n/), [source]);
+  // A newline at the end of a file ends its last line: it does not start another.
+  const all = useMemo(() => source.replace(/(?:\r\n|\r|\n)$/, "").split(/\r\n|\r|\n/), [source]);
   useEffect(() => {
     if (lines) host.current?.querySelector<HTMLElement>(`[data-line="${lines[0]}"]`)?.scrollIntoView({ block: "center" });
   }, [lines]);
@@ -109,22 +114,37 @@ function CodeDrawer({ source, lines, onClose, coversResult = false }: { source: 
 }
 
 function ExampleDrawing() {
+  // The first thing anyone sees: the example's machine, pencilling itself in. Plain code's own parts, kept in the page (a test holds them equal to the parser's). On a phone, or if it can't be drawn clearly, the chart.
+  const outline = EXAMPLE_OUTLINE as unknown as FileOutline;
+  const fontsIn = useFontsIn();
+  const drawn = useMemo(() => {
+    if (!fontsIn || !machineFirst()) return null;
+    const model = benchModel({ fileName: "example.ts", outline, test: null, source: U1_EXAMPLE, language: "ts" });
+    const d = drawMachine(machineParts({ ...model, tested: EXAMPLE_FUNCTION_NAME }, outline, U1_EXAMPLE, "ts"), { seed: "machine:example" });
+    return d.tooMany || d.problems.length > 0 ? null : d;
+  }, [outline, fontsIn]);
+  const reduced = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
   const spec = useMemo(() => {
-    const s = betView({ fileName: "example.ts", outline: EXAMPLE_OUTLINE as unknown as FileOutline, source: U1_EXAMPLE, language: "ts", test: null, tested: "fetchWithRetry", seed: "first-screen" });
+    const s = betView({ fileName: "example.ts", outline, source: U1_EXAMPLE, language: "ts", test: null, tested: EXAMPLE_FUNCTION_NAME });
     return { ...s, title: undefined, kicker: undefined, subtitle: undefined, captions: [] } as typeof s;
-  }, []);
+  }, [outline]);
+  const wide = typeof window === "undefined" || window.innerWidth >= 760;
   return (
-    <div className="e-right" aria-hidden="true" data-testid="e-drawing">
-      <Drawing
-        spec={spec}
-        theme="light"
-        className="e-sheet"
-        maxScale={1}
-        hover={false}
-        onMount={(m) => {
-          if (m?.player && !m.player.reduced) void m.player.entrance();
-        }}
-      />
+    <div className="e-right" aria-hidden="true" inert data-testid="e-drawing">
+      {!fontsIn && wide && machineFirst() ? null : drawn && wide ? (
+        <MachineSheet drawn={drawn} reduced={reduced} penKey="example" testid="e-machine" />
+      ) : (
+        <Drawing
+          spec={spec}
+          theme="light"
+          className="e-sheet"
+          maxScale={1}
+          hover={false}
+          onMount={(m) => {
+            if (m?.player && !m.player.reduced) void m.player.entrance();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -167,8 +187,9 @@ export const CHANGE_WORDS = {
   explain: "Same test, same questions. Your new answers are sealed before anything runs, and the new run is judged the same way.",
   go: "Draw the change and bet again",
   sameTest: "The same test, on your changed code. Bet again: nothing about this code has run yet.",
+  foreign: (name: string) => `This looks like ${name}. Atlas reads JavaScript, TypeScript and Python, so it can't draw this file.`,
   nothingToDraw: "Atlas draws functions and classes, and this has none. Paste a JavaScript, TypeScript or Python file with at least one function.",
-  nothingToCall: "Atlas bets on what a function does when it is called, and this file exports no function to call.",
+  nothingToCall: "Atlas bets on what a function does when it is called, and it can't see one in this file that can be called from outside. It can call one exported by name, like export function f.",
   claimantAsks: "Changing who bets asks them again: paid AI calls. Your answers stay.",
   sameCode: "Same code as a run you've already seen, apart from spaces or comments, so you may already know the answer.",
   pickUsed: "The tests that came with Muse Wonder's sentence can't be used now that the sentence is shown. Ask for a new one, or write your own.",
@@ -215,10 +236,10 @@ export function whatDiffers(a: unknown, b: unknown, other = "the last"): string 
   const shown = changed
     .filter((k) => x.has(k) && y.has(k) && isValue(k))
     .slice(0, 3)
-    .map((k) => `${JSON.stringify(y.get(k))} becomes ${JSON.stringify(x.get(k))}`);
+    .map((k) => `${JSON.stringify(x.get(k))} where ${other} test has ${JSON.stringify(y.get(k))}`);
   if (shown.length === 0) return `Differs from ${other} test in what its fakes do.`;
   const more = changed.filter(isValue).length - shown.length;
-  return `Compared with ${other} test: ${visibleText(shown.join(", "))}${more > 0 ? `, and ${more} more` : ""}.`;
+  return `This test has ${visibleText(shown.join(", "))}${more > 0 ? `, and ${more} more` : ""}.`;
 }
 
 /** How many arguments a function needs, from its signature: a default, a ? or a * makes one optional. Null when it can't be told. */
@@ -385,6 +406,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const [pendingClaimant, setPendingClaimant] = useState<ClaimantMode | null>(null);
   // R3: the code's own steps for the drawing (a third run made after the sealed ones). Arrives with the result, or not at all.
   const [helpers, setHelpers] = useState<HelperAnswer | null>(null);
+  const [helpersIn, setHelpersIn] = useState(false);
   useEffect(() => onRoundOpen?.(exp !== null && result === null), [exp, result, onRoundOpen]);
 
   const target = pasted?.runnable ? pasted.target : null;
@@ -456,6 +478,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     setStep(0);
     setClaimNoNew(false);
     setHelpers(null);
+    setHelpersIn(false);
     ownTest.current = false;
     runStarted.current = false;
     gen.current++;
@@ -481,11 +504,10 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       setWonderWait((w) => (w ? { ...w, phase: BET_WORDS.waitChecked(allowedN, p.proposals.length) } : w));
       if (ownTest.current) return; // the person is writing their own test: Wonder's tests wait in the list
       const lang = pasted?.target.language ?? pasted?.language.chosen;
-      // U2 (D53) / U3: the default is the plain-code rule's pick (src/default-test.ts); "Test this claim" opens on
-      // Wonder's first allowed test, the one aimed at the sentence.
+      // The default is Wonder's first allowed test; "Test this claim" too, except on code that keeps state (claimProposal).
       // A test that has already run on this code is not offered again: its answer is known.
       const offered = p.proposals.filter((x) => !alreadyRan(x.params));
-      const first = opts.pick === "list" ? undefined : opts.pick === "first" ? claimProposal(offered, lang ? { source: readText, language: lang } : undefined) : defaultProposal(offered, lang ? { source: readText, language: lang } : undefined);
+      const first = opts.pick === "list" ? undefined : opts.pick === "first" ? claimProposal(offered, lang ? { source: readText, language: lang } : undefined) : defaultProposal(offered);
       if (first) await start(() => api.experimentFromProposal(target, first.id, { quiz: true }));
       else setChanging(true);
     } catch (e) {
@@ -560,7 +582,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
         requestAnimationFrame(() => requestAnimationFrame(() => setDrawnMs(Math.round(performance.now() - drawStart.current))));
         // Review M4: a function the explorer named that this file does not export is said plainly, never swapped silently.
         if (want && !r.exports.some((e) => e.name === want)) {
-          setHandoffNote(`${want} is not exported by this file, and Atlas can only call exported functions. Pick one on the drawing.`);
+          setHandoffNote(`${want} can't be called from outside this file, and Atlas can only call functions that can. Pick one on the drawing.`);
           setFn(null);
         } else setFn(want ?? defaultFunction(r.outline, r.exports));
         return r;
@@ -591,6 +613,21 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const [invite, setInvite] = useState<{ required: boolean; signedIn: boolean; error?: string; busy?: boolean; left?: number | null } | null>(null);
   const [inviteCode, setInviteCode] = useState("");
   const locked = Boolean(invite?.required && !invite.signedIn);
+  // D66: what this person's own record says. A first-time visitor gets nothing, so nothing shows.
+  const [remember, setRemember] = useState<{ last: string | null; weakest: Weakest | null } | null>(null);
+  const betFor = exp?.experiment.params.shape === "call-function" ? exp.experiment.params.exportName : undefined;
+  useEffect(() => {
+    let live = true;
+    Promise.resolve()
+      .then(() => api.remember(betFor, pasted?.target.codeSha256))
+      .then((a) => live && setRemember(a), () => live && setRemember(null));
+    return () => {
+      live = false;
+    };
+    // Read again on a new bet, and when a round has been counted.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [api, betFor, plays, invite?.signedIn]);
+
   const useCode = async (typed: string) => {
     setInvite((v) => (v ? { ...v, busy: true } : v));
     const a = await api.signIn(typed);
@@ -705,14 +742,14 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     setFn(name);
   };
 
-  const seal = async () => {
+  const seal = async (sure: Confidence | null = confidence) => {
     if (!exp) return;
     setBusy("Sealing your answers…");
     setError(null);
     try {
       const lang = exp.experiment.target.language;
       const out = answersToSend(exp.questions, picked, typed, lang);
-      setSealed(await api.bets(exp.experiment.id, out.answers, confidence));
+      setSealed(await api.bets(exp.experiment.id, out.answers, sure));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -730,16 +767,19 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       async (r) => {
         if (g !== gen.current) return;
         ranCodes.current.add(`${codeFingerprint(readText, pasted?.target.language ?? undefined)}|${canonicalTest(exp.experiment.params)}`);
-        // R3: the third run starts when the sealed runs end. Its steps join the drawing if they come quickly; the story never
-        // waits long for them, and a page without them still shows everything that was measured.
-        const steps = await Promise.race<HelperAnswer | null>([
+        // R3: the third run started when the sealed runs ended. The verdict never waits for it. Its steps join the drawing when they come, and a page without them still
+        // shows everything that was measured.
+        void Promise.race<HelperAnswer | null>([
           Promise.resolve()
             .then(() => api.helpers(r.run.id))
             .catch(() => null),
           new Promise<HelperAnswer>((done) => setTimeout(() => done({ none: HELPER_TOO_SLOW }), HELPER_WAIT_MS)),
-        ]);
-        if (g !== gen.current) return;
-        setHelpers(steps);
+        ]).then((steps) => {
+          if (g === gen.current) {
+            setHelpers(steps);
+            setHelpersIn(true);
+          }
+        });
         // These notes were about the moment before the run. They would be false now.
         setHandoffNote(null);
         setRepeatNote(null);
@@ -770,8 +810,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     const callers = Object.fromEntries(Object.entries(model?.parts ?? {}).flatMap(([id, p]) => (p.kind === "device" ? [[id, (p.calledBy ?? []).map((c) => c.part)]] : [])));
     const language = pasted?.target.language ?? pasted?.language.chosen;
     const wiring = pasted?.outline ? { outline: pasted.outline, callers, ...(language ? { language } : {}) } : undefined;
-    return { token: plays, script: playScript(result.run, test, tested, pasted?.outline ? waitingPartsOf(pasted.outline) : [], wiring), marks: marksOf(exp.questions, result.bets, result.verdicts, result.run, tested, language), dialFullMs: fullMs, ...(helpers ? { helpers } : {}), run: result.run, experiment: exp.experiment, bets: result.bets, verdicts: result.verdicts };
-  }, [result, exp, test, sealed, plays, model, fullMs, readText, pasted, helpers]);
+    return { token: plays, script: playScript(result.run, test, tested, pasted?.outline ? waitingPartsOf(pasted.outline) : [], wiring), marks: marksOf(exp.questions, result.bets, result.verdicts, result.run, tested, language), absent: absentBettors(models.slots, result.bets), helpersPending: !helpersIn, dialFullMs: fullMs, ...(helpers ? { helpers } : {}), run: result.run, experiment: exp.experiment, bets: result.bets, verdicts: result.verdicts };
+  }, [result, exp, test, sealed, plays, model, fullMs, readText, pasted, helpers, helpersIn, models.slots]);
 
   // U2 (D53, "Test this claim"): Muse Wonder writes tests aimed at its own sentence (shown only after this run, D18); the gate
   // checks them as usual. R3: the round opens only on a test that is really different from what has already run here, compared
@@ -841,6 +881,32 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     setChanging(true);
     await askWonder({ pick: "list" });
   };
+  // The result is the payoff: when it arrives the code panel closes, once, whatever the width. C opens it again.
+  const resultRunId = result?.run.id;
+  useEffect(() => {
+    if (resultRunId) setDrawer((d) => (d === null ? d : false));
+  }, [resultRunId]);
+  // The bet button shows Enter: so when the drawing comes up, the keys go to it (unless something else already has them).
+  const toggleFor = pasted && fn && !exp && !result ? `${pasted.target.codeSha256}|${fn}` : null;
+  useEffect(() => {
+    if (!toggleFor) return;
+    const t = document.activeElement;
+    if (t === null || t === document.body || t.closest?.(".u1-head, header")) document.querySelector<HTMLElement>('[data-testid="u1-bet-toggle"]')?.focus({ preventScroll: true });
+  }, [toggleFor]);
+  // The result column's end must clear the pinned action bar: its real height, whatever wraps.
+  useEffect(() => {
+    const bar = document.querySelector<HTMLElement>('[data-testid="u1-actions"]');
+    if (!bar || typeof ResizeObserver !== "function") return;
+    const set = () => document.documentElement.style.setProperty("--actions-h", `${bar.offsetHeight}px`);
+    const ro = new ResizeObserver(set);
+    ro.observe(bar);
+    set();
+    return () => ro.disconnect();
+  });
+  // An error on the first screen can land below a short window: it comes into view.
+  useEffect(() => {
+    if (error) document.querySelector('.e-left [role="alert"]')?.scrollIntoView({ block: "nearest" });
+  }, [error]);
   // D60: when the questions arrive, the keys belong to them, not to the button that opened the bet.
   const expId = exp?.experiment.id;
   useEffect(() => {
@@ -896,8 +962,14 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
         return;
       }
       if (e.key.toLowerCase() === "c" && pasted) {
-        setDrawer((d) => !(d ?? (wide && open && exp !== null && !result)));
+        setDrawer((d) => !(d ?? (wide && open && exp !== null && !result && !machineFirst())));
         e.preventDefault();
+        return;
+      }
+      // Enter opens the bet, a paid step, only when nothing that takes keys has focus: a part or a box has its own Enter.
+      if (e.key === "Enter" && !e.repeat && !e.defaultPrevented && (t === document.body || t === document.documentElement || t === null) && pasted && fn && !pasted.cantCheck && pasted.runnable && !result && !open && !exp && !proposals) {
+        e.preventDefault();
+        void openBet();
         return;
       }
       // Only once the verdict has landed and nothing is playing. While a run plays, keys only skip.
@@ -922,6 +994,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       <section className="u1-entry" aria-labelledby="u1-entry-h" data-testid="u1-entry">
         <div className="e-left">
         <h1 id="u1-entry-h">See how your code is built</h1>
+        {remember?.last && <p className="u1-remember" data-testid="remember-last">{remember.last}</p>}
         <p className="u1-lede">Paste one file. Atlas draws its functions and how they call each other. Then, if you like, bet on what it will do: Atlas runs it and shows whether your bet matched.</p>
         {invite?.required && !invite.signedIn && (
           <form className="e-invite" onSubmit={(e) => void submitInvite(e)} data-testid="e-invite">
@@ -950,6 +1023,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           </button>
           <span className="u1-sub e-or">or paste a file anywhere on this page</span>
         </div>
+        {/* PLACEHOLDER: Dami's final words go here. The fact it must keep: pasted code goes to a paid model at once, before any other click. */}
+        <p className="u1-sub e-consent" data-testid="e-consent">{CONSENT_LINE}</p>
         <label htmlFor="u1-code" className="u1-sr">
           Your code
         </label>
@@ -1025,18 +1100,25 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   }
 
   // ---- the drawing ----
-  const drawerOpen = drawerChoice ?? (wide && open && exp !== null && !after);
+  // Beside the machine, the code panel opens only when asked (the Code button, C or a click): it would squeeze the machine under its reading size.
+  const drawerOpen = drawerChoice ?? (wide && open && exp !== null && !after && !machineFirst());
   const noFunction = pasted.runnable && !fn && pasted.outline !== undefined;
+  // A language Atlas doesn't read: one message, the one that says so. "Needs a package" would be about a JavaScript reading of it.
+  const foreign = pasted.outline?.parts.length === 0 ? foreignLanguage(readText) : null;
   const notRunnable = !pasted.runnable ? (pasted.reason ?? "Atlas cannot run this language here yet.") : pasted.cantCheck;
   const allowed = proposals?.proposals.filter((p) => p.gate.allowed) ?? [];
   const chosenSays = exp ? allowed.find((p) => p.params && JSON.stringify(p.params) === JSON.stringify(exp.experiment.params))?.says : undefined;
   // J5: this code has already run here, on some test: the top bar must not say nothing has run.
   const fingerprint = `${codeFingerprint(readText, pasted.target.language ?? undefined)}|`;
   const codeRanHere = [...ranCodes.current].some((k) => k.startsWith(fingerprint));
+  // D66: the count that moved. Once, at the verdict, for this person only.
+  const leadMeasures = after ? momentOf(after.marks, after.run, pasted.target.language ?? undefined)?.measures : null;
+  const leadType = leadMeasures ? questionTypeOf(leadMeasures) : null;
+  const loopLine = result?.track && !("error" in result.track) ? countChange(result.track.before, result.track.after, leadType) : null;
   // C4: a run Atlas could not check has nothing to play and no card to show, so neither is offered.
   const nothingShown = result !== null && notShownAsFact(result.run) !== null;
   const offeredTests = (proposals?.proposals ?? []).filter((p) => p.gate.allowed && !alreadyRan(p.params));
-  const title = `${source ?? FILE_NAME[pasted.target.language ?? "ts"]} · ${plural(pasted.lines, "line")}${drawnMs !== null ? ` · drawn in ${drawnMs} ms` : ""}`;
+  const title = `${source ?? (pasted.outline?.parts.length === 0 ? "pasted file" : FILE_NAME[pasted.target.language ?? "ts"])} · ${plural(pasted.lines, "line")}${drawnMs !== null ? ` · drawn in ${drawnMs} ms` : ""}`;
   return (
     <div className="u1-studio" data-drawer={drawerOpen ? "" : undefined}>
       <button type="button" className="u1-link u1-code-toggle" aria-pressed={drawerOpen} onClick={() => setDrawer(!drawerOpen)} data-testid="u1-code-toggle">
@@ -1045,12 +1127,14 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       </button>
       {shownModel && pasted.outline ? (
         <BenchStage
+          wontRun={Boolean(notRunnable)}
           model={shownModel}
           source={readText}
           language={pasted.target.language ?? pasted.language.chosen ?? "ts"}
           outline={pasted.outline}
-          fileName={FILE_NAME[pasted.target.language ?? "ts"]}
+          fileName={pasted.outline.parts.length === 0 ? "pasted file" : FILE_NAME[pasted.target.language ?? "ts"]}
           after={after}
+          loop={loopLine}
           seenBefore={repeatNote !== null || handoffNote === CHANGE_WORDS.sameCode}
           codeRan={codeRanHere}
           extraMarks={labelMarks}
@@ -1260,7 +1344,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
 
       {(shownModel?.notShown || noFunction) && !exp && (
         <div className="e-dead" data-testid="u1-dead-end">
-          <p>{shownModel?.notShown ? CHANGE_WORDS.nothingToDraw : CHANGE_WORDS.nothingToCall}</p>
+          <p data-testid="u1-nothing-why">{shownModel?.notShown ? (foreignLanguage(readText) ? CHANGE_WORDS.foreign(foreignLanguage(readText)!) : CHANGE_WORDS.nothingToDraw) : CHANGE_WORDS.nothingToCall}</p>
           <button
             type="button"
             className="u1-btn u1-primary"
@@ -1287,10 +1371,29 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           {handoffNote}
         </p>
       )}
-      {notRunnable && (
+      {notRunnable && !foreign && (
         <p className="u1-banner" role="note" data-testid="u1-cant-run">
           {notRunnable}
         </p>
+      )}
+      {notRunnable && !foreign && !shownModel?.notShown && (
+        <div className="u1-cant-next" data-testid="u1-cant-run-next">
+          <p>The drawing is still true of this code. To bet on it, Atlas needs a file that runs on its own: take that dependency out, or paste another file.</p>
+          <button
+            type="button"
+            className="u1-btn u1-primary"
+            onClick={() => {
+              reset();
+              setPasted(null);
+              setCode(readText);
+              setFn(null);
+              setOpen(false);
+            }}
+            data-testid="u1-cant-run-edit"
+          >
+            Edit this file
+          </button>
+        </div>
       )}
 
       {!notRunnable && fn && !after && (
@@ -1298,6 +1401,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           {!open && !exp && !proposals && <span className="u1-sub u1-paid" data-testid="u1-paid-bet">{earlyState === "busy" ? CHANGE_WORDS.earlyWonder : earlyState === "done" ? CHANGE_WORDS.earlyDone : CHANGE_WORDS.paidWonder}</span>}
           <button type="button" className="u1-btn u1-primary u1-toggle" aria-expanded={open} aria-controls="u1-pop" onClick={openBet} data-testid="u1-bet-toggle">
             {open ? "Hide the bet" : "Bet on your understanding"}
+            {!open && <kbd className="k" aria-hidden="true">Enter</kbd>}
           </button>
           {open && (
             <section id="u1-pop" className="u1-pop" tabIndex={-1} aria-label="Bet on your understanding" data-testid="u1-pop">
@@ -1337,6 +1441,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                       </button>
                     )}
                   </div>
+                  {sealed.length === 0 && step === 0 && remember?.last && <p className="u1-remember u1-remember-bet" data-testid="remember-last-bet">{remember.last}</p>}
                   {sealed.length === 0 && (
                     <div className="b-head" data-testid="b-head">
                       <button type="button" className="b-back" onClick={() => setStep((n) => Math.max(0, n - 1))} disabled={step === 0} aria-label="Back to the question before" data-testid="b-back">
@@ -1356,6 +1461,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                         <p className="u1-q" id={`q-${q.measures}`}>
                           {shortQuestionFor(q.text, exp.experiment.params, exp.experiment.target.language)}
                         </p>
+                        {/* D66: the person's own counts, beside the question, never in it: every bettor reads the same question (D19). */}
+                        {sealed.length === 0 && remember?.weakest && questionTypeOf(q.measures) === remember.weakest.type && <p className="u1-weakest" data-testid="remember-weakest">{weakestWords(remember.weakest)}</p>}
                         <div className="u1-opts" role="radiogroup" aria-labelledby={`q-${q.measures}`}>
                           {[...(q.quiz ?? []).map((o) => ({ id: o.id, label: o.label })), { id: CANT_TELL, label: CANT_TELL }].map((o) => (
                             <button
@@ -1458,11 +1565,14 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                   )}
                   {sealed.length === 0 ? (
                     <div className="u1-sealbar" data-last={step >= exp.questions.length ? "" : undefined}>
-                      <button type="button" className={`u1-btn${step >= exp.questions.length ? " u1-primary" : ""}`} onClick={seal} disabled={busy !== null} data-testid="u1-seal">
+                      <button type="button" className={`u1-btn${step >= exp.questions.length ? " u1-primary" : ""}`} onClick={() => void seal()} disabled={busy !== null} data-testid="u1-seal">
                         {BET_WORDS.seal}
                         {step >= exp.questions.length && <kbd className="k">↵</kbd>}
                       </button>
-                      <HowSurePicker value={confidence} onChange={setConfidence} disabled={busy !== null} hint={false} />
+                      <HowSurePicker value={confidence} onChange={setConfidence} disabled={busy !== null} hint={false} onEnter={(level) => {
+                          setConfidence(level);
+                          void seal(level);
+                        }} />
                       <p className="u1-sub">{`${BET_WORDS.untapped} ${FELT_WORDS.pickerHint}`}</p>
                     </div>
                   ) : (
@@ -1527,7 +1637,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                         <li key={p.id}>
                           <span>
                             {p.says}
-                            {(proposals?.proposals ?? []).find((x) => x.gate.allowed && x.id !== p.id) && <small className="b-differs">{whatDiffers(p.params, (proposals?.proposals ?? []).find((x) => x.gate.allowed && x.id !== p.id)!.params, "the next")}</small>}
+                            {offeredTests[i + 1] && <small className="b-differs">{whatDiffers(p.params, offeredTests[i + 1]!.params, "the next")}</small>}
                           </span>{" "}
                           <button type="button" className="u1-link" onClick={() => start(() => api.experimentFromProposal(target, p.id, { quiz: true }))} disabled={busy !== null} data-testid={`u1-use-${i}`}>
                             Use this test
@@ -1608,11 +1718,15 @@ function SealTags({ sealed, slots }: { sealed: readonly { sealedHash?: string }[
 
 function ModelsLine({ slots, claimant, onClaimant, locked }: { slots: ReturnType<typeof useModelSlots>["slots"]; claimant: ClaimantMode; onClaimant: (m: ClaimantMode) => void; locked: boolean }) {
   const on = slots.filter((s) => s.status !== "off");
+  const off = slots.filter((s) => s.status === "off");
   const say = (st: string) => (st === "thinking" ? "answering" : st === "sealed" ? "sealed" : st === "no_usable_answer" ? "no usable answer" : st);
   return (
     <div className="u1-models" data-testid="u1-models">
       <p>{BET_WORDS.ais(on.map((s) => betterByRole(s.model)))}</p>
       {on.length > 0 && <p className="u1-sub">{on.map((s) => BET_WORDS.aiStatus(betterByRole(s.model), say(s.status))).join(" · ")}</p>}
+      {[...new Set(off.map((s) => s.reason ?? "no reason given"))].map((why) => (
+        <p className="u1-sub" key={why} data-testid={`u1-model-off-${off.find((s) => (s.reason ?? "no reason given") === why)!.who}`}>{BET_WORDS.aiOff(off.filter((s) => (s.reason ?? "no reason given") === why).map((s) => betterByRole(s.model)).join(" and "), why)}</p>
+      ))}
       {!locked && (
         <div className="u1-who" role="radiogroup" aria-label={BET_WORDS.whoBets}>
           <span>{BET_WORDS.whoBets}</span>

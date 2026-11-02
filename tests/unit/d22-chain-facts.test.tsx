@@ -179,9 +179,8 @@ describe("D22: chain facts before the bet", () => {
 
     // Run, then check nothing from the run reached any prompt.
     act(() => setValue($('[data-testid="bet-usd"]') as HTMLInputElement, "2200"));
-    await act(async () => byText("button", "Seal my bet")!.click());
+    await act(async () => byText("button", "Seal my bet and run it")!.click());
     await until(() => $('[data-testid="hash-usd"]') !== null, "the sealed hash");
-    await act(async () => byText("button", "Run it on a fork of Base")!.click());
     await until(() => $('[data-testid="run-facts"]') !== null, "the run");
     const prompts = calls.flatMap((c) => c.messages.map((m) => m.content)).join("\n");
     for (const n of RUN_STRINGS) expect(prompts).not.toContain(n);

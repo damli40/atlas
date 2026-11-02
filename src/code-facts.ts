@@ -53,3 +53,9 @@ export function smallLimits(source: string, language: Lang): number[] {
   }
   return [...found].sort((a, b) => a - b);
 }
+
+/** What may be read about a file when choosing a test: its text and language. */
+export interface CodeContext {
+  source: string;
+  language: Lang;
+}

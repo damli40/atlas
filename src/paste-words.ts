@@ -145,6 +145,10 @@ export const PASTE_WORDS = {
 export const TIMED_WORK_SAYS_R1 =
   "This code timed its own work: it read the clock more than once at the same moment of Atlas's simulated clock, which moves only while the code waits. Elapsed times read 0 ms here and don't reflect your machine.";
 
+/** The timed-work sentence from R2 until it was narrowed to what is detected. Proof files made then carry it; verify accepts it for them. */
+export const TIMED_WORK_SAYS_R2 =
+  "This code timed its own work: it read the clock more than once at the same moment of Atlas's simulated clock, which moves only while the code waits, so an elapsed time reads 0 here. Atlas ran it a second time as if the work took time: 10 ms more at each repeated read of a stopwatch clock (performance.now, process.hrtime, Python's perf_counter and monotonic), 1 ms more (JavaScript) or 10 ms more (Python) at each repeated read of the calendar clock (Date, Python's time.time and datetime), and that time stays added. A time stamp returned next to another one taken at the same moment changes too, so it is not reported. A value that changed is not reported; a value that stayed the same is. A check against a longer time (\"took over a second\") does not change this way, so it shows what fast work gives.";
+
 export const CONDITION_WORDS = {
   heading: "Conditions",
   intro: "What this result depends on that is Atlas's, not the code's:",
@@ -158,7 +162,7 @@ export const CONDITION_WORDS = {
   // R1 review M1-M3: decided from the code's own clock reads (two or more at one simulated moment), never from CPU time.
   // R2 (D45): a value that depends on the elapsed time is no longer shown as 0 ms; it is "can't check" (workTime).
   timedWork:
-    "This code timed its own work: it read the clock more than once at the same moment of Atlas's simulated clock, which moves only while the code waits, so an elapsed time reads 0 here. Atlas ran it a second time as if the work took time: 10 ms more at each repeated read of a stopwatch clock (performance.now, process.hrtime, Python's perf_counter and monotonic), 1 ms more (JavaScript) or 10 ms more (Python) at each repeated read of the calendar clock (Date, Python's time.time and datetime), and that time stays added. A time stamp returned next to another one taken at the same moment changes too, so it is not reported. A value that changed is not reported; a value that stayed the same is. A check against a longer time (\"took over a second\") does not change this way, so it shows what fast work gives.",
+    "This code read the clock more than once at the same moment. Atlas's simulated clock moves only while the code waits, so an elapsed time reads 0 here. Atlas ran it a second time as if the work took time: 10 ms more at each repeated read of a stopwatch clock (performance.now, process.hrtime, Python's perf_counter and monotonic), 1 ms more (JavaScript) or 10 ms more (Python) at each repeated read of the calendar clock (Date, Python's time.time and datetime), and that time stays added. A time stamp returned next to another one taken at the same moment changes too, so it is not reported. A value that changed is not reported; a value that stayed the same is. A check against a longer time (\"took over a second\") does not change this way, so it shows what fast work gives.",
   // R2 (D45): the values that changed when the second run let time pass during the code's own timing.
   workTime: (fields: string) =>
     `Atlas can't check these values: ${fields}. They changed when Atlas's second run let time pass while the code timed its own work, so they depend on how long the work really takes. Atlas's clock is simulated and can't measure real work time.`,
@@ -228,6 +232,7 @@ export const BET_WORDS = {
   network: (lib: string) => `The real network is blocked. Atlas's fake ${lib} answers instead, exactly as this test scripts it, and counts each call.`,
   ais: (names: readonly string[]) =>
     names.length === 0 ? "No AI bets on this test." : `${names.length === 1 ? "One AI bets" : `${names.length === 2 ? "Two" : String(names.length)} AIs bet`} too, without seeing your answers: ${names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`}.`,
+  aiOff: (who: string, why: string) => `${who}: not betting on this round. ${String(why).replace(/^./, (c) => c.toUpperCase()).replace(/\.$/, "")}.`,
   aiStatus: (name: string, status: string) => `${name}: ${status}`,
   whoBets: "Who bets with you",
   seal: "Seal my answers",

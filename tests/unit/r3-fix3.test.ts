@@ -224,7 +224,7 @@ describe("part B: words and dead ends", () => {
   it("two tests can be told apart by what differs", async () => {
     const { whatDiffers } = await import("../../web/screens/Studio");
     const t = (route: string) => ({ exportName: "f", args: [{ kind: "json", value: [{ ms: 10, route }] }] });
-    expect(whatDiffers(t("/b"), t("/a"))).toBe('Compared with the last test: "/a" becomes "/b".');
+    expect(whatDiffers(t("/b"), t("/a"))).toBe('This test has "/b" where the last test has "/a".');
     expect(whatDiffers(t("/a"), t("/a"))).toBe("The same as the last test.");
   });
   it("a file with no exported function offers no bet", async () => {

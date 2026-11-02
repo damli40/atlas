@@ -173,7 +173,7 @@ export interface ProbeWire {
 }
 /** What call-worker.ts prints after RESULT_MARKER and the per-run marker. Exactly one of runs / wholeRun / tampered. */
 export interface CallWorkerResponse {
-  runs?: ({ id: string; probes?: ProbeWire[]; probesCut?: number } & CallHarnessOutput)[];
+  runs?: ({ id: string; probes?: ProbeWire[]; probesCut?: number; thrownLine?: number | null } & CallHarnessOutput)[];
   wholeRun?: string;
   tampered?: string;
   changed?: string;
@@ -1426,6 +1426,38 @@ function grownResources(before: Map<string, number>): string[] {
 
 // ---- R3 (D61): the third run's probes. Not installed for a sealed run. Names and order only: no value is ever read. ----
 const PROBE_MAX = 5000;
+/**
+ * The third run only: the line of the pasted file the ending error was made on, from its stack's top frame. Only a number leaves, and only when that top frame is the pasted
+ * file: a library's frame on top (JSON.parse), or no usable stack, gives none. Lines hold: the probes add text on the lines the file already has. Code can fake its own stack
+ * here; that can only mislead the drawing, like the helper order, and never a verdict.
+ */
+let thrownLine: number | null = null;
+/** V8's own stack getter, if it uses one, taken before any pasted code loads. */
+const NATIVE_STACK_GET = (() => {
+  try {
+    return (ReflectApply(ObjectGetOwnPropertyDescriptor, null, [new ErrorCtor("x"), "stack"]) as PropertyDescriptor | undefined)?.get;
+  } catch {
+    return undefined;
+  }
+})();
+export const thrownLineSoFar = (): number | null => thrownLine;
+function lineThrownFrom(e: unknown): number | null {
+  atlasReadingStack = true;
+  try {
+    // Never runs code of the file's: an own data value, or V8's own getter. A getter the code put there gives no line.
+    if (e === null || (typeof e !== "object" && typeof e !== "function")) return null;
+    const d = ReflectApply(ObjectGetOwnPropertyDescriptor, null, [e, "stack"]) as PropertyDescriptor | undefined;
+    const st = d === undefined ? undefined : "value" in d ? d.value : d.get !== undefined && d.get === NATIVE_STACK_GET ? ReflectApply(d.get, e, []) : undefined;
+    if (typeof st !== "string") return null;
+    const frame = (ReflectApply(StringSplit, st, ["\n"]) as string[]).find((l) => l.startsWith("    at "));
+    const m = frame === undefined ? null : /target\.(?:ts|mjs):(\d{1,7}):\d+\)?$/.exec(frame);
+    return m ? Number(m[1]) : null;
+  } catch {
+    return null;
+  } finally {
+    atlasReadingStack = false;
+  }
+}
 const probeEvents: ProbeWire[] = [];
 let probesCut = 0;
 let probePlace: (() => [number, number]) | null = null;
@@ -1761,6 +1793,7 @@ export async function runCall(fn: unknown, req: CallRunRequest, opts: CallHarnes
       settledAt = clock.now;
       if (isAccessDenied(e)) markWholeRun(ACCESS_REASON("the sandbox refused an access"));
       const facts = classifyThrown(e);
+      if (probePlace) thrownLine = lineThrownFrom(e); // the third run only: a sealed run never reads a stack
       watch();
       settled = { kind: "threw", facts };
       emit("threw", { type: facts.type, ...(facts.name !== undefined ? { name: facts.name } : {}) });

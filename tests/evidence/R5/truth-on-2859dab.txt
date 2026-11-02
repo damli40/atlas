@@ -1,0 +1,16 @@
+Truth driver run against the code before the truth work (2859dab). Every FAIL is a false thing that code shows; the last crash is the two-caller case, which that code does not draw as a machine at all.
+FAIL returned-with-a-chute: it returned, so no chute is red: {"red":["f#chute"],"ring":null,"ran":[],"needles":[],"lamps":[]}
+pass returned-with-a-chute: a matched bet has no ring
+FAIL returned-bet-throws: no chute is red: {"red":["f#chute"],"ring":null,"ran":[],"needles":[],"lamps":[]}
+FAIL returned-bet-throws: the ring is on the outlet: {"red":["f#chute"],"ring":null,"ran":[],"needles":[],"lamps":[]}
+pass own-throw: its chute is red
+FAIL own-throw: the ring is on that chute: {"red":["f#chute"],"ring":null,"ran":[],"needles":[],"lamps":[]}
+FAIL fake-threw-unrelated-chute: the chute of a function that never ran is not red: {"red":["validate#chute"],"ring":null,"ran":["f->stand-in x"],"needles":[],"lamps":["stand-in x"]}
+FAIL fake-threw-unrelated-chute: the ring is on the fake: {"red":["validate#chute"],"ring":null,"ran":["f->stand-in x"],"needles":[],"lamps":["stand-in x"]}
+FAIL caught-upstream: a throw caught upstream draws no red: {"red":["boom#chute"],"ring":null,"ran":["f->boom"],"needles":[],"lamps":["boom"]}
+FAIL caught-then-other: not the one that was caught: {"red":["boom#chute","real#chute"],"ring":null,"ran":["f->boom"],"needles":[],"lamps":["boom","real"]}
+FAIL library-threw: an error no throw here made: nothing red, nothing ringed: {"red":["f#chute"],"ring":null,"ran":[],"needles":[],"lamps":[]}
+pass library-threw: the words stand alone
+FAIL dial-not-run: the dial of a function that never ran does not move: {"red":[],"ring":null,"ran":["f->stand-in x"],"needles":["slow"],"lamps":["stand-in x"]}
+FAIL stale-helper: no thread for a call that didn't happen: {"red":[],"ring":null,"ran":["f->a","a->b"],"needles":[],"lamps":["a","b"]}
+TypeError: Cannot read properties of undefined (reading 'some')

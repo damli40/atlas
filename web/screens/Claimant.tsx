@@ -73,6 +73,15 @@ export function useModelSlots(api: Api) {
   return { slots, fromExperiment, fromRun, thinking: slots.some((s) => s.status === "thinking") };
 }
 
+/** A round never silently drops a bettor: each one asked for that has no bet in this round, and why. */
+export function absentBettors(slots: readonly ModelSlotView[], bets: readonly { who: string }[]): string[] {
+  const why = (s: ModelSlotView) => (s.reason ?? "no reason given").replace(/\.$/, "");
+  const name = (s: ModelSlotView) => s.display.replace(/ \(.*$/, "");
+  return slots
+    .filter((s) => !bets.some((b) => b.who === s.who))
+    .map((s) => (s.status === "off" ? `${name(s)} did not bet on this round: ${why(s)}.` : s.status === "thinking" ? `${name(s)} had not answered when the run started, so it has no bet on this round.` : `${name(s)} gave no usable answer on this round: ${why(s)}.`));
+}
+
 /** The heading a model column carries, or null when the model was not asked. */
 export const shownName = (s: ModelSlotView) => (s.status !== "off" ? s.display : null);
 

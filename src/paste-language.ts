@@ -92,3 +92,21 @@ export function guessLanguage(source: string): LanguageGuess {
   if (py) return { language: "py", why: `a Python \`def\` on line ${lineOf(s, py.index)}` };
   return { language: "js", why: "no TypeScript or Python sign was found" };
 }
+
+const FOREIGN: [RegExp, string][] = [
+  [/^\s*(?:pub\s+)?fn\s+\w+\s*[(<]|^\s*use\s+\w+(?:::\w+)+|\blet\s+mut\b|^\s*impl\s+\w+/m, "Rust"],
+  [/^\s*package\s+\w+\s*$|^\s*func\s+(?:\(\w+\s+\*?\w+\)\s*)?\w+\s*\(/m, "Go"],
+  [/^\s*public\s+(?:final\s+)?class\s+\w+|public\s+static\s+void\s+main/m, "Java"],
+  [/^\s*using\s+System\b|^\s*namespace\s+[\w.]+\s*[;{]/m, "C#"],
+  [/^\s*(?:class|module)\s+[A-Z]\w*\s*$[\s\S]*^\s*end\s*$|^\s*def\s+\w+[^:\n]*$[\s\S]*^\s*end\s*$/m, "Ruby"],
+  [/^\s*import\s+(?:Foundation|UIKit|SwiftUI)\s*$/m, "Swift"],
+];
+
+/** The language a file with nothing Atlas can read looks like, or null. A guess from a few unmistakable signs, only ever used to say why nothing was drawn. */
+export function foreignLanguage(src: string): string | null {
+  // These two start with characters the blanking takes for a comment or a string, and no JavaScript or Python file has them at the start of a line.
+  if (/^\s*#include\s*[<"]/m.test(src)) return "C or C++";
+  if (/^\s*<\?php/m.test(src)) return "PHP";
+  const text = blankCommentsAndStrings(src);
+  return FOREIGN.find(([re]) => re.test(text))?.[1] ?? null;
+}

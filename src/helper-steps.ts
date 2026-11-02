@@ -16,6 +16,8 @@ export interface HelperStep {
   threw?: boolean;
   /** Calls made inside this one, not drawn. */
   inner: number;
+  /** The names of the functions those calls started (each once), for the machine's lamps. Never a value, never an order. */
+  within?: string[];
 }
 
 const BOOKKEEPING = new Set(["call_checks", "clock_moves", "conditions", "log", "control", "python", "start"]);
@@ -42,7 +44,8 @@ export function helperSteps(probes: unknown, o: { names?: readonly string[]; tes
     return n;
   };
   const testedSet = new Set(o.tested);
-  const stack: { name: string; inner: number }[] = [];
+  const stack: { name: string; inner: number; within: Set<string>; t: number; at: number }[] = [];
+  const within = (s: Set<string>) => (s.size > 0 ? { within: [...s].slice(0, 40) } : {});
   const steps: HelperStep[] = [];
   const open: HelperStep[] = [];
   let cut = (Array.isArray(probes) && probes.length > HELPER_LIMITS.events) || (finite(o.cut) && o.cut > 0);
@@ -65,14 +68,19 @@ export function helperSteps(probes: unknown, o: { names?: readonly string[]; tes
     if (name === null) continue;
     const at = place(p.at);
     if (p.k === 0) {
-      if (depth() > 0) stack[stack.length - 1]!.inner++;
-      stack.push({ name, inner: 0 });
+      if (depth() > 0) {
+        stack[stack.length - 1]!.inner++;
+        stack[stack.length - 1]!.within.add(name);
+      }
+      stack.push({ name, inner: 0, within: new Set(), t: p.t, at });
       continue;
     }
     if (p.k === 3) {
       if (testedSet.has(name)) continue;
-      if (depth() > 0) stack[stack.length - 1]!.inner++;
-      else open.push({ name, t: p.t, at, inner: 0 });
+      if (depth() > 0) {
+        stack[stack.length - 1]!.inner++;
+        stack[stack.length - 1]!.within.add(name);
+      } else open.push({ name, t: p.t, at, inner: 0 });
       continue;
     }
     if (p.k !== 1 && p.k !== 2) continue;
@@ -101,9 +109,11 @@ export function helperSteps(probes: unknown, o: { names?: readonly string[]; tes
     if (stack.length === 0 && testedSet.has(name)) continue; // the tested function's own end is the run's ending
     if (depth() > 0) {
       stack[stack.length - 1]!.inner += f.inner;
+      for (const n of f.within) stack[stack.length - 1]!.within.add(n);
       continue;
     }
-    add({ name, t: p.t, at, ...(p.k === 2 ? { threw: true } : {}), inner: f.inner });
+    // Placed where it STARTED, so the list reads in call order, not in the order calls finished.
+    add({ name, t: f.t, at: f.at, ...(p.k === 2 ? { threw: true } : {}), inner: f.inner, ...within(f.within) });
   }
   // Begun with no end to report (Python's coroutines): the name, at the moment it began.
   for (const o2 of open) add(o2);

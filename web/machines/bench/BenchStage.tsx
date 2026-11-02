@@ -13,6 +13,10 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent as RPointerEvent, type ReactNode } from "react";
 import { benchSpec } from "../../../renderer/authors/bet-view";
 import { momentOf, type Moment } from "../../../src/moment";
+import { MachineSheet, machineFirst, rememberView, type MachineControl } from "../../drawing/MachineView";
+import { CANT_DRAW, LIST_FROM_PARTS, MACHINE_MIN_WORD_PX, NOTHING_TO_DRAW, TOO_SMALL, drawMachine, endOfRun, machineParts, ranParts, ringFor, type MachineEnd, type MachineParts } from "../../../renderer/authors/machine";
+import type { CountChange } from "../../../src/remember";
+import { machineScript } from "../../../renderer/authors/machine-script";
 import { whatHappened } from "../../../renderer/authors/what-happened";
 import type { HelperAnswer } from "../../api";
 import type { Mounted } from "../../../renderer/live/mount";
@@ -23,7 +27,9 @@ import type { Bet, Experiment, Run, Verdict } from "../../../src/types";
 import { Drawing } from "../../drawing/Drawing";
 import { useDarkScheme, useReducedMotion } from "../../drawing/media";
 import { CLOCK_ID, deviceId, type BenchModel, type BenchPart } from "./model";
-import { OUTCOME_WORDS, type Mark, type Script } from "./play";
+import { OUTCOME_WORDS, unusedFakes, type Mark, type Script } from "./play";
+import { notShownAsFact } from "../../../src/trust";
+import { runBeats } from "./run-beats";
 import { lineSpan } from "../../../src/words";
 import { RESULT_WORDS, STAGE_WORDS } from "../../../src/paste-words";
 import { CANT_TELL } from "../../../src/quiz";
@@ -44,6 +50,10 @@ export interface After {
   verdicts: readonly Verdict[];
   /** R3: the code's own steps, from a third run made only for this drawing. */
   helpers?: HelperAnswer | null;
+  /** The third run is not back yet. The verdict never waits for it: with motion off it shows at once, and the steps join when they come. */
+  helpersPending?: boolean;
+  /** Bettors asked for that have no bet in this round, with why. */
+  absent?: readonly string[];
 }
 
 export interface BenchStageProps {
@@ -52,6 +62,8 @@ export interface BenchStageProps {
   after?: After | null;
   /** This code and test have already run here: "nothing has run" would be false. */
   seenBefore?: boolean;
+  /** Atlas won't run this file: nothing on the machine may say Atlas calls it. */
+  wontRun?: boolean;
   /** This code has already run here on some test: nothing on screen may say nothing has run. */
   codeRan?: boolean;
   /** D60: a part was clicked on the drawing: the code drawer jumps to its lines. */
@@ -77,6 +89,8 @@ export interface BenchStageProps {
   footnote?: ReactNode;
   /** U3 item 7: called when a replay reaches its end state (the page then offers "Play the run again"). */
   onPlayed?: () => void;
+  /** D66: the count this round moved, for the person who bet. */
+  loop?: CountChange | null;
   /** U3 item 5: words ABOVE the judged answers (a "Test this claim" round's sentence beside the facts). */
   headnote?: ReactNode;
 }
@@ -88,7 +102,35 @@ export function roundUp(ms: number): number {
   return 10 * p;
 }
 
-export function BenchStage({ seenBefore = false, codeRan = false, model, theme, after = null, onPart, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null }: BenchStageProps) {
+/** Which part the run ended in, when plain code can place it, from what it measured, the traced steps and the test. */
+function machineEnd(after: After, parts: MachineParts, tested: string | null): MachineEnd | null {
+  const m = after.run.result.measured as Record<string, unknown>;
+  const steps = after.helpers && "steps" in after.helpers ? after.helpers.steps : [];
+  const called = (port: string) => {
+    const name = port.replace(/^stand-in /, "");
+    return typeof m[`calls:${name}`] === "number" && (m[`calls:${name}`] as number) > 0;
+  };
+  return endOfRun({ outcome: m.outcome, thrown: { name: typeof m.thrownName === "string" ? m.thrownName : null, message: typeof m.thrownMessage === "string" ? m.thrownMessage : null }, parts, tested, test: after.experiment.params, ran: ranParts({ tested, steps, parts, called }), called, thrownAt: after.helpers && "thrownAt" in after.helpers ? after.helpers.thrownAt ?? null : null });
+}
+
+/** Why a run shows nothing, as one plain line: what happened, without the "nothing is shown as fact" lead the list beside it already has. */
+const stopLine = (why: string) => {
+  const w = why.replace(/^Atlas could not check this run, so nothing from it is shown as fact: /, "");
+  return `${w.charAt(0).toUpperCase()}${w.slice(1)}.`.replace(/\.\.$/, ".");
+};
+/** On the machine only what is lit comes from the trace. */
+const showMachineWords = (run: string) => `What is lit comes from run ${run}'s trace.`;
+/** The height kept under the machine for that one line. */
+const CAPTION_LINE = 40;
+
+/** A part lit by the run, other than the one Atlas calls, that no thread reaches. */
+export function litWithNoThread(beats: readonly { routes: readonly string[]; lamps: readonly string[] }[], tested: string | null): boolean {
+  const reached = new Set(beats.flatMap((b) => b.routes.map((r) => r.split("->")[1]!)));
+  return beats.some((b) => b.lamps.some((l) => l !== tested && !reached.has(l)));
+}
+
+export function BenchStage({ wontRun = false, seenBefore = false, codeRan = false, loop = null, model, theme, after = null, onPart, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null }: BenchStageProps) {
+  const [wantMachine, setWantMachine] = useState(machineFirst);
   const playedRef = useRef(onPlayed);
   playedRef.current = onPlayed;
   const dark = useDarkScheme();
@@ -138,18 +180,77 @@ export function BenchStage({ seenBefore = false, codeRan = false, model, theme, 
     const spec = whatHappened({ run: after.run, experiment: after.experiment, bets: after.bets.filter((b) => b.who === "human" && b.measures === lead), verdicts: [...after.verdicts], origin: "this-run", ...(after.helpers ? { helpers: after.helpers } : {}), seed: `path:${after.run.id}` });
     return { ...spec, title: undefined, kicker: undefined, subtitle: undefined } as typeof spec;
   }, [after?.run, after?.experiment, after?.bets, after?.verdicts, after?.helpers, after?.marks]); // eslint-disable-line react-hooks/exhaustive-deps
+  // D65: the machine, drawn by plain code from the same model as the chart. It holds its ring from the start, hidden until the run lands it.
+  const machineRef = useRef<MachineControl | null>(null);
+  const parts = useMemo(() => machineParts(model, outline, source, language), [model, outline, source, language]);
+  const end = useMemo(() => (after ? machineEnd(after, parts, model.tested) : null), [after?.run, after?.helpers, after?.experiment, model.tested, parts]); // eslint-disable-line react-hooks/exhaustive-deps
+  const ring = useMemo(() => {
+    const moment = after ? momentOf(after.marks, after.run, language) : null;
+    return moment ? ringFor({ kind: moment.kind, you: moment.you, end, tested: model.tested }) : null;
+  }, [after?.run, after?.marks, end, model.tested]); // eslint-disable-line react-hooks/exhaustive-deps
+  const drawn = useMemo(() => {
+    const d = drawMachine(parts, { seed: `machine:${outline.parts.map((p) => p.name).join(",")}`, ring, end, ...(wontRun ? { wontRun } : {}) });
+    // The check runs on every drawing: a picture that fails it is not shown, and the words stay plain.
+    return d.problems.length > 0 ? { ...d, tooMany: CANT_DRAW } : d;
+  }, [parts, ring, end, outline, wontRun]);
+  // The floor: no word under 11 px on screen, whatever the part count. The region is always there to measure, in either view.
+  const regionRef = useRef<HTMLDivElement | null>(null);
+  const [region, setRegion] = useState<{ w: number; h: number } | null>(null);
+  useEffect(() => {
+    const el = regionRef.current;
+    if (!el || typeof ResizeObserver !== "function") return;
+    const ro = new ResizeObserver(() => setRegion({ w: el.clientWidth, h: el.clientHeight }));
+    ro.observe(el);
+    setRegion({ w: el.clientWidth, h: el.clientHeight });
+    return () => ro.disconnect();
+  }, []);
+  const tooSmall = !drawn.tooMany && region !== null && region.w > 0 && drawn.minWords * Math.min(1.7, (region.w - 20) / drawn.width, (region.h - 20 - (after ? CAPTION_LINE : 0)) / drawn.height) < MACHINE_MIN_WORD_PX;
+  // On a wide screen the small print is the fold below, for either view; on a phone it stays with the chart.
+  const chartPath = useMemo(() => (pathSpec && typeof window !== "undefined" && window.innerWidth > 760 ? { ...pathSpec, captions: [] } : pathSpec), [pathSpec]);
+  // The small print: one short line, the rest under a fold. Every word stays there, unchanged.
+  const [firstLine, restLines] = useMemo(() => {
+    const words = (pathSpec?.captions ?? []).map((c) => c.words);
+    const first = words[0] ?? "";
+    const m = /^Every step comes from run (\S+)'s trace\.\s*(.*)$/.exec(first);
+    if (!m) return [first, words.slice(1)] as const;
+    return [showMachineWords(m[1]!), [...(m[2] ? [m[2]] : []), ...words.slice(1)]] as const;
+  }, [pathSpec]); // eslint-disable-line react-hooks/exhaustive-deps
+  const noRunToShow = Boolean(after && (after.script.notShown !== null || pathSpec?.notShown !== undefined));
+  // A run with nothing to draw (a busy loop stopped at the watch limit) keeps the machine on screen, unlit: the machine is the code, and the code is still there.
+  const showMachine = wantMachine && !drawn.tooMany && !tooSmall && model.notShown === null;
+  const beats = useMemo(() => {
+    if (!pathSpec || !after || after.script.notShown !== null || pathSpec.notShown !== undefined) return [];
+    return runBeats({ run: after.run, experiment: after.experiment, helpers: after.helpers ?? null, parts, tested: model.tested, spec: pathSpec });
+  }, [pathSpec, parts, outline, model.tested, after?.run, after?.helpers]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const onM = (e: globalThis.KeyboardEvent) => {
+      if (e.key.toLowerCase() !== "m" || e.metaKey || e.ctrlKey || e.altKey || (e.target as HTMLElement | null)?.closest?.("input, textarea, select") || document.querySelector<HTMLElement>(".u1-fill")?.hidden === true) return;
+      setWantMachine((w) => {
+        rememberView(w ? "chart" : "machine");
+        return !w;
+      });
+    };
+    window.addEventListener("keydown", onM);
+    return () => window.removeEventListener("keydown", onM);
+  }, []);
   /** undefined: not drawn yet. null: refused. A mount with no player: the plain list. The last two have nothing to play. */
   const [pathMount, setPathMount] = useState<Mounted | null | undefined>(undefined);
   /** Ends the pause while the chart moves aside, so a click during it counts. */
   const endPause = useRef<(() => void) | null>(null);
   const skipAsked = useRef(false);
+  const shownFor = useRef<number | null>(null);
 
   // The run, played as a story. Without `after`: nothing plays.
   useEffect(() => {
-    setMarksOn(false);
-    setStep(null);
+    // With motion off the verdict is already up when the third run's steps arrive: they join it, and nothing is taken away first.
+    const again = still && after !== null && shownFor.current === after.token;
+    if (!again) {
+      setMarksOn(false);
+      setStep(null);
+    }
     if (!after) return;
     const end = () => {
+      shownFor.current = after.token;
       setPlaying(false);
       setStep(null);
       setMarksOn(true);
@@ -166,6 +267,8 @@ export function BenchStage({ seenBefore = false, codeRan = false, model, theme, 
       return;
     }
     if (!p) return; // the path's drawing arrives on the next render
+    // With motion the story is how the result arrives, and it is told with the steps: it starts when the third run answers, 2.5 s at the most.
+    if (!still && !p.reduced && after.helpersPending) return;
     let live = true;
     const chartPlayer = chartMount.current?.player ?? null;
     const lit = (s: SpecStep) => {
@@ -177,6 +280,8 @@ export function BenchStage({ seenBefore = false, codeRan = false, model, theme, 
       skipAsked.current = false;
       setPlaying(true);
       p.rewind();
+      machineRef.current?.rewind();
+      machineRef.current?.setScript(beats);
       // D60: about 5 s to the ring, whatever the path's length, up to about 6 s. The final ring keeps its pace: it is the payoff.
       p.setRunPace(Math.max(0.12, Math.min(0.85, 4400 / Math.max(1, pathSpec.steps.length * 1000))));
       // The chart moves aside first, so the whole story is seen.
@@ -192,6 +297,7 @@ export function BenchStage({ seenBefore = false, codeRan = false, model, theme, 
       }
       for (let i = 0; i < pathSpec.steps.length && live; i++) {
         lit(pathSpec.steps[i]!);
+        machineRef.current?.play(i, Math.max(120, Math.min(800, 4400 / pathSpec.steps.length)));
         // The thread takes the centre and the view follows its head.
         pathMount?.bringIntoView(pathSpec.steps[i]!.nodes[0] ?? "", !skipAsked.current);
         const played = p.playStep(i);
@@ -202,6 +308,7 @@ export function BenchStage({ seenBefore = false, codeRan = false, model, theme, 
       if (!live) return;
       setStep(null);
       setMarksOn(true);
+      machineRef.current?.land();
       p.setRunPace(1);
       // The run's end card, or the card with the ring, is on screen when it finishes.
       pathMount?.bringIntoView(pathSpec.marks[0]?.on ?? pathSpec.nodes[pathSpec.nodes.length - 1]?.id ?? "");
@@ -215,13 +322,14 @@ export function BenchStage({ seenBefore = false, codeRan = false, model, theme, 
       p.skip();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [after?.token, pathMount, pathSpec, still]);
+  }, [after?.token, after?.helpersPending, pathMount, pathSpec, still]);
 
   const skip = () => {
     skipAsked.current = true;
     endPause.current?.();
     pathMount?.player?.skip();
     chartMount.current?.player?.skip();
+    machineRef.current?.skip();
   };
   // D60: any key skips while the run plays (a key with a modifier is the browser's).
   useEffect(() => {
@@ -280,7 +388,7 @@ export function BenchStage({ seenBefore = false, codeRan = false, model, theme, 
   const readout = after && marksOn ? marksReadout(after.marks) : model.tested ? `testing ${model.tested}` : `${model.boxes.length} ${model.boxes.length === 1 ? "part" : "parts"} · ${model.lines.length} ${model.lines.length === 1 ? "join" : "joins"}`;
 
   return (
-    <div className={`rr-host u1-root${marksOn ? " u1-marked" : ""}`} data-theme={shown} data-stage={stage} data-phase={!after ? "rest" : marksOn ? "marked" : "playing"} data-pop={side && !after ? "" : undefined} data-testid="bench-stage" onPointerUp={onRootPointerUp} onKeyDown={onKey} tabIndex={-1}>
+    <div className={`rr-host u1-root${marksOn ? " u1-marked" : ""}`} data-list={model.notShown === null && !after && outline.parts.length > LIST_FROM_PARTS ? "" : undefined} data-noted={(wantMachine && (drawn.tooMany || tooSmall) && drawn.tooMany !== NOTHING_TO_DRAW && !noRunToShow) || (showMachine && noRunToShow) ? "" : undefined} data-view={showMachine ? "machine" : "chart"} data-theme={shown} data-stage={stage} data-phase={!after ? "rest" : marksOn ? "marked" : "playing"} data-pop={side && !after ? "" : undefined} data-testid="bench-stage" onPointerUp={onRootPointerUp} onKeyDown={onKey} tabIndex={-1}>
       <header className="r-head">
         <p className="r-kick">{title}</p>
         <h1 className="r-name">{model.tested ?? fileName}</h1>
@@ -301,9 +409,43 @@ export function BenchStage({ seenBefore = false, codeRan = false, model, theme, 
             }} />
         )}
       </div>
+      <div className="r-machine" ref={regionRef} hidden={undefined} style={showMachine ? undefined : { visibility: "hidden", pointerEvents: "none" }} data-testid="machine-region" data-captions={after && marksOn && pathSpec?.captions.length ? "" : undefined}>
+        {showMachine && <MachineSheet ref={machineRef} drawn={drawn} reduced={still} penKey={after ? null : source} beats={beats} landed={Boolean(after && marksOn)} onPart={(id) => model.parts[id]?.kind === "code" && document.querySelector(".c-drawer") && onPart?.(id)} />}
+      </div>
+      {showMachine && after && noRunToShow ? <p className="r-view-note" role="note" data-testid="machine-stop">{stopLine(after.script.notShown ?? pathSpec?.notShown ?? "")}</p> : null}
+      {after && marksOn && !noRunToShow && pathSpec?.captions.length ? (
+        <details className="m-captions" data-testid="machine-captions">
+          <summary>{firstLine}</summary>
+          {[...(litWithNoThread(beats, model.tested) ? ["A part lit with no thread ran, but which part called it is not known."] : []), ...(end?.on === "chute" && after.helpers && "thrownAt" in after.helpers && after.helpers.thrownAt === end.line ? ["The line it threw from comes from that same traced run."] : []), ...restLines].map((w) => (
+            <span key={w}>{w}</span>
+          ))}
+        </details>
+      ) : null}
+      {model.notShown === null && !after && outline.parts.length > LIST_FROM_PARTS ? (
+        <ul className="r-part-list" data-testid="part-list" aria-label="The functions and classes in this file">
+          {outline.parts.map((q) => (
+            <li key={q.name}>
+              <span className="r-part-name">{q.name}</span>
+              <span className="r-part-lines">{lineSpan(q.lineStart, q.lineEnd)}</span>
+              {q.exported && q.kind === "function" && onTestFunction && q.name !== model.tested ? (
+                <button type="button" className="u1-link" onClick={() => onTestFunction(q.name)} data-testid={`list-test-${q.name}`}>
+                  Test this function
+                </button>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {wantMachine && (drawn.tooMany || tooSmall) && drawn.tooMany !== NOTHING_TO_DRAW && !noRunToShow && <p className="r-view-note" role="note" data-testid="machine-too-many">{drawn.tooMany ?? TOO_SMALL}</p>}
+      {!drawn.tooMany && !tooSmall && model.notShown === null && typeof window !== "undefined" && window.innerWidth >= 760 && (
+        <button type="button" className="r-view-toggle" onClick={() => setWantMachine((w) => { rememberView(w ? "chart" : "machine"); return !w; })} data-testid="view-toggle">
+          {showMachine ? "Box chart" : "Machine"}
+          <kbd className="k">M</kbd>
+        </button>
+      )}
       {pathSpec && (
         <div className="r-viewport r-path" data-testid="bench-path">
-          <Drawing spec={pathSpec} theme={shown} className="r-sheet" maxScale={1.08} minScale={typeof window !== "undefined" && window.innerWidth <= 760 ? 0.66 : 0.5} hover={false} onPending={() => setPathMount(undefined)} onMount={(m) => setPathMount(m)} />
+          <Drawing spec={chartPath!} theme={shown} className="r-sheet" maxScale={1.08} minScale={typeof window !== "undefined" && window.innerWidth <= 760 ? 0.66 : 0.5} hover={false} onPending={() => setPathMount(undefined)} onMount={(m) => setPathMount(m)} />
         </div>
       )}
       <p className="r-step" role="status" aria-live="polite" data-testid="run-step">
@@ -316,7 +458,7 @@ export function BenchStage({ seenBefore = false, codeRan = false, model, theme, 
         </p>
       )}
       {!after && cardId && model.parts[cardId] && <PartCard id={cardId} part={model.parts[cardId]!} tested={model.tested} hasTest={Boolean(model.parts[CLOCK_ID])} python={language === "py"} pinned={pinned === cardId} {...(onTestFunction ? { onTest: onTestFunction } : {})} canChange={!after} onClose={() => setPinned(null)} />}
-      {after && marksOn && <MarkList marks={after.marks} focus={focusMark} onFocus={setFocusMark} footnote={footnote} headnote={headnote} moment={momentOf(after.marks, after.run, language)} readout={marksReadout(after.marks)} />}
+      {after && marksOn && <MarkList marks={after.marks} focus={focusMark} onFocus={setFocusMark} footnote={footnote} headnote={headnote} moment={momentOf(after.marks, after.run, language)} notes={resultNotes(after)} readout={marksReadout(after.marks)} loop={loop} />}
       {children}
     </div>
   );
@@ -441,7 +583,18 @@ function MarkRow({ m, same, focus, onFocus, hidden = false }: { m: Mark; same: s
   );
 }
 
-function MarkList({ marks, focus, onFocus, footnote, headnote, moment, readout }: { marks: readonly Mark[]; focus: string | null; onFocus: (m: string | null) => void; footnote: ReactNode; headnote: ReactNode; moment: Moment | null; readout: string }) {
+/** What a reader would otherwise miss about this result, in plain words. Measured facts and the round's own slots only. */
+export function resultNotes(after: Pick<After, "marks" | "run" | "experiment" | "absent">): string[] {
+  const shown = notShownAsFact(after.run) === null;
+  const unused = shown ? unusedFakes(after.experiment.params as never, after.run.result.measured) : null;
+  return [
+    ...(shown && after.marks.some((m) => m.spacesOnly) ? ["The bet and the run's value differ only in their spaces, so they can look the same. Atlas compares them character by character."] : []),
+    ...(unused ? [unused] : []),
+    ...(after.absent ?? []),
+  ];
+}
+
+function MarkList({ marks, focus, onFocus, footnote, headnote, moment, notes, readout, loop }: { notes: readonly string[]; marks: readonly Mark[]; focus: string | null; onFocus: (m: string | null) => void; footnote: ReactNode; headnote: ReactNode; moment: Moment | null; readout: string; loop: CountChange | null }) {
   const same = sharedReason(marks);
   // Questions nobody could check fold to one line with their reason: a real result must not read as a shrug.
   const checkable = marks.filter((m) => !m.picks.every((p) => p.outcome === "cant_check"));
@@ -452,7 +605,18 @@ function MarkList({ marks, focus, onFocus, footnote, headnote, moment, readout }
     <section className="u1-marks" aria-label="How each answer was judged" data-testid="mark-list">
       <div className="m-top">
         {moment && <MomentView moment={moment} />}
+        {notes.map((n) => (
+          <p className="m-note" key={n} data-testid="result-note">{n}</p>
+        ))}
         <p className="m-count" data-testid="m-count">{readout}</p>
+        {loop && (
+          <p className="m-loop" data-testid="m-loop">
+            {`${loop.words}: `}
+            <span className="m-loop-from">{loop.from}</span>
+            <span className="m-loop-arrow" aria-label="now"> → </span>
+            <span className="m-loop-to">{loop.to}</span>
+          </p>
+        )}
       </div>
       <div className="m-pane" data-testid="m-pane">
         {/* The plain counts stay for a screen reader; the moment is what the eye reads. */}

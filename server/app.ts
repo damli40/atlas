@@ -132,7 +132,10 @@ import { pastedSeenCap } from "./meta/roles/claimant-bets";
 import { MAX_PASTED_PROMPT_CHARS } from "./meta/pasted-guard";
 import { createOutlineRoutes, DEFAULT_OUTLINES_PER_IP_PER_HOUR, OUTLINE_BODY_BYTES, type OutlineOptions } from "./outline/routes";
 import { memoryTrackStore, type Person, type TrackStore } from "./track-store";
-import { entriesFromRound, recordBefore, trackRecordOf, weakSpotSummary, type TrackRecord } from "../src/track-record";
+import { lastRoundOf, lastRoundWords, weakestKind } from "../src/remember";
+import { fileOutline } from "../src/file-outline";
+import { endOfFile, machinePartsOfFile, publicParts, type MachineEnd, type MachineParts } from "../renderer/authors/machine";
+import { entriesFromRound, functionKey, recordBefore, trackRecordOf, weakSpotSummary, type TrackRecord } from "../src/track-record";
 import { createLabeler, DEFAULT_LABELS_PER_CLIENT_PER_HOUR } from "./labels";
 import { labelsForBettors } from "../src/failure-labels";
 import { currentPrincipal } from "./access/context";
@@ -997,6 +1000,18 @@ export function createApp(opts: AppOptions = {}) {
       ...(before !== undefined ? { before: /^[A-Za-z0-9_-]{1,64}$/.test(before) ? recordBefore(entries, before) : null } : {}),
     });
   });
+  // D66: what the page says to this person about their own earlier rounds. Only ever read by them: a proof card and a shared link never ask.
+  app.get("/remember", (c) => {
+    const sessionId = sessionIdOf(c);
+    if (sessionId === null) return c.json({ error: BAD_SESSION }, 400);
+    const entries = trackStore.entries(personOf(c, sessionId));
+    const name = c.req.query("fn") ?? null;
+    const shown = name && /^[\w$.]{1,80}$/.test(name) ? name : null;
+    // The name alone would make another file's `f` "the same": the words name a function only when its code is this code too.
+    const code = c.req.query("code") ?? "";
+    const last = lastRoundOf(entries, shown && /^[0-9a-f]{64}$/.test(code) ? functionKey(shown, code) : null);
+    return c.json({ last: last ? lastRoundWords(last, shown) : null, weakest: weakestKind(trackRecordOf(entries)) });
+  });
   outline.register(app); // X1: POST /outline/jobs, GET /outline/jobs/:id[/outline|/parts/:partId|/atlas]
 
   app.post("/targets", async (c) => {
@@ -1436,7 +1451,12 @@ export function createApp(opts: AppOptions = {}) {
     try {
       const r = await runRound(sessionId, round);
       // X3 (D27): the person's judged bets go into their track record (plain code; never the code itself).
-      if (r.status === 200) Object.assign(r.body, { track: recordRound(personOf(c, sessionId), r.body, experiment.params) });
+      if (r.status === 200) {
+        // A bet placed after seeing this very result is kept and judged, but never goes on the person's record.
+        const seen = experiment.runner === "evm" && sawSavedMoonwell.has(sessionId);
+        const person = personOf(c, sessionId);
+        Object.assign(r.body, seen ? { seenFirst: true, track: { person: person.kind, before: recordOf(person), after: recordOf(person) } } : { track: recordRound(person, r.body, experiment.params, experiment.target.codeSha256) });
+      }
       return c.json(r.body, r.status);
     } catch (e) {
       // Final review S2: the run did not finish. Nothing was judged; the experiment and its sealed bets stay,
@@ -1448,18 +1468,22 @@ export function createApp(opts: AppOptions = {}) {
     }
   });
 
+  const sawSavedMoonwell = new Set<string>();
   /**
    * X3 (D27): adds the person's judged bets of one finished round to their track record. Returns their record before
    * and after this round. A store that cannot write never changes the run's answer: the reason is returned instead.
    */
-  function recordRound(person: Person, body: Record<string, unknown>, params: ExperimentShape): { person: Person["kind"]; before: TrackRecord; after: TrackRecord } | { error: string } {
+  function recordRound(person: Person, body: Record<string, unknown>, params: ExperimentShape, codeSha?: string): { person: Person["kind"]; before: TrackRecord; after: TrackRecord } | { error: string } {
     try {
       const run = body.run as Run | undefined;
       const bets = body.bets as Bet[] | undefined;
       const verdicts = body.verdicts as Verdict[] | undefined;
       const before = recordOf(person);
       if (!run || !bets || !verdicts) return { person: person.kind, before, after: before };
-      trackStore.add(person, entriesFromRound(bets, verdicts, run, params));
+      // The same code and test again, in any session, counts once: the person has already seen how it came out.
+      const made = entriesFromRound(bets, verdicts, run, params, codeSha);
+      const seen = trackStore.entries(person);
+      trackStore.add(person, made.map((e) => (e.round && seen.some((x) => x.round === e.round && x.runId !== e.runId) ? { ...e, repeat: true } : e)));
       return { person: person.kind, before, after: recordOf(person) };
     } catch (e) {
       return { error: `the track record could not be saved: ${e instanceof Error ? e.message : String(e)}` };
@@ -1946,6 +1970,10 @@ export function createApp(opts: AppOptions = {}) {
   // D63: the Moonwell menu opens this saved result, a replay of a saved file. Read only, the same as any public proof card.
   app.get("/moonwell/saved", (c) => {
     try {
+      // Whoever has been shown the saved result knows the answer: a bet they place afterwards can't count (recordRound's caller).
+      if (sawSavedMoonwell.size >= 20_000) sawSavedMoonwell.clear();
+      const seer = sessionIdOf(c);
+      if (seer) sawSavedMoonwell.add(seer);
       return c.json(JSON.parse(readFileSync(new URL("../proofs/moonwell/saved-level2-mwTaxvHFzB.atlas.json", import.meta.url), "utf8")));
     } catch {
       return c.json({ error: "the saved Moonwell result is not on this server" }, 404);
@@ -1975,7 +2003,23 @@ export function createApp(opts: AppOptions = {}) {
   const keptCaps = { days: 30, perClient: 50, total: 500, fileBytes: 256 * 1024, ...opts.keptProofsCaps };
   const keptPath = (runId: string) => (keptDir && /^[\w-]{1,64}$/.test(runId) ? join(keptDir, `${runId}.json`) : null);
   const clientHash = (c: Context) => createHash("sha256").update(clientOf(c)).digest("hex");
-  type KeptEntry = { until: string; maker: string; file: AtlasFile };
+  type KeptEntry = { until: string; maker: string; file: AtlasFile; machine?: MachineParts; helpers?: unknown; end?: MachineEnd | null };
+  const endOfProof = (file: AtlasFile, parts: MachineParts, helpers: unknown): MachineEnd | null => {
+    const params = file.experiments[0]?.params;
+    return endOfFile({ measured: (file.runs[0]?.result.measured ?? {}) as Record<string, unknown>, parts, tested: params?.shape === "call-function" ? params.exportName : null, test: params, steps: helpers && typeof helpers === "object" && "steps" in helpers ? (helpers as { steps: { name: string; within?: string[] }[] }).steps : [], thrownAt: helpers && typeof helpers === "object" && "thrownAt" in helpers ? (helpers as { thrownAt?: number }).thrownAt ?? null : null });
+  };
+  /** The parts of a pasted round's machine, read from its code. Names and lines, no code text. Null when the file holds no source. */
+  const machineOfFile = (file: AtlasFile): MachineParts | null => {
+    const source = file.target.source;
+    const language = file.target.language;
+    const params = file.experiments[0]?.params;
+    if (file.target.kind !== "pasted" || typeof source !== "string" || !language || params?.shape !== "call-function") return null;
+    try {
+      return machinePartsOfFile(source, language, params, fileOutline(source, language));
+    } catch {
+      return null;
+    }
+  };
   const readKept = (at: string): KeptEntry | null => {
     try {
       const e = JSON.parse(readFileSync(at, "utf8")) as KeptEntry;
@@ -2020,7 +2064,7 @@ export function createApp(opts: AppOptions = {}) {
       return e ? [e] : [];
     });
   };
-  app.post("/proofs/:runId/keep", (c) => {
+  app.post("/proofs/:runId/keep", async (c) => {
     const runId = c.req.param("runId");
     const already = keptProof(runId);
     if (already) return c.json({ kept: true, until: already.until });
@@ -2037,7 +2081,11 @@ export function createApp(opts: AppOptions = {}) {
     if (live.length >= keptCaps.total) return c.json({ kept: false, error: "this server already holds as many public links as it keeps" }, 429);
     if (live.filter((e) => e.maker === me).length >= keptCaps.perClient) return c.json({ kept: false, error: `you already have ${keptCaps.perClient} public links; delete one to make another` }, 429);
     const until = new Date(Date.now() + keptCaps.days * 86_400_000).toISOString();
-    const text = JSON.stringify({ until, maker: me, file: file.target.kind === "pasted" ? withheldSource(file) : file });
+    const machine = machineOfFile(file);
+    const steps = helperStore.get(runId);
+    const helpers = steps ? await Promise.race([steps, new Promise<null>((done) => setTimeout(() => done(null), 1_500))]) : null;
+    // The end is worked out here, where the code is known. A kept card holds the answer, and no words from the code's throws.
+    const text = JSON.stringify({ until, maker: me, file: file.target.kind === "pasted" ? withheldSource(file) : file, ...(machine ? { machine: publicParts(machine), end: endOfProof(file, machine, helpers) } : {}), ...(helpers ? { helpers } : {}) });
     if (Buffer.byteLength(text) > keptCaps.fileBytes) return c.json({ kept: false, error: "this card is too big to keep as a public link" }, 413);
     try {
       mkdirSync(keptDir!, { recursive: true });
@@ -2082,6 +2130,25 @@ export function createApp(opts: AppOptions = {}) {
     // E3 review r2 minor 5: the source only when an owner is on record AND the header names it.
     if (file.target.kind === "pasted" && (owner === undefined || session !== owner)) return c.json({ ...withheldSource(file), ...about });
     return c.json({ ...file, ...about });
+  });
+
+  // D66: the parts of the card's machine, for its picture: the session that ran it, or anyone once its maker has made a public link. Names and lines, never code.
+  app.get("/proofs/:runId/machine", async (c) => {
+    const runId = c.req.param("runId");
+    if (goneFor(c, runId)) return c.json({ error: GONE_WORDS }, 410);
+    const kept = keptProof(runId);
+    // The helper steps light the card as on the result: names and order only, for whoever may see the machine's parts.
+    const helpers = async () => {
+      const answer = helperStore.get(runId);
+      return answer ? await Promise.race([answer, new Promise<null>((done) => setTimeout(() => done(null), 1_500))]) : null;
+    };
+    // A link kept before this rule may hold more in its file: what goes out is cut to the public shape every time.
+    if (kept?.machine) return c.json({ parts: publicParts(kept.machine), helpers: kept.helpers ?? (await helpers()), end: kept.end ?? null });
+    const file = proofOf(runId);
+    if (!file || !ranIt(c, runId)) return c.json({ parts: null, helpers: null, end: null });
+    const parts = machineOfFile(file);
+    const steps = await helpers();
+    return c.json({ parts: parts ? publicParts(parts) : null, helpers: steps, end: parts ? endOfProof(file, parts, steps) : null });
   });
 
   // What the card's page needs to know about whoever is looking. Kept out of the file itself, which a reader can verify and download.

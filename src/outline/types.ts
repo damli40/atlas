@@ -31,6 +31,28 @@ export interface CallFacts {
   waits: { line: number }[];
 }
 
+/** A throw in a function's own body, with what it carries when plain code can read it. */
+export interface ThrowSite {
+  line: number;
+  /** The class thrown. Absent: not a plain `new Name("text")`. */
+  name?: string;
+  /** The text, or a template's text before its first hole. */
+  message?: string;
+  /** False: `message` is only how the text starts. */
+  exact?: boolean;
+}
+/**
+ * D65 review R5: what a function's own body holds, read from the syntax tree. A nested function or callback is its own body, so its loops, throws and returns are not
+ * this function's. Parts the machine draws come from here and nowhere else.
+ */
+export interface BodyFacts {
+  loops: number[];
+  throws: ThrowSite[];
+  returns: number[];
+  /** Line spans of nested functions and classes: anything found in them is not this function's own. */
+  nested: [number, number][];
+}
+
 export const emptyCallFacts = (): CallFacts => ({ freeCalls: [], importCalls: [], paramCalls: [], handoffs: [], waits: [] });
 
 /** One source file of the codebase, exactly as Atlas read it. */
