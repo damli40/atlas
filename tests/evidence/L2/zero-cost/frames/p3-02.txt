@@ -1,0 +1,59 @@
+Do you trust this workspace?
+Workspace: <scratch>/ws3
+
+Trusting allows project-local skills, rules, hooks, and plugin config to load before the model runs.
+Only trust this workspace when you trust its contents.
+⟩ 1  Trust and continue
+  2  Quit
+
+Use Up/Down or 1/2, then Enter. Esc quits.
+
+  Muse Code 1.4.14
+
+❯ CALL mcp__plugin_atlas_atlas.atlas_read_file_function {"path":"retry.ts"}
+
+◆ atlas_read_file_function(retry.ts) · plugin:atlas:atlas · ⊘ · cancelled · 4.8s · ctrl+o
+
+◆ Interrupted · Report issues with /feedback
+
+❯ CALL mcp__plugin_atlas_atlas.atlas_status {}
+
+◆ atlas_status · plugin:atlas:atlas · ✗ · 15s · ctrl+o
+
+◆ RESULT: tool failed: Atlas server: http://127.0.0.1:8823 (from ATLAS_URL). Invite code: set (from ATLAS_INVITE). Bettors besides you: the server's default
+  (Muse Spark 1.3).
+  It does not answer: the Atlas server at http://127.0.0.1:8823 did not answer (no complete answer within 15 s). Is it running? Start it with pnpm server in the
+  Atlas repo, or check ATLAS_URL.
+
+── Voice input (alt(option)+v to start) ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  muse-spark-1.3 · low · <scratch>/ws3 · Launch overrides
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

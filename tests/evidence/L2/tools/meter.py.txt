@@ -1,0 +1,40 @@
+# L2 live spend meter (L1's, improved). Polls every 0.5 s and reads only the new bytes of each log.
+# Upper bound: every Muse Code token at $4 in / $20 out per 1M, cached ones at full price; Atlas's usd from its usage log.
+# At STOP: presses Esc once and writes the STOP file (the step driver then refuses to type anything new).
+# At KILL: kills the Muse tmux and the scratch Atlas server (by the PID given), so nothing new can start.
+import sys,json,glob,time,subprocess,os
+SCR,STOP,KILL,SERVER_PID=sys.argv[1],float(sys.argv[2]),float(sys.argv[3]),int(sys.argv[4])
+off={}; calls=inp=cached=out=0; models={}; atlas=0.0; atlas_calls=0; pressed=killed=False; peak_gap=0.0; last_t=time.time()
+def new_lines(f):
+    o=off.get(f,0)
+    try:
+        with open(f,'rb') as h:
+            h.seek(o); data=h.read()
+    except FileNotFoundError: return []
+    cut=data.rfind(b'\n')+1; off[f]=o+cut
+    return data[:cut].decode('utf8','replace').splitlines()
+while True:
+    for f in glob.glob(os.path.join(SCR,'home','.local','share','muse','sessions','**','*.jsonl'),recursive=True):
+        for l in new_lines(f):
+            if '"usage"' not in l: continue
+            try:o=json.loads(l)
+            except: continue
+            ev=(o.get('payload') or {}).get('event')
+            if isinstance(ev,dict) and isinstance(ev.get('usage'),dict) and 'model' in ev:
+                u=ev['usage']; calls+=1; inp+=u.get('input_tokens',0); cached+=u.get('cached_tokens',0); out+=u.get('output_tokens',0)
+                models[ev['model']]=models.get(ev['model'],0)+1
+    for l in new_lines(SCR+'/atlas-usage.jsonl'):
+        try: atlas+=float(json.loads(l).get('usd') or 0); atlas_calls+=1
+        except: pass
+    upper=inp*4e-6+out*20e-6; unc=(inp-cached)*4e-6+out*20e-6; total=upper+atlas
+    now=time.time(); peak_gap=max(peak_gap,now-last_t); last_t=now
+    open(SCR+'/muse-meter.txt.tmp','w').write(f"{time.strftime('%H:%M:%S')} muse calls={calls} in={inp} cached={cached} out={out} usd<={upper:.4f} uncached_usd={unc:.4f} | atlas calls={atlas_calls} usd<={atlas:.4f} | total<={total:.4f} | total_uncached={unc+atlas:.4f} | models: {models} | stop={STOP} kill={KILL} | slowest poll gap {peak_gap:.2f}s\n"+('hard stop: Esc pressed, STOP file written\n' if pressed else '')+('kill: tmux and Atlas server killed\n' if killed else ''))
+    os.replace(SCR+'/muse-meter.txt.tmp',SCR+'/muse-meter.txt')
+    if total>=STOP and not pressed:
+        open(SCR+'/STOP','w').write(f'{total:.4f}\n'); subprocess.run(['tmux','-L','atlas-l2','send-keys','-t','l2','Escape']); pressed=True
+    if total>=KILL and not killed:
+        subprocess.run(['tmux','-L','atlas-l2','kill-server']);
+        try: os.kill(SERVER_PID,15)
+        except Exception: pass
+        killed=True
+    time.sleep(0.5)

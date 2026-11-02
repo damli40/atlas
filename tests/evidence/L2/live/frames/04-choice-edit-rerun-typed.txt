@@ -1,0 +1,109 @@
+Do you trust this workspace?
+Workspace: <scratch>/ws2
+
+Trusting allows project-local skills, rules, hooks, and plugin config to load before the model runs.
+Only trust this workspace when you trust its contents.
+⟩ 1  Trust and continue
+  2  Quit
+
+Use Up/Down or 1/2, then Enter. Esc quits.
+
+  Muse Code 1.4.14
+
+❯ /atlas retry.ts retryWithBackoff
+
+◆ Carrying your bet on retryWithBackoff — opening the Atlas round.
+
+◆ 2 MCP calls · plugin:atlas:atlas · ✓ ×2 · 5.1s · ctrl+o
+
+◆ Proposals for retryWithBackoff in retry.ts:
+
+  1) [bGS_o_hGgB] allowed: Atlas calls retryWithBackoff(fetchIt, 3, 100). fetchIt (async) throws Error ("boom") on call 1; every later call throws Error ("boom") too.
+  2) [6ecNMTweby] allowed: Atlas calls retryWithBackoff(fetchIt, 3, 100). fetchIt (async) throws Error ("boom") on calls 1–2, then returns "ok" on call 3; every later call returns "ok" too.
+  3) [BNBYjOWVEx] allowed: Atlas calls retryWithBackoff(fetchIt, 3, 100). fetchIt (async) returns "ok" on call 1; every later call returns "ok" too.
+
+  Which allowed test do you want to use? Reply with its id.
+
+❯ bGS_o_hGgB
+
+◆ Got it — starting the round on bGS_o_hGgB.
+
+◆ atlas_start_round(retry.ts) · plugin:atlas:atlas · ✓ · 0.1s · ctrl+o
+
+◆ Round BdV1p9QnOY is open.
+
+  ----- [b872350594ce] what every bettor sees: begin -----
+  Code: one pasted TypeScript file, 13 lines, fingerprint db4d38fad66c…
+  Where it runs: Atlas's sandbox, with no network, no files and no packages, on a virtual clock that starts at 2026-01-01T00:00:00Z (waits cost no real time).
+  Atlas runs it on a simulated clock starting 2026-01-01 UTC, in time zone UTC with an en-US locale, with randomness seeded (seed 20260101).
+  What will run: Atlas calls retryWithBackoff(fetchIt, 3, 100). fetchIt (async) throws Error ("boom") on call 1; every later call throws Error ("boom") too.
+  Test written by: Muse Wonder 1.0 (muse-wonder-1.0).
+  Atlas watches for at most 30,000 ms of virtual time.
+  Questions (written by plain code):
+  1. What does retryWithBackoff do? Answer: one of returned, threw, never_settled, still_running_at_watch_limit.
+  2. If retryWithBackoff returns, what value does it return, as JSON? Answer: a JSON value (matched when it is exactly the returned value, key order ignored).
+  3. How long until retryWithBackoff returns or throws, in ms of Atlas's virtual clock? Answer: a number in ms, matched within 10% or 1 ms of what the run measures.
+  4. How many times does retryWithBackoff call fetchIt? Answer: a whole number.
+  The test exactly, as JSON (what Atlas runs): {"args":[{"async":true,"calls":[{"do":"throw","errorName":"Error","message":"boom"}]
+  ,"kind":"stand-in","name":"fetchIt","then":"repeat_last"},{"kind":"json","value":3},{"kind":"json","value":100}],"exportName":"retryWithBackoff","shape":"call-function"}
+  Atlas's failure labels for this function (plain code's reading of its text, before any run of this test):
+  • no overall timeout (retry): found in this code at lines 4–11. The retries have no deadline as a whole, so a call that never answers can hold the caller forever.
+  • only on Atlas's list, not seen in this code (common pattern): retry storm, duplicate side effect.
+  How to bet: Give your best estimate for each question. Decline only if you cannot form any estimate at all; if you decline, say why.
+  The whole file, numbered as on screen, line 2 (where retryWithBackoff is declared) marked ">":
+    1| // Retries a call, waiting longer after each failure.
+  │ 2| export async function retryWithBackoff(fetchIt: () => Promise<unknown>, attempts: number = 3, baseMs: number = 100) {
+    3| let last: unknown;
+    4| for (let i = 0; i < attempts; i++) {
+    5| try {
+    6| return await fetchIt();
+    7| } catch (e) {
+    8| last = e;
+    9| await new Promise((r) => setTimeout(r, baseMs));
+    10| }
+    11| }
+    12| throw last;
+    13| }
+  ----- [b872350594ce] what every bettor sees: end -----
+
+  Your bets — reply with your answers (you may type "skip" for any question):
+
+  1) What does retryWithBackoff do? Type one of these words: returned, threw, never_settled, still_running_at_watch_limit; or "skip".
+  2) If retryWithBackoff returns, what value does it return, as JSON? Answer: a JSON value (true, 3, "text", null, {"ok": true}); or "skip".
+  3) How long until retryWithBackoff returns or throws, in ms of Atlas's virtual clock? Answer: a number in ms (counts as matched within 10% or 1 ms); or "skip".
+  4) How many times does retryWithBackoff call fetchIt? Answer: a whole number; or "skip".
+
+❯ 1) threw 2) skip 3) 700 4) 3
+
+◆ Sealing those answers as you typed them.
+
+◆ 2 MCP calls · plugin:atlas:atlas · ✓ ×2 · 0.7s · ctrl+o
+
+◆ What the run measured: outcome = "threw"; virtualMs = 300; thrownType = "Error"; thrownName = "Error"; thrownMessage = "boom"; calls:fetchIt = 3
+
+  Who bet what:
+
+  • What does retryWithBackoff do?
+    • You bet "threw"; the code did "threw" → matched
+    • Muse Spark 1.3 bet "threw"; the code did "threw" → matched
+  • If retryWithBackoff returns, what value does it return, as JSON?
+    • Muse Spark 1.3 bet no bet → can't check (the bettor declined)
+  • How long until retryWithBackoff returns or throws, in ms of Atlas's virtual clock?
+    • You bet 700; the code did 300 → didn't match
+    • Muse Spark 1.3 bet 300; the code did 300 → matched
+  • How many times does retryWithBackoff call fetchIt?
+    • You bet 3; the code did 3 → matched
+    • Muse Spark 1.3 bet 3; the code did 3 → matched
+
+  Muse Wonder 1.0 had said: People expect retryWithBackoff to throw immediately after the final failed attempt, but the code really waits baseMs once more after that last failure before throwing.
+
+  Proof card: http://127.0.0.1:8822/proofs/ete8MRjaf4
+
+  One of your answers didn't match. If your answers are what you want the code to do, type: my answers are what I want
+
+── Voice input (alt(option)+v to start) ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ my answers are what I want
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  muse-spark-1.3 · low · <scratch>/ws2 · Launch overrides
+
+

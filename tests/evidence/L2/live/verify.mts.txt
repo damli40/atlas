@@ -1,0 +1,14 @@
+// Verify the live proof file, then a copy with one re-run verdict flipped. $0, no network.
+import { readFileSync } from "node:fs";
+import { verifyAtlasFile } from "<repo>/src/atlasfile.ts";
+const f = JSON.parse(readFileSync(process.argv[2]!, "utf8"));
+const a = verifyAtlasFile(f) as { ok: boolean };
+console.log("proof as served:", a.ok ? "verify passes" : "verify FAILS " + JSON.stringify(a).slice(0, 400));
+console.log("seed of first run:", f.run?.seed ?? f.runs?.[0]?.seed, "| try 1 seed:", f.loop.tries[0].run.seed, "| tries:", f.loop.tries.length, "| stopped:", JSON.stringify(f.loop.stopped).slice(0, 160));
+console.log("try 1 verdicts:", JSON.stringify(f.loop.tries[0].verdicts).slice(0, 500));
+const g = structuredClone(f);
+const v = g.loop.tries[0].verdicts.find((x: any) => JSON.stringify(x).includes("matched"));
+const before = JSON.stringify(v);
+for (const k of Object.keys(v)) if (v[k] === "matched") v[k] = "didn't match";
+const b = verifyAtlasFile(g) as { ok: boolean };
+console.log("copy with one re-run verdict flipped (" + before.slice(0, 80) + "):", b.ok ? "verify passes (BAD)" : "verify fails, as it should");

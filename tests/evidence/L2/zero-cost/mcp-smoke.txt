@@ -1,0 +1,5 @@
+initialize -> {'name': 'atlas', 'version': '0.1.0'} 2025-06-18
+tools -> ['atlas_status', 'atlas_read_file_function', 'atlas_propose_tests', 'atlas_start_round', 'atlas_seal_bet', 'atlas_run', 'atlas_choose_target', 'atlas_rerun']
+atlas_status -> Atlas server: http://127.0.0.1:8822 (from ATLAS_URL). Invite code: not set. Bettors besides you: the server's default (Muse Spark 1.3).
+It does not answer: the Atlas server at http://127.0.0.1:8822 did not answer (connect ECONNREFUSED 127.0.0.1:8822). Is it running? Start it with `pnpm server` in the Atlas repo, or check ATLAS_URL.
+exit 0 stderr: ''

@@ -1,0 +1,6 @@
+proof as served: verify passes
+seed of first run: 20260101 | try 1 seed: 20260101 | tries: 1 | stopped: {"reason":"all_matched","says":"Atlas stopped: every answer you sealed matched on re-run 1. \"Matched\" means the code did what you bet on in this one test, not
+try 1 verdicts: [{"betId":"2wW_Hh9mZ1","runId":"2ZFjsh_Upu","outcome":"matched","observed":"threw","judgedBy":"src/judge.ts"},{"betId":"V9lttgMS6K","runId":"2ZFjsh_Upu","outcome":"cant_check","reason":"the bettor declined","judgedBy":"src/judge.ts"},{"betId":"awqaucEn92","runId":"2ZFjsh_Upu","outcome":"not_matched","observed":700,"judgedBy":"src/judge.ts","timingRule":"d46"},{"betId":"Ni7sO-Z-9T","runId":"2ZFjsh_Upu","outcome":"matched","observed":3,"judgedBy":"src/judge.ts"},{"betId":"hZyTDR0jys","runId":"2ZFj
+copy with one re-run verdict flipped ({"betId":"2wW_Hh9mZ1","runId":"2ZFjsh_Upu","outcome":"matched","observed":"threw): verify fails, as it should
+bets in first run: 7 | bets judged in try 1: 7 | same set: True | targetBets: [{'betId': 'hZyTDR0jys', 'sealedHash': 'b1044e338c35720c68bbbf173de6355790a69f1f27c0778b127c0a23d7b20af8'}, {'betId': 'HIhQskraaq', 'sealedHash': '75f5abafa7dff0d71bf6ab1cc943554202174009eda7e4bd33d0d1ae5df69653'}, {'betId': 'iv7Vje4FHt', 'sealedHash': 'ba6c9d65ea6d37f7b0649d7b0e0adb5d363ff79821b904e020fb230b79a1ea9c'}]
+code first: db4d38fad66c try1: 30bb4508fda9

@@ -1,0 +1,7 @@
+#!/bin/sh
+# alive.sh <pid> <seconds>: one line every 30 s saying whether the plugin's program is alive.
+end=$(( $(date +%s) + $2 ))
+while [ $(date +%s) -lt $end ]; do
+  if kill -0 $1 2>/dev/null; then echo "$(date +%T) alive $1"; else echo "$(date +%T) GONE $1"; fi
+  sleep 30
+done

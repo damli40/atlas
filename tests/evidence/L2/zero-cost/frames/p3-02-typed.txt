@@ -1,0 +1,59 @@
+Do you trust this workspace?
+Workspace: <scratch>/ws3
+
+Trusting allows project-local skills, rules, hooks, and plugin config to load before the model runs.
+Only trust this workspace when you trust its contents.
+⟩ 1  Trust and continue
+  2  Quit
+
+Use Up/Down or 1/2, then Enter. Esc quits.
+
+  Muse Code 1.4.14
+
+❯ CALL mcp__plugin_atlas_atlas.atlas_read_file_function {"path":"retry.ts"}
+
+◆ atlas_read_file_function(retry.ts) · plugin:atlas:atlas · ⊘ · cancelled · 4.8s · ctrl+o
+
+◆ Interrupted · Report issues with /feedback
+
+── Voice input (alt(option)+v to start) ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ CALL mcp__plugin_atlas_atlas.atlas_status {}
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  muse-spark-1.3 · low · <scratch>/ws3 · Launch overrides
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
