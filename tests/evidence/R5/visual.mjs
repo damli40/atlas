@@ -128,8 +128,13 @@ const open = async (code, w = 1440, h = 900) => {
   await answerAll(p);
   const sure = await p.$('.felt-opt');
   if (sure) {
-    await sure.click();
+    // Tab to "sure" without picking it, then Enter: it picks "sure" and seals.
+    await sure.focus();
+    let sentSure = null;
+    p.on("request", (r) => { if (r.method() === "POST" && /\/bets$/.test(r.url())) sentSure = JSON.parse(r.postData() ?? "{}").confidence ?? null; });
     await p.keyboard.press("Enter");
+    await p.waitForTimeout(600);
+    say("Enter on a how-sure level picks it before sealing", sentSure === "sure", String(sentSure));
     await p.waitForSelector('[data-testid="mark-list"]', { timeout: 30000 }).catch(() => {});
     say("Enter after picking how sure seals, as ↵ says", (await p.$('[data-testid="mark-list"]')) !== null);
   } else say("the how-sure picker is there", false);

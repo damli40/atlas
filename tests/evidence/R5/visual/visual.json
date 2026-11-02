@@ -7,12 +7,12 @@
  {
   "name": "1440x900: everything drawn sits above the small print",
   "ok": true,
-  "more": "{\"low\":779.5990600585938,\"top\":873.15625,\"n\":35,\"capH\":18.84375,\"words\":\"What is lit comes from run L2BFZbZt65's trace.\"}"
+  "more": "{\"low\":779.5990600585938,\"top\":873.15625,\"n\":35,\"capH\":18.84375,\"words\":\"What is lit comes from run n-f_y41OEg's trace.\"}"
  },
  {
   "name": "1440x900: the small print is one line",
   "ok": true,
-  "more": "{\"low\":779.5990600585938,\"top\":873.15625,\"n\":35,\"capH\":18.84375,\"words\":\"What is lit comes from run L2BFZbZt65's trace.\"}"
+  "more": "{\"low\":779.5990600585938,\"top\":873.15625,\"n\":35,\"capH\":18.84375,\"words\":\"What is lit comes from run n-f_y41OEg's trace.\"}"
  },
  {
   "name": "1440x900: every button in the left column can be clicked",
@@ -22,7 +22,7 @@
  {
   "name": "1440: the fold holds every sentence",
   "ok": true,
-  "more": "What is lit comes from run L2BFZbZt65's trace.Atlas's clock is virtual: nothing waited for real. This run just happened here.Helper order comes from a separate traced run, not the sealed ones. The code itself could change it.This code read the clock. Atlas's clock is simulated (it starts at 2026-01-"
+  "more": "What is lit comes from run n-f_y41OEg's trace.Atlas's clock is virtual: nothing waited for real. This run just happened here.Helper order comes from a separate traced run, not the sealed ones. The code itself could change it.This code read the clock. Atlas's clock is simulated (it starts at 2026-01-"
  },
  {
   "name": "1280: the first screen shows the machine",
@@ -32,12 +32,12 @@
  {
   "name": "1280x720: everything drawn sits above the small print",
   "ok": true,
-  "more": "{\"low\":652.6065063476562,\"top\":693.15625,\"n\":35,\"capH\":18.84375,\"words\":\"What is lit comes from run 4ze-hsMcU7's trace.\"}"
+  "more": "{\"low\":652.6065063476562,\"top\":693.15625,\"n\":35,\"capH\":18.84375,\"words\":\"What is lit comes from run 4zFUW07-wR's trace.\"}"
  },
  {
   "name": "1280x720: the small print is one line",
   "ok": true,
-  "more": "{\"low\":652.6065063476562,\"top\":693.15625,\"n\":35,\"capH\":18.84375,\"words\":\"What is lit comes from run 4ze-hsMcU7's trace.\"}"
+  "more": "{\"low\":652.6065063476562,\"top\":693.15625,\"n\":35,\"capH\":18.84375,\"words\":\"What is lit comes from run 4zFUW07-wR's trace.\"}"
  },
  {
   "name": "1280x720: every button in the left column can be clicked",
@@ -47,7 +47,7 @@
  {
   "name": "1280: the fold holds every sentence",
   "ok": true,
-  "more": "What is lit comes from run 4ze-hsMcU7's trace.Atlas's clock is virtual: nothing waited for real. This run just happened here.Helper order comes from a separate traced run, not the sealed ones. The code itself could change it.This code read the clock. Atlas's clock is simulated (it starts at 2026-01-"
+  "more": "What is lit comes from run 4zFUW07-wR's trace.Atlas's clock is virtual: nothing waited for real. This run just happened here.Helper order comes from a separate traced run, not the sealed ones. The code itself could change it.This code read the clock. Atlas's clock is simulated (it starts at 2026-01-"
  },
  {
   "name": "no value is cut mid-token",
@@ -58,6 +58,11 @@
   "name": "Enter opens the bet the button's hint promises, after a new drawing",
   "ok": true,
   "more": "u1-mark"
+ },
+ {
+  "name": "Enter on a how-sure level picks it before sealing",
+  "ok": true,
+  "more": "sure"
  },
  {
   "name": "Enter after picking how sure seals, as ↵ says",

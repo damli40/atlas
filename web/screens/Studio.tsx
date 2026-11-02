@@ -742,14 +742,14 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     setFn(name);
   };
 
-  const seal = async () => {
+  const seal = async (sure: Confidence | null = confidence) => {
     if (!exp) return;
     setBusy("Sealing your answers…");
     setError(null);
     try {
       const lang = exp.experiment.target.language;
       const out = answersToSend(exp.questions, picked, typed, lang);
-      setSealed(await api.bets(exp.experiment.id, out.answers, confidence));
+      setSealed(await api.bets(exp.experiment.id, out.answers, sure));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -1565,11 +1565,14 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                   )}
                   {sealed.length === 0 ? (
                     <div className="u1-sealbar" data-last={step >= exp.questions.length ? "" : undefined}>
-                      <button type="button" className={`u1-btn${step >= exp.questions.length ? " u1-primary" : ""}`} onClick={seal} disabled={busy !== null} data-testid="u1-seal">
+                      <button type="button" className={`u1-btn${step >= exp.questions.length ? " u1-primary" : ""}`} onClick={() => void seal()} disabled={busy !== null} data-testid="u1-seal">
                         {BET_WORDS.seal}
                         {step >= exp.questions.length && <kbd className="k">↵</kbd>}
                       </button>
-                      <HowSurePicker value={confidence} onChange={setConfidence} disabled={busy !== null} hint={false} onEnter={() => void seal()} />
+                      <HowSurePicker value={confidence} onChange={setConfidence} disabled={busy !== null} hint={false} onEnter={(level) => {
+                          setConfidence(level);
+                          void seal(level);
+                        }} />
                       <p className="u1-sub">{`${BET_WORDS.untapped} ${FELT_WORDS.pickerHint}`}</p>
                     </div>
                   ) : (

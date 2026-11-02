@@ -230,6 +230,26 @@ describe("merge gate N1: only a function written in a plain wrapper is callable"
   });
 });
 
+describe("short check: wrappers are an allow-list", () => {
+  const kind = (src: string) => fileOutline(src, "ts").parts.find((p) => p.name === "f")?.kind;
+  it("an unknown call gives no part, whatever it is handed", () => {
+    for (const src of [
+      "function run(fn) { return fn(); }\nexport const f = run(() => 42);\n",
+      "function reduce(xs, fn) { return xs.reduce(fn); }\nexport const f = reduce([1, 2], (a, b) => a + b);\n",
+      "function sortBy(xs, fn) { return [...xs].sort(fn); }\nexport const f = sortBy([2, 1], (a, b) => a - b);\n",
+      "function computed(fn) { return { get value() { return fn(); } }; }\nexport const f = computed(() => 1);\n",
+      "function atom(fn) { return { read: fn }; }\nexport const f = atom(() => 1);\n",
+      "import React from 'react';\nexport const f = React.useMemo(() => 1, []);\n",
+    ]) expect(kind(src), src).not.toBe("function");
+  });
+  it("the known function wrappers are", () => {
+    for (const w of ["memo", "debounce", "throttle", "once", "cache", "useCallback", "forwardRef", "React.memo", "React.forwardRef", "withAuth"]) {
+      const src = `const ${w.replace(".", "_")} = 1;\nexport const f = ${w}((x) => {\n  return x;\n});\n`;
+      expect(kind(src), w).toBe("function");
+    }
+  });
+});
+
 describe("merge gate N2: no pasted code runs while Atlas reads the traceback", () => {
   it("a str subclass as the file name can't run its __eq__ in the window, and the window is shut after", async () => {
     const { readFileSync } = await import("node:fs");
