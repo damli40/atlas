@@ -421,6 +421,8 @@ if (late) {
   const go = p.locator("button.primary:not([disabled])").first();
   await go.click();
   await p.waitForSelector('[data-testid="retry-path"]', { timeout: 60000 });
+  await wait(p, 400);
+  say("the retry's result comes into view by itself", await p.evaluate(() => { const r = document.querySelector('[aria-label="run"]').getBoundingClientRect(); return r.top >= 0 && r.top < innerHeight / 2; }));
   await wait(p, 14000);
   await p.locator('[data-testid="retry-path"]').scrollIntoViewIfNeeded();
   await wait(p, 300);

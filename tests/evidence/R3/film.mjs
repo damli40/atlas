@@ -41,11 +41,17 @@ for (const key of ["1", "3", "2", "2"]) {
 }
 await p.keyboard.press("Enter");
 await p.waitForSelector('[data-testid="mark-list"]', { timeout: 90000 });
-await p.waitForFunction(() => !document.querySelector('[data-testid="u1-replay"]')?.disabled, { timeout: 30000 });
-await p.waitForTimeout(4500);
+await p.waitForFunction(() => { const r = document.querySelector('[data-testid="u1-replay"]'); return r && !r.disabled; }, null, { timeout: 30000 });
+await p.waitForTimeout(2500);
 await cdp.send("Page.stopScreencast");
+// The screencast sends a frame only when something changes, so its last one can be mid-fade. The film ends on what is really on screen, held.
+{
+  const file = `f${String(list.length).padStart(5, "0")}.jpg`;
+  writeFileSync(`${frames}/${file}`, await p.screenshot({ type: "jpeg", quality: 92 }));
+  list.push({ file, t: list[list.length - 1].t + 0.1 });
+}
 await ctx.close();
 await b.close();
-const lines = list.map((f, i) => `file '${f.file}'\nduration ${((list[i + 1]?.t ?? f.t + 0.04) - f.t).toFixed(4)}`);
+const lines = list.map((f, i) => `file '${f.file}'\nduration ${((list[i + 1]?.t ?? f.t + 2.5) - f.t).toFixed(4)}`);
 writeFileSync(`${frames}/list.txt`, `${lines.join("\n")}\n`);
 console.log(`${list.length} frames, ${(list[list.length - 1].t - list[0].t).toFixed(1)} s`);
