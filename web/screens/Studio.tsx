@@ -1380,6 +1380,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           namesNote={natural && natural.sha === pasted.target.codeSha256 && "reason" in natural ? natural.reason : null}
           fileSummary={!after && summ && summ.sha === pasted.target.codeSha256 && "summary" in summ ? summ.summary : null}
           partLines={summ && summ.sha === pasted.target.codeSha256 && "summary" in summ ? summ.summary.parts : null}
+          summaryMissing={Boolean(summ && summ.sha === pasted.target.codeSha256 && "reason" in summ && !/asks no Meta model|no parts|could not list the parts/.test(summ.reason))}
           onPart={(name, panel) => {
             const part = pasted.outline?.parts.find((p) => p.name === name);
             if (!part && !panel) return;

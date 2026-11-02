@@ -1,4 +1,4 @@
-// R9: Muse Wonder writes a short plain-English summary of a pasted file: what it is for, what goes in and comes out, and one line per part.
+// R9: Muse Wonder writes a short plain-English summary of a pasted file: what it is for, and one line per part saying its role.
 //
 // Plain words on who decides what:
 // - One call per file, its own call. The prompt holds only the numbered code and the list of parts plain code found. It never holds Muse
@@ -8,7 +8,7 @@
 // - The summary is the model's words. The screen marks it as such, and the same words go into the text every AI bettor gets (D19).
 // - Log lines name the model, its tokens and cost (D10); never the code, never the summary.
 
-import { checkSummary, SUMMARY_BANNED_PHRASES, type FileSummary } from "../../../src/file-summary";
+import { checkSummary, SUMMARY_BANNED_PHRASES, SUMMARY_OUTCOME_WORDS, type FileSummary } from "../../../src/file-summary";
 import { NAME_BANNED_STEMS, NAME_BANNED_WORDS } from "../../../src/natural-names";
 import { WONDER_MODEL } from "../../../src/paste-words";
 import { LANGUAGE_NAME } from "../../../src/paste-context";
@@ -24,11 +24,11 @@ export const SUMMARY_TASK = "SUMMARIZE THE FILE";
 export const SUMMARY_INSTRUCTION = [
   "Explain this file to a person who did not write it, in plain everyday words.",
   "\"purpose\": one sentence, at most 25 words, saying what the file is for.",
-  "\"io\": one sentence, at most 25 words, saying what goes in and what comes out.",
-  "\"parts\": for each part above, one short line of at most 12 words saying what that part does for the file.",
-  "Describe purpose and job only. Never say whether the code works, how a run will go, or what it does in an unusual case.",
-  "No digits, no code names, no quotes, no dashes: plain words and ordinary punctuation only.",
-  `Never use these words, or words that start with them: ${[...NAME_BANNED_STEMS, ...NAME_BANNED_WORDS, ...SUMMARY_BANNED_PHRASES].join(", ")}.`,
+  "\"parts\": for each part above, one short line of at most 12 words saying that part's role in the file, as if describing one machine part to a colleague.",
+  "Describe roles only. Never say what happens at the end of a call or in a failure case: no results, no return values, no errors, no endings, no counts, no times.",
+  "No digits and no numbers written as words, no code names, no quotes, no dashes: plain words and ordinary punctuation only.",
+  `Never use these words, or words that start with them: ${[...NAME_BANNED_STEMS, ...NAME_BANNED_WORDS].join(", ")}.`,
+  `Never use these words or phrases: ${[...SUMMARY_BANNED_PHRASES, ...SUMMARY_OUTCOME_WORDS].join(", ")}.`,
 ].join(" ");
 
 export interface SummarizerInput {
@@ -54,7 +54,7 @@ export function buildSummarizerMessages(input: SummarizerInput): ChatMessage[] {
     `${SUMMARY_TASK}. ${SUMMARY_INSTRUCTION}`,
     "",
     "Return only this JSON object; parts are keyed by the part's exact name:",
-    `{"purpose": "<sentence>", "io": "<sentence>", "parts": {"<part>": "<line>"}}`,
+    `{"purpose": "<sentence>", "parts": {"<part>": "<line>"}}`,
   ].join("\n");
   return [
     { role: "system", content: SYSTEM_PREAMBLE },

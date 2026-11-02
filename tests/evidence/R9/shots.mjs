@@ -36,7 +36,7 @@ for (const [w, h] of [[1280, 800], [1440, 900], [390, 844]]) {
   await p.screenshot({ path: `${OUT}/1-first-screen-${w}x${h}.png` });
   const legend = (await text(p, '[data-testid="file-summary-legend"]')) ?? "";
   say(`${w}x${h}: the summary is shown before the bet`, (await p.isVisible('[data-testid="file-summary-text"]')) && /flaky source/.test((await text(p, '[data-testid="file-summary-text"]')) ?? ""));
-  say(`${w}x${h}: it is labelled as Muse Wonder's words (Meta's AI), not a check`, legend === "Summary: Muse Wonder's words (Meta's AI), not a check", legend);
+  say(`${w}x${h}: it is labelled as Muse Wonder's words (Meta's AI), not a check`, /^Summary: Muse Wonder's words \(Meta's AI\)\. Its reading can repeat the code's own comments; the run is the check$/.test(legend), legend);
   const seal = await onScreen(p, '[data-testid="u1-seal"]');
   say(`${w}x${h}: "Lock in my bet" is fully on screen and not covered`, seal.inView && seal.uncovered, JSON.stringify(seal));
   const ais = (await text(p, '[data-testid="u1-ais"]')) ?? "";
@@ -79,6 +79,19 @@ for (const [w, h] of [[1280, 800], [1440, 900], [390, 844]]) {
     await p.screenshot({ path: `${OUT}/5-sample-drawn-${w}x${h}.png` });
     say(`${w}x${h}: a sample goes through the normal paste (POST /paste)`, bodies.length === 1 && /parse_prices/.test(bodies[0] ?? ""));
     say(`${w}x${h}: the sample's summary (mocked here) is shown, labelled`, /Muse Wonder's words/.test((await text(p, '[data-testid="file-summary-legend"]')) ?? ""));
+  }
+  if (w === 1280) {
+    // Review minor 5: no summary this time (here the summary request is made to fail): one muted line in its slot, nothing else.
+    await p.route("**/paste/summary", (r) => r.abort());
+    await p.goto(process.env.BASE);
+    await p.waitForSelector('[data-testid="u1-own"]', { timeout: 60000 });
+    await p.click('[data-testid="u1-own"]');
+    await p.click('[data-testid="e-sample-rate-cache"]');
+    await p.waitForSelector('[data-testid="file-summary-none"]', { timeout: 20000 }).catch(() => {});
+    await p.waitForTimeout(600);
+    await p.screenshot({ path: `${OUT}/6-no-summary-${w}x${h}.png` });
+    const none = (await text(p, '[data-testid="file-summary-none"]')) ?? "";
+    say(`${w}x${h}: with no summary, one muted line says so and no summary text is shown`, /^No summary this time/.test(none) && !(await p.$('[data-testid="file-summary-text"]')), none);
   }
   await c.close();
 }

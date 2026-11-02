@@ -1,78 +1,65 @@
 
- RUN  v5.0.5 /Users/Admin/Documents/Atlas-wt/r9-summary
+ RUN  v5.0.5 <repo>
 
- ❯ tests/unit/x2-explorer-server.test.tsx (7 tests | 1 failed) 59517ms
-   ❯ X2: server round-trip with a mocked Muse Wonder (3)
-     × upload server/meta → outline job → the chart draws exactly the confirmed and code-only joins → hand-off to /paste 21661ms
- ❯ tests/unit/x3-server.test.ts (13 tests | 1 failed) 45699ms
-   ❯ X3 review round 1 on the server (4)
-     × M3: the reviewer's 61 KB paste: POST /paste/labels answers in under 50 ms 281ms
-(node:74702) Warning: `--localstorage-file` was provided without a valid path
+(node:99375) Warning: `--localstorage-file` was provided without a valid path
 (Use `node --trace-warnings ...` to show where the warning was created)
- ❯ tests/unit/sweep.test.ts (10 tests | 1 failed) 18248ms
-   ❯ concurrency-sweep (D06-02), real withRpcRetry in the sandbox (7)
-     × 200 callers, every call fails: one wave per attempt (5, the 5th at 12,000 ms), every caller throws at 12,000 ms 5125ms
-(node:75292) Warning: `--localstorage-file` was provided without a valid path
+(node:182) Warning: `--localstorage-file` was provided without a valid path
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:76093) Warning: `--localstorage-file` was provided without a valid path
+(node:1398) Warning: `--localstorage-file` was provided without a valid path
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:76094) Warning: `--localstorage-file` was provided without a valid path
+(node:1442) Warning: `--localstorage-file` was provided without a valid path
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:76403) Warning: `--localstorage-file` was provided without a valid path
+(node:1617) Warning: `--localstorage-file` was provided without a valid path
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:76499) Warning: `--localstorage-file` was provided without a valid path
+ ❯ tests/unit/x2-review1.test.tsx (13 tests | 1 failed) 5193ms
+   ❯ B4: a large outline never freezes the page (2)
+     × X1's maximum (40 parts, 156 joins) now draws within budget (D55: the renderer), and every check holds; past the budget it is the list 2087ms
+(node:1902) Warning: `--localstorage-file` was provided without a valid path
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:76537) Warning: `--localstorage-file` was provided without a valid path
+(node:1944) Warning: `--localstorage-file` was provided without a valid path
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:76726) Warning: `--localstorage-file` was provided without a valid path
+(node:2154) Warning: `--localstorage-file` was provided without a valid path
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:77155) Warning: `--localstorage-file` was provided without a valid path
+(node:2166) Warning: `--localstorage-file` was provided without a valid path
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:77287) Warning: `--localstorage-file` was provided without a valid path
+(node:2710) Warning: `--localstorage-file` was provided without a valid path
 (Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ tests/unit/x3-failure-labels.test.ts (24 tests | 1 failed) 1321ms
+   ❯ X3 review M3: linear scan, capped (1)
+     × the reviewer's 61 KB nested-loop paste takes under 50 ms; a nested retry flood too 233ms
 
-⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
 
- FAIL  tests/unit/sweep.test.ts > concurrency-sweep (D06-02), real withRpcRetry in the sandbox > 200 callers, every call fails: one wave per attempt (5, the 5th at 12,000 ms), every caller throws at 12,000 ms
-AssertionError: expected 5115.523125 to be less than 5000
- ❯ tests/unit/sweep.test.ts:71:20
-     69|     // The four waits sit between the five waves: the first four waves…
-     70|     expect(shareInWaves(parseCallTimes(String(m.callTimesMs)), [0, 300…
-     71|     expect(wallMs).toBeLessThan(5000);
-       |                    ^
-     72|   });
-     73|
+ FAIL  tests/unit/x2-review1.test.tsx > B4: a large outline never freezes the page > X1's maximum (40 parts, 156 joins) now draws within budget (D55: the renderer), and every check holds; past the budget it is the list
+AssertionError: expected 2063.6943329999995 to be less than 2000
+ ❯ tests/unit/x2-review1.test.tsx:119:18
+    117|     const d = drawSpec(spec);
+    118|     if (d.kind !== "drawing") throw new Error(`expected a drawing, got…
+    119|     expect(d.ms).toBeLessThan(2000);
+       |                  ^
+    120|     expect(checkDrawing(spec, d.scene, d.svg)).toEqual([]);
+    121|   }, 120_000);
 
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
 
- FAIL  tests/unit/x2-explorer-server.test.tsx > X2: server round-trip with a mocked Muse Wonder > upload server/meta → outline job → the chart draws exactly the confirmed and code-only joins → hand-off to /paste
-Error: the outline job did not finish
- ❯ waitDone tests/unit/x2-explorer-server.test.tsx:56:9
-     54|     await new Promise((r) => setTimeout(r, 100));
-     55|   }
-     56|   throw new Error("the outline job did not finish");
-       |         ^
-     57| }
-     58|
- ❯ tests/unit/x2-explorer-server.test.tsx:67:17
+ FAIL  tests/unit/x3-failure-labels.test.ts > X3 review M3: linear scan, capped > the reviewer's 61 KB nested-loop paste takes under 50 ms; a nested retry flood too
+AssertionError: expected 71.16137500000059 to be less than 50
+ ❯ tests/unit/x3-failure-labels.test.ts:163:38
+    161|       const t0 = performance.now();
+    162|       label(t);
+    163|       expect(performance.now() - t0).toBeLessThan(50);
+       |                                      ^
+    164|     }
+    165|   });
 
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
-
- FAIL  tests/unit/x3-server.test.ts > X3 review round 1 on the server > M3: the reviewer's 61 KB paste: POST /paste/labels answers in under 50 ms
-AssertionError: expected 125.38874999999825 to be less than 50
- ❯ tests/unit/x3-server.test.ts:301:36
-    299|     const r = await c.post("/paste/labels", { target: t, exportName: "…
-    300|     expect(r.status).toBe(200);
-    301|     expect(performance.now() - t0).toBeLessThan(50);
-       |                                    ^
-    302|   });
-    303|
-
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
 
 
- Test Files  3 failed | 163 passed | 2 skipped (168)
-      Tests  3 failed | 2724 passed | 35 skipped (2762)
-   Start at  22:48:26
-   Duration  298.86s (tests 88%, import 11%)
+ Test Files  2 failed | 164 passed | 2 skipped (168)
+      Tests  2 failed | 2728 passed | 35 skipped (2765)
+   Start at  23:04:02
+   Duration  213.62s (tests 68%, import 31%, transform 1%)
+
+    Isolate  168 workers spawned · ~597ms startup each (spawn + environment, per file)
+             at least ~19.45s faster with isolate: false — reuses workers across files instead of one per file
 

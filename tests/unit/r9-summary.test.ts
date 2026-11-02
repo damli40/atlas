@@ -24,7 +24,7 @@ const PART = { words: SUMMARY_PART_MAX_WORDS, chars: 110 };
 describe("checkSummary: plain code decides which lines stand", () => {
   it("keeps plain sentences of purpose", () => {
     expect(checkSummaryLine("  Fetches a  price, waiting longer between tries. ", LINE)).toEqual({ ok: true, text: "Fetches a price, waiting longer between tries." });
-    expect(checkSummaryLine("It's a helper (for prices); it returns a value.", LINE).ok).toBe(true);
+    expect(checkSummaryLine("It's a helper (for prices); it keeps a cache.", LINE).ok).toBe(true);
   });
   it("refuses digits, signs, too many words or characters, and empty text", () => {
     for (const bad of ["Waits 100 ms between tries.", "Returns a `Promise`.", "Calls fetch(url) again.", "A \"retry\" helper.", "Fetches a price — then stops.", "", 42, null]) expect(checkSummaryLine(bad, LINE).ok, String(bad)).toBe(false);
@@ -35,7 +35,7 @@ describe("checkSummary: plain code decides which lines stand", () => {
   it("refuses the names' trust and flaw words, by their beginnings and after un, in or non, and the Moonwell phrases", () => {
     const attacks = [
       "A safe retry helper.", "Fetches prices correctly.", "This has a bug in the loop.", "A fixed version of the fetcher.", "Secure price lookup.", // wording-lint: allow
-      "Throws the last error.", "Retries forever.", "Never gives up.", "It always returns.", "Handles failures.", "An unsafe parser.", "Uses invalid input.",
+      "Throws the last error.", "Retries forever.", "Never gives up.", "It always returns.", "Handles failed calls.", "An unsafe parser.", "Uses invalid input.",
       "A verified total.", "Robust fetching.", "Works fine.", "Catches every exception.", "Race prone counter.", "Off by one total.",
       "The first helper.", "Caught before shipping.", "Research shows it helps.", "Claude wrote this file.", "Was re-proven.", "AI caused this.", // wording-lint: allow
     ];
@@ -43,19 +43,41 @@ describe("checkSummary: plain code decides which lines stand", () => {
   });
   it("drops refused lines and lines for parts that were not drawn; no usable purpose means no summary", () => {
     const r = checkSummary({ purpose: "Fetches a price.", io: "Takes a fetcher; gives back a value.", parts: { a: "Waits a while.", b: "A safe step.", ghost: "Not here.", ["__proto__"]: "x" } }, ["a", "b", "c"]);
-    expect(r.summary).toEqual({ purpose: "Fetches a price.", io: "Takes a fetcher; gives back a value.", parts: { a: "Waits a while." } });
+    // Review M1: an "in and out" sentence is never kept, whatever it says.
+    expect(r.summary).toEqual({ purpose: "Fetches a price.", parts: { a: "Waits a while." } });
     expect(r.refused).toBe(3); // b, ghost, __proto__
     expect(checkSummary({ purpose: "A safe fetcher.", parts: { a: "Waits a while." } }, ["a"]).summary).toBeNull();
     expect(checkSummary("not json", ["a"]).summary).toBeNull();
     expect(checkSummary({ parts: { a: "Waits." } }, ["a"]).summary).toBeNull();
-    expect(checkSummary({ purpose: "Fetches.", parts: ["a"] }, ["a"]).summary).toEqual({ purpose: "Fetches.", io: null, parts: {} });
+    expect(checkSummary({ purpose: "Fetches.", parts: ["a"] }, ["a"]).summary).toEqual({ purpose: "Fetches.", parts: {} });
   });
-  it("holds purpose and in-and-out to 60 words together: past that, in-and-out is dropped", () => {
-    const thirty = Array.from({ length: 30 }, () => "word").join(" ");
-    const r = checkSummary({ purpose: thirty, io: `${thirty} more` }, []);
-    expect(r.summary?.io).toBeNull();
-    expect(r.refused).toBe(1);
-    expect(checkSummary({ purpose: thirty, io: thirty }, []).summary?.io).toBe(thirty);
+  it("review M1: refuses every line that answers the bet: how a call ends, what it gives back, numbers as words, time units", () => {
+    const probes = [
+      "If every try misses, it returns nothing and stops after three tries.",
+      "Gives up and raises the last problem it hit after three attempts.",
+      "Returns undefined when no request goes through.",
+      "It rejects with the last reason once the attempts run out.",
+      "nineteen ninety nine becomes one thousand nine hundred ninety nine",
+      "Waits a quarter second, then half a second",
+      "Then gives up.", "Comes back empty.", "Hands back null.", "Times out when the source is slow.", "Tries twice.", "Throws the last error.",
+      "Never finishes when the source stalls.", "Hangs when the source stalls.", "Fails when the list is empty.", "Gives back the parsed data or nothing.",
+    ];
+    for (const s of probes) expect(checkSummaryLine(s, LINE).ok, s).toBe(false);
+  });
+  it("review M1: role lines still pass, \"failure\" included (it says when a part acts, not how a run ends)", () => {
+    const roles = [
+      "Tries the request again after each failure.", "Calculates the growing wait before another try.", "Pauses for the given amount of time.",
+      "Fetches a price using the retry helper with preset settings.", "Turns each row of the table into a price in cents.", "Keeps recent answers so the slow source is asked less often.",
+      "Reads the header row and skips it.", "Adds up every price in the table.", "Waits a little longer before each new try.",
+    ];
+    for (const s of roles) expect(checkSummaryLine(s, PART), s).toMatchObject({ ok: true });
+    for (const s of ["It failed.", "A failing fetch."]) expect(checkSummaryLine(s, PART).ok, s).toBe(false);
+  });
+  it("review minor 1: refuses praise words, names included", async () => {
+    const { checkName } = await import("../../src/natural-names");
+    for (const s of ["An accurate parser.", "A sound cache.", "A solid helper.", "A dependable fetch.", "A reliable loop.", "A robust parser.", "A proper total.", "A flawless sum.", "A trustworthy lookup.", "An inaccurate count."]) expect(checkSummaryLine(s, LINE).ok, s).toBe(false);
+    for (const n of ["accurate sum", "solid cache", "dependable fetch", "trustworthy lookup", "proper total"]) expect(checkName(n).ok, n).toBe(false);
+    expect(checkName("property reader").ok).toBe(true);
   });
   it("the example's kept summary passes the checker unchanged", () => {
     const parts = fileOutline(U1_EXAMPLE, "ts").parts.map((p) => p.name);
@@ -88,7 +110,7 @@ function summarisingModels(answer: (all: string) => unknown, hold?: Promise<void
   };
   return { chat, calls };
 }
-const GOOD = { purpose: "Calls a fetcher again after short waits.", io: "Takes a fetcher and a try count; gives back what the fetcher gave.", parts: { retryWithBackoff: "Tries the fetcher, waiting longer each time." } };
+const GOOD = { purpose: "Calls a fetcher again after short waits.", parts: { retryWithBackoff: "Tries the fetcher, waiting longer each time." } };
 const NEVER = { shape: "call-function", exportName: "retryWithBackoff", args: [{ kind: "stand-in", name: "fetchIt", async: true, calls: [{ do: "never_settle" }], then: "repeat_last" }, { kind: "json", value: 3 }, { kind: "json", value: 100 }] };
 const isSummaryCall = (x: ChatArgs) => x.messages.some((y) => y.content.includes(SUMMARY_TASK));
 const budget = async () => (await import("../../server/meta/budget")).createModelBudget({ spendCeilingUsd: 5 });
@@ -195,6 +217,20 @@ describe("POST /paste/summary on the real server", () => {
     expect(m.calls.some(isSummaryCall)).toBe(false);
   });
 
+  it("review minor 2: a copy that differs only in comments is asked again: one person's comments never reach another's summary", async () => {
+    const m = summarisingModels(() => GOOD);
+    const { app } = makeApp({ paste: { proposer: { chat: m.chat } } });
+    const c = client(app);
+    for (const code of [RETRY_SRC, `// a comment only this person wrote\n${RETRY_SRC}`]) {
+      const p = await c.post("/paste", { code });
+      expect((await c.post("/paste/summary", { target: { ref: p.json.target.ref, codeSha256: p.json.target.codeSha256 } })).json.ok).toBe(true);
+    }
+    const asked = m.calls.filter(isSummaryCall);
+    expect(asked).toHaveLength(2);
+    expect(asked[1]!.messages.map((x) => x.content).join("\n")).toContain("a comment only this person wrote");
+    expect(asked[0]!.messages.map((x) => x.content).join("\n")).not.toContain("a comment only this person wrote");
+  });
+
   it("has its own per-client hourly limit", async () => {
     const before = process.env.ATLAS_SUMMARY_PER_CLIENT_PER_HOUR;
     process.env.ATLAS_SUMMARY_PER_CLIENT_PER_HOUR = "1";
@@ -281,7 +317,7 @@ describe("where the summary may appear", () => {
   const outline = fileOutline(U1_EXAMPLE, "ts");
   const model = benchModel({ fileName: "x", outline, test: null, source: U1_EXAMPLE, language: "ts" });
   const parts = machineParts({ ...model, tested: "fetchWithRetry" }, outline, U1_EXAMPLE, "ts");
-  const words = [EXAMPLE_SUMMARY.purpose, EXAMPLE_SUMMARY.io, ...Object.values(EXAMPLE_SUMMARY.parts)];
+  const words = [EXAMPLE_SUMMARY.purpose, ...Object.values(EXAMPLE_SUMMARY.parts)];
   it("the shared proof picture of a real example run has none of its words", async () => {
     const { app } = makeApp();
     const c = client(app);

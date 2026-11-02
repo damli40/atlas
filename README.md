@@ -8,10 +8,10 @@ Know what your AI-written code does before you trust it.
 <!-- DAMI: confirm this address and the invite-code line after the Fly deploy. -->
 **Online, nothing to install:** open **https://atlas-dami.fly.dev** and enter the invite code from the submission form.
 
-1. **Meta's AI explains the file.** The page opens on an example drawn as a machine, one box per function. Above the drawing, Muse Wonder (Meta's AI) says in plain words what the file is for and what goes in and comes out. "What each part does" opens one line per box. These are the AI's words, labelled so, not a check.
-2. **You and Meta's AI bet.** Read the one question, pick an answer and press **Lock in my bet**. Muse Spark and Muse Spark Open answer the same question from the same text, summary included. For the example their answers were recorded on Nov 2 and are labelled so.
+1. **Meta's AI explains the file.** The page opens on an example drawn as a machine, one box per function. Above the drawing, Muse Wonder (Meta's AI) usually says in plain words what the file is for, and "What each part does" opens one line per box. These are the AI's words, labelled so, not a check. It is asked for each part's role, not how a run ends: that is what you bet on.
+2. **You and Meta's AI bet.** Read the one question, pick an answer and press **Lock in my bet**. Muse Spark and Muse Spark Open answer the same question from the same text, summary included when there is one. For the example their answers were recorded on Nov 2 and are labelled so.
 3. **The sandbox decides.** Atlas runs the code and the machine plays what really happened. Your bet shows **matched**, **didn't match** or **can't check**, with each AI's mark beside it. Press **Share proof card** to get the card.
-4. **Your own code.** Press **Try your own code** and paste any JavaScript, TypeScript or Python file. No file handy? Press one of the samples under the paste box (a fetch with retry, a price parser, a cached lookup). From here the calls are live: Meta's AI explains the file, writes a test, and bets with you.
+4. **Your own code.** Press **Try your own code** and paste any JavaScript, TypeScript or Python file. No file handy? Press one of the samples under the paste box (a fetch with retry, a price parser, a cached lookup). From here the calls are live: Meta's AI usually explains the file, writes a test, and bets with you.
 5. **A real case (optional).** At the foot of the page, open **Demos: Moonwell**: a saved replay of a real oracle setting on a Base fork. It needs no key and costs nothing.
 
 **On your own machine** (Node 25 or newer, and pnpm; on older Node the local sandbox cannot block the network):

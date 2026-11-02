@@ -1,0 +1,6 @@
+example, first recording (dcdcb58): 4 pass, 2 refused
+  refused: "It takes a way to fetch a quote and returns the fetched value after trying up to a set number of times." (uses "returns", a word about how a call ends or a number)
+  refused: "Tries fetching, pausing longer between tries, then gives up." (says "gives up")
+live sample getJson (dcdcb58): 2 pass, 1 refused
+  refused: "It takes a web address and a retry count and returns the parsed data or nothing." (uses "returns", a word about how a call ends or a number)
+example, re-recorded under the new rules: 5 pass, 0 refused

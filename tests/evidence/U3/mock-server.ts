@@ -86,7 +86,7 @@ export const mockChat = async (a: ChatArgs): Promise<ChatResult> => {
   // R9: the file-summary call. Plain mock words that say they are a mock, one line per part, so the page shows a summary at $0.
   if (/SUMMARIZE THE FILE/.test(all)) {
     const parts = [...all.matchAll(/^- (\S+) \((?:function|class)/gm)].map((m) => m[1]!);
-    return { ok: true, finishReason: "stop", usage, content: JSON.stringify({ purpose: "A mock summary of what this file is for; no model was called.", io: "Mock words about what goes in and what comes out.", parts: Object.fromEntries(parts.map((p) => [p, "Mock line about this part."])) }) };
+    return { ok: true, finishReason: "stop", usage, content: JSON.stringify({ purpose: "A mock summary of what this file is for; no model was called.", parts: Object.fromEntries(parts.map((p) => [p, "Mock line about this part."])) }) };
   }
   if (a.role === "investigator") {
     await new Promise((r) => setTimeout(r, delay));

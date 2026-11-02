@@ -7,7 +7,7 @@
   {
     "name": "1280x800: it is labelled as Muse Wonder's words (Meta's AI), not a check",
     "ok": true,
-    "more": "Summary: Muse Wonder's words (Meta's AI), not a check"
+    "more": "Summary: Muse Wonder's words (Meta's AI). Its reading can repeat the code's own comments; the run is the check"
   },
   {
     "name": "1280x800: \"Lock in my bet\" is fully on screen and not covered",
@@ -22,12 +22,12 @@
   {
     "name": "1280x800: the summary strip does not sit on the drawing",
     "ok": true,
-    "more": "{\"sumBottom\":138,\"svgTop\":173}"
+    "more": "{\"sumBottom\":120,\"svgTop\":154}"
   },
   {
     "name": "1280x800: one line per drawn part, keyed by its name",
     "ok": true,
-    "more": "[\"retry wait time: Calculates the growing wait before another try.\",\"pause execution: Pauses for the given amount of time.\",\"retrying fetch: Tries fetching, pausing longer between tries, then gives up.\",\"price lookup: Fetches a price using the retry helper with preset settings.\"]"
+    "more": "[\"retry wait time: Calculates a growing wait before another try.\",\"pause execution: Pauses the program for a requested wait.\",\"retrying fetch: Tries fetching again while pausing between attempts.\",\"price lookup: Fetches a price using the retry helper.\"]"
   },
   {
     "name": "1280x800: with the part lines open, \"Lock in my bet\" is still on screen",
@@ -37,7 +37,7 @@
   {
     "name": "1280x800: a part line opens that part's panel, with its line marked as the AI's words",
     "ok": true,
-    "more": "Meta's AI says this part: Tries fetching, pausing longer between tries, then gives up. (its words, not a check)"
+    "more": "Meta's AI says this part: Tries fetching again while pausing between attempts. (its words, not a check)"
   },
   {
     "name": "1280x800: \"No file handy? Try one of these\" is under the paste box",
@@ -65,6 +65,11 @@
     "more": ""
   },
   {
+    "name": "1280x800: with no summary, one muted line says so and no summary text is shown",
+    "ok": true,
+    "more": "No summary this time: Meta's AI was slow or its words didn't pass Atlas's checks."
+  },
+  {
     "name": "1440x900: the summary is shown before the bet",
     "ok": true,
     "more": ""
@@ -72,7 +77,7 @@
   {
     "name": "1440x900: it is labelled as Muse Wonder's words (Meta's AI), not a check",
     "ok": true,
-    "more": "Summary: Muse Wonder's words (Meta's AI), not a check"
+    "more": "Summary: Muse Wonder's words (Meta's AI). Its reading can repeat the code's own comments; the run is the check"
   },
   {
     "name": "1440x900: \"Lock in my bet\" is fully on screen and not covered",
@@ -87,12 +92,12 @@
   {
     "name": "1440x900: the summary strip does not sit on the drawing",
     "ok": true,
-    "more": "{\"sumBottom\":138,\"svgTop\":173}"
+    "more": "{\"sumBottom\":120,\"svgTop\":154}"
   },
   {
     "name": "1440x900: one line per drawn part, keyed by its name",
     "ok": true,
-    "more": "[\"retry wait time: Calculates the growing wait before another try.\",\"pause execution: Pauses for the given amount of time.\",\"retrying fetch: Tries fetching, pausing longer between tries, then gives up.\",\"price lookup: Fetches a price using the retry helper with preset settings.\"]"
+    "more": "[\"retry wait time: Calculates a growing wait before another try.\",\"pause execution: Pauses the program for a requested wait.\",\"retrying fetch: Tries fetching again while pausing between attempts.\",\"price lookup: Fetches a price using the retry helper.\"]"
   },
   {
     "name": "1440x900: with the part lines open, \"Lock in my bet\" is still on screen",
@@ -102,7 +107,7 @@
   {
     "name": "1440x900: a part line opens that part's panel, with its line marked as the AI's words",
     "ok": true,
-    "more": "Meta's AI says this part: Tries fetching, pausing longer between tries, then gives up. (its words, not a check)"
+    "more": "Meta's AI says this part: Tries fetching again while pausing between attempts. (its words, not a check)"
   },
   {
     "name": "390x844: the summary is shown before the bet",
@@ -112,7 +117,7 @@
   {
     "name": "390x844: it is labelled as Muse Wonder's words (Meta's AI), not a check",
     "ok": true,
-    "more": "Summary: Muse Wonder's words (Meta's AI), not a check"
+    "more": "Summary: Muse Wonder's words (Meta's AI). Its reading can repeat the code's own comments; the run is the check"
   },
   {
     "name": "390x844: \"Lock in my bet\" is fully on screen and not covered",

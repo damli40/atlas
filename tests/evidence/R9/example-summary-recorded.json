@@ -1,31 +1,30 @@
 {
-  "recordedAt": "2026-11-02T21:37:35.119Z",
-  "promptSha256": "1547e9d76d1c31cf2236a46c494886014fb93cc687eea7642bcf18860095a3c4",
+  "recordedAt": "2026-11-02T22:02:03.240Z",
+  "promptSha256": "266683d4b5bd6579e80e975033948ff54dfb0a6d9b4701334120e4f7e7cc1751",
   "raw": {
-    "content": "{\"purpose\": \"This file fetches a price from a flaky source, waiting longer between each try when an attempt does not succeed.\", \"io\": \"It takes a way to fetch a quote and returns the fetched value after trying up to a set number of times.\", \"parts\": {\"backoffMs\": \"Calculates the growing wait before another try.\", \"sleep\": \"Pauses for the given amount of time.\", \"fetchWithRetry\": \"Tries fetching, pausing longer between tries, then gives up.\", \"getPrice\": \"Fetches a price using the retry helper with preset settings.\"}}",
-    "usd": 0.013268,
-    "promptTokens": 732,
-    "completionTokens": 517
+    "content": "{\"purpose\": \"This file fetches a price from a flaky source while waiting longer between tries.\", \"parts\": {\"backoffMs\": \"Calculates a growing wait before another try.\", \"sleep\": \"Pauses the program for a requested wait.\", \"fetchWithRetry\": \"Tries fetching again while pausing between attempts.\", \"getPrice\": \"Fetches a price using the retry helper.\"}}",
+    "usd": 0.010304,
+    "promptTokens": 1021,
+    "completionTokens": 311
   },
   "checked": {
     "ok": true,
     "model": "muse-wonder-1.0",
     "summary": {
-      "purpose": "This file fetches a price from a flaky source, waiting longer between each try when an attempt does not succeed.",
-      "io": "It takes a way to fetch a quote and returns the fetched value after trying up to a set number of times.",
+      "purpose": "This file fetches a price from a flaky source while waiting longer between tries.",
       "parts": {
-        "backoffMs": "Calculates the growing wait before another try.",
-        "sleep": "Pauses for the given amount of time.",
-        "fetchWithRetry": "Tries fetching, pausing longer between tries, then gives up.",
-        "getPrice": "Fetches a price using the retry helper with preset settings."
+        "backoffMs": "Calculates a growing wait before another try.",
+        "sleep": "Pauses the program for a requested wait.",
+        "fetchWithRetry": "Tries fetching again while pausing between attempts.",
+        "getPrice": "Fetches a price using the retry helper."
       }
     },
     "refused": 0,
     "usage": {
-      "promptTokens": 732,
-      "completionTokens": 517,
-      "reasoningTokens": 384,
-      "usd": 0.013268
+      "promptTokens": 1021,
+      "completionTokens": 311,
+      "reasoningTokens": 219,
+      "usd": 0.010304
     }
   }
 }

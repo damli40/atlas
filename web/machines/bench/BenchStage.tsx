@@ -89,6 +89,8 @@ export interface BenchStageProps {
   namesNote?: string | null;
   /** R9: Meta's AI's summary of the file, already checked by plain code, shown before the bet in the AI's ink. Null: nothing is shown. */
   fileSummary?: FileSummary | null;
+  /** Review minor 5: a summary was asked for and none came (refused, late, limited or failed). */
+  summaryMissing?: boolean;
   /** R9: the summary's one line per part, for the part panel (before and after a run). */
   partLines?: Readonly<Record<string, string>> | null;
   /** A code box was chosen as the function to test. */
@@ -154,7 +156,7 @@ export function litWithNoThread(beats: readonly { routes: readonly string[]; lam
   return beats.some((b) => b.lamps.some((l) => l !== tested && !reached.has(l)));
 }
 
-export function BenchStage({ viewToggle = true, traceNote = true, recorded = {}, wontRun = false, seenBefore = false, codeRan = false, loop = null, model, theme, after = null, onPart, picked = null, onPanel, onClosePart, naturalNames = null, namesNote = null, fileSummary = null, partLines = null, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null }: BenchStageProps) {
+export function BenchStage({ viewToggle = true, traceNote = true, recorded = {}, wontRun = false, seenBefore = false, codeRan = false, loop = null, model, theme, after = null, onPart, picked = null, onPanel, onClosePart, naturalNames = null, namesNote = null, fileSummary = null, summaryMissing = false, partLines = null, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null }: BenchStageProps) {
   const [wantMachine, setWantMachine] = useState(machineFirst);
   const playedRef = useRef(onPlayed);
   playedRef.current = onPlayed;
@@ -451,6 +453,7 @@ export function BenchStage({ viewToggle = true, traceNote = true, recorded = {},
   };
   // R9: the file summary sits in its own strip at the top of the drawing's column, before any run; the drawing moves down by its height.
   const shownSummary = !after ? fileSummary : null;
+  const stripShown = !after && (fileSummary !== null || summaryMissing);
   const sumRef = useRef<HTMLElement | null>(null);
   const [sumH, setSumH] = useState(0);
   useLayoutEffect(() => {
@@ -461,7 +464,7 @@ export function BenchStage({ viewToggle = true, traceNote = true, recorded = {},
     const ro = typeof ResizeObserver === "function" ? new ResizeObserver(fit) : null;
     ro?.observe(el);
     return () => ro?.disconnect();
-  }, [shownSummary]);
+  }, [shownSummary, stripShown]);
   const pickedPanel = picked ? panelFor(picked) : null;
   const panelKey = JSON.stringify(pickedPanel);
   useEffect(() => onPanel?.(pickedPanel), [panelKey]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -502,7 +505,7 @@ export function BenchStage({ viewToggle = true, traceNote = true, recorded = {},
   const readout = after && marksOn ? marksReadout(after.marks) : model.tested ? `testing ${model.tested}` : `${model.boxes.length} ${model.boxes.length === 1 ? "part" : "parts"} · ${model.lines.length} ${model.lines.length === 1 ? "join" : "joins"}`;
 
   return (
-    <div className={`rr-host u1-root${marksOn ? " u1-marked" : ""}`} data-list={model.notShown === null && !after && outline.parts.length > LIST_FROM_PARTS ? "" : undefined} data-noted={(wantMachine && (drawn.tooMany || tooSmall) && drawn.tooMany !== NOTHING_TO_DRAW && !noRunToShow) || (showMachine && noRunToShow) ? "" : undefined} data-view={showMachine ? "machine" : "chart"} data-theme={shown} data-stage={stage} data-phase={!after ? "rest" : marksOn ? "marked" : "playing"} data-pop={side && !after ? "" : undefined} data-summary={shownSummary ? "" : undefined} style={shownSummary ? ({ ["--sum-h" as string]: `${sumH}px` } as React.CSSProperties) : undefined} data-testid="bench-stage" onPointerUp={onRootPointerUp} onKeyDown={onKey} tabIndex={-1}>
+    <div className={`rr-host u1-root${marksOn ? " u1-marked" : ""}`} data-list={model.notShown === null && !after && outline.parts.length > LIST_FROM_PARTS ? "" : undefined} data-noted={(wantMachine && (drawn.tooMany || tooSmall) && drawn.tooMany !== NOTHING_TO_DRAW && !noRunToShow) || (showMachine && noRunToShow) ? "" : undefined} data-view={showMachine ? "machine" : "chart"} data-theme={shown} data-stage={stage} data-phase={!after ? "rest" : marksOn ? "marked" : "playing"} data-pop={side && !after ? "" : undefined} data-summary={stripShown ? "" : undefined} style={stripShown ? ({ ["--sum-h" as string]: `${sumH}px` } as React.CSSProperties) : undefined} data-testid="bench-stage" onPointerUp={onRootPointerUp} onKeyDown={onKey} tabIndex={-1}>
       <header className="r-head">
         <p className="r-kick">{title}</p>
         <h1 className="r-name">{model.tested ?? fileName}</h1>
@@ -516,12 +519,6 @@ export function BenchStage({ viewToggle = true, traceNote = true, recorded = {},
           <p className="m-summary-k" data-testid="file-summary-legend">{SUMMARY_WORDS.legend}</p>
           <p className="m-summary-t" data-testid="file-summary-text">
             {shownSummary.purpose}
-            {shownSummary.io ? (
-              <>
-                {" "}
-                <span className="m-summary-io">{SUMMARY_WORDS.io}</span> {shownSummary.io}
-              </>
-            ) : null}
           </p>
           {Object.keys(shownSummary.parts).length > 0 ? (
             <details className="m-summary-parts" data-testid="file-summary-parts">
@@ -542,6 +539,11 @@ export function BenchStage({ viewToggle = true, traceNote = true, recorded = {},
               </ul>
             </details>
           ) : null}
+        </section>
+      ) : !after && summaryMissing ? (
+        // Review minor 5: no summary this time (refused, late, limited or failed): one muted line in its slot, never a stand-in summary.
+        <section className="m-summary m-summary-none" ref={sumRef} data-testid="file-summary-none">
+          <p>{SUMMARY_WORDS.none}</p>
         </section>
       ) : null}
       <div className="r-viewport r-chart" role="group" aria-describedby="bench-described" aria-label="The drawing of your code. Tab to a part; Enter picks it; arrows walk its joins; plus and minus zoom." onPointerMove={onMove} onPointerLeave={() => setHover(null)} data-testid="bench-viewport">

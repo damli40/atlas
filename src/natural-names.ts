@@ -12,9 +12,10 @@ export const NAME_BANNED_STEMS = [
   "verif", "secur", "trust", "test", "audit", "approv", "safe", "robust", "reliab", "guarant", "flaw", "perfect", "correct", "valid", // wording-lint: allow (words a name is refused for, never shown)
   "fail", "crash", "error", "bug", "broke", "break", "leak", "forever", "infinite", "unbounded", "endless", "hang", "hung", "throw", // wording-lint: allow
   "exception", "vulnerab", "exploit", "backdoor", "wrong", "right", "always", "never", "sometimes", "fix", "race", "prone", "risk", "danger", // wording-lint: allow
+  "accura", "dependab", "trustworth", "flawless", // wording-lint: allow (review minor 1: praise words; "reliab", "robust" and "flaw" are above)
 ] as const;
 /** Whole words a name may not use: short judgments that would match too much as a beginning. */
-export const NAME_BANNED_WORDS = ["ok", "okay", "fine", "good", "bad", "clean", "works", "working", "worked", "atlas", "issue", "issues", "prove", "proven", "proves", "proved", "harmless", "harmful", "sure", "certain", "checked", "buggy"] as const; // wording-lint: allow
+export const NAME_BANNED_WORDS = ["ok", "okay", "fine", "good", "bad", "clean", "works", "working", "worked", "atlas", "issue", "issues", "prove", "proven", "proves", "proved", "harmless", "harmful", "sure", "certain", "checked", "buggy", "sound", "soundly", "solid", "solidly", "proper", "properly"] as const; // wording-lint: allow
 export const NAME_MAX_WORDS = 4;
 /** About what a lid can show at reading size: a longer name would only ever be in the panel, never on the drawing. */
 export const NAME_MAX_CHARS = 16;

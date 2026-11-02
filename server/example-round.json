@@ -1,5 +1,5 @@
 {
-  "note": "R7 (D69): the built-in example's round, recorded from real calls on 2026-11-02 (usage lines in tests/evidence/usage/usage.jsonl). The first two bets were recorded by tests/evidence/R7/record-example.mts from the bettors' text without a file summary; the last two by tests/evidence/R9/record-example.mts from the text with the file summary (R9), which is the text the page now writes. A bet is replayed only for the exact text it was recorded from. The page labels these answers as recorded, never live.",
+  "note": "R7 (D69): the built-in example's round, recorded from real calls on 2026-11-02 (usage lines in tests/evidence/usage/usage.jsonl). The first two bets were recorded by tests/evidence/R7/record-example.mts from the bettors' text without a file summary (still used when a round is written before the summary is asked); the last two by tests/evidence/R9/record-example.mts from the text with the file summary as the R9 review left it, which is the text the page now writes. The answers recorded with the first R9 summary (commit dcdcb58) were dropped: no text the page writes can match them now. A bet is replayed only for the exact text it was recorded from. The page labels these answers as recorded, never live.",
   "recordedOn": "2026-11-02",
   "tests": {
     "model": "muse-wonder-1.0",
@@ -23,17 +23,17 @@
     },
     {
       "model": "meta-models/muse-spark-open-1026",
-      "promptSha256": "76b561bcba514ebcbd77973f06047516bf18192f413aa4fb5c89fcce2f1cd633",
-      "content": "{\"bets\": [{\"measures\": \"outcome\", \"answer\": {\"kind\": \"quiz\", \"choice\": \"b\"}, \"rationale\": \"Always-throwing fetchIt causes 3 iterations with sleeps 100+200+400=700ms then throw last error, well within 30s virtual time.\"}]}",
-      "usd": 0.002832,
-      "text": "R9: with the file summary"
+      "promptSha256": "bcfdbadb0a44a538d63d3627d7bcf98641888118f4acbef7f504535e674f55b8",
+      "content": "{\"bets\": [{\"measures\": \"outcome\", \"answer\": {\"kind\": \"quiz\", \"choice\": \"b\"}, \"rationale\": \"fetchIt always throws, loop runs 3 times with sleeps 100+200+400=700ms then throws last error, well within 30s virtual time.\"}]}",
+      "usd": 0.00271725,
+      "text": "R9: with the file summary (after the review: purpose and part lines only)"
     },
     {
       "model": "muse-spark-1.3",
-      "promptSha256": "76b561bcba514ebcbd77973f06047516bf18192f413aa4fb5c89fcce2f1cd633",
-      "content": "{\"bets\": [{\"measures\": \"outcome\", \"answer\": {\"kind\": \"quiz\", \"choice\": \"b\"}, \"rationale\": \"All 3 attempts throw, so loop sleeps 100+200+400ms then throws last error.\"}]}",
-      "usd": 0.013172,
-      "text": "R9: with the file summary"
+      "promptSha256": "bcfdbadb0a44a538d63d3627d7bcf98641888118f4acbef7f504535e674f55b8",
+      "content": "{\"bets\": [{\"measures\": \"outcome\", \"answer\": {\"kind\": \"quiz\", \"choice\": \"b\"}, \"rationale\": \"All 3 calls throw, so loop sleeps 100ms+200ms+400ms then throws last error, well under 30000ms.\"}]}",
+      "usd": 0.012904,
+      "text": "R9: with the file summary (after the review: purpose and part lines only)"
     }
   ]
 }

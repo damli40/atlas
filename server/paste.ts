@@ -596,8 +596,9 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
           e = { p, state: "pending", model: EXAMPLE_SUMMARY_MODEL };
         } else {
           if (!opts.proposer || !proposerChat || !deps.budget) return unavailable("this server asks no Meta model");
-          // Shared by copies of the file that differ only in comments or spaces, like the names.
-          const key = `${entry.target.language}:${codeFingerprint(entry.target.source ?? "", entry.target.language ?? undefined)}`;
+          // Review minor 2: keyed by the hash of the whole text, comments included, so one person's comments never reach another
+          // person's summary (the names, by contrast, are shared by copies that differ only in comments).
+          const key = `${entry.target.language}:${sha}`;
           let p = summaryByCode.get(key);
           if (!p) {
             const allowed = deps.takeSummary?.(c) ?? { ok: true as const };
@@ -661,7 +662,8 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
      * way are waited for a little; past that they are closed for this file, and never shown.
      */
     async namesForText(sessionId: string, codeSha256: string): Promise<{ model: string; names: Record<string, string> } | null> {
-      const e = sessionNames.get(sessionId)?.get(codeSha256);
+      // Review minor 3: reading the record touches the session (see summaryForText).
+      const e = sessionNames.has(sessionId) ? namesOf(sessionId).get(codeSha256) : undefined;
       // Not asked for yet: this round's text is written without names, so this file's names are closed in this session and never shown.
       if (!e) {
         namesOf(sessionId).set(codeSha256, { p: Promise.resolve({ ok: false, model: NAMER_MODEL, reason: "not asked" }), state: "closed", model: NAMER_MODEL });
@@ -684,7 +686,8 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
      * names: a summary still on its way is waited for a little; past that it is closed for this file, and never shown.
      */
     async summaryForText(sessionId: string, codeSha256: string): Promise<{ model: string; summary: FileSummary } | null> {
-      const e = sessionSummary.get(sessionId)?.get(codeSha256);
+      // Review minor 3: reading the record touches the session, so a session still in use is not the one dropped first.
+      const e = sessionSummary.has(sessionId) ? summaryOf(sessionId).get(codeSha256) : undefined;
       if (!e) {
         summaryOf(sessionId).set(codeSha256, { p: Promise.resolve({ ok: false, model: SUMMARIZER_MODEL, reason: "not asked" }), state: "closed", model: SUMMARIZER_MODEL });
         return null;

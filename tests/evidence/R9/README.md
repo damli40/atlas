@@ -2,12 +2,56 @@
 
 Dami asked for a "full summary of what code does", in the app, for the pasted file, shown **before** the bet, and seen by the AI bettors too. And: "how will a judge test to see the full value... it should be dead simple".
 
+**After the review (round 1), read this first:** the "Review round 1" section below. The summary no longer has an "in and out" sentence, and plain code now refuses any line that says how a call ends or holds a number. The sections after it describe the first build (dcdcb58); where they disagree with "Review round 1", the review section is current.
+
 **Where to look first:** `shots/1-first-screen-1280x800.png` and `shots/1-first-screen-1440x900.png` (the summary above the drawing, "Lock in my bet" on screen), `shots/3-part-panel-1280x800.png` (a part's line in its panel), `shots/4-samples-1280x800.png` (the sample buttons), then the live round in `live/` (`2-drawn-with-summary.png` → `3-bet-question.png` → `4-verdict.png`).
 
-## What was built, in plain words
+
+## Review round 1 (coordinator's review of dcdcb58)
+
+| Finding | What changed |
+|---|---|
+| **Blocker:** `vitest.txt` held a home-folder path (`no-local-paths.test.ts` failed) | The run header is written as `<repo>`, as earlier evidence files do. |
+| **Major (coordinator's decision): the summary must not answer the bet** | The "in and out" sentence is gone (any such field in an answer is ignored). `src/file-summary.ts` refuses words about how a call ends or what it gives back (nothing, undefined, null, none, empty, return/returns, raise, reject, result, finish, timeout and their forms; "gives up", "stops after", "times out", "runs out", "gives back", "comes back"), numbers written as words (zero to twenty, thirty to ninety, hundred, thousand, million, half, quarter, once, twice, thrice, dozen, single, double, triple, second to fifth, tenth) and time units (second, millisecond, ms, minute, hour). The prompt now asks for each part's role "as if describing one machine part to a colleague" and never what happens at the end or in a failure case. |
+| "failure": role or outcome? | Allowed in a summary line as a noun ("Tries the request again after each failure" says when a part acts, not how a run ends). "fail", "fails", "failed", "failing" stay refused. |
+| Minor 1: praise words | Added to the names' list too: stems accura, dependab, trustworth, flawless; whole words sound, soundly, solid, solidly, proper, properly. "solid", "sound" and "proper" are whole words, not stems, so "property" and "soundtrack" still pass. |
+| Minor 2: the summary cache | Keyed by the hash of the whole text, comments included: a copy that differs only in comments is asked again (test). **Names were not changed:** they still share one call across copies that differ only in comments. The same change for names is one line in `server/paste.ts` plus flipping R6's test "review m5"; I left it because the brief allowed it only with tests unchanged. A name is 1 to 4 checked words, so the room for a comment to leak is small, but not zero. |
+| Minor 3: eviction | Reading a session's summary or names record (when a round's text is written) now touches the session, like the routes do. Not covered by a test (it would need 200 sessions). |
+| Minor 5: no summary | One muted line in the summary's place: "No summary this time: Meta's AI was slow or its words didn't pass Atlas's checks." (placeholder for Dami). Shown when the summary was refused, closed as late, limited or failed; not when the server asks no model or the file has no parts. The README "Test me" says "usually". |
+| Label | The legend now reads "Summary: Muse Wonder's words (Meta's AI). Its reading can repeat the code's own comments; the run is the check" (placeholder for Dami). |
+
+**Re-recorded under the new rules (real calls, Nov 2):**
+- The example's summary: "This file fetches a price from a flaky source while waiting longer between tries." Part lines: backoffMs "Calculates a growing wait before another try.", sleep "Pauses the program for a requested wait.", fetchWithRetry "Tries fetching again while pausing between attempts.", getPrice "Fetches a price using the retry helper." 0 lines refused. $0.0103.
+- Both AI answers from the text with that summary: Muse Spark 1.3 and Muse Spark Open both answered "throws". $0.0156.
+- `server/example-round.json` now keeps 4 answers: the R7 pair (for a round written before the summary was asked) and this pair. The pair recorded with the first summary was dropped: no text the page writes can match it. Verify still refuses a stripped label (test).
+
+**The new checker on every summary line recorded so far** (`count-lines.mts`, `count-lines.txt`):
+
+| Summary | Pass | Refused |
+|---|---|---|
+| Example, first recording (dcdcb58) | 4 | 2: the "in and out" sentence ("returns the fetched value…") and fetchWithRetry's "…then gives up." |
+| Live sample getJson (dcdcb58) | 2 | 1: "…returns the parsed data or nothing." (the line that answered the bet) |
+| Example, re-recorded under the new rules | 5 | 0 |
+
+The unit tests add the reviewer's six probes plus ten more (all refused) and nine ordinary role lines (all pass).
+
+**Suite after the review:** `tsc` clean. Full run (`vitest.txt`): 2,728 passed, 2 failed, 35 skipped, with the machine's load average about 55. The 2 failures were time limits in files R9 doesn't touch (x2-review1 B4, 2,064 ms against 2,000; x3-failure-labels M3, 71 ms against 50). Run alone they passed 3 times out of 4 (`vitest-timing-rerun.txt`). `no-local-paths.test.ts` passes.
+
+**Spend in this round:** $0.0259 (1 summary call, 2 bet calls). **R9 total: $0.0959** ($0.070 before the review).
+
+**Page checks:** 26 of 26 pass (`shots.txt`). New: `shots/6-no-summary-1280x800.png`, the muted line when the summary request fails. `shots/1-first-screen-1280x800.png` and `1-first-screen-1440x900.png` show the new summary and legend, with "Lock in my bet" at the same place.
+
+**Not re-run:** the live round in `live/`. It shows the first build (with the "in and out" sentence that answered the bet). It was not repeated, to save spend.
+
+**Known limits, from the review, not fixed:**
+- **M2: a summary can repeat the code's own comments, including misleading ones.** That is shown, not hidden: the legend says so.
+- **Minor 4 and minor 7 of the review** were skipped by the coordinator's decision.
+- **The word lists can still be beaten:** a summary can describe an ending in words not on the lists. The label is the defence, as with the names.
+
+## What was built, in plain words (first build, dcdcb58)
 
 1. **Muse Wonder (Meta's AI) writes a short summary of the file, in its own call.** `POST /paste/summary` sends only the numbered code and the list of parts plain code drew (`server/meta/roles/summarizer.ts`). It never sees the test, the question or Wonder's sentence about the code, so it cannot leak the answer on purpose. A test checks the prompt for that even when the tests were written first.
-2. **What it holds:** what the file is for (one sentence), what goes in and comes out (one sentence), and one short line per drawn part, keyed by the part's exact name.
+2. **What it holds:** what the file is for (one sentence) and one short line per drawn part, keyed by the part's exact name. (The first build also had a "what goes in and comes out" sentence; the review removed it.)
 3. **Plain code checks every line** (`src/file-summary.ts`):
    - Caps: at most 35 words or 220 characters per sentence, 60 words for the two together, and 15 words or 110 characters per part line. The prompt asks for about 25 + 25 words and 12 per part.
    - It refuses digits, quotes, dashes and code-like text such as `fetch(url)`.
