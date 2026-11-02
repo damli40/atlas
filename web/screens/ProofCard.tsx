@@ -11,7 +11,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { AtlasFile } from "../../src/types";
 import { ApiError, type Api, type HelperAnswer, type ReplayAnswer } from "../api";
 import { Scoreboard, bettorName } from "../machines/scoreboard/Scoreboard";
-import { SAY, bettorLineWords, bettorLines, proofCardModel, replayWords } from "./proofcard-model";
+import { SAY, bettorLineWords, bettorLines, creditLine, proofCardModel, replayWords } from "./proofcard-model";
 import { DiffView } from "./Change";
 import { BettorCounts } from "./Claimant";
 import { bettorNames, changeProposer, orderModelBettors } from "../../src/claimants";
@@ -248,6 +248,12 @@ export function ProofCard({ file, api, replay: given, stranger = false, reader =
       <p className="pc-plain" data-testid="pc-plain">
         {PROOF_WORDS.what}
       </p>
+      {/* R7 (D69): Meta's tools, credited plainly. */}
+      {creditLine(file) && (
+        <p className="pc-plain pc-credit" data-testid="pc-credit">
+          {creditLine(file)}
+        </p>
+      )}
 
       {/* D07-04: the film's end frame. The scoreboard is the Atlas mark, large and centred, then who bet and how it came out. */}
       <section className="pc-hero" aria-label="the marks">

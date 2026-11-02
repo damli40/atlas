@@ -808,7 +808,7 @@ export function createApp(opts: AppOptions = {}) {
     else if (bets.some((b) => b.who === "human")) out.push({ who: "human", status: "sealed" });
     for (const s of modelSlotsOf(round)) {
       const who = s.who as BettorSlot["who"];
-      if (bets.some((b) => b.who === who)) out.push({ who, status: "sealed" });
+      if (bets.some((b) => b.who === who)) out.push({ who, status: "sealed", ...(s.recorded ? { recorded: s.recorded } : {}) });
       else out.push({ who, status: s.status === "no_usable_answer" ? "no_usable_answer" : "not_asked", ...(s.reason ? { reason: oneLine(redactRpc(s.reason), 300) } : {}) });
     }
     for (const b of bets) if (!out.some((s) => s.who === b.who)) out.push({ who: b.who, status: "sealed" });

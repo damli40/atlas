@@ -56,7 +56,7 @@ import type { PasteLabelsAnswer } from "../api";
 import { lineSpan } from "../../src/words";
 import type { Confidence } from "../../src/types";
 import { FeltRecord, FeltRoundLine, HowSurePicker } from "./FeltPanel";
-import { FELT_WORDS } from "../../src/paste-words";
+import { FELT_WORDS, SIMPLE_WORDS, shortModelName } from "../../src/paste-words";
 
 type Lang = "js" | "ts" | "py";
 const EXAMPLE_FUNCTION_NAME = "fetchWithRetry";
@@ -316,9 +316,22 @@ export interface StudioProps {
   onRoundOpen?: (open: boolean) => void;
   claimant: ClaimantMode;
   onClaimant: (m: ClaimantMode) => void;
+  /** R7 (D69): "Try the Moonwell bug" opens the saved Moonwell replay. */
+  onMoonwell?: () => void;
 }
 
-export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundOpen, claimant, onClaimant }: StudioProps) {
+export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundOpen, claimant, onClaimant, onMoonwell }: StudioProps) {
+  // R7 (D69): one flow. One question by default (the server asks every bettor the same one); the rest waits in fine print.
+  const [oneMode, setOneMode] = useState(true);
+  const quizOpts = (one = oneMode) => ({ quiz: true as const, ...(one ? { one: true as const } : {}) });
+  // Fine print that is opened: "Details" (code, box chart, paid-call lines), "More options for this bet", the result's "More".
+  const [details, setDetails] = useState(false);
+  const [betMore, setBetMore] = useState(false);
+  const [more, setMore] = useState(false);
+  // The paste box, Upload and GitHub: shown on the first screen only after "Try your own code".
+  const [ownOpen, setOwnOpen] = useState(false);
+  const autoExample = useRef(false);
+  const autoBet = useRef<string | null>(null);
   const [code, setCode] = useState("");
   const [lang, setLang] = useState<Lang | "auto">("auto");
   const [pasted, setPasted] = useState<PasteAnswer | null>(null);
@@ -470,6 +483,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     setClaimNoNew(false);
     setHelpers(null);
     setHelpersIn(false);
+    setBetMore(false);
+    setMore(false);
     ownTest.current = false;
     runStarted.current = false;
     gen.current++;
@@ -499,7 +514,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       // A test that has already run on this code is not offered again: its answer is known.
       const offered = p.proposals.filter((x) => !alreadyRan(x.params));
       const first = opts.pick === "list" ? undefined : opts.pick === "first" ? claimProposal(offered, lang ? { source: readText, language: lang } : undefined) : defaultProposal(offered);
-      if (first) await start(() => api.experimentFromProposal(target, first.id, { quiz: true }));
+      if (first) await start(() => api.experimentFromProposal(target, first.id, quizOpts()));
       else setChanging(true);
     } catch (e) {
       if (g === gen.current) {
@@ -619,6 +634,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const [invite, setInvite] = useState<{ required: boolean; signedIn: boolean; error?: string; busy?: boolean; left?: number | null } | null>(null);
   const [inviteCode, setInviteCode] = useState("");
   const locked = Boolean(invite?.required && !invite.signedIn);
+  // R7: the first screen waits for the server's word on invites (or its silence) before drawing the example.
+  const [inviteChecked, setInviteChecked] = useState(false);
   // D66: what this person's own record says. A first-time visitor gets nothing, so nothing shows.
   const [remember, setRemember] = useState<{ last: string | null; weakest: Weakest | null } | null>(null);
   const betFor = exp?.experiment.params.shape === "call-function" ? exp.experiment.params.exportName : undefined;
@@ -660,12 +677,14 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
         if (ok || !live) {
           const st = await Promise.resolve().then(() => api.inviteStatus()).catch(() => null);
           if (live && st) setInvite((v) => ({ required: st.required, signedIn: st.signedIn, left: leftOf(st), ...(v?.error ? { error: v.error } : {}) }));
+          if (live) setInviteChecked(true);
           return;
         }
       }
       const st = await Promise.resolve().then(() => api.inviteStatus()).catch(() => null);
       // A code carried by the link may land first: a status read before it never undoes it.
       if (live && st) setInvite((v) => (v?.signedIn ? { ...v, required: st.required, left: leftOf(st) } : { required: st.required, signedIn: st.signedIn, left: leftOf(st), ...(v?.error ? { error: v.error } : {}) }));
+      if (live) setInviteChecked(true);
     })();
     return () => {
       live = false;
@@ -677,10 +696,15 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     // Whatever was pasted stays in its box: the code only opens the door.
     const ok = await useCode(inviteCode.trim());
     if (ok && code.trim() !== "") void read(code, lang === "auto" ? undefined : lang);
+    else if (ok && !autoExample.current) {
+      autoExample.current = true;
+      void read(U1_EXAMPLE, "ts");
+    }
   };
-  // D60: paste anywhere on the first screen draws at once.
+  // D60: paste anywhere on the first screen draws at once. R7: the first screen is the example, so pasting there draws your code too.
+  const onExample = pasted !== null && readText === U1_EXAMPLE;
   useEffect(() => {
-    if (pasted) return;
+    if (pasted && !(onExample && !(sealed.length > 0 && !result))) return;
     const onDocPaste = (e: globalThis.ClipboardEvent) => {
       if (offScreen()) return;
       if ((e.target as HTMLElement | null)?.closest?.("input, textarea, select")) return;
@@ -693,6 +717,31 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     document.addEventListener("paste", onDocPaste);
     return () => document.removeEventListener("paste", onDocPaste);
   });
+
+  // R7 (D69): the first screen is the example, drawn, with its one question ready. Once per page: "Try your own code" never brings it back by itself.
+  useEffect(() => {
+    if (autoExample.current || pasted || busy !== null || handoff || !inviteChecked || locked || ownOpen) return;
+    autoExample.current = true;
+    void read(U1_EXAMPLE, "ts");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inviteChecked, locked, pasted, handoff, ownOpen]);
+  const tryOwn = () => {
+    // reset() starts a new round, so an example still being read or bet on is dropped when it answers.
+    reset();
+    setBusy(null);
+    setPasted(null);
+    setCode("");
+    setFn(null);
+    setOpen(false);
+    setOwnOpen(true);
+    autoExample.current = true;
+  };
+  const backToExample = () => {
+    setCode("");
+    setOwnOpen(false);
+    autoBet.current = null;
+    void read(U1_EXAMPLE, "ts");
+  };
 
   const onPaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
     // The drawing comes first: pasted code is read at once (no button to press).
@@ -734,6 +783,40 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       setBusy(null);
     }
   };
+  /**
+   * The same test, asked again: a change of who bets (review m7), or R7's one question / every question. Every bettor is asked
+   * again on the new text (D19), so it is a paid step, said beside the control. Your answers stay where they still apply.
+   */
+  const askAgain = (o: { claimant?: ClaimantMode; one?: boolean }) => {
+    if (!exp || !target) return;
+    const savedPicked = picked;
+    const savedTyped = typed;
+    const savedStep = step;
+    const savedSure = confidence;
+    const savedBefore = beforeChange;
+    const savedNote = handoffNote;
+    const savedTest = changeTest.current;
+    const keep = proposals;
+    if (o.claimant) onClaimant(o.claimant);
+    const one = o.one ?? oneMode;
+    if (o.one !== undefined) setOneMode(o.one);
+    const same = (keep?.proposals ?? []).find((p) => p.gate.allowed && JSON.stringify(p.params) === JSON.stringify(exp.experiment.params));
+    const params = exp.experiment.params;
+    const editedFrom = exp.experiment.proposedBy.editedFrom?.proposalId;
+    const byWonder = exp.experiment.proposedBy.role === "investigator";
+    reset();
+    setOpen(true);
+    setPicked(savedPicked);
+    setTyped(savedTyped);
+    setStep(o.one === undefined ? savedStep : 0);
+    setConfidence(savedSure);
+    setBeforeChange(savedBefore);
+    setHandoffNote(savedNote);
+    changeTest.current = savedTest;
+    if (same && byWonder) void start(() => api.experimentFromProposal(target, same.id, quizOpts(one)), { keepAnswers: true });
+    else void start(() => api.experiment(target, params, undefined, editedFrom, quizOpts(one)), { keepAnswers: true });
+    setProposals(keep);
+  };
   const openBet = async () => {
     const next = !open;
     setOpen(next);
@@ -741,6 +824,16 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     if (!next || !target || !fn || exp || proposals || wonderWait) return;
     await askWonder({ pick: "default" });
   };
+  // R7 (D69): on the example, the bet opens by itself on Atlas's default test, once its names are in (so the bettors' text and the
+  // drawing carry the same names, D19). Its tests and the AIs' answers are recorded, so this spends nothing (server/example-round.ts).
+  const namesIn = !api.names || (pasted !== null && natural !== null && natural.sha === pasted.target.codeSha256);
+  useEffect(() => {
+    if (!onExample || !target || !fn || open || exp || proposals || wonderWait || result || !namesIn || pasted?.cantCheck) return;
+    if (autoBet.current === target.codeSha256) return;
+    autoBet.current = target.codeSha256;
+    void openBet();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onExample, target?.codeSha256, fn, namesIn, exp, proposals]);
   const chooseFunction = (name: string) => {
     if (sealed.length > 0) return;
     reset();
@@ -796,8 +889,6 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
         setPlays((n) => n + 1);
         setOpen(false);
         setBusy(null);
-        // U3 item 5: a "Test this claim" round shows the sentence it tested beside the facts, not a new sentence to test.
-        if (!claimRound && (exp.experiment.proposedBy.role === "investigator" || exp.experiment.proposedBy.editedFrom)) api.claim(exp.experiment.id).then((c) => g === gen.current && setClaim(c.claim), () => g === gen.current && setClaim(null));
       },
       (e: Error) => {
         if (g !== gen.current) return;
@@ -809,6 +900,33 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exp, sealed, result, models.thinking, runTry, claimRound]);
 
+  // U3 item 5 + R7 (D69): Wonder's sentence is asked for only when "More" is opened after the run. Until then the other tests of its set
+  // stay usable, so "Try another question" needs no new test. A "Test this claim" round shows the sentence it tested, not a new one.
+  const claimAsked = useRef<string | null>(null);
+  useEffect(() => {
+    if (!more || !result || !exp || claimRound || claimAsked.current === exp.experiment.id) return;
+    if (!(exp.experiment.proposedBy.role === "investigator" || exp.experiment.proposedBy.editedFrom)) return;
+    claimAsked.current = exp.experiment.id;
+    const g = gen.current;
+    api.claim(exp.experiment.id).then((c) => g === gen.current && setClaim(c.claim), () => g === gen.current && setClaim(null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [more, result, exp, claimRound]);
+  // R7 (D69): "Try another question": the next test of this set that has not run here, one question, the same for every bettor. With none, the list.
+  const tryAnother = () => {
+    const keep = proposals;
+    const next = claim === null ? (keep?.proposals ?? []).find((p) => p.gate.allowed && !alreadyRan(p.params)) : undefined;
+    if (!next || !target) {
+      setPicking(true);
+      return;
+    }
+    reset();
+    setProposals(keep);
+    setOpen(true);
+    void start(() => api.experimentFromProposal(target, next.id, quizOpts()));
+  };
+  // Which bettor's answer was recorded, and on what day (server/example-round.ts): the result must say so.
+  const recordedBy = useMemo(() => Object.fromEntries(models.slots.flatMap((s) => (s.recorded ? [[s.who, s.recorded]] : []))) as Record<string, string>, [models.slots]);
+
   const after: After | null = useMemo(() => {
     // D47: run data only after the bets are sealed, and only the run of THIS round's test (review M1).
     if (!result || !exp || !test || sealed.length === 0 || result.run.experimentId !== exp.experiment.id) return null;
@@ -816,7 +934,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     const callers = Object.fromEntries(Object.entries(model?.parts ?? {}).flatMap(([id, p]) => (p.kind === "device" ? [[id, (p.calledBy ?? []).map((c) => c.part)]] : [])));
     const language = pasted?.target.language ?? pasted?.language.chosen;
     const wiring = pasted?.outline ? { outline: pasted.outline, callers, ...(language ? { language } : {}) } : undefined;
-    return { token: plays, script: playScript(result.run, test, tested, pasted?.outline ? waitingPartsOf(pasted.outline) : [], wiring), marks: marksOf(exp.questions, result.bets, result.verdicts, result.run, tested, language), absent: absentBettors(models.slots, result.bets), helpersPending: !helpersIn, dialFullMs: fullMs, ...(helpers ? { helpers } : {}), run: result.run, experiment: exp.experiment, bets: result.bets, verdicts: result.verdicts };
+    return { token: plays, script: playScript(result.run, test, tested, pasted?.outline ? waitingPartsOf(pasted.outline) : [], wiring), marks: marksOf(exp.questions, result.bets, result.verdicts, result.run, tested, language), absent: absentBettors(models.slots.filter((s) => s.status !== "off"), result.bets), helpersPending: !helpersIn, dialFullMs: fullMs, ...(helpers ? { helpers } : {}), run: result.run, experiment: exp.experiment, bets: result.bets, verdicts: result.verdicts };
   }, [result, exp, test, sealed, plays, model, fullMs, readText, pasted, helpers, helpersIn, models.slots]);
 
   // U2 (D53, "Test this claim"): Muse Wonder writes tests aimed at its own sentence (shown only after this run, D18); the gate
@@ -845,7 +963,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       setClaimRound({ sentence, closeness: whatDiffers(first.params, lastParams), lastEnding });
       setProposals(p);
       setOpen(true);
-      await start(() => api.experimentFromProposal(target, first.id, { quiz: true }));
+      await start(() => api.experimentFromProposal(target, first.id, quizOpts()));
     } catch (e) {
       if (g === gen.current) setError((e as Error).message);
     } finally {
@@ -875,7 +993,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     setOpen(true);
     setBeforeChange(before);
     await start(async () => {
-      const out = await api.experiment(r.target, params, undefined, undefined, { quiz: true });
+      const out = await api.experiment(r.target, params, undefined, undefined, quizOpts());
       setHandoffNote(out.repeatOf ? null : seen ? CHANGE_WORDS.sameCode : CHANGE_WORDS.sameTest);
       return out;
     });
@@ -931,6 +1049,17 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       if (offScreen() || e.metaKey || e.ctrlKey || e.altKey || e.repeat || t?.closest?.("input, textarea, select")) return;
       // R6: while a part panel covers the questions, the bet's keys answer nothing.
       if (document.querySelector('[data-testid="part-panel"]')) return;
+      // R7: one question stays on screen; Enter locks the bet once it has an answer.
+      const single = exp.questions.length === 1;
+      if (single && e.key === "Enter" && !t?.closest?.("button, a, summary") && busy === null) {
+        const q = exp.questions[0]!;
+        if ((picked[q.measures] ?? "") !== "" || (typed[q.measures] ?? "").trim() !== "") {
+          e.preventDefault();
+          void seal();
+        }
+        return;
+      }
+      if (single && (e.key === "ArrowLeft" || e.key === "ArrowRight")) return;
       if (e.key === "ArrowLeft") {
         setStep((n) => Math.max(0, n - 1));
         e.preventDefault();
@@ -975,7 +1104,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
         }
         return;
       }
-      if (e.key.toLowerCase() === "c" && pasted) {
+      // R7: a key never opens what its control hides: C only while "Details" shows the Code button.
+      if (e.key.toLowerCase() === "c" && pasted && details) {
         setPartId(null);
         setDrawer((d) => !(d ?? (wide && open && exp !== null && !result && !machineFirst())));
         e.preventDefault();
@@ -991,10 +1121,11 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       if (!result || played === 0 || e.repeat || document.querySelector('[data-testid="bench-stage"][data-phase="playing"]')) return;
       const k = e.key.toLowerCase();
       const unshown = notShownAsFact(result.run) !== null;
-      if (k === "r" && !unshown) setPlays((n) => n + 1);
-      else if (k === "b") setPicking(true);
+      // R7: R, B and E belong to controls under "More"; they answer only while it is open. P is the visible "Share proof card".
+      if (k === "r" && !unshown && more) setPlays((n) => n + 1);
+      else if (k === "b" && more) setPicking(true);
       else if (k === "p" && result.proof?.ok && !unshown) setProofOpen((o) => !o);
-      else if (k === "e" && exp) setEditing((x) => (x === null ? readText : null));
+      else if (k === "e" && exp && more) setEditing((x) => (x === null ? readText : null));
       else return;
       e.preventDefault();
     };
@@ -1004,13 +1135,15 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const nextTries = (labels?.labels ?? []).filter((l) => l.label === "found in this code" || l.label === "reproduced");
 
   // ---- entry ----
+  // R7 (D69): this shows while the example is being read, behind an invite, or after "Try your own code". The paste box, Upload and
+  // GitHub stay in the fine print until asked for.
   if (!pasted) {
+    const ownBox = ownOpen || locked;
     return (
-      <section className="u1-entry" aria-labelledby="u1-entry-h" data-testid="u1-entry">
+      <section className="u1-entry" aria-labelledby="u1-entry-h" data-testid="u1-entry" data-own={ownBox ? "" : undefined}>
         <div className="e-left">
-        <h1 id="u1-entry-h">Think you know what your code does? Bet on it.</h1>
-        {remember?.last && <p className="u1-remember" data-testid="remember-last">{remember.last}</p>}
-        <p className="u1-lede">Paste a file and Atlas draws it as a machine. Bet on what it will do. Meta's AI bets too, then Atlas runs it in a sandbox and shows whose bet matched.</p>
+        <h1 id="u1-entry-h">{SIMPLE_WORDS.headline}</h1>
+        {ownBox && <p className="u1-lede">Paste a file and Atlas draws it as a machine. Bet on what it will do. Meta's AI bets too, then Atlas runs it in a sandbox and shows whose bet matched.</p>}
         {invite?.required && !invite.signedIn && (
           <form className="e-invite" onSubmit={(e) => void submitInvite(e)} data-testid="e-invite">
             <label htmlFor="e-invite-code">Your invite code</label>
@@ -1023,91 +1156,96 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
             {invite.error && <p className="e-invite-error" role="alert" data-testid="e-invite-error">{invite.error}</p>}
           </form>
         )}
-        <div className="e-try">
-          <button
-            type="button"
-            className="u1-btn u1-primary e-example"
-            onClick={() => {
-              setCode(U1_EXAMPLE);
-              void read(U1_EXAMPLE, "ts");
-            }}
-            disabled={busy !== null || locked}
-            data-testid="u1-example"
-          >
-            Draw the example
-          </button>
-          <span className="u1-sub e-or">or paste your own file anywhere on this page</span>
-        </div>
-        {/* PLACEHOLDER: Dami's final words go here. The fact it must keep: pasted code goes to a paid model at once, before any other click. */}
-        <p className="u1-sub e-consent" data-testid="e-consent">{CONSENT_LINE}</p>
-        <label htmlFor="u1-code" className="u1-sr">
-          Your code
-        </label>
-        <textarea
-          id="u1-code"
-          className="u1-code"
-          data-testid="u1-code"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          onPaste={onPaste}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && code.trim() !== "" && !locked) {
-              e.preventDefault();
-              void read(code, lang === "auto" ? undefined : lang);
-            }
-          }}
-          placeholder="Paste a JavaScript, TypeScript or Python file here"
-          spellCheck={false}
-        />
-        <div className="u1-entry-row">
-          <button type="button" className="u1-btn" onClick={() => read(code, lang === "auto" ? undefined : lang)} disabled={busy !== null || code.trim() === "" || locked} data-testid="u1-draw">
-            Draw my code
-            <kbd className="k">⌘↵</kbd>
-          </button>
-          {/* The language is guessed. The choice appears only if a guess did not work. */}
-          {error && (
-            <Segments label="Language" value={lang} onChange={(v) => setLang(v as Lang | "auto")} testid="u1-lang" options={[["auto", "Guess the language"], ["ts", "TypeScript"], ["js", "JavaScript"], ["py", "Python"]]} />
-          )}
-        </div>
-        <div className="u1-entry-or">
-          <label className="u1-file">
-            <span>Upload files</span>
-            <input
-              type="file"
-              multiple
-              accept=".js,.mjs,.cjs,.jsx,.ts,.tsx,.mts,.cts,.py,.json"
-              data-testid="u1-upload"
-              onChange={async (e) => {
-                const list = e.target.files;
-                if (!list || list.length === 0) return;
-                if (list.length === 1) {
-                  const text = await list[0]!.text();
-                  setCode(text);
-                  void read(text, /\.py$/.test(list[0]!.name) ? "py" : /\.(m|c)?jsx?$/.test(list[0]!.name) ? "js" : /\.(m|c)?tsx?$/.test(list[0]!.name) ? "ts" : undefined);
-                } else onExplore({ files: list });
-              }}
-            />
-          </label>
-          <form
-            className="u1-gh"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (repo.trim() !== "") onExplore({ repo: repo.trim() });
-            }}
-          >
-            <label htmlFor="u1-repo">Or a GitHub repo</label>
-            <input id="u1-repo" value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="owner/repo" data-testid="u1-repo" />
-            <button type="submit" className="u1-btn" disabled={repo.trim() === ""}>
-              Draw the repo (a paid AI call)
-            </button>
-          </form>
-        </div>
         {busy && (
           <p className="u1-status" role="status">
             {busy}
           </p>
         )}
         {error && <ErrorNotice message={error} />}
+        {ownBox && (
+          <div className="e-own" data-testid="e-own">
+            <span className="u1-sub e-or">Paste your own file anywhere on this page, or here:</span>
+            <label htmlFor="u1-code" className="u1-sr">
+              Your code
+            </label>
+            <textarea
+              id="u1-code"
+              className="u1-code"
+              data-testid="u1-code"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              onPaste={onPaste}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && code.trim() !== "" && !locked) {
+                  e.preventDefault();
+                  void read(code, lang === "auto" ? undefined : lang);
+                }
+              }}
+              placeholder="Paste a JavaScript, TypeScript or Python file here"
+              spellCheck={false}
+            />
+            <div className="u1-entry-row">
+              <button type="button" className="u1-btn u1-primary" onClick={() => read(code, lang === "auto" ? undefined : lang)} disabled={busy !== null || code.trim() === "" || locked} data-testid="u1-draw">
+                Draw my code
+                <kbd className="k">⌘↵</kbd>
+              </button>
+              {/* The language is guessed. The choice appears only if a guess did not work. */}
+              {error && (
+                <Segments label="Language" value={lang} onChange={(v) => setLang(v as Lang | "auto")} testid="u1-lang" options={[["auto", "Guess the language"], ["ts", "TypeScript"], ["js", "JavaScript"], ["py", "Python"]]} />
+              )}
+            </div>
+            <div className="u1-entry-or">
+              <label className="u1-file">
+                <span>Upload files</span>
+                <input
+                  type="file"
+                  multiple
+                  accept=".js,.mjs,.cjs,.jsx,.ts,.tsx,.mts,.cts,.py,.json"
+                  data-testid="u1-upload"
+                  onChange={async (e) => {
+                    const list = e.target.files;
+                    if (!list || list.length === 0) return;
+                    if (list.length === 1) {
+                      const text = await list[0]!.text();
+                      setCode(text);
+                      void read(text, /\.py$/.test(list[0]!.name) ? "py" : /\.(m|c)?jsx?$/.test(list[0]!.name) ? "js" : /\.(m|c)?tsx?$/.test(list[0]!.name) ? "ts" : undefined);
+                    } else onExplore({ files: list });
+                  }}
+                />
+              </label>
+              <form
+                className="u1-gh"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (repo.trim() !== "") onExplore({ repo: repo.trim() });
+                }}
+              >
+                <label htmlFor="u1-repo">Or a GitHub repo</label>
+                <input id="u1-repo" value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="owner/repo" data-testid="u1-repo" />
+                <button type="submit" className="u1-btn" disabled={repo.trim() === ""}>
+                  Draw the repo (a paid AI call)
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+        <div className="u1-fine" data-testid="u1-fine">
+          {/* PLACEHOLDER: Dami's final words go here. The fact it must keep: pasted code goes to a paid model at once, before any other click. */}
+          <p className="e-consent" data-testid="e-consent">{CONSENT_LINE}</p>
+          <p className="u1-fine-links">
+            {!ownBox && (
+              <button type="button" className="u1-link" onClick={tryOwn} data-testid="u1-own">
+                {SIMPLE_WORDS.tryOwn}
+              </button>
+            )}
+            {ownBox && !locked && (
+              <button type="button" className="u1-link" onClick={backToExample} disabled={busy !== null} data-testid="u1-example">
+                {SIMPLE_WORDS.tryExample}
+              </button>
+            )}
+          </p>
+          {remember?.last && <p className="u1-remember" data-testid="remember-last">{remember.last}</p>}
+        </div>
         </div>
         <ExampleDrawing />
       </section>
@@ -1119,6 +1257,37 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const drawerOpen = drawerChoice ?? (wide && open && exp !== null && !after && !machineFirst());
   // Before a run the panel is the code drawer; once a result is up it sits under the verdict instead (BenchStage), so it never covers the result.
   // The layout follows the part's id at once; its words follow one render later. Deciding the layout from the words briefly squeezed the machine.
+  // R7 (D69): "Details" holds the code panel, the new-code link and the paid-call lines. The box chart's switch shows on the drawing while it is open.
+  const detailsFold = (
+    <details className="u1-more u1-details" open={details} data-testid="u1-details">
+      {/* Opened by the page's own state (not the toggle event), so the screen and the keys always agree on what is shown. */}
+      <summary aria-label="Details: the code, the box chart and what costs money" onClick={(e) => { e.preventDefault(); setDetails((d) => !d); }}>ⓘ {SIMPLE_WORDS.details}</summary>
+      <div className="u1-more-body">
+        <div className="u1-linkrow">
+          <button
+            type="button"
+            className="u1-link u1-code-toggle"
+            aria-pressed={drawerOpen}
+            onClick={() => {
+              setPartId(null);
+              setDrawer(!drawerOpen);
+            }}
+            data-testid="u1-code-toggle"
+          >
+            Code
+            <kbd className="k">C</kbd>
+          </button>
+          <button type="button" className="u1-link" onClick={tryOwn} data-testid="u1-new">
+            New code
+          </button>
+        </div>
+        <p className="u1-sub">The box chart switch is on the drawing (M).</p>
+        <p className="u1-sub u1-paid" data-testid="u1-paid-bet">{earlyState === "busy" ? CHANGE_WORDS.earlyWonder : earlyState === "done" ? CHANGE_WORDS.earlyDone : CHANGE_WORDS.paidWonder}</p>
+        <p className="u1-sub u1-paid">{CHANGE_WORDS.paidBets}</p>
+        {after && <p className="u1-sub u1-paid" data-testid="u1-paid-another">{SIMPLE_WORDS.anotherPaid}</p>}
+      </div>
+    </details>
+  );
   const partMode = drawerOpen && partId !== null && !after;
   const partShown = partMode && partPanel?.id === partId ? partPanel : null;
   const noFunction = pasted.runnable && !fn && pasted.outline !== undefined;
@@ -1139,20 +1308,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const offeredTests = (proposals?.proposals ?? []).filter((p) => p.gate.allowed && !alreadyRan(p.params));
   const title = `${source ?? (pasted.outline?.parts.length === 0 ? "pasted file" : FILE_NAME[pasted.target.language ?? "ts"])} · ${plural(pasted.lines, "line")}${drawnMs !== null ? ` · drawn in ${drawnMs} ms` : ""}`;
   return (
-    <div className="u1-studio" data-drawer={drawerOpen && !partMode ? "" : undefined} data-drawer-part={partMode ? "" : undefined}>
-      <button
-        type="button"
-        className="u1-link u1-code-toggle"
-        aria-pressed={drawerOpen}
-        onClick={() => {
-          setPartId(null);
-          setDrawer(!drawerOpen);
-        }}
-        data-testid="u1-code-toggle"
-      >
-        Code
-        <kbd className="k">C</kbd>
-      </button>
+    <div className="u1-studio" data-drawer={drawerOpen && !partMode ? "" : undefined} data-drawer-part={partMode ? "" : undefined} data-simple="">
       {shownModel && pasted.outline ? (
         <BenchStage
           wontRun={Boolean(notRunnable)}
@@ -1162,7 +1318,10 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           outline={pasted.outline}
           fileName={pasted.outline.parts.length === 0 ? "pasted file" : FILE_NAME[pasted.target.language ?? "ts"]}
           after={after}
-          loop={loopLine}
+          loop={more ? loopLine : null}
+          viewToggle={details}
+          traceNote={more}
+          recorded={recordedBy}
           seenBefore={repeatNote !== null || handoffNote === CHANGE_WORDS.sameCode}
           codeRan={codeRanHere}
           extraMarks={labelMarks}
@@ -1183,7 +1342,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
             if (!after) setDrawer(true);
           }}
           headnote={
-            after && result ? (
+            // R7 (D69): the round's extra lines (before and after a change, how sure, a claim's facts) are under "More".
+            more && after && result ? (
               <>
                 {beforeChange && notShownAsFact(result.run) === null && (
                   <p className="b-beforeafter" data-testid="u1-before-after">
@@ -1199,7 +1359,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
             ) : null
           }
           footnote={
-            <>
+            !more ? null : <>
             {claimRound ? null : claim || nextTries.length ? (
               <>
                 {claim && (
@@ -1237,32 +1397,52 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           {...(!sealed.length ? { onTestFunction: chooseFunction } : {})}
         >
           {after && (
-            <div className="u1-actions" data-testid="u1-actions">
-              {exp && (
-                <button type="button" className="u1-btn u1-primary" onClick={() => setEditing((t) => (t === null ? readText : null))} aria-expanded={editing !== null} data-testid="u1-change">
-                  {CHANGE_WORDS.open}
-                  <kbd className="k">E</kbd>
-                </button>
-              )}
-              <button type="button" className="u1-btn" onClick={() => setPicking(true)} data-testid="u1-again">
-                Bet on another test
-                <kbd className="k">B</kbd>
-              </button>
+            <div className="u1-actions" data-testid="u1-actions" data-simple="">
+              {/* R7 (D69): one button, three text links; everything else under "More". */}
               {nothingShown ? null : result?.proof?.ok ? (
-                <button type="button" className="u1-btn u1-quiet" aria-expanded={proofOpen} onClick={() => setProofOpen((o) => !o)} data-testid="u1-proof">
-                  {RESULT_WORDS.proofTitle}
+                <button type="button" className="u1-btn u1-primary" aria-expanded={proofOpen} onClick={() => setProofOpen((o) => !o)} data-testid="u1-proof">
+                  {SIMPLE_WORDS.share}
                   <kbd className="k">P</kbd>
                 </button>
               ) : result?.proof ? (
                 <span className="u1-sub">{`No proof card: ${result.proof.ok ? "" : result.proof.reason}`}</span>
               ) : null}
-              {!nothingShown && (
-                <button type="button" className="u1-btn u1-quiet" onClick={() => setPlays((n) => n + 1)} disabled={played === 0} data-testid="u1-replay">
-                  {played === 0 ? STAGE_WORDS.playing : STAGE_WORDS.playAgain}
-                  <kbd className="k">R</kbd>
+              <p className="u1-textlinks">
+                <button type="button" className="u1-link" onClick={tryAnother} disabled={busy !== null} data-testid="u1-try-another">
+                  {SIMPLE_WORDS.tryAnother}
                 </button>
-              )}
-              <span className="u1-sub u1-paid" data-testid="u1-paid-again">{CHANGE_WORDS.paidAgain}</span>
+                <button type="button" className="u1-link" onClick={tryOwn} data-testid="u1-own">
+                  {SIMPLE_WORDS.tryOwn}
+                </button>
+                {onMoonwell && (
+                  <button type="button" className="u1-link" onClick={onMoonwell} data-testid="u1-try-moonwell">
+                    {SIMPLE_WORDS.tryMoonwell}
+                  </button>
+                )}
+              </p>
+              <details className="u1-more" open={more} data-testid="u1-result-more">
+                <summary onClick={(e) => { e.preventDefault(); setMore((m) => !m); }}>{SIMPLE_WORDS.more}</summary>
+                <div className="u1-more-body u1-linkrow">
+                  {exp && (
+                    <button type="button" className="u1-btn" onClick={() => setEditing((t) => (t === null ? readText : null))} aria-expanded={editing !== null} data-testid="u1-change">
+                      {CHANGE_WORDS.open}
+                      <kbd className="k">E</kbd>
+                    </button>
+                  )}
+                  <button type="button" className="u1-btn" onClick={() => setPicking(true)} data-testid="u1-again">
+                    Bet on another test
+                    <kbd className="k">B</kbd>
+                  </button>
+                  {!nothingShown && (
+                    <button type="button" className="u1-btn u1-quiet" onClick={() => setPlays((n) => n + 1)} disabled={played === 0} data-testid="u1-replay">
+                      {played === 0 ? STAGE_WORDS.playing : STAGE_WORDS.playAgain}
+                      <kbd className="k">R</kbd>
+                    </button>
+                  )}
+                  <span className="u1-sub u1-paid" data-testid="u1-paid-again">{CHANGE_WORDS.paidAgain}</span>
+                </div>
+              </details>
+              {detailsFold}
             </div>
           )}
         </BenchStage>
@@ -1301,7 +1481,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                         reset();
                         setProposals(keep);
                         setOpen(true);
-                        if (target) void start(() => api.experimentFromProposal(target, p.id, { quiz: true }));
+                        if (target) void start(() => api.experimentFromProposal(target, p.id, quizOpts()));
                       }}
                       data-testid={`u1-pick-${p.id}`}
                     >
@@ -1363,22 +1543,6 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
         </section>
       )}
 
-      <div className="u1-topbar">
-        <button
-          type="button"
-          className="u1-link"
-          onClick={() => {
-            reset();
-            setPasted(null);
-            setCode("");
-            setFn(null);
-            setOpen(false);
-          }}
-          data-testid="u1-new"
-        >
-          New code
-        </button>
-      </div>
 
       {(shownModel?.notShown || noFunction) && !exp && (
         <div className="e-dead" data-testid="u1-dead-end">
@@ -1436,11 +1600,23 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
 
       {!notRunnable && fn && !after && (
         <div className="u1-bet">
-          {!open && !exp && !proposals && <span className="u1-sub u1-paid" data-testid="u1-paid-bet">{earlyState === "busy" ? CHANGE_WORDS.earlyWonder : earlyState === "done" ? CHANGE_WORDS.earlyDone : CHANGE_WORDS.paidWonder}</span>}
-          <button type="button" className="u1-btn u1-primary u1-toggle" aria-expanded={open} aria-controls="u1-pop" onClick={openBet} data-testid="u1-bet-toggle">
-            {open ? "Hide the bet" : "Bet on what it does"}
-            {!open && <kbd className="k" aria-hidden="true">Enter</kbd>}
-          </button>
+          {/* R7 (D69): one button. Once the bet is open it is the screen, so there is no "Hide the bet". */}
+          {!open && (
+            <button type="button" className="u1-btn u1-primary u1-toggle" aria-expanded={open} aria-controls="u1-pop" onClick={openBet} data-testid="u1-bet-toggle">
+              Bet on what it does
+              <kbd className="k" aria-hidden="true">Enter</kbd>
+            </button>
+          )}
+          {!open && (
+            <div className="u1-fine u1-fine-rest" data-testid="u1-fine">
+              <p className="u1-fine-links">
+                <button type="button" className="u1-link" onClick={tryOwn} data-testid="u1-own">
+                  {SIMPLE_WORDS.tryOwn}
+                </button>
+              </p>
+              {detailsFold}
+            </div>
+          )}
           {open && (
             <section id="u1-pop" className="u1-pop" tabIndex={-1} aria-label="Bet on what it does" data-testid="u1-pop">
               {wonderWait && !exp && <WonderWaiting wait={wonderWait} fn={fn} onOwn={changing ? null : writeOwn} />}
@@ -1451,6 +1627,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
               )}
               {exp && !changing && (
                 <>
+                  {/* R7 (D69): the headline stays on the first screen, over the one question. */}
+                  {onExample && sealed.length === 0 && <h1 className="u1-pop-h" data-testid="u1-pop-headline">{SIMPLE_WORDS.headline}</h1>}
                   {claimRound && (
                     <p className="u1-sub u1-claim-tested" data-testid="u1-claim-tested">
                       {RESULT_WORDS.testingSentence(claimRound.sentence)}
@@ -1467,20 +1645,14 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                       ))}
                     </ul>
                   )}
-                  <div className="u1-testrow">
-                    {(wholeTest || testCut || longValues(exp.experiment.params, exp.experiment.target.language ?? undefined).length > 0) && (
+                  {(wholeTest || testCut || longValues(exp.experiment.params, exp.experiment.target.language ?? undefined).length > 0) && (
+                    <div className="u1-testrow">
                       <button type="button" className="u1-link" aria-expanded={wholeTest} onClick={() => setWholeTest((w) => !w)} data-testid="u1-whole-test">
                         {wholeTest ? BET_WORDS.testShort : BET_WORDS.testWhole}
                       </button>
-                    )}
-                    {sealed.length === 0 && (
-                      <button type="button" className="u1-link" onClick={() => setChanging(true)} data-testid="u1-change">
-                        change test
-                      </button>
-                    )}
-                  </div>
-                  {sealed.length === 0 && step === 0 && remember?.last && <p className="u1-remember u1-remember-bet" data-testid="remember-last-bet">{remember.last}</p>}
-                  {sealed.length === 0 && (
+                    </div>
+                  )}
+                  {sealed.length === 0 && exp.questions.length > 1 && (
                     <div className="b-head" data-testid="b-head">
                       <button type="button" className="b-back" onClick={() => setStep((n) => Math.max(0, n - 1))} disabled={step === 0} aria-label="Back to the question before" data-testid="b-back">
                         ←
@@ -1493,14 +1665,12 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                       </span>
                     </div>
                   )}
-                  <ol className="u1-quiz" data-sealed={sealed.length > 0 ? "" : undefined}>
+                  <ol className="u1-quiz" data-sealed={sealed.length > 0 ? "" : undefined} data-single={exp.questions.length === 1 ? "" : undefined}>
                     {exp.questions.map((q, qi) => (
-                      <li key={q.measures} data-active={qi === step ? "" : undefined}>
+                      <li key={q.measures} data-active={qi === step || exp.questions.length === 1 ? "" : undefined}>
                         <p className="u1-q" id={`q-${q.measures}`}>
                           {shortQuestionFor(q.text, exp.experiment.params, exp.experiment.target.language)}
                         </p>
-                        {/* D66: the person's own counts, beside the question, never in it: every bettor reads the same question (D19). */}
-                        {sealed.length === 0 && remember?.weakest && questionTypeOf(q.measures) === remember.weakest.type && <p className="u1-weakest" data-testid="remember-weakest">{weakestWords(remember.weakest)}</p>}
                         <div className="u1-opts" role="radiogroup" aria-labelledby={`q-${q.measures}`}>
                           {[...(q.quiz ?? []).map((o) => ({ id: o.id, label: o.label })), { id: CANT_TELL, label: CANT_TELL }].map((o) => (
                             <button
@@ -1513,8 +1683,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                               onClick={() => {
                                 setPicked((p) => ({ ...p, [q.measures]: o.id }));
                                 setTyped((t) => ({ ...t, [q.measures]: "" }));
-                                // A moment to see the choice land, then the next question.
-                                window.setTimeout(() => setStep((n) => (n === qi ? n + 1 : n)), 130);
+                                // A moment to see the choice land, then the next question. R7: one question stays put, so the choice is seen.
+                                if (exp.questions.length > 1) window.setTimeout(() => setStep((n) => (n === qi ? n + 1 : n)), 130);
                               }}
                               data-testid={`opt-${q.measures}-${o.id}`}
                             >
@@ -1529,13 +1699,15 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                             {...(exp.experiment.target.language ? { language: exp.experiment.target.language } : {})}
                             disabled={sealed.length > 0 || busy !== null}
                             onChange={(v) => setTyped((t) => ({ ...t, [q.measures]: v }))}
-                            onEnter={() => setStep((n) => (n === qi ? n + 1 : n))}
+                            onEnter={() => (exp.questions.length === 1 ? void seal() : setStep((n) => (n === qi ? n + 1 : n)))}
                           />
                         )}
+                        {/* D66: the person's own counts, beside the question, never in it: every bettor reads the same question (D19). R7: fine print, under "More options". */}
+                        {betMore && sealed.length === 0 && remember?.weakest && questionTypeOf(q.measures) === remember.weakest.type && <p className="u1-weakest" data-testid="remember-weakest">{weakestWords(remember.weakest)}</p>}
                       </li>
                     ))}
                   </ol>
-                  {sealed.length === 0 && step >= exp.questions.length && (
+                  {sealed.length === 0 && exp.questions.length > 1 && step >= exp.questions.length && (
                     <ol className="b-review" data-testid="b-review">
                       {exp.questions.map((q, qi) => {
                         const t = (typed[q.measures] ?? "").trim();
@@ -1552,71 +1724,18 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                       })}
                     </ol>
                   )}
-                  <ModelsLine
-                    slots={models.slots}
-                    claimant={claimant}
-                    locked={sealed.length > 0 || busy !== null}
-                    onClaimant={setPendingClaimant}
-                  />
-                  {pendingClaimant !== null && sealed.length === 0 && (
-                    <div className="b-confirm" role="group" aria-label="Change who bets" data-testid="b-claimant-confirm">
-                      <p>{CHANGE_WORDS.claimantAsks}</p>
-                      <button
-                        type="button"
-                        className="u1-btn"
-                        data-testid="b-claimant-yes"
-                        onClick={() => {
-                          const m = pendingClaimant;
-                      // Review m7: who bets is chosen per test, so a change asks again on the same test. Your answers stay.
-                      const savedPicked = picked;
-                      const savedTyped = typed;
-                      const savedStep = step;
-                      const savedSure = confidence;
-                      const savedBefore = beforeChange;
-                      const savedNote = handoffNote;
-                      const savedTest = changeTest.current;
-                      onClaimant(m);
-                      const same = (proposals?.proposals ?? []).find((p) => p.gate.allowed && JSON.stringify(p.params) === JSON.stringify(exp.experiment.params));
-                      if (target) {
-                        const params = exp.experiment.params;
-                        const editedFrom = exp.experiment.proposedBy.editedFrom?.proposalId;
-                        reset();
-                        setPicked(savedPicked);
-                        setTyped(savedTyped);
-                        setStep(savedStep);
-                        setConfidence(savedSure);
-                        setBeforeChange(savedBefore);
-                        setHandoffNote(savedNote);
-                        changeTest.current = savedTest;
-                        if (same && exp.experiment.proposedBy.role === "investigator") void start(() => api.experimentFromProposal(target, same.id, { quiz: true }), { keepAnswers: true });
-                        else void start(() => api.experiment(target, params, undefined, editedFrom, { quiz: true }), { keepAnswers: true });
-                        setProposals(proposals);
-                      }
-                        }}
-                      >
-                        Ask them again
-                      </button>
-                      <button type="button" className="u1-btn u1-quiet" onClick={() => setPendingClaimant(null)} data-testid="b-claimant-no">
-                        Keep as it is
-                      </button>
-                    </div>
-                  )}
                   {sealed.length === 0 ? (
-                    <div className="u1-sealbar" data-last={step >= exp.questions.length ? "" : undefined}>
-                      <button type="button" className={`u1-btn${step >= exp.questions.length ? " u1-primary" : ""}`} onClick={() => void seal()} disabled={busy !== null} data-testid="u1-seal">
-                        {BET_WORDS.seal}
-                        {step >= exp.questions.length && <kbd className="k">↵</kbd>}
+                    <div className="u1-sealbar" data-last={step >= exp.questions.length || exp.questions.length === 1 ? "" : undefined}>
+                      <button type="button" className="u1-btn u1-primary" onClick={() => void seal()} disabled={busy !== null} data-testid="u1-seal">
+                        {SIMPLE_WORDS.lock}
+                        {(step >= exp.questions.length || exp.questions.length === 1) && <kbd className="k">↵</kbd>}
                       </button>
-                      <HowSurePicker value={confidence} onChange={setConfidence} disabled={busy !== null} hint={false} onEnter={(level) => {
-                          setConfidence(level);
-                          void seal(level);
-                        }} />
-                      <p className="u1-sub">{`${BET_WORDS.untapped} ${FELT_WORDS.pickerHint}`}</p>
+                      <AisLine slots={models.slots} />
                     </div>
                   ) : (
                     <>
                       <p className="u1-status" role="status" data-testid="u1-sealed">
-                        {`Sealed ${plural(sealed.length, "answer")}. ${confidence ? `${FELT_WORDS.sealedSaid(confidence)} ` : ""}${busy ?? (models.thinking ? "Waiting for the AIs to seal theirs…" : "")}`}
+                        {`${SIMPLE_WORDS.locked} ${confidence ? `${FELT_WORDS.sealedSaid(confidence)} ` : ""}${busy ?? (models.thinking ? "Waiting for the AIs to lock in theirs…" : "")}`}
                       </p>
                       <SealTags sealed={sealed} slots={models.slots} />
                     </>
@@ -1626,25 +1745,82 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                       Run it again
                     </button>
                   )}
-                  <details className="u1-seen u1-how" data-testid="u1-how">
-                    <summary>{BET_WORDS.howRuns}</summary>
-                    <ul className="u1-explain" data-testid="u1-explain">
-                      {test?.network && <li>{BET_WORDS.network(LIBRARY_WORDS[test.network.replaces])}</li>}
-                      <li>{BET_WORDS.clock}</li>
-                      <li>{BET_WORDS.random}</li>
-                      <li>{BET_WORDS.zone(exp.experiment.target.language ?? "js")}</li>
-                      <li>{BET_WORDS.watch(test?.watchLimitMs ?? CALL_DEFAULT_WATCH_LIMIT_MS, test?.watchLimitMs !== undefined)}</li>
-                    </ul>
-                  </details>
-                  {exp.seenContext && (
-                    <details className="u1-seen">
-                      <summary>{BET_WORDS.seen}</summary>
-                      <p className="u1-pins-line">{pinsLineOf(exp.seenContext, exp.experiment.target.language ?? "js")}</p>
-                      <pre tabIndex={0} aria-label="What every bettor sees">
-                        {exp.seenContext}
-                      </pre>
-                    </details>
+                  {pendingClaimant !== null && sealed.length === 0 && (
+                    <div className="b-confirm" role="group" aria-label="Change who bets" data-testid="b-claimant-confirm">
+                      <p>{CHANGE_WORDS.claimantAsks}</p>
+                      <button
+                        type="button"
+                        className="u1-btn"
+                        data-testid="b-claimant-yes"
+                        onClick={() => pendingClaimant !== null && askAgain({ claimant: pendingClaimant })}
+                      >
+                        Ask them again
+                      </button>
+                      <button type="button" className="u1-btn u1-quiet" onClick={() => setPendingClaimant(null)} data-testid="b-claimant-no">
+                        Keep as it is
+                      </button>
+                    </div>
                   )}
+                  {/* R7 (D69): fine print. Everything else about this bet is one fold away; nothing here is removed. */}
+                  <div className="u1-fine" data-testid="u1-fine">
+                    {onExample && <p className="e-consent" data-testid="e-consent">{CONSENT_LINE}</p>}
+                    <p className="u1-fine-links">
+                      <button type="button" className="u1-link" onClick={tryOwn} data-testid="u1-own">
+                        {SIMPLE_WORDS.tryOwn}
+                      </button>
+                    </p>
+                    {sealed.length === 0 && (
+                      <details className="u1-more" open={betMore} data-testid="u1-bet-more">
+                        <summary onClick={(e) => { e.preventDefault(); setBetMore((m) => !m); }}>{SIMPLE_WORDS.moreBet}</summary>
+                        <div className="u1-more-body">
+                          {remember?.last && <p className="u1-remember u1-remember-bet" data-testid="remember-last-bet">{`${SIMPLE_WORDS.lastTime} ${remember.last}`}</p>}
+                          <div className="u1-linkrow">
+                            <button type="button" className="u1-link" onClick={() => setChanging(true)} data-testid="u1-change">
+                              {SIMPLE_WORDS.pickTest}
+                            </button>
+                            <button type="button" className="u1-link" onClick={() => void anotherTest()} data-testid="u1-more-ask">
+                              {SIMPLE_WORDS.askWonder}
+                            </button>
+                            <button type="button" className="u1-link" onClick={() => { setChanging(true); setForm({ initial: emptyForm() }); }} data-testid="u1-more-own">
+                              {SIMPLE_WORDS.writeOwn}
+                            </button>
+                            <button type="button" className="u1-link" onClick={() => askAgain({ one: exp.questions.length === 1 ? false : true })} disabled={busy !== null} data-testid="u1-more-questions">
+                              {exp.questions.length === 1 ? SIMPLE_WORDS.allQuestions : SIMPLE_WORDS.oneQuestion}
+                            </button>
+                          </div>
+                          <p className="u1-sub u1-paid" data-testid="u1-paid-more">{`${CHANGE_WORDS.paidWonder} ${SIMPLE_WORDS.askAgainPaid}`}</p>
+                          <ModelsLine slots={models.slots} claimant={claimant} locked={busy !== null} onClaimant={setPendingClaimant} />
+                          <div className="u1-howsure">
+                            <HowSurePicker value={confidence} onChange={setConfidence} disabled={busy !== null} hint={false} onEnter={(level) => {
+                                setConfidence(level);
+                                void seal(level);
+                              }} />
+                            <p className="u1-sub">{`${BET_WORDS.untapped} ${FELT_WORDS.pickerHint}`}</p>
+                          </div>
+                          <details className="u1-seen u1-how" data-testid="u1-how">
+                            <summary>{BET_WORDS.howRuns}</summary>
+                            <ul className="u1-explain" data-testid="u1-explain">
+                              {test?.network && <li>{BET_WORDS.network(LIBRARY_WORDS[test.network.replaces])}</li>}
+                              <li>{BET_WORDS.clock}</li>
+                              <li>{BET_WORDS.random}</li>
+                              <li>{BET_WORDS.zone(exp.experiment.target.language ?? "js")}</li>
+                              <li>{BET_WORDS.watch(test?.watchLimitMs ?? CALL_DEFAULT_WATCH_LIMIT_MS, test?.watchLimitMs !== undefined)}</li>
+                            </ul>
+                          </details>
+                          {exp.seenContext && (
+                            <details className="u1-seen">
+                              <summary>{BET_WORDS.seen}</summary>
+                              <p className="u1-pins-line">{pinsLineOf(exp.seenContext, exp.experiment.target.language ?? "js")}</p>
+                              <pre tabIndex={0} aria-label="What every bettor sees">
+                                {exp.seenContext}
+                              </pre>
+                            </details>
+                          )}
+                        </div>
+                      </details>
+                    )}
+                    {detailsFold}
+                  </div>
                 </>
               )}
               {changing && target && fn && (
@@ -1677,7 +1853,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                             {p.says}
                             {offeredTests[i + 1] && <small className="b-differs">{whatDiffers(p.params, offeredTests[i + 1]!.params, "the next")}</small>}
                           </span>{" "}
-                          <button type="button" className="u1-link" onClick={() => start(() => api.experimentFromProposal(target, p.id, { quiz: true }))} disabled={busy !== null} data-testid={`u1-use-${i}`}>
+                          <button type="button" className="u1-link" onClick={() => start(() => api.experimentFromProposal(target, p.id, quizOpts()))} disabled={busy !== null} data-testid={`u1-use-${i}`}>
                             Use this test
                           </button>{" "}
                           <button type="button" className="u1-link" onClick={() => setForm({ initial: formFromParams(p.params), editedFrom: p.id })}>
@@ -1699,7 +1875,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                   <button type="button" className="u1-link" onClick={() => setForm({ initial: emptyForm() })} data-testid="u1-own">
                     Write your own test
                   </button>
-                  {form && <TestForm key={JSON.stringify(form.initial)} exportName={fn} required={requiredArgs(pasted.outline?.parts.find((x) => x.name === fn)?.signature)} initial={form.initial} busy={busy !== null} onSubmit={(params) => start(() => api.experiment(target, params, undefined, form.editedFrom, { quiz: true }))} />}
+                  {form && <TestForm key={JSON.stringify(form.initial)} exportName={fn} required={requiredArgs(pasted.outline?.parts.find((x) => x.name === fn)?.signature)} initial={form.initial} busy={busy !== null} onSubmit={(params) => start(() => api.experiment(target, params, undefined, form.editedFrom, quizOpts()))} />}
                   {exp && (
                     <button type="button" className="u1-link" onClick={() => setChanging(false)}>
                       Back to the quiz
@@ -1741,12 +1917,12 @@ function SealTags({ sealed, slots }: { sealed: readonly { sealedHash?: string }[
     <ul className="b-seals" data-testid="b-seals">
       <li>
         <span className="b-seal-who">You</span>
-        <span className="b-seal-v">{`sealed ${short(sealed)}`}</span>
+        <span className="b-seal-v">{`locked in ${short(sealed)}`}</span>
       </li>
       {on.map((s) => (
         <li key={s.who} data-state={s.status}>
           <span className="b-seal-who">{betterByRole(s.model)}</span>
-          <span className="b-seal-v">{s.status === "sealed" ? `sealed ${short((s as { sealed?: { sealedHash?: string }[] }).sealed ?? [])}` : s.status === "thinking" ? "answering" : s.status === "no_usable_answer" ? "no usable answer" : s.status}</span>
+          <span className="b-seal-v">{s.status === "sealed" ? `locked in ${short((s as { sealed?: { sealedHash?: string }[] }).sealed ?? [])}` : s.status === "thinking" ? "answering" : s.status === "no_usable_answer" ? "no usable answer" : s.status}</span>
         </li>
       ))}
       <li className="b-seal-time" data-testid="b-seal-time">{`${((now - started) / 1000).toFixed(1)} s`}</li>
@@ -1754,10 +1930,23 @@ function SealTags({ sealed, slots }: { sealed: readonly { sealedHash?: string }[
   );
 }
 
+/** R7 (D69): who bets beside you, in one line. A recorded answer says so, with its day: never shown as live. */
+function AisLine({ slots }: { slots: ReturnType<typeof useModelSlots>["slots"] }) {
+  const on = slots.filter((s) => s.status !== "off");
+  const names = on.map((s) => (s.recorded ? SIMPLE_WORDS.recordedName(shortModelName(s.model), s.recorded) : shortModelName(s.model)));
+  const day = on.find((s) => s.recorded)?.recorded;
+  return (
+    <p className="u1-sub u1-ais" data-testid="u1-ais">
+      {SIMPLE_WORDS.aisToo(names)}
+      {day ? ` ${SIMPLE_WORDS.recordedNote(day)}` : ""}
+    </p>
+  );
+}
+
 function ModelsLine({ slots, claimant, onClaimant, locked }: { slots: ReturnType<typeof useModelSlots>["slots"]; claimant: ClaimantMode; onClaimant: (m: ClaimantMode) => void; locked: boolean }) {
   const on = slots.filter((s) => s.status !== "off");
   const off = slots.filter((s) => s.status === "off");
-  const say = (st: string) => (st === "thinking" ? "answering" : st === "sealed" ? "sealed" : st === "no_usable_answer" ? "no usable answer" : st);
+  const say = (st: string) => (st === "thinking" ? "answering" : st === "sealed" ? "locked in" : st === "no_usable_answer" ? "no usable answer" : st);
   return (
     <div className="u1-models" data-testid="u1-models">
       <p>{BET_WORDS.ais(on.map((s) => betterByRole(s.model)))}</p>

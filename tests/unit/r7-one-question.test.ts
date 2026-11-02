@@ -81,3 +81,14 @@ describe("the built-in example's recorded round", () => {
     }
   });
 });
+
+describe("the proof card's credit line (plain code, from the file alone)", () => {
+  it("credits Muse Wonder for the test and both bettors, and says a recorded answer is recorded", async () => {
+    const { creditLine } = await import("../../web/screens/proofcard-model");
+    const exp = [{ proposedBy: { role: "investigator", model: "muse-wonder-1.0" } }] as never;
+    const bets = [{ who: "human" }, { who: "model:muse-spark-1.3" }, { who: "model:meta-models/muse-spark-open-1026" }] as never;
+    expect(creditLine({ experiments: exp, bets, bettors: [] })).toBe("Test written by Muse Wonder · bet by Muse Spark and Muse Spark Open");
+    expect(creditLine({ experiments: exp, bets, bettors: [{ who: "model:muse-spark-1.3", status: "sealed", recorded: "2026-11-02" }] })).toBe("Test written by Muse Wonder · bet by Muse Spark (its answer recorded Nov 2) and Muse Spark Open");
+    expect(creditLine({ experiments: [{ proposedBy: { role: "human" } }] as never, bets: [{ who: "human" }] as never, bettors: [] })).toBe("Test written by the person");
+  });
+});

@@ -1,0 +1,23 @@
+pass 1440: the first screen shows the machine
+pass 1440x900: everything drawn sits above the small print
+pass 1440x900: the small print is one line
+pass 1440x900: every button in the left column can be clicked
+pass 1440: the fold holds every sentence
+pass 1280: the first screen shows the machine
+pass 1280x720: everything drawn sits above the small print
+pass 1280x720: the small print is one line
+pass 1280x720: every button in the left column can be clicked
+pass 1280: the fold holds every sentence
+pass no value is cut mid-token
+pass Enter opens the bet the button's hint promises, after a new drawing
+pass Enter on a how-sure level picks it before sealing
+pass Enter after picking how sure seals, as ↵ says
+pass a Go file shows one message
+pass a busy loop keeps the machine on screen
+pass with the plain stop line, and no 'Nothing to draw'
+   busy: you: 0 matched · 0 didn't match · 1 can't check |  | You answered “can't tell” to every question. Muse Spark 1.3: nothing checkable, Muse Spark Open: nothing checkable. |  | 1 can't check: Atlas could not che
+pass a file that needs a package has a next step
+pass sixty functions: a plain list
+pass the list's note gives the true count
+pass the too-long message is not clipped at 1280x720
+all pass

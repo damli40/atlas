@@ -442,7 +442,7 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 .u1-shell .u1-topbar{right:381px}
 .u1-code-toggle{right:458px}
 .u1-record-item{display:none}
-@media (max-width:760px){.u1-record-link{display:none!important}.u1-record-item{display:list-item}}
+/* R7: "Your record" stays in the bar on a phone too: the Demos menu is gone. */
 /* The fold inside the menu is part of the same panel */
 .u1-shell .u1-menu .u1-earlier ul{position:static;box-shadow:none;background:none;border:0;margin:0;padding:0;width:auto;min-width:0}
 .u1-shell .u1-moonwell .m-back{text-align:left;margin-left:0}
@@ -550,3 +550,85 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 .u1-shell .u1-menu[open]{position:relative;z-index:60}
 .u1-shell .u1-menu ul{z-index:60}
 .m-lamp[data-on]{r:4.4px;stroke:#fff8f0;stroke-width:1.2px;filter:drop-shadow(0 0 2.5px rgba(184,48,40,.85))}
+
+/* ---- R7 (D69): one flow. The example and its one question first; everything else is fine print. ---- */
+.u1-shell .u1-fine{font-size:12px;line-height:1.45;color:var(--ink-3);margin-top:14px;padding-top:10px;border-top:1px solid var(--rule-2)}
+.u1-shell .u1-fine p{margin:0 0 6px}
+.u1-shell .u1-fine .e-consent{color:var(--ink-3);margin:0 0 6px}
+.u1-shell .u1-fine-links,.u1-shell .u1-textlinks{display:flex;flex-wrap:wrap;gap:4px 16px;margin:0}
+.u1-shell .u1-fine .u1-link,.u1-shell .u1-textlinks .u1-link{all:unset;cursor:pointer;font-size:12.5px;color:var(--ink-2);text-decoration:underline;text-underline-offset:2px;text-decoration-color:var(--rule)}
+.u1-shell .u1-textlinks .u1-link{font-size:13.5px;color:var(--ink)}
+.u1-shell .u1-fine .u1-link:hover,.u1-shell .u1-textlinks .u1-link:hover{color:var(--ink);text-decoration-color:currentColor}
+.u1-shell .u1-fine .u1-link:disabled,.u1-shell .u1-textlinks .u1-link:disabled{opacity:.5;cursor:default}
+.u1-shell .u1-more{margin:6px 0 0;font-size:12px}
+.u1-shell .u1-more>summary{cursor:pointer;color:var(--ink-3);font-size:12px;padding:2px 0;width:max-content}
+.u1-shell .u1-more>summary:hover{color:var(--ink)}
+.u1-shell .u1-more-body{padding:8px 0 4px;display:flex;flex-direction:column;gap:8px}
+.u1-shell .u1-more-body.u1-linkrow{flex-direction:row;flex-wrap:wrap;align-items:center}
+.u1-shell .u1-more-body .u1-linkrow{display:flex;flex-wrap:wrap;gap:4px 14px}
+.u1-shell .u1-more-body .u1-models{order:0;border:0;padding:0}
+.u1-shell .u1-more-body .u1-models>p:first-child{display:block}
+.u1-shell .u1-howsure .felt-pick{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0}
+.u1-shell .u1-howsure .u1-sub{margin:2px 0 0}
+.u1-shell .u1-more .u1-seen,.u1-shell .u1-more .u1-how{order:0}
+/* The bet: the headline, the test in one line, one question, one button, then fine print at the foot. */
+.u1-shell .u1-pop-h{order:-3;font:400 clamp(26px,2.3vw,34px)/1.12 "Atlas Besley",Georgia,serif;letter-spacing:-.005em;margin:6px 0 14px;color:var(--ink)}
+.u1-shell .u1-pop .u1-test{order:-2;margin:0 0 4px;padding-top:0}
+.u1-shell .u1-pop .u1-testrow{order:-1}
+.u1-shell .u1-pop .u1-quiz{order:1;margin-top:10px}
+.u1-shell .u1-pop .b-review{order:2}
+.u1-shell .u1-pop .u1-sealbar{order:3;border-top:0!important;padding-top:14px!important}
+.u1-shell .u1-pop .u1-sealbar .u1-btn{padding:11px 18px;font-size:14.5px}
+.u1-shell .u1-pop .u1-ais{flex-basis:100%;font-size:12.5px;color:var(--ink-2)}
+.u1-shell .u1-pop .u1-status,.u1-shell .u1-pop .b-seals{order:3}
+.u1-shell .u1-pop .b-confirm{order:4}
+.u1-shell .u1-pop .u1-fine{order:8;margin-top:auto}
+.u1-shell .u1-pop>.u1-fine{padding-bottom:6px}
+/* Before a bet on your own code: the one button, and fine print under it. */
+.u1-shell .u1-fine-rest{position:absolute;left:24px;right:24px;top:84px;border-top:0;padding-top:0}
+/* The result: the verdict is the largest words, with its shape. */
+.m-verdict{display:flex;align-items:center;gap:10px;margin:0 0 14px}
+.m-verdict .u1-glyph{width:28px!important;height:28px!important;stroke-width:1.6!important}
+.m-verdict-k{font:500 11.5px/1 var(--ui);letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
+.m-verdict-v{font:400 clamp(30px,2.9vw,40px)/1.05 "Atlas Besley",Georgia,serif;color:var(--ink)}
+.m-verdict[data-outcome="not_matched"] .m-verdict-v{color:var(--red)}
+.m-verdict[data-outcome="matched"] .m-verdict-v{color:var(--blue)}
+.m-bettors li{grid-template-columns:16px minmax(0,1fr) auto;grid-template-areas:"g who out" ". pick pick";row-gap:1px}
+.m-bettors li>.u1-glyph{grid-area:g}.m-bettors .m-who{grid-area:who}.m-bettors .m-out{grid-area:out}.m-bettors .m-pick{grid-area:pick;white-space:normal}
+.m-who[data-recorded]{font-style:italic}
+/* One row: the button and the three links; one small row under it: the paid note, More, Details. */
+.u1-shell .u1-actions[data-simple]{flex-direction:row;flex-wrap:wrap;align-items:center;gap:6px 14px;padding-top:10px;padding-bottom:8px}
+.u1-shell .u1-actions[data-simple]>.u1-primary{padding:10px 16px;font-size:14px}
+.u1-shell .u1-actions[data-simple] .u1-textlinks{gap:2px 12px;flex-basis:100%}
+.u1-shell .u1-actions[data-simple] .u1-textlinks .u1-link{font-size:13px}
+.u1-shell .u1-actions[data-simple] .u1-paid-another{order:5;flex-basis:auto;font-size:11.5px;color:var(--ink-3);margin:0}
+.u1-shell .u1-actions[data-simple]>details{order:6;margin:0}
+.u1-shell .u1-actions[data-simple]>details[open]{flex-basis:100%}
+.u1-shell .u1-actions[data-simple] .u1-more-body{padding:6px 0 0}
+/* A button scrolled into view in the result column stops above the pinned bar, not under it. */
+.u1-shell .u1-marks{scroll-padding-bottom:calc(var(--actions-h,170px) + 8px)}
+/* The foot: the demos, the agent log and the repo outline, in small print. */
+.u1-shell .u1-foot{position:fixed;right:14px;bottom:6px;z-index:7;display:flex;gap:2px 12px;align-items:center;font-size:11.5px}
+.u1-shell .u1-foot .u1-link,.u1-shell .u1-foot summary{all:unset;cursor:pointer;color:var(--ink-3);font-size:11.5px;text-decoration:underline;text-decoration-color:var(--rule);text-underline-offset:2px}
+.u1-shell .u1-foot .u1-link:hover,.u1-shell .u1-foot summary:hover{color:var(--ink)}
+.u1-shell .u1-foot .u1-earlier{position:relative}
+.u1-shell .u1-foot .u1-earlier ul{position:absolute;right:0;bottom:22px;margin:0;padding:6px;list-style:none;background:var(--raised);border:1px solid var(--rule);border-radius:8px;width:300px;box-shadow:0 6px 24px rgba(0,0,0,.08)}
+.u1-shell .u1-foot .u1-earlier li button{all:unset;cursor:pointer;display:flex;flex-direction:column;padding:6px 8px;border-radius:6px;font-size:13px;color:var(--ink)}
+.u1-shell .u1-foot .u1-earlier li button:hover{background:var(--rule-2)}
+.u1-shell .u1-entry .u1-fine{max-width:520px}
+.u1-shell .e-own{display:flex;flex-direction:column;gap:10px;margin-top:6px}
+@media (max-width:760px){
+  .u1-shell .u1-foot{left:0;right:0;bottom:0;justify-content:center;background:var(--paper);padding:3px 0;border-top:1px solid var(--rule-2);flex-wrap:wrap}
+  .u1-shell .u1-bet:has(.u1-pop){top:42%;height:auto;bottom:22px;border-top:1px solid var(--rule)}
+  .u1-shell .u1-root[data-pop] .r-chart{visibility:visible;top:0;height:42%}
+  .u1-shell .u1-pop-h{font-size:22px;margin:0 0 8px}
+  .u1-shell .u1-fine-rest{top:70px}
+  .u1-shell .u1-actions[data-simple]{bottom:22px;flex-wrap:wrap;overflow:visible}
+  .m-verdict-v{font-size:28px}
+}
+@media (max-width:760px){
+  /* The file's name never covers "Your record". */
+  .u1-shell .r-head{max-width:calc(100vw - 190px)}
+  .u1-shell .u1-marks{height:56%}
+  .u1-shell .u1-root[data-stage="verdict"] .r-path{top:56%;height:calc(44% - 150px)}
+}

@@ -119,7 +119,8 @@ function Shell({ api: given }: { api?: Api }) {
     if (view === "record") setRecordOpened((n) => n + 1);
   }, [view]);
   const closeMenu = (e: { currentTarget: Element }) => {
-    (e.currentTarget.closest("details.u1-menu") as HTMLDetailsElement).open = false;
+    const fold = e.currentTarget.closest("details");
+    if (fold) fold.open = false;
   };
   const dark = useDarkScheme();
   return (
@@ -128,56 +129,20 @@ function Shell({ api: given }: { api?: Api }) {
         <button type="button" className="u1-mark" onClick={() => setView("studio")} aria-label="Atlas: back to the drawing in this tab">
           Atlas
         </button>
-        <nav className="u1-nav" aria-label="more">
-          <button type="button" className="u1-link" aria-pressed={view === "explore"} onClick={() => setView("explore")} data-testid="mode-explore">
-            Draw a codebase
-          </button>
-          <details className="u1-menu">
-            <summary data-testid="u1-demos">Demos</summary>
-            <ul>
-              <li>
-                <button type="button" onClick={(e) => { closeMenu(e); setView("pr"); }} data-testid="mode-pr">
-                  <span>The Moonwell pull request</span>
-                  <span className="u1-sub">Solidity on a Base fork, the price pipe</span>
-                </button>
-              </li>
-              <li className="u1-record-item">
-                <button type="button" onClick={(e) => { closeMenu(e); setView("record"); }}>
-                  <span>Your record</span>
-                </button>
-              </li>
-              <li>
-                <details className="u1-earlier" data-testid="u1-earlier">
-                  <summary>Earlier screens</summary>
-                  <ul>
-                    {EARLIER.map((d) => (
-                      <li key={d.mode}>
-                        <button type="button" onClick={(e) => { closeMenu(e); setView(d.mode); }} data-testid={`mode-${d.mode}`}>
-                          <span>{d.words}</span>
-                          <span className="u1-sub">{d.note}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </details>
-              </li>
-            </ul>
-          </details>
+        {/* R7 (D69): the logo and your record. Everything else is in the fine print at the foot. */}
+        <nav className="u1-nav" aria-label="your record">
           <button type="button" className="u1-link u1-record-link" aria-pressed={view === "record"} onClick={() => setView("record")} data-testid="mode-record">
             Your record
-          </button>
-          <button type="button" className="u1-link" aria-expanded={logOpen} aria-controls="u1-log" onClick={() => setLogOpen((o) => !o)} data-testid="u1-log-toggle">
-            Agent log
           </button>
         </nav>
       </header>
       <main className="u1-main">
         <div hidden={view !== "studio"} className="u1-fill">
-          <Studio api={studioApi} onExplore={(s) => { setExploreStart(s ?? null); setExploreKey((k) => k + 1); setView("explore"); }} handoff={handoff} onHandoffUsed={() => setHandoff(null)} onRoundOpen={setRoundOpen} claimant={claimant} onClaimant={pickClaimant} />
+          <Studio api={studioApi} onExplore={(s) => { setExploreStart(s ?? null); setExploreKey((k) => k + 1); setView("explore"); }} handoff={handoff} onHandoffUsed={() => setHandoff(null)} onRoundOpen={setRoundOpen} claimant={claimant} onClaimant={pickClaimant} onMoonwell={() => setView("pr")} />
         </div>
         {/* Review m2: once opened, the explorer stays mounted (hidden), so coming back never re-runs an outline job. */}
         {(view === "explore" || explorerOpened) && (
-          <section className="u1-sheet" aria-label="Draw a codebase" hidden={view !== "explore"}>
+          <section className="u1-sheet" aria-label="Repo outline (early)" hidden={view !== "explore"}>
             <ExplorerFlow key={exploreKey} api={studioApi} saved={savedOutline} onBet={(h) => { setHandoff(h); setView("studio"); }} {...(exploreStart?.repo ? { initialRepo: exploreStart.repo } : {})} {...(exploreStart?.files ? { initialFiles: exploreStart.files } : {})} />
           </section>
         )}
@@ -197,6 +162,30 @@ function Shell({ api: given }: { api?: Api }) {
           </section>
         )}
       </main>
+      <footer className="u1-foot" aria-label="more">
+        <button type="button" className="u1-link" onClick={() => setView("pr")} data-testid="mode-pr">
+          Demos: Moonwell
+        </button>
+        <button type="button" className="u1-link" aria-expanded={logOpen} aria-controls="u1-log" onClick={() => setLogOpen((o) => !o)} data-testid="u1-log-toggle">
+          Agent log
+        </button>
+        <button type="button" className="u1-link" aria-pressed={view === "explore"} onClick={() => setView("explore")} data-testid="mode-explore">
+          Repo outline (early)
+        </button>
+        <details className="u1-earlier" data-testid="u1-earlier">
+          <summary>Earlier screens</summary>
+          <ul>
+            {EARLIER.map((d) => (
+              <li key={d.mode}>
+                <button type="button" onClick={(e) => { closeMenu(e); setView(d.mode); }} data-testid={`mode-${d.mode}`}>
+                  <span>{d.words}</span>
+                  <span className="u1-sub">{d.note}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </details>
+      </footer>
       <aside id="u1-log" className="u1-log" hidden={!logOpen} aria-label="Agent log">
         {logOpen && <LiveLogStrip key={view === "pr" ? "pr" : "studio"} api={view === "pr" ? moonwellApi : studioApi} dropped={null} open onToggle={() => setLogOpen(false)} />}
       </aside>

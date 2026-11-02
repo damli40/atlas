@@ -34,7 +34,7 @@ import { lineSpan } from "../../../src/words";
 import { partPanel, type PartPanel } from "../../../renderer/authors/part-panel";
 import { PartFacts } from "../../drawing/PartFacts";
 import { describeCall } from "../../../src/gate";
-import { RESULT_WORDS, STAGE_WORDS } from "../../../src/paste-words";
+import { RESULT_WORDS, SIMPLE_WORDS, STAGE_WORDS } from "../../../src/paste-words";
 import { CANT_TELL } from "../../../src/quiz";
 
 export { useDarkScheme, useReducedMotion };
@@ -60,6 +60,12 @@ export interface After {
 }
 
 export interface BenchStageProps {
+  /** R7 (D69): the Box chart switch (and its M key) shows only when the page's "Details" is open. Default: shown. */
+  viewToggle?: boolean;
+  /** R7 (D69): the trace note under the drawing ("What is lit comes from run …") shows only under "More". Default: shown. */
+  traceNote?: boolean;
+  /** R7 (D69): bettors whose answer was recorded (who → ISO day): their mark says so, never live. */
+  recorded?: Readonly<Record<string, string>>;
   model: BenchModel;
   theme?: "light" | "dark";
   after?: After | null;
@@ -142,7 +148,7 @@ export function litWithNoThread(beats: readonly { routes: readonly string[]; lam
   return beats.some((b) => b.lamps.some((l) => l !== tested && !reached.has(l)));
 }
 
-export function BenchStage({ wontRun = false, seenBefore = false, codeRan = false, loop = null, model, theme, after = null, onPart, picked = null, onPanel, onClosePart, naturalNames = null, namesNote = null, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null }: BenchStageProps) {
+export function BenchStage({ viewToggle = true, traceNote = true, recorded = {}, wontRun = false, seenBefore = false, codeRan = false, loop = null, model, theme, after = null, onPart, picked = null, onPanel, onClosePart, naturalNames = null, namesNote = null, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null }: BenchStageProps) {
   const [wantMachine, setWantMachine] = useState(machineFirst);
   const playedRef = useRef(onPlayed);
   playedRef.current = onPlayed;
@@ -241,9 +247,12 @@ export function BenchStage({ wontRun = false, seenBefore = false, codeRan = fals
     if (!pathSpec || !after || after.script.notShown !== null || pathSpec.notShown !== undefined) return [];
     return runBeats({ run: after.run, experiment: after.experiment, helpers: after.helpers ?? null, parts, tested: model.tested, spec: pathSpec });
   }, [pathSpec, parts, outline, model.tested, after?.run, after?.helpers]); // eslint-disable-line react-hooks/exhaustive-deps
+  // R7: M answers only while its switch is on screen.
+  const toggleShown = useRef(viewToggle);
+  toggleShown.current = viewToggle;
   useEffect(() => {
     const onM = (e: globalThis.KeyboardEvent) => {
-      if (e.key.toLowerCase() !== "m" || e.metaKey || e.ctrlKey || e.altKey || (e.target as HTMLElement | null)?.closest?.("input, textarea, select") || document.querySelector<HTMLElement>(".u1-fill")?.hidden === true) return;
+      if (!toggleShown.current || e.key.toLowerCase() !== "m" || e.metaKey || e.ctrlKey || e.altKey || (e.target as HTMLElement | null)?.closest?.("input, textarea, select") || document.querySelector<HTMLElement>(".u1-fill")?.hidden === true) return;
       setWantMachine((w) => {
         rememberView(w ? "chart" : "machine");
         return !w;
@@ -418,7 +427,8 @@ export function BenchStage({ wontRun = false, seenBefore = false, codeRan = fals
   useEffect(() => {
     if (!inlinePanel) return;
     // The column scrolls so the panel ends above the pinned action bar: the bar never sits on it, and it never sits on the bar.
-    const id = requestAnimationFrame(() => {
+    // R7: fitted again whenever the panel or the action bar changes size (its words can arrive a frame later; the bar wraps).
+    const fit = () => {
       const el = document.querySelector<HTMLElement>('.m-partnote[data-testid="part-panel"]');
       const col = el?.closest<HTMLElement>(".u1-marks");
       const bar = document.querySelector('[data-testid="u1-actions"]')?.getBoundingClientRect();
@@ -434,8 +444,16 @@ export function BenchStage({ wontRun = false, seenBefore = false, codeRan = fals
       el.style.maxHeight = "";
       const r = el.getBoundingClientRect();
       if (r.bottom > floor) col.scrollTop += Math.min(r.bottom - floor, r.top - col.getBoundingClientRect().top - 8);
-    });
-    return () => cancelAnimationFrame(id);
+    };
+    fit();
+    const id = requestAnimationFrame(fit);
+    const watched = [document.querySelector('.m-partnote[data-testid="part-panel"]'), document.querySelector('[data-testid="u1-actions"]')].filter((x): x is Element => x !== null);
+    const ro = typeof ResizeObserver === "function" ? new ResizeObserver(() => requestAnimationFrame(fit)) : null;
+    for (const w of watched) ro?.observe(w);
+    return () => {
+      cancelAnimationFrame(id);
+      ro?.disconnect();
+    };
   }, [inlinePanel?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const stage = !after ? "structure" : marksOn ? "verdict" : "run";
   const readout = after && marksOn ? marksReadout(after.marks) : model.tested ? `testing ${model.tested}` : `${model.boxes.length} ${model.boxes.length === 1 ? "part" : "parts"} · ${model.lines.length} ${model.lines.length === 1 ? "join" : "joins"}`;
@@ -473,7 +491,7 @@ export function BenchStage({ wontRun = false, seenBefore = false, codeRan = fals
         }} />}
       </div>
       {showMachine && after && noRunToShow ? <p className="r-view-note" role="note" data-testid="machine-stop">{stopLine(after.script.notShown ?? pathSpec?.notShown ?? "")}</p> : null}
-      {after && marksOn && !noRunToShow && pathSpec?.captions.length ? (
+      {traceNote && after && marksOn && !noRunToShow && pathSpec?.captions.length ? (
         <details className="m-captions" data-testid="machine-captions">
           <summary>{firstLine}</summary>
           {[...(litWithNoThread(beats, model.tested) ? ["A part lit with no thread ran, but which part called it is not known."] : []), ...(end?.on === "chute" && after.helpers && "thrownAt" in after.helpers && after.helpers.thrownAt === end.line ? ["The line it threw from comes from that same traced run."] : []), ...restLines].map((w) => (
@@ -497,7 +515,7 @@ export function BenchStage({ wontRun = false, seenBefore = false, codeRan = fals
         </ul>
       ) : null}
       {wantMachine && (drawn.tooMany || tooSmall) && drawn.tooMany !== NOTHING_TO_DRAW && !noRunToShow && <p className="r-view-note" role="note" data-testid="machine-too-many">{drawn.tooMany ?? TOO_SMALL}</p>}
-      {!drawn.tooMany && !tooSmall && model.notShown === null && typeof window !== "undefined" && window.innerWidth >= 760 && (
+      {viewToggle && !drawn.tooMany && !tooSmall && model.notShown === null && typeof window !== "undefined" && window.innerWidth >= 760 && (
         <button type="button" className="r-view-toggle" onClick={() => setWantMachine((w) => { rememberView(w ? "chart" : "machine"); return !w; })} data-testid="view-toggle">
           {showMachine ? "Box chart" : "Machine"}
           <kbd className="k">M</kbd>
@@ -524,7 +542,7 @@ export function BenchStage({ wontRun = false, seenBefore = false, codeRan = fals
             ×
           </button>
         </PartFacts>
-      ) : null} marks={after.marks} focus={focusMark} onFocus={setFocusMark} footnote={footnote} headnote={headnote} moment={momentOf(after.marks, after.run, language)} notes={resultNotes(after)} readout={marksReadout(after.marks)} loop={loop} />}
+      ) : null} marks={after.marks} focus={focusMark} onFocus={setFocusMark} footnote={footnote} headnote={headnote} moment={momentOf(after.marks, after.run, language)} notes={resultNotes(after)} readout={marksReadout(after.marks)} loop={loop} recorded={recorded} />}
       {children}
     </div>
   );
@@ -591,9 +609,18 @@ export function sharedReason(marks: readonly Mark[]): string | null {
 }
 
 /** D60: your bet and what the run did. The run's fact is the largest words on the screen. */
-export function MomentView({ moment, stranger = false }: { moment: Moment; /** Whoever is looking did not place this bet. */ stranger?: boolean }) {
+export function MomentView({ moment, stranger = false, recorded = {} }: { moment: Moment; /** Whoever is looking did not place this bet. */ stranger?: boolean; recorded?: Readonly<Record<string, string>> }) {
+  // R7 (D69): the person's verdict, large, in plain code's fixed words, with its shape: colour is never the only signal.
+  const mine = stranger ? undefined : moment.bettors.find((b) => b.who === "human");
   return (
     <section className="m-moment" data-kind={moment.kind} aria-label="What you bet and what the run did" data-testid="moment">
+      {mine && (
+        <p className="m-verdict" data-outcome={mine.outcome} data-testid="moment-verdict">
+          <Glyph outcome={mine.outcome} />
+          <span className="m-verdict-k">{SIMPLE_WORDS.verdictYou}</span>
+          <span className="m-verdict-v">{OUTCOME_WORDS[mine.outcome]}</span>
+        </p>
+      )}
       {moment.you !== null && (
         <p className="m-you">
           <span className="m-k">{stranger ? "The bet" : "You bet"}</span>
@@ -611,7 +638,7 @@ export function MomentView({ moment, stranger = false }: { moment: Moment; /** W
           {moment.bettors.map((b) => (
             <li key={b.who}>
               <Glyph outcome={b.outcome} />
-              <span className="m-who" title={b.name}>{shortName(b.name)}</span>
+              <span className="m-who" title={b.name} data-recorded={recorded[b.who] ? "" : undefined}>{recorded[b.who] ? SIMPLE_WORDS.recordedName(shortName(b.name), recorded[b.who]!) : shortName(b.name)}</span>
               <span className="m-pick">{b.pick}</span>
               <span className="m-out">{OUTCOME_WORDS[b.outcome]}</span>
             </li>
@@ -660,7 +687,7 @@ export function resultNotes(after: Pick<After, "marks" | "run" | "experiment" | 
   ];
 }
 
-function MarkList({ marks, focus, onFocus, footnote, headnote, moment, notes, readout, loop, partNote = null }: { partNote?: ReactNode; notes: readonly string[]; marks: readonly Mark[]; focus: string | null; onFocus: (m: string | null) => void; footnote: ReactNode; headnote: ReactNode; moment: Moment | null; readout: string; loop: CountChange | null }) {
+function MarkList({ marks, focus, onFocus, footnote, headnote, moment, notes, readout, loop, partNote = null, recorded = {} }: { recorded?: Readonly<Record<string, string>>; partNote?: ReactNode; notes: readonly string[]; marks: readonly Mark[]; focus: string | null; onFocus: (m: string | null) => void; footnote: ReactNode; headnote: ReactNode; moment: Moment | null; readout: string; loop: CountChange | null }) {
   const same = sharedReason(marks);
   // Questions nobody could check fold to one line with their reason: a real result must not read as a shrug.
   const checkable = marks.filter((m) => !m.picks.every((p) => p.outcome === "cant_check"));
@@ -670,7 +697,7 @@ function MarkList({ marks, focus, onFocus, footnote, headnote, moment, notes, re
   return (
     <section className="u1-marks" aria-label="How each answer was judged" data-testid="mark-list">
       <div className="m-top">
-        {moment && <MomentView moment={moment} />}
+        {moment && <MomentView moment={moment} recorded={recorded} />}
         {notes.map((n) => (
           <p className="m-note" key={n} data-testid="result-note">{n}</p>
         ))}

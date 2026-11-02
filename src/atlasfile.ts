@@ -322,6 +322,8 @@ export const atlasFileSchema = z
             who: z.string().regex(/^(human|model:[A-Za-z0-9][A-Za-z0-9._:/-]{0,79})$/),
             status: z.enum(["sealed", "no_usable_answer", "not_asked"]),
             reason: z.string().min(1).max(300).optional(),
+            // R7 (D69): this bettor's answer was recorded on this day from the same text, and replayed (never live).
+            recorded: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
           })
           .strict(),
       )

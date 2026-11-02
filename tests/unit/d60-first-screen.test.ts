@@ -18,7 +18,7 @@ describe("the first screen's example", () => {
     const exports = outline.parts.filter((p) => p.exported).map((p) => ({ name: p.name }));
     expect(defaultFunction(outline, exports)).toBe(EXAMPLE_FUNCTION);
   });
-  it("Muse Wonder is asked once for it, whoever asks after; another file still asks", async () => {
+  it("R7: Muse Wonder is not asked for it at all (its tests are recorded, server/example-round.ts), whoever asks; another file still asks", async () => {
     let calls = 0;
     const chat = async (_a: ChatArgs): Promise<ChatResult> => {
       calls++;
@@ -35,8 +35,8 @@ describe("the first screen's example", () => {
     const b = await ask("ssbbbbbbbbbbbbbbbb", U1_EXAMPLE, EXAMPLE_FUNCTION);
     expect(a.ok && b.ok).toBe(true);
     expect(b.proposals.length).toBeGreaterThan(0);
-    expect(calls).toBe(1);
+    expect(calls).toBe(0);
     await ask("ssaaaaaaaaaaaaaaaa", "export function other(){ return 1; }\n", "other");
-    expect(calls).toBeGreaterThan(1);
+    expect(calls).toBeGreaterThan(0);
   }, 30_000);
 });

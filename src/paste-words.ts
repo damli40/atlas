@@ -235,8 +235,8 @@ export const BET_WORDS = {
   aiOff: (who: string, why: string) => `${who}: not betting on this round. ${String(why).replace(/^./, (c) => c.toUpperCase()).replace(/\.$/, "")}.`,
   aiStatus: (name: string, status: string) => `${name}: ${status}`,
   whoBets: "Who bets with you",
-  seal: "Seal my answers",
-  untapped: "Anything you leave untapped is sealed as “can't tell”.",
+  seal: "Lock in my bet",
+  untapped: "Anything you leave untapped is locked in as “can't tell”.",
   seen: "What every bettor sees (you and both AIs get exactly this text)",
   leftOut: (n: number) => `${n} ${n === 1 ? "test" : "tests"} Atlas couldn't run ${n === 1 ? "was" : "were"} left out.`,
   pickFor: (fn: string) => `Pick a test for ${fn}`,
@@ -288,7 +288,7 @@ const answersWord = (k: number) => (k === 1 ? "1 answer" : `${k} answers`);
 
 export const FELT_WORDS = {
   pickerLabel: "How sure are you overall?",
-  pickerHint: "“How sure” is optional, and sealed with your answers.",
+  pickerHint: "“How sure” is optional, and locked in with your answers.",
   sealedSaid: (level: string) => `You said '${level}'.`,
   roundMatched: (level: string, matched: number, checkable: number) => `You said '${level}' and matched ${matched} of ${checkable}.`,
   roundNone: (level: string) => `You said '${level}'. None of your answers could be checked.`,
@@ -343,4 +343,44 @@ export const RESULT_WORDS = {
   nextTry: "Next things to try, read from this code and not seen in a run:",
   proofTitle: "Proof card",
   closeProof: "Close the proof card",
+} as const;
+
+// ---------- R7 (D69): one flow for a brand-new person. Everything else is fine print. ----------
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/** "2026-11-02" → "Nov 2". */
+export const shortDay = (iso: string): string => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  return m ? `${MONTHS[Number(m[2]) - 1] ?? m[2]} ${Number(m[3])}` : iso;
+};
+/** A betting model's short name: "Muse Spark", "Muse Spark Open". */
+export const shortModelName = (model: string): string => (/open/i.test(model) ? "Muse Spark Open" : /spark/i.test(model) ? "Muse Spark" : /wonder/i.test(model) ? "Muse Wonder" : model);
+export const SIMPLE_WORDS = {
+  headline: "Think you know what your code does? Bet on it.",
+  lock: "Lock in my bet",
+  pickFirst: "Pick an answer first.",
+  locked: "Your bet is locked in.",
+  tryOwn: "Try your own code",
+  tryExample: "Back to the example",
+  moreBet: "More options for this bet",
+  details: "Details",
+  share: "Share proof card",
+  tryAnother: "Try another question",
+  tryMoonwell: "Try the Moonwell example",
+  more: "More",
+  pickTest: "Pick a test",
+  askWonder: "Ask Muse Wonder for a new test",
+  writeOwn: "Write your own test",
+  howSure: "How sure",
+  allQuestions: "Answer more questions on this test",
+  oneQuestion: "Answer one question",
+  askAgainPaid: "The AIs bet again on the new text: paid AI calls.",
+  anotherPaid: "A new test asks the AIs to bet: paid AI calls.",
+  /** The AIs beside the question, by their short names. */
+  aisToo: (names: readonly string[]) => (names.length === 0 ? "No AI bets with you this time." : `Also betting: ${names.join(" and ")}. You see ${names.length === 1 ? "its answer" : "their answers"} after the run.`),
+  /** A recorded answer, never live (D69). */
+  recordedName: (name: string, iso: string) => `${name}'s recorded answer (${shortDay(iso)})`,
+  recordedNote: (iso: string) => `Recorded on ${shortDay(iso)} from this same text, before anyone answered. Not live.`,
+  verdictYou: "Your bet",
+  lastTime: "Your record, only you see this:",
+  credit: (test: string | null, bettors: readonly string[]) => [test, bettors.length ? `bet by ${bettors.join(" and ")}` : null].filter(Boolean).join(" · "),
 } as const;

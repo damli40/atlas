@@ -3,6 +3,16 @@
 //   PW=<playwright-core> CHROME=<headless shell> BASE=<page> node tests/evidence/R6/panel.mjs <out dir>
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 const { chromium } = await import(process.env.PW);
+// R7 (D69): the first screen is the example with its question; the paste box is behind "Try your own code".
+const own = async (p) => {
+  await p.waitForSelector('[data-testid="u1-own"], [data-testid="u1-code"]');
+  if (!(await p.$('[data-testid="u1-code"]'))) await p.click('[data-testid="u1-own"]');
+  await p.waitForSelector('[data-testid="u1-code"]');
+};
+// R7: the result's other controls are under "More"; the bet's extra questions under "More options for this bet".
+const openMore = async (p) => {
+  if (!(await p.$eval('[data-testid="u1-result-more"]', (d) => d.open).catch(() => true))) await p.click('[data-testid="u1-result-more"] > summary');
+};
 const OUT = process.argv[2];
 mkdirSync(OUT, { recursive: true });
 const BASE = process.env.BASE ?? "http://localhost:18972";
@@ -36,7 +46,7 @@ const coversNothing = async (p, part) => {
   return { ok: panel !== null && hit.length === 0, more: JSON.stringify({ panel, covered: hit }) };
 };
 const runIt = async (p, W) => {
-  await p.click('[data-testid="u1-bet-toggle"]');
+  if (await p.$('[data-testid="u1-bet-toggle"]')) await p.click('[data-testid="u1-bet-toggle"]');
   if (W && W >= 760 && (await p.$('[data-testid="machine"] [data-part="getPrice"]'))) {
     // Review m1: a panel over the questions must not let a digit answer the hidden one.
     await p.waitForSelector('[data-testid="u1-seal"]', { timeout: 60000 });
@@ -68,12 +78,13 @@ for (const [W, H] of [[1280, 720], [1100, 700], [390, 844]]) {
   await p.waitForTimeout(1500);
   await p.screenshot({ path: `${OUT}/1-first-screen-${W}.png` });
   if (W >= 760) {
-    const lids = await lidTexts(p, '[data-testid="e-drawing"]');
+    // R7: the first screen is the example's real machine, drawn, with its question open.
+    await p.waitForSelector('[data-testid="machine"] svg', { timeout: 15000 });
+    const lids = await lidTexts(p, '[data-testid="machine"]');
     say(`${W}: first screen lids show Meta's AI names over the exact names`, lids.some((l) => l.text === "retrying fetch" && /m-ai/.test(l.cls)) && lids.some((l) => l.text === "fetchWithRetry" && /m-code/.test(l.cls)), JSON.stringify(lids.map((l) => l.text)));
-    const legend = await p.$eval('[data-testid="e-drawing"] [data-testid="machine-names-legend"]', (e) => e.textContent).catch(() => "");
+    const legend = await p.$eval('[data-testid="machine-names-legend"]', (e) => e.textContent).catch(() => "");
     say(`${W}: review B1: words on the first screen say whose names they are`, /Muse Wonder's words \(Meta's AI\), not a check/.test(legend), legend);
   }
-  await p.click('[data-testid="u1-example"]');
   await p.waitForSelector('[data-testid="bench-stage"]');
   await p.waitForTimeout(1800);
   await p.screenshot({ path: `${OUT}/2-drawn-${W}.png` });
@@ -130,9 +141,11 @@ for (const [W, H] of [[1280, 720], [1100, 700], [390, 844]]) {
     await p.waitForSelector('[data-testid="part-broke"]', { timeout: 3000 }).catch(() => {});
     const broke = await p.$eval('[data-testid="part-broke"]', (e) => e.innerText).catch(() => "");
     const verdict = await p.$eval('[data-testid="moment-run"]', (e) => e.textContent).catch(() => "");
-    say(`${W}: the ringed part's panel says what broke, in the verdict's words`, broke.includes(verdict) && /Atlas calls fetchWithRetry\(fetchIt\)/.test(broke), broke.replace(/\n/g, " | "));
+    say(`${W}: the ringed part's panel says what broke, in the verdict's words`, broke.includes(verdict) && /Atlas calls fetchWithRetry\(fetchIt(, 3, 100)?\)/.test(broke), broke.replace(/\n/g, " | "));
     const clear = await coversNothing(p, `[data-testid="machine"] [data-part="${ring}"]`);
     say(`${W}: review M3: after a run the panel covers no verdict, answer list, action bar, ring or part`, clear.ok, clear.more);
+    await openMore(p); // R7: "Change the code" is under "More"
+    await p.waitForTimeout(200);
     say(`${W}: the actions are still clickable`, await p.evaluate(() => { const r = document.querySelector('[data-testid="u1-change"]').getBoundingClientRect(); return Boolean(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('[data-testid="u1-change"]')); }));
     await p.screenshot({ path: `${OUT}/5-panel-ringed-example-${W}.png` });
     await p.keyboard.press("Escape");
@@ -153,6 +166,7 @@ for (const [W, H] of [[1280, 720], [1100, 700]]) {
   const c = await b.newContext({ viewport: { width: W, height: H } });
   const p = await c.newPage();
   await p.goto(BASE);
+  await own(p);
   await p.fill('[data-testid="u1-code"]', orders);
   await p.click('[data-testid="u1-draw"]');
   await p.waitForSelector('[data-testid="bench-stage"]');
@@ -176,6 +190,7 @@ for (const [W, H] of [[1280, 720], [1100, 700]]) {
   say(`${W}: orders: review M3: the panel covers no verdict, answer list, action bar, ring or part`, clear.ok, clear.more);
   await p.screenshot({ path: `${OUT}/7-panel-ringed-orders-${W}.png` });
   // Review B2: "Change the code and bet again" with the ringed panel open. The new round must not show the old run's words or lines.
+  await openMore(p); // R7: E answers only while "More" shows its button
   await p.keyboard.press("e");
   await p.waitForSelector('[data-testid="u1-change-code"]');
   const cur = await p.$eval('[data-testid="u1-change-code"]', (e) => e.value);

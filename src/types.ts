@@ -303,6 +303,8 @@ export interface BettorSlot {
   who: "human" | `model:${string}`;
   status: "sealed" | "no_usable_answer" | "not_asked";
   reason?: string;
+  /** R7 (D69): a model's answer recorded on this day (ISO date) from the same text and replayed with no call. Shown as recorded, never as live. */
+  recorded?: string;
 }
 
 /**

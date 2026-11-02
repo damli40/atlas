@@ -1,0 +1,212 @@
+[
+  {
+    "name": "1280: the question is ready with no click",
+    "ok": true,
+    "more": ""
+  },
+  {
+    "name": "1280: the headline is on the first screen",
+    "ok": true,
+    "more": ""
+  },
+  {
+    "name": "1280: the consent line is visible",
+    "ok": true,
+    "more": ""
+  },
+  {
+    "name": "1280: the AIs' answers are labelled recorded, with their day",
+    "ok": true,
+    "more": "Also betting: Muse Spark's recorded answer (Nov 2) and Muse Spark Open's recorded answer (Nov 2). You see their answers after the run. Recorded on Nov 2 from this same text, before anyone answered. Not live."
+  },
+  {
+    "name": "1280: no model-bets call failed or was made live",
+    "ok": true,
+    "more": ""
+  },
+  {
+    "name": "1280: the button says Lock in my bet",
+    "ok": true,
+    "more": ""
+  },
+  {
+    "name": "1280: C and M do nothing while Details is closed",
+    "ok": true,
+    "more": ""
+  },
+  {
+    "name": "1280: the verdict is matched or didn't match, never can't check",
+    "ok": true,
+    "more": "Your betdidn't match"
+  },
+  {
+    "name": "1280: each AI's mark is labelled, recorded and dated",
+    "ok": true,
+    "more": "Youreturns a valuedidn't matchMuse Spark 1.3's recorded answer (Nov 2)throws (an Error or any other value)matchedMuse Spark Open's recorded answer (Nov 2)throws (an Error or any other value)matched"
+  },
+  {
+    "name": "1280: one primary button, Share proof card",
+    "ok": true,
+    "more": ""
+  },
+  {
+    "name": "1280: the u1-try-another link is there",
+    "ok": true,
+    "more": ""
+  },
+  {
+    "name": "1280: the u1-own link is there",
+    "ok": true,
+    "more": ""
+  },
+  {
+    "name": "1280: the u1-try-moonwell link is there",
+    "ok": true,
+    "more": ""
+  },
+  {
+    "name": "1280: Change the code, Bet on another test and Play again are folded",
+    "ok": true,
+    "more": ""
+  },
+  {
+    "name": "1280: E and B do nothing while More is closed",
+    "ok": true,
+    "more": ""
+  },
+  {
+    "name": "1280: More shows the folded controls",
+    "ok": true,
+    "more": ""
+  },
+  {
+    "name": "1280: the proof card credits Meta's tools",
+    "ok": true,
+    "more": "Test written by Muse Wonder · bet by Muse Spark (its answer recorded Nov 2) and Muse Spark Open (its answer recorded Nov 2)"
+  },
+  {
+    "name": "1280: the proof card says the answers were recorded",
+    "ok": true,
+    "more": ""
+  },
+  {
+    "name": "1280: the proof card has no remember line",
+    "ok": true,
+    "more": ""
+  },
+  {
+    "name": "1280: the example made no model-bets network wait",
+    "ok": true,
+    "more": ""
+  },
+  {
+    "name": "390: the question is ready with no click",
+    "ok": true,
+    "more": ""
+  },
+  {
+    "name": "390: the headline is on the first screen",
+    "ok": true,
+    "more": ""
+  },
+  {
+    "name": "390: the consent line is visible",
+    "ok": true,
+    "more": ""
+  },
+  {
+    "name": "390: the AIs' answers are labelled recorded, with their day",
+    "ok": true,
+    "more": "Also betting: Muse Spark's recorded answer (Nov 2) and Muse Spark Open's recorded answer (Nov 2). You see their answers after the run. Recorded on Nov 2 from this same text, before anyone answered. Not live."
+  },
+  {
+    "name": "390: no model-bets call failed or was made live",
+    "ok": true,
+    "more": ""
+  },
+  {
+    "name": "390: the button says Lock in my bet",
+    "ok": true,
+    "more": ""
+  },
+  {
+    "name": "390: C and M do nothing while Details is closed",
+    "ok": true,
+    "more": ""
+  },
+  {
+    "name": "390: the verdict is matched or didn't match, never can't check",
+    "ok": true,
+    "more": "Your betdidn't match"
+  },
+  {
+    "name": "390: each AI's mark is labelled, recorded and dated",
+    "ok": true,
+    "more": "Youreturns a valuedidn't matchMuse Spark 1.3's recorded answer (Nov 2)throws (an Error or any other value)matchedMuse Spark Open's recorded answer (Nov 2)throws (an Error or any other value)matched"
+  },
+  {
+    "name": "390: one primary button, Share proof card",
+    "ok": true,
+    "more": ""
+  },
+  {
+    "name": "390: the u1-try-another link is there",
+    "ok": true,
+    "more": ""
+  },
+  {
+    "name": "390: the u1-own link is there",
+    "ok": true,
+    "more": ""
+  },
+  {
+    "name": "390: the u1-try-moonwell link is there",
+    "ok": true,
+    "more": ""
+  },
+  {
+    "name": "390: Change the code, Bet on another test and Play again are folded",
+    "ok": true,
+    "more": ""
+  },
+  {
+    "name": "390: E and B do nothing while More is closed",
+    "ok": true,
+    "more": ""
+  },
+  {
+    "name": "390: More shows the folded controls",
+    "ok": true,
+    "more": ""
+  },
+  {
+    "name": "390: the proof card credits Meta's tools",
+    "ok": true,
+    "more": "Test written by Muse Wonder · bet by Muse Spark (its answer recorded Nov 2) and Muse Spark Open (its answer recorded Nov 2)"
+  },
+  {
+    "name": "390: the proof card says the answers were recorded",
+    "ok": true,
+    "more": ""
+  },
+  {
+    "name": "390: the proof card has no remember line",
+    "ok": true,
+    "more": ""
+  },
+  {
+    "name": "390: the example made no model-bets network wait",
+    "ok": true,
+    "more": ""
+  },
+  {
+    "name": "1280: More options shows Pick a test, Ask Muse Wonder, Write your own, Who bets, How sure, more questions, the bettors' text",
+    "ok": true,
+    "more": ""
+  },
+  {
+    "name": "1280: Details shows Code and the box chart switch",
+    "ok": true,
+    "more": ""
+  }
+]

@@ -82,11 +82,9 @@ describe("U1 drawing-first screen", () => {
     document.body.appendChild(host);
     root = createRoot(host);
     act(() => root!.render(<App api={api} />));
-    await until(() => $('[data-testid="u1-code"]') !== null, "the entry");
-    act(() => setValue($('[data-testid="u1-code"]') as HTMLTextAreaElement, U1_EXAMPLE));
-    clicks = 0;
-    click($('[data-testid="u1-draw"]'));
+    // R7 (D69): the first screen is the example, drawn, with its one question ready: no click before the answer.
     await until(() => $(".u1-svg svg") !== null, "the drawing", 60000);
+    clicks = 0;
     const stage = $('[data-testid="bench-stage"]')!;
     expect(stage.getAttribute("data-phase")).toBe("rest");
     expect([...stage.querySelectorAll("[data-node]")].map((e) => decodeURIComponent(e.getAttribute("data-node")!))).toEqual(expect.arrayContaining(["backoffMs", "sleep", "fetchWithRetry", "getPrice"]));
@@ -95,9 +93,9 @@ describe("U1 drawing-first screen", () => {
     // D50: the failure label is drawn before any bet, and it carries no run result.
     expect(t.labelMarks).toEqual(["could fail: no overall timeout, lines 12–19 (read, not run)"]);
 
-    // open the bet: Wonder's first allowed test is preselected, the stand-in deck appears, still no result
-    click($('[data-testid="u1-bet-toggle"]'));
+    // the bet opens by itself on the example: Wonder's first allowed test (recorded), the stand-in deck appears, still no result
     await until(() => $('[data-testid="u1-seal"]') !== null && $('.rr-lamp') !== null, "the quiz and the stand-in devices", 60000);
+    expect(host!.querySelectorAll(".u1-quiz > li")).toHaveLength(1);
     expect($('[data-testid="u1-test"]')!.textContent).toContain("fetchWithRetry");
     t = runTraces($('[data-testid="bench-stage"]')!);
     expect(t).toMatchObject({ runEls: 0, litLamps: 0, marks: 0 });
@@ -114,24 +112,26 @@ describe("U1 drawing-first screen", () => {
     expect(svgText).not.toMatch(/\d+\s*(ms|calls?)\b|returned|threw|matched/i);
 
     click($('[data-testid="opt-outcome-a"]'));
-    click($('[data-testid="opt-calls:fetchIt-c"]'));
-    click($('[data-testid="opt-virtualMs-d"]'));
     click($('[data-testid="u1-seal"]'));
     await until(() => $('[data-testid="bench-stage"]')?.getAttribute("data-phase") === "marked", "the marked drawing", 60000);
-    expect(clicks).toBeLessThanOrEqual(6); // "Draw it" + toggle + 3 taps + seal (a real paste needs no "Draw it": 5)
+    expect(clicks).toBeLessThanOrEqual(2); // R7: one tap + "Lock in my bet" (was 6: "Draw it" + toggle + 3 taps + seal)
     const after = runTraces($('[data-testid="bench-stage"]')!);
     expect(after.runEls).toBeGreaterThan(0);
     expect(after.marks).toBeGreaterThan(0);
     const list = $('[data-testid="mark-list"]')!;
-    for (const m of ["outcome", "returnedJson", "calls:fetchIt", "virtualMs"]) expect(list.querySelector(`[data-testid="mark-${m}"]`)).not.toBeNull();
-    // your pick and both models' picks, each with plain code's word
-    expect(list.querySelector('[data-testid="mark-outcome"]')!.textContent).toMatch(/You.*returns a value.*matched/);
-    expect(list.textContent).toContain("Muse Spark Open");
-    expect(list.querySelector('[data-testid="mark-returnedJson"]')!.textContent).toMatch(/You.*can't tell.*can't check/);
+    // R7: one question, the ending, for everyone (D19)
+    expect(list.querySelector('[data-testid="mark-outcome"]')).not.toBeNull();
+    for (const m of ["returnedJson", "calls:fetchIt", "virtualMs"]) expect(list.querySelector(`[data-testid="mark-${m}"]`)).toBeNull();
+    // your pick and both models' picks, each with plain code's word; the run threw, so "returns a value" didn't match
+    expect(list.querySelector('[data-testid="mark-outcome"]')!.textContent).toMatch(/You.*returns a value.*didn't match/);
+    expect($('[data-testid="moment-verdict"]')!.textContent).toMatch(/didn't match/);
+    // the example's AI answers are recorded, and say so with their day: never shown as live (D69)
+    expect($('[data-testid="moment-bettors"]')!.textContent).toMatch(/Muse Spark Open's recorded answer \(Nov 2\)/);
     // the path is drawn from the trace: each call of the stand-in has its ticket
     const path = [...$('[data-testid="bench-path"]')!.querySelectorAll("text")].map((x) => x.textContent).join(" | ");
     expect(path.match(/called fetchIt/g)?.length).toBe(3);
     // U2 (D53): the proof card opens in place (a panel), with a link to its own page.
     expect($('[data-testid="u1-proof"]')!.tagName).toBe("BUTTON");
+    expect($('[data-testid="u1-proof"]')!.textContent).toContain("Share proof card");
   }, 120_000);
 });

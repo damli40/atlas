@@ -14,6 +14,7 @@ import type { AtlasFile, Bet, BettorSlot, Outcome, Run, TargetKind, Verdict } fr
 import { ruleShownFor, toleranceShort } from "../../src/judge";
 import { canonicalJson } from "../../src/seal";
 import { AUTONOMOUS_PERSON_REASON, orderModelBettors } from "../../src/claimants";
+import { SIMPLE_WORDS, shortDay, shortModelName } from "../../src/paste-words";
 import { formatUsd1e18 } from "../../src/units";
 import { appliedFeedActions, forkEventsWarning, level2Header } from "../../src/captions";
 
@@ -257,3 +258,20 @@ export function bettorLines(file: Pick<AtlasFile, "bets" | "verdicts" | "agentLo
 /** What a bettor line says after its name. */
 export const bettorLineWords = (l: BettorLine): string =>
   l.status === "sealed" ? l.outcomes ?? "no verdict" : `${l.status === "not_asked" ? "not asked" : "no usable answer"}${l.reason ? ` (${l.reason})` : ""}`;
+
+/**
+ * R7 (D69): the card credits Meta's tools in plain words, from the file alone: who wrote the test, who bet. A recorded answer
+ * (server/example-round.ts) is said to be recorded, with its day. "Test written by Muse Wonder · bet by Muse Spark and Muse Spark Open".
+ */
+export function creditLine(file: Pick<AtlasFile, "experiments" | "bets" | "bettors">): string {
+  const by = file.experiments[0]?.proposedBy;
+  const wonder = (m?: string) => (m ? shortModelName(m) : "an AI");
+  const test = !by ? null : by.role === "investigator" ? `Test written by ${wonder(by.model)}` : by.role === "human" && by.editedFrom ? `Test edited by the person from ${wonder(by.editedFrom.model)}'s` : by.role === "human" ? "Test written by the person" : by.role === "adversary" ? `Test written by ${wonder(by.model)}` : null;
+  const models = orderModelBettors([...new Set(file.bets.filter((b) => b.who !== "human").map((b) => b.who))]);
+  const names = models.map((w) => {
+    const slot = file.bettors?.find((s) => s.who === w);
+    const name = shortModelName(w.replace(/^model:/, ""));
+    return slot?.recorded ? `${name} (its answer recorded ${shortDay(slot.recorded)})` : name;
+  });
+  return SIMPLE_WORDS.credit(test, names);
+}
