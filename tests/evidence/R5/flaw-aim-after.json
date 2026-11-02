@@ -1,0 +1,2436 @@
+{
+ "mode": "after",
+ "spent": 0.21594399999999997,
+ "rows": [
+  {
+   "file": "pricing.ts",
+   "mode": "after",
+   "claim": "People expect passing taxRate 0 to quoteOrder to charge no tax, but the code really treats 0 as missing via rate || 0.2 and applies 20% tax instead.",
+   "usd": 0.026708,
+   "allowed": 3,
+   "proposed": 3,
+   "defaultIndex": 0,
+   "defaultReached": true,
+   "anyReached": true,
+   "tests": [
+    {
+     "params": {
+      "shape": "call-function",
+      "exportName": "quoteOrder",
+      "args": [
+       {
+        "kind": "json",
+        "value": [
+         {
+          "sku": "A",
+          "qty": 1
+         }
+        ]
+       },
+       {
+        "kind": "stand-in",
+        "name": "source",
+        "async": true,
+        "calls": [
+         {
+          "do": "return",
+          "value": 100
+         }
+        ],
+        "then": "repeat_last"
+       },
+       {
+        "kind": "json",
+        "value": 0
+       }
+      ]
+     },
+     "reached": true,
+     "planted": {
+      "outcome": "returned",
+      "returnedJson": "120",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 0,
+       "returnedType": "number",
+       "returnedJson": "120",
+       "calls:source": 1
+      },
+      "control": true
+     },
+     "fixedCopy": {
+      "outcome": "returned",
+      "returnedJson": "100",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 0,
+       "returnedType": "number",
+       "returnedJson": "100",
+       "calls:source": 1
+      },
+      "control": true
+     }
+    },
+    {
+     "params": {
+      "shape": "call-function",
+      "exportName": "quoteOrder",
+      "args": [
+       {
+        "kind": "json",
+        "value": [
+         {
+          "sku": "FREE",
+          "qty": 1
+         }
+        ]
+       },
+       {
+        "kind": "stand-in",
+        "name": "source",
+        "async": true,
+        "calls": [
+         {
+          "do": "return",
+          "value": 0
+         }
+        ],
+        "then": "repeat_last"
+       },
+       {
+        "kind": "json",
+        "value": 0.2
+       }
+      ],
+      "calls": [
+       {
+        "exportName": "quoteOrder",
+        "args": [
+         {
+          "kind": "json",
+          "value": [
+           {
+            "sku": "FREE",
+            "qty": 1
+           }
+          ]
+         },
+         {
+          "kind": "stand-in",
+          "name": "source",
+          "async": true,
+          "calls": [
+           {
+            "do": "return",
+            "value": 0
+           }
+          ],
+          "then": "repeat_last"
+         },
+         {
+          "kind": "json",
+          "value": 0.2
+         }
+        ]
+       },
+       {
+        "exportName": "quoteOrder",
+        "args": [
+         {
+          "kind": "json",
+          "value": [
+           {
+            "sku": "FREE",
+            "qty": 1
+           }
+          ]
+         },
+         {
+          "kind": "stand-in",
+          "name": "source",
+          "async": true,
+          "calls": [
+           {
+            "do": "return",
+            "value": 0
+           }
+          ],
+          "then": "repeat_last"
+         },
+         {
+          "kind": "json",
+          "value": 0.2
+         }
+        ]
+       }
+      ]
+     },
+     "reached": true,
+     "planted": {
+      "outcome": "returned",
+      "returnedJson": "0",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 0,
+       "returnedType": "number",
+       "returnedJson": "0",
+       "calls:source": 2
+      },
+      "control": true
+     },
+     "fixedCopy": {
+      "outcome": "returned",
+      "returnedJson": "0",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 0,
+       "returnedType": "number",
+       "returnedJson": "0",
+       "calls:source": 1
+      },
+      "control": true
+     }
+    },
+    {
+     "params": {
+      "shape": "call-function",
+      "exportName": "quoteOrder",
+      "args": [
+       {
+        "kind": "json",
+        "value": [
+         {
+          "sku": "A",
+          "qty": 1
+         }
+        ]
+       },
+       {
+        "kind": "stand-in",
+        "name": "source",
+        "async": true,
+        "calls": [
+         {
+          "do": "return",
+          "value": 100
+         },
+         {
+          "do": "return",
+          "value": 200
+         }
+        ],
+        "then": "repeat_last"
+       },
+       {
+        "kind": "json",
+        "value": 0.2
+       }
+      ],
+      "watchLimitMs": 90000,
+      "calls": [
+       {
+        "exportName": "quoteOrder",
+        "args": [
+         {
+          "kind": "json",
+          "value": [
+           {
+            "sku": "A",
+            "qty": 1
+           }
+          ]
+         },
+         {
+          "kind": "stand-in",
+          "name": "source",
+          "async": true,
+          "calls": [
+           {
+            "do": "return",
+            "value": 100
+           },
+           {
+            "do": "return",
+            "value": 200
+           }
+          ],
+          "then": "repeat_last"
+         },
+         {
+          "kind": "json",
+          "value": 0.2
+         }
+        ]
+       },
+       {
+        "exportName": "quoteOrder",
+        "args": [
+         {
+          "kind": "json",
+          "value": [
+           {
+            "sku": "A",
+            "qty": 1
+           }
+          ]
+         },
+         {
+          "kind": "stand-in",
+          "name": "source",
+          "async": true,
+          "calls": [
+           {
+            "do": "return",
+            "value": 100
+           },
+           {
+            "do": "return",
+            "value": 200
+           }
+          ],
+          "then": "repeat_last"
+         },
+         {
+          "kind": "json",
+          "value": 0.2
+         }
+        ],
+        "waitMs": 60000
+       }
+      ]
+     },
+     "reached": false,
+     "planted": {
+      "outcome": "returned",
+      "returnedJson": "240",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 0,
+       "returnedType": "number",
+       "returnedJson": "240",
+       "calls:source": 2
+      },
+      "control": true
+     },
+     "fixedCopy": {
+      "outcome": "returned",
+      "returnedJson": "240",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 0,
+       "returnedType": "number",
+       "returnedJson": "240",
+       "calls:source": 2
+      },
+      "control": true
+     }
+    }
+   ]
+  },
+  {
+   "file": "pricing.ts",
+   "mode": "after",
+   "claim": "People expect passing taxRate 0 to quoteOrder to mean no tax is charged, but the code really treats 0 as missing via rate || 0.2 and adds 20 percent tax instead.",
+   "usd": 0.026608,
+   "allowed": 3,
+   "proposed": 3,
+   "defaultIndex": 0,
+   "defaultReached": true,
+   "anyReached": true,
+   "tests": [
+    {
+     "params": {
+      "shape": "call-function",
+      "exportName": "quoteOrder",
+      "args": [
+       {
+        "kind": "json",
+        "value": [
+         {
+          "sku": "A",
+          "qty": 1
+         }
+        ]
+       },
+       {
+        "kind": "stand-in",
+        "name": "source",
+        "async": true,
+        "calls": [
+         {
+          "do": "return",
+          "value": 100
+         }
+        ],
+        "then": "repeat_last"
+       },
+       {
+        "kind": "json",
+        "value": 0
+       }
+      ]
+     },
+     "reached": true,
+     "planted": {
+      "outcome": "returned",
+      "returnedJson": "120",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 0,
+       "returnedType": "number",
+       "returnedJson": "120",
+       "calls:source": 1
+      },
+      "control": true
+     },
+     "fixedCopy": {
+      "outcome": "returned",
+      "returnedJson": "100",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 0,
+       "returnedType": "number",
+       "returnedJson": "100",
+       "calls:source": 1
+      },
+      "control": true
+     }
+    },
+    {
+     "params": {
+      "shape": "call-function",
+      "exportName": "quoteOrder",
+      "args": [
+       {
+        "kind": "json",
+        "value": [
+         {
+          "sku": "FREE",
+          "qty": 1
+         }
+        ]
+       },
+       {
+        "kind": "stand-in",
+        "name": "source",
+        "async": true,
+        "calls": [
+         {
+          "do": "return",
+          "value": 0
+         },
+         {
+          "do": "return",
+          "value": 100
+         }
+        ],
+        "then": "repeat_last"
+       }
+      ],
+      "calls": [
+       {
+        "exportName": "quoteOrder",
+        "args": [
+         {
+          "kind": "json",
+          "value": [
+           {
+            "sku": "FREE",
+            "qty": 1
+           }
+          ]
+         },
+         {
+          "kind": "stand-in",
+          "name": "source",
+          "async": true,
+          "calls": [
+           {
+            "do": "return",
+            "value": 0
+           },
+           {
+            "do": "return",
+            "value": 100
+           }
+          ],
+          "then": "repeat_last"
+         }
+        ]
+       },
+       {
+        "exportName": "quoteOrder",
+        "args": [
+         {
+          "kind": "json",
+          "value": [
+           {
+            "sku": "FREE",
+            "qty": 1
+           }
+          ]
+         },
+         {
+          "kind": "stand-in",
+          "name": "source",
+          "async": true,
+          "calls": [
+           {
+            "do": "return",
+            "value": 0
+           },
+           {
+            "do": "return",
+            "value": 100
+           }
+          ],
+          "then": "repeat_last"
+         }
+        ]
+       }
+      ]
+     },
+     "reached": true,
+     "planted": {
+      "outcome": "returned",
+      "returnedJson": "120",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 0,
+       "returnedType": "number",
+       "returnedJson": "120",
+       "calls:source": 2
+      },
+      "control": true
+     },
+     "fixedCopy": {
+      "outcome": "returned",
+      "returnedJson": "0",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 0,
+       "returnedType": "number",
+       "returnedJson": "0",
+       "calls:source": 1
+      },
+      "control": true
+     }
+    },
+    {
+     "params": {
+      "shape": "call-function",
+      "exportName": "quoteOrder",
+      "args": [
+       {
+        "kind": "json",
+        "value": [
+         {
+          "sku": "B",
+          "qty": 1
+         }
+        ]
+       },
+       {
+        "kind": "stand-in",
+        "name": "source",
+        "async": true,
+        "calls": [
+         {
+          "do": "return",
+          "value": 100
+         },
+         {
+          "do": "return",
+          "value": 200
+         }
+        ],
+        "then": "repeat_last"
+       }
+      ],
+      "watchLimitMs": 90000,
+      "calls": [
+       {
+        "exportName": "quoteOrder",
+        "args": [
+         {
+          "kind": "json",
+          "value": [
+           {
+            "sku": "B",
+            "qty": 1
+           }
+          ]
+         },
+         {
+          "kind": "stand-in",
+          "name": "source",
+          "async": true,
+          "calls": [
+           {
+            "do": "return",
+            "value": 100
+           },
+           {
+            "do": "return",
+            "value": 200
+           }
+          ],
+          "then": "repeat_last"
+         }
+        ]
+       },
+       {
+        "exportName": "quoteOrder",
+        "args": [
+         {
+          "kind": "json",
+          "value": [
+           {
+            "sku": "B",
+            "qty": 1
+           }
+          ]
+         },
+         {
+          "kind": "stand-in",
+          "name": "source",
+          "async": true,
+          "calls": [
+           {
+            "do": "return",
+            "value": 100
+           },
+           {
+            "do": "return",
+            "value": 200
+           }
+          ],
+          "then": "repeat_last"
+         }
+        ],
+        "waitMs": 60000
+       }
+      ]
+     },
+     "reached": false,
+     "planted": {
+      "outcome": "returned",
+      "returnedJson": "240",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 0,
+       "returnedType": "number",
+       "returnedJson": "240",
+       "calls:source": 2
+      },
+      "control": true
+     },
+     "fixedCopy": {
+      "outcome": "returned",
+      "returnedJson": "240",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 0,
+       "returnedType": "number",
+       "returnedJson": "240",
+       "calls:source": 2
+      },
+      "control": true
+     }
+    }
+   ]
+  },
+  {
+   "file": "importer.py",
+   "mode": "after",
+   "claim": "People expect run_import to import the same records again on a second call, but the code really reuses dedupe's mutable default seen set across calls so the second call writes nothing and returns 0.",
+   "usd": 0.026248,
+   "allowed": 3,
+   "proposed": 3,
+   "defaultIndex": 0,
+   "defaultReached": true,
+   "anyReached": true,
+   "tests": [
+    {
+     "params": {
+      "shape": "call-function",
+      "exportName": "run_import",
+      "args": [
+       {
+        "kind": "json",
+        "value": [
+         {
+          "email": " A@Example.com ",
+          "name": " Ann "
+         },
+         {
+          "email": "b@example.com",
+          "name": "Bob"
+         }
+        ]
+       },
+       {
+        "kind": "stand-in",
+        "name": "sink",
+        "async": false,
+        "calls": [
+         {
+          "do": "return",
+          "value": 2
+         }
+        ],
+        "then": "repeat_last"
+       }
+      ],
+      "calls": [
+       {
+        "exportName": "run_import",
+        "args": [
+         {
+          "kind": "json",
+          "value": [
+           {
+            "email": " A@Example.com ",
+            "name": " Ann "
+           },
+           {
+            "email": "b@example.com",
+            "name": "Bob"
+           }
+          ]
+         },
+         {
+          "kind": "stand-in",
+          "name": "sink",
+          "async": false,
+          "calls": [
+           {
+            "do": "return",
+            "value": 2
+           }
+          ],
+          "then": "repeat_last"
+         }
+        ]
+       },
+       {
+        "exportName": "run_import",
+        "args": [
+         {
+          "kind": "json",
+          "value": [
+           {
+            "email": " A@Example.com ",
+            "name": " Ann "
+           },
+           {
+            "email": "b@example.com",
+            "name": "Bob"
+           }
+          ]
+         },
+         {
+          "kind": "stand-in",
+          "name": "sink",
+          "async": false,
+          "calls": [
+           {
+            "do": "return",
+            "value": 2
+           }
+          ],
+          "then": "repeat_last"
+         }
+        ]
+       }
+      ]
+     },
+     "reached": true,
+     "planted": {
+      "outcome": "returned",
+      "returnedJson": "0",
+      "measured": {
+       "calls:sink": 1,
+       "outcome": "returned",
+       "returnedJson": "0",
+       "returnedType": "number",
+       "virtualMs": 0
+      },
+      "control": true
+     },
+     "fixedCopy": {
+      "outcome": "returned",
+      "returnedJson": "2",
+      "measured": {
+       "calls:sink": 2,
+       "outcome": "returned",
+       "returnedJson": "2",
+       "returnedType": "number",
+       "virtualMs": 0
+      },
+      "control": true
+     }
+    },
+    {
+     "params": {
+      "shape": "call-function",
+      "exportName": "run_import",
+      "args": [
+       {
+        "kind": "json",
+        "value": [
+         {
+          "email": "a@example.com",
+          "name": "Ann"
+         },
+         {
+          "email": "b@example.com",
+          "name": "Bob"
+         }
+        ]
+       },
+       {
+        "kind": "stand-in",
+        "name": "sink",
+        "async": false,
+        "calls": [
+         {
+          "do": "throw",
+          "errorName": "ValueError",
+          "message": "bad batch"
+         },
+         {
+          "do": "return",
+          "value": 1
+         }
+        ],
+        "then": "repeat_last"
+       },
+       {
+        "kind": "json",
+        "value": 1
+       }
+      ]
+     },
+     "reached": true,
+     "planted": {
+      "outcome": "returned",
+      "returnedJson": "1",
+      "measured": {
+       "calls:sink": 2,
+       "outcome": "returned",
+       "returnedJson": "1",
+       "returnedType": "number",
+       "virtualMs": 0
+      },
+      "control": true
+     },
+     "fixedCopy": {
+      "outcome": "threw",
+      "thrown": "ValueError",
+      "message": "bad batch",
+      "measured": {
+       "calls:sink": 1,
+       "outcome": "threw",
+       "thrownMessage": "bad batch",
+       "thrownName": "ValueError",
+       "thrownType": "Error",
+       "virtualMs": 0
+      },
+      "control": true
+     }
+    },
+    {
+     "params": {
+      "shape": "call-function",
+      "exportName": "run_import",
+      "args": [
+       {
+        "kind": "json",
+        "value": [
+         {
+          "email": "a@example.com",
+          "name": "Ann"
+         },
+         {
+          "name": "No Email"
+         }
+        ]
+       },
+       {
+        "kind": "stand-in",
+        "name": "sink",
+        "async": false,
+        "calls": [
+         {
+          "do": "return",
+          "value": 1
+         }
+        ],
+        "then": "repeat_last"
+       }
+      ]
+     },
+     "reached": false,
+     "planted": {
+      "outcome": "threw",
+      "thrown": "KeyError",
+      "message": "'email'",
+      "measured": {
+       "calls:sink": 0,
+       "outcome": "threw",
+       "thrownMessage": "'email'",
+       "thrownName": "KeyError",
+       "thrownType": "Error",
+       "virtualMs": 0
+      },
+      "control": true
+     },
+     "fixedCopy": {
+      "outcome": "threw",
+      "thrown": "KeyError",
+      "message": "'email'",
+      "measured": {
+       "calls:sink": 0,
+       "outcome": "threw",
+       "thrownMessage": "'email'",
+       "thrownName": "KeyError",
+       "thrownType": "Error",
+       "virtualMs": 0
+      },
+      "control": true
+     }
+    }
+   ]
+  },
+  {
+   "file": "importer.py",
+   "mode": "after",
+   "claim": "People expect run_import to write the same records again on a second call with the same input, but the code really reuses dedupe's mutable default seen set across calls so the second call writes nothing and returns 0.",
+   "usd": 0.025328,
+   "allowed": 3,
+   "proposed": 3,
+   "defaultIndex": 0,
+   "defaultReached": true,
+   "anyReached": true,
+   "tests": [
+    {
+     "params": {
+      "shape": "call-function",
+      "exportName": "run_import",
+      "args": [
+       {
+        "kind": "json",
+        "value": [
+         {
+          "email": "a@example.com",
+          "name": "Ann"
+         },
+         {
+          "email": "b@example.com",
+          "name": "Bob"
+         }
+        ]
+       },
+       {
+        "kind": "stand-in",
+        "name": "sink",
+        "async": false,
+        "calls": [
+         {
+          "do": "return",
+          "value": 2
+         }
+        ],
+        "then": "repeat_last"
+       }
+      ],
+      "calls": [
+       {
+        "exportName": "run_import",
+        "args": [
+         {
+          "kind": "json",
+          "value": [
+           {
+            "email": "a@example.com",
+            "name": "Ann"
+           },
+           {
+            "email": "b@example.com",
+            "name": "Bob"
+           }
+          ]
+         },
+         {
+          "kind": "stand-in",
+          "name": "sink",
+          "async": false,
+          "calls": [
+           {
+            "do": "return",
+            "value": 2
+           }
+          ],
+          "then": "repeat_last"
+         }
+        ]
+       },
+       {
+        "exportName": "run_import",
+        "args": [
+         {
+          "kind": "json",
+          "value": [
+           {
+            "email": "a@example.com",
+            "name": "Ann"
+           },
+           {
+            "email": "b@example.com",
+            "name": "Bob"
+           }
+          ]
+         },
+         {
+          "kind": "stand-in",
+          "name": "sink",
+          "async": false,
+          "calls": [
+           {
+            "do": "return",
+            "value": 2
+           }
+          ],
+          "then": "repeat_last"
+         }
+        ]
+       }
+      ]
+     },
+     "reached": true,
+     "planted": {
+      "outcome": "returned",
+      "returnedJson": "0",
+      "measured": {
+       "calls:sink": 1,
+       "outcome": "returned",
+       "returnedJson": "0",
+       "returnedType": "number",
+       "virtualMs": 0
+      },
+      "control": true
+     },
+     "fixedCopy": {
+      "outcome": "returned",
+      "returnedJson": "2",
+      "measured": {
+       "calls:sink": 2,
+       "outcome": "returned",
+       "returnedJson": "2",
+       "returnedType": "number",
+       "virtualMs": 0
+      },
+      "control": true
+     }
+    },
+    {
+     "params": {
+      "shape": "call-function",
+      "exportName": "run_import",
+      "args": [
+       {
+        "kind": "json",
+        "value": [
+         {
+          "email": "a@example.com",
+          "name": "Ann"
+         },
+         {
+          "email": "b@example.com",
+          "name": "Bob"
+         },
+         {
+          "email": "c@example.com",
+          "name": "Cat"
+         },
+         {
+          "email": "d@example.com",
+          "name": "Dan"
+         }
+        ]
+       },
+       {
+        "kind": "stand-in",
+        "name": "sink",
+        "async": false,
+        "calls": [
+         {
+          "do": "throw",
+          "errorName": "ValueError",
+          "message": "bad batch"
+         },
+         {
+          "do": "return",
+          "value": 2
+         }
+        ],
+        "then": "repeat_last"
+       }
+      ]
+     },
+     "reached": true,
+     "planted": {
+      "outcome": "returned",
+      "returnedJson": "2",
+      "measured": {
+       "calls:sink": 2,
+       "outcome": "returned",
+       "returnedJson": "2",
+       "returnedType": "number",
+       "virtualMs": 0
+      },
+      "control": true
+     },
+     "fixedCopy": {
+      "outcome": "threw",
+      "thrown": "ValueError",
+      "message": "bad batch",
+      "measured": {
+       "calls:sink": 1,
+       "outcome": "threw",
+       "thrownMessage": "bad batch",
+       "thrownName": "ValueError",
+       "thrownType": "Error",
+       "virtualMs": 0
+      },
+      "control": true
+     }
+    },
+    {
+     "params": {
+      "shape": "call-function",
+      "exportName": "run_import",
+      "args": [
+       {
+        "kind": "json",
+        "value": [
+         {
+          "email": " A@Example.com ",
+          "name": " Ann "
+         },
+         {
+          "email": "a@example.com",
+          "name": "Duplicate Ann"
+         },
+         {
+          "email": "b@example.com",
+          "name": "Bob"
+         }
+        ]
+       },
+       {
+        "kind": "stand-in",
+        "name": "sink",
+        "async": false,
+        "calls": [
+         {
+          "do": "return",
+          "value": 2
+         }
+        ],
+        "then": "repeat_last"
+       }
+      ]
+     },
+     "reached": false,
+     "planted": {
+      "outcome": "returned",
+      "returnedJson": "2",
+      "measured": {
+       "calls:sink": 1,
+       "outcome": "returned",
+       "returnedJson": "2",
+       "returnedType": "number",
+       "virtualMs": 0
+      },
+      "control": true
+     },
+     "fixedCopy": {
+      "outcome": "returned",
+      "returnedJson": "2",
+      "measured": {
+       "calls:sink": 1,
+       "outcome": "returned",
+       "returnedJson": "2",
+       "returnedType": "number",
+       "virtualMs": 0
+      },
+      "control": true
+     }
+    }
+   ]
+  },
+  {
+   "file": "orders.ts",
+   "mode": "after",
+   "claim": "People expect fetchAllOrders to return every order by following nextCursor until it is null, but the code really stops silently after 5 pages by default and returns only those ids with no error or indication that more pages remain.",
+   "usd": 0.02366,
+   "allowed": 3,
+   "proposed": 3,
+   "defaultIndex": 0,
+   "defaultReached": true,
+   "anyReached": true,
+   "tests": [
+    {
+     "params": {
+      "shape": "call-function",
+      "exportName": "fetchAllOrders",
+      "args": [
+       {
+        "kind": "json",
+        "value": "https://api.example.com/orders"
+       }
+      ],
+      "network": {
+       "replaces": "fetch",
+       "calls": [
+        {
+         "do": "respond",
+         "status": 200,
+         "body": {
+          "items": [
+           {
+            "id": "o1"
+           }
+          ],
+          "nextCursor": "c2"
+         }
+        },
+        {
+         "do": "respond",
+         "status": 200,
+         "body": {
+          "items": [
+           {
+            "id": "o2"
+           }
+          ],
+          "nextCursor": "c3"
+         }
+        },
+        {
+         "do": "respond",
+         "status": 200,
+         "body": {
+          "items": [
+           {
+            "id": "o3"
+           }
+          ],
+          "nextCursor": "c4"
+         }
+        },
+        {
+         "do": "respond",
+         "status": 200,
+         "body": {
+          "items": [
+           {
+            "id": "o4"
+           }
+          ],
+          "nextCursor": "c5"
+         }
+        },
+        {
+         "do": "respond",
+         "status": 200,
+         "body": {
+          "items": [
+           {
+            "id": "o5"
+           }
+          ],
+          "nextCursor": "c6"
+         }
+        },
+        {
+         "do": "respond",
+         "status": 200,
+         "body": {
+          "items": [
+           {
+            "id": "o6"
+           }
+          ],
+          "nextCursor": "c7"
+         }
+        },
+        {
+         "do": "respond",
+         "status": 200,
+         "body": {
+          "items": [
+           {
+            "id": "o7"
+           }
+          ],
+          "nextCursor": null
+         }
+        }
+       ],
+       "then": "repeat_last"
+      }
+     },
+     "reached": true,
+     "planted": {
+      "outcome": "returned",
+      "returnedJson": "[\"o1\",\"o2\",\"o3\",\"o4\",\"o5\"]",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 0,
+       "returnedType": "array",
+       "returnedJson": "[\"o1\",\"o2\",\"o3\",\"o4\",\"o5\"]",
+       "calls:fetch": 5
+      },
+      "control": true
+     },
+     "fixedCopy": {
+      "outcome": "threw",
+      "thrown": "Error",
+      "message": "more pages than maxPages",
+      "measured": {
+       "outcome": "threw",
+       "virtualMs": 0,
+       "thrownType": "Error",
+       "thrownName": "Error",
+       "thrownMessage": "more pages than maxPages",
+       "calls:fetch": 5
+      },
+      "control": true
+     }
+    },
+    {
+     "params": {
+      "shape": "call-function",
+      "exportName": "fetchAllOrders",
+      "args": [
+       {
+        "kind": "json",
+        "value": "https://api.example.com/orders"
+       }
+      ],
+      "network": {
+       "replaces": "fetch",
+       "calls": [
+        {
+         "do": "respond",
+         "status": 429,
+         "body": {}
+        },
+        {
+         "do": "respond",
+         "status": 429,
+         "body": {}
+        },
+        {
+         "do": "respond",
+         "status": 429,
+         "body": {}
+        },
+        {
+         "do": "respond",
+         "status": 429,
+         "body": {}
+        },
+        {
+         "do": "respond",
+         "status": 200,
+         "body": {
+          "items": [
+           {
+            "id": "o1"
+           }
+          ],
+          "nextCursor": null
+         }
+        }
+       ],
+       "then": "repeat_last"
+      }
+     },
+     "reached": false,
+     "planted": {
+      "outcome": "threw",
+      "thrown": "Error",
+      "message": "HTTP 429",
+      "measured": {
+       "outcome": "threw",
+       "virtualMs": 1400,
+       "thrownType": "Error",
+       "thrownName": "Error",
+       "thrownMessage": "HTTP 429",
+       "calls:fetch": 4
+      },
+      "control": true
+     },
+     "fixedCopy": {
+      "outcome": "threw",
+      "thrown": "Error",
+      "message": "HTTP 429",
+      "measured": {
+       "outcome": "threw",
+       "virtualMs": 1400,
+       "thrownType": "Error",
+       "thrownName": "Error",
+       "thrownMessage": "HTTP 429",
+       "calls:fetch": 4
+      },
+      "control": true
+     }
+    },
+    {
+     "params": {
+      "shape": "call-function",
+      "exportName": "fetchAllOrders",
+      "args": [
+       {
+        "kind": "json",
+        "value": "https://api.example.com/orders"
+       }
+      ],
+      "network": {
+       "replaces": "fetch",
+       "calls": [
+        {
+         "do": "respond",
+         "status": 429,
+         "body": {}
+        },
+        {
+         "do": "respond",
+         "status": 429,
+         "body": {}
+        },
+        {
+         "do": "respond",
+         "status": 429,
+         "body": {}
+        },
+        {
+         "do": "respond",
+         "status": 200,
+         "body": {
+          "items": [
+           {
+            "id": "o1"
+           }
+          ],
+          "nextCursor": null
+         }
+        }
+       ],
+       "then": "repeat_last"
+      }
+     },
+     "reached": false,
+     "planted": {
+      "outcome": "returned",
+      "returnedJson": "[\"o1\"]",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 1400,
+       "returnedType": "array",
+       "returnedJson": "[\"o1\"]",
+       "calls:fetch": 4
+      },
+      "control": true
+     },
+     "fixedCopy": {
+      "outcome": "returned",
+      "returnedJson": "[\"o1\"]",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 1400,
+       "returnedType": "array",
+       "returnedJson": "[\"o1\"]",
+       "calls:fetch": 4
+      },
+      "control": true
+     }
+    }
+   ]
+  },
+  {
+   "file": "orders.ts",
+   "mode": "after",
+   "claim": "People expect fetchAllOrders to return every order by following nextCursor until it is null, but the code really stops silently after the default maxPages of 5 pages and returns only those ids with no error or indication of truncation.",
+   "usd": 0.02278,
+   "allowed": 3,
+   "proposed": 3,
+   "defaultIndex": 0,
+   "defaultReached": true,
+   "anyReached": true,
+   "tests": [
+    {
+     "params": {
+      "shape": "call-function",
+      "exportName": "fetchAllOrders",
+      "args": [
+       {
+        "kind": "json",
+        "value": "https://example.com/orders"
+       }
+      ],
+      "network": {
+       "replaces": "fetch",
+       "calls": [
+        {
+         "do": "respond",
+         "status": 200,
+         "body": {
+          "items": [
+           {
+            "id": "o1"
+           }
+          ],
+          "nextCursor": "c1"
+         }
+        },
+        {
+         "do": "respond",
+         "status": 200,
+         "body": {
+          "items": [
+           {
+            "id": "o2"
+           }
+          ],
+          "nextCursor": "c2"
+         }
+        },
+        {
+         "do": "respond",
+         "status": 200,
+         "body": {
+          "items": [
+           {
+            "id": "o3"
+           }
+          ],
+          "nextCursor": "c3"
+         }
+        },
+        {
+         "do": "respond",
+         "status": 200,
+         "body": {
+          "items": [
+           {
+            "id": "o4"
+           }
+          ],
+          "nextCursor": "c4"
+         }
+        },
+        {
+         "do": "respond",
+         "status": 200,
+         "body": {
+          "items": [
+           {
+            "id": "o5"
+           }
+          ],
+          "nextCursor": "c5"
+         }
+        },
+        {
+         "do": "respond",
+         "status": 200,
+         "body": {
+          "items": [
+           {
+            "id": "o6"
+           }
+          ],
+          "nextCursor": null
+         }
+        }
+       ],
+       "then": "repeat_last"
+      }
+     },
+     "reached": true,
+     "planted": {
+      "outcome": "returned",
+      "returnedJson": "[\"o1\",\"o2\",\"o3\",\"o4\",\"o5\"]",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 0,
+       "returnedType": "array",
+       "returnedJson": "[\"o1\",\"o2\",\"o3\",\"o4\",\"o5\"]",
+       "calls:fetch": 5
+      },
+      "control": true
+     },
+     "fixedCopy": {
+      "outcome": "threw",
+      "thrown": "Error",
+      "message": "more pages than maxPages",
+      "measured": {
+       "outcome": "threw",
+       "virtualMs": 0,
+       "thrownType": "Error",
+       "thrownName": "Error",
+       "thrownMessage": "more pages than maxPages",
+       "calls:fetch": 5
+      },
+      "control": true
+     }
+    },
+    {
+     "params": {
+      "shape": "call-function",
+      "exportName": "fetchAllOrders",
+      "args": [
+       {
+        "kind": "json",
+        "value": "https://example.com/orders"
+       }
+      ],
+      "network": {
+       "replaces": "fetch",
+       "calls": [
+        {
+         "do": "respond",
+         "status": 429,
+         "body": {}
+        },
+        {
+         "do": "respond",
+         "status": 429,
+         "body": {}
+        },
+        {
+         "do": "respond",
+         "status": 429,
+         "body": {}
+        },
+        {
+         "do": "respond",
+         "status": 429,
+         "body": {}
+        }
+       ],
+       "then": "throw_exhausted"
+      }
+     },
+     "reached": false,
+     "planted": {
+      "outcome": "threw",
+      "thrown": "Error",
+      "message": "HTTP 429",
+      "measured": {
+       "outcome": "threw",
+       "virtualMs": 1400,
+       "thrownType": "Error",
+       "thrownName": "Error",
+       "thrownMessage": "HTTP 429",
+       "calls:fetch": 4
+      },
+      "control": true
+     },
+     "fixedCopy": {
+      "outcome": "threw",
+      "thrown": "Error",
+      "message": "HTTP 429",
+      "measured": {
+       "outcome": "threw",
+       "virtualMs": 1400,
+       "thrownType": "Error",
+       "thrownName": "Error",
+       "thrownMessage": "HTTP 429",
+       "calls:fetch": 4
+      },
+      "control": true
+     }
+    },
+    {
+     "params": {
+      "shape": "call-function",
+      "exportName": "fetchAllOrders",
+      "args": [
+       {
+        "kind": "json",
+        "value": "https://example.com/orders"
+       }
+      ],
+      "network": {
+       "replaces": "fetch",
+       "calls": [
+        {
+         "do": "respond",
+         "status": 429,
+         "body": {}
+        },
+        {
+         "do": "respond",
+         "status": 429,
+         "body": {}
+        },
+        {
+         "do": "respond",
+         "status": 429,
+         "body": {}
+        },
+        {
+         "do": "respond",
+         "status": 200,
+         "body": {
+          "items": [
+           {
+            "id": "o1"
+           }
+          ],
+          "nextCursor": null
+         }
+        }
+       ],
+       "then": "throw_exhausted"
+      }
+     },
+     "reached": false,
+     "planted": {
+      "outcome": "returned",
+      "returnedJson": "[\"o1\"]",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 1400,
+       "returnedType": "array",
+       "returnedJson": "[\"o1\"]",
+       "calls:fetch": 4
+      },
+      "control": true
+     },
+     "fixedCopy": {
+      "outcome": "returned",
+      "returnedJson": "[\"o1\"]",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 1400,
+       "returnedType": "array",
+       "returnedJson": "[\"o1\"]",
+       "calls:fetch": 4
+      },
+      "control": true
+     }
+    }
+   ]
+  },
+  {
+   "file": "routes.ts",
+   "mode": "after",
+   "claim": "People expect the median latency of four successful routes taking 10, 20, 30, and 40 ms to be 25 ms as the average of the two middle values, but the code really returns 30 ms because it picks the single element at index floor(length/2) without averaging.",
+   "usd": 0.016196,
+   "allowed": 3,
+   "proposed": 3,
+   "defaultIndex": 0,
+   "defaultReached": true,
+   "anyReached": true,
+   "tests": [
+    {
+     "params": {
+      "shape": "call-function",
+      "exportName": "report",
+      "args": [
+       {
+        "kind": "json",
+        "value": [
+         {
+          "name": "a",
+          "ms": 10,
+          "ok": true
+         },
+         {
+          "name": "b",
+          "ms": 20,
+          "ok": true
+         },
+         {
+          "name": "c",
+          "ms": 30,
+          "ok": true
+         },
+         {
+          "name": "d",
+          "ms": 40,
+          "ok": true
+         }
+        ]
+       }
+      ]
+     },
+     "reached": true,
+     "planted": {
+      "outcome": "returned",
+      "returnedJson": "{\"fastest\":{\"ms\":10,\"name\":\"a\",\"ok\":true},\"median\":30,\"slowest\":{\"ms\":40,\"name\":\"d\",\"ok\":true}}",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 0,
+       "returnedType": "object",
+       "returnedJson": "{\"fastest\":{\"ms\":10,\"name\":\"a\",\"ok\":true},\"median\":30,\"slowest\":{\"ms\":40,\"name\":\"d\",\"ok\":true}}"
+      },
+      "control": true
+     },
+     "fixedCopy": {
+      "outcome": "returned",
+      "returnedJson": "{\"fastest\":{\"ms\":10,\"name\":\"a\",\"ok\":true},\"median\":25,\"slowest\":{\"ms\":40,\"name\":\"d\",\"ok\":true}}",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 0,
+       "returnedType": "object",
+       "returnedJson": "{\"fastest\":{\"ms\":10,\"name\":\"a\",\"ok\":true},\"median\":25,\"slowest\":{\"ms\":40,\"name\":\"d\",\"ok\":true}}"
+      },
+      "control": true
+     }
+    },
+    {
+     "params": {
+      "shape": "call-function",
+      "exportName": "report",
+      "args": [
+       {
+        "kind": "json",
+        "value": [
+         {
+          "name": "a",
+          "ms": 10,
+          "ok": true
+         },
+         {
+          "name": "b",
+          "ms": 100,
+          "ok": true
+         }
+        ]
+       }
+      ]
+     },
+     "reached": true,
+     "planted": {
+      "outcome": "returned",
+      "returnedJson": "{\"fastest\":{\"ms\":10,\"name\":\"a\",\"ok\":true},\"median\":100,\"slowest\":{\"ms\":100,\"name\":\"b\",\"ok\":true}}",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 0,
+       "returnedType": "object",
+       "returnedJson": "{\"fastest\":{\"ms\":10,\"name\":\"a\",\"ok\":true},\"median\":100,\"slowest\":{\"ms\":100,\"name\":\"b\",\"ok\":true}}"
+      },
+      "control": true
+     },
+     "fixedCopy": {
+      "outcome": "returned",
+      "returnedJson": "{\"fastest\":{\"ms\":10,\"name\":\"a\",\"ok\":true},\"median\":55,\"slowest\":{\"ms\":100,\"name\":\"b\",\"ok\":true}}",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 0,
+       "returnedType": "object",
+       "returnedJson": "{\"fastest\":{\"ms\":10,\"name\":\"a\",\"ok\":true},\"median\":55,\"slowest\":{\"ms\":100,\"name\":\"b\",\"ok\":true}}"
+      },
+      "control": true
+     }
+    },
+    {
+     "params": {
+      "shape": "call-function",
+      "exportName": "report",
+      "args": [
+       {
+        "kind": "json",
+        "value": [
+         {
+          "name": "a",
+          "ms": 5,
+          "ok": false
+         },
+         {
+          "name": "b",
+          "ms": 50,
+          "ok": true
+         },
+         {
+          "name": "c",
+          "ms": 15,
+          "ok": true
+         },
+         {
+          "name": "d",
+          "ms": 25,
+          "ok": true
+         }
+        ]
+       }
+      ]
+     },
+     "reached": false,
+     "planted": {
+      "outcome": "returned",
+      "returnedJson": "{\"fastest\":{\"ms\":15,\"name\":\"c\",\"ok\":true},\"median\":25,\"slowest\":{\"ms\":50,\"name\":\"b\",\"ok\":true}}",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 0,
+       "returnedType": "object",
+       "returnedJson": "{\"fastest\":{\"ms\":15,\"name\":\"c\",\"ok\":true},\"median\":25,\"slowest\":{\"ms\":50,\"name\":\"b\",\"ok\":true}}"
+      },
+      "control": true
+     },
+     "fixedCopy": {
+      "outcome": "returned",
+      "returnedJson": "{\"fastest\":{\"ms\":15,\"name\":\"c\",\"ok\":true},\"median\":25,\"slowest\":{\"ms\":50,\"name\":\"b\",\"ok\":true}}",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 0,
+       "returnedType": "object",
+       "returnedJson": "{\"fastest\":{\"ms\":15,\"name\":\"c\",\"ok\":true},\"median\":25,\"slowest\":{\"ms\":50,\"name\":\"b\",\"ok\":true}}"
+      },
+      "control": true
+     }
+    }
+   ]
+  },
+  {
+   "file": "routes.ts",
+   "mode": "after",
+   "claim": "People expect report with successful route latencies 10, 20, 30 and 40 ms to return a median of 25 ms as the average of the two middle values, but the code really returns 30 ms because median picks the upper middle element instead of averaging it with 20 ms.",
+   "usd": 0.015516,
+   "allowed": 3,
+   "proposed": 3,
+   "defaultIndex": 0,
+   "defaultReached": true,
+   "anyReached": true,
+   "tests": [
+    {
+     "params": {
+      "shape": "call-function",
+      "exportName": "report",
+      "args": [
+       {
+        "kind": "json",
+        "value": [
+         {
+          "name": "a",
+          "ms": 10,
+          "ok": true
+         },
+         {
+          "name": "b",
+          "ms": 20,
+          "ok": true
+         },
+         {
+          "name": "c",
+          "ms": 30,
+          "ok": true
+         },
+         {
+          "name": "d",
+          "ms": 40,
+          "ok": true
+         }
+        ]
+       }
+      ]
+     },
+     "reached": true,
+     "planted": {
+      "outcome": "returned",
+      "returnedJson": "{\"fastest\":{\"ms\":10,\"name\":\"a\",\"ok\":true},\"median\":30,\"slowest\":{\"ms\":40,\"name\":\"d\",\"ok\":true}}",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 0,
+       "returnedType": "object",
+       "returnedJson": "{\"fastest\":{\"ms\":10,\"name\":\"a\",\"ok\":true},\"median\":30,\"slowest\":{\"ms\":40,\"name\":\"d\",\"ok\":true}}"
+      },
+      "control": true
+     },
+     "fixedCopy": {
+      "outcome": "returned",
+      "returnedJson": "{\"fastest\":{\"ms\":10,\"name\":\"a\",\"ok\":true},\"median\":25,\"slowest\":{\"ms\":40,\"name\":\"d\",\"ok\":true}}",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 0,
+       "returnedType": "object",
+       "returnedJson": "{\"fastest\":{\"ms\":10,\"name\":\"a\",\"ok\":true},\"median\":25,\"slowest\":{\"ms\":40,\"name\":\"d\",\"ok\":true}}"
+      },
+      "control": true
+     }
+    },
+    {
+     "params": {
+      "shape": "call-function",
+      "exportName": "report",
+      "args": [
+       {
+        "kind": "json",
+        "value": [
+         {
+          "name": "a",
+          "ms": 10,
+          "ok": false
+         },
+         {
+          "name": "b",
+          "ms": 20,
+          "ok": false
+         }
+        ]
+       }
+      ]
+     },
+     "reached": false,
+     "planted": {
+      "outcome": "returned",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 0,
+       "returnedType": "object"
+      },
+      "control": true
+     },
+     "fixedCopy": {
+      "outcome": "returned",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 0,
+       "returnedType": "object"
+      },
+      "control": true
+     }
+    },
+    {
+     "params": {
+      "shape": "call-function",
+      "exportName": "report",
+      "args": [
+       {
+        "kind": "json",
+        "value": [
+         {
+          "name": "slow-failed",
+          "ms": 999,
+          "ok": false
+         },
+         {
+          "name": "fast",
+          "ms": 5,
+          "ok": true
+         },
+         {
+          "name": "mid",
+          "ms": 50,
+          "ok": true
+         }
+        ]
+       }
+      ]
+     },
+     "reached": true,
+     "planted": {
+      "outcome": "returned",
+      "returnedJson": "{\"fastest\":{\"ms\":5,\"name\":\"fast\",\"ok\":true},\"median\":50,\"slowest\":{\"ms\":50,\"name\":\"mid\",\"ok\":true}}",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 0,
+       "returnedType": "object",
+       "returnedJson": "{\"fastest\":{\"ms\":5,\"name\":\"fast\",\"ok\":true},\"median\":50,\"slowest\":{\"ms\":50,\"name\":\"mid\",\"ok\":true}}"
+      },
+      "control": true
+     },
+     "fixedCopy": {
+      "outcome": "returned",
+      "returnedJson": "{\"fastest\":{\"ms\":5,\"name\":\"fast\",\"ok\":true},\"median\":27.5,\"slowest\":{\"ms\":50,\"name\":\"mid\",\"ok\":true}}",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 0,
+       "returnedType": "object",
+       "returnedJson": "{\"fastest\":{\"ms\":5,\"name\":\"fast\",\"ok\":true},\"median\":27.5,\"slowest\":{\"ms\":50,\"name\":\"mid\",\"ok\":true}}"
+      },
+      "control": true
+     }
+    }
+   ]
+  },
+  {
+   "file": "retry.ts",
+   "mode": "after",
+   "claim": "People expect withRetry to throw the original 429 error immediately after the third and final failed attempt, but the code really sleeps for another 400ms backoff after that last failure and then throws a generic 'gave up' error that discards the original error.",
+   "usd": 0.0157,
+   "allowed": 3,
+   "proposed": 3,
+   "defaultIndex": 0,
+   "defaultReached": true,
+   "anyReached": true,
+   "tests": [
+    {
+     "params": {
+      "shape": "call-function",
+      "exportName": "withRetry",
+      "args": [
+       {
+        "kind": "stand-in",
+        "name": "f",
+        "async": true,
+        "calls": [
+         {
+          "do": "throw",
+          "errorName": "Error",
+          "message": "429 Too Many Requests"
+         }
+        ],
+        "then": "repeat_last"
+       },
+       {
+        "kind": "json",
+        "value": 3
+       }
+      ]
+     },
+     "reached": true,
+     "planted": {
+      "outcome": "threw",
+      "thrown": "Error",
+      "message": "gave up",
+      "measured": {
+       "outcome": "threw",
+       "virtualMs": 700,
+       "thrownType": "Error",
+       "thrownName": "Error",
+       "thrownMessage": "gave up",
+       "calls:f": 3
+      },
+      "control": true
+     },
+     "fixedCopy": {
+      "outcome": "threw",
+      "thrown": "Error",
+      "message": "429 Too Many Requests",
+      "measured": {
+       "outcome": "threw",
+       "virtualMs": 300,
+       "thrownType": "Error",
+       "thrownName": "Error",
+       "thrownMessage": "429 Too Many Requests",
+       "calls:f": 3
+      },
+      "control": true
+     }
+    },
+    {
+     "params": {
+      "shape": "call-function",
+      "exportName": "withRetry",
+      "args": [
+       {
+        "kind": "stand-in",
+        "name": "f",
+        "async": true,
+        "calls": [
+         {
+          "do": "throw",
+          "errorName": "Error",
+          "message": "500 Internal Server Error"
+         }
+        ],
+        "then": "repeat_last"
+       },
+       {
+        "kind": "json",
+        "value": 3
+       }
+      ]
+     },
+     "reached": false,
+     "planted": {
+      "outcome": "threw",
+      "thrown": "Error",
+      "message": "500 Internal Server Error",
+      "measured": {
+       "outcome": "threw",
+       "virtualMs": 0,
+       "thrownType": "Error",
+       "thrownName": "Error",
+       "thrownMessage": "500 Internal Server Error",
+       "calls:f": 1
+      },
+      "control": true
+     },
+     "fixedCopy": {
+      "outcome": "threw",
+      "thrown": "Error",
+      "message": "500 Internal Server Error",
+      "measured": {
+       "outcome": "threw",
+       "virtualMs": 0,
+       "thrownType": "Error",
+       "thrownName": "Error",
+       "thrownMessage": "500 Internal Server Error",
+       "calls:f": 1
+      },
+      "control": true
+     }
+    },
+    {
+     "params": {
+      "shape": "call-function",
+      "exportName": "withRetry",
+      "args": [
+       {
+        "kind": "stand-in",
+        "name": "f",
+        "async": true,
+        "calls": [
+         {
+          "do": "throw",
+          "errorName": "Error",
+          "message": "429 Too Many Requests"
+         },
+         {
+          "do": "throw",
+          "errorName": "Error",
+          "message": "429 Too Many Requests"
+         },
+         {
+          "do": "return",
+          "value": "ok"
+         }
+        ],
+        "then": "repeat_last"
+       },
+       {
+        "kind": "json",
+        "value": 3
+       }
+      ]
+     },
+     "reached": false,
+     "planted": {
+      "outcome": "returned",
+      "returnedJson": "\"ok\"",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 300,
+       "returnedType": "string",
+       "returnedJson": "\"ok\"",
+       "calls:f": 3
+      },
+      "control": true
+     },
+     "fixedCopy": {
+      "outcome": "returned",
+      "returnedJson": "\"ok\"",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 300,
+       "returnedType": "string",
+       "returnedJson": "\"ok\"",
+       "calls:f": 3
+      },
+      "control": true
+     }
+    }
+   ]
+  },
+  {
+   "file": "retry.ts",
+   "mode": "after",
+   "claim": "People expect withRetry to surface the original 429 error after the third failed attempt without an extra pointless wait, but the code really sleeps for another 400 ms after that final failure and then throws a generic 'gave up' error that discards the original error.",
+   "usd": 0.0172,
+   "allowed": 3,
+   "proposed": 3,
+   "defaultIndex": 0,
+   "defaultReached": true,
+   "anyReached": true,
+   "tests": [
+    {
+     "params": {
+      "shape": "call-function",
+      "exportName": "withRetry",
+      "args": [
+       {
+        "kind": "stand-in",
+        "name": "f",
+        "async": true,
+        "calls": [
+         {
+          "do": "throw",
+          "errorName": "Error",
+          "message": "429 Too Many Requests"
+         },
+         {
+          "do": "throw",
+          "errorName": "Error",
+          "message": "429 Too Many Requests"
+         },
+         {
+          "do": "throw",
+          "errorName": "Error",
+          "message": "429 Too Many Requests"
+         }
+        ],
+        "then": "repeat_last"
+       },
+       {
+        "kind": "json",
+        "value": 3
+       }
+      ]
+     },
+     "reached": true,
+     "planted": {
+      "outcome": "threw",
+      "thrown": "Error",
+      "message": "gave up",
+      "measured": {
+       "outcome": "threw",
+       "virtualMs": 700,
+       "thrownType": "Error",
+       "thrownName": "Error",
+       "thrownMessage": "gave up",
+       "calls:f": 3
+      },
+      "control": true
+     },
+     "fixedCopy": {
+      "outcome": "threw",
+      "thrown": "Error",
+      "message": "429 Too Many Requests",
+      "measured": {
+       "outcome": "threw",
+       "virtualMs": 300,
+       "thrownType": "Error",
+       "thrownName": "Error",
+       "thrownMessage": "429 Too Many Requests",
+       "calls:f": 3
+      },
+      "control": true
+     }
+    },
+    {
+     "params": {
+      "shape": "call-function",
+      "exportName": "withRetry",
+      "args": [
+       {
+        "kind": "stand-in",
+        "name": "f",
+        "async": true,
+        "calls": [
+         {
+          "do": "throw",
+          "errorName": "Error",
+          "message": "429 Too Many Requests"
+         },
+         {
+          "do": "throw",
+          "errorName": "Error",
+          "message": "429 Too Many Requests"
+         },
+         {
+          "do": "return",
+          "value": "ok"
+         }
+        ],
+        "then": "repeat_last"
+       },
+       {
+        "kind": "json",
+        "value": 3
+       }
+      ]
+     },
+     "reached": false,
+     "planted": {
+      "outcome": "returned",
+      "returnedJson": "\"ok\"",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 300,
+       "returnedType": "string",
+       "returnedJson": "\"ok\"",
+       "calls:f": 3
+      },
+      "control": true
+     },
+     "fixedCopy": {
+      "outcome": "returned",
+      "returnedJson": "\"ok\"",
+      "measured": {
+       "outcome": "returned",
+       "virtualMs": 300,
+       "returnedType": "string",
+       "returnedJson": "\"ok\"",
+       "calls:f": 3
+      },
+      "control": true
+     }
+    },
+    {
+     "params": {
+      "shape": "call-function",
+      "exportName": "withRetry",
+      "args": [
+       {
+        "kind": "stand-in",
+        "name": "f",
+        "async": true,
+        "calls": [
+         {
+          "do": "throw",
+          "errorName": "Error",
+          "message": "500 Internal Server Error"
+         }
+        ],
+        "then": "repeat_last"
+       },
+       {
+        "kind": "json",
+        "value": 3
+       }
+      ]
+     },
+     "reached": false,
+     "planted": {
+      "outcome": "threw",
+      "thrown": "Error",
+      "message": "500 Internal Server Error",
+      "measured": {
+       "outcome": "threw",
+       "virtualMs": 0,
+       "thrownType": "Error",
+       "thrownName": "Error",
+       "thrownMessage": "500 Internal Server Error",
+       "calls:f": 1
+      },
+      "control": true
+     },
+     "fixedCopy": {
+      "outcome": "threw",
+      "thrown": "Error",
+      "message": "500 Internal Server Error",
+      "measured": {
+       "outcome": "threw",
+       "virtualMs": 0,
+       "thrownType": "Error",
+       "thrownName": "Error",
+       "thrownMessage": "500 Internal Server Error",
+       "calls:f": 1
+      },
+      "control": true
+     }
+    }
+   ]
+  }
+ ]
+}

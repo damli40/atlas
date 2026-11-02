@@ -169,7 +169,6 @@ describe("U3 sequences: TypeScript", () => {
   }, 60_000);
 });
 
-import { interestScoreWhy, pickDefaultTest } from "../../src/default-test";
 import { keptState, smallLimits } from "../../src/code-facts";
 import { fileOutline } from "../../src/file-outline";
 import { benchModel, deviceId } from "../../web/machines/bench/model";
@@ -178,42 +177,6 @@ import { formFromParams, paramsFromForm } from "../../web/screens/TestForm";
 
 const ORDERS = readFileSync(new URL("../evidence/U3/inputs/orders.ts", import.meta.url), "utf8");
 
-describe("U3 item 2: the default test hits an edge (plain-code rule)", () => {
-  it("reads kept state and small limits from the text", () => {
-    expect(keptState(PLAN, "py").map((k) => k.what)).toEqual(["a module-level dict (_cache)", "a caching decorator (@cached)"]);
-    expect(smallLimits(ORDERS, "ts")).toEqual([3, 5]);
-    expect(keptState(ORDERS, "ts")).toEqual([]);
-  });
-
-  it("on the cache, a second call beats a single call, and a wait past the TTL beats both", () => {
-    const one: Call = { shape: "call-function", exportName: "get_user_plan", args: [j(1)] };
-    const two = twice("get_user_plan", [j(1)]);
-    const expiry = twice("get_user_plan", [j(1)], 61_000, 120_000);
-    const code = { source: PLAN, language: "py" as const };
-    expect(pickDefaultTest([one, two], code)).toBe(1);
-    expect(pickDefaultTest([one, two, expiry], code)).toBe(2);
-    expect(interestScoreWhy(expiry, code).edges).toEqual(["calls twice on code that keeps state", "waits between the calls (an expiry)"]);
-  });
-
-  it("on the walkthrough's paging code, the failure count that reaches the retry limit beats '429 twice then 200'", () => {
-    const fake = (n429: number) => ({ replaces: "fetch" as const, then: "repeat_last" as const, calls: [...Array.from({ length: n429 }, () => ({ do: "respond" as const, status: 429, body: {} })), { do: "respond" as const, status: 200, body: { items: [{ id: "o1" }], nextCursor: null } }] });
-    const twice429: Call = { shape: "call-function", exportName: "fetchAllOrders", args: [j("https://example.com/orders")], network: fake(2) };
-    const limit429: Call = { ...twice429, network: fake(4) };
-    const code = { source: ORDERS, language: "ts" as const };
-    expect(pickDefaultTest([twice429, limit429], code)).toBe(1);
-    // A fake that repeats its 429 fails on every call: it reaches the limit too, and beats "429 twice then 200".
-    const forever: Call = { ...twice429, network: { replaces: "fetch", then: "repeat_last", calls: [{ do: "respond", status: 429, body: {} }] } };
-    expect(pickDefaultTest([twice429, forever], code)).toBe(1);
-    expect(interestScoreWhy(limit429, code).edges).toContain("fails as many times as the code's limit");
-    // A truncation: the fake keeps saying there is a next page while the test passes a page limit.
-    const pages: Call = { shape: "call-function", exportName: "fetchAllOrders", args: [j("https://example.com/orders"), j(2)], network: { replaces: "fetch", then: "repeat_last", calls: [{ do: "respond", status: 200, body: { items: [{ id: "o1" }], nextCursor: "c2" } }] } };
-    expect(interestScoreWhy(pages, code).edges).toContain("keeps saying there is another page");
-  });
-
-  it("without the file's text the rule is U2's (no edge points)", () => {
-    expect(interestScoreWhy(twice("get_user_plan", [j(1)])).edges).toEqual([]);
-  });
-});
 
 describe("U3 sequences on the drawing and in the form", () => {
   it("the replay says each call of the sequence, and how call 1 ended, before the ending", () => {

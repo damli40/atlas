@@ -107,3 +107,14 @@ describe("Wonder's sentence", () => {
     expect(PROPOSE_INSTRUCTION).not.toMatch(/does Y|expect X/);
   });
 });
+
+describe("the first bet can fail", () => {
+  it("Wonder is told to make its first test show the flaw its sentence names", () => {
+    expect(PROPOSE_INSTRUCTION).toMatch(/FIRST experiment must make exactly that flaw visible/);
+  });
+  it("a weak kind is a tie-break only", async () => {
+    const { weakSpotSummary } = await import("../../src/track-record");
+    const words = weakSpotSummary({ lines: [{ type: "timing", n: 7, notMatched: 5, under: 4, over: 1 }] } as never);
+    expect(words).toMatch(/only to choose between tests that show the flaw equally well/);
+  });
+});

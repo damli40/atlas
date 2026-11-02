@@ -299,5 +299,5 @@ export function weakSpotSummary(r: TrackRecord): string | null {
     if (l.under + l.over > 0) s += `; guessed lower than the run ${l.under}, higher ${l.over}`;
     return `${s})`;
   });
-  return `In this person's earlier rounds, their sealed bets most often did not match what the code did on these kinds of question: ${items.join("; ")}. Counted by plain code from their own bets; it says nothing about this code. Where it fits this function, prefer tests whose answers turn on those questions.`;
+  return `In this person's earlier rounds, their sealed bets most often did not match what the code did on these kinds of question: ${items.join("; ")}. Counted by plain code from their own bets; it says nothing about this code. Use this only to choose between tests that show the flaw equally well; it never changes which flaw you test.`;
 }

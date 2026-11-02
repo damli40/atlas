@@ -91,11 +91,11 @@ describe("U2 results", () => {
 });
 
 describe("U2 the default proposal and the waiting parts", () => {
-  it("picks the most interesting allowed proposal; refused ones never count", () => {
+  it("opens on Wonder's first allowed proposal, the one it was asked to aim at its sentence; refused ones never count", () => {
     const degenerate = { id: "a", gate: { allowed: true }, params: { shape: "call-function", exportName: "f", args: [{ kind: "json", value: -1 }] } };
     const refused = { id: "b", gate: { allowed: false }, params: fetchTest };
     const good = { id: "c", gate: { allowed: true }, params: fetchTest };
-    expect(defaultProposal([degenerate, refused, good])!.id).toBe("c");
+    expect(defaultProposal([refused, degenerate, good])!.id).toBe("a");
     expect(defaultProposal([refused])).toBeUndefined();
   });
 });

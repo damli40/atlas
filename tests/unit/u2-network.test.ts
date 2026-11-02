@@ -7,7 +7,6 @@ import { quizQuestionsFor } from "../../src/quiz";
 import { judge, quizBeyondLimit } from "../../src/judge";
 import { networkGap, networkUse } from "../../src/network-fake";
 import { pastedBetContext } from "../../src/paste-context";
-import { interestScore, pickDefaultTest } from "../../src/default-test";
 import { makePastedTarget } from "../../src/pasted-code";
 import { staticRefusalPy } from "../../src/pasted-python";
 import { checkProposerAnswer, buildProposerMessages } from "../../server/meta/roles/proposer";
@@ -215,21 +214,6 @@ describe("U2 network fakes: real sandbox runs", () => {
   }, 120_000);
 });
 
-describe("U2 the default test (a plain-code rule)", () => {
-  const sa = (calls: Extract<Call["args"][number], { kind: "stand-in" }>["calls"]): Call["args"][number] => ({ kind: "stand-in", name: "f", async: true, calls, then: "repeat_last" });
-  it("prefers fail-then-answer and hangs; avoids negative and empty arguments; a tie keeps Wonder's order", () => {
-    const degenerate: Call = { shape: "call-function", exportName: "g", args: [{ kind: "json", value: "u" }, { kind: "json", value: {} }, { kind: "json", value: -1 }] };
-    const retry: Call = fetchTest(fetchFake([{ do: "respond", status: 503, body: {} }, { do: "respond", status: 200, body: 1 }]));
-    const hang: Call = { shape: "call-function", exportName: "g", args: [sa([{ do: "never_settle" }])] };
-    const plainOk: Call = { shape: "call-function", exportName: "g", args: [sa([{ do: "return", value: 1 }])] };
-    expect(interestScore(degenerate)).toBeLessThan(0);
-    expect(interestScore(retry)).toBeGreaterThan(interestScore(hang));
-    expect(interestScore(hang)).toBeGreaterThan(interestScore(plainOk));
-    expect(pickDefaultTest([degenerate, plainOk, retry, hang])).toBe(2);
-    expect(pickDefaultTest([plainOk, { ...plainOk }])).toBe(0);
-    expect(pickDefaultTest([])).toBe(-1);
-  });
-});
 
 describe("U2 a call still running at the watch limit, for timing options", () => {
   const W = 10_000;

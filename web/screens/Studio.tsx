@@ -30,8 +30,7 @@ import { CANT_TELL, timeOptions } from "../../src/quiz";
 import { literal, parseTyped } from "../../src/literal";
 import { WONDER_DISPLAY, BET_WORDS, RESULT_WORDS, STAGE_WORDS, betterByRole } from "../../src/paste-words";
 import type { Mark } from "../machines/bench/play";
-import { pickDefaultTest, type CodeContext } from "../../src/default-test";
-import { keptState } from "../../src/code-facts";
+import { keptState , type CodeContext } from "../../src/code-facts";
 import { LIBRARY_WORDS } from "../../src/network-fake";
 import { CALL_DEFAULT_WATCH_LIMIT_MS } from "../../src/gate";
 import { ProofCardPage } from "./ProofCard";
@@ -67,12 +66,10 @@ export function defaultFunction(outline: FileOutline | undefined, exports: reado
   return [...fns].sort((a, b) => out(b.name) - out(a.name) || a.lineStart - b.lineStart)[0]!.name;
 }
 
-/** U2 (D53): the plain-code rule's pick among the allowed proposals (src/default-test.ts), or undefined. */
-export function defaultProposal<P extends { gate: { allowed: boolean }; params: unknown }>(proposals: readonly P[], code?: CodeContext): P | undefined {
-  const allowed = proposals.filter((p) => p.gate.allowed);
-  // U3: the rule prefers a test that hits an edge, read from the file's text (a second call on a cache, the Nth failure).
-  const i = pickDefaultTest(allowed.map((p) => p.params as CallTest), code);
-  return i >= 0 ? allowed[i] : undefined;
+/** The test a round opens on, or undefined. */
+export function defaultProposal<P extends { gate: { allowed: boolean }; params: unknown }>(proposals: readonly P[]): P | undefined {
+  // Wonder's first allowed test: it is asked to make that one show the flaw its sentence names, so the person's first bet can fail. Every bettor gets the same test (D19).
+  return proposals.find((p) => p.gate.allowed);
 }
 
 /**
@@ -484,11 +481,10 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       setWonderWait((w) => (w ? { ...w, phase: BET_WORDS.waitChecked(allowedN, p.proposals.length) } : w));
       if (ownTest.current) return; // the person is writing their own test: Wonder's tests wait in the list
       const lang = pasted?.target.language ?? pasted?.language.chosen;
-      // U2 (D53) / U3: the default is the plain-code rule's pick (src/default-test.ts); "Test this claim" opens on
-      // Wonder's first allowed test, the one aimed at the sentence.
+      // The default is Wonder's first allowed test; "Test this claim" too, except on code that keeps state (claimProposal).
       // A test that has already run on this code is not offered again: its answer is known.
       const offered = p.proposals.filter((x) => !alreadyRan(x.params));
-      const first = opts.pick === "list" ? undefined : opts.pick === "first" ? claimProposal(offered, lang ? { source: readText, language: lang } : undefined) : defaultProposal(offered, lang ? { source: readText, language: lang } : undefined);
+      const first = opts.pick === "list" ? undefined : opts.pick === "first" ? claimProposal(offered, lang ? { source: readText, language: lang } : undefined) : defaultProposal(offered);
       if (first) await start(() => api.experimentFromProposal(target, first.id, { quiz: true }));
       else setChanging(true);
     } catch (e) {
