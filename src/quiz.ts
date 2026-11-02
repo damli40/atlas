@@ -146,6 +146,18 @@ export function quizQuestionsFor(test: unknown, exportNames?: readonly string[],
   return out;
 }
 
+/**
+ * R7 (D69): the one question a round asks when the person wants one question, not a stepper. Plain code, from the
+ * questions alone: "how it ends" (returns, throws, never finishes, still running at the watch limit) when the round has
+ * it, else the first question. Why the ending: every run has one, so any answer but "can't tell" is judged matched or
+ * didn't match; it is the question the result leads with when it is missed (D64); and it never asks for a count or a
+ * time, which D64 never leads with. Every bettor gets this same one question (D19).
+ */
+export function oneQuestion(questions: readonly Question[]): Question[] {
+  const ending = questions.find((q) => q.measures === "outcome");
+  return ending ? [ending] : questions.slice(0, 1);
+}
+
 // ---------- coverage (tests and the builder's own guard) ----------
 
 /** For count and time options: a reason when some value from 0 up is in no option or in two; null when each is in exactly one. */

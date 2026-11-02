@@ -341,8 +341,8 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
     /** D04-04: lines a person picked themselves. */
     pickLines: (target: Target, file: string, lineStart: number, lineEnd: number) =>
       post<{ finding: Finding }>("/findings", { target: { ref: target.ref, codeSha256: target.codeSha256 }, file, lineStart, lineEnd }).then((r) => r.finding),
-    experiment: (target: Pick<Target, "ref" | "codeSha256">, params: unknown, findingId?: string, editedFrom?: string, opts: { quiz?: true } = {}) =>
-      post<ExperimentAnswer>("/experiments", { target: { ref: target.ref, codeSha256: target.codeSha256 }, params, ...(findingId ? { findingId } : {}), ...(editedFrom ? { editedFrom } : {}), ...(opts.quiz ? { quiz: true } : {}) }),
+    experiment: (target: Pick<Target, "ref" | "codeSha256">, params: unknown, findingId?: string, editedFrom?: string, opts: { quiz?: true; one?: true } = {}) =>
+      post<ExperimentAnswer>("/experiments", { target: { ref: target.ref, codeSha256: target.codeSha256 }, params, ...(findingId ? { findingId } : {}), ...(editedFrom ? { editedFrom } : {}), ...(opts.quiz ? { quiz: true } : {}), ...(opts.one ? { one: true } : {}) }),
     bet: (experimentId: string, measures: string, answer: HumanAnswer) =>
       post<{ bet: ShownBet }>("/bets", { experimentId, who: "human", measures, answer }).then((r) => r.bet),
     /**
@@ -371,8 +371,8 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
     names: (target: Pick<Target, "ref" | "codeSha256">) =>
       post<{ ok: boolean; model: string; names: Record<string, string>; reason?: string }>("/paste/names", { target: { ref: target.ref, codeSha256: target.codeSha256 } }),
     /** E3: a test Muse Wonder proposed, used as proposed. */
-    experimentFromProposal: (target: Pick<Target, "ref" | "codeSha256">, proposalId: string, opts: { quiz?: true } = {}) =>
-      post<ExperimentAnswer>("/experiments", { target: { ref: target.ref, codeSha256: target.codeSha256 }, proposalId, ...(opts.quiz ? { quiz: true } : {}) }),
+    experimentFromProposal: (target: Pick<Target, "ref" | "codeSha256">, proposalId: string, opts: { quiz?: true; one?: true } = {}) =>
+      post<ExperimentAnswer>("/experiments", { target: { ref: target.ref, codeSha256: target.codeSha256 }, proposalId, ...(opts.quiz ? { quiz: true } : {}), ...(opts.one ? { one: true } : {}) }),
     /** E3: Muse Wonder's sentence, once the person's bets on this experiment are sealed. */
     claim: (experimentId: string) => post<{ model: string; display: string; claim: string }>("/paste/claim", { experimentId }),
     /** X1/X2: start an outline job on a GitHub folder or uploaded files (202, then poll outlineJob). */

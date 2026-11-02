@@ -82,6 +82,8 @@ export interface ModelSlot {
   detail?: string;
   /** Settles when the model's bets are sealed or it gave no usable answer. Never rejects. */
   settled?: Promise<void>;
+  /** R7 (D69): the bets are this model's answer recorded on this day (ISO date) from this same text, replayed with no call. The page must say so. */
+  recorded?: string;
 }
 
 /** The model slot as the server shows it: status and sealed hashes only (never the answers). */
@@ -94,6 +96,8 @@ export interface ModelSlotView {
   /** After the run only: the full reason, which may quote the model's unusable answer. */
   detail?: string;
   sealed: SealedOnly[];
+  /** R7 (D69): a recorded answer (the ISO date it was recorded), never to be shown as live. */
+  recorded?: string;
 }
 
 export function modelSlotView(round: Round): ModelSlotView | null {
@@ -121,6 +125,7 @@ function slotView(round: Round, m: ModelSlot): ModelSlotView {
     // The model's own unusable values are part of its answer: revealed with the bets, after the run.
     ...(m.detail && round.status === "done" ? { detail: m.detail } : {}),
     sealed: round.bets.filter((b) => b.who === m.who).map(sealedOnly),
+    ...(m.recorded ? { recorded: m.recorded } : {}),
   };
 }
 

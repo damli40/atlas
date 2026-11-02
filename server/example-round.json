@@ -1,0 +1,23 @@
+{
+  "note": "R7 (D69): the built-in example's round, recorded once from real calls on 2026-11-02 by tests/evidence/R7/record-example.mts (usage lines in tests/evidence/usage/usage.jsonl). The page labels these answers as recorded, never live.",
+  "recordedOn": "2026-11-02",
+  "tests": {
+    "model": "muse-wonder-1.0",
+    "content": "{\"claim\": \"People expect fetchWithRetry with 3 attempts and a 100ms base to wait only between retries, totaling 300ms before throwing the last error, but the code really sleeps 400ms after the final failed attempt as well, throwing after 700ms.\", \"experiments\": [{\"shape\": \"call-function\", \"exportName\": \"fetchWithRetry\", \"args\": [{\"kind\": \"stand-in\", \"name\": \"fetchIt\", \"async\": true, \"calls\": [{\"do\": \"throw\", \"errorName\": \"Error\", \"message\": \"flaky source failed\"}], \"then\": \"repeat_last\"}, {\"kind\": \"json\", \"value\": 3}, {\"kind\": \"json\", \"value\": 100}]}, {\"shape\": \"call-function\", \"exportName\": \"fetchWithRetry\", \"args\": [{\"kind\": \"stand-in\", \"name\": \"fetchIt\", \"async\": true, \"calls\": [{\"do\": \"throw\", \"errorName\": \"Error\", \"message\": \"first failure\"}, {\"do\": \"throw\", \"errorName\": \"Error\", \"message\": \"second failure\"}, {\"do\": \"return\", \"value\": {\"price\": 42}}], \"then\": \"repeat_last\"}, {\"kind\": \"json\", \"value\": 3}, {\"kind\": \"json\", \"value\": 100}]}, {\"shape\": \"call-function\", \"exportName\": \"fetchWithRetry\", \"args\": [{\"kind\": \"stand-in\", \"name\": \"fetchIt\", \"async\": true, \"calls\": [{\"do\": \"return\", \"value\": {\"price\": 42}}], \"then\": \"repeat_last\"}, {\"kind\": \"json\", \"value\": 3}, {\"kind\": \"json\", \"value\": 100}]}]}",
+    "usd": 0.017776
+  },
+  "bets": [
+    {
+      "model": "meta-models/muse-spark-open-1026",
+      "promptSha256": "d6c49e591428b815cd5bf7624413db7dce87ec175aaecba1a26c08d4c64d2363",
+      "content": "{\"bets\": [{\"measures\": \"outcome\", \"answer\": {\"kind\": \"quiz\", \"choice\": \"b\"}, \"rationale\": \"fetchIt always throws, loop does 3 attempts with sleeps 100+200+400=700ms then throws last error, well within 30s virtual time.\"}]}",
+      "usd": 0.00256795
+    },
+    {
+      "model": "muse-spark-1.3",
+      "promptSha256": "d6c49e591428b815cd5bf7624413db7dce87ec175aaecba1a26c08d4c64d2363",
+      "content": "{\"bets\": [{\"measures\": \"outcome\", \"answer\": {\"kind\":\"quiz\",\"choice\":\"b\"}, \"rationale\": \"All 3 attempts fail, then it throws last error after sleeps of 100+200+400ms, well under 30s.\"}]}",
+      "usd": 0.01084
+    }
+  ]
+}
