@@ -7,7 +7,7 @@
  {
   "name": "the act ran 3 to 6 s (Lock in to verdict, including the server's run)",
   "ok": true,
-  "more": "3517 ms from playing to marked; 3815 ms from Lock in"
+  "more": "3517 ms from playing to marked; 3811 ms from Lock in"
  },
  {
   "name": "no overlay left after the act",
@@ -22,7 +22,7 @@
  {
   "name": "a key skips to the end state",
   "ok": true,
-  "more": "7 ms after the key"
+  "more": "8 ms after the key"
  },
  {
   "name": "skipped and played end states are the same drawing",

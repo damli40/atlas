@@ -138,6 +138,9 @@ describe("the run through the pipes says only what the path says", () => {
   it("a wait moves a dial only on a function that waits", () => {
     const withFake = { ...parts.parts, ports: [{ id: "stand-in fetch", name: "fetch", faked: true, from: ["fetchPage"] }] };
     const beats = machineScript({ nodes: [{ id: "n", kind: "clock", words: "w", provenance: "run", sweep: 0.3 } as never], steps: [{ id: "s0", nodes: ["m"], edges: [], provenance: "run", beat: "call", device: "fetch" }, { id: "s1", nodes: ["n"], edges: [], provenance: "run", beat: "wait", device: "clock" }] }, withFake, parts.outline as never, "fetchAllOrders", new Map(), true);
-    expect(beats[1]!.dial).toEqual({ part: "fetchPage", sweep: 0.3 });
+    // R8 review MAJOR-1: a call alone does not say whose wait came next; the dial claims a wait only after a helper step of its own part.
+    expect(beats[1]!.dial).toBeUndefined();
+    const after = machineScript({ nodes: [{ id: "n", kind: "clock", words: "w", provenance: "run", sweep: 0.3 } as never], steps: [{ id: "s0", nodes: ["m"], edges: [], provenance: "run", beat: "call", device: "fetch" }, { id: "h", nodes: ["m"], edges: [], provenance: "run", part: "fetchPage" }, { id: "s1", nodes: ["n"], edges: [], provenance: "run", beat: "wait", device: "clock" }] }, withFake, parts.outline as never, "fetchAllOrders", new Map(), true);
+    expect(after[2]!.dial).toEqual({ part: "fetchPage", sweep: 0.3 });
   });
 });

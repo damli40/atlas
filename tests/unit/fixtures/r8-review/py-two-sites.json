@@ -1,0 +1,262 @@
+{
+ "source": "def f(x):\n    total = 0\n    for i in range(2):\n        total += x()\n        total += x()\n    return total\n",
+ "language": "py",
+ "params": {
+  "shape": "call-function",
+  "exportName": "f",
+  "args": [
+   {
+    "kind": "stand-in",
+    "name": "x",
+    "async": false,
+    "then": "repeat_last",
+    "calls": [
+     {
+      "do": "return",
+      "value": 1
+     }
+    ]
+   }
+  ]
+ },
+ "run": {
+  "id": "rMCb4LAFde",
+  "experimentId": "zI2yqwOndz",
+  "runner": "ts",
+  "executor": "local",
+  "codeSha256": "ba3ec1c66a93384099686d94c91e30a51fdbda373b43abf7d0cccc5fedc1e3ca",
+  "seed": "20260101",
+  "timeZone": "UTC",
+  "locale": "C",
+  "conditions": [],
+  "twin": {
+   "trace": [
+    {
+     "data": {
+      "implementation": "cpython",
+      "version": "3.14.7"
+     },
+     "event": "python",
+     "t": 0
+    },
+    {
+     "data": {
+      "args": 1,
+      "exportName": "f",
+      "watchLimitMs": 30000
+     },
+     "event": "start",
+     "t": 0
+    },
+    {
+     "data": {
+      "n": 1,
+      "name": "x"
+     },
+     "event": "stand_in_call",
+     "t": 0
+    },
+    {
+     "data": {
+      "n": 1,
+      "name": "x"
+     },
+     "event": "stand_in_returns",
+     "t": 0
+    },
+    {
+     "data": {
+      "n": 2,
+      "name": "x"
+     },
+     "event": "stand_in_call",
+     "t": 0
+    },
+    {
+     "data": {
+      "n": 2,
+      "name": "x"
+     },
+     "event": "stand_in_returns",
+     "t": 0
+    },
+    {
+     "data": {
+      "n": 3,
+      "name": "x"
+     },
+     "event": "stand_in_call",
+     "t": 0
+    },
+    {
+     "data": {
+      "n": 3,
+      "name": "x"
+     },
+     "event": "stand_in_returns",
+     "t": 0
+    },
+    {
+     "data": {
+      "n": 4,
+      "name": "x"
+     },
+     "event": "stand_in_call",
+     "t": 0
+    },
+    {
+     "data": {
+      "n": 4,
+      "name": "x"
+     },
+     "event": "stand_in_returns",
+     "t": 0
+    },
+    {
+     "data": {
+      "type": "number"
+     },
+     "event": "returned",
+     "t": 0
+    }
+   ],
+   "result": {
+    "measured": {
+     "calls:x": 4,
+     "outcome": "returned",
+     "returnedJson": "4",
+     "returnedType": "number",
+     "virtualMs": 0
+    },
+    "notMeasured": {
+     "thrownMessage": "the call returned, so nothing was thrown",
+     "thrownName": "the call returned, so nothing was thrown"
+    }
+   }
+  },
+  "startedAt": "2026-11-02T17:20:01.661Z",
+  "finishedAt": "2026-11-02T17:20:01.829Z",
+  "trace": [
+   {
+    "data": {
+     "implementation": "cpython",
+     "version": "3.14.7"
+    },
+    "event": "python",
+    "t": 0
+   },
+   {
+    "data": {
+     "args": 1,
+     "exportName": "f",
+     "watchLimitMs": 30000
+    },
+    "event": "start",
+    "t": 0
+   },
+   {
+    "data": {
+     "n": 1,
+     "name": "x"
+    },
+    "event": "stand_in_call",
+    "t": 0
+   },
+   {
+    "data": {
+     "n": 1,
+     "name": "x"
+    },
+    "event": "stand_in_returns",
+    "t": 0
+   },
+   {
+    "data": {
+     "n": 2,
+     "name": "x"
+    },
+    "event": "stand_in_call",
+    "t": 0
+   },
+   {
+    "data": {
+     "n": 2,
+     "name": "x"
+    },
+    "event": "stand_in_returns",
+    "t": 0
+   },
+   {
+    "data": {
+     "n": 3,
+     "name": "x"
+    },
+    "event": "stand_in_call",
+    "t": 0
+   },
+   {
+    "data": {
+     "n": 3,
+     "name": "x"
+    },
+    "event": "stand_in_returns",
+    "t": 0
+   },
+   {
+    "data": {
+     "n": 4,
+     "name": "x"
+    },
+    "event": "stand_in_call",
+    "t": 0
+   },
+   {
+    "data": {
+     "n": 4,
+     "name": "x"
+    },
+    "event": "stand_in_returns",
+    "t": 0
+   },
+   {
+    "data": {
+     "type": "number"
+    },
+    "event": "returned",
+    "t": 0
+   },
+   {
+    "t": 0,
+    "event": "call_checks",
+    "data": {
+     "harnessSha256": "d91ff17e58d8164453141c4a8a0c74228d47f3dd7d5ad8004790bed8c99210fc",
+     "language": "py",
+     "controlRunId": "QL6H-gMlzd",
+     "controlPassed": true,
+     "controlFinishedAt": "2026-11-02T17:20:01.147Z",
+     "python": "3.14.7",
+     "implementation": "cpython"
+    }
+   }
+  ],
+  "result": {
+   "measured": {
+    "calls:x": 4,
+    "outcome": "returned",
+    "returnedJson": "4",
+    "returnedType": "number",
+    "virtualMs": 0
+   },
+   "notMeasured": {
+    "thrownMessage": "the call returned, so nothing was thrown",
+    "thrownName": "the call returned, so nothing was thrown"
+   }
+  },
+  "controlPassed": true,
+  "controlRunId": "QL6H-gMlzd"
+ },
+ "helpers": {
+  "steps": [],
+  "cut": false
+ }
+}

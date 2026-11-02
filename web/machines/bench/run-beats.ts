@@ -28,7 +28,7 @@ export function runBeats(o: { run: Run; experiment: Pick<Experiment, "params">; 
 }
 
 /** R8: the run acted out on the machine, step by step, from the same recorded fields (renderer/authors/run-act.ts). Folded to at most 24 steps. */
-export function runActFor(o: { run: Run; experiment: Pick<Experiment, "params">; helpers?: HelperAnswer | null; parts: MachineParts; model: Pick<BenchModel, "parts">; outline: Pick<FileOutline, "joins" | "bodies">; tested: string | null; end: MachineEnd | null }): Act {
+export function runActFor(o: { run: Run; experiment: Pick<Experiment, "params">; helpers?: HelperAnswer | null; parts: MachineParts; model: Pick<BenchModel, "parts">; outline: Pick<FileOutline, "joins" | "bodies" | "callFacts">; tested: string | null; end: MachineEnd | null }): Act {
   const called = calledIn(o.run);
   const steps = o.helpers && "steps" in o.helpers ? o.helpers.steps : [];
   const portSites = new Map<string, { part: string; lines: number[] }[]>();

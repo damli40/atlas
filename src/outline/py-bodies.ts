@@ -40,14 +40,19 @@ export function pyBodies(masked: string, raw: string, parts: readonly { name: st
     let skipOver: number | null = null;
     let from = 0;
     // R8: loops still open, with their indent: a statement at or left of that indent ends them.
-    const openLoops: { line: number; at: number }[] = [];
-    const spans: [number, number][] = [];
+    const openLoops: { line: number; at: number; body: number | null }[] = [];
+    const spans: [number, number, number][] = [];
     let lastLine = n;
     for (let i = n + 1; i <= p.lineEnd; i++) {
       const t = lines[i - 1] ?? "";
       if (t.trim() === "") continue;
       const at = indent(t);
-      if (depth === 0) while (openLoops.length && at <= openLoops[openLoops.length - 1]!.at) spans.push([openLoops.pop()!.line, lastLine]);
+      if (depth === 0) while (openLoops.length && at <= openLoops[openLoops.length - 1]!.at) {
+        const l = openLoops.pop()!;
+        spans.push([l.line, l.body ?? 0, lastLine]);
+      }
+      // The body starts at the first statement after the header (a header can run over lines inside brackets).
+      if (depth === 0) for (const l of openLoops) if (l.body === null && i > l.line) l.body = i;
       lastLine = i;
       if (skipOver !== null) {
         if (depth === 0 && at > skipOver) {
@@ -72,14 +77,17 @@ export function pyBodies(masked: string, raw: string, parts: readonly { name: st
       }
       if (/^(for|while|async\s+for)\b/.test(s)) {
         facts.loops.push(i);
-        openLoops.push({ line: i, at });
+        openLoops.push({ line: i, at, body: null });
       } else if (/^raise\b/.test(s)) (facts.throws as ThrowSite[]).push(raiseSite(rawLines[i - 1] ?? "", i));
       else if (/^return\b/.test(s)) facts.returns.push(i);
     }
     if (skipOver !== null) facts.nested.push([from, p.lineEnd]);
-    while (openLoops.length) spans.push([openLoops.pop()!.line, lastLine]);
-    // In the same order as `loops`.
-    facts.loopSpans = spans.sort((a, b) => a[0] - b[0]);
+    while (openLoops.length) {
+      const l = openLoops.pop()!;
+      spans.push([l.line, l.body ?? 0, lastLine]);
+    }
+    // In the same order as `loops`; each the body's lines, or empty when no body line was found.
+    facts.loopSpans = spans.sort((a, b) => a[0] - b[0]).map(([, from, to]) => (from > 0 && from <= to ? [from, to] : [0, -1]));
     out[p.name] = facts;
   }
   return out;

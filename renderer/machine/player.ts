@@ -253,11 +253,11 @@ export class MachinePlayer {
       }
       case "dial": {
         const n = this.el(".m-needle", "data-dial", m.part) as SVGElement | null;
-        if (n) this.anim(n, [{ transform: needle(Number(n.dataset.cx), Number(n.dataset.cy), 0) }, { transform: needle(Number(n.dataset.cx), Number(n.dataset.cy), dialSweep(m.ms) * 360), offset: 0.8 }, { transform: needle(Number(n.dataset.cx), Number(n.dataset.cy), dialSweep(m.ms) * 360) }], { duration: ms, easing: "ease-in-out" });
+        if (n) this.anim(n, [{ transform: needle(Number(n.dataset.cx), Number(n.dataset.cy), 0) }, { transform: needle(Number(n.dataset.cx), Number(n.dataset.cy), dialSweep(m.ms) * 360), offset: 0.8 }, { transform: needle(Number(n.dataset.cx), Number(n.dataset.cy), dialSweep(m.ms) * 360) }], { duration: ms * 0.92, easing: "ease-in-out" });
         const b = box(`${m.part}#dial`);
         if (b) {
-          const label = this.overlay("text", { class: "m-t m-redw m-act-ms", x: String(b.x + b.width + 8), y: String(b.y + b.height * 0.42), "font-size": "15", opacity: "0" }, `${m.ms.toLocaleString("en-US")} ms`);
-          void this.anim(label, [{ opacity: 0 }, { opacity: 1, offset: 0.12 }, { opacity: 1, offset: 0.85 }, { opacity: 0 }], { duration: ms })
+          const label = this.overlay("text", { class: "m-t m-redw m-act-ms", x: String(b.x + b.width + 8), y: String(b.y + b.height * 0.42), "font-size": "15", opacity: "0" }, m.label ?? `${m.ms.toLocaleString("en-US")} ms`);
+          void this.anim(label, [{ opacity: 0 }, { opacity: 1, offset: 0.12 }, { opacity: 1, offset: 0.85 }, { opacity: 0 }], { duration: ms * 0.92 })
             .finished.catch(() => {})
             .then(() => label.remove());
         }

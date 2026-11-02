@@ -11,6 +11,8 @@ import type { HelperAnswer } from "../../web/api";
 
 interface Fixture { name: string; language: "ts" | "py"; source: string; params: never; run: never; helpers: HelperAnswer | null }
 const load = (name: string): Fixture => JSON.parse(readFileSync(new URL(`fixtures/r8-runs/${name}.json`, import.meta.url), "utf8")) as Fixture;
+/** The R8 review's 26 real runs (U3 mock, $0), captured by the reviewer to make the act say what didn't happen. */
+const review = (name: string): Fixture => JSON.parse(readFileSync(new URL(`fixtures/r8-review/${name}.json`, import.meta.url), "utf8")) as Fixture;
 
 function actOf(f: Fixture, helpers: HelperAnswer | null = f.helpers) {
   const outline = fileOutline(f.source, f.language);
@@ -152,12 +154,72 @@ describe("R8: timing", () => {
 });
 
 describe("R8: each loop's lines, from the parser", () => {
-  it("JavaScript: the example's loop is lines 12-19, so fetchIt's call on line 14 is inside it", () => {
+  it("JavaScript: the example's loop body is lines 13-18 (inside its braces), so fetchIt's call on line 14 is in it; the header is not", () => {
     const o = fileOutline(load("example").source, "ts");
-    expect(o.bodies?.fetchWithRetry?.loopSpans).toEqual([[12, 19]]);
+    expect(o.bodies?.fetchWithRetry?.loopSpans).toEqual([[13, 18]]);
+    expect(fileOutline("export function f(x) {\n  for (let i = 0; i < 2; i++) x();\n}\n", "ts").bodies?.f?.loopSpans).toEqual([[0, -1]]);
   });
-  it("Python: a loop ends at the first statement back at its indent; a nested loop is its own span", () => {
+  it("Python: a loop body runs from the line after its header (a header over several lines included) to the last line before its indent comes back", () => {
     const src = "def f(xs):\n    total = 0\n    for x in xs:\n        while x > 0:\n            x -= 1\n        total += x\n    return total\n";
-    expect(fileOutline(src, "py").bodies?.f?.loopSpans).toEqual([[3, 6], [4, 5]]);
+    expect(fileOutline(src, "py").bodies?.f?.loopSpans).toEqual([[4, 6], [5, 5]]);
+    const long = "def f(xs):\n    for x in (\n        xs\n    ):\n        print(x)\n    return 1\n";
+    expect(fileOutline(long, "py").bodies?.f?.loopSpans).toEqual([[5, 5]]);
+  });
+});
+
+describe("R8 review MAJOR-1: a dial claims only a wait its own part made", () => {
+  const dials = (f: Fixture) => all(actOf(f).act.steps, "dial") as { part: string; ms: number }[];
+  it("retry with withTimeout(fetchIt(), 1000) and sleep: the 1,000 ms timeouts pass with no dial; sleep's dial gets 100, 200, 400 only", () => {
+    const { act } = actOf(review("retry-timeout-backoff"));
+    expect(dials(review("retry-timeout-backoff"))).toEqual([100, 200, 400].map((ms) => ({ kind: "dial", part: "sleep", ms })));
+    expect(act.steps.filter((s) => s.words === "1,000 ms pass")).toHaveLength(3);
+    for (const s of act.steps.filter((x) => /1,000/.test(x.words))) expect(kinds(s, "dial")).toEqual([]);
+  });
+  it("a class method's wait (new Pause().wait(300)) is not put on sleep's dial", () => {
+    expect(dials(review("class-wait-vs-sleep"))).toEqual([{ kind: "dial", part: "sleep", ms: 100 }]);
+    expect(actOf(review("class-wait-vs-sleep")).act.steps.map((s) => s.words)).toContain("300 ms pass");
+  });
+  it("Python: Pause.wait(0.3) is not put on nap's dial", () => {
+    expect(dials(review("py-class-wait"))).toEqual([{ kind: "dial", part: "nap", ms: 100 }]);
+  });
+  it("a timeout race beside a short sleep: the 500 ms race passes with no dial; sleep keeps its 10 ms", () => {
+    expect(dials(review("race-plus-sleep"))).toEqual([{ kind: "dial", part: "sleep", ms: 10 }]);
+  });
+  it("with no helper step before a gap, no dial moves (the act says why)", () => {
+    const { act } = actOf(review("two-waiters-one-known"));
+    expect(all(act.steps, "dial")).toEqual([]);
+  });
+});
+
+describe("R8 review MAJOR-2: the wheel turns once per pass or not at all", () => {
+  const turns = (name: string) => all(actOf(review(name)).act.steps, "turn").length;
+  for (const name of ["two-sites-one-loop", "one-line-two-calls", "catch-recall", "py-two-sites", "nested-loops", "two-loops-same-fake", "if-else-sites", "loop-promise-all"])
+    it(`${name}: the fake is not called exactly once per pass from one body line, so the wheel stays still and the act says why`, () => {
+      expect(turns(name)).toBe(0);
+      expect(actOf(review(name)).act.quiet.join(" ")).toMatch(/loop wheel stays still/);
+    });
+  it("one call per pass, in the body: the wheel turns once per pass (retry with timeout: 3; Python generator: 3)", () => {
+    expect(turns("retry-timeout-backoff")).toBe(3);
+    expect(turns("py-generator")).toBe(3);
+  });
+  it("a call under an if in the body turns it fewer times than the loop went round, never more (conditional-first: 1 of 3 passes)", () => {
+    expect(turns("conditional-first")).toBe(1);
+  });
+});
+
+describe("R8 review minors 1-2: folded steps", () => {
+  it("the watch-limit run folds its unreported time into the caption, and no folded dial reads as one long wait", () => {
+    const { act } = actOf(review("forever"));
+    const folded = act.steps.filter((s) => /^steps /.test(s.words));
+    expect(folded.length).toBeGreaterThan(0);
+    expect(folded.some((s) => /time passes .*\(not reported\)/.test(s.words))).toBe(true);
+  });
+  it("six 200 ms waits fold to '6 waits, 1,200 ms in all', and the dial's label says '6 waits', not '1,200 ms'", () => {
+    const long: ActStep[] = Array.from({ length: 140 }, (_, i) => (i % 2 ? { words: "waits 200 ms", vms: 200, wait: 200, motions: [{ kind: "dial", part: "w", ms: 200 }], field: "run.trace" } : { words: "call to x", vms: 0, motions: [{ kind: "flash", port: "stand-in x" }], field: "run.trace" }));
+    const fit = fitAct(long);
+    const f = fit.find((s) => /^steps /.test(s.words))!;
+    expect(f.words).toMatch(/\d+ waits, [\d,]+ ms in all/);
+    const d = kinds(f, "dial")[0] as { label?: string };
+    expect(d.label).toMatch(/^\d+ waits$/);
   });
 });

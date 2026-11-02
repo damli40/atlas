@@ -1,16 +1,16 @@
 {
  "perf": {
-  "frames": 336,
-  "worst": 33.6,
-  "p95": 17.2,
+  "frames": 333,
+  "worst": 50,
+  "p95": 17.9,
   "median": 16.7,
   "over50": 0,
-  "over34": 0,
+  "over34": 1,
   "maxAnimations": 29,
   "act": {
-   "frames": 276,
-   "worst": 17.7,
-   "p95": 17.2,
+   "frames": 277,
+   "worst": 18.7,
+   "p95": 17.9,
    "over34": 0
   },
   "seen": {
@@ -24,66 +24,66 @@
   },
   "steps": [
    {
-    "at": 3093,
+    "at": 3040,
     "words": "Atlas calls fetchWithRetry"
    },
    {
-    "at": 3377,
+    "at": 3340,
     "words": "call 1 to fetchIt: threw Error"
    },
    {
-    "at": 3677,
+    "at": 3624,
     "words": "backoffMs runs"
    },
    {
-    "at": 3960,
+    "at": 3924,
     "words": "sleep runs"
    },
    {
-    "at": 4243,
+    "at": 4207,
     "words": "waits 100 ms"
    },
    {
-    "at": 4627,
+    "at": 4573,
     "words": "call 2 to fetchIt: threw Error"
    },
    {
-    "at": 4910,
+    "at": 4874,
     "words": "backoffMs runs"
    },
    {
-    "at": 5193,
+    "at": 5155,
     "words": "sleep runs"
    },
    {
-    "at": 5493,
+    "at": 5440,
     "words": "waits 200 ms"
    },
    {
-    "at": 5943,
+    "at": 5890,
     "words": "call 3 to fetchIt: threw Error"
    },
    {
-    "at": 6226,
+    "at": 6190,
     "words": "backoffMs runs"
    },
    {
-    "at": 6527,
+    "at": 6474,
     "words": "sleep runs"
    },
    {
-    "at": 6810,
+    "at": 6774,
     "words": "waits 400 ms"
    },
    {
-    "at": 7427,
+    "at": 7374,
     "words": "threw Error at 700 ms"
    }
   ],
   "slow": [
    {
-    "at": 2527,
-    "ms": 33.6,
+    "at": 2490,
+    "ms": 50,
     "phase": "playing",
     "caption": ""
    }
@@ -113,7 +113,7 @@
   "markup": 242132
  },
  "ms": {
-  "lockToPlaying": 358,
-  "playingToMarked": 5180
+  "lockToPlaying": 339,
+  "playingToMarked": 5188
  }
 }

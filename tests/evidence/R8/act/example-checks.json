@@ -7,7 +7,7 @@
  {
   "name": "the act ran 3 to 6 s (Lock in to verdict, including the server's run)",
   "ok": true,
-  "more": "5180 ms from playing to marked; 5538 ms from Lock in"
+  "more": "5188 ms from playing to marked; 5527 ms from Lock in"
  },
  {
   "name": "no overlay left after the act",

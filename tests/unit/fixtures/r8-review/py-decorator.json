@@ -1,0 +1,275 @@
+{
+ "source": "import time\n\ndef retry(fn):\n    def wrapper(*a):\n        for i in range(3):\n            try:\n                return fn(*a)\n            except Exception:\n                time.sleep(0.1)\n        raise RuntimeError(\"out\")\n    return wrapper\n\n@retry\ndef get(x):\n    return x()\n",
+ "language": "py",
+ "params": {
+  "shape": "call-function",
+  "exportName": "get",
+  "args": [
+   {
+    "kind": "stand-in",
+    "name": "x",
+    "async": false,
+    "then": "repeat_last",
+    "calls": [
+     {
+      "do": "throw",
+      "errorName": "Error",
+      "message": "boom"
+     }
+    ]
+   }
+  ]
+ },
+ "run": {
+  "id": "b1xkoIXETv",
+  "experimentId": "h4EVRSj3nU",
+  "runner": "ts",
+  "executor": "local",
+  "codeSha256": "635fa06800a718521a0f033f2a0fd74f8e062c121d99f6e0d690d6942792d341",
+  "seed": "20260101",
+  "timeZone": "UTC",
+  "locale": "C",
+  "conditions": [],
+  "twin": {
+   "trace": [
+    {
+     "data": {
+      "implementation": "cpython",
+      "version": "3.14.7"
+     },
+     "event": "python",
+     "t": 0
+    },
+    {
+     "data": {
+      "args": 1,
+      "exportName": "get",
+      "watchLimitMs": 30000
+     },
+     "event": "start",
+     "t": 0
+    },
+    {
+     "data": {
+      "n": 1,
+      "name": "x"
+     },
+     "event": "stand_in_call",
+     "t": 0
+    },
+    {
+     "data": {
+      "errorName": "Error",
+      "n": 1,
+      "name": "x"
+     },
+     "event": "stand_in_throws",
+     "t": 0
+    },
+    {
+     "data": {
+      "n": 2,
+      "name": "x"
+     },
+     "event": "stand_in_call",
+     "t": 100
+    },
+    {
+     "data": {
+      "errorName": "Error",
+      "n": 2,
+      "name": "x"
+     },
+     "event": "stand_in_throws",
+     "t": 100
+    },
+    {
+     "data": {
+      "n": 3,
+      "name": "x"
+     },
+     "event": "stand_in_call",
+     "t": 200
+    },
+    {
+     "data": {
+      "errorName": "Error",
+      "n": 3,
+      "name": "x"
+     },
+     "event": "stand_in_throws",
+     "t": 200
+    },
+    {
+     "data": {
+      "name": "RuntimeError",
+      "type": "Error"
+     },
+     "event": "threw",
+     "t": 300
+    },
+    {
+     "data": {
+      "at": [
+       100,
+       200,
+       300
+      ]
+     },
+     "event": "clock_moves",
+     "t": 300
+    }
+   ],
+   "result": {
+    "measured": {
+     "calls:x": 3,
+     "outcome": "threw",
+     "thrownMessage": "out",
+     "thrownName": "RuntimeError",
+     "thrownType": "Error",
+     "virtualMs": 300
+    },
+    "notMeasured": {
+     "returnedJson": "the call threw, so it returned nothing",
+     "returnedType": "the call threw, so it returned nothing"
+    }
+   }
+  },
+  "startedAt": "2026-11-02T17:20:01.147Z",
+  "finishedAt": "2026-11-02T17:20:01.313Z",
+  "trace": [
+   {
+    "data": {
+     "implementation": "cpython",
+     "version": "3.14.7"
+    },
+    "event": "python",
+    "t": 0
+   },
+   {
+    "data": {
+     "args": 1,
+     "exportName": "get",
+     "watchLimitMs": 30000
+    },
+    "event": "start",
+    "t": 0
+   },
+   {
+    "data": {
+     "n": 1,
+     "name": "x"
+    },
+    "event": "stand_in_call",
+    "t": 0
+   },
+   {
+    "data": {
+     "errorName": "Error",
+     "n": 1,
+     "name": "x"
+    },
+    "event": "stand_in_throws",
+    "t": 0
+   },
+   {
+    "data": {
+     "n": 2,
+     "name": "x"
+    },
+    "event": "stand_in_call",
+    "t": 100
+   },
+   {
+    "data": {
+     "errorName": "Error",
+     "n": 2,
+     "name": "x"
+    },
+    "event": "stand_in_throws",
+    "t": 100
+   },
+   {
+    "data": {
+     "n": 3,
+     "name": "x"
+    },
+    "event": "stand_in_call",
+    "t": 200
+   },
+   {
+    "data": {
+     "errorName": "Error",
+     "n": 3,
+     "name": "x"
+    },
+    "event": "stand_in_throws",
+    "t": 200
+   },
+   {
+    "data": {
+     "name": "RuntimeError",
+     "type": "Error"
+    },
+    "event": "threw",
+    "t": 300
+   },
+   {
+    "data": {
+     "at": [
+      100,
+      200,
+      300
+     ]
+    },
+    "event": "clock_moves",
+    "t": 300
+   },
+   {
+    "t": 300,
+    "event": "call_checks",
+    "data": {
+     "harnessSha256": "d91ff17e58d8164453141c4a8a0c74228d47f3dd7d5ad8004790bed8c99210fc",
+     "language": "py",
+     "controlRunId": "QL6H-gMlzd",
+     "controlPassed": true,
+     "controlFinishedAt": "2026-11-02T17:20:01.147Z",
+     "python": "3.14.7",
+     "implementation": "cpython"
+    }
+   }
+  ],
+  "result": {
+   "measured": {
+    "calls:x": 3,
+    "outcome": "threw",
+    "thrownMessage": "out",
+    "thrownName": "RuntimeError",
+    "thrownType": "Error",
+    "virtualMs": 300
+   },
+   "notMeasured": {
+    "returnedJson": "the call threw, so it returned nothing",
+    "returnedType": "the call threw, so it returned nothing"
+   }
+  },
+  "controlPassed": true,
+  "controlRunId": "QL6H-gMlzd"
+ },
+ "helpers": {
+  "steps": [
+   {
+    "name": "wrapper",
+    "t": 0,
+    "at": 0,
+    "threw": true,
+    "inner": 3,
+    "within": [
+     "get"
+    ]
+   }
+  ],
+  "cut": false,
+  "thrownAt": 10
+ }
+}

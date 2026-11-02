@@ -254,6 +254,8 @@ export function BenchStage({ viewToggle = true, traceNote = true, recorded = {},
     return runActFor({ run: after.run, experiment: after.experiment, helpers: after.helpers ?? null, parts, model, outline, tested: model.tested, end });
   }, [pathSpec, parts, model, outline, end, after?.run, after?.helpers]); // eslint-disable-line react-hooks/exhaustive-deps
   const [actAt, setActAt] = useState<number | null>(null);
+  /** R8 review minor 6: what a screen reader hears, once, when the act ends (the line under the machine changes too often to announce). */
+  const [actHeard, setActHeard] = useState("");
   const machineShown = useRef(false);
   machineShown.current = showMachine;
   // R7: M answers only while its switch is on screen.
@@ -323,6 +325,7 @@ export function BenchStage({ viewToggle = true, traceNote = true, recorded = {},
       p.setRunPace(Math.max(0.12, Math.min(0.85, 4400 / Math.max(1, pathSpec.steps.length * 1000))));
       // The chart moves aside first, so the whole story is seen.
       setActAt(null);
+      setActHeard("");
       if (!still && !p.reduced) {
         await new Promise<void>((r) => {
           const t = setTimeout(r, 420);
@@ -340,7 +343,9 @@ export function BenchStage({ viewToggle = true, traceNote = true, recorded = {},
           const keep = { routes: new Set(beats.flatMap((b) => b.routes)), lamps: new Set(beats.flatMap((b) => b.lamps)) };
           await machine.act(act.steps, actTimes(act.steps), { keep, onStep: (i) => live && setActAt(i) });
         }
-        if (live) setActAt(null);
+        if (!live) return;
+        setActAt(null);
+        setActHeard(`The run played ${act.steps.length} ${act.steps.length === 1 ? "step" : "steps"} on the machine, ending: ${act.steps[act.steps.length - 1]!.words}.`);
         p.skip();
       } else for (let i = 0; i < pathSpec.steps.length && live; i++) {
         lit(pathSpec.steps[i]!);
@@ -510,7 +515,7 @@ export function BenchStage({ viewToggle = true, traceNote = true, recorded = {},
           return true;
         }} />}
         {showMachine && after && !marksOn && act ? (
-          <p className="m-act-step" role="status" aria-live="polite" data-testid="machine-act-step">
+          <p className="m-act-step" aria-live="off" data-testid="machine-act-step">
             {actAt !== null ? (act.steps[actAt]?.words ?? "") : ""}
           </p>
         ) : null}
@@ -551,6 +556,7 @@ export function BenchStage({ viewToggle = true, traceNote = true, recorded = {},
           <Drawing spec={chartPath!} theme={shown} className="r-sheet" maxScale={1.08} minScale={typeof window !== "undefined" && window.innerWidth <= 760 ? 0.66 : 0.5} hover={false} onPending={() => setPathMount(undefined)} onMount={(m) => setPathMount(m)} />
         </div>
       )}
+      {showMachine && act ? <p className="rr-unseen" role="status" aria-live="polite" data-testid="machine-act-heard">{actHeard}</p> : null}
       <p className="r-step" role="status" aria-live="polite" data-testid="run-step">
         {step ?? ""}
       </p>

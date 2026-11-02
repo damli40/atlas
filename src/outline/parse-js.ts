@@ -402,7 +402,9 @@ function bodiesOf(sf: ts.SourceFile): Record<string, BodyFacts> {
       }
       if (ts.isForStatement(n) || ts.isForInStatement(n) || ts.isForOfStatement(n) || ts.isWhileStatement(n) || ts.isDoStatement(n)) {
         facts.loops.push(lineOf(n));
-        facts.loopSpans!.push([lineOf(n), endOf(n)]);
+        // The body's own lines, inside its braces: the header (which runs n + 1 times) and a one-line loop are not in it.
+        const body = (n as ts.IterationStatement).statement;
+        facts.loopSpans!.push(ts.isBlock(body) ? [lineOf(body) + 1, endOf(body) - 1] : [0, -1]);
       } else if (ts.isReturnStatement(n)) facts.returns.push(lineOf(n));
       else if (ts.isThrowStatement(n)) facts.throws.push(throwSite(n, lineOf(n)));
       ts.forEachChild(n, visit);
