@@ -5,7 +5,7 @@
 
 Every real "can't check" verdict and every real gate rejection recorded in this repo, each traceable to a file. Nothing here was made for this index: plain code reads it from the run files (how: the comment at the top of `tests/tools/refusal-index.ts`).
 
-**Counts:** 25 can't-check verdicts (19 on bets Muse Spark 1.3 (muse-spark-1.3) declined, 2 on bets Muse Spark Open (meta-models/muse-spark-open-1026) · via Baseten declined, 1 from plain code that had nothing to measure, 3 replays of a declined bet) · 1 gate rejection · **0 gate rejections of a model's proposal** · 2 model slots with no usable answer (not declines, not counted).
+**Counts:** 27 can't-check verdicts (20 on bets Muse Spark 1.3 (muse-spark-1.3) declined, 2 on bets Muse Spark Open (meta-models/muse-spark-open-1026) · via Baseten declined, 1 from plain code that had nothing to measure, 4 replays of a declined bet) · 1 gate rejection · **0 gate rejections of a model's proposal** · 2 model slots with no usable answer (not declines, not counted).
 
 ## Can't-check verdicts (src/judge.ts)
 
@@ -36,6 +36,8 @@ Every real "can't check" verdict and every real gate rejection recorded in this 
 | 23 | 2026-10-31 20:24 | `Jgg8cVVmbw` | `v8aSDlg2Is` (returnedJson) | Muse Spark 1.3 (muse-spark-1.3) | the bettor declined · "function throws so there is no return value to estimate" | `tests/evidence/L1/live/stdio/proof-pVDWj2CsFL.atlas.json` |
 | 24 | 2026-10-31 20:24 | `nPXmkpF9fx` | `v8aSDlg2Is` (returnedJson) | Muse Spark 1.3 (muse-spark-1.3) | the bettor declined (the same sealed bet, judged again on a replay) · "function throws so there is no return value to estimate" | `tests/evidence/L1/live/stdio/proof-pVDWj2CsFL.atlas.json` |
 | 25 | 2026-10-31 20:24 | `pVDWj2CsFL` | `v8aSDlg2Is` (returnedJson) | Muse Spark 1.3 (muse-spark-1.3) | the bettor declined (the same sealed bet, judged again on a replay) · "function throws so there is no return value to estimate" | `tests/evidence/L1/live/stdio/proof-pVDWj2CsFL.atlas.json` |
+| 26 | 2026-11-02 14:59 | `2ZFjsh_Upu` | `V9lttgMS6K` (returnedJson) | Muse Spark 1.3 (muse-spark-1.3) | the bettor declined · "function throws so there is no return value to estimate" | `tests/evidence/L2/live/proof-ete8MRjaf4.atlas.json` |
+| 27 | 2026-11-02 14:59 | `ete8MRjaf4` | `V9lttgMS6K` (returnedJson) | Muse Spark 1.3 (muse-spark-1.3) | the bettor declined (the same sealed bet, judged again on a replay) · "function throws so there is no return value to estimate" | `tests/evidence/L2/live/proof-ete8MRjaf4.atlas.json` |
 
 ## Gate rejections (src/gate.ts)
 

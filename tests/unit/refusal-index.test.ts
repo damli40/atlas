@@ -20,7 +20,9 @@ describe("S2: the refusal index is generated from the files and cannot drift", (
     expect(r("Ehs2a0hAe8")).toEqual(["Muse Spark 1.3 (muse-spark-1.3)"]);
     // L1: 25 since the L1 live loop, where Muse Spark 1.3 declined the same question: one row per run of that bet (the
     // run and two re-runs, tests/evidence/L1/live/stdio/proof-pVDWj2CsFL.atlas.json).
-    expect(data.rows).toHaveLength(25);
+    // L2: 27 since the L2 live loop in real Muse Code, where Muse Spark 1.3 declined "what does it return" again: the run
+    // and its one re-run (tests/evidence/L2/live/proof-ete8MRjaf4.atlas.json).
+    expect(data.rows).toHaveLength(27);
   });
   it("a network failure is not a decline: round 4's Spark slot is under 'not counted', never a row", () => {
     expect(data.rows.some((x) => x.runId === "cu96dAM4Bf" && x.bettor.startsWith("Muse Spark 1.3"))).toBe(false);
