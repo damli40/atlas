@@ -4,6 +4,7 @@
 import { certainPath } from "../../src/call-sites";
 import type { RenderSpec } from "../spec";
 import type { MachineParts } from "./machine";
+import { esc } from "../machine/pencil";
 
 export interface MachineBeat {
   routes: string[];
@@ -66,4 +67,13 @@ export function machineScript(spec: Pick<RenderSpec, "steps" | "nodes">, parts: 
     beats.push(beat);
   }
   return beats;
+}
+
+/** A drawing as the run left it, for a still picture: the threads and lamps the beats reach, in the SVG's own text. Only ids plain code made are matched. */
+export function lightMachine(svg: string, beats: readonly MachineBeat[]): string {
+  const attr = (v: string) => esc(v);
+  let out = svg;
+  for (const r of new Set(beats.flatMap((b) => b.routes))) out = out.replace(`data-route="${attr(r)}"`, `data-route="${attr(r)}" data-ran=""`);
+  for (const l of new Set(beats.flatMap((b) => b.lamps))) out = out.replace(`data-lamp="${attr(l)}"`, `data-lamp="${attr(l)}" data-on=""`);
+  return out;
 }

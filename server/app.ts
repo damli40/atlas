@@ -1449,7 +1449,12 @@ export function createApp(opts: AppOptions = {}) {
     try {
       const r = await runRound(sessionId, round);
       // X3 (D27): the person's judged bets go into their track record (plain code; never the code itself).
-      if (r.status === 200) Object.assign(r.body, { track: recordRound(personOf(c, sessionId), r.body, experiment.params) });
+      if (r.status === 200) {
+        // A bet placed after seeing this very result is kept and judged, but never goes on the person's record.
+        const seen = experiment.runner === "evm" && sawSavedMoonwell.has(sessionId);
+        const person = personOf(c, sessionId);
+        Object.assign(r.body, seen ? { seenFirst: true, track: { person: person.kind, before: recordOf(person), after: recordOf(person) } } : { track: recordRound(person, r.body, experiment.params) });
+      }
       return c.json(r.body, r.status);
     } catch (e) {
       // Final review S2: the run did not finish. Nothing was judged; the experiment and its sealed bets stay,
@@ -1461,6 +1466,7 @@ export function createApp(opts: AppOptions = {}) {
     }
   });
 
+  const sawSavedMoonwell = new Set<string>();
   /**
    * X3 (D27): adds the person's judged bets of one finished round to their track record. Returns their record before
    * and after this round. A store that cannot write never changes the run's answer: the reason is returned instead.
@@ -1959,6 +1965,10 @@ export function createApp(opts: AppOptions = {}) {
   // D63: the Moonwell menu opens this saved result, a replay of a saved file. Read only, the same as any public proof card.
   app.get("/moonwell/saved", (c) => {
     try {
+      // Whoever has been shown the saved result knows the answer: a bet they place afterwards can't count (recordRound's caller).
+      if (sawSavedMoonwell.size >= 20_000) sawSavedMoonwell.clear();
+      const seer = sessionIdOf(c);
+      if (seer) sawSavedMoonwell.add(seer);
       return c.json(JSON.parse(readFileSync(new URL("../proofs/moonwell/saved-level2-mwTaxvHFzB.atlas.json", import.meta.url), "utf8")));
     } catch {
       return c.json({ error: "the saved Moonwell result is not on this server" }, 404);
@@ -1988,7 +1998,7 @@ export function createApp(opts: AppOptions = {}) {
   const keptCaps = { days: 30, perClient: 50, total: 500, fileBytes: 256 * 1024, ...opts.keptProofsCaps };
   const keptPath = (runId: string) => (keptDir && /^[\w-]{1,64}$/.test(runId) ? join(keptDir, `${runId}.json`) : null);
   const clientHash = (c: Context) => createHash("sha256").update(clientOf(c)).digest("hex");
-  type KeptEntry = { until: string; maker: string; file: AtlasFile; machine?: MachineParts };
+  type KeptEntry = { until: string; maker: string; file: AtlasFile; machine?: MachineParts; helpers?: unknown };
   /** The parts of a pasted round's machine, read from its code. Names and lines, no code text. Null when the file holds no source. */
   const machineOfFile = (file: AtlasFile): MachineParts | null => {
     const source = file.target.source;
@@ -2045,7 +2055,7 @@ export function createApp(opts: AppOptions = {}) {
       return e ? [e] : [];
     });
   };
-  app.post("/proofs/:runId/keep", (c) => {
+  app.post("/proofs/:runId/keep", async (c) => {
     const runId = c.req.param("runId");
     const already = keptProof(runId);
     if (already) return c.json({ kept: true, until: already.until });
@@ -2063,7 +2073,9 @@ export function createApp(opts: AppOptions = {}) {
     if (live.filter((e) => e.maker === me).length >= keptCaps.perClient) return c.json({ kept: false, error: `you already have ${keptCaps.perClient} public links; delete one to make another` }, 429);
     const until = new Date(Date.now() + keptCaps.days * 86_400_000).toISOString();
     const machine = machineOfFile(file);
-    const text = JSON.stringify({ until, maker: me, file: file.target.kind === "pasted" ? withheldSource(file) : file, ...(machine ? { machine } : {}) });
+    const steps = helperStore.get(runId);
+    const helpers = steps ? await Promise.race([steps, new Promise<null>((done) => setTimeout(() => done(null), 1_500))]) : null;
+    const text = JSON.stringify({ until, maker: me, file: file.target.kind === "pasted" ? withheldSource(file) : file, ...(machine ? { machine } : {}), ...(helpers ? { helpers } : {}) });
     if (Buffer.byteLength(text) > keptCaps.fileBytes) return c.json({ kept: false, error: "this card is too big to keep as a public link" }, 413);
     try {
       mkdirSync(keptDir!, { recursive: true });
@@ -2111,14 +2123,19 @@ export function createApp(opts: AppOptions = {}) {
   });
 
   // D66: the parts of the card's machine, for its picture: the session that ran it, or anyone once its maker has made a public link. Names and lines, never code.
-  app.get("/proofs/:runId/machine", (c) => {
+  app.get("/proofs/:runId/machine", async (c) => {
     const runId = c.req.param("runId");
     if (goneFor(c, runId)) return c.json({ error: GONE_WORDS }, 410);
     const kept = keptProof(runId);
-    if (kept?.machine) return c.json({ parts: kept.machine });
+    // The helper steps light the card as on the result: names and order only, for whoever may see the machine's parts.
+    const helpers = async () => {
+      const answer = helperStore.get(runId);
+      return answer ? await Promise.race([answer, new Promise<null>((done) => setTimeout(() => done(null), 1_500))]) : null;
+    };
+    if (kept?.machine) return c.json({ parts: kept.machine, helpers: kept.helpers ?? (await helpers()) });
     const file = proofOf(runId);
-    if (!file || !ranIt(c, runId)) return c.json({ parts: null });
-    return c.json({ parts: machineOfFile(file) });
+    if (!file || !ranIt(c, runId)) return c.json({ parts: null, helpers: null });
+    return c.json({ parts: machineOfFile(file), helpers: await helpers() });
   });
 
   // What the card's page needs to know about whoever is looking. Kept out of the file itself, which a reader can verify and download.

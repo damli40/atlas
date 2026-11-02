@@ -141,6 +141,8 @@ export function MoonwellFlow({ api, onRoundOpen, direct = false }: { api: Api; o
   const [link, setLink] = useState(MOONWELL_PR_LINK);
   // D63: the menu opens the saved result. A new run is a choice, with its cost said first.
   const [runAgain, setRunAgain] = useState(direct);
+  // The saved result was on screen before this bet: true of anyone who came through "Run it again".
+  const [sawResult, setSawResult] = useState(false);
   const [target, setTarget] = useState<PrTarget | null>(null);
   const [finding, setFinding] = useState<Finding | null>(null);
   const [level, setLevel] = useState<Level>("level2");
@@ -183,6 +185,7 @@ export function MoonwellFlow({ api, onRoundOpen, direct = false }: { api: Api; o
       if (place) setFinding(await api.pickLines(t, place.file, place.lineStart, place.lineEnd));
     });
   const startAgain = (place?: Finding) => {
+    setSawResult(true);
     setRunAgain(true);
     if (!target && !busy) void read(place);
   };
@@ -205,6 +208,7 @@ export function MoonwellFlow({ api, onRoundOpen, direct = false }: { api: Api; o
       if (answer.trim() === "" || !Number.isFinite(n) || n < 0) throw new Error(`"${q.text}" needs a number of US dollars`);
       const set = await api.bets(experimentId, [{ measures: q.measures, answer: { kind: "number", value: n } }]);
       setSealed(set);
+      wantRun.current = true;
     });
 
   const run = async () => {
@@ -225,6 +229,14 @@ export function MoonwellFlow({ api, onRoundOpen, direct = false }: { api: Api; o
   };
 
   // The payoff is what the person was waiting for: it comes into view when it lands, above the details.
+  // Sealing runs it, as on a paste: one step, once any model asked has answered.
+  const wantRun = useRef(false);
+  useEffect(() => {
+    if (wantRun.current && sealed.length > 0 && !models.thinking && !running && !result && runFailed === null) {
+      wantRun.current = false;
+      void run();
+    }
+  }); // eslint-disable-line react-hooks/exhaustive-deps
   const payoff = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (result) payoff.current?.scrollIntoView?.({ block: "start" });
@@ -308,6 +320,7 @@ export function MoonwellFlow({ api, onRoundOpen, direct = false }: { api: Api; o
                   </pre>
                 </details>
               )}
+              {sawResult && <p className="notice" data-testid="moonwell-seen-note">You have seen this result, so this bet won't go on your record.</p>}
               <div className="question">
                 <label htmlFor="bet-usd">{q.text}</label>
                 <p className="muted small">Written by plain code (src/gate.ts). Each Meta model that bets answers the same question. Matched means within {q.tolerancePct}% of what the run reads. {BET_INSTRUCTION}</p>
@@ -320,7 +333,7 @@ export function MoonwellFlow({ api, onRoundOpen, direct = false }: { api: Api; o
               </div>
               {sealed.length === 0 && (
                 <button type="submit" disabled={busy || answer.trim() === ""}>
-                  Seal my bet
+                  Seal my bet and run it
                 </button>
               )}
             </form>
@@ -335,15 +348,11 @@ export function MoonwellFlow({ api, onRoundOpen, direct = false }: { api: Api; o
       {sealed.length > 0 && (
         <section className="card" aria-label="run">
           <h2>Run it</h2>
-          {!result && runFailed === null && (
-            <button type="button" className="primary" onClick={run} disabled={running || busy || models.thinking}>
-              Run it on a fork of Base
-            </button>
-          )}
+          {!result && runFailed === null && !running && <p className="muted small" role="status">Waiting for the AI bets, then it runs on a fork of Base.</p>}
           {!result && runFailed !== null && !running && <RunDidNotFinish message={runFailed} onRetry={run} disabled={busy || models.thinking} />}
           {running && (
             <div role="status" data-testid="run-progress">
-              <p className="running">Running on a fork of Base. This takes 30–90 seconds.</p>
+              <p className="running">Running on a fork of Base. This takes from about 5 to 90 seconds.</p>
               <ol className="progress small">
                 {progress.map((l, i) => (
                   <li key={i}>{l}</li>
@@ -391,7 +400,10 @@ export function MoonwellFlow({ api, onRoundOpen, direct = false }: { api: Api; o
       {result && result.run.runner === "evm" && (
         // D60: the film's payoff frame: the moment beside the ring.
         <div className="m-split" ref={payoff} data-testid="m-split">
-          <MoonwellMoment result={result} />
+          <div>
+            <MoonwellMoment result={result} />
+            {result.seenFirst && <p className="notice" data-testid="moonwell-seen-result">You had seen this result before you bet, so this bet did not go on your record.</p>}
+          </div>
           <MoonwellDrawing run={result.run} bets={result.bets} verdicts={result.verdicts} compact machine />
         </div>
       )}

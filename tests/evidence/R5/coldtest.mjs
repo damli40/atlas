@@ -133,6 +133,41 @@ for (const width of [1280, 1600]) {
   say(`${width}: C opens it again`, (await p.$(".c-drawer")) !== null);
   await c.close();
 }
+// Item 2, the false or unfair.
+{
+  const c = await b.newContext({ viewport: { width: 1440, height: 900 } });
+  const p = await c.newPage();
+  await p.goto(BASE);
+  const consent = await p.$eval('[data-testid="e-consent"]', (e) => e.textContent);
+  say("the first screen says where pasted code goes", /goes to Meta's model/.test(consent), consent);
+  await p.screenshot({ path: `${OUT}/2-consent.png` });
+  await p.fill('[data-testid="u1-code"]', "use std::io;\n\nfn main() {\n    let mut x = 1;\n    x += 1;\n}\n");
+  await p.click('[data-testid="u1-draw"]');
+  await p.waitForSelector('[data-testid="u1-nothing-why"]', { timeout: 20000 });
+  const why = await p.$eval('[data-testid="u1-nothing-why"]', (e) => e.textContent);
+  say("a Rust file: says the language isn't one it reads", /looks like Rust/.test(why) && !/this has none/.test(why), why);
+  say("and isn't labelled pasted.js", !/pasted\.(js|ts|py)/.test(await p.$eval("header", (e) => e.textContent)));
+  await p.screenshot({ path: `${OUT}/2-rust.png` });
+  await c.close();
+}
+{
+  const { c, p } = await open(`# CASE_pynested\ndef count(xs):\n    return len(dedupe(xs))\n\ndef dedupe(xs):\n    return [norm(x) for x in xs]\n\ndef norm(s):\n    return s.strip()\n`);
+  await p.keyboard.press("c");
+  await p.waitForSelector(".c-drawer");
+  const last = await p.$$eval(".c-line .c-n", (x) => x.length);
+  say("the code panel has no line past the file's last", last === 9, String(last));
+  await p.keyboard.press("c");
+  await p.click('[data-testid="u1-bet-toggle"]');
+  await answerAll(p);
+  await toResult(p);
+  await p.waitForTimeout(1500);
+  await p.keyboard.press("p");
+  await p.waitForSelector(".pc-image[data-machine]", { timeout: 15000 });
+  const lit = await p.$eval(".pc-image[data-machine]", (s) => ({ ran: [...s.querySelectorAll(".m-thread[data-ran]")].map((t) => t.dataset.route), lamps: [...s.querySelectorAll(".m-lamp[data-on]")].map((t) => t.dataset.lamp) }));
+  say("the proof card's machine is lit as on the result", lit.ran.includes("count->dedupe") && lit.ran.includes("dedupe->norm") && lit.lamps.includes("norm"), JSON.stringify(lit));
+  await p.screenshot({ path: `${OUT}/2-proof-lit.png` });
+  await c.close();
+}
 // The agent log's button keeps its width, so the header does not overlap.
 {
   const { c, p } = await open("export function f() { return 1; }\n");

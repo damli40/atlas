@@ -44,7 +44,7 @@ export function helperSteps(probes: unknown, o: { names?: readonly string[]; tes
     return n;
   };
   const testedSet = new Set(o.tested);
-  const stack: { name: string; inner: number; within: Set<string> }[] = [];
+  const stack: { name: string; inner: number; within: Set<string>; t: number; at: number }[] = [];
   const within = (s: Set<string>) => (s.size > 0 ? { within: [...s].slice(0, 40) } : {});
   const steps: HelperStep[] = [];
   const open: HelperStep[] = [];
@@ -72,7 +72,7 @@ export function helperSteps(probes: unknown, o: { names?: readonly string[]; tes
         stack[stack.length - 1]!.inner++;
         stack[stack.length - 1]!.within.add(name);
       }
-      stack.push({ name, inner: 0, within: new Set() });
+      stack.push({ name, inner: 0, within: new Set(), t: p.t, at });
       continue;
     }
     if (p.k === 3) {
@@ -112,7 +112,8 @@ export function helperSteps(probes: unknown, o: { names?: readonly string[]; tes
       for (const n of f.within) stack[stack.length - 1]!.within.add(n);
       continue;
     }
-    add({ name, t: p.t, at, ...(p.k === 2 ? { threw: true } : {}), inner: f.inner, ...within(f.within) });
+    // Placed where it STARTED, so the list reads in call order, not in the order calls finished.
+    add({ name, t: f.t, at: f.at, ...(p.k === 2 ? { threw: true } : {}), inner: f.inner, ...within(f.within) });
   }
   // Begun with no end to report (Python's coroutines): the name, at the moment it began.
   for (const o2 of open) add(o2);

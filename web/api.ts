@@ -70,6 +70,8 @@ export interface ExperimentAnswer {
 }
 
 export interface RunAnswer {
+  /** The saved result was on screen before this bet: it is judged, and never goes on the record. */
+  seenFirst?: boolean;
   run: Run;
   verdicts: Verdict[];
   /** Every bet in full, nonce included, revealed after the run. */
@@ -289,7 +291,7 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
     /** D06-03: a round's .atlas.json, as the server kept it. */
     proof: (runId: string) => get<AtlasFile>(`/proofs/${encodeURIComponent(runId)}`),
     moonwellReady: () => get<{ ready: boolean; words?: string }>("/moonwell/ready"),
-    proofMachine: (runId: string) => get<{ parts: MachineParts | null }>(`/proofs/${encodeURIComponent(runId)}/machine`),
+    proofMachine: (runId: string) => get<{ parts: MachineParts | null; helpers?: HelperAnswer | null }>(`/proofs/${encodeURIComponent(runId)}/machine`),
     proofViewer: (runId: string) => get<{ yours: boolean; keepsCards: boolean; canKeep: boolean }>(`/proofs/${encodeURIComponent(runId)}/viewer`),
     /** D63: the saved Moonwell result the menu opens. */
     moonwellSaved: () => get<AtlasFile>("/moonwell/saved"),

@@ -30,7 +30,8 @@ import { CANT_TELL, timeOptions } from "../../src/quiz";
 import { literal, parseTyped } from "../../src/literal";
 import { WONDER_DISPLAY, BET_WORDS, RESULT_WORDS, STAGE_WORDS, betterByRole } from "../../src/paste-words";
 import type { Mark } from "../machines/bench/play";
-import { keptState , type CodeContext } from "../../src/code-facts";
+import { foreignLanguage } from "../../src/paste-language";
+import { keptState, type CodeContext } from "../../src/code-facts";
 import { LIBRARY_WORDS } from "../../src/network-fake";
 import { CALL_DEFAULT_WATCH_LIMIT_MS } from "../../src/gate";
 import { ProofCardPage } from "./ProofCard";
@@ -54,6 +55,7 @@ import { FeltRecord, FeltRoundLine, HowSurePicker } from "./FeltPanel";
 import { FELT_WORDS } from "../../src/paste-words";
 
 type Lang = "js" | "ts" | "py";
+const CONSENT_LINE = "When you paste, your code goes to Meta's model, which writes a test for it.";
 const FILE_NAME: Record<Lang, string> = { js: "pasted.js", ts: "pasted.ts", py: "pasted.py" };
 
 /** The function drawn as "under test" by default: the exported function with the most calls out, then the first. */
@@ -80,7 +82,8 @@ export function defaultProposal<P extends { gate: { allowed: boolean }; params: 
 /** D60: the code beside the drawing. Clicking a part on the drawing jumps here. */
 function CodeDrawer({ source, lines, onClose, coversResult = false }: { source: string; lines: [number, number] | null; onClose: () => void; coversResult?: boolean }) {
   const host = useRef<HTMLDivElement | null>(null);
-  const all = useMemo(() => source.split(/\r\n|\r|\n/), [source]);
+  // A newline at the end of a file ends its last line: it does not start another.
+  const all = useMemo(() => source.replace(/(?:\r\n|\r|\n)$/, "").split(/\r\n|\r|\n/), [source]);
   useEffect(() => {
     if (lines) host.current?.querySelector<HTMLElement>(`[data-line="${lines[0]}"]`)?.scrollIntoView({ block: "center" });
   }, [lines]);
@@ -167,6 +170,7 @@ export const CHANGE_WORDS = {
   explain: "Same test, same questions. Your new answers are sealed before anything runs, and the new run is judged the same way.",
   go: "Draw the change and bet again",
   sameTest: "The same test, on your changed code. Bet again: nothing about this code has run yet.",
+  foreign: (name: string) => `This looks like ${name}. Atlas reads JavaScript, TypeScript and Python, so it can't draw this file.`,
   nothingToDraw: "Atlas draws functions and classes, and this has none. Paste a JavaScript, TypeScript or Python file with at least one function.",
   nothingToCall: "Atlas bets on what a function does when it is called, and this file exports no function to call.",
   claimantAsks: "Changing who bets asks them again: paid AI calls. Your answers stay.",
@@ -975,6 +979,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           </button>
           <span className="u1-sub e-or">or paste a file anywhere on this page</span>
         </div>
+        {/* PLACEHOLDER: Dami's final words go here. The fact it must keep: pasted code goes to a paid model at once, before any other click. */}
+        <p className="u1-sub e-consent" data-testid="e-consent">{CONSENT_LINE}</p>
         <label htmlFor="u1-code" className="u1-sr">
           Your code
         </label>
@@ -1079,7 +1085,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           source={readText}
           language={pasted.target.language ?? pasted.language.chosen ?? "ts"}
           outline={pasted.outline}
-          fileName={FILE_NAME[pasted.target.language ?? "ts"]}
+          fileName={pasted.outline.parts.length === 0 ? "pasted file" : FILE_NAME[pasted.target.language ?? "ts"]}
           after={after}
           loop={loopLine}
           seenBefore={repeatNote !== null || handoffNote === CHANGE_WORDS.sameCode}
@@ -1291,7 +1297,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
 
       {(shownModel?.notShown || noFunction) && !exp && (
         <div className="e-dead" data-testid="u1-dead-end">
-          <p>{shownModel?.notShown ? CHANGE_WORDS.nothingToDraw : CHANGE_WORDS.nothingToCall}</p>
+          <p data-testid="u1-nothing-why">{shownModel?.notShown ? (foreignLanguage(readText) ? CHANGE_WORDS.foreign(foreignLanguage(readText)!) : CHANGE_WORDS.nothingToDraw) : CHANGE_WORDS.nothingToCall}</p>
           <button
             type="button"
             className="u1-btn u1-primary"
@@ -1562,7 +1568,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                         <li key={p.id}>
                           <span>
                             {p.says}
-                            {(proposals?.proposals ?? []).find((x) => x.gate.allowed && x.id !== p.id) && <small className="b-differs">{whatDiffers(p.params, (proposals?.proposals ?? []).find((x) => x.gate.allowed && x.id !== p.id)!.params, "the next")}</small>}
+                            {offeredTests[i + 1] && <small className="b-differs">{whatDiffers(p.params, offeredTests[i + 1]!.params, "the next")}</small>}
                           </span>{" "}
                           <button type="button" className="u1-link" onClick={() => start(() => api.experimentFromProposal(target, p.id, { quiz: true }))} disabled={busy !== null} data-testid={`u1-use-${i}`}>
                             Use this test

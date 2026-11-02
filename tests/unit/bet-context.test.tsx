@@ -121,6 +121,40 @@ describe("D19: what the bettor sees", () => {
     expect(text).toContain("(found by muse-wonder-1.0): proposals/ChainlinkOracleConfigs.sol, line 42");
   });
 
+  it("a bet placed after seeing the saved result is judged, and never goes on the record", async () => {
+    const calls: ChatArgs[] = [];
+    const chat = async (args: ChatArgs): Promise<ChatResult> => {
+      calls.push(JSON.parse(JSON.stringify(args)));
+      return { ok: true, content: JSON.stringify({ bets: [{ measures: "priceUsd1e18:cbETH", answer: { kind: "declined", reason: "unknown: test" }, rationale: "r" }] }), finishReason: "stop", usage: { promptTokens: 1, completionTokens: 1, usd: 0.0001 } };
+    };
+    const app = createApp({ fetchPr: async () => PR, modelBets: { chat }, evmRun: fakeEvmRun() });
+    const api = createApi((url, init) => Promise.resolve(app.request(url.replace(/^\/api/, ""), init)));
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    act(() => root!.render(<MoonwellFlow api={api} direct />));
+
+    act(() => setValue($('[data-testid="pr-link"]') as HTMLInputElement, "https://github.com/moonwell-fi/moonwell-contracts-v2/pull/578"));
+    await act(async () => byText("button", "Read it")!.click());
+    await until(() => $('[data-testid="pr-target"]') !== null, "the PR target");
+    await act(async () => byText("button", "Read the files and pick lines")!.click());
+    await until(() => $('[data-line="42"]') !== null, "the file's lines");
+    await act(async () => $('[data-line="42"]')!.click());
+    await act(async () => ($('[data-testid="pick-use"]') as HTMLButtonElement).click());
+    await until(() => $('[data-testid="chosen-finding"]') !== null, "the chosen finding");
+    await act(async () => byText("button", "Show the question")!.click());
+    await until(() => $('[data-testid="bet-context"]') !== null, "the bet context");
+    await until(() => $('[data-testid="model-slot"]')?.getAttribute("data-status") !== "thinking", "the model slot");
+
+    await api.moonwellSaved();
+    act(() => setValue($('[data-testid="bet-usd"]') as HTMLInputElement, "2200"));
+    await act(async () => byText("button", "Seal my bet and run it")!.click());
+    await until(() => $('[data-testid="run-facts"]') !== null, "the run");
+    expect($('[data-testid="moonwell-seen-result"]')!.textContent).toMatch(/did not go on your record/);
+    const record = (await api.trackRecord()).record;
+    expect(record.lines.reduce((n, l) => n + l.n, 0)).toBe(0);
+  }, 30_000);
+
   it("the bet screen renders the same context Spark's prompt holds, and the prompt has no price", async () => {
     const calls: ChatArgs[] = [];
     const chat = async (args: ChatArgs): Promise<ChatResult> => {
@@ -169,10 +203,10 @@ describe("D19: what the bettor sees", () => {
 
     // Seal a bet and run, so the run's numbers exist; none of them is in what Spark was given.
     act(() => setValue($('[data-testid="bet-usd"]') as HTMLInputElement, "2200"));
-    await act(async () => byText("button", "Seal my bet")!.click());
+    await act(async () => byText("button", "Seal my bet and run it")!.click());
     await until(() => $('[data-testid="hash-usd"]') !== null, "the sealed hash");
-    await act(async () => byText("button", "Run it on a fork of Base")!.click());
     await until(() => $('[data-testid="run-facts"]') !== null, "the run");
+    expect($('[data-testid="moonwell-seen-result"]')).toBeNull();
     // D05-03: the price pipe is drawn on the Moonwell run screen from the run that just came back.
     const pipe = $('[data-testid="price-pipe"]');
     expect(pipe).not.toBeNull();

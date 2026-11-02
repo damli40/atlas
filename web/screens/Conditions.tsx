@@ -6,6 +6,18 @@
 import type { Run } from "../../src/types";
 import { CONDITION_WORDS } from "../../src/paste-words";
 
+/** A long sentence-by-sentence note: its first sentence, the rest under a fold. Every word stays. */
+export function FoldedWords({ words }: { words: string }) {
+  const at = words.search(/[.:] [A-Z]/);
+  if (at < 0 || words.length < 160) return <>{words}</>;
+  return (
+    <details className="u1-fold-words">
+      <summary>{words.slice(0, at + 1)}</summary>
+      {words.slice(at + 2)}
+    </details>
+  );
+}
+
 export function ConditionsLine({ run }: { run: (Pick<Run, "conditions" | "seed" | "timeZone" | "locale"> & { result?: Pick<Run["result"], "notMeasured"> }) | undefined }) {
   if (!run || run.conditions === undefined) return null;
   const W = CONDITION_WORDS;
@@ -29,7 +41,7 @@ export function ConditionsLine({ run }: { run: (Pick<Run, "conditions" | "seed" 
           <ul>
             {run.conditions.map((c) => (
               <li key={c.kind} data-testid={`condition-${c.kind}`}>
-                {c.says}
+                <FoldedWords words={c.says} />
               </li>
             ))}
           </ul>

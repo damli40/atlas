@@ -29,6 +29,7 @@ import { useDarkScheme, useReducedMotion } from "../../drawing/media";
 import { CLOCK_ID, deviceId, type BenchModel, type BenchPart } from "./model";
 import { OUTCOME_WORDS, unusedFakes, type Mark, type Script } from "./play";
 import { notShownAsFact } from "../../../src/trust";
+import { runBeats } from "./run-beats";
 import { lineSpan } from "../../../src/words";
 import { RESULT_WORDS, STAGE_WORDS } from "../../../src/paste-words";
 import { CANT_TELL } from "../../../src/quiz";
@@ -197,16 +198,7 @@ export function BenchStage({ seenBefore = false, codeRan = false, loop = null, m
   const showMachine = wantMachine && !drawn.tooMany && !tooSmall && !noRunToShow && model.notShown === null;
   const beats = useMemo(() => {
     if (!pathSpec || !after) return [];
-    const m = after.run.result.measured as Record<string, unknown>;
-    const called = (port: string) => {
-      const v = m[`calls:${port.replace(/^stand-in /, "")}`];
-      return typeof v === "number" && v > 0;
-    };
-    const steps = after.helpers && "steps" in after.helpers ? after.helpers.steps : [];
-    const ran = ranParts({ tested: model.tested, steps, parts, called });
-    // A part known to have run keeps its lamp lit at rest. A thread is another matter: that needs the true caller.
-    const within = new Map(steps.map((s) => [s.name, s.within ?? []]));
-    return [...machineScript(pathSpec, parts, outline, model.tested, within), { routes: [], lamps: [...ran, ...parts.ports.filter((q) => called(q.id)).map((q) => q.id)] }];
+    return runBeats({ run: after.run, experiment: after.experiment, helpers: after.helpers ?? null, parts, tested: model.tested, spec: pathSpec });
   }, [pathSpec, parts, outline, model.tested, after?.run, after?.helpers]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const onM = (e: globalThis.KeyboardEvent) => {

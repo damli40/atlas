@@ -4,6 +4,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { drawMachine, drawMoonwell, endOfRun, ranParts, ringFor, type MachineParts } from "../../renderer/authors/machine";
+import { lightMachine } from "../../renderer/authors/machine-script";
+import { runBeats } from "../machines/bench/run-beats";
+import type { HelperAnswer } from "../api";
 import { moonwellFlow } from "../../renderer/authors/moonwell";
 import { ensureMachineStyle } from "../drawing/MachineView";
 import { MARK_PRE_EXISTING_CAPTION } from "../../src/captions";
@@ -111,9 +114,10 @@ export interface ProofImageProps {
   canKeep?: boolean;
   /** D66: the machine's parts for this card. Null: the picture keeps its marks alone. */
   machineParts?: MachineParts | null;
+  machineHelpers?: HelperAnswer | null;
 }
 
-export function ProofImage({ card, file, lines, names, api, download, downloadName, preExisting = null, stranger = false, reader: readerGiven = false, keepsCards = true, canKeep = true, machineParts = null }: ProofImageProps) {
+export function ProofImage({ card, file, lines, names, api, download, downloadName, preExisting = null, stranger = false, reader: readerGiven = false, keepsCards = true, canKeep = true, machineHelpers = null, machineParts = null }: ProofImageProps) {
   const ref = useRef<SVGSVGElement | null>(null);
   const [said, setSaid] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
@@ -169,9 +173,12 @@ export function ProofImage({ card, file, lines, names, api, download, downloadNa
       : machineParts
         ? drawMachine(machineParts, { seed: `proof:${card.runId}`, ended: true, ...imageEnd(machineParts) })
         : null;
-    return drawn && !drawn.tooMany && drawn.problems.length === 0 ? drawn : null;
+    if (!drawn || drawn.tooMany || drawn.problems.length > 0) return null;
+    // The card is the record of a run, so it is lit as on the result, from the same trace.
+    if (run?.runner !== "evm" && machineParts && exp) return { ...drawn, svg: lightMachine(drawn.svg, runBeats({ run: run!, experiment: exp, helpers: machineHelpers, parts: machineParts, tested: exp.params.shape === "call-function" ? exp.params.exportName : null })) };
+    return drawn;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [machineParts, run?.id, moment?.kind, stranger]);
+  }, [machineParts, machineHelpers, run?.id, moment?.kind, stranger]);
   const copyImage = async () => {
     if (!ref.current) return;
     try {

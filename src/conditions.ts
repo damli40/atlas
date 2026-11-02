@@ -20,7 +20,7 @@
 //   so); the others come with "not measured" fields whose reasons say why (those bets are "can't check").
 // No I/O. Safe to load in the browser and on the server.
 
-import { CONDITION_WORDS, TIMED_WORK_SAYS_R1 } from "./paste-words";
+import { CONDITION_WORDS, TIMED_WORK_SAYS_R1, TIMED_WORK_SAYS_R2 } from "./paste-words";
 import type { PastedLanguage } from "./pasted-code";
 
 /** The seed every call-function run uses unless it replays an older run with another one. Just a number. */
@@ -347,7 +347,7 @@ export function callRunPinProblems(
     const wantR1 = want.map((w) => (w.kind === "timed-work" ? { kind: w.kind, says: TIMED_WORK_SAYS_R1 } : w));
     if (JSON.stringify(r.conditions ?? null) !== JSON.stringify(wantR1)) out.push("its conditions are not the ones its trace records, in the words Atlas used before R2 (its file carries no rules marker)");
     if (c.kinds.includes("work-time") || r.trace.some((t) => t.event === "clock_differs") || (r.twin && driftIn(r.twin.trace) > 0)) out.push("it carries what only Atlas's R2 rules write (time added in the second run), but its file carries no rules marker");
-  } else if (JSON.stringify(r.conditions ?? null) !== JSON.stringify(want)) out.push("its conditions are not the ones its trace records, in Atlas's words");
+  } else if (JSON.stringify(r.conditions ?? null) !== JSON.stringify(want) && JSON.stringify(r.conditions ?? null) !== JSON.stringify(want.map((w) => (w.kind === "timed-work" ? { kind: w.kind, says: TIMED_WORK_SAYS_R2 } : w)))) out.push("its conditions are not the ones its trace records, in Atlas's words");
   if (c.kinds.some((k) => (UNDECIDED_KINDS as readonly string[]).includes(k)) && "outcome" in r.result.measured) {
     out.push("its trace says how the call ended depends on something outside the code, but it measured the outcome");
   }

@@ -118,3 +118,36 @@ describe("the first bet can fail", () => {
     expect(words).toMatch(/only to choose between tests that show the flaw equally well/);
   });
 });
+
+describe("what a file's first screen says", () => {
+  it("names a language Atlas doesn't read, and stays quiet on one it does", async () => {
+    const { foreignLanguage } = await import("../../src/paste-language");
+    expect(foreignLanguage("use std::io;\nfn main() {\n  let mut x = 1;\n}\n")).toBe("Rust");
+    expect(foreignLanguage("package main\n\nfunc main() {\n}\n")).toBe("Go");
+    expect(foreignLanguage("#include <stdio.h>\nint main() { return 0; }\n")).toBe("C or C++");
+    expect(foreignLanguage("const a = 1;\n")).toBeNull();
+    expect(foreignLanguage("def f(x):\n    return x\n")).toBeNull();
+    expect(foreignLanguage("// fn main() in a comment\nexport const fn2 = 1;\n")).toBeNull();
+  });
+});
+
+describe("the helper order is call order", () => {
+  it("a helper that finishes after a later one started is still listed where it started", () => {
+    const e = (k: number, name: string, at: number) => ({ k, name, t: 0, at });
+    const { steps } = helperSteps([e(0, "t", 0), e(0, "first", 1), e(0, "inner", 2), e(1, "inner", 3), e(1, "first", 4), e(0, "second", 5), e(1, "second", 6), e(1, "t", 7)], { tested: ["t"], trace: Array.from({ length: 8 }, () => ({ event: "x" })) });
+    expect(steps.map((s) => s.name)).toEqual(["first", "second"]);
+    expect(steps[0]!.at).toBeLessThan(steps[1]!.at);
+  });
+});
+
+describe("a still picture is lit as the run left it", () => {
+  it("marks only the threads and lamps the beats reach", async () => {
+    const { lightMachine } = await import("../../renderer/authors/machine-script");
+    const svg = '<path class="m-thread" data-route="a-&gt;b"/><path class="m-thread" data-route="a-&gt;c"/><circle class="m-lamp" data-lamp="b"/><circle class="m-lamp" data-lamp="c"/>';
+    const out = lightMachine(svg, [{ routes: ["a->b"], lamps: ["b"] }]);
+    expect(out).toContain('data-route="a-&gt;b" data-ran=""');
+    expect(out).toContain('data-route="a-&gt;c"/>');
+    expect(out).toContain('data-lamp="b" data-on=""');
+    expect(out).toContain('data-lamp="c"/>');
+  });
+});

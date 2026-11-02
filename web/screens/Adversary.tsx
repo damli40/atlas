@@ -182,7 +182,7 @@ export function AdversaryPanel({ api, runId, format }: { api: Api; runId: string
       )}
       {busy && (
         <p className="running" role="status">
-          The Adversary proposes, the gate decides, the model(s) bet, the code runs… (a fork of Base takes 30–90 seconds)
+          The Adversary proposes, the gate decides, the model(s) bet, the code runs… (a fork of Base takes from about 5 to 90 seconds)
         </p>
       )}
       {answer && <AdversaryResult answer={answer} {...(format ? { format } : {})} />}
