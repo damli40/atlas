@@ -9,7 +9,7 @@ import type { ThrowSite } from "../../src/outline/types";
 import type { Pt } from "../hand";
 import type { RenderSpec } from "../spec";
 import { auditMachine, type MachineFacts } from "../machine/audit";
-import { rectsOverlap, sample, solidHitsRect, solidOf, segDist, type Rect, type Solid } from "../machine/geometry";
+import { rectsOverlap, sample, solidHitsRect, solidOf, segDist, type Rect, type Solid, segmentsCross } from "../machine/geometry";
 import { K, textWidth, block, chevrons, dial, drum, esc, flange, floorShadow, hopper, iso, pipe, ringAround, screws, sheetOf, stemDial, threadPath, ticket, topOf, wheel, type Plan, type Sheet, type W } from "../machine/pencil";
 import { PIPE_R, PIPE_Z, routeAll, type Job, type Owner } from "../machine/route";
 
@@ -18,6 +18,8 @@ export const MACHINE_PART_LIMIT = 8;
 /** The smallest any word may be on screen: below this the page shows the chart. */
 export const MACHINE_MIN_WORD_PX = 11;
 export const CANT_DRAW = "The machine can't show this file's pipes clearly, so here is the box chart.";
+/** Past this many parts the box chart is a tower of tiny boxes: the page lists them instead. */
+export const LIST_FROM_PARTS = 16;
 export const NOTHING_TO_DRAW = "Nothing here to draw.";
 export const TOO_SMALL = "The machine would be too small to read here, so here is the box chart.";
 
@@ -278,21 +280,32 @@ interface Callout {
   anchor: Pt;
   size?: number;
   cls?: string;
+  /** Said again in the part's own card: left off the sheet when it has no clean place near what it names. */
+  optional?: boolean;
 }
 
 /** Flat words on clean paper, each as close to what it names as it can be, with a thin line back to it. */
-function placeCallouts(s: Sheet, list: readonly Callout[], solids: readonly Solid[], pipes: readonly Pt[][], keepOut: readonly Rect[]): MachineFacts["labels"] {
+function placeCallouts(s: Sheet, list: readonly Callout[], solids: readonly Solid[], pipes: readonly Pt[][], keepOut: readonly Rect[], leadersBefore: readonly (MachineFacts["labels"][number])[] = []): MachineFacts["labels"] {
   const placed: MachineFacts["labels"] = [];
   const taken: Rect[] = [...keepOut];
   const words: Rect[] = [];
   const pipePoints = pipes.flatMap((l) => sample(l, 8));
+  const pipeSegs: [Pt, Pt][] = pipes.flatMap((l) => l.slice(1).map((q, i): [Pt, Pt] => [l[i]!, q]));
+  const leaders: [Pt, Pt][] = leadersBefore.flatMap((l) => (l.leader ? [l.leader] : []));
+  /** A leader that crosses a pipe or another leader can't be followed. The last few px at its own end don't count: a label on a pipe ends on that pipe. */
+  const tangled = (a: Pt, end: Pt) => {
+    const len = Math.hypot(end[0] - a[0], end[1] - a[1]) || 1;
+    const stop: Pt = [end[0] - ((end[0] - a[0]) / len) * 8, end[1] - ((end[1] - a[1]) / len) * 8];
+    return pipeSegs.some(([u, v]) => segmentsCross(a, stop, u, v)) || leaders.some(([u, v]) => segmentsCross(a, stop, u, v));
+  };
   const free = (r: Rect) => !taken.some((t) => rectsOverlap(t, r, 3)) && !solids.some((o) => solidHitsRect(o, r, 3)) && !pipePoints.some((q) => q[0] > r.x0 - PIPE_R - 2 && q[0] < r.x1 + PIPE_R + 2 && q[1] > r.y0 - PIPE_R - 2 && q[1] < r.y1 + PIPE_R + 2);
   for (const c of list) {
     const size = c.size ?? LABEL;
     const w = textWidth(c.text, size, true) + 8;
     const h = size * 1.45 + 2;
     let best: { r: Rect; score: number; x: number; y: number; anchor: "start" | "end" } | null = null;
-    for (const dist of [22, 34, 48, 64, 84, 108, 136, 170, 210, 260, 320]) {
+    for (const strict of c.optional ? [true] : [true, false]) for (const dist of c.optional ? [22, 34, 48, 64, 84, 108] : [22, 34, 48, 64, 84, 108, 136, 170, 210, 260, 320]) {
+      if (best) break;
       for (let k = 0; k < 16; k++) {
         const t = (k / 16) * Math.PI * 2;
         const ax = c.anchor[0] + Math.cos(t) * dist;
@@ -302,18 +315,20 @@ function placeCallouts(s: Sheet, list: readonly Callout[], solids: readonly Soli
         if (!free(r)) continue;
         // A leader that crosses another callout is no use.
         if (words.some((u) => segDist([(u.x0 + u.x1) / 2, (u.y0 + u.y1) / 2], c.anchor, [ax, ay]) < (u.y1 - u.y0) / 2 + 2)) continue;
+        if (strict && tangled([ax, ay], c.anchor)) continue;
         const score = dist + (Math.sin(t) < -0.4 ? 12 : 0);
         if (!best || score < best.score) best = { r, score, x: ax, y: ay, anchor: right ? "start" : "end" };
       }
-      if (best) break;
     }
+    if (!best && c.optional) continue;
     if (!best) {
       placed.push({ part: c.part, text: c.text, rect: { x0: 0, x1: 0, y0: 0, y1: 0 }, unplaced: true });
       continue;
     }
     taken.push(best.r);
     words.push(best.r);
-    placed.push({ part: c.part, text: c.text, rect: best.r });
+    leaders.push([[best.x, best.y], c.anchor]);
+    placed.push({ part: c.part, text: c.text, rect: best.r, leader: [[best.x, best.y], c.anchor] });
     s.raw(`<path class="m-leader" d="M${best.x.toFixed(1)} ${best.y.toFixed(1)}L${c.anchor[0].toFixed(1)} ${c.anchor[1].toFixed(1)}"/>`);
     s.dot(c.anchor, 1.5);
     s.note([best.x + (best.anchor === "start" ? 3 : -3), best.y + size * 0.34], c.text, size, { cls: c.cls ?? "", anchor: best.anchor });
@@ -352,7 +367,8 @@ export function drawMachine(p: MachineParts, o: { seed: string; ring?: MachineRi
 export function drawAt(p: MachineParts, o: { seed: string; ring?: MachineRing | null; ended?: boolean; end?: MachineEnd | null }, roomy: number): MachineDrawn {
   const count = p.housings.length + p.ports.length;
   const chart = (why: string): MachineDrawn => ({ svg: "", width: 0, height: 0, label: "", tooMany: why, problems: [], minWords: 0 });
-  if (p.partsInFile) return chart(`This file defines ${p.partsInFile.toLocaleString("en-US")} functions and classes, more than the ${MACHINE_PART_LIMIT} parts the machine can draw and still be read. The box chart shows the first ${p.housings.length}.`);
+  if (p.partsInFile) return chart(`This file defines ${p.partsInFile.toLocaleString("en-US")} functions and classes, more than the ${MACHINE_PART_LIMIT} parts the machine can draw and still be read. Here are the first ${p.housings.length}.`);
+  if (p.housings.length > LIST_FROM_PARTS) return chart(`This file has ${count} parts, more than the ${MACHINE_PART_LIMIT} the machine can draw and still be read, so here they are as a list.`);
   if (count > MACHINE_PART_LIMIT) return chart(`This file has ${count} parts, more than the ${MACHINE_PART_LIMIT} the machine can draw and still be read, so here is the box chart.`);
   if (count === 0) return chart(NOTHING_TO_DRAW);
   const s = sheetOf(o.seed);
@@ -509,7 +525,7 @@ export function drawAt(p: MachineParts, o: { seed: string; ring?: MachineRing | 
       if (nameSize * K >= 13) s.onTop([pl.x + pl.w / 2, pl.y + 87 + nameSize * 0.3, top + 1.6], shortName, nameSize);
       lamp(s, h.id, [pl.x + pl.w - 17, pl.y + 70, top + 1.6]);
       close(s);
-      callouts.push({ part: h.id, text: nameSize * K < 15 ? `${h.name}, ${span(h.lines[0], h.lines[1])}` : span(h.lines[0], h.lines[1]), anchor: iso([pl.x + 8, pl.y + pl.d - 8, top]), cls: "m-soft" });
+      callouts.push({ part: h.id, text: nameSize * K < 15 ? `${h.name}, ${span(h.lines[0], h.lines[1])}` : span(h.lines[0], h.lines[1]), anchor: iso([pl.x + 8, pl.y + pl.d - 8, top]), cls: "m-soft", ...(nameSize * K < 15 ? {} : { optional: true }) });
       // what stands on top, in a row behind the plate
       if (h.tested) {
         open(s, `${h.id}#inlet`, `${h.name}: the call starts here. Atlas calls this function.`);
@@ -549,7 +565,7 @@ export function drawAt(p: MachineParts, o: { seed: string; ring?: MachineRing | 
         open(s, `${h.id}#return-outlet`, `${h.name}: returns, ${at(h.returns)}`);
         outlet(s, pl.x + 34, face);
         close(s);
-        callouts.push({ part: h.id, text: `returns, ${at(h.returns)}`, anchor: iso([pl.x + 26, face + 28, 2]) });
+        callouts.push({ part: h.id, text: `returns, ${at(h.returns)}`, anchor: iso([pl.x + 26, face + 28, 2]), optional: true });
         if (o.ring?.part === h.id && o.ring.on === "outlet") ringAt = { c: iso([pl.x + 34, face + 16, 14]), rx: 46 * K, ry: 40 * K, words: [o.ring.words] };
       }
       if (h.throws.length > 0) {
@@ -574,22 +590,23 @@ export function drawAt(p: MachineParts, o: { seed: string; ring?: MachineRing | 
   const keepOut: Rect[] = [];
   const ring = ringAt as { c: Pt; rx: number; ry: number; words: string[] } | null;
   if (ring) keepOut.push({ x0: ring.c[0] - ring.rx - 4, x1: ring.c[0] + ring.rx + 4, y0: ring.c[1] - ring.ry - 4, y1: ring.c[1] + ring.ry + 4 });
-  const labels = placeCallouts(s, callouts, solids, pipeLines, keepOut);
-  const facts: MachineFacts = { owners: owners.map((q) => ({ part: q.part, solid: q.solid })), routes: pipesDrawn, labels, reds, housings: p.housings };
+  // The ring's words come first: they are the point of the picture. The parts' own labels go where they still can.
+  const endLabels: MachineFacts["labels"] = [];
   const flat = wordsOnly as { anchor: Pt; words: string } | null;
   if (flat) {
     s.raw(`<g class="m-end m-end-words">`);
-    facts.labels.push(...placeCallouts(s, [{ part: "words", text: flat.words, anchor: flat.anchor, size: 17, cls: "m-redw" }], solids, pipeLines, labels.map((l) => l.rect)));
+    endLabels.push(...placeCallouts(s, [{ part: "words", text: flat.words, anchor: flat.anchor, size: 17, cls: "m-redw" }], solids, pipeLines, keepOut));
     s.raw(`</g>`);
   }
   if (ring) {
     s.raw(`<g class="m-end" data-ring="${esc(o.ring?.part ?? "")}" data-ring-on="${o.ring?.on ?? ""}">`);
     ringAround(s, ring.c, ring.rx, ring.ry);
     s.raw(`</g><g class="m-end m-end-words">`);
-    const words = placeCallouts(s, ring.words.map((text) => ({ part: "ring", text, anchor: [ring.c[0] - ring.rx * 0.7, ring.c[1] + ring.ry * 0.7] as Pt, size: 17, cls: "m-redw" })), solids, pipeLines, [...keepOut, ...labels.map((l) => l.rect)]);
+    endLabels.push(...placeCallouts(s, ring.words.map((text) => ({ part: "ring", text, anchor: [ring.c[0] - ring.rx * 0.7, ring.c[1] + ring.ry * 0.7] as Pt, size: 17, cls: "m-redw" })), solids, pipeLines, keepOut));
     s.raw(`</g>`);
-    facts.labels.push(...words);
   }
+  const labels = placeCallouts(s, callouts, solids, pipeLines, [...keepOut, ...endLabels.map((l) => l.rect)], endLabels);
+  const facts: MachineFacts = { owners: owners.map((q) => ({ part: q.part, solid: q.solid })), routes: pipesDrawn, labels: [...labels, ...endLabels], reds, housings: p.housings };
   return finish(s, o.seed, `A machine of the code: ${p.housings.map((h) => h.name).join(", ")}. Each part is a button that says what it stands for.`, facts, o.ended === true);
 }
 

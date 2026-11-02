@@ -39,7 +39,8 @@ import type { ClaimantMode } from "../../src/claimants";
 import { didNotFinish, type Api, type ExperimentAnswer, type HumanAnswer, type PasteAnswer, type ProposalsAnswer, type RunAnswer, type ShownBet } from "../api";
 import { absentBettors, useModelSlots } from "./Claimant";
 import { ErrorNotice } from "./ErrorNotice";
-import { machineFirst } from "../drawing/MachineView";
+import { MachineSheet, machineFirst } from "../drawing/MachineView";
+import { drawMachine, machineParts } from "../../renderer/authors/machine";
 import { Segments, TestForm, emptyForm, formFromParams, type TestFormState } from "./TestForm";
 import { BenchStage, type After } from "../machines/bench/BenchStage";
 import { benchModel, dialFullMs, type CallTest } from "../machines/bench/model";
@@ -55,6 +56,7 @@ import { FeltRecord, FeltRoundLine, HowSurePicker } from "./FeltPanel";
 import { FELT_WORDS } from "../../src/paste-words";
 
 type Lang = "js" | "ts" | "py";
+const EXAMPLE_FUNCTION_NAME = "fetchWithRetry";
 const CONSENT_LINE = "When you paste, your code goes to Meta's model, which writes a test for it.";
 const FILE_NAME: Record<Lang, string> = { js: "pasted.js", ts: "pasted.ts", py: "pasted.py" };
 
@@ -112,22 +114,47 @@ function CodeDrawer({ source, lines, onClose, coversResult = false }: { source: 
 }
 
 function ExampleDrawing() {
-  const spec = useMemo(() => {
-    const s = betView({ fileName: "example.ts", outline: EXAMPLE_OUTLINE as unknown as FileOutline, source: U1_EXAMPLE, language: "ts", test: null, tested: "fetchWithRetry", seed: "first-screen" });
-    return { ...s, title: undefined, kicker: undefined, subtitle: undefined, captions: [] } as typeof s;
+  // The first thing anyone sees: the example's machine, pencilling itself in. Plain code's own parts, kept in the page (a test holds them equal to the parser's). On a phone, or if it can't be drawn clearly, the chart.
+  const outline = EXAMPLE_OUTLINE as unknown as FileOutline;
+  // Parts are sized by measuring their names, so the font must be in first: a name measured in the fallback font overruns its plate. Never waits long.
+  const [fontsIn, setFontsIn] = useState(false);
+  useEffect(() => {
+    let live = true;
+    const done = () => live && setFontsIn(true);
+    const fonts = (document as { fonts?: { load?: (f: string) => Promise<unknown> } }).fonts;
+    void Promise.race([Promise.all([fonts?.load?.('400 20px "Atlas Besley"'), fonts?.load?.('italic 400 14px "Atlas Besley"')]), new Promise((r) => setTimeout(r, 500))]).then(done, done);
+    return () => {
+      live = false;
+    };
   }, []);
+  const drawn = useMemo(() => {
+    if (!fontsIn || !machineFirst()) return null;
+    const model = benchModel({ fileName: "example.ts", outline, test: null, source: U1_EXAMPLE, language: "ts" });
+    const d = drawMachine(machineParts({ ...model, tested: EXAMPLE_FUNCTION_NAME }, outline, U1_EXAMPLE, "ts"), { seed: "machine:example" });
+    return d.tooMany || d.problems.length > 0 ? null : d;
+  }, [outline, fontsIn]);
+  const reduced = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+  const spec = useMemo(() => {
+    const s = betView({ fileName: "example.ts", outline, source: U1_EXAMPLE, language: "ts", test: null, tested: EXAMPLE_FUNCTION_NAME });
+    return { ...s, title: undefined, kicker: undefined, subtitle: undefined, captions: [] } as typeof s;
+  }, [outline]);
+  const wide = typeof window === "undefined" || window.innerWidth >= 760;
   return (
-    <div className="e-right" aria-hidden="true" data-testid="e-drawing">
-      <Drawing
-        spec={spec}
-        theme="light"
-        className="e-sheet"
-        maxScale={1}
-        hover={false}
-        onMount={(m) => {
-          if (m?.player && !m.player.reduced) void m.player.entrance();
-        }}
-      />
+    <div className="e-right" aria-hidden="true" inert data-testid="e-drawing">
+      {!fontsIn && wide && machineFirst() ? null : drawn && wide ? (
+        <MachineSheet drawn={drawn} reduced={reduced} penKey="example" testid="e-machine" />
+      ) : (
+        <Drawing
+          spec={spec}
+          theme="light"
+          className="e-sheet"
+          maxScale={1}
+          hover={false}
+          onMount={(m) => {
+            if (m?.player && !m.player.reduced) void m.player.entrance();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -864,6 +891,10 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   useEffect(() => {
     if (resultRunId) setDrawer((d) => (d === null ? d : false));
   }, [resultRunId]);
+  // An error on the first screen can land below a short window: it comes into view.
+  useEffect(() => {
+    if (error) document.querySelector('.e-left [role="alert"]')?.scrollIntoView({ block: "nearest" });
+  }, [error]);
   // D60: when the questions arrive, the keys belong to them, not to the button that opened the bet.
   const expId = exp?.experiment.id;
   useEffect(() => {
@@ -1072,7 +1103,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   // C4: a run Atlas could not check has nothing to play and no card to show, so neither is offered.
   const nothingShown = result !== null && notShownAsFact(result.run) !== null;
   const offeredTests = (proposals?.proposals ?? []).filter((p) => p.gate.allowed && !alreadyRan(p.params));
-  const title = `${source ?? FILE_NAME[pasted.target.language ?? "ts"]} · ${plural(pasted.lines, "line")}${drawnMs !== null ? ` · drawn in ${drawnMs} ms` : ""}`;
+  const title = `${source ?? (pasted.outline?.parts.length === 0 ? "pasted file" : FILE_NAME[pasted.target.language ?? "ts"])} · ${plural(pasted.lines, "line")}${drawnMs !== null ? ` · drawn in ${drawnMs} ms` : ""}`;
   return (
     <div className="u1-studio" data-drawer={drawerOpen ? "" : undefined}>
       <button type="button" className="u1-link u1-code-toggle" aria-pressed={drawerOpen} onClick={() => setDrawer(!drawerOpen)} data-testid="u1-code-toggle">
@@ -1328,6 +1359,25 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
         <p className="u1-banner" role="note" data-testid="u1-cant-run">
           {notRunnable}
         </p>
+      )}
+      {notRunnable && (
+        <div className="u1-next" data-testid="u1-cant-run-next">
+          <p>The drawing is still true of this code. To bet on it, Atlas needs a file that runs on its own: take that dependency out, or paste another file.</p>
+          <button
+            type="button"
+            className="u1-btn u1-primary"
+            onClick={() => {
+              reset();
+              setPasted(null);
+              setCode(readText);
+              setFn(null);
+              setOpen(false);
+            }}
+            data-testid="u1-cant-run-edit"
+          >
+            Edit this file
+          </button>
+        </div>
       )}
 
       {!notRunnable && fn && !after && (

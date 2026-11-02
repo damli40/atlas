@@ -5,7 +5,7 @@ import { fileOutline } from "../../src/file-outline";
 import { PROPOSE_INSTRUCTION } from "../../server/meta/roles/proposer";
 import { absentBettors } from "../../web/screens/Claimant";
 import { differOnlyInSpaces, unusedFakes } from "../../web/machines/bench/play";
-import { machineCaption, litWithNoThread } from "../../web/machines/bench/BenchStage";
+import { litWithNoThread } from "../../web/machines/bench/BenchStage";
 import { drawAt, ranParts, machinePartsOfFile } from "../../renderer/authors/machine";
 import { machineScript } from "../../renderer/authors/machine-script";
 
@@ -68,8 +68,6 @@ describe("a function known to have run keeps its lit lamp", () => {
     const beats = machineScript({ steps: [{ part: "g", nodes: [] }], nodes: [] } as never, p, o, "f", new Map([["g", ["n"]]]));
     expect(beats[0]!.routes).not.toContain("g->n");
     expect(litWithNoThread(beats, "f")).toBe(true);
-    expect(machineCaption("Every step comes from run abc's trace. Rest.", true)).toBe("What is lit comes from run abc's trace. A part lit with no thread ran, but which part called it is not known. Rest.");
-    expect(machineCaption("Every step comes from run abc's trace. Rest.", false)).toBe("What is lit comes from run abc's trace. Rest.");
   });
 });
 
@@ -93,7 +91,7 @@ describe("the fallback's words", () => {
     const o = fileOutline(many, "ts");
     expect(o.partsInFile).toBe(301);
     const p = machinePartsOfFile(many, "ts", test("s0"), o);
-    expect(drawAt(p, { seed: "s" }, 1).tooMany).toBe("This file defines 301 functions and classes, more than the 8 parts the machine can draw and still be read. The box chart shows the first 40.");
+    expect(drawAt(p, { seed: "s" }, 1).tooMany).toBe("This file defines 301 functions and classes, more than the 8 parts the machine can draw and still be read. Here are the first 40.");
   });
   it("a Python part is never called exported", () => {
     const py = `def a():\n    return b()\n\ndef b():\n    return 1\n`;
@@ -149,5 +147,23 @@ describe("a still picture is lit as the run left it", () => {
     expect(out).toContain('data-route="a-&gt;c"/>');
     expect(out).toContain('data-lamp="b" data-on=""');
     expect(out).toContain('data-lamp="c"/>');
+  });
+});
+
+describe("a leader can be followed", () => {
+  const base = { owners: [], routes: [], reds: [], housings: [] };
+  const rect = { x0: 0, x1: 1, y0: 0, y1: 1 };
+  it("the audit catches two leaders that cross", async () => {
+    const { auditMachine } = await import("../../renderer/machine/audit");
+    const labels = [
+      { part: "a", text: "one", rect, leader: [[0, 0], [100, 100]] as [[number, number], [number, number]] },
+      { part: "b", text: "two", rect: { ...rect, x0: 500, x1: 501 }, leader: [[0, 100], [100, 0]] as [[number, number], [number, number]] },
+    ];
+    expect(auditMachine({ ...base, labels } as never).join(" ")).toMatch(/leaders of "one" and "two" cross/);
+  });
+  it("no drawing of the realistic files has a crossing leader", () => {
+    const src = `function a(x) { return b(x) + c(x); }\nfunction b(x) { if (x) throw new Error("n"); return 1; }\nfunction c(x) { return b(x) + 1; }\nexport function f(x) { return a(x) + c(x); }\n`;
+    const d = drawAt(machinePartsOfFile(src, "js", test("f"), fileOutline(src, "js")), { seed: "s" }, 1);
+    expect(d.problems.filter((p) => /leader/.test(p))).toEqual([]);
   });
 });

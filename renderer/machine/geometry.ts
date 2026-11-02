@@ -81,3 +81,13 @@ export function sample(line: readonly Pt[], step: number): Pt[] {
   if (line.length) out.push(line[line.length - 1]!);
   return out;
 }
+
+/** Whether two straight segments cross or touch. */
+export function segmentsCross(a: Pt, b: Pt, c: Pt, d: Pt): boolean {
+  const side = (p: Pt, q: Pt, r: Pt) => (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]);
+  const s1 = side(a, b, c);
+  const s2 = side(a, b, d);
+  const s3 = side(c, d, a);
+  const s4 = side(c, d, b);
+  return s1 * s2 < 0 && s3 * s4 < 0;
+}

@@ -3,7 +3,7 @@
   {
    "name": "first marks about 100 ms after the click",
    "ok": true,
-   "more": "45 ms"
+   "more": "43 ms"
   },
   {
    "name": "every part is there and can be clicked from frame one",
@@ -43,7 +43,7 @@
   {
    "name": "Copy image gives the picture with the machine",
    "ok": true,
-   "more": "627 KB"
+   "more": "622 KB"
   },
   {
    "name": "a reader of a link not yet kept gets the marks",

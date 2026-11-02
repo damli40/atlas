@@ -24,8 +24,8 @@ const page = (id: string, next: string | null) => ({ do: "respond", status: 200,
 const ORDERS = {
   claim: `People expect fetchAllOrders to return every order or fail loudly; it silently stops after maxPages pages and gives up on a 4th 429 with a bare "HTTP 429".${MOCK ? ` ${MOCK}` : ""}`,
   experiments: [
-    { shape: "call-function", exportName: "fetchAllOrders", args: [url], network: { replaces: "fetch", then: "throw_exhausted", calls: [{ do: "respond", status: 429, body: {} }, { do: "respond", status: 429, body: {} }, { do: "respond", status: 200, body: { items: [{ id: "o1" }, { id: "o2" }], nextCursor: null } }] } },
     { shape: "call-function", exportName: "fetchAllOrders", args: [url], network: { replaces: "fetch", then: "repeat_last", calls: [{ do: "respond", status: 429, body: {} }] } },
+    { shape: "call-function", exportName: "fetchAllOrders", args: [url], network: { replaces: "fetch", then: "throw_exhausted", calls: [{ do: "respond", status: 429, body: {} }, { do: "respond", status: 429, body: {} }, { do: "respond", status: 200, body: { items: [{ id: "o1" }, { id: "o2" }], nextCursor: null } }] } },
     { shape: "call-function", exportName: "fetchAllOrders", args: [url, { kind: "json", value: 2 }], network: { replaces: "fetch", then: "repeat_last", calls: [page("o1", "c2"), page("o2", "c3"), page("o3", null)] } },
   ],
 };
@@ -56,6 +56,8 @@ const CASES: Record<string, unknown[]> = {
   panel: [{ shape: "call-function", exportName: "pad", args: [{ kind: "json", value: 1 }] }],
   fone: [{ shape: "call-function", exportName: "f", args: [{ kind: "json", value: 1 }] }],
   gone: [{ shape: "call-function", exportName: "g", args: [{ kind: "json", value: 1 }] }],
+  pricing: [{ shape: "call-function", exportName: "quoteOrder", args: [{ kind: "json", value: [{ sku: "a", qty: 1 }] }, si("source", [{ do: "return", value: 100 }]), { kind: "json", value: 0 }] }],
+  spin: [{ shape: "call-function", exportName: "spin", args: [] }],
   padded: [{ shape: "call-function", exportName: "report", args: [{ kind: "json", value: "p50" }] }],
   unusedfake: [{ shape: "call-function", exportName: "summarize", args: [si("fetchIt", [{ do: "throw", errorName: "Error", message: "boom" }])] }],
   pynested: [{ shape: "call-function", exportName: "count", args: [{ kind: "json", value: ["a", "b"] }] }],

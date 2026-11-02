@@ -14,9 +14,14 @@ Runs on real code in the real sandbox. Models are mocked ($0) unless a line says
 | `wonder-aim.mts`, `wonder-aim.json` | Muse Wonder's tests with and without a person's weak spots. Four real calls, a few cents | `pnpm exec tsx tests/evidence/R5/wonder-aim.mts <out.json>` |
 | `hero-machine.mp4` | The film, from the real app | `tests/evidence/R3/film.mjs`, then ffmpeg |
 
+| `flaw-aim.mts`, `flaw-aim/`, `flaw-aim-{before,after,weak}.json` | Whether the test a round opens on reaches a flaw. Real Muse Wonder calls: $0.54 | `pnpm exec tsx tests/evidence/R5/flaw-aim.mts after 2 <out.json>` |
+| `visual.mjs`, `visual/` | The final-push looks: first screen, small print, busy loop, needs-a-package, long file | Same as truth.mjs |
+
 ## Numbers
 
-- **Files that draw as a machine:** 11 of 11 realistic files of 5 to 8 parts pass the router and audit. 10 of 11 stay at reading size at 1280 and 1440. The other, one function calling seven, gets the chart. These files were written for the measure, so this is a check, not a survey (`tests/unit/r5-routing.test.ts`). The latency file is rebuilt from the cold tester's chart.
+- **The first bet can fail:** the test a round opens on reached a flaw in 6 of 10 calls before (commit 7ab7c8c) and 10 of 10 after, on five files with planted flaws. Each test runs on the file and on a copy with the flaws fixed; plain code says whether the two runs differ, and no model judges. Told a weak kind as a tie-break only, 5 of 5 still reached a flaw and none of the five tests moved towards timing. Small sample, planted flaws, and I wrote three of the five files.
+
+- **Files that draw as a machine:** 11 of 11 realistic files of 5 to 8 parts pass the router and audit, now including no leader crossing a pipe or another leader. At reading size: 8 of 11 at 1280, 10 of 11 at 1440 (it was 10 of 11 at both before that rule). The rest get the chart. To keep leaders clean, a "lines" or "returns" label with no clean place is left off the sheet; the part's own card still says it. These files were written for the measure, so this is a check, not a survey (`tests/unit/r5-routing.test.ts`). The latency file is rebuilt from the cold tester's chart.
 - **Paste to picture:** first marks 30 to 65 ms on the dev server, six pastes.
 - **Wonder and weak spots:** told the person was weak on timing, its tests did not visibly change: two calls with, two without, on one file. Too few to prove no effect, enough to not claim one.
 

@@ -14,7 +14,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerE
 import { benchSpec } from "../../../renderer/authors/bet-view";
 import { momentOf, type Moment } from "../../../src/moment";
 import { MachineSheet, machineFirst, rememberView, type MachineControl } from "../../drawing/MachineView";
-import { CANT_DRAW, MACHINE_MIN_WORD_PX, NOTHING_TO_DRAW, TOO_SMALL, drawMachine, endOfRun, machineParts, ranParts, ringFor, type MachineEnd, type MachineParts } from "../../../renderer/authors/machine";
+import { CANT_DRAW, LIST_FROM_PARTS, MACHINE_MIN_WORD_PX, NOTHING_TO_DRAW, TOO_SMALL, drawMachine, endOfRun, machineParts, ranParts, ringFor, type MachineEnd, type MachineParts } from "../../../renderer/authors/machine";
 import type { CountChange } from "../../../src/remember";
 import { machineScript } from "../../../renderer/authors/machine-script";
 import { whatHappened } from "../../../renderer/authors/what-happened";
@@ -109,8 +109,15 @@ function machineEnd(after: After, parts: MachineParts, tested: string | null): M
   return endOfRun({ outcome: m.outcome, thrown: { name: typeof m.thrownName === "string" ? m.thrownName : null, message: typeof m.thrownMessage === "string" ? m.thrownMessage : null }, parts, tested, test: after.experiment.params, ran: ranParts({ tested, steps, parts, called }), called });
 }
 
-/** The path's first caption is about a path of steps. On the machine only what is lit comes from the trace, and a thread needs a known caller: the sentence says that. */
-export const machineCaption = (words: string, litWithNoThread: boolean) => words.replace(/^Every step comes from run (\S+)'s trace\./, `What is lit comes from run $1's trace.${litWithNoThread ? " A part lit with no thread ran, but which part called it is not known." : ""}`);
+/** Why a run shows nothing, as one plain line: what happened, without the "nothing is shown as fact" lead the list beside it already has. */
+const stopLine = (why: string) => {
+  const w = why.replace(/^Atlas could not check this run, so nothing from it is shown as fact: /, "");
+  return `${w.charAt(0).toUpperCase()}${w.slice(1)}.`.replace(/\.\.$/, ".");
+};
+/** On the machine only what is lit comes from the trace. */
+const showMachineWords = (run: string) => `What is lit comes from run ${run}'s trace.`;
+/** The height kept under the machine for that one line. */
+const CAPTION_LINE = 40;
 
 /** A part lit by the run, other than the one Atlas calls, that no thread reaches. */
 export function litWithNoThread(beats: readonly { routes: readonly string[]; lamps: readonly string[] }[], tested: string | null): boolean {
@@ -193,11 +200,22 @@ export function BenchStage({ seenBefore = false, codeRan = false, loop = null, m
     setRegion({ w: el.clientWidth, h: el.clientHeight });
     return () => ro.disconnect();
   }, []);
-  const tooSmall = !drawn.tooMany && region !== null && region.w > 0 && drawn.minWords * Math.min(1.7, (region.w - 20) / drawn.width, (region.h - 20 - (after ? 74 : 0)) / drawn.height) < MACHINE_MIN_WORD_PX;
+  const tooSmall = !drawn.tooMany && region !== null && region.w > 0 && drawn.minWords * Math.min(1.7, (region.w - 20) / drawn.width, (region.h - 20 - (after ? CAPTION_LINE : 0)) / drawn.height) < MACHINE_MIN_WORD_PX;
+  // On a wide screen the small print is the fold below, for either view; on a phone it stays with the chart.
+  const chartPath = useMemo(() => (pathSpec && typeof window !== "undefined" && window.innerWidth > 760 ? { ...pathSpec, captions: [] } : pathSpec), [pathSpec]);
+  // The small print: one short line, the rest under a fold. Every word stays there, unchanged.
+  const [firstLine, restLines] = useMemo(() => {
+    const words = (pathSpec?.captions ?? []).map((c) => c.words);
+    const first = words[0] ?? "";
+    const m = /^Every step comes from run (\S+)'s trace\.\s*(.*)$/.exec(first);
+    if (!m) return [first, words.slice(1)] as const;
+    return [showMachineWords(m[1]!), [...(m[2] ? [m[2]] : []), ...words.slice(1)]] as const;
+  }, [pathSpec]); // eslint-disable-line react-hooks/exhaustive-deps
   const noRunToShow = Boolean(after && (after.script.notShown !== null || pathSpec?.notShown !== undefined));
-  const showMachine = wantMachine && !drawn.tooMany && !tooSmall && !noRunToShow && model.notShown === null;
+  // A run with nothing to draw (a busy loop stopped at the watch limit) keeps the machine on screen, unlit: the machine is the code, and the code is still there.
+  const showMachine = wantMachine && !drawn.tooMany && !tooSmall && model.notShown === null;
   const beats = useMemo(() => {
-    if (!pathSpec || !after) return [];
+    if (!pathSpec || !after || after.script.notShown !== null || pathSpec.notShown !== undefined) return [];
     return runBeats({ run: after.run, experiment: after.experiment, helpers: after.helpers ?? null, parts, tested: model.tested, spec: pathSpec });
   }, [pathSpec, parts, outline, model.tested, after?.run, after?.helpers]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -358,7 +376,7 @@ export function BenchStage({ seenBefore = false, codeRan = false, loop = null, m
   const readout = after && marksOn ? marksReadout(after.marks) : model.tested ? `testing ${model.tested}` : `${model.boxes.length} ${model.boxes.length === 1 ? "part" : "parts"} · ${model.lines.length} ${model.lines.length === 1 ? "join" : "joins"}`;
 
   return (
-    <div className={`rr-host u1-root${marksOn ? " u1-marked" : ""}`} data-noted={wantMachine && (drawn.tooMany || tooSmall) && drawn.tooMany !== NOTHING_TO_DRAW && !noRunToShow ? "" : undefined} data-view={showMachine ? "machine" : "chart"} data-theme={shown} data-stage={stage} data-phase={!after ? "rest" : marksOn ? "marked" : "playing"} data-pop={side && !after ? "" : undefined} data-testid="bench-stage" onPointerUp={onRootPointerUp} onKeyDown={onKey} tabIndex={-1}>
+    <div className={`rr-host u1-root${marksOn ? " u1-marked" : ""}`} data-list={model.notShown === null && !after && outline.parts.length > LIST_FROM_PARTS ? "" : undefined} data-noted={(wantMachine && (drawn.tooMany || tooSmall) && drawn.tooMany !== NOTHING_TO_DRAW && !noRunToShow) || (showMachine && noRunToShow) ? "" : undefined} data-view={showMachine ? "machine" : "chart"} data-theme={shown} data-stage={stage} data-phase={!after ? "rest" : marksOn ? "marked" : "playing"} data-pop={side && !after ? "" : undefined} data-testid="bench-stage" onPointerUp={onRootPointerUp} onKeyDown={onKey} tabIndex={-1}>
       <header className="r-head">
         <p className="r-kick">{title}</p>
         <h1 className="r-name">{model.tested ?? fileName}</h1>
@@ -381,16 +399,33 @@ export function BenchStage({ seenBefore = false, codeRan = false, loop = null, m
       </div>
       <div className="r-machine" ref={regionRef} hidden={undefined} style={showMachine ? undefined : { visibility: "hidden", pointerEvents: "none" }} data-testid="machine-region" data-captions={after && marksOn && pathSpec?.captions.length ? "" : undefined}>
         {showMachine && <MachineSheet ref={machineRef} drawn={drawn} reduced={still} penKey={after ? null : source} beats={beats} landed={Boolean(after && marksOn)} onPart={(id) => model.parts[id]?.kind === "code" && document.querySelector(".c-drawer") && onPart?.(id)} />}
-        {showMachine && after && marksOn && pathSpec?.captions.length ? (
-          <p className="m-captions" data-testid="machine-captions">
-            {pathSpec.captions.map((c) => (
-              <span key={c.words}>{machineCaption(c.words, litWithNoThread(beats, model.tested))}</span>
-            ))}
-          </p>
-        ) : null}
       </div>
+      {showMachine && after && noRunToShow ? <p className="r-view-note" role="note" data-testid="machine-stop">{stopLine(after.script.notShown ?? pathSpec?.notShown ?? "")}</p> : null}
+      {after && marksOn && !noRunToShow && pathSpec?.captions.length ? (
+        <details className="m-captions" data-testid="machine-captions">
+          <summary>{firstLine}</summary>
+          {[...(litWithNoThread(beats, model.tested) ? ["A part lit with no thread ran, but which part called it is not known."] : []), ...restLines].map((w) => (
+            <span key={w}>{w}</span>
+          ))}
+        </details>
+      ) : null}
+      {model.notShown === null && !after && outline.parts.length > LIST_FROM_PARTS ? (
+        <ul className="r-part-list" data-testid="part-list" aria-label="The functions and classes in this file">
+          {outline.parts.map((q) => (
+            <li key={q.name}>
+              <span className="r-part-name">{q.name}</span>
+              <span className="r-part-lines">{lineSpan(q.lineStart, q.lineEnd)}</span>
+              {q.exported && q.kind === "function" && onTestFunction && q.name !== model.tested ? (
+                <button type="button" className="u1-link" onClick={() => onTestFunction(q.name)} data-testid={`list-test-${q.name}`}>
+                  Test this function
+                </button>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {wantMachine && (drawn.tooMany || tooSmall) && drawn.tooMany !== NOTHING_TO_DRAW && !noRunToShow && <p className="r-view-note" role="note" data-testid="machine-too-many">{drawn.tooMany ?? TOO_SMALL}</p>}
-      {!drawn.tooMany && !tooSmall && !noRunToShow && model.notShown === null && typeof window !== "undefined" && window.innerWidth >= 760 && (
+      {!drawn.tooMany && !tooSmall && model.notShown === null && typeof window !== "undefined" && window.innerWidth >= 760 && (
         <button type="button" className="r-view-toggle" onClick={() => setWantMachine((w) => { rememberView(w ? "chart" : "machine"); return !w; })} data-testid="view-toggle">
           {showMachine ? "Box chart" : "Machine"}
           <kbd className="k">M</kbd>
@@ -398,7 +433,7 @@ export function BenchStage({ seenBefore = false, codeRan = false, loop = null, m
       )}
       {pathSpec && (
         <div className="r-viewport r-path" data-testid="bench-path">
-          <Drawing spec={pathSpec} theme={shown} className="r-sheet" maxScale={1.08} minScale={typeof window !== "undefined" && window.innerWidth <= 760 ? 0.66 : 0.5} hover={false} onPending={() => setPathMount(undefined)} onMount={(m) => setPathMount(m)} />
+          <Drawing spec={chartPath!} theme={shown} className="r-sheet" maxScale={1.08} minScale={typeof window !== "undefined" && window.innerWidth <= 760 ? 0.66 : 0.5} hover={false} onPending={() => setPathMount(undefined)} onMount={(m) => setPathMount(m)} />
         </div>
       )}
       <p className="r-step" role="status" aria-live="polite" data-testid="run-step">

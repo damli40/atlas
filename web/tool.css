@@ -490,3 +490,25 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 .u1-shell .u1-root[data-noted] .r-chart{top:48px;height:calc(100% - 48px)}
 .u1-shell [aria-label="run"]{scroll-margin-top:60px}
 .u1-shell .u1-models>p[data-testid^="u1-model-off-"]{display:block;-webkit-line-clamp:unset;overflow:visible;margin-bottom:8px}
+
+/* Final push: the small print is one line; the rest opens over the sheet, never under the drawing. */
+.u1-shell .r-machine[data-captions] .rr-host.m-host{bottom:40px}
+.m-captions{position:absolute;left:calc(var(--col) + 24px);right:24px;bottom:8px;margin:0;z-index:4;font:italic 400 13px/1.45 "Atlas Besley",Georgia,serif;color:#5d5650;max-height:45%;overflow:auto}
+.m-captions summary{cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;list-style-position:inside}
+.m-captions[open]{background:var(--paper,#f5f0e6);padding:8px 10px;border:1px solid var(--rule-2)}
+.m-captions span{display:block;margin-top:4px}
+@media (min-width:761px){.u1-shell .u1-root[data-stage="verdict"] .r-path{height:calc(100% - 40px)}}
+.u1-shell .u1-root[data-list] .r-chart{visibility:hidden}
+.r-part-list{position:absolute;left:calc(var(--col) + 24px);right:24px;top:60px;bottom:16px;margin:0;padding:0;list-style:none;overflow:auto;columns:2;column-gap:32px;z-index:3;font-size:13px}
+.r-part-list li{display:flex;gap:10px;align-items:baseline;padding:4px 0;border-bottom:1px solid var(--rule-2);break-inside:avoid}
+.r-part-name{font-family:var(--mono);color:var(--ink)}
+.r-part-lines{color:var(--ink-3);font-size:12px}
+.r-part-list .u1-link{margin-left:auto;font-size:12px;background:none;border:0;padding:0;cursor:pointer;text-decoration:underline}
+.e-consent{margin:10px 0 10px;color:var(--ink-2)}
+.e-right .rr-host.m-host{position:absolute;inset:0;background:transparent}
+@media (max-width:760px){.m-captions{display:none}.r-part-list{left:12px;right:12px;columns:1}}
+.u1-next{margin:12px 24px;width:calc(var(--col) - 48px);font-size:14px}
+.u1-next p{margin:0 0 10px}
+.u1-shell .u1-root[data-view="machine"] .r-path *{visibility:hidden!important}
+.u1-shell .u1-root[data-noted] .r-machine .rr-host.m-host{top:48px}
+.u1-shell .u1-next{position:absolute;left:0;top:72px;width:var(--col);padding:0 24px;margin:0;z-index:5}
