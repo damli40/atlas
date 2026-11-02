@@ -7,12 +7,13 @@ Know what your AI-written code does before you trust it.
 <!-- DAMI: confirm this address and the invite-code line after the Fly deploy. -->
 **Online, nothing to install:** open **https://atlas-dami.fly.dev** and enter the invite code from the submission form.
 
-1. Click **Draw the example**. Atlas draws the file as a machine, one box per function.
-2. Click **Bet on what it does**, answer the questions and seal your bets. Meta's AI seals its own bets on the same questions.
-3. Atlas runs the code in a sandbox. Each bet shows **matched**, **didn't match** or **can't check**, and the drawing shows what ran.
-4. Open **Demos → The Moonwell pull request**: a saved replay of a real oracle bug on a Base fork. It needs no key and costs nothing.
+1. The page opens with an example already drawn as a machine, one box per function, and one question beside it.
+2. Pick an answer and press **Lock in my bet**. Meta's Muse Spark and Muse Spark Open answer the same question (for the example, their answers were recorded on Nov 2 and are labelled so).
+3. Atlas runs the code in a sandbox and the machine plays what really happened. Your bet shows **matched**, **didn't match** or **can't check**.
+4. Press **Share proof card**. Then try **Try your own code** with any JavaScript, TypeScript or Python file.
+5. At the foot of the page, open **Demos: Moonwell**: a saved replay of a real oracle setting on a Base fork. It needs no key and costs nothing.
 
-**On your own machine** (Node 22.13 or newer, and pnpm):
+**On your own machine** (Node 25 or newer, and pnpm; on older Node the local sandbox cannot block the network):
 
 ```sh
 git clone https://github.com/damli40/atlas.git && cd atlas
@@ -24,7 +25,8 @@ pnpm dev:all
 Then open http://localhost:5173.
 
 - **No Meta API key?** You can still draw any file and open the Moonwell replay. The tests and the AI bets need the key.
-- `BASETEN_API_KEY` is optional. It adds Muse Spark Open as a second AI bettor.
+- `BASETEN_API_KEY` is optional. It adds Muse Spark Open as a second AI bettor. Who bets is under **More options for this bet**.
+- The local server answers only this machine (127.0.0.1).
 - Tested on macOS only.
 
 "Matched" means the code did what you bet in this one test. It does not mean the code is correct.

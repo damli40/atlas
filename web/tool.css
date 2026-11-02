@@ -670,3 +670,6 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 .m-act-list{margin:10px 0 0;padding:8px 10px;border:1px solid var(--rule-2,#ddd4c3);font:400 12.5px/1.45 "Atlas Besley",Georgia,serif;color:#4a4440;max-height:132px;overflow:auto}
 .m-act-list summary{cursor:pointer}
 .m-act-list ol{margin:6px 0 0;padding-left:20px}
+
+/* Final review M2: the fixed foot links never sit on the Moonwell sheet's last sentence. */
+.u1-shell .u1-sheet.u1-moonwell{padding-bottom:96px}

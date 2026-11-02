@@ -58,7 +58,9 @@ async function asFile(svg: SVGSVGElement): Promise<string> {
     for (const k of ["fill", "stroke", "stroke-width", "stroke-dasharray", "stroke-dashoffset", "stroke-linecap", "opacity", "color", "visibility", "font-family", "font-style"]) t.setAttribute(k, cs.getPropertyValue(k));
   });
   const font = async (url: string, family: string) => {
-    const buf = new Uint8Array(await (await fetch(url)).arrayBuffer());
+    const res = await fetch(url);
+    if (!res.ok) return ""; // final review B1: a missing font falls back; a 404 page is never embedded as a font
+    const buf = new Uint8Array(await res.arrayBuffer());
     let bin = "";
     for (const b of buf) bin += String.fromCharCode(b);
     return `@font-face{font-family:"${family}";src:url(data:font/woff2;base64,${btoa(bin)}) format("woff2");font-weight:100 900}`;

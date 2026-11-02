@@ -164,7 +164,8 @@ if (dotEnv.loaded.length > 0) console.log(`.env: read ${dotEnv.loaded.join(", ")
 if (rpcEnv.loaded.length > 0) console.log(`~/.config/atlas/rpc.env: read ${rpcEnv.loaded.join(", ")} (values not shown)`);
 for (const note of currentStartupNotes()) console.warn(`note: ${note}`);
 
-serve({ fetch: app.fetch, port }, (info) => {
+// Final review M3: on a laptop the server answers only this machine, so no one on the same Wi-Fi can spend its keys.
+serve({ fetch: app.fetch, port, hostname: hosted ? "0.0.0.0" : "127.0.0.1" }, (info) => {
   console.log(`Atlas server listening on http://localhost:${info.port} (model bets ${modelBetsOn ? "on" : "off"}, Muse Spark Open ${sparkOpen.available ? "available" : `not available (${sparkOpen.reason})`}, investigator ${investigatorOn ? "on" : "off"}, test proposer ${on.proposer ? "on" : "off"}, fixer ${fixerOn ? "on" : "off"}, adversary ${adversaryOn ? "on" : "off"}, outliner ${on.outliner ? "on" : "off"}, .atlas.json files ${publishProofs ? "written to the proofs folder" : "kept in memory only"}, sandbox ${executor.kind === "modal" ? "Modal (a throwaway container per run, no network)" : "local (Node permission model on this machine)"})`);
   // D32: warm Modal once, in the background; never blocks or stops the server.
   void runAs({ kind: "system", label: "server warm-up (D32)", route: "startup" }, () => warmUp(executor));
