@@ -457,6 +457,41 @@ export function throwsInFileJs(sf: ts.SourceFile): ThrowSite[] {
   return out;
 }
 
+/** The libraries whose memo, debounce, forwardRef and friends are the ones the allow-list means. */
+const KNOWN_SOURCES = /^(?:react|react-dom|preact(?:\/compat)?|lodash(?:-es)?(?:\/[\w.-]+)?|lodash\.[\w-]+|underscore|ramda|memoize-one|throttle-debounce)$/;
+const bindings = new WeakMap<ts.SourceFile, Map<string, "local" | "known" | "elsewhere">>();
+/** How the file binds a top-level name: declared in the file, imported from a known library, imported from elsewhere, or not at all (undefined). */
+function bindingOf(sf: ts.SourceFile, name: string): "local" | "known" | "elsewhere" | undefined {
+  let m = bindings.get(sf);
+  if (!m) {
+    m = new Map();
+    const local = (n: ts.Node | undefined) => {
+      if (!n) return;
+      if (ts.isIdentifier(n)) m!.set(n.text, "local");
+      else if (ts.isObjectBindingPattern(n) || ts.isArrayBindingPattern(n)) for (const el of n.elements) if (!ts.isOmittedExpression(el)) local(el.name);
+    };
+    for (const st of sf.statements) {
+      if (ts.isImportDeclaration(st) && ts.isStringLiteral(st.moduleSpecifier)) {
+        const how = KNOWN_SOURCES.test(st.moduleSpecifier.text) ? "known" : "elsewhere";
+        const c = st.importClause;
+        if (c?.name) m.set(c.name.text, how);
+        const nb = c?.namedBindings;
+        if (nb && ts.isNamespaceImport(nb)) m.set(nb.name.text, how);
+        if (nb && ts.isNamedImports(nb)) for (const el of nb.elements) m.set(el.name.text, how);
+      } else if (ts.isImportEqualsDeclaration(st)) m.set(st.name.text, "elsewhere");
+      else if (ts.isFunctionDeclaration(st) || ts.isClassDeclaration(st) || ts.isEnumDeclaration(st)) local(st.name);
+      else if (ts.isVariableStatement(st)) for (const d of st.declarationList.declarations) {
+        // `const debounce = require("lodash.debounce")` counts as known; any other value is the file's own.
+        const r = d.initializer && ts.isCallExpression(d.initializer) && ts.isIdentifier(d.initializer.expression) && d.initializer.expression.text === "require" && d.initializer.arguments[0] && ts.isStringLiteral(d.initializer.arguments[0]) ? d.initializer.arguments[0].text : null;
+        if (r !== null && ts.isIdentifier(d.name)) m.set(d.name.text, KNOWN_SOURCES.test(r) ? "known" : "elsewhere");
+        else local(d.name);
+      }
+    }
+    bindings.set(sf, m);
+  }
+  return m.get(name);
+}
+
 /** Calls known to give back a function: memoizing, rate-limiting and once-only wrappers, and React's own. */
 const FN_WRAPPERS = new Set(["memo", "memoize", "debounce", "throttle", "once", "cache", "useCallback", "forwardRef", "React.memo", "React.forwardRef", "React.useCallback", "_.memoize", "_.debounce", "_.throttle", "_.once"]);
 
@@ -468,6 +503,10 @@ function wrappedFn(e: ts.Node | undefined): ts.ArrowFunction | ts.FunctionExpres
   const callee = e.expression;
   const name = ts.isIdentifier(callee) ? callee.text : ts.isPropertyAccessExpression(callee) && ts.isIdentifier(callee.expression) ? `${callee.expression.text}.${callee.name.text}` : null;
   if (name === null || !(FN_WRAPPERS.has(name) || /^with[A-Z]\w*$/.test(name))) return null;
+  // The list is of names as the usual libraries mean them. The file's own `memo` could do anything: a name the file declares, or imports from
+  // anywhere but those libraries, is not trusted.
+  const bound = bindingOf(e.getSourceFile(), name.split(".")[0]!);
+  if (bound === "local" || bound === "elsewhere") return null;
   const fns = e.arguments.filter((a): a is ts.ArrowFunction | ts.FunctionExpression => ts.isArrowFunction(a) || ts.isFunctionExpression(a));
   return fns.length === 1 ? fns[0]! : null;
 }

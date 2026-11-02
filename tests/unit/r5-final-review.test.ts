@@ -151,7 +151,7 @@ describe("M4: through the server", () => {
 
 describe("M6: a wrapped function", () => {
   it("can be bet on", () => {
-    const o = fileOutline(`const memo = (fn) => fn;\nexport const f = memo((x) => {\n  if (!x) throw new Error("x");\n  return x;\n});\n`, "ts");
+    const o = fileOutline(`import { memo } from "react";\nexport const f = memo((x) => {\n  if (!x) throw new Error("x");\n  return x;\n});\n`, "ts");
     expect(o.parts.find((p) => p.name === "f")).toMatchObject({ kind: "function", exported: true });
     expect(o.bodies!.f!.returns).toEqual([4]);
     expect(defaultFunction(o, [{ name: "f" }] as never)).toBe("f");
@@ -224,7 +224,7 @@ describe("merge gate N1: only a function written in a plain wrapper is callable"
     }
   });
   it("memo((x) => ...) is a function, and f does not call memo", () => {
-    const o = fileOutline("const memo = (fn) => fn;\nexport const f = memo((x) => {\n  return x;\n});\n", "ts");
+    const o = fileOutline('import { memo } from "react";\nexport const f = memo((x) => {\n  return x;\n});\n', "ts");
     expect(o.parts.find((p) => p.name === "f")?.kind).toBe("function");
     expect(o.joins.map((j) => `${j.from}->${j.to}`)).not.toContain("f->memo");
   });
@@ -243,10 +243,22 @@ describe("short check: wrappers are an allow-list", () => {
     ]) expect(kind(src), src).not.toBe("function");
   });
   it("the known function wrappers are", () => {
-    for (const w of ["memo", "debounce", "throttle", "once", "cache", "useCallback", "forwardRef", "React.memo", "React.forwardRef", "withAuth"]) {
-      const src = `const ${w.replace(".", "_")} = 1;\nexport const f = ${w}((x) => {\n  return x;\n});\n`;
-      expect(kind(src), w).toBe("function");
+    for (const [w, from] of [["memo", "react"], ["debounce", "lodash"], ["throttle", "lodash-es"], ["once", "lodash/once"], ["useCallback", "react"], ["forwardRef", "react"], ["React.memo", "react"], ["React.forwardRef", "react"]]) {
+      const head = w.includes(".") ? `import React from "${from}";` : `import { ${w} } from "${from}";`;
+      expect(kind(`${head}\nexport const f = ${w}((x) => {\n  return x;\n});\n`), w).toBe("function");
     }
+    // Not bound in the file at all: the name as the libraries mean it.
+    expect(kind("export const f = withAuth((x) => {\n  return x;\n});\n")).toBe("function");
+    expect(kind('const debounce = require("lodash.debounce");\nexport const f = debounce((x) => x, 10);\n')).toBe("function");
+  });
+  it("the file's own memo, once or withX: no part, whatever it returns", () => {
+    for (const src of [
+      "const memo = (g) => g();\nexport const f = memo(() => 1);\n",
+      "function once(g) { return g(); }\nexport const f = once(() => 1);\n",
+      "const withX = (g) => g();\nexport const f = withX(() => 1);\n",
+      'import { memo } from "./my-cache";\nexport const f = memo(() => 1);\n',
+      "const React = { memo: (g) => g() };\nexport const f = React.memo(() => 1);\n",
+    ]) expect(kind(src), src).not.toBe("function");
   });
 });
 
