@@ -1,5 +1,5 @@
 // D65: the machine on the page. Plain SVG text from renderer/machine; React never touches what is inside it. Each part is a button, and
-// clicking one says what it stands for and its lines.
+// clicking one says what it stands for and its lines: in the page's part panel (R6) when the page has one, else in a small card.
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { MachinePlayer } from "../../renderer/machine/player";
 import { MACHINE_CSS } from "../../renderer/machine/pencil";
@@ -73,7 +73,7 @@ function penTime(): number {
   }
 }
 
-export const MachineSheet = forwardRef<MachineControl, { drawn: MachineDrawn; reduced?: boolean; onPart?: (id: string) => void; testid?: string; /** A new value pencils the machine in: a new paste, not a new test on it. */ penKey?: string | null; /** The run's beats, and whether its result has landed: a machine that mounts after that (M, or the chart first) shows the same result at once. */ beats?: MachineBeat[]; landed?: boolean }>(function MachineSheet({ drawn, reduced = false, onPart, testid = "machine", penKey = null, beats, landed = false }, ref) {
+export const MachineSheet = forwardRef<MachineControl, { drawn: MachineDrawn; reduced?: boolean; /** True: the page showed the part in its panel, so no card is shown here as well. */ onPart?: (id: string) => boolean | void; /** The part the page's panel is about: marked on the drawing. */ picked?: string | null; testid?: string; /** A new value pencils the machine in: a new paste, not a new test on it. */ penKey?: string | null; /** The run's beats, and whether its result has landed: a machine that mounts after that (M, or the chart first) shows the same result at once. */ beats?: MachineBeat[]; landed?: boolean }>(function MachineSheet({ drawn, reduced = false, onPart, picked = null, testid = "machine", penKey = null, beats, landed = false }, ref) {
   ensureMachineStyle();
   const host = useRef<HTMLDivElement | null>(null);
   const player = useRef<MachinePlayer | null>(null);
@@ -112,13 +112,21 @@ export const MachineSheet = forwardRef<MachineControl, { drawn: MachineDrawn; re
     window.addEventListener("keydown", onEsc, true);
     return () => window.removeEventListener("keydown", onEsc, true);
   }, [card]);
+  // The part the panel is about stays marked, whatever is redrawn under it.
+  useEffect(() => {
+    const svg = host.current?.querySelector("svg");
+    if (!svg) return;
+    for (const el of svg.querySelectorAll("[data-picked]")) el.removeAttribute("data-picked");
+    if (picked) for (const el of svg.querySelectorAll(".m-part[data-part]")) if ((el.getAttribute("data-part") ?? "").split("#")[0] === picked) el.setAttribute("data-picked", "");
+  }, [picked, drawn.svg]);
   const show = (el: Element) => {
     const part = el.closest("[data-part]");
     if (!part) return setCard(null);
+    // One place says what a part is: the page's panel when it took the click, else the card.
+    if (onPart?.((part.getAttribute("data-part") ?? "").split("#")[0]!) === true) return setCard(null);
     const box = part.getBoundingClientRect();
     const mine = host.current!.getBoundingClientRect();
     setCard({ words: part.getAttribute("aria-label") ?? "", x: box.left - mine.left + box.width / 2, y: box.top - mine.top });
-    onPart?.((part.getAttribute("data-part") ?? "").split("#")[0]!);
   };
   return (
     <div

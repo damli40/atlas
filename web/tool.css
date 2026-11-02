@@ -242,6 +242,25 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 .u1-shell .u1-studio[data-drawer] .r-chart,.u1-shell .u1-studio[data-drawer] .u1-root[data-stage] .r-path{width:calc(100vw - var(--col) - clamp(320px,29vw,440px))}
 .u1-shell .u1-studio[data-drawer] .u1-card{right:calc(clamp(320px,29vw,440px) + 18px)}
 @media (max-width:760px){.c-drawer{width:100vw}.u1-code-toggle{right:8px;top:54px}.u1-shell .u1-studio[data-drawer] .r-chart{width:100vw}}
+/* R6: the panel about one part. Over the left column, so the machine keeps its size and nothing on it is covered: not the part, not the ring.
+   On a phone, a sheet from the bottom, with the drawing still above it. */
+.c-drawer[data-part]{grid-template-rows:38px auto auto minmax(0,1fr)}
+.c-drawer[data-part] .c-covers{grid-row:2}
+.c-drawer[data-part] .c-part{grid-row:3}
+.c-drawer[data-part] .c-body{grid-row:4;border-top:1px solid var(--rule-2)}
+.c-part{padding:14px 16px 12px;max-height:46vh;overflow:auto;font:400 14px/1.45 var(--ui);color:var(--ink)}
+.c-part-title{margin:0;font:600 19px/1.25 var(--ui);color:var(--ink)}
+.c-part-name{margin:3px 0 0;font:400 12.5px/1.4 var(--mono);color:var(--ink-2)}
+.c-part-says{margin:10px 0 0;padding:0;list-style:none}
+.c-part-says li{margin:0 0 3px}
+.c-part-broke{margin:10px 0 0;padding:8px 10px;border-left:3px solid var(--red);background:var(--paper)}
+.c-part-broke p{margin:0 0 4px;overflow-wrap:anywhere}
+.c-part-broke p:last-child{margin:0}
+.u1-shell .u1-studio[data-drawer-part] .c-drawer{left:0;right:auto;width:var(--col);border-left:0;border-right:1px solid var(--rule)}
+@media (max-width:760px){
+  .u1-shell .u1-studio[data-drawer-part] .c-drawer{top:auto;bottom:0;height:min(50vh,460px);width:100vw;border-right:0;border-top:1px solid var(--rule);box-shadow:0 -6px 18px rgba(31,27,29,.08)}
+  .c-part{max-height:30vh}
+}
 
 /* ---- the top line, on the older screens ---- */
 .u1-shell .u1-sheet{padding:18px 24px 48px}

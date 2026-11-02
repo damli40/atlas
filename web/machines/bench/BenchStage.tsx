@@ -31,6 +31,8 @@ import { OUTCOME_WORDS, unusedFakes, type Mark, type Script } from "./play";
 import { notShownAsFact } from "../../../src/trust";
 import { runBeats } from "./run-beats";
 import { lineSpan } from "../../../src/words";
+import { partPanel, type PartPanel } from "../../../renderer/authors/part-panel";
+import { describeCall } from "../../../src/gate";
 import { RESULT_WORDS, STAGE_WORDS } from "../../../src/paste-words";
 import { CANT_TELL } from "../../../src/quiz";
 
@@ -66,8 +68,10 @@ export interface BenchStageProps {
   wontRun?: boolean;
   /** This code has already run here on some test: nothing on screen may say nothing has run. */
   codeRan?: boolean;
-  /** D60: a part was clicked on the drawing: the code drawer jumps to its lines. */
-  onPart?: (name: string) => void;
+  /** D60: a part was clicked on the drawing: the code drawer jumps to its lines. R6: with what the panel says about it, from the machine's own facts. */
+  onPart?: (name: string, panel: PartPanel | null) => void;
+  /** R6: the part the page's panel is about, marked on the machine. */
+  picked?: string | null;
   /** A code box was chosen as the function to test. */
   onTestFunction?: (name: string) => void;
   /** The file and its size, above the name. */
@@ -129,7 +133,7 @@ export function litWithNoThread(beats: readonly { routes: readonly string[]; lam
   return beats.some((b) => b.lamps.some((l) => l !== tested && !reached.has(l)));
 }
 
-export function BenchStage({ wontRun = false, seenBefore = false, codeRan = false, loop = null, model, theme, after = null, onPart, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null }: BenchStageProps) {
+export function BenchStage({ wontRun = false, seenBefore = false, codeRan = false, loop = null, model, theme, after = null, onPart, picked = null, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null }: BenchStageProps) {
   const [wantMachine, setWantMachine] = useState(machineFirst);
   const playedRef = useRef(onPlayed);
   playedRef.current = onPlayed;
@@ -189,7 +193,7 @@ export function BenchStage({ wontRun = false, seenBefore = false, codeRan = fals
     return moment ? ringFor({ kind: moment.kind, you: moment.you, end, tested: model.tested }) : null;
   }, [after?.run, after?.marks, end, model.tested]); // eslint-disable-line react-hooks/exhaustive-deps
   const drawn = useMemo(() => {
-    const d = drawMachine(parts, { seed: `machine:${outline.parts.map((p) => p.name).join(",")}`, ring, end, ...(wontRun ? { wontRun } : {}) });
+    const d = drawMachine(parts, { seed: `machine:${outline.parts.map((p) => p.name).join(",")}`, ring, end, nameLines: true, ...(wontRun ? { wontRun } : {}) });
     // The check runs on every drawing: a picture that fails it is not shown, and the words stay plain.
     return d.problems.length > 0 ? { ...d, tooMany: CANT_DRAW } : d;
   }, [parts, ring, end, outline, wontRun]);
@@ -384,6 +388,13 @@ export function BenchStage({ wontRun = false, seenBefore = false, codeRan = fals
     return () => window.removeEventListener("keydown", onEsc, true);
   }, [pinned]);
   const cardId = pinned ?? hover;
+  // R6: the panel about a part. On the ringed part, once the verdict is up, it adds what broke: only words the result already shows.
+  const panelFor = (id: string): PartPanel | null => {
+    const moment = after && marksOn ? momentOf(after.marks, after.run, language) : null;
+    const params = after?.experiment.params;
+    const broke = moment && ring ? { run: moment.run, line: end?.on === "chute" ? (end.line ?? null) : null, input: params && params.shape === "call-function" ? describeCall(params, language) : null } : null;
+    return partPanel(parts, id, { ring, broke, wontRun });
+  };
   const stage = !after ? "structure" : marksOn ? "verdict" : "run";
   const readout = after && marksOn ? marksReadout(after.marks) : model.tested ? `testing ${model.tested}` : `${model.boxes.length} ${model.boxes.length === 1 ? "part" : "parts"} · ${model.lines.length} ${model.lines.length === 1 ? "join" : "joins"}`;
 
@@ -404,13 +415,20 @@ export function BenchStage({ wontRun = false, seenBefore = false, codeRan = fals
           </p>
         ) : (
           <Drawing spec={chart} theme={shown} className="u1-svg r-sheet" maxScale={1.2} minScale={0.3} hover={!after} onMount={onChart} onSelect={(id) => {
-              setPinned((p) => (p === id ? null : id));
-              onPart?.(id);
+              // A part the panel can say something about opens it, and no card is pinned too: one place says what a part is.
+              const panel = onPart ? panelFor(id) : null;
+              if (!panel) setPinned((p) => (p === id ? null : id));
+              onPart?.(id, panel);
             }} />
         )}
       </div>
       <div className="r-machine" ref={regionRef} hidden={undefined} style={showMachine ? undefined : { visibility: "hidden", pointerEvents: "none" }} data-testid="machine-region" data-captions={after && marksOn && pathSpec?.captions.length ? "" : undefined}>
-        {showMachine && <MachineSheet ref={machineRef} drawn={drawn} reduced={still} penKey={after ? null : source} beats={beats} landed={Boolean(after && marksOn)} onPart={(id) => model.parts[id]?.kind === "code" && document.querySelector(".c-drawer") && onPart?.(id)} />}
+        {showMachine && <MachineSheet ref={machineRef} drawn={drawn} reduced={still} penKey={after ? null : source} beats={beats} landed={Boolean(after && marksOn)} picked={picked} onPart={(id) => {
+          const panel = onPart ? panelFor(id) : null;
+          if (!panel) return false;
+          onPart!(id, panel);
+          return true;
+        }} />}
       </div>
       {showMachine && after && noRunToShow ? <p className="r-view-note" role="note" data-testid="machine-stop">{stopLine(after.script.notShown ?? pathSpec?.notShown ?? "")}</p> : null}
       {after && marksOn && !noRunToShow && pathSpec?.captions.length ? (

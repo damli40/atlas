@@ -41,6 +41,7 @@ import { absentBettors, useModelSlots } from "./Claimant";
 import { ErrorNotice } from "./ErrorNotice";
 import { MachineSheet, machineFirst, useFontsIn } from "../drawing/MachineView";
 import { drawMachine, machineParts } from "../../renderer/authors/machine";
+import type { PartPanel } from "../../renderer/authors/part-panel";
 import { Segments, TestForm, emptyForm, formFromParams, type TestFormState } from "./TestForm";
 import { BenchStage, type After } from "../machines/bench/BenchStage";
 import { benchModel, dialFullMs, type CallTest } from "../machines/bench/model";
@@ -81,8 +82,8 @@ export function defaultProposal<P extends { gate: { allowed: boolean }; params: 
  * that on code keeping state between calls a single call cannot show the state working, so a two-call test comes first.
  */
 /** D60: the example's real drawing, drawing itself on the first screen: the same parser's output, kept in the page (a test holds them equal). */
-/** D60: the code beside the drawing. Clicking a part on the drawing jumps here. */
-function CodeDrawer({ source, lines, onClose, coversResult = false }: { source: string; lines: [number, number] | null; onClose: () => void; coversResult?: boolean }) {
+/** D60: the code beside the drawing. Clicking a part on the drawing jumps here. R6: and says what that part is, from the machine's own facts, above its lines. */
+function CodeDrawer({ source, lines, onClose, coversResult = false, part = null }: { source: string; lines: [number, number] | null; onClose: () => void; coversResult?: boolean; part?: PartPanel | null }) {
   const host = useRef<HTMLDivElement | null>(null);
   // A newline at the end of a file ends its last line: it does not start another.
   const all = useMemo(() => source.replace(/(?:\r\n|\r|\n)$/, "").split(/\r\n|\r|\n/), [source]);
@@ -90,14 +91,33 @@ function CodeDrawer({ source, lines, onClose, coversResult = false }: { source: 
     if (lines) host.current?.querySelector<HTMLElement>(`[data-line="${lines[0]}"]`)?.scrollIntoView({ block: "center" });
   }, [lines]);
   return (
-    <aside className="c-drawer" aria-label="Your code" data-testid="c-drawer">
+    <aside className="c-drawer" aria-label={part ? `About ${part.title}` : "Your code"} data-testid="c-drawer" data-part={part?.id}>
       <div className="c-head">
-        <span>Your code</span>
-        <button type="button" className="u1-close" onClick={onClose} aria-label="Close the code">
+        <span>{part ? "This part" : "Your code"}</span>
+        <button type="button" className="u1-close" onClick={onClose} aria-label={part ? "Close this panel" : "Close the code"}>
           ×
         </button>
       </div>
-      {coversResult && <p className="c-covers" role="note" data-testid="c-covers">Your result is under this panel. C closes it.</p>}
+      {coversResult && <p className="c-covers" role="note" data-testid="c-covers">{`Your result is under this panel. ${part ? "Esc" : "C"} closes it.`}</p>}
+      {part && (
+        <section className="c-part" aria-live="polite" data-testid="part-panel">
+          <h2 className="c-part-title">{part.title}</h2>
+          {part.name && <p className="c-part-name">{part.name}</p>}
+          {part.broke && (
+            <div className="c-part-broke" data-testid="part-broke">
+              {part.broke.map((w) => (
+                <p key={w}>{w}</p>
+              ))}
+            </div>
+          )}
+          <ul className="c-part-says">
+            {part.says.map((w) => (
+              <li key={w}>{w}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {part && !lines ? null : (
       <div className="c-body" ref={host} tabIndex={0}>
         {all.map((text, i) => {
           const n = i + 1;
@@ -109,6 +129,7 @@ function CodeDrawer({ source, lines, onClose, coversResult = false }: { source: 
           );
         })}
       </div>
+      )}
     </aside>
   );
 }
@@ -120,7 +141,7 @@ function ExampleDrawing() {
   const drawn = useMemo(() => {
     if (!fontsIn || !machineFirst()) return null;
     const model = benchModel({ fileName: "example.ts", outline, test: null, source: U1_EXAMPLE, language: "ts" });
-    const d = drawMachine(machineParts({ ...model, tested: EXAMPLE_FUNCTION_NAME }, outline, U1_EXAMPLE, "ts"), { seed: "machine:example" });
+    const d = drawMachine(machineParts({ ...model, tested: EXAMPLE_FUNCTION_NAME }, outline, U1_EXAMPLE, "ts"), { seed: "machine:example", nameLines: true });
     return d.tooMany || d.problems.length > 0 ? null : d;
   }, [outline, fontsIn]);
   const reduced = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
@@ -387,6 +408,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   // D60: the code drawer. Closed on the drawing, open during the bet on a wide screen, because the AIs read the code and you should too.
   const [drawerChoice, setDrawer] = useState<boolean | null>(null);
   const [drawerLines, setDrawerLines] = useState<[number, number] | null>(null);
+  // R6: the part the panel is about. Only while the panel is open; C opens the plain code.
+  const [drawerPart, setDrawerPart] = useState<PartPanel | null>(null);
   const wide = typeof window !== "undefined" && window.innerWidth >= 1400;
   // D60: the bet is one question at a time. All of them stay in the page (D19); CSS shows the current one.
   const [step, setStep] = useState(0);
@@ -958,10 +981,14 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           setEditing(null);
           setProofOpen(false);
           setPicking(false);
-        } else if (!e.defaultPrevented) setDrawer(false);
+        } else if (!e.defaultPrevented) {
+          setDrawer(false);
+          setDrawerPart(null);
+        }
         return;
       }
       if (e.key.toLowerCase() === "c" && pasted) {
+        setDrawerPart(null);
         setDrawer((d) => !(d ?? (wide && open && exp !== null && !result && !machineFirst())));
         e.preventDefault();
         return;
@@ -1102,6 +1129,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   // ---- the drawing ----
   // Beside the machine, the code panel opens only when asked (the Code button, C or a click): it would squeeze the machine under its reading size.
   const drawerOpen = drawerChoice ?? (wide && open && exp !== null && !after && !machineFirst());
+  const partShown = drawerOpen ? drawerPart : null;
   const noFunction = pasted.runnable && !fn && pasted.outline !== undefined;
   // A language Atlas doesn't read: one message, the one that says so. "Needs a package" would be about a JavaScript reading of it.
   const foreign = pasted.outline?.parts.length === 0 ? foreignLanguage(readText) : null;
@@ -1120,8 +1148,17 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const offeredTests = (proposals?.proposals ?? []).filter((p) => p.gate.allowed && !alreadyRan(p.params));
   const title = `${source ?? (pasted.outline?.parts.length === 0 ? "pasted file" : FILE_NAME[pasted.target.language ?? "ts"])} · ${plural(pasted.lines, "line")}${drawnMs !== null ? ` · drawn in ${drawnMs} ms` : ""}`;
   return (
-    <div className="u1-studio" data-drawer={drawerOpen ? "" : undefined}>
-      <button type="button" className="u1-link u1-code-toggle" aria-pressed={drawerOpen} onClick={() => setDrawer(!drawerOpen)} data-testid="u1-code-toggle">
+    <div className="u1-studio" data-drawer={drawerOpen && !partShown ? "" : undefined} data-drawer-part={partShown ? "" : undefined}>
+      <button
+        type="button"
+        className="u1-link u1-code-toggle"
+        aria-pressed={drawerOpen}
+        onClick={() => {
+          setDrawerPart(null);
+          setDrawer(!drawerOpen);
+        }}
+        data-testid="u1-code-toggle"
+      >
         Code
         <kbd className="k">C</kbd>
       </button>
@@ -1141,10 +1178,12 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           title={title}
           side={open}
           onPlayed={() => setPlayed((n) => n + 1)}
-          onPart={(name) => {
+          picked={partShown?.id ?? null}
+          onPart={(name, panel) => {
             const part = pasted.outline?.parts.find((p) => p.name === name);
-            if (!part) return;
-            setDrawerLines([part.lineStart, part.lineEnd]);
+            if (!part && !panel) return;
+            setDrawerLines(panel ? panel.lines : [part!.lineStart, part!.lineEnd]);
+            setDrawerPart(panel);
             setDrawer(true);
           }}
           headnote={
@@ -1233,7 +1272,10 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
         </BenchStage>
       ) : null}
       {drawerOpen && (
-        <CodeDrawer source={readText} lines={drawerLines} onClose={() => setDrawer(false)} coversResult={after !== null && typeof window !== "undefined" && window.innerWidth >= 761 && window.innerWidth < 1800} />
+        <CodeDrawer source={readText} lines={drawerLines} part={partShown} onClose={() => {
+          setDrawer(false);
+          setDrawerPart(null);
+        }} coversResult={after !== null && typeof window !== "undefined" && window.innerWidth >= 761 && (partShown !== null || window.innerWidth < 1800)} />
       )}
       {after && picking && (
         <section className="u1-proof u1-picking" role="dialog" aria-modal="false" aria-label={CHANGE_WORDS.pickTitle} data-testid="u1-pick-panel">

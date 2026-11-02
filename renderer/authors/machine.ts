@@ -8,10 +8,11 @@ import type { FileOutline } from "../../src/file-outline";
 import { benchModel, type BenchModel, type CallTest } from "../../web/machines/bench/model";
 import type { ThrowSite } from "../../src/outline/types";
 import type { Pt } from "../hand";
+import { nameWords, roleOf } from "./part-name";
 import type { RenderSpec } from "../spec";
 import { auditMachine, type MachineFacts } from "../machine/audit";
 import { rectsOverlap, sample, solidHitsRect, solidOf, segDist, type Rect, type Solid, segmentsCross } from "../machine/geometry";
-import { K, textWidth, block, chevrons, dial, drum, esc, flange, floorShadow, hopper, iso, pipe, ringAround, screws, sheetOf, stemDial, threadPath, ticket, topOf, wheel, type Plan, type Sheet, type W } from "../machine/pencil";
+import { K, codeWidth, textWidth, block, chevrons, dial, drum, esc, flange, floorShadow, hopper, iso, pipe, ringAround, screws, sheetOf, stemDial, threadPath, ticket, topOf, wheel, type Plan, type Sheet, type W } from "../machine/pencil";
 import { PIPE_R, PIPE_Z, routeAll, type Job, type Owner } from "../machine/route";
 
 /** Past this the machine can't be drawn large enough to read: the page says so in words and shows the chart. */
@@ -43,6 +44,8 @@ export interface Housing {
   throws: number[];
   returns: number[];
   throwSites: ThrowSite[];
+  /** A word for a part with no name of its own (an unnamed default export), from syntax alone. */
+  role?: string;
 }
 export interface Port {
   id: string;
@@ -85,6 +88,7 @@ export function machineParts(model: BenchModel, outline: FileOutline, source: st
       throws: isFn ? (body?.throws ?? []).map((t) => t.line) : [],
       throwSites: isFn ? (body?.throws ?? []) : [],
       returns: isFn ? (body?.returns ?? []) : [],
+      ...(roleOf(p.part.name, language) ? { role: roleOf(p.part.name, language)! } : {}),
     });
   }
   const ids = new Set(housings.map((h) => h.id));
@@ -115,7 +119,7 @@ const STEP_X = WIDE + 124;
 const DRIFT_Y = 0.24;
 const STEP_Y = DEEP + 118;
 const LABEL = 13.5;
-const span = (a: number, b: number) => (a === b ? `line ${a}` : `lines ${a}–${b}`);
+export const span = (a: number, b: number) => (a === b ? `line ${a}` : `lines ${a}–${b}`);
 const at = (l: readonly number[]) => (l.length === 1 ? `line ${l[0]}` : `lines ${l.slice(0, 3).join(", ")}${l.length > 3 ? "…" : ""}`);
 
 function open(s: Sheet, id: string, title: string) {
@@ -387,8 +391,48 @@ function solidsOf(h: Housing, pl: Plan): Solid[] {
   return out;
 }
 
+/** The plate a name is engraved on. The deeper one, for two lines, also reaches the lid's edges. */
+const PLATE_ONE = { dx: 12, dy: 62, w: WIDE - 24, d: 50 };
+const PLATE_TWO = { dx: 8, dy: 58, w: WIDE - 16, d: 60 };
+/** The lamp's place on the plate's right end, in world units from the part's corner, and how far round it the words keep clear. */
+const LAMP = { dx: WIDE - 17, dy: 70, clear: 6.5 };
+
+/**
+ * How a part's name sits on its lid: the plain words over the exact name in code type, or the exact name alone. Sizes are in world units.
+ * Both lines stay at or above the size a name alone may be (13 px on the sheet), so the page's 11 px floor is met exactly as before. Null: no room.
+ * `top` is how far into the plate the first line's tallest letters reach: below the lamp when the words are wide enough to meet it.
+ */
+export function lidLines(h: Pick<Housing, "name" | "role">, twoLines: boolean): { big: string; bigSize: number; small?: string; smallSize?: number; top?: number; plate: typeof PLATE_ONE } | null {
+  const shortName = h.name.length > 22 ? `${h.name.slice(0, 21)}…` : h.name;
+  // The plate's width and the words are in different units here: world and page.
+  const fit = (room: number, w: number, max: number) => Math.min(max, ((room * K) / w) * 100) / K;
+  const one = fit(PLATE_ONE.w - 10 / K, textWidth(shortName, 100, false), 30);
+  const alone = one * K >= 13 ? { big: shortName, bigSize: one, plate: PLATE_ONE } : null;
+  if (!twoLines) return alone;
+  // No name of its own: the role word, alone. The lid never shows "default" as if it were a name.
+  if (h.role) {
+    const r = fit(PLATE_ONE.w - 10 / K, textWidth(h.role, 100, false), 26);
+    return r * K >= 13 ? { big: h.role, bigSize: r, plate: PLATE_ONE } : null;
+  }
+  const words = nameWords(h.name);
+  if (!words) return alone;
+  const wide = PLATE_TWO.w - 8;
+  // Centred words narrower than this stop short of the lamp, so they may start at the plate's back edge.
+  const clearOfLamp = 2 * (LAMP.dx - LAMP.clear - (PLATE_TWO.dx + PLATE_TWO.w / 2));
+  const small = Math.min(fit(wide, codeWidth(shortName, 100), 13.5 / K), 13.5 / K);
+  let best: { big: number; top: number } | null = null;
+  for (const [room, top] of [[clearOfLamp, 3], [wide, LAMP.dy + LAMP.clear - PLATE_TWO.dy]] as const) {
+    // A letter's height above and below its line: about 0.72 and 0.22 of its size. Then a small gap, then the code line.
+    const deep = (PLATE_TWO.d - top - 3 - 2 - small * 0.94) / 0.94;
+    const big = Math.min(fit(room, textWidth(words, 100, false), 26), deep);
+    if (!best || big > best.big) best = { big, top };
+  }
+  if (!best || best.big * K < 13 || small * K < 13 || small > best.big) return alone;
+  return { big: words, bigSize: best.big, small: shortName, smallSize: small, top: best.top, plate: PLATE_TWO };
+}
+
 /** Draws at the tightest spacing that comes out clean: more room is tried only when the pipes can't be routed or the audit finds a fault. */
-export function drawMachine(p: MachineParts, o: { seed: string; ring?: MachineRing | null; ended?: boolean; end?: MachineEnd | null; /** Atlas won't run this file (it needs a package): the entry says where a call would start, not that Atlas calls it. */ wontRun?: boolean }): MachineDrawn {
+export function drawMachine(p: MachineParts, o: { seed: string; ring?: MachineRing | null; ended?: boolean; end?: MachineEnd | null; /** Atlas won't run this file (it needs a package): the entry says where a call would start, not that Atlas calls it. */ wontRun?: boolean; /** The person's own screen: each lid carries the name in plain words over the exact name. The shared picture leaves this off. */ nameLines?: boolean }): MachineDrawn {
   let last: MachineDrawn | null = null;
   for (const roomy of [1, 1.3, 1.7, 2.2]) {
     last = drawAt(p, o, roomy);
@@ -398,7 +442,7 @@ export function drawMachine(p: MachineParts, o: { seed: string; ring?: MachineRi
   return last!;
 }
 
-export function drawAt(p: MachineParts, o: { seed: string; ring?: MachineRing | null; ended?: boolean; end?: MachineEnd | null; /** Atlas won't run this file (it needs a package): the entry says where a call would start, not that Atlas calls it. */ wontRun?: boolean }, roomy: number): MachineDrawn {
+export function drawAt(p: MachineParts, o: { seed: string; ring?: MachineRing | null; ended?: boolean; end?: MachineEnd | null; /** Atlas won't run this file (it needs a package): the entry says where a call would start, not that Atlas calls it. */ wontRun?: boolean; nameLines?: boolean }, roomy: number): MachineDrawn {
   const count = p.housings.length + p.ports.length;
   const chart = (why: string): MachineDrawn => ({ svg: "", width: 0, height: 0, label: "", tooMany: why, problems: [], minWords: 0 });
   if (p.partsInFile) return chart(`This file defines ${p.partsInFile.toLocaleString("en-US")} functions and classes, more than the ${MACHINE_PART_LIMIT} parts the machine can draw and still be read. Here are the first ${p.housings.length}.`);
@@ -551,15 +595,21 @@ export function drawAt(p: MachineParts, o: { seed: string; ring?: MachineRing | 
       block(s, pl, 4, bodyHeight(h));
       block(s, lid, bodyHeight(h) + 4, 6, { tone: "bare", width: 1 });
       screws(s, lid, top, 5);
-      const plate = { x: pl.x + 12, y: pl.y + 62, w: pl.w - 24, d: 50 };
+      const onLid = lidLines(h, o.nameLines === true);
+      const pp = onLid?.plate ?? PLATE_ONE;
+      const plate = { x: pl.x + pp.dx, y: pl.y + pp.dy, w: pp.w, d: pp.d };
       block(s, plate, top, 1.6, { tone: "bare", width: 0.9 });
-      const shortName = h.name.length > 22 ? `${h.name.slice(0, 21)}…` : h.name;
-      // The plate's width and the words are in different units here: world and page.
-      const nameSize = Math.min(30, ((plate.w * K - 10) / textWidth(shortName, 100, false)) * 100) / K;
-      if (nameSize * K >= 13) s.onTop([pl.x + pl.w / 2, pl.y + 87 + nameSize * 0.3, top + 1.6], shortName, nameSize);
-      lamp(s, h.id, [pl.x + pl.w - 17, pl.y + 70, top + 1.6]);
+      if (onLid?.small !== undefined) {
+        // Two lines: the plain words, then the exact name in code type, centred together on the plate.
+        const first = plate.y + onLid.top! + onLid.bigSize * 0.72;
+        s.onTop([pl.x + pl.w / 2, first, top + 1.6], onLid.big, onLid.bigSize);
+        s.onTop([pl.x + pl.w / 2, first + onLid.bigSize * 0.22 + 2 + onLid.smallSize! * 0.72, top + 1.6], onLid.small, onLid.smallSize!, { cls: "m-code" });
+      } else if (onLid) s.onTop([pl.x + pl.w / 2, pl.y + 87 + onLid.bigSize * 0.3, top + 1.6], onLid.big, onLid.bigSize);
+      lamp(s, h.id, [pl.x + LAMP.dx, pl.y + LAMP.dy, top + 1.6]);
       close(s);
-      callouts.push({ part: h.id, text: nameSize * K < 15 ? `${h.name}, ${span(h.lines[0], h.lines[1])}` : span(h.lines[0], h.lines[1]), anchor: iso([pl.x + 8, pl.y + pl.d - 8, top]), cls: "m-soft", ...(nameSize * K < 15 ? {} : { optional: true }) });
+      // Too small to read on the lid: the name goes beside the part instead.
+      const nameBeside = !onLid || (onLid.small === undefined && onLid.bigSize * K < 15);
+      callouts.push({ part: h.id, text: nameBeside ? `${(o.nameLines ? h.role : undefined) ?? h.name}, ${span(h.lines[0], h.lines[1])}` : span(h.lines[0], h.lines[1]), anchor: iso([pl.x + 8, pl.y + pl.d - 8, top]), cls: "m-soft", ...(nameBeside ? {} : { optional: true }) });
       // what stands on top, in a row behind the plate
       if (h.tested) {
         open(s, `${h.id}#inlet`, o.wontRun ? `${h.name}: a call would start here. Atlas can't run this file.` : `${h.name}: the call starts here. Atlas calls this function.`);
