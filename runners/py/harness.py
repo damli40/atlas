@@ -668,6 +668,8 @@ def main(key_text):
     clock_high = [0.0]  # the furthest the virtual clock has been announced to move this run (exposed.py tells the hook)
     modules_at_arm = [frozenset()]
     FRAME_ATTRS = frozenset(("tb_frame", "gi_frame", "cr_frame", "ag_frame", "f_back"))
+    # True only while the third run's harness walks a traceback it read through the descriptor: no code from the file runs meanwhile, and that run holds no key.
+    own_walk = [False]
     ALLOWED = frozenset((
         "exec", "compile", "builtins.id", "sys._getframemodulename", "object.__delattr__", "sys.excepthook",
         "sys.unraisablehook", "sys.set_asyncgen_hook_firstiter", "sys.set_asyncgen_hook_finalizer", "marshal.dumps",
@@ -764,6 +766,8 @@ def main(key_text):
             return
         if event == "object.__getattr__":
             name = args[1] if len(args) > 1 else None
+            if own_walk[0] and name == "tb_frame":
+                return
             if type(name) is not str or name in FRAME_ATTRS:
                 refuse("internals", "a stack frame (." + clean(name if type(name) is str else "?", 20) + ")")
             return
@@ -1123,6 +1127,7 @@ def main(key_text):
     probe_ctx = [None]
     probe_events = []
     probes_cut = [0]
+    thrown_line = [None]
     if any(r.get("probe") == "profile" for r in req["runs"]):
         import opcode as _opcode
 
@@ -1236,6 +1241,23 @@ def main(key_text):
         if is_access_denied(e):
             mark(word("access", what="the sandbox refused an access"))
             return None
+        if probe_ctx[0] is not None:
+            # The third run only: the line of the pasted file the raise came from, the deepest frame there. A number, never a value.
+            own_walk[0] = True
+            try:
+                tb = BaseException.__traceback__.__get__(e)
+                last = None
+                steps = 0
+                while tb is not None and steps < 5000:
+                    if tb.tb_frame.f_code.co_filename == "<pasted code>":
+                        last = tb.tb_lineno
+                    tb = tb.tb_next
+                    steps += 1
+                thrown_line[0] = last if type(last) is int else None
+            except BaseException:
+                thrown_line[0] = None
+            finally:
+                own_walk[0] = False
         return ("threw", classify_thrown(e))
 
     def run_handle(h, ctx):
@@ -1637,6 +1659,7 @@ def main(key_text):
         if probe_ctx[0] is not None:
             one["probes"] = probe_events
             one["probesCut"] = probes_cut[0]
+            one["thrownLine"] = thrown_line[0]
         out_runs.append(one)
     side_checks()
     if whole[0] is not None:

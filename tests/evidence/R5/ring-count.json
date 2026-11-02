@@ -1,0 +1,97 @@
+[
+ {
+  "name": "latency",
+  "hasThrow": false
+ },
+ {
+  "name": "routes",
+  "hasThrow": false
+ },
+ {
+  "name": "cart",
+  "hasThrow": false
+ },
+ {
+  "name": "signup",
+  "hasThrow": true,
+  "outcome": "threw",
+  "thrown": "bad email",
+  "thrownAt": 8,
+  "helpers": "ok",
+  "end": {
+   "part": "signup",
+   "on": "chute",
+   "line": 8
+  }
+ },
+ {
+  "name": "fan",
+  "hasThrow": false
+ },
+ {
+  "name": "chain",
+  "hasThrow": false
+ },
+ {
+  "name": "retry",
+  "hasThrow": true,
+  "outcome": "threw",
+  "thrown": "boom",
+  "thrownAt": null,
+  "helpers": "ok",
+  "end": {
+   "part": "stand-in f",
+   "on": "port"
+  }
+ },
+ {
+  "name": "py_users",
+  "hasThrow": true,
+  "outcome": "threw",
+  "thrown": "no users",
+  "thrownAt": 16,
+  "helpers": "ok",
+  "end": {
+   "part": "import_users",
+   "on": "chute",
+   "line": 16
+  }
+ },
+ {
+  "name": "py_cache",
+  "hasThrow": false
+ },
+ {
+  "name": "parser",
+  "hasThrow": false
+ },
+ {
+  "name": "hub",
+  "hasThrow": false
+ },
+ {
+  "name": "orders",
+  "hasThrow": true,
+  "outcome": "threw",
+  "thrown": "HTTP 429",
+  "thrownAt": 9,
+  "helpers": "ok",
+  "end": {
+   "part": "fetchPage",
+   "on": "chute",
+   "line": 9
+  }
+ },
+ {
+  "name": "example",
+  "hasThrow": true,
+  "outcome": "threw",
+  "thrown": "flaky",
+  "thrownAt": null,
+  "helpers": "ok",
+  "end": {
+   "part": "stand-in fetchIt",
+   "on": "port"
+  }
+ }
+]

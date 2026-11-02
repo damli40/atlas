@@ -141,12 +141,12 @@ function pythonOf(stdout: string): PythonInfo | undefined {
  * where the key goes) and its answer is only ever read through a strict schema. Nothing from it reaches a verdict, a proof file
  * or a sealed run. The sealed runs never install the hook.
  */
-export async function runProbedPyCall(exp: Experiment, source: string, o: { executor?: Executor; wallClockMs?: number; seed?: string } = {}): Promise<{ trace: TraceEvent[]; result: Run["result"]; probes: unknown; probesCut: unknown } | { reason: string }> {
+export async function runProbedPyCall(exp: Experiment, source: string, o: { executor?: Executor; wallClockMs?: number; seed?: string } = {}): Promise<{ trace: TraceEvent[]; result: Run["result"]; probes: unknown; probesCut: unknown; thrownLine: unknown } | { reason: string }> {
   if (exp.params.shape !== "call-function") return { reason: "only a call of a function has helper steps" };
   const res = await runInPySandbox(o.executor ?? pythonSandboxExecutor, source, { runs: [{ ...runRequest(exp.id, exp.params), probe: "profile" }], seed: o.seed ?? CALL_SEED, untrusted: true }, o.wallClockMs ?? DEFAULT_WALL_CLOCK_MS);
   if (!res.ok) return { reason: res.reason };
-  const one = res.runs.find((r) => r.id === exp.id) as (NonNullable<CallWorkerResponse["runs"]>[number] & { probes?: unknown; probesCut?: unknown }) | undefined;
-  return one ? { trace: one.trace, result: one.result, probes: one.probes ?? [], probesCut: one.probesCut ?? 0 } : { reason: "the sandbox returned no result" };
+  const one = res.runs.find((r) => r.id === exp.id) as (NonNullable<CallWorkerResponse["runs"]>[number] & { probes?: unknown; probesCut?: unknown; thrownLine?: unknown }) | undefined;
+  return one ? { trace: one.trace, result: one.result, probes: one.probes ?? [], probesCut: one.probesCut ?? 0, thrownLine: one.thrownLine ?? null } : { reason: "the sandbox returned no result" };
 }
 
 /** Runs the Python harness on `code` in the sandbox. */

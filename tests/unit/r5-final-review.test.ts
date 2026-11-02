@@ -160,3 +160,51 @@ describe("M6: a wrapped function", () => {
     expect(fileOutline(`const g = () => 1;\nexport const f = memo(g);\n`, "ts").parts.find((p) => p.name === "f")).toBeUndefined();
   });
 });
+
+describe("the line the run threw from", () => {
+  const parts = (src: string, lang: "js" | "py", fn: string) => machinePartsOfFile(src, lang, test_(fn), fileOutline(src, lang));
+  const thrown = { name: "Error", message: "HTTP 429" };
+  const SRC = "function page(s) {\n  if (s) throw new Error(`HTTP ${s}`);\n  return 1;\n}\nexport function f(s) {\n  return page(s);\n}\n";
+  it("rings a template's throw when that line is a throw on a part known to have run", () => {
+    expect(endOfRun({ outcome: "threw", thrown, parts: parts(SRC, "js", "f"), tested: "f", ran: new Set(["f", "page"]), called: () => false, thrownAt: 2 })).toEqual({ part: "page", on: "chute", line: 2 });
+  });
+  it("nothing when the part isn't known to have run", () => {
+    expect(endOfRun({ outcome: "threw", thrown, parts: parts(SRC, "js", "f"), tested: "f", ran: new Set(["f"]), called: () => false, thrownAt: 2 })).toBeNull();
+  });
+  it("nothing when the line isn't a throw", () => {
+    expect(endOfRun({ outcome: "threw", thrown, parts: parts(SRC, "js", "f"), tested: "f", ran: new Set(["f", "page"]), called: () => false, thrownAt: 3 })).toBeNull();
+  });
+  it("the words can't overrule the line", () => {
+    const one = `export function f() {\n  const e = new TypeError("not this");\n  throw new Error("mine");\n}\n`;
+    expect(endOfRun({ outcome: "threw", thrown: { name: "Error", message: "mine" }, parts: parts(one, "js", "f"), tested: "f", ran: new Set(["f"]), called: () => false, thrownAt: 2 })).toBeNull();
+  });
+  const fakeTest = { shape: "call-function", exportName: "f", args: [{ kind: "stand-in", name: "x", async: true, then: "repeat_last", calls: [{ do: "throw", errorName: "Error", message: "flaky" }] }] } as never;
+  const withFake = (src: string) => machinePartsOfFile(src, "js", fakeTest, fileOutline(src, "js"));
+  const fake = (src: string) => endOfRun({ outcome: "threw", thrown: { name: "Error", message: "flaky" }, parts: withFake(src), tested: "f", test: fakeTest, ran: new Set(["f"]), called: () => true, thrownAt: null });
+  it("a fake's error passed on by the one rethrow stays on the fake", () => {
+    expect(fake(`export async function f(x) {\n  let last;\n  try { return await x(); } catch (e) { last = e; }\n  throw last;\n}\n`)).toEqual({ part: "stand-in x", on: "port" });
+  });
+  it("two rethrows: it can't be told which, so no ring", () => {
+    expect(fake(`export async function f(x) {\n  let last;\n  try { return await x(); } catch (e) { last = e; if (e.code) throw e; }\n  throw last;\n}\n`)).toBeNull();
+  });
+  it("the third run reports it, by real runs: JS, TS and Python, and none from a library's frame", async () => {
+    const { helperRun } = await import("../../server/helpers");
+    const { PASTED_RUNNERS } = await import("../../runners/pasted-registry");
+    const { executorFromEnv } = await import("../../runners/executor/select");
+    const { createHash } = await import("node:crypto");
+    const executor = executorFromEnv();
+    const at = async (source: string, language: "js" | "ts" | "py") => {
+      const params = { shape: "call-function", exportName: "f", args: [] };
+      const exp = { id: "e", target: { kind: "pasted", ref: "p", language, source, codeSha256: createHash("sha256").update(source).digest("hex") }, runner: "ts", proposedBy: { role: "human" }, params, gate: { allowed: true } };
+      const r = PASTED_RUNNERS[language]!;
+      const run = await r.run(exp as never, (await r.control(executor)) as never, executor);
+      const h = await helperRun(exp as never, run, { executor });
+      return "steps" in h ? h.thrownAt ?? null : `none: ${h.none}`;
+    };
+    expect(await at(`// one\n// two\nfunction h() {\n  throw new Error("x");\n}\nexport function f() {\n  h();\n}\n`, "js")).toBe(4);
+    expect(await at(`type T = {\n  a: number;\n};\nfunction h(): T {\n  throw new TypeError("x");\n}\nexport function f(): T {\n  return h();\n}\n`, "ts")).toBe(5);
+    expect(await at(`# one\ndef h():\n    raise ValueError("x")\n\ndef f():\n    h()\n`, "py")).toBe(3);
+    expect(await at(`export function f() {\n  return JSON.parse("<");\n}\n`, "js")).toBeNull();
+    expect(await at(`export function f() {\n  return 1;\n}\n`, "js")).toBeNull();
+  }, 60_000);
+});

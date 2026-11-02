@@ -218,14 +218,20 @@ const fakeThrows = (test: unknown): { port: string; name: string; message: strin
 };
 
 /**
- * Which part ended the run, only when plain code can place it. A throw: the only site in the whole file that could produce that class and exact text, in a function known to have run, or the
+ * Which part ended the run, only when plain code can place it. A throw: the line the traced run threw from, when it is a throw drawn on a part known to have run; else the only site in the whole file that could produce that class and exact text, in a function known to have run, or the
  * one fake scripted to throw exactly that. Anything else (two candidates, a template's opening words, a throw plain code can't read, a function not known to have run) is not placed. It returned:
  * the function under test ended it.
  */
-export function endOfRun(o: { outcome: unknown; thrown: ThrownFact; parts: MachineParts; tested: string | null; test?: unknown; ran: ReadonlySet<string>; called?: (port: string) => boolean }): MachineEnd | null {
+export function endOfRun(o: { outcome: unknown; thrown: ThrownFact; parts: MachineParts; tested: string | null; test?: unknown; ran: ReadonlySet<string>; called?: (port: string) => boolean; /** The line the traced run says the ending error came from. */ thrownAt?: number | null }): MachineEnd | null {
   if (!o.tested) return null;
   if (o.outcome === "returned") return o.parts.housings.find((h) => h.id === o.tested)?.returns.length ? { part: o.tested, on: "outlet" } : { part: o.tested, on: "housing" };
   if (o.outcome !== "threw") return o.outcome === "never_settled" || o.outcome === "still_running_at_watch_limit" ? { part: o.tested, on: "housing" } : null;
+  // The direct evidence: the line the run threw from, when it is a throw drawn on a part known to have run. Nothing else makes a chute red by this route.
+  const atLine = o.thrownAt ?? null;
+  if (atLine !== null) {
+    const hit = o.parts.housings.find((h) => o.ran.has(h.id) && h.throws.includes(atLine));
+    if (hit) return { part: hit.id, on: "chute", line: atLine };
+  }
   const { name, message } = o.thrown;
   if (name === null || message === null) return null;
   // Everything in the whole file that could have produced this class and text, whether drawn or not. A throw that reads as something else can't; one that can't be read can.
@@ -239,10 +245,13 @@ export function endOfRun(o: { outcome: unknown; thrown: ThrownFact; parts: Machi
   const fakes = fakeThrows(o.test).filter((f) => f.name === name && f.message === message && (o.called?.(f.port) ?? true) && o.parts.ports.some((p) => p.id === f.port));
   const fakeIds = [...new Set(fakes.map((f) => f.port))];
   // A fake scripted to throw exactly this, and nothing in the file that reads as the same: it came from the fake, whether or not the code rethrew it.
-  if (fakeIds.length === 1 && named.length === 0) return { part: fakeIds[0]!, on: "port" };
+  // Passed on by more than one throw plain code can't read, it can't be told which: no ring. (A stack shows where an error was made, not where it was thrown again.)
+  if (fakeIds.length === 1 && named.length === 0 && could.length <= 1) return { part: fakeIds[0]!, on: "port" };
   // A chute only for the one site in the whole file that could have done it, exact text, in a function known to have run. Prefer no ring to a wrong ring.
   if (fakeIds.length > 0 || could.length !== 1 || !could[0]!.exact) return null;
   const line = could[0]!.line;
+  // The traced run named another line: the words matched, the evidence didn't.
+  if (atLine !== null && atLine !== line) return null;
   const h = o.parts.housings.find((x) => o.ran.has(x.id) && x.throws.includes(line));
   return h ? { part: h.id, on: "chute", line } : null;
 }
@@ -254,13 +263,13 @@ export function publicParts(p: MachineParts): MachineParts {
 }
 
 /** Where a finished run ended, for a card: worked out once where the code is known, and only the answer stored. */
-export function endOfFile(o: { measured: Record<string, unknown>; parts: MachineParts; tested: string | null; test: unknown; steps: readonly { name: string; within?: readonly string[] }[] }): MachineEnd | null {
+export function endOfFile(o: { measured: Record<string, unknown>; parts: MachineParts; tested: string | null; test: unknown; steps: readonly { name: string; within?: readonly string[] }[]; thrownAt?: number | null }): MachineEnd | null {
   const called = (port: string) => {
     const v = o.measured[`calls:${port.replace(/^stand-in /, "")}`];
     return typeof v === "number" && v > 0;
   };
   const text = (v: unknown) => (typeof v === "string" ? v : null);
-  return endOfRun({ outcome: o.measured.outcome, thrown: { name: text(o.measured.thrownName), message: text(o.measured.thrownMessage) }, parts: o.parts, tested: o.tested, test: o.test, ran: ranParts({ tested: o.tested, steps: o.steps, parts: o.parts, called }), called });
+  return endOfRun({ outcome: o.measured.outcome, thrown: { name: text(o.measured.thrownName), message: text(o.measured.thrownMessage) }, parts: o.parts, tested: o.tested, test: o.test, ran: ranParts({ tested: o.tested, steps: o.steps, parts: o.parts, called }), called, thrownAt: o.thrownAt ?? null });
 }
 
 /** Plain code's facts about which functions ran: the one under test, those the traced steps name, and the only caller of a fake that was called. */

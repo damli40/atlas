@@ -235,11 +235,15 @@ if (early) {
       if (!seen.marks && document.querySelector('[data-testid="mark-list"]')) seen.marks = performance.now();
     }).observe(document.body, { subtree: true, childList: true });
   });
+  await p.evaluate(() => { window.__rm.sealed = performance.now(); });
   await p.click('[data-testid="u1-seal"]');
   await p.waitForSelector('[data-testid="bench-path"]', { timeout: 90000 });
   await p.waitForSelector('[data-testid="mark-list"]', { timeout: 8000 });
   const gap = await p.evaluate(() => Math.round(window.__rm.marks - window.__rm.path));
   say("reduced motion: the verdict arrives finished", gap < 200, `${gap} ms after the run's drawing`);
+  // Seal to verdict, in the page. The two sealed sandbox runs take about 650 ms here and a cold known-case check about 300 more, and the verdict does not wait for the third run.
+  const total = await p.evaluate(() => Math.round(window.__rm.marks - window.__rm.sealed));
+  say("reduced motion: seal to verdict stays under 1.5 s", total < 1500, `${total} ms`);
   await shot(p, "reduced-motion-verdict");
   await p.context().close();
 }

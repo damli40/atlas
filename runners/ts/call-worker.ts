@@ -48,6 +48,7 @@ import {
   noteUncaught,
   pendingLoadTimers,
   probesSoFar,
+  thrownLineSoFar,
   runCall,
   seedRandomness,
   setClockNudge,
@@ -254,6 +255,7 @@ async function main(): Promise<void> {
         const seen = probesSoFar();
         put(one, "probes", seen.events);
         put(one, "probesCut", seen.cut);
+        put(one, "thrownLine", thrownLineSoFar());
       }
       append(runs, one);
     }

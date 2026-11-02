@@ -7,7 +7,7 @@ mkdirSync(OUT, { recursive: true });
 const BASE = process.env.BASE ?? "http://localhost:18972";
 const AXE = process.env.AXE ? readFileSync(process.env.AXE, "utf8") : null;
 const here = new URL("../U3/inputs/", import.meta.url);
-const ORDERS = readFileSync(new URL("../../R5/film-orders.ts", here), "utf8");
+const ORDERS = readFileSync(new URL("orders.ts", here), "utf8");
 const PLAN = readFileSync(new URL("plan_cache.py", here), "utf8");
 const BRANCHING = `const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 function backoffMs(attempt: number) {

@@ -3,7 +3,7 @@
   {
    "name": "paste to picture: orders at 1440",
    "ok": true,
-   "more": "134 ms"
+   "more": "81 ms"
   },
   {
    "name": "no words on words: orders at rest, 1440",
@@ -78,7 +78,7 @@
   {
    "name": "paste to picture: python at 1440",
    "ok": true,
-   "more": "69 ms"
+   "more": "68 ms"
   },
   {
    "name": "no words on words: python at rest, 1440",
@@ -148,7 +148,7 @@
   {
    "name": "paste to picture: orders at 1280",
    "ok": true,
-   "more": "82 ms"
+   "more": "83 ms"
   },
   {
    "name": "no words on words: orders at rest, 1280",
@@ -372,12 +372,12 @@
   }
  ],
  "pasteToPictureMs": [
-  134,
-  69,
+  81,
+  68,
   126,
-  82,
+  83,
   64,
   122
  ],
- "median": 122
+ "median": 83
 }

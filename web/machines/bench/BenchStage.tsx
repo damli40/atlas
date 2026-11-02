@@ -50,6 +50,8 @@ export interface After {
   verdicts: readonly Verdict[];
   /** R3: the code's own steps, from a third run made only for this drawing. */
   helpers?: HelperAnswer | null;
+  /** The third run is not back yet. The verdict never waits for it: with motion off it shows at once, and the steps join when they come. */
+  helpersPending?: boolean;
   /** Bettors asked for that have no bet in this round, with why. */
   absent?: readonly string[];
 }
@@ -106,7 +108,7 @@ function machineEnd(after: After, parts: MachineParts, tested: string | null): M
     const name = port.replace(/^stand-in /, "");
     return typeof m[`calls:${name}`] === "number" && (m[`calls:${name}`] as number) > 0;
   };
-  return endOfRun({ outcome: m.outcome, thrown: { name: typeof m.thrownName === "string" ? m.thrownName : null, message: typeof m.thrownMessage === "string" ? m.thrownMessage : null }, parts, tested, test: after.experiment.params, ran: ranParts({ tested, steps, parts, called }), called });
+  return endOfRun({ outcome: m.outcome, thrown: { name: typeof m.thrownName === "string" ? m.thrownName : null, message: typeof m.thrownMessage === "string" ? m.thrownMessage : null }, parts, tested, test: after.experiment.params, ran: ranParts({ tested, steps, parts, called }), called, thrownAt: after.helpers && "thrownAt" in after.helpers ? after.helpers.thrownAt ?? null : null });
 }
 
 /** Why a run shows nothing, as one plain line: what happened, without the "nothing is shown as fact" lead the list beside it already has. */
@@ -234,13 +236,19 @@ export function BenchStage({ seenBefore = false, codeRan = false, loop = null, m
   /** Ends the pause while the chart moves aside, so a click during it counts. */
   const endPause = useRef<(() => void) | null>(null);
   const skipAsked = useRef(false);
+  const shownFor = useRef<number | null>(null);
 
   // The run, played as a story. Without `after`: nothing plays.
   useEffect(() => {
-    setMarksOn(false);
-    setStep(null);
+    // With motion off the verdict is already up when the third run's steps arrive: they join it, and nothing is taken away first.
+    const again = still && after !== null && shownFor.current === after.token;
+    if (!again) {
+      setMarksOn(false);
+      setStep(null);
+    }
     if (!after) return;
     const end = () => {
+      shownFor.current = after.token;
       setPlaying(false);
       setStep(null);
       setMarksOn(true);
@@ -257,6 +265,8 @@ export function BenchStage({ seenBefore = false, codeRan = false, loop = null, m
       return;
     }
     if (!p) return; // the path's drawing arrives on the next render
+    // With motion the story is how the result arrives, and it is told with the steps: it starts when the third run answers, 2.5 s at the most.
+    if (!still && !p.reduced && after.helpersPending) return;
     let live = true;
     const chartPlayer = chartMount.current?.player ?? null;
     const lit = (s: SpecStep) => {
@@ -310,7 +320,7 @@ export function BenchStage({ seenBefore = false, codeRan = false, loop = null, m
       p.skip();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [after?.token, pathMount, pathSpec, still]);
+  }, [after?.token, after?.helpersPending, pathMount, pathSpec, still]);
 
   const skip = () => {
     skipAsked.current = true;
@@ -404,7 +414,7 @@ export function BenchStage({ seenBefore = false, codeRan = false, loop = null, m
       {after && marksOn && !noRunToShow && pathSpec?.captions.length ? (
         <details className="m-captions" data-testid="machine-captions">
           <summary>{firstLine}</summary>
-          {[...(litWithNoThread(beats, model.tested) ? ["A part lit with no thread ran, but which part called it is not known."] : []), ...restLines].map((w) => (
+          {[...(litWithNoThread(beats, model.tested) ? ["A part lit with no thread ran, but which part called it is not known."] : []), ...(end?.on === "chute" && after.helpers && "thrownAt" in after.helpers && after.helpers.thrownAt === end.line ? ["The line it threw from comes from that same traced run."] : []), ...restLines].map((w) => (
             <span key={w}>{w}</span>
           ))}
         </details>

@@ -2006,7 +2006,7 @@ export function createApp(opts: AppOptions = {}) {
   type KeptEntry = { until: string; maker: string; file: AtlasFile; machine?: MachineParts; helpers?: unknown; end?: MachineEnd | null };
   const endOfProof = (file: AtlasFile, parts: MachineParts, helpers: unknown): MachineEnd | null => {
     const params = file.experiments[0]?.params;
-    return endOfFile({ measured: (file.runs[0]?.result.measured ?? {}) as Record<string, unknown>, parts, tested: params?.shape === "call-function" ? params.exportName : null, test: params, steps: helpers && typeof helpers === "object" && "steps" in helpers ? (helpers as { steps: { name: string; within?: string[] }[] }).steps : [] });
+    return endOfFile({ measured: (file.runs[0]?.result.measured ?? {}) as Record<string, unknown>, parts, tested: params?.shape === "call-function" ? params.exportName : null, test: params, steps: helpers && typeof helpers === "object" && "steps" in helpers ? (helpers as { steps: { name: string; within?: string[] }[] }).steps : [], thrownAt: helpers && typeof helpers === "object" && "thrownAt" in helpers ? (helpers as { thrownAt?: number }).thrownAt ?? null : null });
   };
   /** The parts of a pasted round's machine, read from its code. Names and lines, no code text. Null when the file holds no source. */
   const machineOfFile = (file: AtlasFile): MachineParts | null => {

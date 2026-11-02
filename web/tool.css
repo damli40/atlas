@@ -507,8 +507,7 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 .e-consent{margin:10px 0 10px;color:var(--ink-2)}
 .e-right .rr-host.m-host{position:absolute;inset:0;background:transparent}
 @media (max-width:760px){.m-captions{display:none}.r-part-list{left:12px;right:12px;columns:1}}
-.u1-next{margin:12px 24px;width:calc(var(--col) - 48px);font-size:14px}
-.u1-next p{margin:0 0 10px}
+.u1-cant-next p{margin:0 0 10px}
 .u1-shell .u1-root[data-view="machine"] .r-path *{visibility:hidden!important}
 .u1-shell .u1-root[data-noted] .r-machine .rr-host.m-host{top:48px}
-.u1-shell .u1-next{position:absolute;left:0;top:72px;width:var(--col);padding:0 24px;margin:0;z-index:5}
+.u1-shell .u1-cant-next{position:absolute;left:0;top:72px;width:var(--col);padding:0 24px;margin:0;z-index:5;font-size:14px}

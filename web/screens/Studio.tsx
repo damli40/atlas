@@ -406,6 +406,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const [pendingClaimant, setPendingClaimant] = useState<ClaimantMode | null>(null);
   // R3: the code's own steps for the drawing (a third run made after the sealed ones). Arrives with the result, or not at all.
   const [helpers, setHelpers] = useState<HelperAnswer | null>(null);
+  const [helpersIn, setHelpersIn] = useState(false);
   useEffect(() => onRoundOpen?.(exp !== null && result === null), [exp, result, onRoundOpen]);
 
   const target = pasted?.runnable ? pasted.target : null;
@@ -477,6 +478,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     setStep(0);
     setClaimNoNew(false);
     setHelpers(null);
+    setHelpersIn(false);
     ownTest.current = false;
     runStarted.current = false;
     gen.current++;
@@ -765,16 +767,19 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       async (r) => {
         if (g !== gen.current) return;
         ranCodes.current.add(`${codeFingerprint(readText, pasted?.target.language ?? undefined)}|${canonicalTest(exp.experiment.params)}`);
-        // R3: the third run starts when the sealed runs end. Its steps join the drawing if they come quickly; the story never
-        // waits long for them, and a page without them still shows everything that was measured.
-        const steps = await Promise.race<HelperAnswer | null>([
+        // R3: the third run started when the sealed runs ended. The verdict never waits for it. Its steps join the drawing when they come, and a page without them still
+        // shows everything that was measured.
+        void Promise.race<HelperAnswer | null>([
           Promise.resolve()
             .then(() => api.helpers(r.run.id))
             .catch(() => null),
           new Promise<HelperAnswer>((done) => setTimeout(() => done({ none: HELPER_TOO_SLOW }), HELPER_WAIT_MS)),
-        ]);
-        if (g !== gen.current) return;
-        setHelpers(steps);
+        ]).then((steps) => {
+          if (g === gen.current) {
+            setHelpers(steps);
+            setHelpersIn(true);
+          }
+        });
         // These notes were about the moment before the run. They would be false now.
         setHandoffNote(null);
         setRepeatNote(null);
@@ -805,8 +810,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     const callers = Object.fromEntries(Object.entries(model?.parts ?? {}).flatMap(([id, p]) => (p.kind === "device" ? [[id, (p.calledBy ?? []).map((c) => c.part)]] : [])));
     const language = pasted?.target.language ?? pasted?.language.chosen;
     const wiring = pasted?.outline ? { outline: pasted.outline, callers, ...(language ? { language } : {}) } : undefined;
-    return { token: plays, script: playScript(result.run, test, tested, pasted?.outline ? waitingPartsOf(pasted.outline) : [], wiring), marks: marksOf(exp.questions, result.bets, result.verdicts, result.run, tested, language), absent: absentBettors(models.slots, result.bets), dialFullMs: fullMs, ...(helpers ? { helpers } : {}), run: result.run, experiment: exp.experiment, bets: result.bets, verdicts: result.verdicts };
-  }, [result, exp, test, sealed, plays, model, fullMs, readText, pasted, helpers, models.slots]);
+    return { token: plays, script: playScript(result.run, test, tested, pasted?.outline ? waitingPartsOf(pasted.outline) : [], wiring), marks: marksOf(exp.questions, result.bets, result.verdicts, result.run, tested, language), absent: absentBettors(models.slots, result.bets), helpersPending: !helpersIn, dialFullMs: fullMs, ...(helpers ? { helpers } : {}), run: result.run, experiment: exp.experiment, bets: result.bets, verdicts: result.verdicts };
+  }, [result, exp, test, sealed, plays, model, fullMs, readText, pasted, helpers, helpersIn, models.slots]);
 
   // U2 (D53, "Test this claim"): Muse Wonder writes tests aimed at its own sentence (shown only after this run, D18); the gate
   // checks them as usual. R3: the round opens only on a test that is really different from what has already run here, compared
@@ -1352,7 +1357,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
         </p>
       )}
       {notRunnable && (
-        <div className="u1-next" data-testid="u1-cant-run-next">
+        <div className="u1-cant-next" data-testid="u1-cant-run-next">
           <p>The drawing is still true of this code. To bet on it, Atlas needs a file that runs on its own: take that dependency out, or paste another file.</p>
           <button
             type="button"

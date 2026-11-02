@@ -27,7 +27,7 @@ Runs on real code in the real sandbox. Models are mocked ($0) unless a line says
 
 ## Limits
 
-- A chute goes red only for the one site in the whole file that could produce that class and exact text. A message built from a template is not placed, so the ring words stand alone on such code. tests/evidence/U3/inputs/orders.ts is that case; `film-orders.ts` is the same file with a plain text error, used for the film and the shots that show a ring.
+- A chute goes red when the traced third run says the ending error came from a line that is a throw drawn on a part known to have run. Failing that, it takes the one site in the whole file that could produce that class and exact text. That run is untrusted: code written to fake its own stack can draw a false ring, like the helper order, and touches no verdict or proof.
 - `truth.mjs` starts its own mock and page when BASE is not set. It still needs PW and CHROME.
 
 - The missing bettors in the cold test were reproduced by lowering the hourly limit. The server keeps two such limits: 20 model rounds an hour per address, and 10 per session. Each paste's early Muse Wonder call also takes one of the 20. The server log of that session does not record refusals, so this is the cause that fits, not one read from its log.
