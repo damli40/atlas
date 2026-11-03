@@ -87,9 +87,12 @@ desktop shots; `harness/r15own.mjs` the paste screen and the Moonwell screen's e
 
 ## Checks
 
+On the branch rebased onto main 406b589 (R13 plugin drawing merged), after review round 1:
 - `tsc --noEmit`: clean (`tsc.txt`).
-- `vitest run`: 172 files passed, 2 skipped; 2,783 tests passed, 35 skipped (`vitest.txt`). The 6 new ones are in
-  `tests/unit/r15-phone.test.ts`.
+- `vitest run`: 173 files passed, 2 skipped; 2,806 tests passed, 35 skipped (`vitest.txt`). The R15 ones are in
+  `tests/unit/r15-phone.test.ts` (9 tests).
+- After the rebase, the 390×560 run and the 1280×800 / 1440×900 desktop diff were repeated on a fresh build: same
+  numbers as above.
 
 ## Review round 1 (after the coordinator's review)
 
