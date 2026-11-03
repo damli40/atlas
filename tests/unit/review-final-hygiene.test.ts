@@ -52,8 +52,9 @@ describe("S3: a fresh clone can run the server as the files say", () => {
     for (const l of read(".env.example").split("\n").filter((x) => /^[A-Z_]+=/.test(x))) expect(l).toMatch(/^[A-Z_]+=$/);
   });
 
-  it("package.json pins Node >= 22.13 (node --permission)", () => {
-    expect(JSON.parse(read("package.json")).engines).toEqual({ node: ">=22.13" });
+  it("package.json pins Node >= 25 (node --permission blocks the network only from 25; R16), as the README says", () => {
+    expect(JSON.parse(read("package.json")).engines).toEqual({ node: ">=25" });
+    expect(read("README.md")).toContain("Node 25 or newer");
   });
 
   it("startup notes: an old Node, a Node without --permission, and no macOS sandbox each get one plain sentence", () => {
@@ -64,7 +65,11 @@ describe("S3: a fresh clone can run the server as the files say", () => {
     expect(old[0]).toMatch(/can't check/);
     expect(startupNotes({ version: "22.12.0", hasPermission: true, platform: "darwin", sandboxExec: true })[0]).toMatch(/older than 22\.13/);
     expect(startupNotes({ version: "22.13.0", hasPermission: false, platform: "darwin", sandboxExec: true })[0]).toMatch(/--permission/);
-    const linux = startupNotes({ version: "24.0.0", hasPermission: true, platform: "linux", sandboxExec: false });
+    // R16: 22.13 to 24 have --permission but it lets the network through.
+    const net = startupNotes({ version: "24.11.0", hasPermission: true, platform: "darwin", sandboxExec: true });
+    expect(net).toHaveLength(1);
+    expect(net[0]).toMatch(/^Node 24\.11\.0 is older than 25\.0: .*does not block network connections/);
+    const linux = startupNotes({ version: "25.0.0", hasPermission: true, platform: "linux", sandboxExec: false });
     expect(linux).toHaveLength(1);
     expect(linux[0]).toMatch(/macOS only/);
     expect(linux[0]).toMatch(/chat/);

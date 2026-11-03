@@ -77,7 +77,7 @@ function penTime(): number {
   }
 }
 
-export const MachineSheet = forwardRef<MachineControl, { drawn: MachineDrawn; reduced?: boolean; /** True: the page showed the part in its panel, so no card is shown here as well. */ onPart?: (id: string) => boolean | void; /** The part the page's panel is about: marked on the drawing. */ picked?: string | null; /** R14: the part Muse Wonder picked for this person: marked on the drawing (live page only, never the proof picture). */ aimed?: string | null; testid?: string; /** A new value pencils the machine in: a new paste, not a new test on it. */ penKey?: string | null; /** The run's beats, and whether its result has landed: a machine that mounts after that (M, or the chart first) shows the same result at once. */ beats?: MachineBeat[]; landed?: boolean }>(function MachineSheet({ drawn, reduced = false, onPart, picked = null, aimed = null, testid = "machine", penKey = null, beats, landed = false }, ref) {
+export const MachineSheet = forwardRef<MachineControl, { drawn: MachineDrawn; reduced?: boolean; /** True: the page showed the part in its panel, so no card is shown here as well. */ onPart?: (id: string) => boolean | void; /** The part the page's panel is about: marked on the drawing. */ picked?: string | null; /** R14: the part Muse Wonder picked for this person: marked on the drawing (live page only, never the proof picture). */ aimed?: string | null; testid?: string; /** A new value pencils the machine in: a new paste, not a new test on it. */ penKey?: string | null; /** The run's beats, and whether its result has landed: a machine that mounts after that (M, or the chart first) shows the same result at once. */ beats?: MachineBeat[]; landed?: boolean; /** R16 (review minor 2): words after the names legend, e.g. "recorded Nov 2" on the example. */ legendNote?: string | null }>(function MachineSheet({ drawn, reduced = false, onPart, picked = null, aimed = null, testid = "machine", penKey = null, beats, landed = false, legendNote = null }, ref) {
   ensureMachineStyle();
   const host = useRef<HTMLDivElement | null>(null);
   const player = useRef<MachinePlayer | null>(null);
@@ -183,7 +183,7 @@ export const MachineSheet = forwardRef<MachineControl, { drawn: MachineDrawn; re
       }}
     >
       {/* R6: whenever a lid carries a name Meta's AI wrote, the page says so in words, not only with the star. */}
-      {drawn.aiNames ? <p className="m-legend" data-testid="machine-names-legend">{NAMER_WORDS.legend}</p> : null}
+      {drawn.aiNames ? <p className="m-legend" data-testid="machine-names-legend">{legendNote ? `${NAMER_WORDS.legend} (${legendNote})` : NAMER_WORDS.legend}</p> : null}
       <div className="m-svg" data-legend={drawn.aiNames ? "" : undefined} dangerouslySetInnerHTML={html} style={{ ["--m-w" as string]: `${drawn.width}px`, ["--m-h" as string]: `${drawn.height}px` }} />
       {card && (
         <p className="m-card-pop" role="status" data-testid="machine-card" style={{ left: Math.max(170, card.x), top: Math.max(8, card.y - 8) }}>

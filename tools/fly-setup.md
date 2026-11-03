@@ -92,7 +92,12 @@ fly secrets set ATLAS_WAITLIST_URL="https://tally.so/r/XXXXXX" --app atlas-dami 
 #    pasted file) until it settles, and one file asks for a summary, names and a test at once (about $1 held). Several
 #    judges sharing one code at $3 would be refused "budget used up" while far less was really spent. Real spend is a few
 #    cents a file. It comes out of the developers' share of the ceiling, never your $20 reserve.
-fly ssh console --app atlas-dami -C "/usr/local/bin/atlas-invites create --name judges --daily-usd 10"
+#    R16 (review B2): --max-concurrent 20, not the default 4. One code may have only that many model calls and sandboxes
+#    running at once, counted for everyone on the code: one pasted file starts a summary, names and a test together, so
+#    two judges pasting at the same moment hit 4 and saw "this invite code is at its "at once" limit". Each judge's
+#    browser is still its own person for questions, picks and the track record; money and limits stay per code.
+#    One code still holds at most 2 sandboxes at once; all codes together hold ATLAS_DEV_SANDBOXES_AT_ONCE (fly.toml: 6).
+fly ssh console --app atlas-dami -C "/usr/local/bin/atlas-invites create --name judges --daily-usd 10 --max-concurrent 20"
 #    Watch it with:
 fly ssh console --app atlas-dami -C "/usr/local/bin/atlas-invites usage --name judges"
 

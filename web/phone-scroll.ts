@@ -3,7 +3,8 @@
 // - the first time you pick an answer in a round (by tap or by keyboard), "Lock in my bet" (it can sit below the fold);
 //   a later re-pick in the same round leaves the page where you put it;
 // - when you lock in, and again when the run starts playing, the drawing (it sits above the bet panel);
-// - when the paste box opens ("Try your own code"), the top of the page.
+// - when the paste box opens ("Try your own code"), the top of the page;
+// - R16 (review M1): after a run, when a tap on the drawing opens a part's panel (it sits under the verdict, far below), that panel.
 // Only on phone-sized screens: the same query as the CSS (narrow, or short like a phone on its side); a desktop never
 // scrolls. Reads the page's test ids and ARIA state only, so it needs no change inside the studio's own components.
 
@@ -50,6 +51,12 @@ export function installPhoneScroll(): void {
           // Locked in (by tap or by keyboard): the sealed list replaced the button. Show the drawing.
           if (holds(n, '[data-testid="b-seals"]')) {
             window.setTimeout(() => scrollTo(stage(), "start"), 60);
+            return;
+          }
+          // R16: a part's panel after the run (a tap on the path) opens below the verdict: bring it into view.
+          if (holds(n, '.m-partnote[data-testid="part-panel"]')) {
+            const panel = n instanceof Element && n.matches(".m-partnote") ? n : (n as Element).querySelector('.m-partnote[data-testid="part-panel"]');
+            window.setTimeout(() => scrollTo(panel, "nearest"), 60);
             return;
           }
           // A new screen inside the studio (the paste box after "Try your own code") starts at its top.

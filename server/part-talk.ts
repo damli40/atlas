@@ -16,7 +16,7 @@ import type { Context, Hono } from "hono";
 import { z } from "zod";
 import { fileOutline } from "../src/file-outline";
 import { describeCall } from "../src/gate";
-import { asksForBettors, CAPTION_MAX_STEPS, checkQuestion, type StepKind } from "../src/part-talk";
+import { asksForBettors, CAPTION_MAX_STEPS, checkQuestion, PICK_MIN_BETS, type StepKind } from "../src/part-talk";
 import { KIND_PHRASE } from "../src/part-talk";
 import { weakSpots, weakSpotSummary, type TrackRecord } from "../src/track-record";
 import type { ExperimentShape } from "../src/types";
@@ -172,11 +172,15 @@ export function createPartTalk(deps: PartTalkDeps) {
       const bettable = fileOutline(entry.target.source, entry.target.language).parts.filter((p) => p.kind === "function" && callable.has(p.name));
       if (bettable.length === 0) return none("there is no function Atlas can call in this file");
       const record = deps.recordOf(c, sessionId);
-      const said = weakSpotSummary(record);
-      // No record of a missed question yet: nothing is asked, and the page keeps Muse Wonder's usual choice.
-      if (!said) return none("no record yet", { noRecord: true, counted: record.counted });
+      // R16 (review M5): only kinds of question with at least PICK_MIN_BETS judged bets count here, both in what Muse Wonder is
+      // told and on the page, so "You missed N of M" never rests on one miss and names the kind the pick was aimed at.
+      const eligible = { ...record, lines: record.lines.filter((l) => l.n >= PICK_MIN_BETS) };
+      const said = weakSpotSummary(eligible);
+      const spots = weakSpots(eligible);
+      // No record of a missed question yet (or too few bets): nothing is asked, and the page keeps Muse Wonder's usual choice.
+      if (!said || spots.length === 0) return none("no record yet", { noRecord: true, counted: record.counted });
       if (!deps.chat) return none("this server asks no Meta model");
-      const kinds = weakSpots(record).map((l) => l.type);
+      const kinds = spots.map((l) => l.type);
       const key = `${sessionId}|${entry.target.codeSha256}|${record.counted}|${said}`;
       let p = picks.get(key);
       if (!p) {
@@ -192,7 +196,7 @@ export function createPartTalk(deps: PartTalkDeps) {
       if (!r.ok) return none(r.reason, { refused: /picked no part/.test(r.reason) });
       // The kinds plain code told it about, in the page's words (never the model's): the page may show them beside the pick.
       // Review round 2 (M-B): only the part comes from Muse Wonder; the page builds the words from the kind and the part's checked line.
-      return c.json({ ok: true, model: r.model, part: r.part, kinds: kinds.map((k) => KIND_PHRASE[k] ?? k) });
+      return c.json({ ok: true, model: r.model, part: r.part, kinds: kinds.map((k) => KIND_PHRASE[k] ?? k), missed: { notMatched: spots[0]!.notMatched, n: spots[0]!.n } });
     });
 
     app.post("/paste/captions", async (c) => {

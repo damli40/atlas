@@ -270,12 +270,14 @@ export function typeLineWords(l: TypeLine): string {
 export const TRACK_WORDS = {
   heading: "Your track record",
   subheading: "Where your guesses matched what the code did",
-  how: "Counted by plain code from your sealed bets and the judge's verdicts (src/judge.ts). No model reads or writes it.",
+  // R16 (review M4): plain code writes it; Muse Wonder is told only the kinds you miss most, with counts (REMEMBER_WORDS.how).
+  how: "Counted and written by plain code from your sealed bets and the judge's verdicts (src/judge.ts); no model writes it. Muse Wonder is told only the kinds of question you miss most, with their counts.",
   empty: "No judged bets yet. After your first run, this shows where your guesses matched what the code did, by kind of question.",
   repeats: (k: number) => `${k === 1 ? "1 bet" : `${k} bets`} left out: ${k === 1 ? "it was" : "they were"} on a test you had already seen run (sealed as a repeat).`,
   counted: (n: number, rounds: number) => `${n === 1 ? "1 bet" : `${n} bets`} from ${rounds === 1 ? "1 round" : `${rounds} rounds`}.`,
   whoLocal: "Kept for this browser on this server (no invite code).",
-  whoInvite: "Kept for your invite code on this server.",
+  // R16 (review B2): one code may be shared, so each browser on it keeps its own record.
+  whoInvite: "Kept for your invite code in this browser, on this server.",
   beforeHeading: "Your record before this round",
   beforeNone: "This was your first judged round on this server.",
   wonderNote: "When you ask Muse Wonder for tests, it is told only the kinds of question where your bets most often didn't match, with their counts: no code, nothing about anyone else. The betting models are not told any of this.",

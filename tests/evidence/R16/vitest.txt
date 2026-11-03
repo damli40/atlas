@@ -1,0 +1,4 @@
+ Test Files  175 passed | 2 skipped (177)
+      Tests  2842 passed | 35 skipped (2877)
+   Duration  107.18s (tests 88%, import 12%)
+exit 0

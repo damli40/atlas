@@ -91,7 +91,7 @@ export interface LedgerOptions {
   devModalSecondsPerDay?: number;
   /** G1 review B3: dev codes together may use only this share of Modal's daily caps (default 0.8); the rest is the owner's. */
   devModalShare?: number;
-  /** G1 review B3: sandboxes ALL dev codes may hold at once (default 3, one less than the Modal executor's 4). */
+  /** G1 review B3: sandboxes ALL dev codes may hold at once (default 3; env ATLAS_DEV_SANDBOXES_AT_ONCE, R16). One code: at most 2. */
   devSandboxesAtOnce?: number;
   /** R10 (D72): sandboxes the open example (visitors with no code) may hold at once, all together (default 2; env ATLAS_EXAMPLE_MAX_CONCURRENT, R15). */
   exampleSandboxesAtOnce?: number;

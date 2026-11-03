@@ -52,17 +52,23 @@ swap_size_mb = 512
   # 60 pastes (the defaults) would stop them first, at about 10 to 20 files. The $ ledger still caps money.
   ATLAS_MODEL_ROUNDS_PER_IP_PER_HOUR = "60"
   ATLAS_PASTES_PER_IP_PER_HOUR = "150"
-  # R15: sandboxes at once. A run waits for a slot in FOUR places, and the smallest one decides, so they are set together:
+  # R15: sandboxes at once. A run waits for a slot in FIVE places (R16 added the codes' line), and the smallest one decides, so they are set together:
   # - per client address (default 2): phone carriers put many people behind one address, and two phones on one
   #   address got "one client address runs at most 2 sandbox run(s) at once" on the no-code example. Now 4.
   ATLAS_SANDBOX_IP_MAX_CONCURRENT = "4"
   # - the whole server (default 4). Sandboxes run on Modal, not on this machine, and one play holds a slot for about
   #   9 s, so 4 meant roughly 25 plays a minute for everyone together. Now 12.
   ATLAS_SANDBOX_MAX_CONCURRENT = "12"
-  # - all no-code visitors of the example together (default 2: the third player anywhere was refused). Now 8, so the
-  #   other 4 of the server's 12 stay free for invite codes. Money stays bounded by the example's own daily allowance
-  #   above (3,000 starts, 18,000 sandbox-seconds).
+  # - all no-code visitors of the example together (default 2: the third player anywhere was refused). Now 8. Money
+  #   stays bounded by the example's own daily allowance above (3,000 starts, 18,000 sandbox-seconds).
   ATLAS_EXAMPLE_MAX_CONCURRENT = "8"
+  # - all invite codes together (R16, review M6; default 3): before R16 this was fixed at 3, so the "other 4 of the 12"
+  #   this comment used to promise could never be used by codes. Now 6, so several judges on one code have room. One
+  #   code still holds at most 2 sandboxes at once (fixed in server/access/ledger.ts), and its "at once" limit for model
+  #   calls and sandboxes together is set per code (atlas-invites create --max-concurrent; the judge code uses 20).
+  #   The example's 8 and the codes' 6 add to 14, more than the server's 12: at full load the server-wide 12 decides,
+  #   and the run that finds no slot is refused with "the server runs at most 12 sandbox run(s) at once".
+  ATLAS_DEV_SANDBOXES_AT_ONCE = "6"
   # - Modal's own runner (default 4 at once, 16 more wait in a queue). Waiting time is booked as sandbox-seconds, so it
   #   matches the server-wide 12: a run the server lets start also starts on Modal at once.
   ATLAS_MODAL_MAX_SANDBOXES = "12"

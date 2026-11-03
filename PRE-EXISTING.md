@@ -38,7 +38,7 @@ can tell it apart. Anything on this list that appears on screen carries a
 - Besley (SIL OFL 1.1, The Besley Project Authors), via @fontsource/besley 5.3.0: the drawing's serif and italic,
   self-hosted in renderer/fonts/ with its licence. @napi-rs/canvas 1.0.13 (MIT): exported images only, dev dependency.
 - Foundry 1.8.6, Node 25, pnpm, Vite, React, Hono, zod, vitest, viem.
-- Meta Model API, Muse Code CLI 1.4.13, Baseten (Muse Spark Open), optionally Modal.
+- Meta Model API, Muse Code CLI 1.4.14 (the first check on Oct 27 ran 1.4.13: tests/evidence/D01-07; every later run, 1.4.14), Baseten (Muse Spark Open), optionally Modal.
 
 ## Pre-window tests (evidence only, not product)
 - One Muse Wonder API call on Oct 26, 2026, to confirm access from Nigeria and learn

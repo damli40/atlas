@@ -240,6 +240,17 @@ export const NO_RESPONSE_WORDS = "Meta's AI didn't answer (network error). Try a
 export const NETWORK_MIDCALL_WORDS = NO_RESPONSE_WORDS;
 
 /**
+ * R16 (review B2): the reason a short call (names, summary, pick, captions, answer) shows when it got no answer. When the invite
+ * code's "at once" limit refused it (server/access/ledger.ts: model calls and sandboxes running together on one code), it says
+ * so, since everyone on a shared code counts toward that limit; any other failure stays "the model call failed".
+ */
+export function failedCallReason(reason: string): string {
+  const m = /this invite already has (\d+) spends running at once \(its limit is (\d+)\)/.exec(reason);
+  if (!m) return "the model call failed";
+  return `this invite code is at its "at once" limit (${m[1]} model calls and sandboxes already running on it, its limit is ${m[2]}; everyone using the code counts); try again when one finishes`;
+}
+
+/**
  * R12 review (D73): the error codes that mean the connection to Meta never opened, so no request reached it:
  * DNS (ENOTFOUND, EAI_AGAIN, EAI_NONAME, EAI_FAIL), refused or unreachable (ECONNREFUSED, ENETUNREACH, EHOSTUNREACH),
  * undici's connect timeout (UND_ERR_CONNECT_TIMEOUT), and TLS certificate checks (CERT_*, ERR_TLS_CERT_ALTNAME_INVALID,

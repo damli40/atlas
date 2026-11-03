@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { asksForBettors, checkAnswer, checkCaption, checkCaptions, checkPick, claimIn, KIND_PHRASE, pickReasonWords, PART_TALK_WORDS, REMEMBER_WORDS } from "../../src/part-talk";
+import { asksForBettors, checkAnswer, checkCaption, checkCaptions, checkPick, claimIn, KIND_PHRASE, pickReasonWords, PICK_MIN_BETS, PART_TALK_WORDS, REMEMBER_WORDS } from "../../src/part-talk";
 import { checkSummaryLine } from "../../src/file-summary";
 import { ASK_TASK, CAPTION_TASK, PICK_TASK, buildPickMessages } from "../../server/meta/roles/part-talk";
 import { stepKinds } from "../../server/part-talk";
@@ -30,12 +30,14 @@ describe("plain code's checks", () => {
   it("review round 2 (M-B): the pick is only WHICH part; its free text is never kept, and the reason is plain code's", () => {
     expect(checkPick({ part: "retryWithBackoff", reason: "this part keeps waiting on a source that stays silent" }, ["retryWithBackoff"])).toEqual({ ok: true, part: "retryWithBackoff" });
     expect(checkPick({ part: "VERSION" }, ["retryWithBackoff"]).ok).toBe(false);
-    expect(pickReasonWords(KIND_PHRASE.timing!, { line: "Tries the fetcher, waiting longer each time." })).toBe("You often miss timing questions. Muse Wonder's line for this part: Tries the fetcher, waiting longer each time.");
-    expect(pickReasonWords(KIND_PHRASE.timing!, { name: "retrying fetch" })).toBe('You often miss timing questions. Muse Wonder calls this part "retrying fetch".');
-    expect(pickReasonWords(KIND_PHRASE.timing!, {})).toBe("You often miss timing questions.");
+    // R16 (review M5): the counts, never "often".
+    const two3 = { notMatched: 2, n: 3 };
+    expect(pickReasonWords(KIND_PHRASE.timing!, { line: "Tries the fetcher, waiting longer each time." }, two3)).toBe("You missed 2 of 3 timing questions. Muse Wonder's line for this part: Tries the fetcher, waiting longer each time.");
+    expect(pickReasonWords(KIND_PHRASE.timing!, { name: "retrying fetch" }, two3)).toBe('You missed 2 of 3 timing questions. Muse Wonder calls this part "retrying fetch".');
+    expect(pickReasonWords(KIND_PHRASE.timing!, {}, two3)).toBe("You missed 2 of 3 timing questions.");
   });
   it("each kind's words for the pick pass the summary checker themselves", () => {
-    for (const [k, phrase] of Object.entries(KIND_PHRASE)) expect(checkSummaryLine(`You often miss ${phrase}.`, { words: 22, chars: 160 }).ok, k).toBe(true);
+    for (const [k, phrase] of Object.entries(KIND_PHRASE)) expect(checkSummaryLine(`You missed some ${phrase}.`, { words: 22, chars: 160 }) /* the counts are plain code's digits */.ok, k).toBe(true);
   });
   it("review round 2 (M-C): captions never speak of how a call turns out; honest middle captions pass", () => {
     // Eight captions of the kind the second review got through (made up here in the same shapes): all refused now.
@@ -181,14 +183,14 @@ describe("POST /paste/pick: Muse Wonder aims at what this person misses", () => 
   });
   it("with a record, it is told the kinds and counts only; only the part comes back, with the kinds in plain code's words", async () => {
     const track = memoryTrackStore();
-    track.add({ kind: "browser", id: BROWSER }, [entry(1, "timing", "not_matched"), entry(2, "timing", "not_matched"), entry(3, "outcome", "matched")]);
+    track.add({ kind: "browser", id: BROWSER }, [entry(1, "timing", "not_matched"), entry(2, "timing", "not_matched"), entry(4, "timing", "matched"), entry(3, "outcome", "matched")]);
     const m = talkingModels({ pick: { part: "retryWithBackoff", reason: "this part keeps waiting on a source that stays silent" } });
     const { c, t } = await pasted(m, { trackStore: track });
     const r = await c.post("/paste/pick", { target: t }, H);
-    expect(r.json).toMatchObject({ ok: true, part: "retryWithBackoff", kinds: [KIND_PHRASE.timing] });
+    expect(r.json).toMatchObject({ ok: true, part: "retryWithBackoff", kinds: [KIND_PHRASE.timing], missed: { notMatched: 2, n: 3 } });
     expect(JSON.stringify(r.json)).not.toContain("stays silent");
     const text = m.seen.pick[0]!.messages.map((x) => x.content).join("\n");
-    expect(text).toContain("timing (2 of 2 didn't match");
+    expect(text).toContain("timing (2 of 3 didn't match");
     expect(text).toContain('{"part": "<name>"}');
     expect(text).not.toMatch(/run_1|bet_1|aaaaaaaa|"reason"/);
     await c.post("/paste/pick", { target: t }, H);
@@ -196,10 +198,31 @@ describe("POST /paste/pick: Muse Wonder aims at what this person misses", () => 
   });
   it("a pick of a part Atlas can't call is refused, and the page falls back (refused: true)", async () => {
     const track = memoryTrackStore();
-    track.add({ kind: "browser", id: BROWSER }, [entry(1, "outcome", "not_matched")]);
+    track.add({ kind: "browser", id: BROWSER }, [entry(1, "outcome", "not_matched"), entry(2, "outcome", "not_matched"), entry(3, "outcome", "matched")]);
     const m = talkingModels({ pick: { part: "VERSION" } });
     const { c, t } = await pasted(m, { trackStore: track });
     expect((await c.post("/paste/pick", { target: t }, H)).json).toMatchObject({ ok: false, refused: true });
+  });
+  it("R16 (review M5): one miss, or two bets of a kind, is not a record: nothing is asked ($0), the usual choice stays", async () => {
+    for (const entries of [[entry(1, "timing", "not_matched")], [entry(1, "timing", "not_matched"), entry(2, "timing", "not_matched"), entry(3, "outcome", "matched"), entry(4, "outcome", "matched")]]) {
+      const track = memoryTrackStore();
+      track.add({ kind: "browser", id: BROWSER }, entries);
+      const m = talkingModels({ pick: { part: "retryWithBackoff" } });
+      const { c, t } = await pasted(m, { trackStore: track });
+      expect((await c.post("/paste/pick", { target: t }, H)).json).toMatchObject({ ok: false, noRecord: true });
+      expect(m.seen.pick).toHaveLength(0);
+    }
+    // A kind with fewer than 3 bets is not told to Muse either, so the page's sentence names the kind the pick aimed at.
+    const track = memoryTrackStore();
+    track.add({ kind: "browser", id: BROWSER }, [entry(1, "timing", "not_matched"), entry(2, "outcome", "not_matched"), entry(3, "outcome", "not_matched"), entry(4, "outcome", "matched")]);
+    const m = talkingModels({ pick: { part: "retryWithBackoff" } });
+    const { c, t } = await pasted(m, { trackStore: track });
+    expect((await c.post("/paste/pick", { target: t }, H)).json).toMatchObject({ ok: true, kinds: [KIND_PHRASE.outcome], missed: { notMatched: 2, n: 3 } });
+    const told = m.seen.pick[0]!.messages.map((x) => x.content).join("\n");
+    expect(told).toContain("outcome (2 of 3 didn't match");
+    expect(told).not.toContain("timing (");
+    expect(PART_TALK_WORDS.pickNoRecord).toContain(`waits for ${PICK_MIN_BETS}`);
+    expect(PICK_MIN_BETS).toBe(3);
   });
   it("the pick prompt names only parts Atlas can call", () => {
     const parts = fileOutline(RETRY_SRC, "ts").parts.filter((p) => p.kind === "function");
@@ -275,7 +298,7 @@ describe("POST /paste/captions: after the run, checked against the recorded run"
   }, 60_000);
   it("none of the three is ever on the proof card or in the proof file", async () => {
     const track = memoryTrackStore();
-    track.add({ kind: "browser", id: BROWSER }, [entry(1, "timing", "not_matched")]);
+    track.add({ kind: "browser", id: BROWSER }, [entry(1, "timing", "not_matched"), entry(2, "timing", "not_matched"), entry(3, "timing", "matched")]);
     const PICK = "this part keeps waiting on a source that stays silent";
     const CAP = "The fetch is asked again after a short pause";
     const ANSWER = "It waits longer after each failed try (r14-proof-check).";

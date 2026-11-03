@@ -33,6 +33,7 @@ import { notShownAsFact } from "../../../src/trust";
 import { runActFor, runBeats } from "./run-beats";
 import { actTimes, type ActStep } from "../../../renderer/authors/run-act";
 import { PART_TALK_WORDS } from "../../../src/part-talk";
+import { NAMER_WORDS } from "../../../src/natural-names";
 import { lineSpan } from "../../../src/words";
 import { partPanel, type PartPanel } from "../../../renderer/authors/part-panel";
 import { PartFacts } from "../../drawing/PartFacts";
@@ -92,6 +93,10 @@ export interface BenchStageProps {
   fileSummary?: FileSummary | null;
   /** Review minor 5: a summary was asked for and none came (refused, late, limited or failed). */
   summaryMissing?: boolean;
+  /** R16 (review B2): why there is no summary, when it is the invite code's "at once" limit (else the general line). */
+  summaryWhy?: string | null;
+  /** R16 (review minor 2): on the built-in example, the day its summary and names were recorded ("Nov 2"), shown beside their legends. */
+  recordedNote?: string | null;
   /** R9: the summary's one line per part, for the part panel (before and after a run). */
   partLines?: Readonly<Record<string, string>> | null;
   /** A code box was chosen as the function to test. */
@@ -169,7 +174,7 @@ export function litWithNoThread(beats: readonly { routes: readonly string[]; lam
   return beats.some((b) => b.lamps.some((l) => l !== tested && !reached.has(l)));
 }
 
-export function BenchStage({ viewToggle = true, traceNote = true, recorded = {}, wontRun = false, seenBefore = false, codeRan = false, loop = null, model, theme, after = null, onPart, picked = null, onPanel, onClosePart, naturalNames = null, namesNote = null, fileSummary = null, summaryMissing = false, partLines = null, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null, topNote = null, aimed = null, partActions, onAct, actCaptions = null, recordLine = null }: BenchStageProps) {
+export function BenchStage({ viewToggle = true, traceNote = true, recorded = {}, wontRun = false, seenBefore = false, codeRan = false, loop = null, model, theme, after = null, onPart, picked = null, onPanel, onClosePart, naturalNames = null, namesNote = null, fileSummary = null, summaryMissing = false, summaryWhy = null, recordedNote = null, partLines = null, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null, topNote = null, aimed = null, partActions, onAct, actCaptions = null, recordLine = null }: BenchStageProps) {
   const [wantMachine, setWantMachine] = useState(machineFirst);
   const playedRef = useRef(onPlayed);
   playedRef.current = onPlayed;
@@ -250,7 +255,13 @@ export function BenchStage({ viewToggle = true, traceNote = true, recorded = {},
     setRegion({ w: el.clientWidth, h: el.clientHeight });
     return () => ro.disconnect();
   }, []);
-  const tooSmall = !drawn.tooMany && region !== null && region.w > 0 && drawn.minWords * Math.min(1.7, (region.w - 20) / drawn.width, (region.h - 20 - (after ? CAPTION_LINE : 0) - (drawn.aiNames ? LEGEND_LINE : 0)) / drawn.height) < MACHINE_MIN_WORD_PX;
+  const tooSmallNow = !drawn.tooMany && region !== null && region.w > 0 && drawn.minWords * Math.min(1.7, (region.w - 20) / drawn.width, (region.h - 20 - (after ? CAPTION_LINE : 0) - (drawn.aiNames ? LEGEND_LINE : 0)) / drawn.height) < MACHINE_MIN_WORD_PX;
+  // R16 (review M1): a machine that fit before the run stays the machine after it (the caption line used to tip a small file
+  // at 1280×800 into the box chart, where the run's parts could not be clicked). Remembered per file.
+  const fitBefore = useRef<{ key: string; fit: boolean } | null>(null);
+  const fitKey = `${fileName}|${source.length}|${outline.parts.length}`;
+  if (!after && region !== null && region.w > 0) fitBefore.current = { key: fitKey, fit: !tooSmallNow };
+  const tooSmall = tooSmallNow && !(after && fitBefore.current?.key === fitKey && fitBefore.current.fit);
   // On a wide screen the small print is the fold below, for either view; on a phone it stays with the chart.
   const chartPath = useMemo(() => (pathSpec && typeof window !== "undefined" && window.innerWidth > 760 ? { ...pathSpec, captions: [] } : pathSpec), [pathSpec]);
   // The small print: one short line, the rest under a fold. Every word stays there, unchanged.
@@ -555,13 +566,15 @@ export function BenchStage({ viewToggle = true, traceNote = true, recorded = {},
       {shownSummary ? (
         <section className="m-summary" ref={sumRef} aria-label="A summary of the file, written by Meta's AI" data-testid="file-summary">
           {topNote}
-          <p className="m-summary-k" data-testid="file-summary-legend">{SUMMARY_WORDS.legend}</p>
+          <p className="m-summary-k" data-testid="file-summary-legend">{recordedNote ? `${SUMMARY_WORDS.legend} (${recordedNote})` : SUMMARY_WORDS.legend}</p>
           <p className="m-summary-t" data-testid="file-summary-text">
             {shownSummary.purpose}
           </p>
           {Object.keys(shownSummary.parts).length > 0 ? (
             <details className="m-summary-parts" data-testid="file-summary-parts">
               <summary>{SUMMARY_WORDS.partsFold(Object.keys(shownSummary.parts).length)}</summary>
+              {/* R16 (review minor 1): on the box chart (a phone's first screen) the AI's names appear only here, so the ★ legend does too. */}
+              {Object.keys(shownSummary.parts).some((part) => shownNames?.[part]) ? <p className="m-summary-k" data-testid="file-summary-names-legend">{recordedNote ? `${NAMER_WORDS.legend} (${recordedNote})` : NAMER_WORDS.legend}</p> : null}
               <ul>
                 {Object.entries(shownSummary.parts).map(([part, line]) => (
                   <li key={part}>
@@ -570,7 +583,7 @@ export function BenchStage({ viewToggle = true, traceNote = true, recorded = {},
                       const panel = onPart ? panelFor(part) : null;
                       if (panel) onPart!(part, panel);
                     }}>
-                      {shownNames?.[part] ?? part}
+                      {shownNames?.[part] ? `★ ${shownNames[part]}` : part}
                     </button>
                     {`: ${line}`}
                   </li>
@@ -583,7 +596,7 @@ export function BenchStage({ viewToggle = true, traceNote = true, recorded = {},
         // Review minor 5: no summary this time (refused, late, limited or failed): one muted line in its slot, never a stand-in summary.
         <section className="m-summary m-summary-none" ref={sumRef} data-testid="file-summary-none">
           {topNote}
-          <p>{SUMMARY_WORDS.none}</p>
+          <p>{summaryWhy ? SUMMARY_WORDS.atOnce(summaryWhy) : SUMMARY_WORDS.none}</p>
         </section>
       ) : null}
       <div className="r-viewport r-chart" role="group" aria-describedby="bench-described" aria-label="The drawing of your code. Tab to a part; Enter picks it; arrows walk its joins; plus and minus zoom." onPointerMove={onMove} onPointerLeave={() => setHover(null)} data-testid="bench-viewport">
@@ -601,7 +614,7 @@ export function BenchStage({ viewToggle = true, traceNote = true, recorded = {},
         )}
       </div>
       <div className="r-machine" ref={regionRef} hidden={undefined} style={showMachine ? undefined : { visibility: "hidden", pointerEvents: "none" }} data-testid="machine-region" data-captions={after && marksOn && pathSpec?.captions.length ? "" : undefined}>
-        {showMachine && <MachineSheet ref={machineRef} drawn={drawn} reduced={still} penKey={after ? null : source} beats={beats} landed={Boolean(after && marksOn)} picked={picked} aimed={after ? null : aimed} onPart={(id) => {
+        {showMachine && <MachineSheet ref={machineRef} drawn={drawn} reduced={still} penKey={after ? null : source} beats={beats} landed={Boolean(after && marksOn)} legendNote={recordedNote} picked={picked} aimed={after ? null : aimed} onPart={(id) => {
           const panel = onPart ? panelFor(id) : null;
           if (!panel) return false;
           onPart!(id, panel);
@@ -613,6 +626,8 @@ export function BenchStage({ viewToggle = true, traceNote = true, recorded = {},
             {/* R14: Muse Wonder's caption for the same step, in the AI's ink, swapped in when it arrives; the act never waits for it. */}
             {actAt !== null && actCaptions?.[actAt] ? (
               <span className="m-act-ai" data-testid="machine-act-ai">
+                {/* R16 (review M2): a visible label, in the caption's own ink; the full legend stays for screen readers. */}
+                <span className="m-act-ai-k" data-testid="machine-act-ai-label">{`${PART_TALK_WORDS.captionLabel} `}</span>
                 <span className="rr-unseen">{`${PART_TALK_WORDS.captionsLegend}: `}</span>
                 {actCaptions[actAt]}
               </span>
@@ -653,7 +668,19 @@ export function BenchStage({ viewToggle = true, traceNote = true, recorded = {},
       )}
       {pathSpec && (
         <div className="r-viewport r-path" data-testid="bench-path">
-          <Drawing spec={chartPath!} theme={shown} className="r-sheet" maxScale={1.08} minScale={typeof window !== "undefined" && window.innerWidth <= 760 ? 0.66 : 0.5} hover={false} onPending={() => setPathMount(undefined)} onMount={(m) => setPathMount(m)} />
+          <Drawing spec={chartPath!} theme={shown} className="r-sheet" maxScale={1.08} minScale={typeof window !== "undefined" && window.innerWidth <= 760 ? 0.66 : 0.5} hover={false} onPending={() => setPathMount(undefined)} onMount={(m) => setPathMount(m)} onSelect={(nodeId) => {
+              // R16 (review M1): after a run in the box-chart view, a step of the path that names a part of the file opens that part's
+              // panel (with "Ask about this part"), as a click on the machine does.
+              if (!onPart) return;
+              const step = chartPath?.steps.find((s) => s.nodes.includes(nodeId));
+              const words = chartPath?.nodes.find((n) => n.id === nodeId)?.words ?? "";
+              const byName = (name: string | undefined) => (name ? namedParts.housings.find((x) => x.name === name) : undefined);
+              // The step's own part first; else the first part of this file its words name ("called fetchIt 3 times, sleep 3 times").
+              const said = (x: { name: string }) => new RegExp(`(^|[^A-Za-z0-9_$])${x.name.replace(/[$]/g, "\\$&")}([^A-Za-z0-9_$]|$)`).test(words);
+              const h = byName(step?.part) ?? byName(step?.device) ?? namedParts.housings.filter(said).sort((a, b) => words.indexOf(a.name) - words.indexOf(b.name))[0];
+              const panel = h ? panelFor(h.id) : null;
+              if (h && panel) onPart(h.id, panel);
+            }} />
         </div>
       )}
       {showMachine && act ? <p className="rr-unseen" role="status" aria-live="polite" data-testid="machine-act-heard">{actHeard}</p> : null}

@@ -11,7 +11,7 @@
 import { checkNames } from "../../../src/natural-names";
 import { WONDER_MODEL } from "../../../src/paste-words";
 import { LANGUAGE_NAME } from "../../../src/paste-context";
-import { chat as realChat, type ChatArgs, type ChatMessage, type ChatResult, type Usage } from "../client";
+import { chat as realChat, failedCallReason, type ChatArgs, type ChatMessage, type ChatResult, type Usage } from "../client";
 import type { SessionEmitter } from "../../log/agentlog";
 import { oneLine } from "../../log/agentlog";
 import { COST_UNKNOWN, NO_USAGE, SYSTEM_PREAMBLE, numbered } from "./claimant";
@@ -67,7 +67,7 @@ export async function runNamer(input: NamerInput, deps: { chat?: (a: ChatArgs) =
   const res = await chat({ role: "investigator", model, messages: buildNamerMessages(input), json: true, reasoningEffort: "minimal" });
   if (!res.ok) {
     say(`names no parts (the model call failed: ${res.reason})`, res.usage);
-    return { ok: false, model, reason: "the model call failed", ...(res.usage ? { usage: res.usage } : {}) };
+    return { ok: false, model, reason: failedCallReason(res.reason), ...(res.usage ? { usage: res.usage } : {}) };
   }
   let json: unknown;
   try {

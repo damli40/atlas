@@ -1,0 +1,63 @@
+# R16: the final review's fixes (B2, M1 to M6, minors 1 to 3 and 8)
+
+Date: 2026-11-03 (WAT). Branch `r16-final` from main `3c787b1` (live as Fly release v7). Every model mocked ($0), no Modal,
+no Fly. The review is final review 2 (seams between R9 and R15); B1 was already fixed on main.
+
+**Where to look first:** the table below, then "What changes for a judge on the live site". The browser checks are in
+`browser.txt` (one pass, every check printed PASS or FAIL) with their pictures in `shots/`; the script is `harness/r16-browser.mjs`.
+
+## Every finding
+
+| Finding | What was wrong | What R16 does | Proof |
+|---|---|---|---|
+| **B2** shared judge code | `server/app.ts` keyed "the person" by the invite id. Two judges on one code were one person: judge A's question about a part made judge B's lock fail (409 "you asked Muse Wonder about this file after this round's question was written…"), and B's next round told the AIs "The person's page showed these same words", which was false for B (a D19 breach). The 5-asks cap and the record were shared too. | "The person" (for questions about a part, Muse Wonder's pick and the track record) is now the invite code **and** the page's random browser id (`x-atlas-browser`). Without a browser id (the Muse Code plugin) it is the code alone, as before. Money, the daily budget and every "at once" limit stay per code. The record page now says "Kept for your invite code in this browser". | `tests/unit/r16-shared-code.test.ts` (built from the reviewer's probe): two browsers, one code → B's lock 200, B's bettor text has none of A's words, A's own next round does, the cap is per judge, the records are apart, the plugin path unchanged. With the old key, 4 of its 7 tests fail (checked by putting the old line back). Browser: `shared code` in `browser.txt`. |
+| **B2** "at once" limit | One code may run 4 spends at once (model calls and sandboxes together, `store.ts`). Two judges pasting together hit it, and the names, summary and answer said only "the model call failed". | The limit stays. When it is the reason, the sentence says so: `this invite code is at its "at once" limit (4 model calls and sandboxes already running on it, its limit is 4; everyone using the code counts); try again when one finishes` (`failedCallReason`, `server/meta/client.ts`). The summary's empty slot shows it too. `tools/fly-setup.md` now makes the judge code with `--max-concurrent 20`. | Unit: the real ledger's 5th hold on a 4-code is refused, and the roles turn it into that sentence. `--max-concurrent 20` run in a scratch folder: "Made dev code … $10.00 a UTC day, none in all, 20 at once."; 21 is refused ("must be a whole number from 1 to 20"). |
+| **M1** ask after the run | At 1280×800 a small file (Cached-lookup sample) was a machine before the run and a box chart after it, where a click on a part did nothing. On the example the post-run panel had no ask line. | (1) A machine that fit before the run stays the machine after it (the caption line used to tip it over). (2) In the box-chart view after a run, tapping a step of the path that names a part opens that part's panel. On a phone that panel opens far below, so the page now scrolls to it (`web/phone-scroll.ts`). (3) On the example, the panel shows one line: "Ask works on your own files." (placeholder), with or without a code. | `browser.txt`: "machine → machine" at 1280 and 1440; ask box and labelled answer after the run at all three sizes (via the machine at 1280/1440, via the path at 390); the example's line in view at all three. Pictures: `shots/1280x800-07-ask-after-run.png`, `shots/*-03-example-panel-after-run.png`. |
+| **M2** live caption label | While the run played, Muse Wonder's caption under plain code's step had no visible label (the legend was screen-reader only). | Each live caption starts with a visible "★ Muse Wonder:" in the caption's own ink (the full legend stays for screen readers). | `shots/1280x800-05-live-caption.png`, `browser.txt` M2 at 1280 and 1440. The phone has no live caption (the act plays only on the machine); its captions are in the step list after the run, labelled as before. |
+| **M3** Moonwell sentence | The approved sentence sat under the foot links at 1280×800 until scrolled (the sheet already had 96 px of bottom room, and scrolled it cleared). | On a desktop window the Moonwell machine's box is 60% of the window's height instead of 66%, so the sentence ends above the foot without scrolling. The bottom room stays. | `browser.txt`: the sentence ends at 751 px with the foot at 768 (1280×800), 811 with the foot at 868 (1440×900); `shots/*-08a-moonwell-rest.png`. The caption lines under it still need a scroll at 1280×800, and clear once scrolled. |
+| **M4** record page | "No model reads or writes it" sat above "Muse Wonder is told only the kinds of question you miss most". | "Counted and written by plain code … no model writes it. Muse Wonder is told only the kinds of question you miss most, with their counts." The line about part questions (kept, and given to the AIs in later rounds) is unchanged. | `src/track-record.ts`, `src/part-talk.ts` `REMEMBER_WORDS` |
+| **M5** "You often miss" | Fired on one miss. | "You missed N of M timing questions." and only when that kind has at least 3 judged bets (`PICK_MIN_BETS`). Fewer: no call ($0), and the page says "Not enough judged bets of one kind yet (Atlas waits for 3)…". | `tests/unit/r14-part-talk.test.ts`: one miss, and two bets of a kind, are not asked; 2 of 3 is. |
+| **M6** capacity comment | `fly.toml` said 4 of the server's 12 sandboxes were free for codes; codes together could hold only 3 (fixed in code), one code 2. | `ATLAS_DEV_SANDBOXES_AT_ONCE` (default 3), set to 6 in `fly.toml`; one code still holds at most 2. The comment now says the example's 8 and the codes' 6 add to 14, so at full load the server-wide 12 decides. | Unit: 4 codes start 3 sandboxes by default, 6 with the setting, one code 2, a bad value falls back to 3. |
+| minor 1 | Phone first screen: the AI's names were only in the closed fold, with no ★ legend. | The fold shows the ★ names legend above the names, and each name has its ★. | `shots/390x844-01b-open-fold.png` |
+| minor 2 | The example's summary and names were not labelled recorded. | "(recorded Nov 2)" after the summary's legend and the names' legend, like the bets. | `browser.txt` at all three sizes |
+| minor 3 | The bar said `pasted.ts · 25 lines` on the example; "Your code goes to Meta's AI…" showed on its verdict. | The bar says "the example · 25 lines" (placeholder); the line is gone from the example's verdict (the paste box it leads to still says it, and so does the bet panel before the run). | `browser.txt` |
+| minor 8 | README "Node 25 or newer" vs `engines >=22.13`; PRE-EXISTING Muse Code 1.4.13 vs README 1.4.14. | **Checked by running:** `node --permission` with no network flag lets a connection to a local port through on Node 22.13.0 and 24.11.0, and refuses it (`ERR_ACCESS_DENIED`) on 25.8.1. So the README was right: `engines` is now `>=25`, and the server's startup note says so on Node 22.13 to 24. Muse Code: the first check (Oct 27, `D01-07`) ran 1.4.13, every later run 1.4.14 (the installed one); PRE-EXISTING now says that. | `tests/unit/review-final-hygiene.test.ts` (engines, README, startup note for 24.11.0) |
+
+## What changes for a judge on the live site (after a deploy)
+
+- Judges sharing one code no longer block each other's bets or see each other's questions in the AIs' text.
+- Each judge's track record is per browser. **Existing records:** a record kept under the code alone before R16 stays on
+  disk and the plugin still reads it, but the page (which sends a browser id) starts a new, empty record. Questions about
+  parts were only ever kept in memory, so a deploy clears them anyway. Nothing on disk is migrated or deleted.
+- Make the judge code with `--max-concurrent 20` (`tools/fly-setup.md`, step 2). With the default 4, two judges pasting at
+  the same moment still get the "at once" sentence (now plainly worded).
+
+## Left as they are (logged, not fixed here)
+
+- Review minor 4: the $100 spend ceiling is all-time; check hosted spend against the $80 shared share before Nov 4.
+  `ATLAS_SPEND_CEILING_USD` is not in `fly.toml`.
+- Review minor 5: a code's daily $10 resets at 00:00 UTC (7 PM ET Nov 4); hourly windows reset on a restart.
+- Review minor 6: "Test this claim" rounds show the person Wonder's sentence that the AIs never get (D18 vs D19, documented).
+- Review minor 7: sentences marked "DAMI: placeholder" ship as drafts (all true as written). R16 adds three: "Ask works on
+  your own files.", "the example" in the bar, and the "at once" sentence.
+- Review minor 9: the `day-gate` 5 s budget flakes under a loaded machine.
+- New limit: one code holder could make up many browser ids. Each is a small record file, and past 2,000 files the one
+  written longest ago is deleted, which could drop another judge's record. Only people with a code can do this.
+- The bet panel's fine print on the example's first screen still says "Your code goes to Meta's AI…" (not in this round's ask).
+
+## Commands
+
+- `pnpm exec tsc --noEmit`: clean.
+- `pnpm exec vitest run`: **177 files: 175 passed, 2 skipped; 2,877 tests: 2,842 passed, 35 skipped, 0 failed** (`vitest.txt`). Same counts on two full runs; no flake this time, so nothing was rerun alone. New: `tests/unit/r16-shared-code.test.ts` (7 tests), one new test in `r14-part-talk.test.ts`.
+- Browser: `PORT=18961 U3_WONDER_DELAY_MS=800 U3_GATE_FILE=<file> pnpm exec tsx tests/evidence/U3/mock-server.ts`,
+  `ATLAS_API_PORT=18961 pnpm exec vite --port 18962 --strictPort`, then
+  `PW=<playwright-core index.mjs> CHROME=<headless shell> BASE=http://localhost:18962 CODE_FILE=<file> node tests/evidence/R16/harness/r16-browser.mjs <out>`.
+  A fourth pass against the same mock server in one hour waited in vain for the bet question; after a restart the same
+  checks passed. Most likely its hourly per-address limits (every pass comes from one address); not confirmed. Restart it
+  between passes.
+- Runtime-only check: `runtime-check.txt`.
+
+## Not done
+
+Nothing on Fly, Linux, real Modal, Safari or a real phone; no paid call; the Muse Code plugin was not started (its
+person key is covered by the unit test only).

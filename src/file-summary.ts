@@ -103,6 +103,8 @@ export const SUMMARY_WORDS = {
   panel: (line: string) => `Meta's AI says this part: ${line} (its words, not a check)`,
   // R12 (D73): a limit (spend or calls) also leaves no summary; the line no longer blames the AI for it.
   none: "No summary this time: Meta's AI wasn't asked (a limit was reached), was slow, or its words didn't pass Atlas's checks.",
+  // R16 (review B2): the invite code's "at once" limit refused the call; the line says so (shared codes hit it first).
+  atOnce: (reason: string) => `No summary this time: Meta's AI wasn't asked: ${reason}.`,
 } as const;
 
 /** D19: the lines every AI bettor gets when the summary was sent to the person's page, labelled as the model's words. */

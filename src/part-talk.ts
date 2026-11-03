@@ -74,10 +74,16 @@ export function checkPick(answer: unknown, bettable: readonly string[]): { ok: t
  * The reason on screen, built by plain code from two things: the kind of question the person misses (their own record, not about the code)
  * and the part's already-checked summary line, which every bettor's text holds, or its natural name. No word of it is Muse's free text.
  */
-export function pickReasonWords(kindPhrase: string, part: { line?: string | null; name?: string | null }): string {
+export function pickReasonWords(kindPhrase: string, part: { line?: string | null; name?: string | null }, missed: { notMatched: number; n: number }): string {
   const role = part.line ? ` Muse Wonder's line for this part: ${part.line}` : part.name ? ` Muse Wonder calls this part "${part.name}".` : "";
-  return `You often miss ${kindPhrase}.${role}`;
+  return `You missed ${missed.notMatched} of ${missed.n} ${kindPhrase}.${role}`;
 }
+
+/**
+ * R16 (review M5): Muse Wonder picks a part for you only from a kind of question with at least this many judged bets, so the
+ * sentence never rests on one miss. Fewer: nothing is asked ($0) and the usual choice stays.
+ */
+export const PICK_MIN_BETS = 3;
 
 /**
  * The words the pick prompt may use for each kind of question: each passes the summary's checker (so "returned value" is "value
@@ -200,6 +206,8 @@ export const PART_TALK_WORDS = {
   sameAsNow: "Your bet is on this part.",
   // 2. captions
   captionsLegend: "Muse Wonder's words (Meta's AI), not a check",
+  // R16 (review M2): the visible label in front of each live caption while the run plays (same ink as the caption).
+  captionLabel: "★ Muse Wonder:",
   captionsFold: (n: number) => `What the run did, step by step, with Muse Wonder's words (${n})`,
   captionsNone: "No words from Meta's AI this time: it was slow, a limit was reached, or its words didn't pass Atlas's checks.",
   // 3. ask
@@ -211,14 +219,15 @@ export const PART_TALK_WORDS = {
   askLegend: "Muse Wonder's answer (Meta's AI), not a check",
   askOffTopic: "Muse Wonder answers questions about this part only.",
   askFull: "You have asked the most questions Atlas keeps for this part.",
-  askExample: "Ask works on your own code. The example's AI answers are recorded, so its words stay as they are.",
+  // R16 (review M1): one line on the example's part panel, with or without a code (DAMI: placeholder wording).
+  askExample: "Ask works on your own files.",
   askRefused: "Muse Wonder's answer didn't pass Atlas's checks, so it isn't shown.",
   // 4. the pick
   pickHeading: "Muse Wonder's pick for you",
   pickLegend: "Muse Wonder chose the part from your record; the words below are Atlas's. Not a check.",
   pickAccept: "Bet on this part",
   pickOther: "Pick another part",
-  pickNoRecord: "No record yet, so Muse Wonder's usual choice is used. Play a few rounds and Atlas aims at what you miss.",
+  pickNoRecord: `Not enough judged bets of one kind yet (Atlas waits for ${PICK_MIN_BETS}), so Muse Wonder's usual choice is used. Play a few rounds and Atlas aims at what you miss.`,
   pickRefused: "Muse Wonder's pick didn't pass Atlas's checks this time, so its usual choice is used.",
   pickExample: "Play a few rounds with your own code and Atlas aims at what you miss.",
   pickOtherHow: "Click any box on the drawing, then press Bet on this part.",
@@ -232,8 +241,8 @@ export const PART_TALK_WORDS = {
 export const REMEMBER_WORDS = {
   what: "Atlas remembers, for each of your bets: the kind of question, whether it matched, and whether the test made something fail. Never your code, the bet's question or what you bet.",
   asks: "Questions you ask about a part, and Muse Wonder's answers, ARE kept, in the server's memory, by the part's name: the AIs that bet with you get the same words in your later rounds on any file with a part of that name, so nobody bets on more than the others.",
-  whereInvite: "Kept for your invite code on this server, on disk: it is still here after a restart.",
-  whereInviteMemory: "Kept for your invite code in the server's memory only: a restart clears it.",
+  whereInvite: "Kept for your invite code in this browser, on this server's disk: it is still here after a restart.",
+  whereInviteMemory: "Kept for your invite code in this browser, in the server's memory only: a restart clears it.",
   whereBrowserDisk: "Kept for this browser on this server (no invite code), on disk.",
   whereMemory: "Kept for this browser in the server's memory only (no invite code): a restart clears it.",
   how: "How Muse Wonder uses it: when it writes a test, and when it picks a part for you, it is told only the kinds of question you miss most, with their counts. The AIs that bet with you are never told your record.",

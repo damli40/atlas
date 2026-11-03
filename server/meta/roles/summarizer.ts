@@ -12,7 +12,7 @@ import { checkSummary, SUMMARY_BANNED_PHRASES, SUMMARY_OUTCOME_WORDS, type FileS
 import { NAME_BANNED_STEMS, NAME_BANNED_WORDS } from "../../../src/natural-names";
 import { WONDER_MODEL } from "../../../src/paste-words";
 import { LANGUAGE_NAME } from "../../../src/paste-context";
-import { chat as realChat, type ChatArgs, type ChatMessage, type ChatResult, type Usage } from "../client";
+import { chat as realChat, failedCallReason, type ChatArgs, type ChatMessage, type ChatResult, type Usage } from "../client";
 import type { SessionEmitter } from "../../log/agentlog";
 import { oneLine } from "../../log/agentlog";
 import { COST_UNKNOWN, NO_USAGE, SYSTEM_PREAMBLE, numbered } from "./claimant";
@@ -75,7 +75,7 @@ export async function runSummarizer(input: SummarizerInput, deps: { chat?: (a: C
   const res = await chat({ role: "investigator", model, messages: buildSummarizerMessages(input), json: true, reasoningEffort: "minimal" });
   if (!res.ok) {
     say(`writes no summary (the model call failed: ${res.reason})`, res.usage);
-    return { ok: false, model, reason: "the model call failed", ...(res.usage ? { usage: res.usage } : {}) };
+    return { ok: false, model, reason: failedCallReason(res.reason), ...(res.usage ? { usage: res.usage } : {}) };
   }
   let json: unknown;
   try {

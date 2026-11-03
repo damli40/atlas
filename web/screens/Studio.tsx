@@ -17,7 +17,8 @@ import { countChange, weakestWords, type Weakest } from "../../src/remember";
 import { questionTypeOf } from "../../src/track-record";
 import { notShownAsFact } from "../../src/trust";
 import type { JsonValue } from "../../src/types";
-import { PASTE_WORDS } from "../../src/paste-words";
+import { PASTE_WORDS, shortDay } from "../../src/paste-words";
+import { EXAMPLE_SUMMARY_RECORDED_ON } from "../../src/example-summary";
 import EXAMPLE_OUTLINE from "../u1-example-outline.json";
 import { betView } from "../../renderer/authors/bet-view";
 import { Drawing } from "../drawing/Drawing";
@@ -65,6 +66,8 @@ import type { ActStep } from "../../renderer/authors/run-act";
 type Lang = "js" | "ts" | "py";
 const EXAMPLE_FUNCTION_NAME = "fetchWithRetry";
 const CONSENT_LINE = "Your code goes to Meta's AI as soon as Atlas draws it, so a test is ready when you bet.";
+/** R16 (review minor 3): what the bar calls the built-in example (DAMI: placeholder wording). */
+const EXAMPLE_TITLE = "the example";
 // R10 (D72): DAMI: placeholder wording. Said when someone with no code reaches past the example (the server says the same).
 const OWN_CODE_LINE = "Your own code, and anything beyond the example, needs an invite code, so nothing was run and no AI was asked.";
 const FILE_NAME: Record<Lang, string> = { js: "pasted.js", ts: "pasted.ts", py: "pasted.py" };
@@ -426,7 +429,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const [helpersIn, setHelpersIn] = useState(false);
   useEffect(() => onRoundOpen?.(exp !== null && result === null), [exp, result, onRoundOpen]);
   // R14: Muse Wonder's pick for this person (one part, from their record), its run captions, and its answers about one part.
-  const [aim, setAim] = useState<{ sha: string; part: string; kind: string } | { sha: string; note: string } | null>(null);
+  const [aim, setAim] = useState<{ sha: string; part: string; kind: string; missed: { notMatched: number; n: number } } | { sha: string; note: string } | null>(null);
   const aimAsked = useRef<string | null>(null);
   const [capts, setCapts] = useState<{ runId: string; words: Record<number, string> } | null>(null);
   const captsAsked = useRef<string | null>(null);
@@ -726,7 +729,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       .then(
         (r) => {
           if (!live) return;
-          if (r.ok && r.part) setAim({ sha, part: r.part, kind: r.kinds?.[0] ?? "questions" });
+          if (r.ok && r.part && r.missed) setAim({ sha, part: r.part, kind: r.kinds?.[0] ?? "questions", missed: r.missed });
           else if (r.noRecord) setAim({ sha, note: PART_TALK_WORDS.pickNoRecord });
           else if (r.refused) setAim({ sha, note: PART_TALK_WORDS.pickRefused });
           else setAim(null);
@@ -1513,7 +1516,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   // C4: a run Atlas could not check has nothing to play and no card to show, so neither is offered.
   const nothingShown = result !== null && notShownAsFact(result.run) !== null;
   const offeredTests = (proposals?.proposals ?? []).filter((p) => p.gate.allowed && !alreadyRan(p.params));
-  const title = `${source ?? (pasted.outline?.parts.length === 0 ? "pasted file" : FILE_NAME[pasted.target.language ?? "ts"])} · ${plural(pasted.lines, "line")}${drawnMs !== null ? ` · drawn in ${drawnMs} ms` : ""}`;
+  // R16 (review minor 3): the built-in example is named as the example, never "pasted.ts".
+  const title = `${onExample ? EXAMPLE_TITLE : (source ?? (pasted.outline?.parts.length === 0 ? "pasted file" : FILE_NAME[pasted.target.language ?? "ts"]))} · ${plural(pasted.lines, "line")}${drawnMs !== null ? ` · drawn in ${drawnMs} ms` : ""}`;
   // ---- R14: the part panel's controls, Muse Wonder's pick, its captions, and the record line ----
   const partName = (id: string) => (natural && "names" in natural && natural.sha === pasted.target.codeSha256 && natural.names[id] ? `${natural.names[id]} (${id})` : id);
   const askAbout = async (part: string) => {
@@ -1532,6 +1536,9 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     }
   };
   const askBox = (id: string) => {
+    // Review round 2 (M-D): the example's AI answers are recordings of its exact text; an answer would change that text.
+    // R16 (review M1): one line, first, with or without a code, so it shows in the panel even when the panel scrolls inside.
+    if (readText === U1_EXAMPLE) return <p className="u1-sub c-part-ask" data-testid="part-ask-example">{PART_TALK_WORDS.askExample}</p>;
     if (locked)
       return (
         <div className="c-part-ask" data-testid="part-ask">
@@ -1539,14 +1546,6 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           <p className="u1-sub" data-testid="part-ask-code">
             {OWN_CODE_LINE} <InviteLinks />
           </p>
-        </div>
-      );
-    // Review round 2 (M-D): the example's AI answers are recordings of its exact text; an answer would change that text.
-    if (readText === U1_EXAMPLE)
-      return (
-        <div className="c-part-ask" data-testid="part-ask">
-          <p className="c-part-ask-h">{PART_TALK_WORDS.askHeading}</p>
-          <p className="u1-sub" data-testid="part-ask-example">{PART_TALK_WORDS.askExample}</p>
         </div>
       );
     const key = exp ? `${exp.experiment.id}|${id}` : "";
@@ -1623,7 +1622,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     <div className="m-aim" data-testid="pick">
       <p className="m-summary-k" data-testid="pick-legend">{`${PART_TALK_WORDS.pickHeading}: ${partName(aim.part)}. ${PART_TALK_WORDS.pickLegend}`}</p>
       {/* Review round 2 (M-B): built by plain code from the kind you miss and the part's checked summary line (every bettor's text has it) or its name. */}
-      <p className="m-summary-t" data-testid="pick-reason">{pickReasonWords(aim.kind, { line: summ && "summary" in summ && summ.sha === aim.sha ? (summ.summary.parts[aim.part] ?? null) : null, name: natural && "names" in natural && natural.sha === aim.sha ? (natural.names[aim.part] ?? null) : null })}</p>
+      <p className="m-summary-t" data-testid="pick-reason">{pickReasonWords(aim.kind, { line: summ && "summary" in summ && summ.sha === aim.sha ? (summ.summary.parts[aim.part] ?? null) : null, name: natural && "names" in natural && natural.sha === aim.sha ? (natural.names[aim.part] ?? null) : null }, aim.missed)}</p>
       <p className="m-aim-row">
         {fn === aim.part && exp !== null ? (
           <span className="u1-sub" data-testid="pick-current">{PART_TALK_WORDS.sameAsNow}</span>
@@ -1696,6 +1695,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           fileSummary={!after && summ && summ.sha === pasted.target.codeSha256 && "summary" in summ ? summ.summary : null}
           partLines={summ && summ.sha === pasted.target.codeSha256 && "summary" in summ ? summ.summary.parts : null}
           summaryMissing={Boolean(summ && summ.sha === pasted.target.codeSha256 && "reason" in summ && !/asks no Meta model|no parts|could not list the parts/.test(summ.reason))}
+          recordedNote={onExample ? `recorded ${shortDay(EXAMPLE_SUMMARY_RECORDED_ON)}` : null}
+          summaryWhy={summ && summ.sha === pasted.target.codeSha256 && "reason" in summ && /"at once" limit/.test(summ.reason) ? summ.reason : null}
           onPart={(name, panel) => {
             const part = pasted.outline?.parts.find((p) => p.name === name);
             if (!part && !panel) return;
@@ -1795,8 +1796,9 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
               ) : result?.proof ? (
                 <span className="u1-sub">{`No proof card: ${result.proof.ok ? "" : result.proof.reason}`}</span>
               ) : null}
-              {/* R7 review B1: pasting here draws your code too, so the consent line is here too. */}
-              <p className="u1-sub e-consent u1-consent-result" data-testid="e-consent">{CONSENT_LINE}</p>
+              {/* R7 review B1: pasting here draws your code too, so the consent line is here too. R16 (review minor 3): not on the example's
+                  verdict, which asks no AI (its answers are recorded); the paste box it leads to says it again. */}
+              {!onExample && <p className="u1-sub e-consent u1-consent-result" data-testid="e-consent">{CONSENT_LINE}</p>}
               <p className="u1-textlinks">
                 <button type="button" className="u1-link" onClick={tryAnother} disabled={busy !== null} data-testid="u1-try-another">
                   {SIMPLE_WORDS.tryAnother} <span className="u1-paid-tag">{SIMPLE_WORDS.paidTag}</span>

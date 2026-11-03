@@ -79,6 +79,9 @@ export function accessFromEnv(env: Record<string, string | undefined>, deps: { c
     exampleModalSecondsPerDay: whole(env.ATLAS_EXAMPLE_SANDBOX_SECONDS_PER_DAY, 3_600, 1_000_000),
     // R15: sandboxes the open example (all no-code visitors together) may hold at once. Default 2; fly.toml sets 8.
     exampleSandboxesAtOnce: whole(env.ATLAS_EXAMPLE_MAX_CONCURRENT, 2, 100),
+    // R16 (review M6): sandboxes ALL invite codes together may hold at once. Default 3; fly.toml sets 6 so several judges fit.
+    // One code still holds at most 2 (ledger.ts), and the server-wide ATLAS_SANDBOX_MAX_CONCURRENT is the last word.
+    devSandboxesAtOnce: whole(env.ATLAS_DEV_SANDBOXES_AT_ONCE, 3, 100),
     });
   } catch (e) {
     release();

@@ -1,0 +1,44 @@
+PASS 1280x800 minor 3: the bar names the example, not pasted.ts | the example · 25 lines · drawn in 92 ms
+PASS 1280x800 minor 2: the example's summary legend says recorded Nov 2 | Summary: Muse Wonder's words (Meta's AI). Its reading can repeat the code's own comments; the run is the check (recorded Nov 2)
+PASS 1280x800 minor 2: the machine's names legend says recorded Nov 2 | ★ names: Muse Wonder's words (Meta's AI), not a check (recorded Nov 2)
+1280x800: example lock→marked 8352 ms
+PASS 1280x800 minor 3: no "Your code goes to Meta's AI" line on the example's verdict
+PASS 1280x800 M1: example part panel after the run (no code, via machine) shows "Ask works on your own files." in view | Ask works on your own files. visible=true
+PASS 1280x800 M2: the live caption carries a visible "★ Muse Wonder:" label | ★ Muse Wonder:  visible=true | caption: Atlas calls getTwoRates / ★ Muse Wonder:  / Muse Wonder's words (Meta's AI), not a check: / Mock caption for step zero
+1280x800: sample lock→marked 6813 ms; view before machine, after machine
+PASS 1280x800 M1: a machine that fit before the run stays the machine after it | machine → machine
+PASS 1280x800 M1: after the run a part opens its panel (via machine) with the ask box | panel=true
+PASS 1280x800 M1: the answer comes back, labelled | ★ Muse Wonder's answer (Meta's AI), not a check: Mock answer: this part calls the helper it is given and waits between tries. No model was c
+PASS 1280x800 M3: Moonwell's approved sentence ends above the foot links without scrolling | {"top":712.375,"bottom":751.5,"footTop":768.328125}
+PASS 1280x800 M3: the sheet's last line clears the foot links once scrolled | {"scrollH":905,"clientH":752,"overflowY":"auto","footTop":768.328125,"footLeft":906.6875,"lastText":"f file. Atlas shows what the code did; it does not judge it.","lastBottom":670.625,"lastRight":1234.484375}
+PASS 1280x800: no console or network errors
+PASS 1440x900 minor 3: the bar names the example, not pasted.ts | the example · 25 lines · drawn in 72 ms
+PASS 1440x900 minor 2: the example's summary legend says recorded Nov 2 | Summary: Muse Wonder's words (Meta's AI). Its reading can repeat the code's own comments; the run is the check (recorded Nov 2)
+PASS 1440x900 minor 2: the machine's names legend says recorded Nov 2 | ★ names: Muse Wonder's words (Meta's AI), not a check (recorded Nov 2)
+1440x900: example lock→marked 8351 ms
+PASS 1440x900 minor 3: no "Your code goes to Meta's AI" line on the example's verdict
+PASS 1440x900 M1: example part panel after the run (no code, via machine) shows "Ask works on your own files." in view | Ask works on your own files. visible=true
+PASS 1440x900 M2: the live caption carries a visible "★ Muse Wonder:" label | ★ Muse Wonder:  visible=true | caption: Atlas calls getTwoRates / ★ Muse Wonder:  / Muse Wonder's words (Meta's AI), not a check: / Mock caption for step zero
+1440x900: sample lock→marked 6808 ms; view before machine, after machine
+PASS 1440x900 M1: a machine that fit before the run stays the machine after it | machine → machine
+PASS 1440x900 M1: after the run a part opens its panel (via machine) with the ask box | panel=true
+PASS 1440x900 M1: the answer comes back, labelled | ★ Muse Wonder's answer (Meta's AI), not a check: Mock answer: this part calls the helper it is given and waits between tries. No model was c
+PASS 1440x900 M3: Moonwell's approved sentence ends above the foot links without scrolling | {"top":772.375,"bottom":811.5,"footTop":868.328125}
+PASS 1440x900 M3: the sheet's last line clears the foot links once scrolled | {"scrollH":965,"clientH":852,"overflowY":"auto","footTop":868.328125,"footLeft":1066.6875,"lastText":"f file. Atlas shows what the code did; it does not judge it.","lastBottom":770.625,"lastRight":1234.484375}
+PASS 1440x900: no console or network errors
+PASS 390x844 minor 2: the example's summary legend says recorded Nov 2 | Summary: Muse Wonder's words (Meta's AI). Its reading can repeat the code's own comments; the run is the check (recorded Nov 2)
+PASS 390x844 minor 1: chart view: the ★ names legend is in the fold beside the names (recorded Nov 2) | ★ names: Muse Wonder's words (Meta's AI), not a check (recorded Nov 2) | ★ retry wait time: Calculates a growing wait before another try.
+★ pause executi
+390x844: example lock→marked 6323 ms
+PASS 390x844 minor 3: no "Your code goes to Meta's AI" line on the example's verdict
+PASS 390x844 M1: example part panel after the run (no code, via path) shows "Ask works on your own files." in view | Ask works on your own files. visible=true
+390x844: no live caption seen while the run played (view chart)
+390x844: sample lock→marked 8673 ms; view before chart, after chart
+PASS 390x844 M1: after the run a part opens its panel (via path) with the ask box | panel=true
+PASS 390x844 M1: the answer comes back, labelled | ★ Muse Wonder's answer (Meta's AI), not a check: Mock answer: this part calls the helper it is given and waits between tries. No model was c
+PASS 390x844 M3: the sheet's last line clears the foot links once scrolled | {"scrollH":796,"clientH":796,"overflowY":"auto","footTop":793,"footLeft":0,"lastText":"can't check","lastBottom":460.0625,"lastRight":344}
+PASS 390x844: no console or network errors
+shared: browser ids differ: true (bvuaZ1 / bN684m)
+PASS shared code: judge B's lock is not refused after judge A asked, and B's run reaches a verdict
+PASS shared code: no console or network errors
+34 of 34 checks passed

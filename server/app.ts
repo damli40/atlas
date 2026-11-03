@@ -705,14 +705,19 @@ export function createApp(opts: AppOptions = {}) {
   const openTrack = memoryTrackStore();
   const trackStore = { entries: (p: Person) => (isExampleVisitor() ? openTrack : savedTrack).entries(p), add: (p: Person, e: Parameters<TrackStore["add"]>[1]) => (isExampleVisitor() ? openTrack : savedTrack).add(p, e) };
   /**
-   * Who "the person" is for the track record: the invite code (by its id) when there is one; otherwise this browser
-   * (the page's random id in x-atlas-browser, kept in localStorage); otherwise the session.
+   * Who "the person" is for the track record, Muse Wonder's pick and the questions asked about a part:
+   * - with an invite code and a page (x-atlas-browser, the page's random id kept in localStorage): that code AND that browser.
+   *   R16 (review B2, D19): several judges may share one code; each browser is its own person, so one judge's questions never
+   *   reach another judge's bettor text, lock or record. Money and the code's limits stay per code (the ledger), not per person.
+   * - with an invite code and no page id (the Muse Code plugin): the code alone, as before R16.
+   * - with no code: this browser; otherwise the session.
    */
   const personOf = (c: Context, sessionId: string): Person => {
     const p = currentPrincipal();
-    if (p?.kind === "invite") return { kind: "invite", id: p.id };
     const b = c.req.header(BROWSER_HEADER);
-    if (b && /^[A-Za-z0-9_-]{16,64}$/.test(b)) return { kind: "browser", id: b };
+    const browser = b && /^[A-Za-z0-9_-]{16,64}$/.test(b) ? b : null;
+    if (p?.kind === "invite") return { kind: "invite", id: browser ? `${p.id}/${browser}` : p.id };
+    if (browser) return { kind: "browser", id: browser };
     return { kind: "session", id: sessionId };
   };
   const recordOf = (person: Person): TrackRecord => trackRecordOf(trackStore.entries(person));
