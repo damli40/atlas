@@ -393,6 +393,8 @@ export interface AppOptions {
   exampleRunLimits?: { perIpPerHour?: number; perHour?: number };
   /** R10 review (D72): whether the open example's own daily sandbox allowance has room (the ledger's exampleRoom). */
   exampleRoom?: () => { ok: true } | { ok: false; reason: string };
+  /** R10 review (D72): why an invite code has no money left (the ledger's spentOut), or null. Such a code still runs the example. */
+  spentOut?: (inviteId: string) => string | null;
   /** D60: where a shared link's card is kept, without its source (ATLAS_PROOFS_DIR/kept on a hosted server). */
   keptProofsDir?: string;
   /** D63: refuse a chain round before any paid call when there is no chain connection (server/index.ts turns this on). */
@@ -684,6 +686,11 @@ export function createApp(opts: AppOptions = {}) {
   /** R10 (D72): the rounds a visitor with no code opened on the example's default question (session + experiment id). */
   const openExampleRounds = new Set<string>();
   const openKey = (sessionId: string, id: string) => `${sessionId}\n${id}`;
+  /**
+   * R10 review (D72): rounds opened on the example's default question, by anyone (with or without a code). A code with no
+   * money left runs such a round as the open example (its limits, its own sandbox allowance), never any other round.
+   */
+  const exampleShaped = new Set<string>();
   /** R10 (D72): a visitor with no code may act on a round only if it was opened as the open example. */
   const notOpenExample = (sessionId: string, id: string) => isExampleVisitor() && !openExampleRounds.has(openKey(sessionId, id));
   const chainChecksByIp = createHourlyLimit(envCount(process.env.ATLAS_CHAIN_CHECKS_PER_IP_PER_HOUR, 120), "chain checks");
@@ -1167,6 +1174,12 @@ export function createApp(opts: AppOptions = {}) {
       const isDefault = found !== undefined && !("error" in found) && paste.isExampleDefault(found.set, body.proposalId!);
       if (!pastedEntry || !isDefault || body.params !== undefined || body.editedFrom !== undefined || body.findingId !== undefined || body.quiz !== true || body.one !== true) return refuseOwnCode(c);
     }
+    // R10 review: the same rule, for anyone: is this the example's default question, as the page asks it?
+    const exampleDefault = (() => {
+      if (!pastedEntry || body.proposalId === undefined || body.params !== undefined || body.editedFrom !== undefined || body.findingId !== undefined || body.quiz !== true || body.one !== true) return false;
+      const found = paste.proposalOf(sessionId, body.proposalId, target.codeSha256);
+      return !("error" in found) && paste.isExampleDefault(found.set, body.proposalId);
+    })();
     // E3 review B3: experiments on pasted code are counted per client address (each holds a bet-screen text and a run).
     if (pastedEntry) {
       const perIp = pastedExperimentsByIp.take(clientOf(c));
@@ -1262,6 +1275,10 @@ export function createApp(opts: AppOptions = {}) {
       if (!startModelBets(round, sessionId, clientOf(c), claimant.mode, false, true)) return refuseMismatch(c);
       openExampleRounds.add(openKey(sessionId, id));
       while (openExampleRounds.size > 50_000) openExampleRounds.delete(openExampleRounds.values().next().value!);
+    }
+    if (exampleDefault && decision.allowed && !round.repeatOf) {
+      exampleShaped.add(openKey(sessionId, id));
+      while (exampleShaped.size > 50_000) exampleShaped.delete(exampleShaped.values().next().value!);
     }
     rounds.set(id, round); // a refused experiment is kept too (shown, never run)
     if (pastedEntry) {
@@ -1520,15 +1537,25 @@ export function createApp(opts: AppOptions = {}) {
     if (round.status === "stopped") return c.json({ error: `experiment ${experiment.id} stopped: ${round.stoppedReason ?? "no reason recorded"}; start a new experiment` }, 409);
     if (round.status !== "open") return c.json({ error: `experiment ${experiment.id} already ran (started ${round.betsFrozenAt ?? "earlier"}); start a new experiment to run again` }, 409);
     if (round.bets.length === 0) return c.json({ error: "place at least one bet first: a run only happens after bets are sealed" }, 409);
+    // R10 review (D72): a code with no money left (a shared judges' code spent for the day, say) still runs the example: as the
+    // open example, with its limits and its own sandbox allowance, only on the example's default question whose AI answers
+    // all came from the recordings. Every other round of that code stays refused by the ledger as before.
+    const who = currentPrincipal();
+    const spentExample =
+      who?.kind === "invite" &&
+      exampleShaped.has(openKey(sessionId, experiment.id)) &&
+      modelSlotsOf(round).every((s) => s.status === "off" || (s.status === "sealed" && s.recorded !== undefined)) &&
+      (opts.spentOut?.(who.id) ?? null) !== null;
+    const asExample = isExampleVisitor() || spentExample;
     // R10 (D72): the open example's runs, per address and for all visitors with no code together, an hour. Both are checked
     // before either is counted, and before the bets freeze, so a refused run can be tried again later.
-    if (isExampleVisitor()) {
+    if (asExample) {
       // A model slot that is not a recorded answer (or off) means something asked live: never run it without a code.
       if (modelSlotsOf(round).some((s) => s.status === "sealed" && !s.recorded)) return refuseMismatch(c);
       // R10 review (D72): the open example's own daily sandbox allowance (apart from the owner's and developers'), checked first.
       const room = opts.exampleRoom?.() ?? { ok: true as const };
       if (!room.ok) return c.json({ error: room.reason }, 429);
-      const ip = clientOf(c);
+      const ip = clientIpOf(c, trustProxy, proxyHops, proxyIpHeader);
       const mine = exampleRunsByIp.check(ip);
       if (!mine.ok) return c.json({ error: `run not started: ${mine.reason}. An invite code lifts this limit.` }, 429);
       if (!exampleRunsAll.check("all").ok) return c.json({ error: `run not started: visitors without an invite code have used this hour's ${exampleRunsPerHour} example runs; try again later, or use an invite code` }, 429);
@@ -1549,7 +1576,8 @@ export function createApp(opts: AppOptions = {}) {
       runSlot = slot;
     }
     try {
-      const r = await runRound(sessionId, round);
+      // R10 review: a spent code's example run spends as the open example (its own allowance), never as the code.
+      const r = spentExample && who?.kind === "invite" ? await runAs({ kind: "example", label: `the open example (code ${who.label} has no money left)`, route: "POST /runs", ip: clientIpOf(c, trustProxy, proxyHops, proxyIpHeader) }, () => runRound(sessionId, round)) : await runRound(sessionId, round);
       // X3 (D27): the person's judged bets go into their track record (plain code; never the code itself).
       if (r.status === 200) {
         // A bet placed after seeing this very result is kept and judged, but never goes on the person's record.

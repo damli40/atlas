@@ -67,6 +67,12 @@ const CONSENT_LINE = "Your code goes to Meta's AI as soon as Atlas draws it, so 
 const OWN_CODE_LINE = "Your own code, and anything beyond the example, needs an invite code, so nothing was run and no AI was asked.";
 const FILE_NAME: Record<Lang, string> = { js: "pasted.js", ts: "pasted.ts", py: "pasted.py" };
 
+/**
+ * R10 (D72): with no code (`locked`), the only test a person may ask for is the example's own default question: everything
+ * else (another test, a list, a test of one's own, any other file) asks Meta's AI live and needs a code.
+ */
+export const askNeedsCode = (locked: boolean, pick: "default" | "first" | "list", onExample: boolean): boolean => locked && !(pick === "default" && onExample);
+
 /** The function drawn as "under test" by default: the exported function with the most calls out, then the first. */
 export function defaultFunction(outline: FileOutline | undefined, exports: readonly { name: string }[]): string | null {
   const names = new Set(exports.map((e) => e.name));
@@ -668,6 +674,14 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     if (!locked) return false;
     setError(OWN_CODE_LINE);
     return true;
+  };
+  /** R10: the empty bet panel's buttons (R11) and the test list: the waitlist line instead of a 401 when the ask needs a code. */
+  const askOrCode = (pick: "default" | "list") => {
+    if (askNeedsCode(locked, pick, readText === U1_EXAMPLE)) {
+      setError(OWN_CODE_LINE);
+      return;
+    }
+    void askWonder({ pick });
   };
   // R7: the first screen waits for the server's word on invites (or its silence) before drawing the example.
   const [inviteChecked, setInviteChecked] = useState(false);
@@ -1936,7 +1950,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                   {offeredTests.length === 0 && !wonderWait && !busy && (
                     <div className="u1-none" data-testid="u1-no-offer">
                       <p className="u1-sub">{proposals && (proposals.proposals ?? []).some((p) => p.gate.allowed) ? CHANGE_WORDS.noOtherRan : CHANGE_WORDS.noOtherYet}</p>
-                      <button type="button" className="u1-btn" onClick={() => void askWonder({ pick: "list" })} data-testid="u1-no-offer-ask">
+                      <button type="button" className="u1-btn" onClick={() => askOrCode("list")} data-testid="u1-no-offer-ask">
                         Ask Muse Wonder for a new test
                       </button>
                       <span className="u1-sub u1-paid">{CHANGE_WORDS.paidWonder}</span>
@@ -1950,7 +1964,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                             {p.says}
                             {offeredTests[i + 1] && <small className="b-differs">{whatDiffers(p.params, offeredTests[i + 1]!.params, "the next")}</small>}
                           </span>{" "}
-                          <button type="button" className="u1-link" onClick={() => start(() => api.experimentFromProposal(target, p.id, quizOpts()))} disabled={busy !== null} data-testid={`u1-use-${i}`}>
+                          <button type="button" className="u1-link" onClick={() => !needsCode() && start(() => api.experimentFromProposal(target, p.id, quizOpts()))} disabled={busy !== null} data-testid={`u1-use-${i}`}>
                             Use this test
                           </button>{" "}
                           <button type="button" className="u1-link" onClick={() => setForm({ initial: formFromParams(p.params), editedFrom: p.id })}>
@@ -1972,7 +1986,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                   <button type="button" className="u1-link" onClick={() => setForm({ initial: emptyForm() })} data-testid="u1-own">
                     Write your own test
                   </button>
-                  {form && <TestForm key={JSON.stringify(form.initial)} exportName={fn} required={requiredArgs(pasted.outline?.parts.find((x) => x.name === fn)?.signature)} initial={form.initial} busy={busy !== null} onSubmit={(params) => start(() => api.experiment(target, params, undefined, form.editedFrom, quizOpts()))} />}
+                  {form && <TestForm key={JSON.stringify(form.initial)} exportName={fn} required={requiredArgs(pasted.outline?.parts.find((x) => x.name === fn)?.signature)} initial={form.initial} busy={busy !== null} onSubmit={(params) => void (!needsCode() && start(() => api.experiment(target, params, undefined, form.editedFrom, quizOpts())))} />}
                   {exp && (
                     <button type="button" className="u1-link" onClick={() => setChanging(false)}>
                       Back to the quiz
@@ -1985,7 +1999,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
               {!wonderWait && !busy && !exp && !changing && !error && (
                 <div className="u1-none" data-testid="u1-pop-idle">
                   <p className="u1-sub">{CHANGE_WORDS.idle(fn)}</p>
-                  <button type="button" className="u1-btn u1-primary" onClick={() => void askWonder({ pick: "default" })} data-testid="u1-pop-idle-ask">
+                  <button type="button" className="u1-btn u1-primary" onClick={() => askOrCode("default")} data-testid="u1-pop-idle-ask">
                     Ask Muse Wonder for a test
                   </button>
                   <button type="button" className="u1-link" onClick={writeOwn} data-testid="u1-pop-idle-own">

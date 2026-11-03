@@ -305,10 +305,9 @@ export function withInviteGate(inner: InnerApp, o: GateOptions): Hono {
       if (res.status === 404 && c.req.method === "GET" && open && o.exampleInner && via !== o.exampleInner) return o.exampleInner.fetch(c.req.raw, c.env);
       return res;
     };
-    // R10 review (D72): a valid code with no money left (a shared judges' code spent for the day, say) still plays the example,
-    // through the same lane and limits as no code. Only what was spent counts, so a busy moment never flips it mid-round.
-    const spent = o.require && exampleRoute && who && "p" in who && who.p.kind === "invite" && o.ledger ? o.ledger.spentOut(who.p.id) : null;
-    if (who && "p" in who && !spent) {
+    // R10 review (D72): a valid code with no money left still plays the example; that is decided where the run starts
+    // (server/app.ts POST /runs), so the code keeps everything else it may do at $0 (G1).
+    if (who && "p" in who) {
       // G1 review B5: a cookie is sent by the browser on its own, so a cookie-signed request that can change or spend
       // anything must come from Atlas's own page. The header (x-atlas-invite) cannot be set cross-origin without a
       // CORS preflight, which this server never grants, so it needs no such check.
@@ -322,14 +321,14 @@ export function withInviteGate(inner: InnerApp, o: GateOptions): Hono {
       if (/^\/events\//.test(c.req.path) && who.p.kind === "invite" && !owner) return runAs(who.p, () => streamCounted(who.p.kind === "invite" ? who.p.id : "", pass));
       return runAs(who.p, pass);
     }
-    if (!spent && (!o.require || open)) return pass();
+    if (!o.require || open) return pass();
     // R10 (D72): the open example. No code (or one that no longer works): only the example's routes, as the "example" principal.
     // The routes themselves accept nothing but the example; this only lets the request reach them.
     if (exampleRoute) {
       // Like a spending request with a code: JSON only, so another site cannot send a "simple" form post from a visitor's browser.
       if (c.req.method === "POST" && !/^application\/json\s*(;|$)/i.test(c.req.header("content-type") ?? "")) return c.json({ error: "send the request as JSON (content-type: application/json); nothing was run" }, 415);
       const ip = clientIpOf(c, trustProxy, hops, ipHeader);
-      const p: Principal = { kind: "example", label: "the open example (no invite code)", route: `${c.req.method} ${c.req.path}`, ip, ...(spent ? { codeProblem: spent } : who && "reason" in who ? { codeProblem: who.reason } : {}) };
+      const p: Principal = { kind: "example", label: "the open example (no invite code)", route: `${c.req.method} ${c.req.path}`, ip, ...(who && "reason" in who ? { codeProblem: who.reason } : {}) };
       const via = o.exampleInner ?? inner;
       if (/^\/events\//.test(c.req.path)) return runAs(p, () => streamCounted(`ip:${ip}`, () => pass(via), pools.example));
       return runAs(p, () => pass(via));

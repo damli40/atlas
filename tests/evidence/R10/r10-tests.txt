@@ -1,8 +1,4 @@
- RUN  v5.0.5 /Users/Admin/Documents/Atlas-wt/r10-open-example
-
-
- Test Files  1 passed (1)
-      Tests  18 passed (18)
-   Start at  01:18:56
-   Duration  12.26s (tests 89%, import 7%, transform 4%)
-
+ Test Files  2 passed (2)
+      Tests  24 passed (24)
+   Start at  01:37:00
+   Duration  44.60s (tests 87%, import 10%, transform 4%)

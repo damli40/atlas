@@ -1,5 +1,0 @@
- Test Files  2 passed (2)
-      Tests  37 passed (37)
-   Start at  01:18:53
-   Duration  2.63s (tests 44%, import 40%, transform 16%)
-

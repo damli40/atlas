@@ -73,6 +73,7 @@ function build(o: Opts = {}) {
     },
     trustProxy: true,
     exampleRoom: () => ledger.exampleRoom(),
+    spentOut: (id) => ledger.spentOut(id),
     ...(o.limits ? { exampleRunLimits: o.limits } : {}),
     ...(o.trackDir ? { trackStore: diskTrackStore(o.trackDir) } : {}),
   });
@@ -493,15 +494,20 @@ describe("R10 review: the open example's own daily sandbox allowance", () => {
 });
 
 describe("R10 review: a code with no money left still plays the example", () => {
-  it("a spent code (daily budget below one call) plays the example through the open lane; its own code says why", async () => {
-    const s = build({ devDaily: 0.05 });
-    const c = client(s.app, { code: s.codes.dev });
+  it("a spent code (daily budget below one call) runs the example as the open example; its other rounds stay as before", async () => {
+    const s = build({ devDaily: 0.05, modal: true });
+    const c = client(s.app, { code: s.codes.dev, ip: "198.51.100.60" });
     const { r } = await playToEnd(c);
     expect(r.status, JSON.stringify(r.json)).toBe(200);
+    await new Promise((res) => setTimeout(res, 1500));
+    expect(s.ledger.exampleToday().starts).toBeGreaterThanOrEqual(3); // booked in the example's own allowance, not the code's
+    // Its own code still pastes (G1: a spent code keeps what costs nothing), and Wonder is not asked.
     const own = await c.post("/paste", { code: RETRY_SRC });
-    expect(own.status).toBe(401);
-    expect(own.json.error).toContain(NEEDS_INVITE);
-    expect(own.json.error).toMatch(/daily budget is used up/);
+    expect(own.status).toBe(200);
+    const props = await c.post("/paste/proposals", { target: { ref: own.json.target.ref, codeSha256: own.json.target.codeSha256 }, exportName: "retryWithBackoff" });
+    expect(props.json.ok).toBe(false);
+    expect(props.json.reason).toMatch(/budget/);
+    // The example's other question (not recorded) is not run as the example: the ledger refuses it as the code.
     expect(s.spent.calls).toHaveLength(0);
   }, 60_000);
 });

@@ -46,9 +46,11 @@ No model is called, so model spend for the example is $0.
 ## Results
 
 - `tsc`: no errors (`tsc.txt`).
-- Full vitest: 2,746 passed, 2 failed, 35 skipped (`vitest.txt`). The 2 failures are timing-only tests (a draw "within
-  budget" and "under 50 ms"); run alone they pass, 37 of 37 (`vitest-timing-rerun.txt`).
-- New tests, `tests/unit/r10-open-example.test.ts`: 18 passed (`r10-tests.txt`). They prove, with
+- Full vitest, after review round 1 and the rebase onto main 9ee7ae2 (R11): **2,756 passed, 0 failed, 35 skipped**
+  (`vitest.txt`).
+- New tests: `tests/unit/r10-open-example.test.ts` (22) and `tests/unit/r10-studio-locked.test.tsx` (2), 24 passed
+  (`r10-tests.txt`). The second one (after the rebase onto R11) clicks the bet panel's "Ask Muse Wonder for a new test"
+  as a visitor with no code and checks that the waitlist line shows and nothing is asked; it fails with the guard removed. They prove, with
   ATLAS_REQUIRE_INVITE on and every model a counting fake:
   - the example plays end to end with no code (default bettor and "both"), with 0 model calls and the sandbox run;
   - a stranger can open that run's proof card; the Moonwell replay is served with no code; a new Moonwell run is 401;
@@ -68,8 +70,8 @@ No model is called, so model spend for the example is $0.
   - local development (ATLAS_REQUIRE_INVITE unset) behaves as before;
   - review round 1: one example run starts 3 sandboxes (4 on a fresh server), all counted in the example's own allowance
     and none in Modal's shared caps; with the allowance used up, a no-code run gets the sentence and an owner run and a
-    developer run still start; a code whose daily budget is spent still plays the example (its own code is refused with
-    the reason); a 404 on an example route never falls back to the owner's copy.
+    developer run still start; a code whose daily budget is spent still runs the example, booked in the example's
+    allowance, while its own code still pastes and Muse Wonder is not asked (G1 unchanged); a 404 on an example route never falls back to the owner's copy.
 - Four G1/H1 tests that said "no code: 401 on /paste, /events, …" now state the new rule (those routes refuse anything that
   is not the example), and still check that nothing is spent.
 - Page checks and screenshots (`shots.txt`, `shots/`), on a local copy of the hosted set-up (`server.mts`: the real gate,
@@ -102,8 +104,9 @@ To repeat: `pnpm exec vite build && PORT=18970 pnpm exec tsx tests/evidence/R10/
 - Live-log streams for no-code visitors: at most 4 per address and 40 in total, apart from the developers' streams.
 - Judges playing with no code behind one shared address (an office or conference NAT) share the 10-runs-an-hour limit.
   The README now tells judges to enter the judge code first.
-- A code whose budget is spent plays the example in the open example's copy of the app. If it ran out in the middle of a
-  round, that round's later steps land in the other copy and are refused ("unknown target"); starting again works.
+- A code whose budget is spent plays the example as before, in its own copy of the app; only the run of the example's
+  default question (all AI answers from the recordings) is started as the open example, with the no-code limits and the
+  example's own sandbox allowance. Its other rounds are refused by the ledger as before (G1).
 - The no-code limits count by address. Many addresses can reach the 200-an-hour total and lock other no-code visitors out
   for the rest of that hour (invited people are not affected).
 - An invalid `ATLAS_EXAMPLE_RUNS_*` value falls back to its default silently (as the other per-address limits do).
