@@ -77,6 +77,8 @@ export function accessFromEnv(env: Record<string, string | undefined>, deps: { c
     // R10 review (D72): the open example's own Modal allowance per UTC day, apart from the caps above.
     exampleModalStartsPerDay: whole(env.ATLAS_EXAMPLE_SANDBOX_STARTS_PER_DAY, 600, 1_000_000),
     exampleModalSecondsPerDay: whole(env.ATLAS_EXAMPLE_SANDBOX_SECONDS_PER_DAY, 3_600, 1_000_000),
+    // R15: sandboxes the open example (all no-code visitors together) may hold at once. Default 2; fly.toml sets 8.
+    exampleSandboxesAtOnce: whole(env.ATLAS_EXAMPLE_MAX_CONCURRENT, 2, 100),
     });
   } catch (e) {
     release();

@@ -93,7 +93,7 @@ export interface LedgerOptions {
   devModalShare?: number;
   /** G1 review B3: sandboxes ALL dev codes may hold at once (default 3, one less than the Modal executor's 4). */
   devSandboxesAtOnce?: number;
-  /** R10 (D72): sandboxes the open example (visitors with no code) may hold at once, all together (default 2). */
+  /** R10 (D72): sandboxes the open example (visitors with no code) may hold at once, all together (default 2; env ATLAS_EXAMPLE_MAX_CONCURRENT, R15). */
   exampleSandboxesAtOnce?: number;
   /**
    * R10 review (D72): the open example's own Modal allowance per UTC day: sandbox starts (default 600, env
