@@ -5,7 +5,6 @@ Know what your AI-written code does before you trust it.
 ## Test me (about 3 minutes)
 
 <!-- DAMI: draft wording. Finish it with /stop-slop and /copywriting before it goes public; the final strings are yours. -->
-<!-- DAMI: confirm the address after the Fly deploy. -->
 <!-- DAMI: say where the judge code is (e.g. "in the submission form, under Testing instructions"). -->
 **Online, nothing to install:** open **https://atlas-dami.fly.dev**, press **Try your own code**, enter the judge code from the submission form and press **Use this code**. The paste box opens with three sample files under it: that is step 4. The code gives you your own budget, so you never share the limits of visitors without a code. Steps 1 to 3 are the example: press **Back to the example** under the paste box.
 
