@@ -1,0 +1,97 @@
+[
+ {
+  "name": "1280x800: \"Lock in my bet\" is fully on screen and not covered",
+  "ok": true,
+  "more": "{\"inView\":true,\"uncovered\":true,\"top\":533,\"bottom\":575,\"vh\":800}"
+ },
+ {
+  "name": "1440x900: \"Lock in my bet\" is fully on screen and not covered",
+  "ok": true,
+  "more": "{\"inView\":true,\"uncovered\":true,\"top\":526,\"bottom\":568,\"vh\":900}"
+ },
+ {
+  "name": "390x844: \"Lock in my bet\" is fully on screen and not covered",
+  "ok": true,
+  "more": "{\"inView\":true,\"uncovered\":true,\"top\":709,\"bottom\":751,\"vh\":844}"
+ },
+ {
+  "name": "1: the part panel offers Bet on this part",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "3: before a bet is locked, the ask box says to lock first",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "3: …and has no question box",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "1: a part Atlas can't call says so",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "2: Muse's caption shows under the act while it plays",
+  "ok": true,
+  "more": "Muse Wonder's words (Meta's AI), not a check: Mock caption for step one"
+ },
+ {
+  "name": "2: …in its own line, labelled for screen readers as Muse Wonder's words",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "2: after the run, the step list holds the captions, labelled",
+  "ok": true,
+  "more": "What the run did, step by step, with Muse Wonder's words (14)★ Muse Wonder's words (Meta's AI), not a checkAtlas calls fetchWithRetryMock caption for step zeroc"
+ },
+ {
+  "name": "3: after the lock the answer shows, labelled as Muse Wonder's words, not a check",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "1: the new round is on getPrice (Muse Wonder's test of that function)",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "1: Lock in my bet is on screen",
+  "ok": true,
+  "more": "{\"inView\":true,\"uncovered\":true,\"top\":544,\"bottom\":586,\"vh\":900}"
+ },
+ {
+  "name": "4: Muse Wonder's pick (or why there is none) shows before the bet",
+  "ok": true,
+  "more": "Muse Wonder's pick for you: mock helper step (getRate). Its words (Meta's AI), from your record. Not a check.Mock pick: you often miss timing questions; this part waits between triesBet on this part Pick another part"
+ },
+ {
+  "name": "4: the picked box is marked on the machine",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "4: accepting the pick opens a bet on that part",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "4: Lock in my bet is on screen with the pick above the drawing",
+  "ok": true,
+  "more": "{\"inView\":true,\"uncovered\":true,\"top\":432,\"bottom\":474,\"vh\":900}"
+ },
+ {
+  "name": "5: the verdict has a record line once there are three bets of a kind",
+  "ok": true,
+  "more": "Your record: ending questions 0 of 3 matched"
+ },
+ {
+  "name": "5: the record page says what Atlas remembers, where, and how Wonder uses it",
+  "ok": true,
+  "more": "Kept for this browser in the server's memory only (no invite code): a restart clears it."
+ }
+]

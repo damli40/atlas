@@ -799,3 +799,24 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
   .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-pop-h{display:none}
   .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-root{height:calc(var(--sum-h,0px) + 120px)}
 }
+
+/* R14: Muse Wonder's words about one part. Always in the AI's grey italic ink and labelled; never on the proof picture. */
+.m-act-ai{display:block;margin-top:2px;font:italic 400 14px/1.35 var(--ui);color:#4a4f57}
+.m-act-list .m-act-ai{display:block;margin:1px 0 3px;font-size:12.5px}
+.m-act-legend{margin:4px 0 0;font:400 12px/1.3 var(--ui);color:#4a4f57}
+.m-record{margin:4px 0 0;font:400 13px/1.4 var(--ui);color:var(--ink-2)}
+.m-aim{margin:0 0 6px;padding:0 0 6px;border-bottom:1px dashed var(--rule-2,#ddd4c3)}
+.m-aim-row{margin-top:2px!important;font-style:normal}
+.m-aim-row .u1-link{margin-right:14px}
+.m-aim-note{margin:0 0 6px!important;font:400 12.5px/1.35 var(--ui);font-style:normal;color:var(--ink-3)}
+/* The picked box: a pale tint of the one red accent on its lid, plus a star in the strip that names it. */
+.m-part[data-aimed] .m-card{fill:#f3d9cf}
+[data-node][data-aimed] path:first-of-type{fill:#f3d9cf}
+.c-part-act{margin:12px 0 0;padding:10px 0 0;border-top:1px solid var(--rule)}
+.c-part-bet{margin:0 0 8px}
+.c-part-ask-h{margin:6px 0 4px;font:600 13px/1.3 var(--ui);color:var(--ink-2)}
+.c-part-ask-row{display:flex;gap:6px;margin:0 0 2px}
+.c-part-ask-row input{flex:1;min-width:0;padding:6px 8px;border:1px solid var(--rule);border-radius:6px;font:400 14px/1.3 var(--ui);background:var(--raised,#fff);color:var(--ink)}
+.c-part-answer{margin:8px 0 0}
+.c-part-ask-legend{font-style:normal;font-size:12.5px}
+.track-remember{margin-top:10px;padding-top:8px;border-top:1px solid var(--rule,#ddd)}

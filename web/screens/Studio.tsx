@@ -59,6 +59,8 @@ import { lineSpan } from "../../src/words";
 import type { Confidence } from "../../src/types";
 import { FeltRecord, FeltRoundLine, HowSurePicker } from "./FeltPanel";
 import { FELT_WORDS, SIMPLE_WORDS, shortModelName } from "../../src/paste-words";
+import { PART_TALK_WORDS, QUESTION_MAX_CHARS } from "../../src/part-talk";
+import type { ActStep } from "../../renderer/authors/run-act";
 
 type Lang = "js" | "ts" | "py";
 const EXAMPLE_FUNCTION_NAME = "fetchWithRetry";
@@ -95,7 +97,7 @@ export function defaultProposal<P extends { gate: { allowed: boolean }; params: 
  */
 /** D60: the example's real drawing, drawing itself on the first screen: the same parser's output, kept in the page (a test holds them equal). */
 /** D60: the code beside the drawing. Clicking a part on the drawing jumps here. R6: and says what that part is, from the machine's own facts, above its lines. */
-function CodeDrawer({ source, lines, onClose, coversResult = false, part = null }: { source: string; lines: [number, number] | null; onClose: () => void; coversResult?: boolean; part?: PartPanel | null }) {
+function CodeDrawer({ source, lines, onClose, coversResult = false, part = null, actions = null }: { source: string; lines: [number, number] | null; onClose: () => void; coversResult?: boolean; part?: PartPanel | null; /** R14: "Bet on this part" and "Ask about this part". */ actions?: React.ReactNode }) {
   const host = useRef<HTMLDivElement | null>(null);
   // A newline at the end of a file ends its last line: it does not start another.
   const all = useMemo(() => source.replace(/(?:\r\n|\r|\n)$/, "").split(/\r\n|\r|\n/), [source]);
@@ -111,7 +113,7 @@ function CodeDrawer({ source, lines, onClose, coversResult = false, part = null 
         </button>
       </div>
       {coversResult && <p className="c-covers" role="note" data-testid="c-covers">{`Your result is under this panel. ${part ? "Esc" : "C"} closes it.`}</p>}
-      {part && <PartFacts part={part} />}
+      {part && <PartFacts part={part} actions={actions} />}
       {part && !lines ? null : (
       <div className="c-body" ref={host} tabIndex={0}>
         {all.map((text, i) => {
@@ -423,6 +425,16 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const [helpers, setHelpers] = useState<HelperAnswer | null>(null);
   const [helpersIn, setHelpersIn] = useState(false);
   useEffect(() => onRoundOpen?.(exp !== null && result === null), [exp, result, onRoundOpen]);
+  // R14: Muse Wonder's pick for this person (one part, from their record), its run captions, and its answers about one part.
+  const [aim, setAim] = useState<{ sha: string; part: string; reason: string } | { sha: string; note: string } | null>(null);
+  const aimAsked = useRef<string | null>(null);
+  const [capts, setCapts] = useState<{ runId: string; words: Record<number, string> } | null>(null);
+  const captsAsked = useRef<string | null>(null);
+  const [asked, setAsked] = useState<Record<string, { q: string; a?: string; note?: string; busy?: boolean }>>({});
+  const [askText, setAskText] = useState<Record<string, string>>({});
+  /** R14: "Bet on this part": the function to ask Muse Wonder about once the page has switched to it. */
+  const betAfterSwitch = useRef<string | null>(null);
+  const [betTick, setBetTick] = useState(0);
 
   const target = pasted?.runnable ? pasted.target : null;
   const test = exp?.experiment.gate.allowed ? (exp.experiment.params as CallTest) : null;
@@ -497,6 +509,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     setClaimNoNew(false);
     setHelpers(null);
     setHelpersIn(false);
+    setCapts(null);
     setBetMore(false);
     setMore(false);
     ownTest.current = false;
@@ -699,6 +712,33 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   };
   // R7: the first screen waits for the server's word on invites (or its silence) before drawing the example.
   const [inviteChecked, setInviteChecked] = useState(false);
+  // R14 (feature 4): Muse Wonder picks ONE part for this person from their record, before the bet. Asked once per drawn file, only with an
+  // invite code (no paid call for a visitor without one), and only when the server has a record of a missed question (else $0, and the
+  // usual choice stays).
+  useEffect(() => {
+    if (!target || !fn || !api.pick || locked || !pasted?.outline || pasted.cantCheck || !inviteChecked) return;
+    const sha = target.codeSha256;
+    if (aimAsked.current === sha) return;
+    aimAsked.current = sha;
+    let live = true;
+    Promise.resolve()
+      .then(() => api.pick(target))
+      .then(
+        (r) => {
+          if (!live) return;
+          if (r.ok && r.part) setAim({ sha, part: r.part, reason: r.reason });
+          else if (r.noRecord) setAim({ sha, note: PART_TALK_WORDS.pickNoRecord });
+          else if (r.refused) setAim({ sha, note: PART_TALK_WORDS.pickRefused });
+          else setAim(null);
+        },
+        () => live && setAim(null),
+      );
+    return () => {
+      live = false;
+      if (aimAsked.current === sha) aimAsked.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target?.codeSha256, fn !== null, locked, inviteChecked]);
   // D66: what this person's own record says. A first-time visitor gets nothing, so nothing shows.
   const [remember, setRemember] = useState<{ last: string | null; weakest: Weakest | null } | null>(null);
   const betFor = exp?.experiment.params.shape === "call-function" ? exp.experiment.params.exportName : undefined;
@@ -923,6 +963,32 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     setOpen(false); // the next "Bet on your understanding" asks Wonder about the new function
     setFn(name);
   };
+  // R14 (feature 1): "Bet on this part" from a part's panel (or Muse Wonder's pick). The R11 path: a new round on that function, its bet
+  // open, and Muse Wonder asked for a test of THAT function. It counts in the record like any bet. With no invite code only the example's
+  // own function can be bet on (the rest says the waitlist line).
+  const exampleOnly = (name: string) => readText === U1_EXAMPLE && name === EXAMPLE_FUNCTION_NAME;
+  const betOnPart = (name: string) => {
+    if (!target || !pasted?.exports.some((e) => e.name === name)) return;
+    if (locked && !exampleOnly(name)) {
+      setError(OWN_CODE_LINE);
+      return;
+    }
+    if (sealed.length > 0 && !result) return; // a locked bet waits for its run
+    reset();
+    setPartId(null);
+    setDrawer(false);
+    setFn(name);
+    setOpen(true);
+    betAfterSwitch.current = name;
+    setBetTick((n) => n + 1);
+  };
+  useEffect(() => {
+    const want = betAfterSwitch.current;
+    if (!want || fn !== want || exp || proposals || wonderWait) return;
+    betAfterSwitch.current = null;
+    void askWonder({ pick: "default" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fn, exp, proposals, wonderWait, betTick]);
 
   const seal = async (sure: Confidence | null = confidence) => {
     if (!exp) return;
@@ -1448,6 +1514,144 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const nothingShown = result !== null && notShownAsFact(result.run) !== null;
   const offeredTests = (proposals?.proposals ?? []).filter((p) => p.gate.allowed && !alreadyRan(p.params));
   const title = `${source ?? (pasted.outline?.parts.length === 0 ? "pasted file" : FILE_NAME[pasted.target.language ?? "ts"])} · ${plural(pasted.lines, "line")}${drawnMs !== null ? ` · drawn in ${drawnMs} ms` : ""}`;
+  // ---- R14: the part panel's controls, Muse Wonder's pick, its captions, and the record line ----
+  const partName = (id: string) => (natural && "names" in natural && natural.sha === pasted.target.codeSha256 && natural.names[id] ? `${natural.names[id]} (${id})` : id);
+  const askAbout = async (part: string) => {
+    if (!exp) return;
+    const key = `${exp.experiment.id}|${part}`;
+    const q = (askText[key] ?? "").trim();
+    if (q === "" || asked[key]?.busy) return;
+    setAsked((v) => ({ ...v, [key]: { q, busy: true } }));
+    try {
+      const r = await api.askPart(exp.experiment.id, part, q);
+      setAsked((v) => ({ ...v, [key]: r.ok && r.answer ? { q, a: r.answer } : { q, note: r.offTopic ? PART_TALK_WORDS.askOffTopic : (r as { full?: boolean }).full ? PART_TALK_WORDS.askFull : /plain code refused/.test(r.reason ?? "") ? PART_TALK_WORDS.askRefused : `Not asked: ${r.reason ?? "no answer"}.` } }));
+      // The panel scrolls inside itself after a run: the answer comes into view, not under the fold of the panel.
+      requestAnimationFrame(() => document.querySelector('[data-testid="part-ask-answer"], [data-testid="part-ask-note"]')?.scrollIntoView({ block: "nearest" }));
+    } catch (e) {
+      setAsked((v) => ({ ...v, [key]: { q, note: (e as Error).message } }));
+    }
+  };
+  const askBox = (id: string) => {
+    if (locked)
+      return (
+        <div className="c-part-ask" data-testid="part-ask">
+          <p className="c-part-ask-h">{PART_TALK_WORDS.askHeading}</p>
+          <p className="u1-sub" data-testid="part-ask-code">
+            {OWN_CODE_LINE} <InviteLinks />
+          </p>
+        </div>
+      );
+    const key = exp ? `${exp.experiment.id}|${id}` : "";
+    // D19: only once this round's bet is locked. Before that the box says so, and the server refuses too.
+    const canAsk = exp !== null && sealed.length > 0;
+    const got = key ? asked[key] : undefined;
+    return (
+      <div className="c-part-ask" data-testid="part-ask">
+        <p className="c-part-ask-h">{PART_TALK_WORDS.askHeading}</p>
+        {!canAsk ? (
+          <p className="u1-sub" data-testid="part-ask-locked">{PART_TALK_WORDS.askLocked}</p>
+        ) : (
+          <>
+            <form
+              className="c-part-ask-row"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void askAbout(id);
+              }}
+            >
+              <input value={askText[key] ?? ""} onChange={(e) => setAskText((v) => ({ ...v, [key]: e.target.value }))} maxLength={QUESTION_MAX_CHARS} placeholder={PART_TALK_WORDS.askPlaceholder} aria-label={`${PART_TALK_WORDS.askHeading}: ${id}`} data-testid="part-ask-input" />
+              <button type="submit" className="u1-btn" disabled={got?.busy === true || (askText[key] ?? "").trim() === ""} data-testid="part-ask-go">
+                {PART_TALK_WORDS.askGo}
+              </button>
+            </form>
+            <span className="u1-sub u1-paid">{PART_TALK_WORDS.askPaid}</span>
+            {got?.a && (
+              <p className="c-part-ai c-part-answer" data-testid="part-ask-answer">
+                <span className="c-part-ask-legend" data-testid="part-ask-legend">{`★ ${PART_TALK_WORDS.askLegend}: `}</span>
+                {got.a}
+              </p>
+            )}
+            {got?.note && <p className="u1-sub" data-testid="part-ask-note">{got.note}</p>}
+          </>
+        )}
+      </div>
+    );
+  };
+  const partActions = (id: string) => {
+    const part = pasted.outline?.parts.find((p) => p.name === id);
+    if (!part) return null;
+    const callable = part.kind === "function" && pasted.exports.some((e) => e.name === id);
+    const running = sealed.length > 0 && !result;
+    const current = fn === id && exp !== null && !result;
+    return (
+      <div className="c-part-act" data-testid="part-actions">
+        {callable && !notRunnable ? (
+          current ? (
+            <p className="u1-sub" data-testid="part-bet-current">{PART_TALK_WORDS.sameAsNow}</p>
+          ) : locked && !exampleOnly(id) ? (
+            <p className="u1-sub" data-testid="part-bet-code">
+              {OWN_CODE_LINE} <InviteLinks />
+            </p>
+          ) : (
+            <p className="c-part-bet">
+              <button type="button" className="u1-btn u1-primary" disabled={running || busy !== null} onClick={() => betOnPart(id)} data-testid="part-bet">
+                {PART_TALK_WORDS.betOnPart}
+              </button>{" "}
+              {!locked && <span className="u1-sub u1-paid">{PART_TALK_WORDS.betOnPartPaid}</span>}
+            </p>
+          )
+        ) : part.kind === "function" ? (
+          <p className="u1-sub" data-testid="part-bet-not-callable">{PART_TALK_WORDS.notCallable}</p>
+        ) : null}
+        {askBox(id)}
+      </div>
+    );
+  };
+  // Review M3: the pick's reason is Muse Wonder's words about a part, which the AI bettors never get: shown only while no round is open.
+  const aimShown = aim !== null && aim.sha === pasted.target.codeSha256 && exp === null && !result && !notRunnable;
+  const topNote = locked && onExample && sealed.length === 0 && !result ? (
+    <p className="m-aim-note" data-testid="pick-example">{PART_TALK_WORDS.pickExample}</p>
+  ) : aimShown && "part" in aim ? (
+    <div className="m-aim" data-testid="pick">
+      <p className="m-summary-k" data-testid="pick-legend">{`${PART_TALK_WORDS.pickHeading}: ${partName(aim.part)}. ${PART_TALK_WORDS.pickLegend}`}</p>
+      <p className="m-summary-t" data-testid="pick-reason">{aim.reason}</p>
+      <p className="m-aim-row">
+        {fn === aim.part && exp !== null ? (
+          <span className="u1-sub" data-testid="pick-current">{PART_TALK_WORDS.sameAsNow}</span>
+        ) : (
+          <button type="button" className="u1-link m-summary-part" onClick={() => betOnPart(aim.part)} disabled={busy !== null} data-testid="pick-accept">
+            {PART_TALK_WORDS.pickAccept}
+          </button>
+        )}{" "}
+        <button type="button" className="u1-link m-summary-part" onClick={() => setAim({ sha: aim.sha, note: PART_TALK_WORDS.pickOtherHow })} data-testid="pick-other">
+          {PART_TALK_WORDS.pickOther}
+        </button>
+      </p>
+    </div>
+  ) : aimShown && "note" in aim && aim.note ? (
+    <p className="m-aim-note" data-testid="pick-note">{aim.note}</p>
+  ) : null;
+  const onAct = (runId: string, steps: readonly ActStep[]) => {
+    // R14 (feature 2): after the run (every bet sealed), one call for captions. The act has already started; they join it when they come.
+    if (locked || !api.captions || !exp || !result || result.run.id !== runId || captsAsked.current === runId) return;
+    captsAsked.current = runId;
+    const g = gen.current;
+    const expId = exp.experiment.id;
+    Promise.resolve()
+      .then(() => api.captions(expId, steps))
+      .then(
+        (r) => {
+          if (g === gen.current && r.ok) setCapts({ runId, words: Object.fromEntries(Object.entries(r.captions).map(([k, v]) => [Number(k), v])) });
+        },
+        () => undefined,
+      );
+  };
+  const actCaptions = capts && result && capts.runId === result.run.id ? capts.words : null;
+  const recordLine = (() => {
+    if (!result?.track || "error" in result.track || !leadType) return null;
+    const l = result.track.after.lines.find((x) => x.type === leadType);
+    return l && l.n >= 3 ? PART_TALK_WORDS.recordLine(PART_TALK_WORDS.recordKind[l.type] ?? l.type, l.matched, l.n) : null;
+  })();
   return (
     <div className="u1-studio" data-drawer={drawerOpen && !partMode ? "" : undefined} data-drawer-part={partMode ? "" : undefined} data-simple="">
       {shownModel && pasted.outline ? (
@@ -1472,6 +1676,12 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           picked={partId}
           onPanel={setPartPanel}
           onClosePart={() => setPartId(null)}
+          topNote={topNote}
+          aimed={aimShown && "part" in aim ? aim.part : null}
+          partActions={partActions}
+          onAct={onAct}
+          actCaptions={actCaptions}
+          recordLine={recordLine}
           naturalNames={natural && natural.sha === pasted.target.codeSha256 && "names" in natural ? natural.names : null}
           namesNote={natural && natural.sha === pasted.target.codeSha256 && "reason" in natural ? natural.reason : null}
           fileSummary={!after && summ && summ.sha === pasted.target.codeSha256 && "summary" in summ ? summ.summary : null}
@@ -1600,7 +1810,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
         </BenchStage>
       ) : null}
       {drawerOpen && (
-        <CodeDrawer source={readText} lines={drawerLines} part={partShown} onClose={() => {
+        <CodeDrawer source={readText} lines={drawerLines} part={partShown} actions={partShown ? partActions(partShown.id) : null} onClose={() => {
           setDrawer(false);
           setPartId(null);
         }} coversResult={after !== null && typeof window !== "undefined" && window.innerWidth >= 761 && (partShown !== null || window.innerWidth < 1800)} />

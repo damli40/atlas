@@ -1,0 +1,116 @@
+[
+ {
+  "path": "/api/paste/pick",
+  "status": 200,
+  "body": {
+   "ok": false,
+   "model": "muse-wonder-1.0",
+   "reason": "no record yet",
+   "noRecord": true,
+   "counted": 0
+  }
+ },
+ {
+  "path": "/api/paste/captions",
+  "status": 200,
+  "body": {
+   "ok": true,
+   "model": "muse-wonder-1.0",
+   "captions": {
+    "0": "Atlas starts fetching a price with retries",
+    "1": "Fetch attempt throws an error from flaky source",
+    "2": "Delay length is calculated before waiting",
+    "3": "Waiting begins before trying again",
+    "4": "Waits a short while before trying again",
+    "5": "Another fetch attempt throws an error",
+    "6": "Delay length is calculated again",
+    "7": "Waiting begins again before retrying",
+    "8": "Waits a longer while before trying again",
+    "9": "Another fetch attempt throws an error",
+    "10": "Delay length is calculated once more",
+    "11": "Waiting begins once more before ending",
+    "12": "Waits an even longer while before ending",
+    "13": "Overall fetch throws the last error after waiting"
+   },
+   "refused": 0
+  }
+ },
+ {
+  "path": "/api/paste/ask",
+  "status": 200,
+  "body": {
+   "ok": true,
+   "model": "muse-wonder-1.0",
+   "part": "getPrice",
+   "answer": "It hands the given fetchQuote function to fetchWithRetry, asking for up to three tries starting with a 100 millisecond wait that doubles each time, and returns whatever value fetchQuote eventually gives or the last error it throws."
+  }
+ },
+ {
+  "path": "/api/paste/captions",
+  "status": 200,
+  "body": {
+   "ok": true,
+   "model": "muse-wonder-1.0",
+   "captions": {
+    "0": "Atlas asks for a price",
+    "1": "The price source fails with an error",
+    "2": "A pause length is chosen",
+    "3": "The pause begins",
+    "4": "Pausing before trying again",
+    "5": "The price source fails again with an error",
+    "6": "A longer pause length is chosen",
+    "7": "The pause begins",
+    "8": "Pausing longer before trying again",
+    "9": "The price source fails yet again with an error",
+    "10": "An even longer pause length is chosen",
+    "11": "The pause begins",
+    "12": "Pausing even longer before trying again",
+    "13": "The retry helper stops and passes the error onward",
+    "14": "An error reaches Atlas after all the pauses"
+   },
+   "refused": 0
+  }
+ },
+ {
+  "path": "/api/paste/pick",
+  "status": 200,
+  "body": {
+   "ok": true,
+   "model": "muse-wonder-1.0",
+   "part": "getJson",
+   "reason": "You often miss questions on how a call ends; this part fetches data with repeated attempts and pauses",
+   "kinds": [
+    "questions on how a call ends"
+   ]
+  }
+ },
+ {
+  "path": "/api/paste/captions",
+  "status": 200,
+  "body": {
+   "ok": true,
+   "model": "muse-wonder-1.0",
+   "captions": {
+    "0": "Atlas starts asking for data from the address",
+    "1": "A request goes out and the server says error",
+    "2": "A short pause before trying again",
+    "3": "Another request goes out and the server says error",
+    "4": "A longer pause before trying again",
+    "5": "Another request goes out and the server says error",
+    "6": "An even longer pause before giving up",
+    "7": "The function ends without giving back any data"
+   },
+   "refused": 0
+  }
+ },
+ {
+  "path": "/api/paste/ask",
+  "status": 200,
+  "body": {
+   "ok": true,
+   "model": "muse-wonder-1.0",
+   "part": "getJson",
+   "answer": "getJson pauses after each attempt that does not return data, waiting 250 milliseconds longer each round, so the next fetch starts a bit later instead of immediately, until the tries run out"
+  }
+ }
+]

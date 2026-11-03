@@ -31,7 +31,8 @@ import { CLOCK_ID, deviceId, type BenchModel, type BenchPart } from "./model";
 import { OUTCOME_WORDS, unusedFakes, type Mark, type Script } from "./play";
 import { notShownAsFact } from "../../../src/trust";
 import { runActFor, runBeats } from "./run-beats";
-import { actTimes } from "../../../renderer/authors/run-act";
+import { actTimes, type ActStep } from "../../../renderer/authors/run-act";
+import { PART_TALK_WORDS } from "../../../src/part-talk";
 import { lineSpan } from "../../../src/words";
 import { partPanel, type PartPanel } from "../../../renderer/authors/part-panel";
 import { PartFacts } from "../../drawing/PartFacts";
@@ -118,6 +119,18 @@ export interface BenchStageProps {
   loop?: CountChange | null;
   /** U3 item 5: words ABOVE the judged answers (a "Test this claim" round's sentence beside the facts). */
   headnote?: ReactNode;
+  /** R14: a block at the top of the drawing's strip, before any run (Muse Wonder's pick for this person). */
+  topNote?: ReactNode;
+  /** R14: the part Muse Wonder picked for this person: marked on the machine (never on the proof picture). */
+  aimed?: string | null;
+  /** R14: controls under a part's facts in the panel after a run ("Bet on this part", "Ask about this part"). */
+  partActions?: (id: string) => ReactNode;
+  /** R14: the act's steps, once they are known for a run (the page asks Muse Wonder for captions with them). */
+  onAct?: (runId: string, steps: readonly ActStep[]) => void;
+  /** R14: Muse Wonder's caption per act step, checked by plain code; shown under the act and in the step list, in the AI's ink. */
+  actCaptions?: Readonly<Record<number, string>> | null;
+  /** R14: one line on the verdict from the person's record ("Your record: timing questions 2 of 6 matched"), or null. */
+  recordLine?: string | null;
 }
 
 /** U2: a round number of ms at or above `ms`, for a dial rescaled to a run that went past the test's own dial. */
@@ -156,7 +169,7 @@ export function litWithNoThread(beats: readonly { routes: readonly string[]; lam
   return beats.some((b) => b.lamps.some((l) => l !== tested && !reached.has(l)));
 }
 
-export function BenchStage({ viewToggle = true, traceNote = true, recorded = {}, wontRun = false, seenBefore = false, codeRan = false, loop = null, model, theme, after = null, onPart, picked = null, onPanel, onClosePart, naturalNames = null, namesNote = null, fileSummary = null, summaryMissing = false, partLines = null, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null }: BenchStageProps) {
+export function BenchStage({ viewToggle = true, traceNote = true, recorded = {}, wontRun = false, seenBefore = false, codeRan = false, loop = null, model, theme, after = null, onPart, picked = null, onPanel, onClosePart, naturalNames = null, namesNote = null, fileSummary = null, summaryMissing = false, partLines = null, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null, topNote = null, aimed = null, partActions, onAct, actCaptions = null, recordLine = null }: BenchStageProps) {
   const [wantMachine, setWantMachine] = useState(machineFirst);
   const playedRef = useRef(onPlayed);
   playedRef.current = onPlayed;
@@ -261,6 +274,19 @@ export function BenchStage({ viewToggle = true, traceNote = true, recorded = {},
     return runActFor({ run: after.run, experiment: after.experiment, helpers: after.helpers ?? null, parts, model, outline, tested: model.tested, end });
   }, [pathSpec, parts, model, outline, end, after?.run, after?.helpers]); // eslint-disable-line react-hooks/exhaustive-deps
   const [actAt, setActAt] = useState<number | null>(null);
+  // R14: the act's steps go to the page once per run, when the third run's steps are in (or known to be missing): the act starts at once,
+  // and Muse Wonder's captions join it when they come. Nothing here waits for them.
+  const actFor = useRef<string | null>(null);
+  const onActRef = useRef(onAct);
+  onActRef.current = onAct;
+  useEffect(() => {
+    if (!after || !act || after.helpersPending || act.steps.length === 0) return;
+    const key = `${after.run.id}|${act.steps.length}`;
+    if (actFor.current === key) return;
+    actFor.current = key;
+    onActRef.current?.(after.run.id, act.steps);
+  }, [after?.run.id, after?.helpersPending, act]); // eslint-disable-line react-hooks/exhaustive-deps
+  const captionCount = actCaptions ? Object.keys(actCaptions).length : 0;
   /** R8 review minor 6: what a screen reader hears, once, when the act ends (the line under the machine changes too often to announce). */
   const [actHeard, setActHeard] = useState("");
   const machineShown = useRef(false);
@@ -453,7 +479,7 @@ export function BenchStage({ viewToggle = true, traceNote = true, recorded = {},
   };
   // R9: the file summary sits in its own strip at the top of the drawing's column, before any run; the drawing moves down by its height.
   const shownSummary = !after ? fileSummary : null;
-  const stripShown = !after && (fileSummary !== null || summaryMissing);
+  const stripShown = !after && (fileSummary !== null || summaryMissing || topNote !== null);
   const sumRef = useRef<HTMLElement | null>(null);
   const [sumH, setSumH] = useState(0);
   useLayoutEffect(() => {
@@ -464,7 +490,14 @@ export function BenchStage({ viewToggle = true, traceNote = true, recorded = {},
     const ro = typeof ResizeObserver === "function" ? new ResizeObserver(fit) : null;
     ro?.observe(el);
     return () => ro?.disconnect();
-  }, [shownSummary, stripShown]);
+  }, [shownSummary, stripShown, topNote]);
+  // R14: Muse Wonder's pick is marked on the box chart too (the view for more than 8 parts), by the same attribute as on the machine.
+  useEffect(() => {
+    const host = document.querySelector('[data-testid="bench-viewport"]');
+    if (!host) return;
+    for (const el of host.querySelectorAll("[data-aimed]")) el.removeAttribute("data-aimed");
+    if (aimed && !after) for (const el of host.querySelectorAll("[data-node]")) if (idFromAttr(el.getAttribute("data-node") ?? "") === aimed) el.setAttribute("data-aimed", "");
+  });
   const pickedPanel = picked ? panelFor(picked) : null;
   const panelKey = JSON.stringify(pickedPanel);
   useEffect(() => onPanel?.(pickedPanel), [panelKey]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -514,8 +547,14 @@ export function BenchStage({ viewToggle = true, traceNote = true, recorded = {},
         </p>
       </header>
       <p id="bench-described" className="rr-unseen" data-testid="bench-described">{model.plainLabel}</p>
+      {!after && topNote && !shownSummary && !summaryMissing ? (
+        <section className="m-summary" ref={sumRef} data-testid="file-summary-pick-only">
+          {topNote}
+        </section>
+      ) : null}
       {shownSummary ? (
         <section className="m-summary" ref={sumRef} aria-label="A summary of the file, written by Meta's AI" data-testid="file-summary">
+          {topNote}
           <p className="m-summary-k" data-testid="file-summary-legend">{SUMMARY_WORDS.legend}</p>
           <p className="m-summary-t" data-testid="file-summary-text">
             {shownSummary.purpose}
@@ -543,6 +582,7 @@ export function BenchStage({ viewToggle = true, traceNote = true, recorded = {},
       ) : !after && summaryMissing ? (
         // Review minor 5: no summary this time (refused, late, limited or failed): one muted line in its slot, never a stand-in summary.
         <section className="m-summary m-summary-none" ref={sumRef} data-testid="file-summary-none">
+          {topNote}
           <p>{SUMMARY_WORDS.none}</p>
         </section>
       ) : null}
@@ -561,7 +601,7 @@ export function BenchStage({ viewToggle = true, traceNote = true, recorded = {},
         )}
       </div>
       <div className="r-machine" ref={regionRef} hidden={undefined} style={showMachine ? undefined : { visibility: "hidden", pointerEvents: "none" }} data-testid="machine-region" data-captions={after && marksOn && pathSpec?.captions.length ? "" : undefined}>
-        {showMachine && <MachineSheet ref={machineRef} drawn={drawn} reduced={still} penKey={after ? null : source} beats={beats} landed={Boolean(after && marksOn)} picked={picked} onPart={(id) => {
+        {showMachine && <MachineSheet ref={machineRef} drawn={drawn} reduced={still} penKey={after ? null : source} beats={beats} landed={Boolean(after && marksOn)} picked={picked} aimed={after ? null : aimed} onPart={(id) => {
           const panel = onPart ? panelFor(id) : null;
           if (!panel) return false;
           onPart!(id, panel);
@@ -570,6 +610,13 @@ export function BenchStage({ viewToggle = true, traceNote = true, recorded = {},
         {showMachine && after && !marksOn && act ? (
           <p className="m-act-step" aria-live="off" data-testid="machine-act-step">
             {actAt !== null ? (act.steps[actAt]?.words ?? "") : ""}
+            {/* R14: Muse Wonder's caption for the same step, in the AI's ink, swapped in when it arrives; the act never waits for it. */}
+            {actAt !== null && actCaptions?.[actAt] ? (
+              <span className="m-act-ai" data-testid="machine-act-ai">
+                <span className="rr-unseen">{`${PART_TALK_WORDS.captionsLegend}: `}</span>
+                {actCaptions[actAt]}
+              </span>
+            ) : null}
           </p>
         ) : null}
       </div>
@@ -621,22 +668,31 @@ export function BenchStage({ viewToggle = true, traceNote = true, recorded = {},
       )}
       {!after && cardId && model.parts[cardId] && <PartCard id={cardId} part={model.parts[cardId]!} tested={model.tested} hasTest={Boolean(model.parts[CLOCK_ID])} python={language === "py"} pinned={pinned === cardId} {...(onTestFunction ? { onTest: onTestFunction } : {})} canChange={!after} onClose={() => setPinned(null)} />}
       {after && marksOn && <MarkList partNote={inlinePanel ? (
-        <PartFacts part={inlinePanel} className="c-part m-partnote">
+        <PartFacts part={inlinePanel} className="c-part m-partnote" actions={partActions?.(inlinePanel.id) ?? null}>
           <button type="button" className="u1-close m-partnote-close" onClick={() => onClosePart?.()} aria-label="Close this part's panel">
             ×
           </button>
         </PartFacts>
-      ) : null} marks={after.marks} focus={focusMark} onFocus={setFocusMark} footnote={footnote} headnote={headnote} actList={showMachine && still && act && act.steps.length > 0 ? (
+      ) : null} marks={after.marks} focus={focusMark} onFocus={setFocusMark} footnote={footnote} headnote={headnote} actList={act && act.steps.length > 0 && ((showMachine && still) || captionCount > 0) ? (
           // R8: with reduced motion nothing moves; the act's steps are here as text, beside the still end state.
-          <details className="m-act-list" open data-testid="machine-act-list">
-            <summary>{`What the run did, step by step (${act.steps.length})`}</summary>
+          // R14: Muse Wonder's captions join each step here too, in the AI's ink and labelled; with motion on, this list is folded.
+          <details className="m-act-list" open={showMachine && still} data-testid="machine-act-list">
+            <summary>{captionCount > 0 ? PART_TALK_WORDS.captionsFold(act.steps.length) : `What the run did, step by step (${act.steps.length})`}</summary>
+            {captionCount > 0 ? <p className="m-act-legend" data-testid="machine-act-legend">{`★ ${PART_TALK_WORDS.captionsLegend}`}</p> : null}
             <ol>
               {act.steps.map((s, i) => (
-                <li key={i}>{s.words}</li>
+                <li key={i}>
+                  {s.words}
+                  {actCaptions?.[i] ? (
+                    <span className="m-act-ai" data-testid={`machine-act-ai-${i}`}>
+                      {actCaptions[i]}
+                    </span>
+                  ) : null}
+                </li>
               ))}
             </ol>
           </details>
-        ) : null} moment={momentOf(after.marks, after.run, language)} notes={resultNotes(after)} readout={marksReadout(after.marks)} loop={loop} recorded={recorded} />}
+        ) : null} moment={momentOf(after.marks, after.run, language)} notes={resultNotes(after)} readout={marksReadout(after.marks)} loop={loop} recorded={recorded} recordLine={recordLine} />}
       {children}
     </div>
   );
@@ -781,7 +837,7 @@ export function resultNotes(after: Pick<After, "marks" | "run" | "experiment" | 
   ];
 }
 
-function MarkList({ actList = null, marks, focus, onFocus, footnote, headnote, moment, notes, readout, loop, partNote = null, recorded = {} }: { actList?: ReactNode; recorded?: Readonly<Record<string, string>>; partNote?: ReactNode; notes: readonly string[]; marks: readonly Mark[]; focus: string | null; onFocus: (m: string | null) => void; footnote: ReactNode; headnote: ReactNode; moment: Moment | null; readout: string; loop: CountChange | null }) {
+function MarkList({ recordLine = null, actList = null, marks, focus, onFocus, footnote, headnote, moment, notes, readout, loop, partNote = null, recorded = {} }: { recordLine?: string | null; actList?: ReactNode; recorded?: Readonly<Record<string, string>>; partNote?: ReactNode; notes: readonly string[]; marks: readonly Mark[]; focus: string | null; onFocus: (m: string | null) => void; footnote: ReactNode; headnote: ReactNode; moment: Moment | null; readout: string; loop: CountChange | null }) {
   const same = sharedReason(marks);
   // Questions nobody could check fold to one line with their reason: a real result must not read as a shrug.
   const checkable = marks.filter((m) => !m.picks.every((p) => p.outcome === "cant_check"));
@@ -796,6 +852,7 @@ function MarkList({ actList = null, marks, focus, onFocus, footnote, headnote, m
           <p className="m-note" key={n} data-testid="result-note">{n}</p>
         ))}
         <p className="m-count" data-testid="m-count">{readout}</p>
+        {recordLine ? <p className="m-record" data-testid="m-record">{recordLine}</p> : null}
         {partNote}
         {actList}
         {loop && (

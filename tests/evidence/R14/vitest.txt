@@ -1,0 +1,27 @@
+
+ RUN  v5.0.5 <repo>
+
+ ❯ tests/unit/x3-failure-labels.test.ts (24 tests | 1 failed) 945ms
+   ❯ X3 review M3: linear scan, capped (1)
+     × the reviewer's 61 KB nested-loop paste takes under 50 ms; a nested retry flood too 161ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/unit/x3-failure-labels.test.ts > X3 review M3: linear scan, capped > the reviewer's 61 KB nested-loop paste takes under 50 ms; a nested retry flood too
+AssertionError: expected 78.699208 to be less than 50
+ ❯ tests/unit/x3-failure-labels.test.ts:163:38
+    161|       const t0 = performance.now();
+    162|       label(t);
+    163|       expect(performance.now() - t0).toBeLessThan(50);
+       |                                      ^
+    164|     }
+    165|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 171 passed | 2 skipped (174)
+      Tests  1 failed | 2799 passed | 36 skipped (2836)
+   Start at  16:47:46
+   Duration  211.86s (tests 81%, import 18%)
+

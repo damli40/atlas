@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { TRACK_WORDS, recordWords, typeLineWords, type TrackRecord } from "../../src/track-record";
 import type { Api, TrackAnswer } from "../api";
 import { FeltRecord } from "./FeltPanel";
+import { REMEMBER_WORDS } from "../../src/part-talk";
 
 /** One record as a list (also used by the proof card for "your record before this round"). */
 export function RecordView({ record, testId }: { record: TrackRecord; testId?: string }) {
@@ -55,7 +56,17 @@ export function TrackRecordPanel({ api, refreshKey }: { api: Api; refreshKey: st
       <p className="muted small">
         {TRACK_WORDS.how} {answer ? (answer.person === "invite" ? TRACK_WORDS.whoInvite : TRACK_WORDS.whoLocal) : ""}
       </p>
-      <p className="muted small">{TRACK_WORDS.wonderNote}</p>
+      {/* R14: what Atlas remembers, where, and how Muse Wonder uses it, said plainly. */}
+      <div className="track-remember" data-testid="track-remember">
+        <p className="small" data-testid="track-remember-what">{REMEMBER_WORDS.what}</p>
+        {answer && answer.kept !== undefined && (
+          <p className="small" data-testid="track-remember-where">
+            {answer.person === "invite" ? (answer.kept === "memory" ? REMEMBER_WORDS.whereInviteMemory : REMEMBER_WORDS.whereInvite) : answer.kept === "disk" ? REMEMBER_WORDS.whereBrowserDisk : REMEMBER_WORDS.whereMemory}
+          </p>
+        )}
+        <p className="small" data-testid="track-remember-how">{REMEMBER_WORDS.how}</p>
+        <p className="small" data-testid="track-remember-asks">{REMEMBER_WORDS.asks}</p>
+      </div>
     </section>
   );
 }
@@ -84,4 +95,4 @@ export function RecordBefore({ api, runId }: { api: Api; runId: string }) {
 }
 
 /** For tests: every sentence the panel can show for a record. */
-export const panelWords = (r: TrackRecord): string[] => [TRACK_WORDS.heading, TRACK_WORDS.subheading, TRACK_WORDS.how, TRACK_WORDS.whoInvite, TRACK_WORDS.whoLocal, TRACK_WORDS.wonderNote, TRACK_WORDS.empty, TRACK_WORDS.beforeHeading, TRACK_WORDS.beforeNone, ...recordWords(r)];
+export const panelWords = (r: TrackRecord): string[] => [TRACK_WORDS.heading, TRACK_WORDS.subheading, TRACK_WORDS.how, TRACK_WORDS.whoInvite, TRACK_WORDS.whoLocal, TRACK_WORDS.wonderNote, REMEMBER_WORDS.what, REMEMBER_WORDS.whereInvite, REMEMBER_WORDS.whereInviteMemory, REMEMBER_WORDS.whereBrowserDisk, REMEMBER_WORDS.whereMemory, REMEMBER_WORDS.how, REMEMBER_WORDS.asks, TRACK_WORDS.empty, TRACK_WORDS.beforeHeading, TRACK_WORDS.beforeNone, ...recordWords(r)];

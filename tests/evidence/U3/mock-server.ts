@@ -88,6 +88,19 @@ export const mockChat = async (a: ChatArgs): Promise<ChatResult> => {
     const parts = [...all.matchAll(/^- (\S+) \((?:function|class)/gm)].map((m) => m[1]!);
     return { ok: true, finishReason: "stop", usage, content: JSON.stringify({ purpose: "A mock summary of what this file is for; no model was called.", parts: Object.fromEntries(parts.map((p) => [p, "Mock line about this part."])) }) };
   }
+  // R14: the pick, the run captions and the answer about a part. Mock words that say they are a mock, $0.
+  if (/PICK ONE PART FOR THIS PERSON/.test(all)) {
+    const part = /PARTS ATLAS CAN CALL[^\n]*\n- (\S+) \(/.exec(all)?.[1] ?? "f";
+    return { ok: true, finishReason: "stop", usage, content: JSON.stringify({ part, reason: "Mock pick: you often miss timing questions; this part waits between tries" }) };
+  }
+  if (/CAPTION EACH STEP OF THE RUN/.test(all)) {
+    const n = (all.match(/^\d+\. /gm) ?? []).length;
+    await new Promise((r) => setTimeout(r, Number(process.env.R14_CAPTION_DELAY_MS ?? 400)));
+    return { ok: true, finishReason: "stop", usage, content: JSON.stringify({ captions: Object.fromEntries(Array.from({ length: n }, (_, i) => [String(i), `Mock caption for step ${["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"][i] ?? "later"}`])) }) };
+  }
+  if (/ANSWER THE PERSON'S QUESTION ABOUT ONE PART/.test(all)) {
+    return { ok: true, finishReason: "stop", usage, content: JSON.stringify({ answer: "Mock answer: this part calls the helper it is given and waits between tries. No model was called." }) };
+  }
   if (a.role === "investigator") {
     await new Promise((r) => setTimeout(r, delay));
     const claimRound = /check this sentence/.test(all);
@@ -96,6 +109,11 @@ export const mockChat = async (a: ChatArgs): Promise<ChatResult> => {
     const py = /get_user_plan/.test(all);
     if (/getTemperature/.test(all)) return { ok: true, finishReason: "stop", usage, content: JSON.stringify(claimRound ? CLAIM_WEATHER : WEATHER) };
     if (/waitForJob/.test(all)) return { ok: true, finishReason: "stop", usage, content: JSON.stringify(LOOP) };
+    // R14: the "Cached lookup" sample, for the pick's driver: a mock test of the function asked for.
+    if (/FUNCTION TO TEST: getRate\b/.test(all)) return { ok: true, finishReason: "stop", usage, content: JSON.stringify({ claim: "A mock sentence about getRate.", experiments: [{ shape: "call-function", exportName: "getRate", args: [{ kind: "json", value: "EUR" }, { kind: "stand-in", name: "load", async: true, then: "repeat_last", calls: [{ do: "return", value: 1.1, afterMs: 200 }] }] }] }) };
+    if (/FUNCTION TO TEST: getTwoRates/.test(all)) return { ok: true, finishReason: "stop", usage, content: JSON.stringify({ claim: "A mock sentence about getTwoRates.", experiments: [{ shape: "call-function", exportName: "getTwoRates", args: [{ kind: "stand-in", name: "load", async: true, then: "repeat_last", calls: [{ do: "return", value: 1.1, afterMs: 200 }] }] }] }) };
+    // R14: "Bet on this part" on the example's getPrice: a mock test of THAT function.
+    if (/FUNCTION TO TEST: getPrice/.test(all)) return { ok: true, finishReason: "stop", usage, content: JSON.stringify({ claim: "A mock sentence about getPrice.", experiments: [{ shape: "call-function", exportName: "getPrice", args: [{ kind: "stand-in", name: "fetchQuote", async: true, then: "repeat_last", calls: [{ do: "throw", errorName: "TypeError", message: "fetch failed" }, { do: "return", value: { price: 42 } }] }] }] }) };
     if (/fetchWithRetry/.test(all) && /backoffMs/.test(all)) return { ok: true, finishReason: "stop", usage, content: JSON.stringify(EXAMPLE) };
     return { ok: true, finishReason: "stop", usage, content: JSON.stringify(py ? (claimRound ? CLAIM_PLAN : PLAN) : claimRound ? CLAIM_ORDERS : ORDERS) };
   }

@@ -77,7 +77,7 @@ function penTime(): number {
   }
 }
 
-export const MachineSheet = forwardRef<MachineControl, { drawn: MachineDrawn; reduced?: boolean; /** True: the page showed the part in its panel, so no card is shown here as well. */ onPart?: (id: string) => boolean | void; /** The part the page's panel is about: marked on the drawing. */ picked?: string | null; testid?: string; /** A new value pencils the machine in: a new paste, not a new test on it. */ penKey?: string | null; /** The run's beats, and whether its result has landed: a machine that mounts after that (M, or the chart first) shows the same result at once. */ beats?: MachineBeat[]; landed?: boolean }>(function MachineSheet({ drawn, reduced = false, onPart, picked = null, testid = "machine", penKey = null, beats, landed = false }, ref) {
+export const MachineSheet = forwardRef<MachineControl, { drawn: MachineDrawn; reduced?: boolean; /** True: the page showed the part in its panel, so no card is shown here as well. */ onPart?: (id: string) => boolean | void; /** The part the page's panel is about: marked on the drawing. */ picked?: string | null; /** R14: the part Muse Wonder picked for this person: marked on the drawing (live page only, never the proof picture). */ aimed?: string | null; testid?: string; /** A new value pencils the machine in: a new paste, not a new test on it. */ penKey?: string | null; /** The run's beats, and whether its result has landed: a machine that mounts after that (M, or the chart first) shows the same result at once. */ beats?: MachineBeat[]; landed?: boolean }>(function MachineSheet({ drawn, reduced = false, onPart, picked = null, aimed = null, testid = "machine", penKey = null, beats, landed = false }, ref) {
   ensureMachineStyle();
   const host = useRef<HTMLDivElement | null>(null);
   const player = useRef<MachinePlayer | null>(null);
@@ -126,6 +126,12 @@ export const MachineSheet = forwardRef<MachineControl, { drawn: MachineDrawn; re
     for (const el of svg.querySelectorAll("[data-picked]")) el.removeAttribute("data-picked");
     if (picked) for (const el of svg.querySelectorAll(".m-part[data-part]")) if ((el.getAttribute("data-part") ?? "").split("#")[0] === picked) el.setAttribute("data-picked", "");
   }, [picked, drawn.svg]);
+  useEffect(() => {
+    const svg = host.current?.querySelector("svg");
+    if (!svg) return;
+    for (const el of svg.querySelectorAll("[data-aimed]")) el.removeAttribute("data-aimed");
+    if (aimed) for (const el of svg.querySelectorAll(".m-part[data-part]")) if ((el.getAttribute("data-part") ?? "").split("#")[0] === aimed) el.setAttribute("data-aimed", "");
+  }, [aimed, drawn.svg]);
   const show = (el: Element) => {
     const part = el.closest("[data-part]");
     if (!part) return setCard(null);

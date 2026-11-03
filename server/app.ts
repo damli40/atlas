@@ -133,7 +133,7 @@ import { oneQuestion, quizQuestionsFor } from "../src/quiz";
 import { pastedSeenCap } from "./meta/roles/claimant-bets";
 import { MAX_PASTED_PROMPT_CHARS } from "./meta/pasted-guard";
 import { createOutlineRoutes, DEFAULT_OUTLINES_PER_IP_PER_HOUR, OUTLINE_BODY_BYTES, type OutlineOptions } from "./outline/routes";
-import { memoryTrackStore, type Person, type TrackStore } from "./track-store";
+import { memoryTrackStore, personKey, type Person, type TrackStore } from "./track-store";
 import { lastRoundOf, lastRoundWords, weakestKind } from "../src/remember";
 import { fileOutline } from "../src/file-outline";
 import { endOfFile, machinePartsOfFile, publicParts, type MachineEnd, type MachineParts } from "../renderer/authors/machine";
@@ -142,6 +142,7 @@ import { createLabeler, DEFAULT_LABELS_PER_CLIENT_PER_HOUR } from "./labels";
 import { labelsForBettors } from "../src/failure-labels";
 import { namesForBettors } from "../src/natural-names";
 import { summaryForBettors } from "../src/file-summary";
+import { createPartTalk } from "./part-talk";
 import { currentPrincipal } from "./access/context";
 
 const REPO_ROOT = fileURLToPath(new URL("../", import.meta.url));
@@ -730,6 +731,21 @@ export function createApp(opts: AppOptions = {}) {
     weakSpotsOf: (c, sessionId) => weakSpotSummary(recordOf(personOf(c, sessionId))),
   });
   opts.paste?.expose?.(paste);
+  // R14: Muse Wonder's pick, run captions and answers about one part, each with its own hourly limit, the same budget and the same guard.
+  const picksByClient = createHourlyLimit(envCount(process.env.ATLAS_PICKS_PER_CLIENT_PER_HOUR, 12), "part picks");
+  const captionsByClient = createHourlyLimit(envCount(process.env.ATLAS_CAPTIONS_PER_CLIENT_PER_HOUR, 20), "run captions");
+  const asksByClient = createHourlyLimit(envCount(process.env.ATLAS_ASKS_PER_CLIENT_PER_HOUR, 20), "questions about a part");
+  const partTalk = createPartTalk({
+    agentLog,
+    betStore,
+    paste,
+    ...(opts.paste?.proposer && budget ? { chat: guardPastedChat(budget.wrap(opts.paste.proposer.chat)) } : {}),
+    recordOf: (c, sessionId) => recordOf(personOf(c, sessionId)),
+    whoOf: (c, sessionId) => personKey(personOf(c, sessionId)),
+    takePick: (c) => picksByClient.take(clientOf(c)),
+    takeCaptions: (c) => captionsByClient.take(clientOf(c)),
+    takeAsk: (c) => asksByClient.take(clientOf(c)),
+  });
   /** E3 review r2 B3: a pasted round's bettor text: its shared test part, then the file's shared numbered block. */
   const seenOf = (round: Round): string | undefined => {
     if (round.seenHead === undefined || !round.seenFile) return undefined;
@@ -1053,6 +1069,9 @@ export function createApp(opts: AppOptions = {}) {
   registerEventRoutes(app, agentLog); // D02-05: GET /events/:sessionId (SSE)
   paste.register(app); // E3: GET /paste/languages, POST /paste, /paste/proposals, /paste/claim
   labeler.register(app); // X3 (D28): POST /paste/labels, GET /outline/jobs/:id/labels
+  partTalk.register(app); // R14: POST /paste/pick, /paste/captions, /paste/ask
+  /** R14 review M1: per pasted round, the number of the person's answers about its file that its bettor text holds. */
+  const roundAsks = new WeakMap<Round, number>();
 
   // X3 (D27): GET /track-record[?before=<runId>] → this person's record now and, with `before`, their record before
   // that round (null when the round is not in their record). Plain code over their own sealed bets and verdicts.
@@ -1064,6 +1083,8 @@ export function createApp(opts: AppOptions = {}) {
     const before = c.req.query("before");
     return c.json({
       person: person.kind,
+      // R14: where the record is kept, so the page can say it plainly: on disk, or in memory only (a restart clears it).
+      kept: isExampleVisitor() || savedTrack.where === "memory" ? "memory" : "disk",
       record: trackRecordOf(entries),
       ...(before !== undefined ? { before: /^[A-Za-z0-9_-]{1,64}$/.test(before) ? recordBefore(entries, before) : null } : {}),
     });
@@ -1259,7 +1280,9 @@ export function createApp(opts: AppOptions = {}) {
       // R6 (D19): the natural names the person's screen shows for this file, labelled as the naming model's words.
       // R9 (D19): the file summary too, waited for at the same time as the names, so the round waits at most one short wait.
       const [named, summed] = await Promise.all([paste.namesForText(sessionId, target.codeSha256), paste.summaryForText(sessionId, target.codeSha256)]);
-      const labels = [...labelsForBettors(labeler.forPaste(sessionId, target, call.exportName)), ...(named ? namesForBettors(named.names, named.model) : []), ...(summed ? summaryForBettors(summed.summary, summed.model) : [])];
+      const labels = [...labelsForBettors(labeler.forPaste(sessionId, target, call.exportName)), ...(named ? namesForBettors(named.names, named.model) : []), ...(summed ? summaryForBettors(summed.summary, summed.model) : []), ...partTalk.asksForText(c, sessionId, target.codeSha256)];
+      // Review M1: how many of the person's answers this round's text holds. A bet is refused if they asked more since (another tab, an older round).
+      roundAsks.set(round, partTalk.askCount(c, sessionId, target.codeSha256));
       const key = [target.codeSha256, target.language, line, canonicalJson(experiment.proposedBy), canonicalJson(experiment.params), round.repeatOf ?? "", body.quiz ? "quiz" : "", body.one ? "one" : "", ...labels].join("\n");
       const block = paste.fileBlock(target.codeSha256, target.source ?? "", line);
       const cap = pastedSeenCap(round.questions, MAX_PASTED_PROMPT_CHARS);
@@ -1470,6 +1493,10 @@ export function createApp(opts: AppOptions = {}) {
     // E3 review B2: once Muse Wonder's sentence for this round's tests has been shown, no more bets are sealed on it.
     const closed = paste.betsClosed(sessionId, experimentId);
     if (closed) return c.json({ error: `${closed}, so this bet was not sealed` }, 409);
+    // R14 review M1 (D19): the person asked Muse Wonder about this file after this round's text was written, so they would bet on words
+    // the AI bettors of this round never got. Refused: a new round carries the answers to everyone.
+    const heldAsks = roundAsks.get(round);
+    if (heldAsks !== undefined && partTalk.askCount(c, sessionId, round.experiment.target.codeSha256) > heldAsks) return c.json({ error: "you asked Muse Wonder about this file after this round's question was written, so the AIs betting here never saw that answer; start a new round (Try another question) and everyone gets it", askedSince: true }, 409);
     // Final review S2: after a run attempt that did not finish, the bets stay frozen (the same set runs again).
     const tried = round.attempts?.at(-1);
     if (tried) return c.json({ error: `bets on ${experimentId} are frozen: a run was tried at ${tried.startedAt} and did not finish; try the run again (the sealed bets stay as they are), so this bet was not sealed` }, 409);

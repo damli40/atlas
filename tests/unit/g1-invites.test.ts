@@ -59,6 +59,10 @@ const SPENDING: { method: string; route: string; path: string; body?: unknown; s
   { method: "POST", route: "/paste/proposals", path: "/paste/proposals", body: {}, spends: "Muse Wonder test proposals (Meta)" },
   { method: "POST", route: "/paste/names", path: "/paste/names", body: {}, spends: "Muse Wonder natural names for the parts (Meta)" },
   { method: "POST", route: "/paste/summary", path: "/paste/summary", body: {}, spends: "Muse Wonder file summary (Meta)" },
+  // R14: Muse Wonder's pick, run captions and answers about one part.
+  { method: "POST", route: "/paste/pick", path: "/paste/pick", body: {}, spends: "Muse Wonder part pick (Meta)" },
+  { method: "POST", route: "/paste/captions", path: "/paste/captions", body: {}, spends: "Muse Wonder run captions (Meta)" },
+  { method: "POST", route: "/paste/ask", path: "/paste/ask", body: {}, spends: "Muse Wonder answer about a part (Meta)" },
   { method: "POST", route: "/paste/claim", path: "/paste/claim", body: {}, spends: "nothing (shows a held claim)" },
   { method: "POST", route: "/outline/jobs", path: "/outline/jobs", body: { files: [{ path: "a.ts", text: "export const a = 1;\n" }] }, spends: "Muse Wonder Outliner (Meta) + GitHub reads" },
   // X3: read only and free, but they are about a person's own code and record, so closed by default.

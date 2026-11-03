@@ -2,7 +2,7 @@
 // from renderer/authors/part-panel.ts, worked out again on every render, so it can't outlive the code or the run it describes.
 import type { PartPanel } from "../../renderer/authors/part-panel";
 
-export function PartFacts({ part, className = "c-part", children }: { part: PartPanel; className?: string; children?: React.ReactNode }) {
+export function PartFacts({ part, className = "c-part", children, actions = null }: { part: PartPanel; className?: string; children?: React.ReactNode; /** R14: "Bet on this part" and "Ask about this part", under the facts. */ actions?: React.ReactNode }) {
   return (
     <section className={className} aria-live="polite" aria-label={`About ${part.title}`} data-testid="part-panel" data-part={part.id}>
       {children}
@@ -23,6 +23,7 @@ export function PartFacts({ part, className = "c-part", children }: { part: Part
         ))}
       </ul>
       {part.note && <p className="c-part-note" data-testid="part-names-note">{part.note}</p>}
+      {actions}
     </section>
   );
 }

@@ -1,0 +1,20 @@
+pass 1280x800: "Lock in my bet" is fully on screen and not covered: {"inView":true,"uncovered":true,"top":533,"bottom":575,"vh":800}
+pass 1440x900: "Lock in my bet" is fully on screen and not covered: {"inView":true,"uncovered":true,"top":526,"bottom":568,"vh":900}
+pass 390x844: "Lock in my bet" is fully on screen and not covered: {"inView":true,"uncovered":true,"top":709,"bottom":751,"vh":844}
+pass 1: the part panel offers Bet on this part
+pass 3: before a bet is locked, the ask box says to lock first
+pass 3: …and has no question box
+pass 1: a part Atlas can't call says so
+pass 2: Muse's caption shows under the act while it plays: Muse Wonder's words (Meta's AI), not a check: Mock caption for step one
+pass 2: …in its own line, labelled for screen readers as Muse Wonder's words
+pass 2: after the run, the step list holds the captions, labelled: What the run did, step by step, with Muse Wonder's words (14)★ Muse Wonder's words (Meta's AI), not a checkAtlas calls fetchWithRetryMock caption for step zeroc
+pass 3: after the lock the answer shows, labelled as Muse Wonder's words, not a check
+pass 1: the new round is on getPrice (Muse Wonder's test of that function)
+pass 1: Lock in my bet is on screen: {"inView":true,"uncovered":true,"top":544,"bottom":586,"vh":900}
+pass 4: Muse Wonder's pick (or why there is none) shows before the bet: Muse Wonder's pick for you: mock helper step (getRate). Its words (Meta's AI), from your record. Not a check.Mock pick: you often miss timing questions; this part waits between triesBet on this part Pick another part
+pass 4: the picked box is marked on the machine
+pass 4: accepting the pick opens a bet on that part
+pass 4: Lock in my bet is on screen with the pick above the drawing: {"inView":true,"uncovered":true,"top":432,"bottom":474,"vh":900}
+pass 5: the verdict has a record line once there are three bets of a kind: Your record: ending questions 0 of 3 matched
+pass 5: the record page says what Atlas remembers, where, and how Wonder uses it: Kept for this browser in the server's memory only (no invite code): a restart clears it.
+19 of 19 pass

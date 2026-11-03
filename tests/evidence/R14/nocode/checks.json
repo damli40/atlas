@@ -1,0 +1,47 @@
+[
+ {
+  "name": "1280x800: \"Lock in my bet\" is fully on screen and not covered",
+  "ok": true,
+  "more": "{\"inView\":true,\"uncovered\":true,\"top\":533,\"bottom\":575,\"vh\":800}"
+ },
+ {
+  "name": "1280x800: no code: the pick says only \"play a few rounds…\"",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "1440x900: \"Lock in my bet\" is fully on screen and not covered",
+  "ok": true,
+  "more": "{\"inView\":true,\"uncovered\":true,\"top\":526,\"bottom\":568,\"vh\":900}"
+ },
+ {
+  "name": "1440x900: no code: the pick says only \"play a few rounds…\"",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "390x844: \"Lock in my bet\" is fully on screen and not covered",
+  "ok": true,
+  "more": "{\"inView\":true,\"uncovered\":true,\"top\":709,\"bottom\":751,\"vh\":844}"
+ },
+ {
+  "name": "no code: Bet on getPrice says the invite line",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "no code: the ask box says the invite line",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "no code: no request to /paste/pick, /paste/captions or /paste/ask",
+  "ok": true,
+  "more": "[]"
+ },
+ {
+  "name": "no code: no Muse captions on the act or the list",
+  "ok": true,
+  "more": ""
+ }
+]
