@@ -22,7 +22,7 @@ import { weakSpots, weakSpotSummary, type TrackRecord } from "../src/track-recor
 import type { ExperimentShape } from "../src/types";
 import { pathItems, type PathItem } from "../renderer/authors/what-happened";
 import { isExampleVisitor } from "./access/context";
-import { refuseOwnCode } from "./access/example-lane";
+import { EXAMPLE_SHA, refuseOwnCode } from "./access/example-lane";
 import type { BetStore } from "./bets";
 import type { ChatArgs, ChatResult } from "./meta/client";
 import { runAsk, runCaptions, runPick, PART_TALK_MODEL, type CaptionResult, type PickResult } from "./meta/roles/part-talk";
@@ -68,54 +68,79 @@ async function readJson(req: Request): Promise<unknown> {
   }
 }
 
+/** The fields a folded step may carry: the fields of the steps it folds, or its own. */
+const FOLDABLE = /^(run\.trace: the start event|run\.trace: calls begun at the same moment|run\.trace: call_start|the test's own scripted wait|run\.trace: event times on the virtual clock.*|run\.trace: .+ call \d+|run\.trace: .+'s answer to call \d+|helpers\.steps.*|several recorded steps, folded)$/;
+
 /**
- * What plain code knows each step was, from the server's own copy of the run. Null: the step does not match the recorded run (the
- * request is refused and nothing is asked).
+ * Review round 2 (M-C): which steps Muse Wonder may caption ("caption") and which keep plain code's words only ("plain"): the run's
+ * ending, a sequence call's ending, and every step after the ending. Each step is checked against the server's own copy of the run;
+ * null when one does not match it (the request is refused and nothing is asked).
  */
 export function stepKinds(steps: readonly { words: string; field: string }[], run: Parameters<typeof pathItems>[0]["run"], experiment: { params: ExperimentShape }): StepKind[] | null {
   const { items } = pathItems({ run, experiment });
-  const outcome = (run.result?.measured as Record<string, unknown> | undefined)?.outcome;
   const end = items.find((x): x is Extract<PathItem, { kind: "end" }> => x.kind === "end");
   const calls = items.filter((x): x is Extract<PathItem, { kind: "call" }> => x.kind === "call");
   const answers = items.filter((x): x is Extract<PathItem, { kind: "answer" }> => x.kind === "answer");
   const turnEnds = items.filter((x): x is Extract<PathItem, { kind: "turn-end" }> => x.kind === "turn-end");
-  const byAnswer = (words: string | null, good: boolean): StepKind => (words === null ? "quiet" : /^threw\b/.test(words) ? "call-threw" : good ? "call-returned" : "other");
   const out: StepKind[] = [];
+  let ended = false;
   for (const s of steps) {
     const f = s.field;
     let m: RegExpExecArray | null;
-    // Review minor 2: a folded step keeps its first step's field when its first and last match; its words start "steps N–M".
-    if (/^steps \d+/.test(s.words)) {
-      out.push("other");
-      continue;
-    }
-    if (f === "run.trace: the start event" || f === "run.trace: calls begun at the same moment" || f === "run.trace: call_start" || f === "the test's own scripted wait" || f.startsWith("run.trace: event times on the virtual clock")) out.push("quiet");
+    if (ended) {
+      // Anything after the ending: plain code's words only, and it must still be a field the act writes.
+      if (!/^(run\.trace: after the code had ended|run\.trace: where Atlas stops claiming)$/.test(f)) return null;
+      out.push("plain");
+    } else if (/^steps \d+/.test(s.words)) {
+      // A folded step (renderer/authors/run-act.ts fitAct): its words must be the fold's own shape, and its field one the act writes.
+      if (!/^steps \d+–\d+: [A-Za-z0-9 ,.()_$-]+$/.test(s.words) || !FOLDABLE.test(f)) return null;
+      out.push("caption");
+    } else if (f === "run.trace: the start event" || f === "run.trace: calls begun at the same moment" || f === "run.trace: call_start" || f === "the test's own scripted wait" || f.startsWith("run.trace: event times on the virtual clock")) out.push("caption");
     else if ((m = /^run\.trace: (.+)'s answer to call (\d+)$/.exec(f))) {
-      const it = answers.find((a) => a.name === m![1] && a.n === Number(m![2]));
-      if (!it) return null;
-      out.push(byAnswer(it.words, it.good));
+      if (!answers.some((x) => x.name === m![1] && x.n === Number(m![2]))) return null;
+      out.push("caption");
     } else if ((m = /^run\.trace: (.+) call (\d+)$/.exec(f))) {
-      const it = calls.find((a) => a.name === m![1] && a.n === Number(m![2]));
-      if (!it) return null;
-      out.push(byAnswer(it.answer, it.good));
+      if (!calls.some((x) => x.name === m![1] && x.n === Number(m![2]))) return null;
+      out.push("caption");
     } else if (f === "run.trace: call_returned / call_threw") {
-      const it = turnEnds.find((t) => t.words === s.words);
-      if (!it) return null;
-      out.push(it.good ? "call-returned" : "call-threw");
+      if (!turnEnds.some((t) => t.words === s.words)) return null;
+      out.push("plain");
     } else if (f.startsWith("run.result.measured.outcome")) {
       // The page's words must start with the server's own words for the ending (it may add the chute's line).
       if (!end || !s.words.startsWith(end.words.slice(0, 40))) return null;
-      out.push(outcome === "returned" || /^returns?\b/.test(end.words) ? "end-returned" : outcome === "threw" || /^thr(ew|ows)\b/.test(end.words) ? "end-threw" : outcome === "never_settled" || outcome === "pending" || outcome === "still_running_at_watch_limit" || outcome === "stopped" ? "end-unsettled" : "other");
-    } else if (f.startsWith("helpers.steps")) out.push(/ and throws$/.test(s.words) ? "helper-threw" : "other");
-    else if (f === "run.trace: after the code had ended"  || f === "run.trace: where Atlas stops claiming" || f === "several recorded steps, folded" || /^steps \d+/.test(s.words)) out.push("other");
-    else return null;
+      out.push("plain");
+      ended = true;
+    } else if (f.startsWith("helpers.steps")) out.push("caption");
+    else if (f === "run.trace: after the code had ended" || f === "run.trace: where Atlas stops claiming") {
+      out.push("plain");
+      ended = true;
+    } else return null;
   }
   return out;
 }
 
 export function createPartTalk(deps: PartTalkDeps) {
-  /** Per person (whoOf) and file: the person's questions and Muse Wonder's checked answers, latest last. */
+  /**
+   * Review round 2 (M-A): per person (whoOf) and PART NAME, not file bytes: a comment added to the file keeps the answers with the part.
+   * Any later round of that person on a file with a part of that name carries them to every bettor.
+   */
   const asks = new Map<string, Map<string, { part: string; question: string; answer: string; model: string }[]>>();
+  /** Review round 2 minor 1: asks on their way, per person and part, so concurrent asks can't pass the cap. */
+  const reserved = new Map<string, number>();
+  const namesIn = (source: string | undefined, language: string | undefined): string[] => {
+    try {
+      return source && language ? [...new Set(fileOutline(source, language as "js" | "ts" | "py").parts.map((p) => p.name))] : [];
+    } catch {
+      return [];
+    }
+  };
+  const asksFor = (who: string, codeSha256: string, source?: string, language?: string) => {
+    // Review round 2 (M-D): the example's rounds never carry answers, so their recorded AI answers keep replaying.
+    if (codeSha256 === EXAMPLE_SHA) return [];
+    const mine = asks.get(who);
+    if (!mine) return [];
+    return namesIn(source, language).flatMap((n) => mine.get(n) ?? []);
+  };
   const picks = new Map<string, Promise<PickResult>>();
   const captions = new Map<string, Promise<CaptionResult>>();
   const keep = <V>(m: Map<string, V>, k: string, v: V) => {
@@ -164,9 +189,10 @@ export function createPartTalk(deps: PartTalkDeps) {
         });
       }
       const r = await p;
-      if (!r.ok) return none(r.reason, { refused: /plain code refused|picked no part/.test(r.reason) });
+      if (!r.ok) return none(r.reason, { refused: /picked no part/.test(r.reason) });
       // The kinds plain code told it about, in the page's words (never the model's): the page may show them beside the pick.
-      return c.json({ ok: true, model: r.model, part: r.part, reason: r.reason, kinds: kinds.map((k) => KIND_PHRASE[k] ?? k) });
+      // Review round 2 (M-B): only the part comes from Muse Wonder; the page builds the words from the kind and the part's checked line.
+      return c.json({ ok: true, model: r.model, part: r.part, kinds: kinds.map((k) => KIND_PHRASE[k] ?? k) });
     });
 
     app.post("/paste/captions", async (c) => {
@@ -211,25 +237,33 @@ export function createPartTalk(deps: PartTalkDeps) {
       const { round, source, language } = got;
       // D19: only once the person's bet on this round is sealed. Before that a person could get words the AI bettors can't.
       if (!round.bets.some((b) => b.who === "human")) return c.json({ error: "ask after you lock your bet on this round: before that, every bettor bets on the same words", locked: false }, 409);
+      // Review round 2 (M-D): not on the example: an answer would change its bettor text, and its AI answers are recordings of that text.
+      if (round.experiment.target.codeSha256 === EXAMPLE_SHA) return c.json({ ok: false, model: PART_TALK_MODEL, reason: "Ask works on your own code", example: true }, 409);
       const part = fileOutline(source, language).parts.find((p) => p.name === parsed.data.part);
       if (!part) return c.json({ error: `this file has no part named ${parsed.data.part}` }, 400);
       const q = checkQuestion(parsed.data.question);
       if (!q.ok) return c.json({ error: q.reason }, 400);
       const none = (reason: string, extra: Record<string, unknown> = {}) => c.json({ ok: false, model: PART_TALK_MODEL, reason, ...extra });
       if (!deps.chat) return none("this server asks no Meta model");
-      // Review M2: answers are never dropped to make room (the person would still know one the AIs no longer get): past the cap, no ask.
-      const kept = asks.get(deps.whoOf(c, sessionId))?.get(round.experiment.target.codeSha256)?.length ?? 0;
-      if (kept >= ASKS_KEPT_PER_FILE) return none(`you have asked ${ASKS_KEPT_PER_FILE} questions about this file; Atlas keeps no more`, { full: true });
+      // Review M2 / round 2 minor 1: past the cap no ask (none is ever dropped), counting asks still on their way; a slot is taken now.
+      const who = deps.whoOf(c, sessionId);
+      const slot = `${who}|${part.name}`;
+      const kept = (asks.get(who)?.get(part.name)?.length ?? 0) + (reserved.get(slot) ?? 0);
+      if (kept >= ASKS_KEPT_PER_FILE) return none(`you have asked ${ASKS_KEPT_PER_FILE} questions about ${part.name}; Atlas keeps no more`, { full: true });
       const allowed = deps.takeAsk(c);
       if (!allowed.ok) return none(allowed.reason);
+      reserved.set(slot, (reserved.get(slot) ?? 0) + 1);
+      const release = () => {
+        const n = (reserved.get(slot) ?? 1) - 1;
+        if (n <= 0) reserved.delete(slot);
+        else reserved.set(slot, n);
+      };
       const r = await runAsk({ source, language, part: { name: part.name, lineStart: part.lineStart, lineEnd: part.lineEnd }, question: q.text }, { chat: deps.chat, log: sessionEmitter(deps.agentLog, sessionId) }).catch(() => ({ ok: false as const, model: PART_TALK_MODEL, reason: "the model call failed" }));
+      release();
       if (!r.ok) return none(r.reason, "offTopic" in r && r.offTopic ? { offTopic: true } : {});
-      // Kept for this file in this session: every later round on it puts these words in every bettor's text (D19).
-      const sha = round.experiment.target.codeSha256;
-      const who = deps.whoOf(c, sessionId);
+      // Kept for this person and this part's name: every later round with a part of that name puts these words in every bettor's text (D19).
       const mine = asks.get(who) ?? new Map();
-      const list = [...(mine.get(sha) ?? []), { part: part.name, question: q.text, answer: r.answer, model: r.model }];
-      mine.set(sha, list);
+      mine.set(part.name, [...(mine.get(part.name) ?? []), { part: part.name, question: q.text, answer: r.answer, model: r.model }]);
       keep(asks, who, mine);
       return c.json({ ok: true, model: r.model, part: part.name, answer: r.answer });
     });
@@ -237,9 +271,9 @@ export function createPartTalk(deps: PartTalkDeps) {
 
   return {
     register,
-    /** D19: the lines every bettor of a new round on this file gets, from this person's earlier questions about it (any session). */
-    asksForText: (c: Context, sessionId: string, codeSha256: string): string[] => asksForBettors(asks.get(deps.whoOf(c, sessionId))?.get(codeSha256) ?? []),
-    /** Review M1: how many answers this person holds about this file now. A round remembers it when its text is written. */
-    askCount: (c: Context, sessionId: string, codeSha256: string): number => asks.get(deps.whoOf(c, sessionId))?.get(codeSha256)?.length ?? 0,
+    /** D19: the lines every bettor of a new round gets, from this person's earlier questions about parts this file has (by name, any session). */
+    asksForText: (c: Context, sessionId: string, t: { codeSha256: string; source?: string; language?: string | null }): string[] => asksForBettors(asksFor(deps.whoOf(c, sessionId), t.codeSha256, t.source, t.language ?? undefined)),
+    /** Review M1, by the same key: how many of this person's answers a round on this file would carry now. */
+    askCount: (c: Context, sessionId: string, t: { codeSha256: string; source?: string; language?: string | null }): number => asksFor(deps.whoOf(c, sessionId), t.codeSha256, t.source, t.language ?? undefined).length,
   };
 }

@@ -60,21 +60,23 @@ function checkLine(raw: unknown, caps: { words: number; chars: number; digits: b
 
 // ---- 1. the pick ----
 
-export const PICK_REASON_MAX_WORDS = 22;
-export const PICK_REASON_MAX_CHARS = 160;
 
 /**
- * Muse Wonder's pick, checked. The part must be one of `bettable` (functions Atlas can call in this file). The reason goes through the
- * summary's own checker (no ending, no result, no number as digits or words, no judgment), with a few more words of room.
+ * Review round 2 (M-B): Muse Wonder's pick is only WHICH part: an exact name from the parts Atlas can call. Its free text is never shown.
  */
-export function checkPick(answer: unknown, bettable: readonly string[]): { ok: true; part: string; reason: string } | { ok: false; reason: string } {
+export function checkPick(answer: unknown, bettable: readonly string[]): { ok: true; part: string } | { ok: false; reason: string } {
   const a = answer && typeof answer === "object" && !Array.isArray(answer) ? (answer as Record<string, unknown>) : {};
   if (typeof a.part !== "string" || !bettable.includes(a.part)) return { ok: false, reason: "it picked no part Atlas can call in this file" };
-  const r = checkSummaryLine(a.reason, { words: PICK_REASON_MAX_WORDS, chars: PICK_REASON_MAX_CHARS });
-  if (!r.ok) return { ok: false, reason: `plain code refused its reason (${r.reason})` };
-  const claim = claimIn(r.text);
-  if (claim) return { ok: false, reason: `plain code refused its reason (uses "${claim}")` };
-  return { ok: true, part: a.part, reason: r.text };
+  return { ok: true, part: a.part };
+}
+
+/**
+ * The reason on screen, built by plain code from two things: the kind of question the person misses (their own record, not about the code)
+ * and the part's already-checked summary line, which every bettor's text holds, or its natural name. No word of it is Muse's free text.
+ */
+export function pickReasonWords(kindPhrase: string, part: { line?: string | null; name?: string | null }): string {
+  const role = part.line ? ` Muse Wonder's line for this part: ${part.line}` : part.name ? ` Muse Wonder calls this part "${part.name}".` : "";
+  return `You often miss ${kindPhrase}.${role}`;
 }
 
 /**
@@ -97,62 +99,38 @@ export const CAPTION_MAX_CHARS = 90;
 export const CAPTION_MAX_STEPS = 24;
 
 /**
- * What plain code knows a recorded step was, from the server's own copy of the run where it can tell:
- * - "*-returned" / "*-threw": the step's call or the run ended that way;
- * - "end-unsettled": the run never settled, or was still running when Atlas stopped;
- * - "quiet": nothing returned or threw at this step (Atlas called, time passed, Atlas waited);
- * - "other": plain code can't tell, so only the claim words are checked.
+ * Review round 2 (M-C): Muse Wonder never captions how the run ended. Each step is either "caption" (Muse may add a line) or "plain"
+ * (plain code's words only): the ending, a sequence call's ending, and everything after the ending are plain.
  */
-export type StepKind = "call-returned" | "call-threw" | "end-returned" | "end-threw" | "end-unsettled" | "helper-threw" | "quiet" | "other";
+export type StepKind = "caption" | "plain";
 
-// Review M5: wider lists, and a word right after "never", "not", "no", "doesn't", "without" (and the like) is not a claim that it happened.
-const RETURN_CLAIM = /\b(returns?|returned|returning|resolves?|resolved|succeeds?|succeeded|success|successful(ly)?|gives? back|gave back|hands? back|hands? over|comes? back with|came back with|answers? with|answered with|yields?|yielded|delivers?|delivered)\b/gi;
-const THROW_CLAIM = /\b(throws?|threw|thrown|throwing|raises?|raised|rejects?|rejected|crash(es|ed)?|errors? out|fails?|failed)\b/gi;
-/** On a step where nothing has happened yet, only a past tense claims it did ("waits for it to return" is honest). */
-const RETURN_PAST = /\b(returned|resolved|succeeded|gave back|came back with|answered with|yielded|delivered)\b/gi;
-const THROW_PAST = /\b(threw|thrown|raised|rejected|crashed|failed|errored)\b/gi;
-const ENDING_CLAIM = /\b(finish(es|ed)?|complete[sd]?|ends|ended|stops|stopped)\b/gi;
-const NEGATED = /\b(never|not|no|doesn't|does not|didn't|did not|won't|without|nothing|before it|until it)\s+(\w+\s+)?$/i;
+/**
+ * Words about how a call or a run turns out, refused in every caption (whole words and their forms, small letters). "failure" and
+ * "failures" as a noun about an earlier try stay allowed, as in R9's summary ("after the first failure").
+ */
+export const CAPTION_OUTCOME_WORDS = [
+  "return", "returns", "returned", "returning", "get", "gets", "got", "getting", "gotten", "produce", "produces", "produced", "producing",
+  "provide", "provides", "provided", "providing", "give", "gives", "gave", "given", "giving", "yield", "yields", "yielded", "yielding",
+  "deliver", "delivers", "delivered", "delivering", "result", "results", "resulted", "value", "values", "succeed", "succeeds", "succeeded",
+  "succeeding", "success", "successful", "successfully", "work", "works", "worked", "working", "fail", "fails", "failed", "failing",
+  "throw", "throws", "threw", "thrown", "throwing", "raise", "raises", "raised", "raising", "reject", "rejects", "rejected", "rejecting",
+  "rejection", "timeout", "timeouts", "done", "finish", "finishes", "finished", "finishing", "end", "ends", "ended", "ending", "hang",
+  "hangs", "hung", "hanging", "never", "stall", "stalls", "stalled", "stalling", "forever", "complete", "completes", "completed",
+  "completing", "completion", "resolve", "resolves", "resolved", "outcome", "crash", "crashes", "crashed",
+] as const;
+export const CAPTION_OUTCOME_PHRASES = ["hands back", "hand back", "handed back", "error out", "errors out", "errored out", "times out", "time out", "timed out", "timing out", "gives up", "give up", "gave up", "giving up", "comes back", "came back", "come back", "failure of the call", "failure of this call"] as const;
 
-/** Why a caption contradicts what plain code knows about its step, or null. */
-export function contradicts(text: string, kind: StepKind): string | null {
-  const says = (re: RegExp): string | null => {
-    for (const m of text.matchAll(re)) if (!NEGATED.test(text.slice(0, m.index))) return m[0];
-    return null;
-  };
-  switch (kind) {
-    case "call-threw":
-    case "helper-threw":
-    case "end-threw": {
-      const w = says(RETURN_CLAIM);
-      return w ? `says "${w}" on a step that threw` : null;
-    }
-    case "call-returned":
-    case "end-returned": {
-      // An earlier failure may be told on the step that returned ("after it fails twice, it returns"): only a throw word counts here,
-      // unless the step is a single call's answer, where "fails" can only be about this call.
-      const w = kind === "call-returned" ? says(THROW_CLAIM) : says(/\b(throws?|threw|thrown|throwing|raises?|raised|rejects?|rejected|crash(es|ed)?|errors? out)\b/gi);
-      return w ? `says "${w}" on a step that returned` : null;
-    }
-    case "end-unsettled": {
-      const w = says(RETURN_CLAIM) ?? says(THROW_CLAIM) ?? says(ENDING_CLAIM);
-      return w ? `says "${w}" on a run that never ended` : null;
-    }
-    case "quiet": {
-      const w = says(RETURN_PAST) ?? says(THROW_PAST);
-      return w ? `says "${w}" on a step where nothing returned or threw` : null;
-    }
-    default:
-      return null;
-  }
-}
-
-/** One caption, checked against its step's kind. */
-export function checkCaption(raw: unknown, kind: StepKind): Checked {
+/** One caption, or why it is refused. */
+export function checkCaption(raw: unknown): Checked {
   const c = checkLine(raw, { words: CAPTION_MAX_WORDS, chars: CAPTION_MAX_CHARS, digits: false });
   if (!c.ok) return c;
-  const why = contradicts(c.text, kind);
-  return why ? { ok: false, reason: why } : c;
+  const words = wordsOf(c.text);
+  const flat = ` ${words.join(" ")} `;
+  const phrase = CAPTION_OUTCOME_PHRASES.find((x) => flat.includes(` ${x} `));
+  if (phrase) return { ok: false, reason: `says "${phrase}", which is about how a call turns out` };
+  const w = words.find((x) => (CAPTION_OUTCOME_WORDS as readonly string[]).includes(x));
+  if (w) return { ok: false, reason: `uses "${w}", a word about how a call turns out` };
+  return c;
 }
 
 /** The model's captions, checked: {"captions": {"0": "...", ...}} keyed by step index. Refused ones are dropped and counted. */
@@ -164,7 +142,12 @@ export function checkCaptions(answer: unknown, kinds: readonly StepKind[]): { ca
   let refused = 0;
   kinds.forEach((kind, i) => {
     if (!Object.prototype.hasOwnProperty.call(got, String(i))) return;
-    const c = checkCaption(got[String(i)], kind);
+    if (kind === "plain") {
+      refused++;
+      reasons.push(`step ${i}: plain code's words only (the ending)`);
+      return;
+    }
+    const c = checkCaption(got[String(i)]);
     if (c.ok) captions[i] = c.text;
     else {
       refused++;
@@ -202,7 +185,7 @@ export function checkQuestion(raw: unknown): { ok: true; text: string } | { ok: 
 export function asksForBettors(asks: readonly { part: string; question: string; answer: string; model: string }[]): string[] {
   if (asks.length === 0) return [];
   return [
-    "Earlier, after locking a bet, the person asked Muse Wonder (Meta's AI) about parts of this file. The person's page showed these same words. Its words, not a check:",
+    "Earlier, after locking a bet, the person asked Muse Wonder (Meta's AI) about parts with these names (in this file or another with a part of the same name). The person's page showed these same words. Its words, not a check:",
     ...asks.map((a) => `- ${a.part}: asked "${a.question}"; ${a.model} answered: ${a.answer}`),
   ];
 }
@@ -227,11 +210,12 @@ export const PART_TALK_WORDS = {
   askPaid: "One paid AI call.",
   askLegend: "Muse Wonder's answer (Meta's AI), not a check",
   askOffTopic: "Muse Wonder answers questions about this part only.",
-  askFull: "You have asked the most questions Atlas keeps for this file.",
+  askFull: "You have asked the most questions Atlas keeps for this part.",
+  askExample: "Ask works on your own code. The example's AI answers are recorded, so its words stay as they are.",
   askRefused: "Muse Wonder's answer didn't pass Atlas's checks, so it isn't shown.",
   // 4. the pick
   pickHeading: "Muse Wonder's pick for you",
-  pickLegend: "Its words (Meta's AI), from your record. Not a check.",
+  pickLegend: "Muse Wonder chose the part from your record; the words below are Atlas's. Not a check.",
   pickAccept: "Bet on this part",
   pickOther: "Pick another part",
   pickNoRecord: "No record yet, so Muse Wonder's usual choice is used. Play a few rounds and Atlas aims at what you miss.",
@@ -246,8 +230,8 @@ export const PART_TALK_WORDS = {
 
 /** The lines a record page states about what Atlas keeps and how Muse Wonder uses it (DAMI: placeholder wording). */
 export const REMEMBER_WORDS = {
-  what: "Atlas remembers, for each of your bets: the kind of question, whether it matched, and whether the test made something fail. Never your code, never the bet question's words, never your answer.",
-  asks: "What you ask about a part after locking a bet is kept too, with Muse Wonder's answer, in the server's memory: the AIs that bet with you get the same words in your later rounds on that file, so nobody bets on more than the others.",
+  what: "Atlas remembers, for each of your bets: the kind of question, whether it matched, and whether the test made something fail. Never your code, the bet's question or what you bet.",
+  asks: "Questions you ask about a part, and Muse Wonder's answers, ARE kept, in the server's memory, by the part's name: the AIs that bet with you get the same words in your later rounds on any file with a part of that name, so nobody bets on more than the others.",
   whereInvite: "Kept for your invite code on this server, on disk: it is still here after a restart.",
   whereInviteMemory: "Kept for your invite code in the server's memory only: a restart clears it.",
   whereBrowserDisk: "Kept for this browser on this server (no invite code), on disk.",

@@ -130,7 +130,29 @@ export const MachineSheet = forwardRef<MachineControl, { drawn: MachineDrawn; re
     const svg = host.current?.querySelector("svg");
     if (!svg) return;
     for (const el of svg.querySelectorAll("[data-aimed]")) el.removeAttribute("data-aimed");
-    if (aimed) for (const el of svg.querySelectorAll(".m-part[data-part]")) if ((el.getAttribute("data-part") ?? "").split("#")[0] === aimed) el.setAttribute("data-aimed", "");
+    for (const el of svg.querySelectorAll(".m-aim-label")) el.remove();
+    if (!aimed) return;
+    const hit = [...svg.querySelectorAll(".m-part[data-part]")].filter((el) => (el.getAttribute("data-part") ?? "").split("#")[0] === aimed);
+    for (const el of hit) el.setAttribute("data-aimed", "");
+    // Review round 2 minor 6: not colour only: one small starred label above the picked box (the box may be drawn in several pieces).
+    try {
+      const boxes = hit.map((el) => (el as SVGGraphicsElement).getBBox()).filter((b) => b.width > 0);
+      if (boxes.length === 0) return;
+      const x0 = Math.min(...boxes.map((b) => b.x));
+      const x1 = Math.max(...boxes.map((b) => b.x + b.width));
+      const y0 = Math.min(...boxes.map((b) => b.y));
+      const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      t.setAttribute("class", "m-t m-i m-aim-label");
+      t.setAttribute("data-testid", "machine-aim-label");
+      t.setAttribute("x", String(Math.round((x0 + x1) / 2)));
+      t.setAttribute("y", String(Math.round(y0 - 8)));
+      t.setAttribute("text-anchor", "middle");
+      t.setAttribute("font-size", "13");
+      t.textContent = "★ Muse Wonder's pick for you";
+      svg.append(t);
+    } catch {
+      // no layout (a test DOM): the strip above the drawing still names the part
+    }
   }, [aimed, drawn.svg]);
   const show = (el: Element) => {
     const part = el.closest("[data-part]");

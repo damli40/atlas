@@ -3,7 +3,7 @@
 // (src/part-talk.ts). No repair try: nothing on screen waits on these. Log lines name the model, its tokens and cost; never the code,
 // never the words.
 
-import { checkAnswer, checkCaptions, checkPick, CAPTION_MAX_WORDS, CLAIM_PHRASES, CLAIM_STEMS, CLAIM_WORDS, KIND_PHRASE, PICK_REASON_MAX_WORDS, type StepKind } from "../../../src/part-talk";
+import { checkAnswer, checkCaptions, checkPick, CAPTION_MAX_WORDS, CAPTION_OUTCOME_PHRASES, CAPTION_OUTCOME_WORDS, CLAIM_PHRASES, CLAIM_STEMS, CLAIM_WORDS, type StepKind } from "../../../src/part-talk";
 import { NAME_BANNED_STEMS, NAME_BANNED_WORDS } from "../../../src/natural-names";
 import { SUMMARY_BANNED_PHRASES, SUMMARY_OUTCOME_WORDS } from "../../../src/file-summary";
 import { WONDER_MODEL } from "../../../src/paste-words";
@@ -63,10 +63,10 @@ export interface PickInput {
   /** The kinds the record names, so the prompt can give their allowed words. */
   kinds: readonly string[];
 }
-export type PickResult = { ok: true; model: string; part: string; reason: string; usage?: Usage } | { ok: false; model: string; reason: string; usage?: Usage };
+export type PickResult = { ok: true; model: string; part: string; usage?: Usage } | { ok: false; model: string; reason: string; usage?: Usage };
 
 export function buildPickMessages(i: PickInput): ChatMessage[] {
-  const phrases = i.kinds.filter((k) => KIND_PHRASE[k]).map((k) => `${k}: "${KIND_PHRASE[k]}"`);
+  // Review round 2 (M-B): Muse Wonder names a part and nothing else. The words on screen are built by plain code.
   const user = [
     ...codeBlock(i.source, i.language),
     "",
@@ -78,16 +78,10 @@ export function buildPickMessages(i: PickInput): ChatMessage[] {
     "",
     "TASK",
     `${PICK_TASK}. Choose the ONE part above where a question of the kind this person misses most is most likely to come up, because of what that part does.`,
-    `"reason": one sentence of at most ${PICK_REASON_MAX_WORDS - 4} words for the person, naming the kind of question they miss and the part's role, like: "You often miss timing questions; this part waits between tries".`,
-    phrases.length ? `Name the kind of question with these words: ${phrases.join("; ")}.` : "",
-    "Say the part's role only. Never say what the part or a call will do at the end or in a failure case: no results, no values, no errors, no endings, no counts, no times, no numbers.",
-    "No digits and no numbers written as words, no code names, no quotes, no dashes.",
-    `Never use these words, or words that start with them: ${[...NAME_BANNED_STEMS, ...NAME_BANNED_WORDS].join(", ")}.`,
-    `Never use these words or phrases: ${[...SUMMARY_BANNED_PHRASES, ...SUMMARY_OUTCOME_WORDS].join(", ")}.`,
     "",
     "Return only this JSON object, with the part's exact name:",
-    `{"part": "<name>", "reason": "<sentence>"}`,
-  ].filter((l, k, all) => l !== "" || all[k - 1] !== "");
+    `{"part": "<name>"}`,
+  ];
   return [
     { role: "system", content: SYSTEM_PREAMBLE },
     { role: "user", content: user.join("\n") },
@@ -99,7 +93,7 @@ export async function runPick(i: PickInput, deps: Deps = {}): Promise<PickResult
   const r = await ask(deps, model, buildPickMessages(i), "a pick");
   if (!r.ok) return { ok: false, model, reason: r.reason, ...(r.usage ? { usage: r.usage } : {}) };
   const c = checkPick(r.json, i.bettable.map((p) => p.name));
-  return c.ok ? { ok: true, model, part: c.part, reason: c.reason, usage: r.usage } : { ok: false, model, reason: c.reason, usage: r.usage };
+  return c.ok ? { ok: true, model, part: c.part, usage: r.usage } : { ok: false, model, reason: c.reason, usage: r.usage };
 }
 
 // ---- the run captions ----
@@ -121,17 +115,18 @@ export function buildCaptionMessages(i: CaptionInput): ChatMessage[] {
     "",
     `THE TEST ATLAS RAN: ${i.test}`,
     "",
-    "THE RECORDED STEPS OF THE RUN (plain code's words, in order; numbered from 0)",
-    ...i.steps.map((s, k) => `${k}. ${s}`),
+    "THE RECORDED STEPS OF THE RUN BEFORE IT ENDED (plain code's words, in order, with their numbers; how the run ended is not captioned)",
+    ...i.steps.flatMap((s, k) => (i.kinds[k] === "caption" ? [`${k}. ${s}`] : [])),
     "",
     "TASK",
     `${CAPTION_TASK}. For each step, one short plain caption of at most ${CAPTION_MAX_WORDS} words that tells a person who did not write this code what is happening in the code at that step, in everyday words.`,
-    "Stay true to the step's own words: never say a call returned when the step says it threw, or threw when it says it returned, and never add a step.",
+    "Say what the code is doing at that step, never how a call or the run turns out: no word about returning, getting, giving, values, results, success, working, failing, throwing, errors out, timing out, giving up, finishing, ending, hanging or never. Never add a step.",
+    `Never use these words or phrases: ${[...CAPTION_OUTCOME_WORDS, ...CAPTION_OUTCOME_PHRASES].join(", ")}.`,
     "No digits, no code, no quotes.",
     claimRule,
     "",
     "Return only this JSON object, keyed by the step's number:",
-    `{"captions": {"0": "<caption>", "1": "<caption>"}}`,
+    `{"captions": {"<number>": "<caption>"}}`,
   ];
   return [
     { role: "system", content: SYSTEM_PREAMBLE },

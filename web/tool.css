@@ -816,7 +816,8 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 .c-part-bet{margin:0 0 8px}
 .c-part-ask-h{margin:6px 0 4px;font:600 13px/1.3 var(--ui);color:var(--ink-2)}
 .c-part-ask-row{display:flex;gap:6px;margin:0 0 2px}
-.c-part-ask-row input{flex:1;min-width:0;padding:6px 8px;border:1px solid var(--rule);border-radius:6px;font:400 14px/1.3 var(--ui);background:var(--raised,#fff);color:var(--ink)}
+.c-part-ask-row input{flex:1;min-width:0;padding:6px 8px;border:1px solid var(--rule);border-radius:6px;font:400 16px/1.3 var(--ui);background:var(--raised,#fff);color:var(--ink)}
 .c-part-answer{margin:8px 0 0}
 .c-part-ask-legend{font-style:normal;font-size:12.5px}
 .track-remember{margin-top:10px;padding-top:8px;border-top:1px solid var(--rule,#ddd)}
+.m-aim-label{fill:#8a1f17;font-style:italic}

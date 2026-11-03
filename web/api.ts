@@ -28,6 +28,8 @@ export interface TrackAnswer {
   person: "invite" | "browser" | "session";
   /** R14: where the server keeps it: on disk, or in memory only (a restart clears it). Absent on older servers. */
   kept?: "disk" | "memory";
+  /** R14 review round 2: false for a visitor with no code (they can't ask, so nothing of theirs is kept that way). */
+  asksKept?: boolean;
   record: TrackRecord;
   before?: TrackRecord | null;
 }
@@ -387,7 +389,7 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
       post<{ ok: boolean; model: string; summary: FileSummary | null; reason?: string }>("/paste/summary", { target: { ref: target.ref, codeSha256: target.codeSha256 } }),
     /** R14: Muse Wonder's pick of one part for this person, from their record. Not ok: the page keeps the usual choice. */
     pick: (target: Pick<Target, "ref" | "codeSha256">) =>
-      post<{ ok: boolean; model: string; part?: string; reason: string; noRecord?: boolean; refused?: boolean; kinds?: string[] }>("/paste/pick", { target: { ref: target.ref, codeSha256: target.codeSha256 } }),
+      post<{ ok: boolean; model: string; part?: string; reason?: string; noRecord?: boolean; refused?: boolean; kinds?: string[] }>("/paste/pick", { target: { ref: target.ref, codeSha256: target.codeSha256 } }),
     /** R14: one short caption per played step of a finished run, by Muse Wonder; checked by plain code against the recorded run. */
     captions: (experimentId: string, steps: readonly { words: string; field: string }[]) =>
       post<{ ok: boolean; model: string; captions: Record<string, string>; reason?: string }>("/paste/captions", { experimentId, steps: steps.map((s) => ({ words: s.words, field: s.field })) }),

@@ -4,6 +4,7 @@ import type { PartPanel } from "../../renderer/authors/part-panel";
 
 export function PartFacts({ part, className = "c-part", children, actions = null }: { part: PartPanel; className?: string; children?: React.ReactNode; /** R14: "Bet on this part" and "Ask about this part", under the facts. */ actions?: React.ReactNode }) {
   return (
+    <>
     <section className={className} aria-live="polite" aria-label={`About ${part.title}`} data-testid="part-panel" data-part={part.id}>
       {children}
       {part.natural && <p className="c-part-ai" data-testid="part-ai">{part.natural}</p>}
@@ -23,7 +24,9 @@ export function PartFacts({ part, className = "c-part", children, actions = null
         ))}
       </ul>
       {part.note && <p className="c-part-note" data-testid="part-names-note">{part.note}</p>}
-      {actions}
     </section>
+    {/* Review round 2 minor 5: the controls sit outside the live region, so typing a question is never read out as a panel change. */}
+    {actions}
+    </>
   );
 }

@@ -20,12 +20,7 @@
   "more": ""
  },
  {
-  "name": "3: before a bet is locked, the ask box says to lock first",
-  "ok": true,
-  "more": ""
- },
- {
-  "name": "3: …and has no question box",
+  "name": "3: on the example, the ask box says it works on your own code, with no question box",
   "ok": true,
   "more": ""
  },
@@ -50,7 +45,7 @@
   "more": "What the run did, step by step, with Muse Wonder's words (14)★ Muse Wonder's words (Meta's AI), not a checkAtlas calls fetchWithRetryMock caption for step zeroc"
  },
  {
-  "name": "3: after the lock the answer shows, labelled as Muse Wonder's words, not a check",
+  "name": "3: on the example the panel says Ask works on your own code",
   "ok": true,
   "more": ""
  },
@@ -67,10 +62,20 @@
  {
   "name": "4: Muse Wonder's pick (or why there is none) shows before the bet",
   "ok": true,
-  "more": "Muse Wonder's pick for you: mock helper step (getRate). Its words (Meta's AI), from your record. Not a check.Mock pick: you often miss timing questions; this part waits between triesBet on this part Pick another part"
+  "more": "Muse Wonder's pick for you: mock helper step (getRate). Muse Wonder chose the part from your record; the words below are Atlas's. Not a check.You often miss questions on how a call ends. Muse Wonder's line for this part: Mock line about this part.Bet on this part Pick another part"
  },
  {
-  "name": "4: the picked box is marked on the machine",
+  "name": "4: the picked box is marked on the machine, with words, not colour only",
+  "ok": true,
+  "more": ""
+ },
+ {
+  "name": "4: the reason is plain code's words: the kind you miss, then the part's checked line or name",
+  "ok": true,
+  "more": "You often miss questions on how a call ends. Muse Wonder's line for this part: Mock line about this part."
+ },
+ {
+  "name": "3: on your own file, before a bet is locked, the ask box says to lock first, with no question box",
   "ok": true,
   "more": ""
  },
@@ -83,6 +88,11 @@
   "name": "4: Lock in my bet is on screen with the pick above the drawing",
   "ok": true,
   "more": "{\"inView\":true,\"uncovered\":true,\"top\":432,\"bottom\":474,\"vh\":900}"
+ },
+ {
+  "name": "3: after the lock the answer shows, labelled as Muse Wonder's words, not a check",
+  "ok": true,
+  "more": ""
  },
  {
   "name": "5: the verdict has a record line once there are three bets of a kind",

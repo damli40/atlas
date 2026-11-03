@@ -1085,6 +1085,7 @@ export function createApp(opts: AppOptions = {}) {
       person: person.kind,
       // R14: where the record is kept, so the page can say it plainly: on disk, or in memory only (a restart clears it).
       kept: isExampleVisitor() || savedTrack.where === "memory" ? "memory" : "disk",
+      asksKept: !isExampleVisitor(),
       record: trackRecordOf(entries),
       ...(before !== undefined ? { before: /^[A-Za-z0-9_-]{1,64}$/.test(before) ? recordBefore(entries, before) : null } : {}),
     });
@@ -1280,9 +1281,9 @@ export function createApp(opts: AppOptions = {}) {
       // R6 (D19): the natural names the person's screen shows for this file, labelled as the naming model's words.
       // R9 (D19): the file summary too, waited for at the same time as the names, so the round waits at most one short wait.
       const [named, summed] = await Promise.all([paste.namesForText(sessionId, target.codeSha256), paste.summaryForText(sessionId, target.codeSha256)]);
-      const labels = [...labelsForBettors(labeler.forPaste(sessionId, target, call.exportName)), ...(named ? namesForBettors(named.names, named.model) : []), ...(summed ? summaryForBettors(summed.summary, summed.model) : []), ...partTalk.asksForText(c, sessionId, target.codeSha256)];
+      const labels = [...labelsForBettors(labeler.forPaste(sessionId, target, call.exportName)), ...(named ? namesForBettors(named.names, named.model) : []), ...(summed ? summaryForBettors(summed.summary, summed.model) : []), ...partTalk.asksForText(c, sessionId, target)];
       // Review M1: how many of the person's answers this round's text holds. A bet is refused if they asked more since (another tab, an older round).
-      roundAsks.set(round, partTalk.askCount(c, sessionId, target.codeSha256));
+      roundAsks.set(round, partTalk.askCount(c, sessionId, target));
       const key = [target.codeSha256, target.language, line, canonicalJson(experiment.proposedBy), canonicalJson(experiment.params), round.repeatOf ?? "", body.quiz ? "quiz" : "", body.one ? "one" : "", ...labels].join("\n");
       const block = paste.fileBlock(target.codeSha256, target.source ?? "", line);
       const cap = pastedSeenCap(round.questions, MAX_PASTED_PROMPT_CHARS);
@@ -1496,7 +1497,7 @@ export function createApp(opts: AppOptions = {}) {
     // R14 review M1 (D19): the person asked Muse Wonder about this file after this round's text was written, so they would bet on words
     // the AI bettors of this round never got. Refused: a new round carries the answers to everyone.
     const heldAsks = roundAsks.get(round);
-    if (heldAsks !== undefined && partTalk.askCount(c, sessionId, round.experiment.target.codeSha256) > heldAsks) return c.json({ error: "you asked Muse Wonder about this file after this round's question was written, so the AIs betting here never saw that answer; start a new round (Try another question) and everyone gets it", askedSince: true }, 409);
+    if (heldAsks !== undefined && partTalk.askCount(c, sessionId, paste.sourceTarget(round.experiment.target) ?? round.experiment.target) > heldAsks) return c.json({ error: "you asked Muse Wonder about this file after this round's question was written, so the AIs betting here never saw that answer; start a new round (Try another question) and everyone gets it", askedSince: true }, 409);
     // Final review S2: after a run attempt that did not finish, the bets stay frozen (the same set runs again).
     const tried = round.attempts?.at(-1);
     if (tried) return c.json({ error: `bets on ${experimentId} are frozen: a run was tried at ${tried.startedAt} and did not finish; try the run again (the sealed bets stay as they are), so this bet was not sealed` }, 409);

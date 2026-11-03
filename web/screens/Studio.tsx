@@ -59,7 +59,7 @@ import { lineSpan } from "../../src/words";
 import type { Confidence } from "../../src/types";
 import { FeltRecord, FeltRoundLine, HowSurePicker } from "./FeltPanel";
 import { FELT_WORDS, SIMPLE_WORDS, shortModelName } from "../../src/paste-words";
-import { PART_TALK_WORDS, QUESTION_MAX_CHARS } from "../../src/part-talk";
+import { PART_TALK_WORDS, QUESTION_MAX_CHARS, pickReasonWords } from "../../src/part-talk";
 import type { ActStep } from "../../renderer/authors/run-act";
 
 type Lang = "js" | "ts" | "py";
@@ -426,7 +426,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const [helpersIn, setHelpersIn] = useState(false);
   useEffect(() => onRoundOpen?.(exp !== null && result === null), [exp, result, onRoundOpen]);
   // R14: Muse Wonder's pick for this person (one part, from their record), its run captions, and its answers about one part.
-  const [aim, setAim] = useState<{ sha: string; part: string; reason: string } | { sha: string; note: string } | null>(null);
+  const [aim, setAim] = useState<{ sha: string; part: string; kind: string } | { sha: string; note: string } | null>(null);
   const aimAsked = useRef<string | null>(null);
   const [capts, setCapts] = useState<{ runId: string; words: Record<number, string> } | null>(null);
   const captsAsked = useRef<string | null>(null);
@@ -726,7 +726,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       .then(
         (r) => {
           if (!live) return;
-          if (r.ok && r.part) setAim({ sha, part: r.part, reason: r.reason });
+          if (r.ok && r.part) setAim({ sha, part: r.part, kind: r.kinds?.[0] ?? "questions" });
           else if (r.noRecord) setAim({ sha, note: PART_TALK_WORDS.pickNoRecord });
           else if (r.refused) setAim({ sha, note: PART_TALK_WORDS.pickRefused });
           else setAim(null);
@@ -1541,6 +1541,14 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           </p>
         </div>
       );
+    // Review round 2 (M-D): the example's AI answers are recordings of its exact text; an answer would change that text.
+    if (readText === U1_EXAMPLE)
+      return (
+        <div className="c-part-ask" data-testid="part-ask">
+          <p className="c-part-ask-h">{PART_TALK_WORDS.askHeading}</p>
+          <p className="u1-sub" data-testid="part-ask-example">{PART_TALK_WORDS.askExample}</p>
+        </div>
+      );
     const key = exp ? `${exp.experiment.id}|${id}` : "";
     // D19: only once this round's bet is locked. Before that the box says so, and the server refuses too.
     const canAsk = exp !== null && sealed.length > 0;
@@ -1614,7 +1622,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   ) : aimShown && "part" in aim ? (
     <div className="m-aim" data-testid="pick">
       <p className="m-summary-k" data-testid="pick-legend">{`${PART_TALK_WORDS.pickHeading}: ${partName(aim.part)}. ${PART_TALK_WORDS.pickLegend}`}</p>
-      <p className="m-summary-t" data-testid="pick-reason">{aim.reason}</p>
+      {/* Review round 2 (M-B): built by plain code from the kind you miss and the part's checked summary line (every bettor's text has it) or its name. */}
+      <p className="m-summary-t" data-testid="pick-reason">{pickReasonWords(aim.kind, { line: summ && "summary" in summ && summ.sha === aim.sha ? (summ.summary.parts[aim.part] ?? null) : null, name: natural && "names" in natural && natural.sha === aim.sha ? (natural.names[aim.part] ?? null) : null })}</p>
       <p className="m-aim-row">
         {fn === aim.part && exp !== null ? (
           <span className="u1-sub" data-testid="pick-current">{PART_TALK_WORDS.sameAsNow}</span>
@@ -2103,7 +2112,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                       <p className="u1-status" role="status" data-testid="u1-sealed">
                         {`${SIMPLE_WORDS.locked} ${confidence ? `${FELT_WORDS.sealedSaid(confidence)} ` : ""}${busy ?? (models.thinking ? "Waiting for the AIs to lock in theirs…" : "")}`}
                       </p>
-                      <SealTags sealed={sealed} slots={models.slots} />
+                      <SealTags sealed={sealed} slots={models.slots} stopped={result !== null || error !== null} />
                     </>
                   )}
                   {sealed.length > 0 && !result && error && !busy && (
@@ -2283,13 +2292,15 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
 }
 
 /** D60: after sealing, each bettor's sealed tag with its real short hash, and a real seconds counter. Answers stay hidden. */
-function SealTags({ sealed, slots }: { sealed: readonly { sealedHash?: string }[]; slots: ReturnType<typeof useModelSlots>["slots"] }) {
+function SealTags({ sealed, slots, stopped = false }: { sealed: readonly { sealedHash?: string }[]; slots: ReturnType<typeof useModelSlots>["slots"]; /** The run answered (a result or a refusal): the timer stops. */ stopped?: boolean }) {
   const [started] = useState(() => Date.now());
   const [now, setNow] = useState(started);
   useEffect(() => {
+    if (stopped) return;
+    setNow(Date.now());
     const t = window.setInterval(() => setNow(Date.now()), 250);
     return () => window.clearInterval(t);
-  }, []);
+  }, [stopped]);
   const short = (list: readonly { sealedHash?: string }[]) => (list[0]?.sealedHash ? list[0].sealedHash.slice(0, 8) : "");
   const on = slots.filter((s) => s.status !== "off");
   return (

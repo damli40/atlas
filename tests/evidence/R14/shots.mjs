@@ -87,8 +87,7 @@ if (GATED) {
   await p.waitForTimeout(400);
   await p.screenshot({ path: `${OUT}/1-panel-getPrice-before.png` });
   say("1: the part panel offers Bet on this part", await p.isVisible('[data-testid="part-bet"]'));
-  say("3: before a bet is locked, the ask box says to lock first", /Ask after you lock your bet/.test((await text(p, '[data-testid="part-ask-locked"]')) ?? ""));
-  say("3: …and has no question box", (await p.$('[data-testid="part-ask-input"]')) === null);
+  say("3: on the example, the ask box says it works on your own code, with no question box", /Ask works on your own code/.test((await text(p, '[data-testid="part-ask-example"]')) ?? "") && (await p.$('[data-testid="part-ask-input"]')) === null);
   await clickPart(p, "backoffMs");
   say("1: a part Atlas can't call says so", /called from outside/.test((await text(p, '[data-testid="part-bet-not-callable"]')) ?? ""));
   await p.keyboard.press("Escape");
@@ -106,15 +105,10 @@ if (GATED) {
   await p.screenshot({ path: `${OUT}/3-verdict-step-list.png` });
   const list = (await text(p, '[data-testid="machine-act-list"]')) ?? "";
   say("2: after the run, the step list holds the captions, labelled", /Muse Wonder's words/.test(list) && /Mock caption/.test(list), list.slice(0, 160));
-  // ---- 3. Ask about this part, after the lock (the panel under the verdict) ----
+  // ---- 3. on the example, asking is not offered (its AI answers are recordings of its exact text) ----
   await p.click('[data-testid="machine-act-list"] > summary');
   await clickPart(p, "getPrice");
-  await p.fill('[data-testid="part-ask-input"]', "What does this part do?");
-  await p.click('[data-testid="part-ask-go"]');
-  await p.waitForSelector('[data-testid="part-ask-answer"]', { timeout: 15000 });
-  await p.waitForTimeout(300);
-  await p.screenshot({ path: `${OUT}/4-ask-answer.png` });
-  say("3: after the lock the answer shows, labelled as Muse Wonder's words, not a check", /Muse Wonder's answer \(Meta's AI\), not a check/.test((await text(p, '[data-testid="part-ask-answer"]')) ?? ""));
+  say("3: on the example the panel says Ask works on your own code", /Ask works on your own code/.test((await text(p, '[data-testid="part-ask-example"]')) ?? ""));
   // ---- 1. Bet on this part, from the panel under the verdict ----
   await p.click('[data-testid="part-bet"]');
   await p.waitForFunction(() => /getPrice/.test(document.querySelector('[data-testid="u1-test"]')?.textContent ?? ""), null, { timeout: 30000 });
@@ -136,7 +130,14 @@ if (GATED) {
   const pickText = (await text(p, '[data-testid="pick"]')) ?? (await text(p, '[data-testid="pick-note"]')) ?? "";
   say("4: Muse Wonder's pick (or why there is none) shows before the bet", picked, pickText);
   const aimed = await p.$('[data-testid="machine"] [data-aimed]');
-  say("4: the picked box is marked on the machine", aimed !== null);
+  say("4: the picked box is marked on the machine, with words, not colour only", aimed !== null && /pick for you/.test((await text(p, '[data-testid="machine-aim-label"]')) ?? ""));
+  say("4: the reason is plain code's words: the kind you miss, then the part's checked line or name", /^You often miss .+\.( Muse Wonder)?/.test((await text(p, '[data-testid="pick-reason"]')) ?? ""), (await text(p, '[data-testid="pick-reason"]')) ?? "");
+  await clickPart(p, "getRate");
+  await p.waitForTimeout(300);
+  await p.screenshot({ path: `${OUT}/7b-panel-before-lock-own-file.png` });
+  say("3: on your own file, before a bet is locked, the ask box says to lock first, with no question box", /Ask after you lock your bet/.test((await text(p, '[data-testid="part-ask-locked"]')) ?? "") && (await p.$('[data-testid="part-ask-input"]')) === null);
+  await p.keyboard.press("Escape");
+  await p.waitForTimeout(300);
   if (await p.$('[data-testid="pick-accept"]')) {
     await p.click('[data-testid="pick-accept"]');
     const ok = await p.waitForSelector('[data-testid="u1-seal"]', { timeout: 30000 }).then(() => true, () => false);
@@ -150,6 +151,14 @@ if (GATED) {
     await waitVerdict(p);
     await p.waitForTimeout(1500);
     await p.screenshot({ path: `${OUT}/9-third-verdict-record-line.png` });
+    // ---- 3. Ask about this part, after the lock, on your own file ----
+    await clickPart(p, "getRate");
+    await p.fill('[data-testid="part-ask-input"]', "What does this part do?");
+    await p.click('[data-testid="part-ask-go"]');
+    await p.waitForSelector('[data-testid="part-ask-answer"]', { timeout: 15000 });
+    await p.waitForTimeout(400);
+    await p.screenshot({ path: `${OUT}/4-ask-answer.png` });
+    say("3: after the lock the answer shows, labelled as Muse Wonder's words, not a check", /Muse Wonder's answer \(Meta's AI\), not a check/.test((await text(p, '[data-testid="part-ask-answer"]')) ?? ""));
     say("5: the verdict has a record line once there are three bets of a kind", await p.isVisible('[data-testid="m-record"]'), (await text(p, '[data-testid="m-record"]')) ?? "(none)");
   }
   // ---- 5. the record page ----

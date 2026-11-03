@@ -12,7 +12,23 @@ Each new piece of Muse Wonder's text (Meta's AI) works the way R6's names and R9
 
 **Where to look first:** `live/` (one real session, real Meta calls): `live/8-sample-pick.png` (the pick), `live/11-sample-verdict-steps.png` (captions in the step list and the record line), `live/5-example-ask.png` (an answer after the lock). Then `shots/2-act-with-caption.png` (a caption under the act while it plays, models mocked) and `nocode/G1-panel-getPrice-nocode.png` (what a visitor with no code sees).
 
-## Review round 1 (an adversarial review of the first build), read this first
+## Review round 2 (an independent review of c37cd8b), read this first
+
+The coordinator's decisions, all built. Where this section and the ones below disagree, this one is current.
+
+| Finding | What changed |
+|---|---|
+| **M-A, parity:** answers were kept by the file's exact bytes, so one extra comment line made a new fingerprint: the AIs lost the answer while the person kept it. | Answers are kept by person and **part name**. Any later round by that person on a file with a part of that name carries them to every bettor, whatever else changed. The "asked since this round was written" refusal (round 1's M1) counts by the same key. Cap: 5 answers per person and part. Test "M-A". |
+| **M-B, parity:** Muse's free-text pick reason could still describe behaviour ("keeps waiting on a source that stays silent") that the AIs never saw. | Muse now names only WHICH part (checked against the parts Atlas can call). The words on screen are plain code's: "You often miss <kind>." plus the part's already-checked summary line (the words every bettor sees), or its natural name. The legend says "Muse Wonder chose the part from your record; the words below are Atlas's." |
+| **M-C:** 8 wrong captions passed (success on a throw, a timeout on a return…); a step whose words began "steps N" skipped all checks; present-tense "returns" passed on not-yet steps. | Muse never captions the ending: the run's ending, a sequence call's ending and everything after show plain code's words only, and are not even in Muse's prompt. Every other caption must pass a broad outcome word list (return, gets, gives, value, result, succeeds, works, fails, throws, raises, rejects, times out, gives up, done, finished, ends, hangs, never, stalls, forever, completes and their forms; "failure" as a noun stays allowed). A folded step must have the fold's own shape and a field the act writes; nothing but "after the end" fields may follow the ending. The reviewer's captions were not handed over, so the test holds 8 made in the same shapes (all refused) and 5 honest middle captions (all pass). |
+| **M-D:** an ask on the example changed its bettor text, so its recorded AI answers stopped replaying (every later example round live and paid; the spent-code fallback broken). | No asking on the example: the panel says "Ask works on your own code" and the server refuses (409). Answers are never put into the example's rounds, even about a part of the same name elsewhere. Test: example rounds stay recorded after an ask. |
+| Minor 1: two asks at once could pass the 5-cap. | A slot is reserved before the model call and released after. Test: 10 at once, at most 5. |
+| Minor 2: without a browser id (the plugin) answers are keyed by session. | Logged in Limits. With an invite code they are per code. |
+| Minor 3: record page wording. | "What you ask is kept" is not shown to a visitor with no code; the first line no longer says answers are never kept, and a line says questions about a part and Muse's answers ARE kept and passed to the AIs. |
+| Minor 4–6 | Question box at 16 px (no phone zoom); the panel's buttons and box sit outside its live region; the picked box gets a starred label "★ Muse Wonder's pick for you", not only a tint. |
+| Bet timer | The "locked in … s" timer under the bet stops when the run answers (a result or a refusal). |
+
+## Review round 1 (an adversarial review of the first build)
 
 | Finding | What changed |
 |---|---|
@@ -60,7 +76,7 @@ D19: every bettor, the person and the AIs, bets on the same words.
 | Full vitest | after review round 1: 171 files passed, 1 failed, 2 skipped; **2,799 tests passed, 1 failed, 36 skipped**. The one failure is a time limit in a file R14 does not touch (x3-failure-labels M3: 78.7 ms against 50, under load); run alone it passed 3 of 3 (`vitest-timing-rerun.txt`). Before the review the full run was 2,798 passed, 0 failed. | `vitest.txt` |
 | New unit tests | `tests/unit/r14-part-talk.test.ts`: 24 tests (checkers with attack lines; ask refused before the lock with 0 calls; answer refused for claim words; off topic; hourly limit; answers in the next round's bettor text and on the page, across sessions, and not for another person; pick with no record asks nothing; pick prompt holds kinds and counts only; outcome-leaking reasons refused; captions refused before the run and for steps that don't match; contradicting captions dropped; none of the three on the proof card or in the proof file; the record page's words) | |
 | Changed test | `tests/unit/g1-invites.test.ts`: the three new routes added to its table of spending routes (each must answer 401 without a code) | |
-| Page checks, models mocked ($0) | 19 of 19 | `shots.txt`, `shots/` |
+| Page checks, models mocked ($0) | 21 of 21 (after round 2) | `shots.txt`, `shots/` |
 | Page checks, no invite code ($0) | 9 of 9: no request to the three routes, waitlist lines in the panel, "Lock in my bet" above the fold at 1280×800, 1440×900, 390×844 | `nocode.txt`, `nocode/` |
 | Live session, real Meta calls | all four features on the example file and on the "Fetch with retry" sample | `live/log.txt`, `live/answers.json`, `live/*.png` |
 
@@ -99,6 +115,9 @@ All 14 lines are in `tests/evidence/usage/usage.jsonl` (appended by the server's
 - **Asks add up to about 3,500 characters to a file's bettor text.** On a file near the prompt cap, later rounds can be refused (413). Not checked when the ask is made.
 - **Refused picks and captions are not cached**, so a reload asks again (within the hourly limits: 12 picks, 20 captions per person). The words of folded and helper steps the page sends are not checked against the server's own fold.
 - **The live session and the screenshots in `live/` and `nocode/` are from the first build**, before review round 1. The mocked page checks (`shots/`) were run again after it: 19 of 19.
+- **Without a browser id** (the Muse Code plugin, or no x-atlas-browser header) answers are kept per session; with an invite code they are per code.
+- **The pick's starred label on the machine** can sit across a pipe on a crowded drawing (`shots/7-pick.png`).
+- **After round 2,** the mocked page checks were run again: 21 of 21 (`shots.txt`) and 9 of 9 with no code (`nocode.txt`). The live session was not repeated (no spend in round 2); its captions on the ending and its free-text pick reason are from the earlier rules.
 - **Words are placeholders** (`DAMI:` in `src/part-talk.ts`).
 
 ## How to run it again

@@ -65,7 +65,7 @@ export function TrackRecordPanel({ api, refreshKey }: { api: Api; refreshKey: st
           </p>
         )}
         <p className="small" data-testid="track-remember-how">{REMEMBER_WORDS.how}</p>
-        <p className="small" data-testid="track-remember-asks">{REMEMBER_WORDS.asks}</p>
+        {answer && answer.asksKept !== false && <p className="small" data-testid="track-remember-asks">{REMEMBER_WORDS.asks}</p>}
       </div>
     </section>
   );
