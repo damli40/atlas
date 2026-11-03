@@ -278,6 +278,8 @@ export const TRACK_WORDS = {
   whoLocal: "Kept for this browser on this server (no invite code).",
   // R16 (review B2): one code may be shared, so each browser on it keeps its own record.
   whoInvite: "Kept for your invite code in this browser, on this server.",
+  // R16: past the code's cap of browsers with a record of their own (DAMI: placeholder wording).
+  whoShared: "This code is used in many browsers, so this browser's record is shared with the code's other late browsers, on this server.",
   beforeHeading: "Your record before this round",
   beforeNone: "This was your first judged round on this server.",
   wonderNote: "When you ask Muse Wonder for tests, it is told only the kinds of question where your bets most often didn't match, with their counts: no code, nothing about anyone else. The betting models are not told any of this.",

@@ -1985,7 +1985,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           {!open && <span className="u1-sub u1-paid u1-paid-beside" data-testid="u1-paid-bet-beside">{earlyState === "busy" ? CHANGE_WORDS.earlyWonder : earlyState === "done" ? CHANGE_WORDS.earlyDone : CHANGE_WORDS.paidWonder}</span>}
           {!open && (
             <div className="u1-fine u1-fine-rest" data-testid="u1-fine">
-              <p className="e-consent" data-testid="e-consent">{CONSENT_LINE}</p>
+              {!onExample && <p className="e-consent" data-testid="e-consent">{CONSENT_LINE}</p>}
               <p className="u1-fine-links">
                 <button type="button" className="u1-link" onClick={tryOwn} data-testid="u1-own">
                   {SIMPLE_WORDS.tryOwn}
@@ -2140,7 +2140,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                   )}
                   {/* R7 (D69): fine print. Everything else about this bet is one fold away; nothing here is removed. */}
                   <div className="u1-fine" data-testid="u1-fine">
-                    <p className="e-consent" data-testid="e-consent">{CONSENT_LINE}</p>
+                    {!onExample && <p className="e-consent" data-testid="e-consent">{CONSENT_LINE}</p>}
                     <p className="u1-fine-links">
                       <button type="button" className="u1-link" onClick={tryOwn} data-testid="u1-own">
                         {SIMPLE_WORDS.tryOwn}

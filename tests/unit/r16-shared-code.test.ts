@@ -6,7 +6,7 @@
 // - ATLAS_DEV_SANDBOXES_AT_ONCE sets how many sandboxes all codes together may hold (default 3; fly.toml 6).
 // Built from the reviewer's probe (final2/parity/shared-code.test.ts). Every model is mocked ($0).
 import { describe, expect, it } from "vitest";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runAs } from "../../server/access/context";
@@ -22,14 +22,17 @@ import { accessFromEnv } from "../../server/access/setup";
 import { SUMMARY_WORDS } from "../../src/file-summary";
 import { TRACK_WORDS } from "../../src/track-record";
 import { REMEMBER_WORDS } from "../../src/part-talk";
+import { readdirSync } from "node:fs";
+import { DEFAULT_BROWSERS_PER_CODE, diskTrackStore, ROSTER_DIR_NAME, TRACK_DIR_NAME } from "../../server/track-store";
 
 const JUDGES = { kind: "invite" as const, id: "inv_judges", label: "judges", role: "dev" as never, route: "x" };
+type Code = typeof JUDGES;
 const JUDGE_WORDS = "It waits longer each try (JUDGE-A-WORDS).";
 
-function judge(app: ReturnType<typeof makeApp>["app"], browser: string | null) {
+function judge(app: ReturnType<typeof makeApp>["app"], browser: string | null, code: Code = JUDGES) {
   let s: string | null = null;
   const call = (method: "GET" | "POST", p: string, b?: unknown) =>
-    runAs({ ...JUDGES }, async () => {
+    runAs({ ...code }, async () => {
       const h: Record<string, string> = { "content-type": "application/json" };
       if (browser) h["x-atlas-browser"] = browser;
       if (s) h["x-atlas-session"] = s;
@@ -40,7 +43,7 @@ function judge(app: ReturnType<typeof makeApp>["app"], browser: string | null) {
   return { post: (p: string, b: unknown) => call("POST", p, b), get: (p: string) => call("GET", p) };
 }
 
-function sharedCodeApp() {
+function sharedCodeApp(over: Parameters<typeof makeApp>[0] = {}) {
   const base = mockModels();
   const asked: string[] = [];
   const chat = async (a: ChatArgs): Promise<ChatResult> => {
@@ -52,7 +55,7 @@ function sharedCodeApp() {
     return base.chat(a);
   };
   const budget = createModelBudget({ spendCeilingUsd: 5 });
-  return { ...makeApp({ modelBets: { chat, budget, sparkOpen: { available: true } }, paste: { proposer: { chat } } }), asked };
+  return { ...makeApp({ modelBets: { chat, budget, sparkOpen: { available: true } }, paste: { proposer: { chat } }, ...over }), asked };
 }
 
 async function openRound(j: ReturnType<typeof judge>, params: unknown = allowedC) {
@@ -185,4 +188,54 @@ describe("R16 (M6): ATLAS_DEV_SANDBOXES_AT_ONCE", () => {
     expect(sandboxesFor(1, "6")).toBe(2);
     expect(sandboxesFor(4, "not a number")).toBe(3);
   });
+});
+
+describe("R16 (B2 follow-up): a public code cannot flood the record folder with made-up browser ids", () => {
+  const playOnce = async (j: ReturnType<typeof judge>) => {
+    const r = await openRound(j);
+    await lock(j, r.id);
+    expect((await j.post("/runs", { experimentId: r.id })).status).toBe(200);
+  };
+  const browser = (i: number) => `flood-browser-${String(i).padStart(8, "0")}`;
+  it("under the cap each browser is its own person; past it, new browsers share the code's one overflow record, and the page is told", async () => {
+    const { app } = sharedCodeApp({ browsersPerCode: 3 });
+    const js = [1, 2, 3, 4, 5].map((i) => judge(app, browser(i)));
+    await playOnce(js[0]!);
+    for (const j of js.slice(1, 3)) expect((await j.get("/track-record")).json).toMatchObject({ record: { counted: 0 } });
+    await playOnce(js[3]!);
+    const fourth = (await js[3]!.get("/track-record")).json;
+    const fifth = (await js[4]!.get("/track-record")).json;
+    expect(fourth).toMatchObject({ person: "invite", shared: true });
+    expect(fifth.shared).toBe(true);
+    expect(fifth.record.counted).toBe(fourth.record.counted);
+    expect(fourth.record.counted).toBeGreaterThan(0);
+    // The first three keep their own (a returning browser keeps its place) and are not marked shared.
+    const first = (await js[0]!.get("/track-record")).json;
+    expect(first.shared).toBeUndefined();
+    expect(first.record.counted).toBeGreaterThan(0);
+    expect((await js[1]!.get("/track-record")).json.record.counted).toBe(0);
+    expect(DEFAULT_BROWSERS_PER_CODE).toBe(50);
+    expect(TRACK_WORDS.whoShared).toMatch(/shared/);
+    expect(REMEMBER_WORDS.whereShared).toMatch(/shared/);
+  }, 60_000);
+
+  it("a flood on one code never pushes another code's record off the disk, and the cap survives a restart", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "r16-flood-"));
+    const OTHER: Code = { ...JUDGES, id: "inv_other", label: "other" };
+    const opts = () => ({ browsersPerCode: 3, trackStore: diskTrackStore(dir, { maxPeople: 5 }) });
+    const first = sharedCodeApp(opts());
+    await playOnce(judge(first.app, "other-judge-browser-0001", OTHER));
+    // Ten made-up browsers on the public code, each playing a round: without the cap, ten files would push the other code's out.
+    for (let i = 1; i <= 10; i++) await playOnce(judge(first.app, browser(i)));
+    const files = readdirSync(join(dir, TRACK_DIR_NAME)).filter((f) => f.endsWith(".json"));
+    expect(files.length).toBe(5); // the other code's 1 + the public code's 3 browsers + its overflow
+    expect((await judge(first.app, "other-judge-browser-0001", OTHER).get("/track-record")).json.record.counted).toBeGreaterThan(0);
+    // After a restart (a new app on the same folder) the roster is read back: an 11th browser still goes to the overflow.
+    const second = sharedCodeApp(opts());
+    expect((await judge(second.app, browser(11)).get("/track-record")).json.shared).toBe(true);
+    expect((await judge(second.app, browser(2)).get("/track-record")).json.shared).toBeUndefined();
+    // The roster folder holds hashes only: no code id, no browser id.
+    const rosterText = readdirSync(join(dir, ROSTER_DIR_NAME)).map((f) => f + readFileSync(join(dir, ROSTER_DIR_NAME, f), "utf8")).join("\n");
+    expect(rosterText).not.toMatch(/inv_judges|flood-browser/);
+  }, 120_000);
 });

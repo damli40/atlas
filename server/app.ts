@@ -133,7 +133,7 @@ import { oneQuestion, quizQuestionsFor } from "../src/quiz";
 import { pastedSeenCap } from "./meta/roles/claimant-bets";
 import { MAX_PASTED_PROMPT_CHARS } from "./meta/pasted-guard";
 import { createOutlineRoutes, DEFAULT_OUTLINES_PER_IP_PER_HOUR, OUTLINE_BODY_BYTES, type OutlineOptions } from "./outline/routes";
-import { memoryTrackStore, personKey, type Person, type TrackStore } from "./track-store";
+import { DEFAULT_BROWSERS_PER_CODE, memoryRoster, memoryTrackStore, personKey, type Person, type TrackStore } from "./track-store";
 import { lastRoundOf, lastRoundWords, weakestKind } from "../src/remember";
 import { fileOutline } from "../src/file-outline";
 import { endOfFile, machinePartsOfFile, publicParts, type MachineEnd, type MachineParts } from "../renderer/authors/machine";
@@ -392,6 +392,8 @@ export interface AppOptions {
    * ATLAS_EXAMPLE_RUNS_PER_IP_PER_HOUR) and all such visitors together an hour (default 200, env ATLAS_EXAMPLE_RUNS_PER_HOUR).
    */
   exampleRunLimits?: { perIpPerHour?: number; perHour?: number };
+  /** R16: browsers per invite code with a record of their own (default 50, env ATLAS_BROWSERS_PER_CODE). */
+  browsersPerCode?: number;
   /** R10 review (D72): whether the open example's own daily sandbox allowance has room (the ledger's exampleRoom). */
   exampleRoom?: () => { ok: true } | { ok: false; reason: string };
   /** R10 review (D72): why an invite code has no money left (the ledger's spentOut), or null. Such a code still runs the example. */
@@ -712,11 +714,19 @@ export function createApp(opts: AppOptions = {}) {
    * - with an invite code and no page id (the Muse Code plugin): the code alone, as before R16.
    * - with no code: this browser; otherwise the session.
    */
+  // R16 (B2 follow-up): at most this many browsers per code get a person (and a record file) of their own; later ones share
+  // the code's overflow person. The roster is kept with the records (on disk on the server), so a restart keeps the cap.
+  const browsersPerCode = opts.browsersPerCode ?? envCount(process.env.ATLAS_BROWSERS_PER_CODE, DEFAULT_BROWSERS_PER_CODE);
+  const roster = savedTrack.roster ?? memoryRoster();
   const personOf = (c: Context, sessionId: string): Person => {
     const p = currentPrincipal();
     const b = c.req.header(BROWSER_HEADER);
     const browser = b && /^[A-Za-z0-9_-]{16,64}$/.test(b) ? b : null;
-    if (p?.kind === "invite") return { kind: "invite", id: browser ? `${p.id}/${browser}` : p.id };
+    if (p?.kind === "invite") {
+      if (!browser) return { kind: "invite", id: p.id };
+      // "overflow" (8 characters) can never be a browser id (16 to 64), so it never meets a real browser's person.
+      return { kind: "invite", id: roster.admit(p.id, browser, browsersPerCode) ? `${p.id}/${browser}` : `${p.id}/overflow` };
+    }
     if (browser) return { kind: "browser", id: browser };
     return { kind: "session", id: sessionId };
   };
@@ -1091,6 +1101,8 @@ export function createApp(opts: AppOptions = {}) {
       // R14: where the record is kept, so the page can say it plainly: on disk, or in memory only (a restart clears it).
       kept: isExampleVisitor() || savedTrack.where === "memory" ? "memory" : "disk",
       asksKept: !isExampleVisitor(),
+      // R16: past the code's cap of browsers, this browser shares one record with the code's other late browsers.
+      ...(person.kind === "invite" && person.id.endsWith("/overflow") ? { shared: true } : {}),
       record: trackRecordOf(entries),
       ...(before !== undefined ? { before: /^[A-Za-z0-9_-]{1,64}$/.test(before) ? recordBefore(entries, before) : null } : {}),
     });

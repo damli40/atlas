@@ -25,6 +25,15 @@ import { ENDINGS, type Ending } from "../src/remember";
 
 export const MAX_ENTRIES_PER_PERSON = 1_000;
 export const MAX_PEOPLE = 2_000;
+/**
+ * R16 (review B2 follow-up): browsers on ONE invite code that get a record of their own. The judge code is public, so
+ * anyone could make up browser ids; past this many, new browsers on that code share one overflow record for the code
+ * (env ATLAS_BROWSERS_PER_CODE). So one code can hold at most this many + 2 files (its browsers, its overflow, the
+ * code alone), and a flood on one code never pushes another code's records off the MAX_PEOPLE cap by itself.
+ */
+export const DEFAULT_BROWSERS_PER_CODE = 50;
+/** The folder (beside the track-record folder) that lists, per code, which browsers have a record of their own. */
+export const ROSTER_DIR_NAME = "track-rosters";
 /** The folder name inside the access store's folder. */
 export const TRACK_DIR_NAME = "track-record";
 
@@ -35,7 +44,69 @@ export interface Person {
   id: string;
 }
 
+/** R16: which browsers of a code have their own record. Only hashes are stored, never the code's id or a browser id. */
+export interface Roster {
+  /** True when `member` already has a place in `group`, or got one now (fewer than `cap` there). */
+  admit(group: string, member: string, cap: number): boolean;
+}
+
+const hashOf = (s: string) => createHash("sha256").update(s, "utf8").digest("hex").slice(0, 32);
+
+export function memoryRoster(): Roster {
+  const m = new Map<string, Set<string>>();
+  return {
+    admit(group, member, cap) {
+      const g = hashOf(group);
+      const set = m.get(g) ?? new Set<string>();
+      m.set(g, set);
+      const k = hashOf(member);
+      if (set.has(k)) return true;
+      if (set.size >= cap) return false;
+      set.add(k);
+      return true;
+    },
+  };
+}
+
+/** One small file per code in `<access dir>/track-rosters/`, written atomically, mode 600: the cap survives a restart. */
+export function diskRoster(accessDir: string): Roster {
+  const dir = join(accessDir, ROSTER_DIR_NAME);
+  let made = false;
+  const cache = new Map<string, Set<string>>();
+  const load = (g: string): Set<string> => {
+    const have = cache.get(g);
+    if (have) return have;
+    let set = new Set<string>();
+    try {
+      const f = JSON.parse(readFileSync(join(dir, `${g}.json`), "utf8")) as { version?: number; members?: unknown };
+      if (f.version === 1 && Array.isArray(f.members)) set = new Set(f.members.filter((x): x is string => typeof x === "string" && /^[0-9a-f]{32}$/.test(x)));
+    } catch {
+      // no file yet (or unreadable): an empty roster
+    }
+    cache.set(g, set);
+    return set;
+  };
+  return {
+    admit(group, member, cap) {
+      const g = hashOf(group);
+      const set = load(g);
+      const k = hashOf(member);
+      if (set.has(k)) return true;
+      if (set.size >= cap) return false;
+      set.add(k);
+      if (!made) {
+        ensureDir(dir);
+        made = true;
+      }
+      writePrivate(join(dir, `${g}.json`), JSON.stringify({ version: 1, members: [...set] }));
+      return true;
+    },
+  };
+}
+
 export interface TrackStore {
+  /** R16: the per-code roster of browsers with a record of their own (absent: the app keeps one in memory). */
+  readonly roster?: Roster;
   /** Adds one round's entries (an entry whose bet is already kept is not added twice). */
   add(p: Person, entries: readonly TrackEntry[]): void;
   /** Every kept entry of this person, oldest first. */
@@ -88,6 +159,7 @@ export function memoryTrackStore(): TrackStore {
   const m = new Map<string, TrackEntry[]>();
   return {
     where: "memory",
+    roster: memoryRoster(),
     add(p, entries) {
       const k = personKey(p);
       const next = merged(m.get(k) ?? [], entries);
@@ -126,6 +198,7 @@ export function diskTrackStore(accessDir: string, opts: { maxPeople?: number } =
   };
   return {
     where: dir,
+    roster: diskRoster(accessDir),
     add(p, entries) {
       if (entries.length === 0) return;
       const k = personKey(p);

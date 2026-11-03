@@ -30,6 +30,8 @@ export interface TrackAnswer {
   kept?: "disk" | "memory";
   /** R14 review round 2: false for a visitor with no code (they can't ask, so nothing of theirs is kept that way). */
   asksKept?: boolean;
+  /** R16: this browser came after the code's cap of browsers with their own record, so it shares the code's overflow record. */
+  shared?: boolean;
   record: TrackRecord;
   before?: TrackRecord | null;
 }

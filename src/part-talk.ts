@@ -243,6 +243,8 @@ export const REMEMBER_WORDS = {
   asks: "Questions you ask about a part, and Muse Wonder's answers, ARE kept, in the server's memory, by the part's name: the AIs that bet with you get the same words in your later rounds on any file with a part of that name, so nobody bets on more than the others.",
   whereInvite: "Kept for your invite code in this browser, on this server's disk: it is still here after a restart.",
   whereInviteMemory: "Kept for your invite code in this browser, in the server's memory only: a restart clears it.",
+  // R16: past the code's cap of browsers (DAMI: placeholder wording).
+  whereShared: "Kept for your invite code on this server, shared with the code's other late browsers.",
   whereBrowserDisk: "Kept for this browser on this server (no invite code), on disk.",
   whereMemory: "Kept for this browser in the server's memory only (no invite code): a restart clears it.",
   how: "How Muse Wonder uses it: when it writes a test, and when it picks a part for you, it is told only the kinds of question you miss most, with their counts. The AIs that bet with you are never told your record.",
