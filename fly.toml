@@ -39,6 +39,11 @@ swap_size_mb = 512
   # .atlas.json files stay in memory (ATLAS_PUBLISH_PROOFS is not set), apart from a public link someone
   # asked for: its card, without the file's text, is kept in kept/ for 30 days, within caps.
   ATLAS_PROOFS_DIR = "/data/proofs"
+  # R10: the no-code example's own daily sandbox allowance. One play starts 3 sandboxes (~$0.0003), so 3,000 starts
+  # is ~1,000 plays (~$0.30 a day) and outlasts the 200-plays-an-hour cap for five hours. It never touches the
+  # owner's or developers' caps.
+  ATLAS_EXAMPLE_SANDBOX_STARTS_PER_DAY = "3000"
+  ATLAS_EXAMPLE_SANDBOX_SECONDS_PER_DAY = "18000"
   PORT = "8080"
 
 [http_service]
