@@ -97,8 +97,9 @@ fly secrets set ATLAS_WAITLIST_URL="https://tally.so/r/XXXXXX" --app atlas-dami 
 #    two judges pasting at the same moment hit 4 and saw "this invite code is at its "at once" limit". Each judge's
 #    browser is still its own person for questions, picks and the track record; money and limits stay per code.
 #    One code still holds at most 2 sandboxes at once; all codes together hold ATLAS_DEV_SANDBOXES_AT_ONCE (fly.toml: 6).
-#    The code is public, so anyone could make up browser ids: only the first 50 browsers on a code get a record of their
-#    own (ATLAS_BROWSERS_PER_CODE, default 50; kept on the volume, so a restart keeps the count). Later browsers on that
+#    The code is public, so anyone could make up browser ids: only the first 50 browsers on a code that play a judged
+#    round or ask a question get a record of their own (ATLAS_BROWSERS_PER_CODE, default 50; kept on the volume, so a
+#    restart keeps the count; just opening the page takes no place). Later browsers on that
 #    code share one overflow record, and the record page says so. Other codes' records are never pushed out by it.
 fly ssh console --app atlas-dami -C "/usr/local/bin/atlas-invites create --name judges --daily-usd 10 --max-concurrent 20"
 #    Watch it with:

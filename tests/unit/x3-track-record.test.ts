@@ -101,13 +101,15 @@ describe("X3 track record: plain code over sealed bets and verdicts", () => {
     expect(weakSpotSummary(trackRecordOf([entry("timing", "matched")]))).toBeNull();
     const s = weakSpotSummary(trackRecordOf([entry("timing", "not_matched", "r1", { side: "under" }), entry("timing", "not_matched", "r2", { side: "under" }), entry("timing", "matched", "r3"), entry("call counts", "not_matched", "r4", { side: "over" }), entry("outcome", "matched", "r5")]))!;
     expect(s).toContain("timing (2 of 3 didn't match; guessed lower than the run 2, higher 0)");
-    expect(s).toContain("call counts (1 of 1 didn't match; guessed lower than the run 0, higher 1)");
+    // R16 (review minor 2): one bet of a kind is not a record: call counts (1 of 1) is left out.
+    expect(s).not.toContain("call counts (");
     expect(s).not.toContain("outcome (");
-    expect(s.indexOf("call counts")).toBeLessThan(s.indexOf("timing")); // 1 of 1 is a larger share than 2 of 3
+    const s2 = weakSpotSummary(trackRecordOf([...[1, 2, 3].map((i) => entry("call counts", "not_matched", `c${i}`, { side: "over" })), entry("timing", "not_matched", "t1"), entry("timing", "not_matched", "t2"), entry("timing", "matched", "t3")]))!;
+    expect(s2.indexOf("call counts")).toBeLessThan(s2.indexOf("timing")); // 3 of 3 is a larger share than 2 of 3
   });
 
   it("wording (D27): never learn, teach, score, skill, right or wrong, in any sentence the record or panel can show", () => {
-    const rec = trackRecordOf([entry("timing", "not_matched", "r1", { side: "under" }), entry("Moonwell price", "matched", "r2"), entry("outcome", "cant_check", "r3", { repeat: true }), ...[1, 2, 3, 4, 5].map((i) => entry("call counts", "matched", `c${i}`))]);
+    const rec = trackRecordOf([entry("timing", "not_matched", "r1", { side: "under" }), entry("timing", "not_matched", "r1b", { side: "under" }), entry("timing", "matched", "r1c"), entry("Moonwell price", "matched", "r2"), entry("outcome", "cant_check", "r3", { repeat: true }), ...[1, 2, 3, 4, 5].map((i) => entry("call counts", "matched", `c${i}`))]);
     const all = [...Object.values(TRACK_WORDS).map((w) => (typeof w === "function" ? (w as (a: number, b?: number) => string)(2, 3) : w)), ...recordWords(rec), ...panelWords(rec), weakSpotSummary(rec)!];
     for (const s of all) expect(s, s).not.toMatch(BANNED);
     expect(TRACK_WORDS.subheading).toBe("Where your guesses matched what the code did");

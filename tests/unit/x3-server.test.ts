@@ -139,7 +139,10 @@ describe("X3 (D27) track record on the server", () => {
 
 describe("X3 (D27) Wonder aims at weak spots; the bettors' text does not change (D19)", () => {
   it("Muse Wonder's prompt gets the types and counts where this person's bets didn't match, never the earlier code; a person with no record gets the prompt as before", async () => {
-    const { app, m } = makeApp();
+    // R16 (review minor 2): a kind counts as missed only from 3 judged bets of it, so this record has 3 timing bets.
+    const store = memoryTrackStore();
+    store.add({ kind: "browser", id: BROWSER }, [1, 2, 3].map((i) => ({ runId: `r${i}`, betId: `b${i}`, sealedHash: "c".repeat(64), type: "timing" as const, outcome: (i < 3 ? "not_matched" : "matched") as "not_matched" | "matched", repeat: false, ...(i < 3 ? { side: "over" as const } : {}), at: "2026-10-28T10:00:00.000Z" })));
+    const { app, m } = makeApp({ trackStore: store });
     const c = client(app, BROWSER);
     await round(c, await paste(c));
     const OTHER = "export function addOne(x: number) {\n  return x + 1; // zebraToken\n}\n";
@@ -151,7 +154,9 @@ describe("X3 (D27) Wonder aims at weak spots; the bettors' text does not change 
     const wonder = m.calls.slice(k).find((x) => x.role === "investigator")!;
     const prompt = wonder.messages.map((x) => x.content).join("\n");
     expect(prompt).toContain("THIS PERSON'S EARLIER ROUNDS");
-    expect(prompt).toContain("timing (1 of 1 didn't match; guessed lower than the run 0, higher 1)");
+    // The 3 kept timing bets plus this round's one (a miss, over): 3 of 4.
+    expect(prompt).toContain("timing (3 of 4 didn't match; guessed lower than the run 0, higher 3)");
+    expect(prompt).not.toMatch(/call counts \(|outcome \(/); // one bet each from the round: not a record yet
     expect(prompt).not.toContain("retryWithBackoff");
     expect(prompt).not.toContain("fetchIt");
     expect(p.json.aimedAt).toMatch(/^In this person's earlier rounds/);

@@ -291,10 +291,16 @@ export function recordWords(r: TrackRecord): string[] {
   return [...r.lines.map(typeLineWords), TRACK_WORDS.counted(r.counted, r.rounds), ...(r.excludedRepeats > 0 ? [TRACK_WORDS.repeats(r.excludedRepeats)] : []), ...levelsWords(r.felt), ...(p.line ? [p.line] : []), ...p.notes];
 }
 
-/** The groups where the person's bets most often didn't match: at least one "didn't match", most first, at most 3. */
+/**
+ * R16 (review M5 + follow-up minor 2): a kind of question counts as one the person misses only from this many judged bets
+ * of that kind, wherever Muse Wonder is told it (test-writing, the pick) and wherever the page shows it. One miss is not a record.
+ */
+export const WEAK_SPOT_MIN_BETS = 3;
+
+/** The groups where the person's bets most often didn't match: at least WEAK_SPOT_MIN_BETS bets and one "didn't match", most first, at most 3. */
 export function weakSpots(r: TrackRecord): TypeLine[] {
   return r.lines
-    .filter((l) => l.notMatched > 0)
+    .filter((l) => l.notMatched > 0 && l.n >= WEAK_SPOT_MIN_BETS)
     .sort((a, b) => b.notMatched / b.n - a.notMatched / a.n || b.notMatched - a.notMatched || QUESTION_TYPES.indexOf(a.type) - QUESTION_TYPES.indexOf(b.type))
     .slice(0, 3);
 }

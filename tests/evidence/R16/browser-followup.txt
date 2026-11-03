@@ -1,5 +1,0 @@
-PASS 1280x800 example first screen: consent lines 0, sentence on page false
-PASS 1280x800 the paste box still says it: 1 line(s)
-PASS 1280x800 a sample (real calls) still says it on its bet screen
-PASS 1440x900 example first screen: consent lines 0, sentence on page false
-PASS 390x844 example first screen: consent lines 0, sentence on page false

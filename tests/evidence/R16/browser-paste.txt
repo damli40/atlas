@@ -1,0 +1,5 @@
+PASS 1280x800 with a code: a paste on the example's first screen starts POST /paste and draws it | consent lines visible 1, POSTs 1, drawn true
+PASS 1280x800 without a code: a paste opens the paste box with the text, sends nothing | consent lines visible 1, POSTs 0
+PASS 390x844 with a code: a paste on the example's first screen starts POST /paste and draws it | consent lines visible 1, POSTs 1, drawn true
+PASS 390x844 without a code: a paste opens the paste box with the text, sends nothing | consent lines visible 1, POSTs 0
+PASS 1280x800 with a code: a paste on the example's verdict starts POST /paste | POSTs 1

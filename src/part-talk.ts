@@ -10,6 +10,7 @@
 // None of these is a check. The screen says so, and none of them is ever on the proof picture.
 
 import { checkSummaryLine } from "./file-summary";
+import { WEAK_SPOT_MIN_BETS } from "./track-record";
 
 /** Word beginnings that judge code or claim trust. A caption or an answer may say what a part does, never that it is good or bad. */
 export const CLAIM_STEMS = [
@@ -83,7 +84,7 @@ export function pickReasonWords(kindPhrase: string, part: { line?: string | null
  * R16 (review M5): Muse Wonder picks a part for you only from a kind of question with at least this many judged bets, so the
  * sentence never rests on one miss. Fewer: nothing is asked ($0) and the usual choice stays.
  */
-export const PICK_MIN_BETS = 3;
+export const PICK_MIN_BETS = WEAK_SPOT_MIN_BETS;
 
 /**
  * The words the pick prompt may use for each kind of question: each passes the summary's checker (so "returned value" is "value

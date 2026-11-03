@@ -6,7 +6,7 @@
 // - ATLAS_DEV_SANDBOXES_AT_ONCE sets how many sandboxes all codes together may hold (default 3; fly.toml 6).
 // Built from the reviewer's probe (final2/parity/shared-code.test.ts). Every model is mocked ($0).
 import { describe, expect, it } from "vitest";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runAs } from "../../server/access/context";
@@ -197,11 +197,11 @@ describe("R16 (B2 follow-up): a public code cannot flood the record folder with 
     expect((await j.post("/runs", { experimentId: r.id })).status).toBe(200);
   };
   const browser = (i: number) => `flood-browser-${String(i).padStart(8, "0")}`;
-  it("under the cap each browser is its own person; past it, new browsers share the code's one overflow record, and the page is told", async () => {
+  it("under the cap each browser that plays is its own person; past it, new browsers share the code's one overflow record, and the page is told", async () => {
     const { app } = sharedCodeApp({ browsersPerCode: 3 });
     const js = [1, 2, 3, 4, 5].map((i) => judge(app, browser(i)));
-    await playOnce(js[0]!);
-    for (const j of js.slice(1, 3)) expect((await j.get("/track-record")).json).toMatchObject({ record: { counted: 0 } });
+    // Browsers 1-3 play a round each: they take the code's 3 places.
+    for (const j of js.slice(0, 3)) await playOnce(j);
     await playOnce(js[3]!);
     const fourth = (await js[3]!.get("/track-record")).json;
     const fifth = (await js[4]!.get("/track-record")).json;
@@ -210,13 +210,61 @@ describe("R16 (B2 follow-up): a public code cannot flood the record folder with 
     expect(fifth.record.counted).toBe(fourth.record.counted);
     expect(fourth.record.counted).toBeGreaterThan(0);
     // The first three keep their own (a returning browser keeps its place) and are not marked shared.
-    const first = (await js[0]!.get("/track-record")).json;
-    expect(first.shared).toBeUndefined();
-    expect(first.record.counted).toBeGreaterThan(0);
-    expect((await js[1]!.get("/track-record")).json.record.counted).toBe(0);
+    for (const j of js.slice(0, 3)) {
+      const r = (await j.get("/track-record")).json;
+      expect(r.shared).toBeUndefined();
+      expect(r.record.counted).toBe(fourth.record.counted);
+    }
     expect(DEFAULT_BROWSERS_PER_CODE).toBe(50);
     expect(TRACK_WORDS.whoShared).toMatch(/shared/);
     expect(REMEMBER_WORDS.whereShared).toMatch(/shared/);
+  }, 60_000);
+
+  it("R16 review Major 2: reads never take a place: 60 page loads with new ids leave the roster empty; a real round then gets its own place", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "r16-reads-"));
+    const { app } = sharedCodeApp({ browsersPerCode: 3, trackStore: diskTrackStore(dir) });
+    for (let i = 0; i < 60; i++) {
+      const j = judge(app, `private-window-${String(i).padStart(10, "0")}`);
+      const r = (await j.get("/track-record")).json;
+      expect(r.shared).toBe(true); // no place: it reads the overflow, and takes nothing
+    }
+    expect(existsSync(join(dir, ROSTER_DIR_NAME))).toBe(false);
+    const real = judge(app, browser(1));
+    await playOnce(real);
+    const r = (await real.get("/track-record")).json;
+    expect(r.shared).toBeUndefined();
+    expect(r.record.counted).toBeGreaterThan(0);
+    expect(readdirSync(join(dir, ROSTER_DIR_NAME))).toHaveLength(1);
+    // A question about a part also takes a place (and only then).
+    const asker = judge(app, browser(2));
+    const before = await openRound(asker, { ...allowedC, args: [allowedC.args[0], { kind: "json", value: 6 }, { kind: "json", value: 100 }] }); // written while it had no place
+    const a = await openRound(asker);
+    await lock(asker, a.id);
+    expect((await asker.get("/track-record")).json.shared).toBe(true);
+    expect((await asker.post("/paste/ask", { experimentId: a.id, part: "retryWithBackoff", question: "Why wait?" })).json.ok).toBe(true);
+    expect((await asker.get("/track-record")).json.shared).toBeUndefined();
+    // D19: the round written before that question never gave the AIs its answer, so its lock is refused...
+    const late = await lock(asker, before.id);
+    expect(late.status).toBe(409);
+    expect(late.json.askedSince).toBe(true);
+    // ...and a round written after it carries the answer, so its lock is accepted.
+    const after = await openRound(asker, nextParams);
+    expect(String(after.e.json.seenContext)).toContain("JUDGE-A-WORDS");
+    expect((await lock(asker, after.id)).status).toBe(200);
+  }, 120_000);
+
+  it("R16 review minor 1: a browser header that is present but invalid is the overflow, never the code-alone (plugin) person", async () => {
+    const { app } = sharedCodeApp();
+    const plugin = judge(app, null);
+    await playOnce(plugin);
+    const pluginCount = (await plugin.get("/track-record")).json.record.counted;
+    expect(pluginCount).toBeGreaterThan(0);
+    for (const bad of ["", "short", "x".repeat(65), "bröwser-ünïcode-0000000"]) {
+      const r = (await runAs({ ...JUDGES }, () => app.request("/track-record", { headers: { "x-atlas-browser": bad } }))) as Response;
+      const j = (await r.json()) as { shared?: boolean; record: { counted: number } };
+      expect(j.shared, JSON.stringify(bad)).toBe(true);
+      expect(j.record.counted, JSON.stringify(bad)).toBe(0);
+    }
   }, 60_000);
 
   it("a flood on one code never pushes another code's record off the disk, and the cap survives a restart", async () => {

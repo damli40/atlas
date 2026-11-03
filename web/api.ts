@@ -154,14 +154,16 @@ export interface OutlineJob {
 export type OutlineRequest = { repo: string; ref?: string; subfolder?: string } | { files: { path: string; text: string }[] };
 
 const SESSION_HEADER = "x-atlas-session";
-/** X3: names "this browser" for the track record when there is no invite code (server/app.ts BROWSER_HEADER). */
+/** X3: names "this browser" for the track record (server/app.ts BROWSER_HEADER); with an invite code, the code and this browser (R16). */
 const BROWSER_HEADER = "x-atlas-browser";
 const BROWSER_KEY = "atlas-browser-id";
 
 /**
- * X3 (D27): one random id per browser, kept in localStorage, so a local track record follows this browser across tabs
- * and page loads. Not a secret and not a login: on a hosted server the invite code names the person instead. Without
- * storage (a private window) it lives as long as the page.
+ * X3 (D27): one random id per browser, kept in localStorage, so a track record follows this browser across tabs and page
+ * loads. Not a secret and not a login. R16: on a hosted server the person is the invite code AND this id (several judges
+ * may share a code); the first 50 browsers on a code that play a round or ask a question get their own record, later ones
+ * share the code's overflow record. Without storage (a private window) it lives as long as the page, so each load is a new
+ * browser; reading never takes one of the code's places.
  */
 let pageBrowserId: string | null = null;
 export function browserId(): string {

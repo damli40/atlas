@@ -97,6 +97,8 @@ export interface BenchStageProps {
   summaryWhy?: string | null;
   /** R16 (review minor 2): on the built-in example, the day its summary and names were recorded ("Nov 2"), shown beside their legends. */
   recordedNote?: string | null;
+  /** R16 review minor 3: the same for the example's names, from the names' own recording day. */
+  namesRecordedNote?: string | null;
   /** R9: the summary's one line per part, for the part panel (before and after a run). */
   partLines?: Readonly<Record<string, string>> | null;
   /** A code box was chosen as the function to test. */
@@ -174,7 +176,7 @@ export function litWithNoThread(beats: readonly { routes: readonly string[]; lam
   return beats.some((b) => b.lamps.some((l) => l !== tested && !reached.has(l)));
 }
 
-export function BenchStage({ viewToggle = true, traceNote = true, recorded = {}, wontRun = false, seenBefore = false, codeRan = false, loop = null, model, theme, after = null, onPart, picked = null, onPanel, onClosePart, naturalNames = null, namesNote = null, fileSummary = null, summaryMissing = false, summaryWhy = null, recordedNote = null, partLines = null, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null, topNote = null, aimed = null, partActions, onAct, actCaptions = null, recordLine = null }: BenchStageProps) {
+export function BenchStage({ viewToggle = true, traceNote = true, recorded = {}, wontRun = false, seenBefore = false, codeRan = false, loop = null, model, theme, after = null, onPart, picked = null, onPanel, onClosePart, naturalNames = null, namesNote = null, fileSummary = null, summaryMissing = false, summaryWhy = null, recordedNote = null, namesRecordedNote = null, partLines = null, onTestFunction, title, source, language, outline, fileName, children, extraMarks = [], side = false, footnote = null, onPlayed, headnote = null, topNote = null, aimed = null, partActions, onAct, actCaptions = null, recordLine = null }: BenchStageProps) {
   const [wantMachine, setWantMachine] = useState(machineFirst);
   const playedRef = useRef(onPlayed);
   playedRef.current = onPlayed;
@@ -574,7 +576,7 @@ export function BenchStage({ viewToggle = true, traceNote = true, recorded = {},
             <details className="m-summary-parts" data-testid="file-summary-parts">
               <summary>{SUMMARY_WORDS.partsFold(Object.keys(shownSummary.parts).length)}</summary>
               {/* R16 (review minor 1): on the box chart (a phone's first screen) the AI's names appear only here, so the ★ legend does too. */}
-              {Object.keys(shownSummary.parts).some((part) => shownNames?.[part]) ? <p className="m-summary-k" data-testid="file-summary-names-legend">{recordedNote ? `${NAMER_WORDS.legend} (${recordedNote})` : NAMER_WORDS.legend}</p> : null}
+              {Object.keys(shownSummary.parts).some((part) => shownNames?.[part]) ? <p className="m-summary-k" data-testid="file-summary-names-legend">{namesRecordedNote ? `${NAMER_WORDS.legend} (${namesRecordedNote})` : NAMER_WORDS.legend}</p> : null}
               <ul>
                 {Object.entries(shownSummary.parts).map(([part, line]) => (
                   <li key={part}>
@@ -614,7 +616,7 @@ export function BenchStage({ viewToggle = true, traceNote = true, recorded = {},
         )}
       </div>
       <div className="r-machine" ref={regionRef} hidden={undefined} style={showMachine ? undefined : { visibility: "hidden", pointerEvents: "none" }} data-testid="machine-region" data-captions={after && marksOn && pathSpec?.captions.length ? "" : undefined}>
-        {showMachine && <MachineSheet ref={machineRef} drawn={drawn} reduced={still} penKey={after ? null : source} beats={beats} landed={Boolean(after && marksOn)} legendNote={recordedNote} picked={picked} aimed={after ? null : aimed} onPart={(id) => {
+        {showMachine && <MachineSheet ref={machineRef} drawn={drawn} reduced={still} penKey={after ? null : source} beats={beats} landed={Boolean(after && marksOn)} legendNote={namesRecordedNote} picked={picked} aimed={after ? null : aimed} onPart={(id) => {
           const panel = onPart ? panelFor(id) : null;
           if (!panel) return false;
           onPart!(id, panel);

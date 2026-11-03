@@ -718,14 +718,23 @@ export function createApp(opts: AppOptions = {}) {
   // the code's overflow person. The roster is kept with the records (on disk on the server), so a restart keeps the cap.
   const browsersPerCode = opts.browsersPerCode ?? envCount(process.env.ATLAS_BROWSERS_PER_CODE, DEFAULT_BROWSERS_PER_CODE);
   const roster = savedTrack.roster ?? memoryRoster();
-  const personOf = (c: Context, sessionId: string): Person => {
+  /**
+   * `write`: true only where this request adds to the person's record or asks a part question (R16 review Major 2). Only
+   * then does a browser take one of its code's places; a read uses its own record if it has a place, else the overflow,
+   * so page loads (and private windows, which make a new id each time) never fill the roster.
+   */
+  const personOf = (c: Context, sessionId: string, write = false): Person => {
     const p = currentPrincipal();
     const b = c.req.header(BROWSER_HEADER);
     const browser = b && /^[A-Za-z0-9_-]{16,64}$/.test(b) ? b : null;
     if (p?.kind === "invite") {
-      if (!browser) return { kind: "invite", id: p.id };
+      // R16 review minor 1: only a request with NO browser header is the code alone (the plugin's person). A header that is
+      // present but not a valid id (empty, too long, other characters) is a page we can't tell apart: the overflow.
+      if (b === undefined) return { kind: "invite", id: p.id };
       // "overflow" (8 characters) can never be a browser id (16 to 64), so it never meets a real browser's person.
-      return { kind: "invite", id: roster.admit(p.id, browser, browsersPerCode) ? `${p.id}/${browser}` : `${p.id}/overflow` };
+      if (!browser) return { kind: "invite", id: `${p.id}/overflow` };
+      const own = write ? roster.admit(p.id, browser, browsersPerCode) : roster.has(p.id, browser);
+      return { kind: "invite", id: own ? `${p.id}/${browser}` : `${p.id}/overflow` };
     }
     if (browser) return { kind: "browser", id: browser };
     return { kind: "session", id: sessionId };
@@ -756,7 +765,7 @@ export function createApp(opts: AppOptions = {}) {
     paste,
     ...(opts.paste?.proposer && budget ? { chat: guardPastedChat(budget.wrap(opts.paste.proposer.chat)) } : {}),
     recordOf: (c, sessionId) => recordOf(personOf(c, sessionId)),
-    whoOf: (c, sessionId) => personKey(personOf(c, sessionId)),
+    whoOf: (c, sessionId, write) => personKey(personOf(c, sessionId, write === true)),
     takePick: (c) => picksByClient.take(clientOf(c)),
     takeCaptions: (c) => captionsByClient.take(clientOf(c)),
     takeAsk: (c) => asksByClient.take(clientOf(c)),
@@ -1086,7 +1095,7 @@ export function createApp(opts: AppOptions = {}) {
   labeler.register(app); // X3 (D28): POST /paste/labels, GET /outline/jobs/:id/labels
   partTalk.register(app); // R14: POST /paste/pick, /paste/captions, /paste/ask
   /** R14 review M1: per pasted round, the number of the person's answers about its file that its bettor text holds. */
-  const roundAsks = new WeakMap<Round, number>();
+  const roundAsks = new WeakMap<Round, { who: string; n: number }>();
 
   // X3 (D27): GET /track-record[?before=<runId>] → this person's record now and, with `before`, their record before
   // that round (null when the round is not in their record). Plain code over their own sealed bets and verdicts.
@@ -1300,7 +1309,7 @@ export function createApp(opts: AppOptions = {}) {
       const [named, summed] = await Promise.all([paste.namesForText(sessionId, target.codeSha256), paste.summaryForText(sessionId, target.codeSha256)]);
       const labels = [...labelsForBettors(labeler.forPaste(sessionId, target, call.exportName)), ...(named ? namesForBettors(named.names, named.model) : []), ...(summed ? summaryForBettors(summed.summary, summed.model) : []), ...partTalk.asksForText(c, sessionId, target)];
       // Review M1: how many of the person's answers this round's text holds. A bet is refused if they asked more since (another tab, an older round).
-      roundAsks.set(round, partTalk.askCount(c, sessionId, target));
+      roundAsks.set(round, { who: partTalk.whoKey(c, sessionId), n: partTalk.askCount(c, sessionId, target) });
       const key = [target.codeSha256, target.language, line, canonicalJson(experiment.proposedBy), canonicalJson(experiment.params), round.repeatOf ?? "", body.quiz ? "quiz" : "", body.one ? "one" : "", ...labels].join("\n");
       const block = paste.fileBlock(target.codeSha256, target.source ?? "", line);
       const cap = pastedSeenCap(round.questions, MAX_PASTED_PROMPT_CHARS);
@@ -1514,7 +1523,10 @@ export function createApp(opts: AppOptions = {}) {
     // R14 review M1 (D19): the person asked Muse Wonder about this file after this round's text was written, so they would bet on words
     // the AI bettors of this round never got. Refused: a new round carries the answers to everyone.
     const heldAsks = roundAsks.get(round);
-    if (heldAsks !== undefined && partTalk.askCount(c, sessionId, paste.sourceTarget(round.experiment.target) ?? round.experiment.target) > heldAsks) return c.json({ error: "you asked Muse Wonder about this file after this round's question was written, so the AIs betting here never saw that answer; start a new round (Try another question) and everyone gets it", askedSince: true }, 409);
+    // R16: a browser that took its own place since this round was written (by asking, or by a recorded round) is a new
+    // person; any ask it now has came after the round was written.
+    const asksNow = heldAsks === undefined ? 0 : partTalk.askCount(c, sessionId, paste.sourceTarget(round.experiment.target) ?? round.experiment.target);
+    if (heldAsks !== undefined && (partTalk.whoKey(c, sessionId) !== heldAsks.who ? asksNow > 0 : asksNow > heldAsks.n)) return c.json({ error: "you asked Muse Wonder about this file after this round's question was written, so the AIs betting here never saw that answer; start a new round (Try another question) and everyone gets it", askedSince: true }, 409);
     // Final review S2: after a run attempt that did not finish, the bets stay frozen (the same set runs again).
     const tried = round.attempts?.at(-1);
     if (tried) return c.json({ error: `bets on ${experimentId} are frozen: a run was tried at ${tried.startedAt} and did not finish; try the run again (the sealed bets stay as they are), so this bet was not sealed` }, 409);
@@ -1630,7 +1642,7 @@ export function createApp(opts: AppOptions = {}) {
       if (r.status === 200) {
         // A bet placed after seeing this very result is kept and judged, but never goes on the person's record.
         const seen = experiment.runner === "evm" && sawSavedMoonwell.has(sessionId);
-        const person = personOf(c, sessionId);
+        const person = personOf(c, sessionId, !seen);
         Object.assign(r.body, seen ? { seenFirst: true, track: { person: person.kind, before: recordOf(person), after: recordOf(person) } } : { track: recordRound(person, r.body, experiment.params, experiment.target.codeSha256) });
       }
       return c.json(r.body, r.status);

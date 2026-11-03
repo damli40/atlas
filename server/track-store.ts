@@ -46,6 +46,8 @@ export interface Person {
 
 /** R16: which browsers of a code have their own record. Only hashes are stored, never the code's id or a browser id. */
 export interface Roster {
+  /** True when `member` already has a place in `group`. Never takes one (reads use this). */
+  has(group: string, member: string): boolean;
   /** True when `member` already has a place in `group`, or got one now (fewer than `cap` there). */
   admit(group: string, member: string, cap: number): boolean;
 }
@@ -55,6 +57,7 @@ const hashOf = (s: string) => createHash("sha256").update(s, "utf8").digest("hex
 export function memoryRoster(): Roster {
   const m = new Map<string, Set<string>>();
   return {
+    has: (group, member) => m.get(hashOf(group))?.has(hashOf(member)) ?? false,
     admit(group, member, cap) {
       const g = hashOf(group);
       const set = m.get(g) ?? new Set<string>();
@@ -87,6 +90,7 @@ export function diskRoster(accessDir: string): Roster {
     return set;
   };
   return {
+    has: (group, member) => load(hashOf(group)).has(hashOf(member)),
     admit(group, member, cap) {
       const g = hashOf(group);
       const set = load(g);

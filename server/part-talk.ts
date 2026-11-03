@@ -44,7 +44,8 @@ export interface PartTalkDeps {
    * Who the person is (the track record's key: the invite code's id, else this browser, else the session), as an opaque string. The
    * answers to their questions are kept under it, so a new tab or session on the same file still puts them in every bettor's text.
    */
-  whoOf: (c: Context, sessionId: string) => string;
+  /** `write`: this request asks a question (R16: only then does a browser take a place on its code). */
+  whoOf: (c: Context, sessionId: string, write?: boolean) => string;
   takePick: Limit;
   takeCaptions: Limit;
   takeAsk: Limit;
@@ -250,7 +251,7 @@ export function createPartTalk(deps: PartTalkDeps) {
       const none = (reason: string, extra: Record<string, unknown> = {}) => c.json({ ok: false, model: PART_TALK_MODEL, reason, ...extra });
       if (!deps.chat) return none("this server asks no Meta model");
       // Review M2 / round 2 minor 1: past the cap no ask (none is ever dropped), counting asks still on their way; a slot is taken now.
-      const who = deps.whoOf(c, sessionId);
+      const who = deps.whoOf(c, sessionId, true);
       const slot = `${who}|${part.name}`;
       const kept = (asks.get(who)?.get(part.name)?.length ?? 0) + (reserved.get(slot) ?? 0);
       if (kept >= ASKS_KEPT_PER_FILE) return none(`you have asked ${ASKS_KEPT_PER_FILE} questions about ${part.name}; Atlas keeps no more`, { full: true });
@@ -278,6 +279,8 @@ export function createPartTalk(deps: PartTalkDeps) {
     /** D19: the lines every bettor of a new round gets, from this person's earlier questions about parts this file has (by name, any session). */
     asksForText: (c: Context, sessionId: string, t: { codeSha256: string; source?: string; language?: string | null }): string[] => asksForBettors(asksFor(deps.whoOf(c, sessionId), t.codeSha256, t.source, t.language ?? undefined)),
     /** Review M1, by the same key: how many of this person's answers a round on this file would carry now. */
+    /** R16: who this request is, as the asks are keyed (a read: takes no place). */
+    whoKey: (c: Context, sessionId: string): string => deps.whoOf(c, sessionId),
     askCount: (c: Context, sessionId: string, t: { codeSha256: string; source?: string; language?: string | null }): number => asksFor(deps.whoOf(c, sessionId), t.codeSha256, t.source, t.language ?? undefined).length,
   };
 }

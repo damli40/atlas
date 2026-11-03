@@ -19,6 +19,7 @@ import { notShownAsFact } from "../../src/trust";
 import type { JsonValue } from "../../src/types";
 import { PASTE_WORDS, shortDay } from "../../src/paste-words";
 import { EXAMPLE_SUMMARY_RECORDED_ON } from "../../src/example-summary";
+import { EXAMPLE_NAMES_RECORDED_ON } from "../../src/example-names";
 import EXAMPLE_OUTLINE from "../u1-example-outline.json";
 import { betView } from "../../renderer/authors/bet-view";
 import { Drawing } from "../drawing/Drawing";
@@ -1696,6 +1697,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           partLines={summ && summ.sha === pasted.target.codeSha256 && "summary" in summ ? summ.summary.parts : null}
           summaryMissing={Boolean(summ && summ.sha === pasted.target.codeSha256 && "reason" in summ && !/asks no Meta model|no parts|could not list the parts/.test(summ.reason))}
           recordedNote={onExample ? `recorded ${shortDay(EXAMPLE_SUMMARY_RECORDED_ON)}` : null}
+          namesRecordedNote={onExample ? `recorded ${shortDay(EXAMPLE_NAMES_RECORDED_ON)}` : null}
           summaryWhy={summ && summ.sha === pasted.target.codeSha256 && "reason" in summ && /"at once" limit/.test(summ.reason) ? summ.reason : null}
           onPart={(name, panel) => {
             const part = pasted.outline?.parts.find((p) => p.name === name);
@@ -1796,9 +1798,9 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
               ) : result?.proof ? (
                 <span className="u1-sub">{`No proof card: ${result.proof.ok ? "" : result.proof.reason}`}</span>
               ) : null}
-              {/* R7 review B1: pasting here draws your code too, so the consent line is here too. R16 (review minor 3): not on the example's
-                  verdict, which asks no AI (its answers are recorded); the paste box it leads to says it again. */}
-              {!onExample && <p className="u1-sub e-consent u1-consent-result" data-testid="e-consent">{CONSENT_LINE}</p>}
+              {/* R7 review B1: pasting here draws your code too, so the consent line is here too. R16 review: it stays on the example's
+                  verdict and first screen as well: paste-anywhere works only while this line is visible, and pasting there sends your code. */}
+              <p className="u1-sub e-consent u1-consent-result" data-testid="e-consent">{CONSENT_LINE}</p>
               <p className="u1-textlinks">
                 <button type="button" className="u1-link" onClick={tryAnother} disabled={busy !== null} data-testid="u1-try-another">
                   {SIMPLE_WORDS.tryAnother} <span className="u1-paid-tag">{SIMPLE_WORDS.paidTag}</span>
@@ -1985,7 +1987,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           {!open && <span className="u1-sub u1-paid u1-paid-beside" data-testid="u1-paid-bet-beside">{earlyState === "busy" ? CHANGE_WORDS.earlyWonder : earlyState === "done" ? CHANGE_WORDS.earlyDone : CHANGE_WORDS.paidWonder}</span>}
           {!open && (
             <div className="u1-fine u1-fine-rest" data-testid="u1-fine">
-              {!onExample && <p className="e-consent" data-testid="e-consent">{CONSENT_LINE}</p>}
+              <p className="e-consent" data-testid="e-consent">{CONSENT_LINE}</p>
               <p className="u1-fine-links">
                 <button type="button" className="u1-link" onClick={tryOwn} data-testid="u1-own">
                   {SIMPLE_WORDS.tryOwn}
@@ -2140,7 +2142,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                   )}
                   {/* R7 (D69): fine print. Everything else about this bet is one fold away; nothing here is removed. */}
                   <div className="u1-fine" data-testid="u1-fine">
-                    {!onExample && <p className="e-consent" data-testid="e-consent">{CONSENT_LINE}</p>}
+                    <p className="e-consent" data-testid="e-consent">{CONSENT_LINE}</p>
                     <p className="u1-fine-links">
                       <button type="button" className="u1-link" onClick={tryOwn} data-testid="u1-own">
                         {SIMPLE_WORDS.tryOwn}
