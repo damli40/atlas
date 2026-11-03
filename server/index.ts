@@ -147,6 +147,8 @@ const appOptions: AppOptions = {
   githubReads,
   // X3 (D27): each person's track record, one small file per person next to the invite store (survives a restart).
   trackStore,
+  // R10 review (D72): the open example's own daily sandbox allowance, kept in the ledger.
+  exampleRoom: () => access.ledger.exampleRoom(),
 };
 // G1 review round 2: the owner's code gets its OWN copy of the app, so every in-memory capacity (sessions, pastes,
 // caches, kept runs and outline jobs, the live log) is the owner's alone. Shared money, sandboxes, GitHub and RPC

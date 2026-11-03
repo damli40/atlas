@@ -48,7 +48,15 @@ export const modalWorstCaseUsd = (wallClockMs: number): number => ((120_000 + Ma
 export type SpendKind = "model" | "sandbox" | "evm";
 
 interface CodeDay { usd: number; modelUsd: number; sandboxUsd: number; calls: number; sandboxes: number; evmRuns: number; /** G1 review B3 */ modalSeconds?: number }
-interface GlobalDay extends CodeDay { modalStarts: number; modalSeconds: number; /** G1 review B3: the part used by dev codes. */ devModalStarts?: number; devModalSeconds?: number }
+interface GlobalDay extends CodeDay {
+  modalStarts: number;
+  modalSeconds: number;
+  /** G1 review B3: the part used by dev codes. */ devModalStarts?: number;
+  devModalSeconds?: number;
+  /** R10 review (D72): the open example's OWN Modal allowance, kept apart: it never counts in modalStarts/modalSeconds. */
+  exampleModalStarts?: number;
+  exampleModalSeconds?: number;
+}
 interface Pending { who: string; label: string; role?: string; kind: SpendKind; usd: number; day: string; at: string; route: string; what: string; modal?: boolean }
 interface LedgerFile {
   version: 1;
@@ -87,6 +95,13 @@ export interface LedgerOptions {
   devSandboxesAtOnce?: number;
   /** R10 (D72): sandboxes the open example (visitors with no code) may hold at once, all together (default 2). */
   exampleSandboxesAtOnce?: number;
+  /**
+   * R10 review (D72): the open example's own Modal allowance per UTC day: sandbox starts (default 600, env
+   * ATLAS_EXAMPLE_SANDBOX_STARTS_PER_DAY) and sandbox-seconds (default 3,600, ATLAS_EXAMPLE_SANDBOX_SECONDS_PER_DAY). It is
+   * separate from Modal's daily caps above: no-code visitors can never use up the owner's or the developers' sandboxes.
+   */
+  exampleModalStartsPerDay?: number;
+  exampleModalSecondsPerDay?: number;
   now?: () => number;
 }
 
@@ -103,6 +118,15 @@ export interface Ledger {
   modelUsdAllTime(): number;
   /** Modal's starts and seconds today, as kept on disk. */
   modalToday(): { day: string; starts: number; seconds: number };
+  /** R10 review (D72): whether the open example's own daily allowance has room for one more run (counts nothing). */
+  exampleRoom(): { ok: true } | { ok: false; reason: string };
+  /** R10 review (D72): the open example's starts and seconds today (its own allowance). */
+  exampleToday(): { day: string; starts: number; seconds: number };
+  /**
+   * R10 review (D72): why this invite code has no money left today or in all (revoked, daily or total budget spent), or null.
+   * Only what was SPENT counts, never what is held for spends still running, so a busy moment never flips the answer.
+   */
+  spentOut(inviteId: string): string | null;
   readonly path: string;
   readonly logPath: string;
 }
@@ -122,6 +146,16 @@ export function openLedger(o: LedgerOptions): Ledger {
   const devShare = o.devModalShare ?? 0.8;
   const devSandboxesAtOnce = o.devSandboxesAtOnce ?? 3;
   const exampleSandboxesAtOnce = o.exampleSandboxesAtOnce ?? 2;
+  const exampleStarts = o.exampleModalStartsPerDay ?? 600;
+  const exampleSeconds = o.exampleModalSecondsPerDay ?? 3_600;
+  // DAMI: placeholder wording. The facts it must keep: nothing ran, when it comes back, a code still works.
+  const exampleUsedUp = (starts: number, seconds: number) => `Today's free runs of the example are used up (${starts} of ${exampleStarts} sandboxes, ${Math.round(seconds)} of ${exampleSeconds} sandbox-seconds; they come back at 00:00 UTC). Running it now needs an invite code, so nothing was run.`;
+  const exampleFull = (day: string): string | null => {
+    const g = f.days[day]?.global;
+    const st = g?.exampleModalStarts ?? 0;
+    const sec = g?.exampleModalSeconds ?? 0;
+    return st >= exampleStarts || sec >= exampleSeconds ? exampleUsedUp(st, sec) : null;
+  };
   const dayOf = () => new Date(now()).toISOString().slice(0, 10);
   const iso = () => new Date(now()).toISOString();
 
@@ -157,7 +191,8 @@ export function openLedger(o: LedgerOptions): Ledger {
       } else r.evmRuns++;
     };
     add(d.global);
-    if (p.kind === "sandbox" && p.modal) {
+    if (p.kind === "sandbox" && p.modal && p.who === "example") d.global.exampleModalSeconds = (d.global.exampleModalSeconds ?? 0) + seconds;
+    else if (p.kind === "sandbox" && p.modal) {
       d.global.modalSeconds += seconds;
       if (p.role === "dev") d.global.devModalSeconds = (d.global.devModalSeconds ?? 0) + seconds;
     }
@@ -210,6 +245,11 @@ export function openLedger(o: LedgerOptions): Ledger {
       if (kind !== "sandbox") return "no invite code: without one Atlas only plays the built-in example, whose AI answers are recorded, so no AI was asked and nothing was started";
       const running = Object.values(f.pending).filter((p) => p.kind === "sandbox" && p.who === "example").length;
       if (running >= exampleSandboxesAtOnce) return `call limit reached: visitors without a code already have ${running} example runs going at once (their limit together is ${exampleSandboxesAtOnce}); try again in a few seconds`;
+      // R10 review (D72): its own daily Modal allowance, never Modal's daily caps that the owner and developers share.
+      if (modal) {
+        const full = exampleFull(day);
+        if (full) return full;
+      }
     }
     if (w.inviteId) {
       const inv = o.store.byId(w.inviteId);
@@ -253,7 +293,7 @@ export function openLedger(o: LedgerOptions): Ledger {
       if (mineRunning >= 2) return `call limit reached: this invite already has ${mineRunning} sandboxes running at once (its limit is 2); try again in a few seconds`;
       if (devRunning >= devSandboxesAtOnce) return `call limit reached: invited developers already have ${devRunning} sandboxes running at once (their limit together is ${devSandboxesAtOnce}); try again in a few seconds`;
     }
-    if (kind === "sandbox" && modal) {
+    if (kind === "sandbox" && modal && !w.example) {
       const g = f.days[day]?.global ?? zeroGlobal();
       const startsNow = g.modalStarts;
       if (startsNow >= modalStarts || g.modalSeconds >= modalSeconds) {
@@ -291,7 +331,8 @@ export function openLedger(o: LedgerOptions): Ledger {
       const id = `r_${randomBytes(6).toString("hex")}`;
       const p: Pending = { who: w.who, label: w.label, ...(w.role ? { role: w.role } : {}), kind, usd: c, day: dayOf(), at: iso(), route: w.route, what, ...(modal ? { modal: true } : {}) };
       f.pending[id] = p;
-      if (kind === "sandbox" && modal) {
+      if (kind === "sandbox" && modal && p.who === "example") dayRec(p.day).global.exampleModalStarts = (dayRec(p.day).global.exampleModalStarts ?? 0) + 1;
+      else if (kind === "sandbox" && modal) {
         dayRec(p.day).global.modalStarts++; // counted at the start, like the executor's own cap
         if (p.role === "dev") dayRec(p.day).global.devModalStarts = (dayRec(p.day).global.devModalStarts ?? 0) + 1;
       }
@@ -313,7 +354,8 @@ export function openLedger(o: LedgerOptions): Ledger {
           if (done) return;
           done = true;
           delete f.pending[id];
-          if (kind === "sandbox" && modal) {
+          if (kind === "sandbox" && modal && p.who === "example") dayRec(p.day).global.exampleModalStarts = Math.max(0, (dayRec(p.day).global.exampleModalStarts ?? 0) - 1);
+          else if (kind === "sandbox" && modal) {
             dayRec(p.day).global.modalStarts = Math.max(0, dayRec(p.day).global.modalStarts - 1);
             if (p.role === "dev") dayRec(p.day).global.devModalStarts = Math.max(0, (dayRec(p.day).global.devModalStarts ?? 0) - 1);
           }
@@ -334,6 +376,23 @@ export function openLedger(o: LedgerOptions): Ledger {
       return { spentUsd: r.usd, heldUsd: sum(ps), running: pendingOf(inviteId).length, evmRuns: r.evmRuns };
     },
     modelUsdAllTime: () => f.totals.global.modelUsd,
+    exampleRoom() {
+      const full = exampleFull(dayOf());
+      return full ? { ok: false, reason: full } : { ok: true };
+    },
+    exampleToday() {
+      const day = dayOf();
+      const g = f.days[day]?.global;
+      return { day, starts: g?.exampleModalStarts ?? 0, seconds: Math.round(g?.exampleModalSeconds ?? 0) };
+    },
+    spentOut(inviteId) {
+      const inv = o.store.byId(inviteId);
+      if (!inv || inv.revokedAt) return "that invite code was revoked";
+      const day = dayOf();
+      if (inv.dailyUsd !== null && (f.days[day]?.codes[inv.id]?.usd ?? 0) + minCall > inv.dailyUsd) return `your invite's daily budget is used up (it resets at 00:00 UTC)`;
+      if (inv.totalUsd !== null && (f.totals.codes[inv.id] ?? 0) + minCall > inv.totalUsd) return `your invite's total budget is used up`;
+      return null;
+    },
     modalToday() {
       const day = dayOf();
       const g = f.days[day]?.global ?? zeroGlobal();

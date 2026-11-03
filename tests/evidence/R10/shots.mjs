@@ -66,6 +66,22 @@ for (const [w, h] of [[1280, 800]]) {
   say("Try your own code: the line with Join the waitlist and I have a code, and the code box", /needs an invite code/.test(own) && /Join the waitlist/.test(own) && /I have a code/.test(own) && (await p.isVisible('[data-testid="e-invite"]')), own);
   say("Try your own code: Draw my code and the samples are off without a code", (await p.isDisabled('[data-testid="u1-draw"]')) && (await p.$$eval('[data-testid^="e-sample-"]', (x) => x.every((y) => y.disabled))));
   say("Try your own code: the way back to the example is there", await p.isVisible('[data-testid="u1-example"]'));
+  // 6. R10 review: "Back to the example", then a reload: each time a fresh, playable example (never a wall, never empty).
+  const playAgain = async (label) => {
+    await p.waitForSelector('[data-testid="u1-seal"]', { timeout: 60000 });
+    await p.waitForFunction(() => /recorded answer/.test(document.querySelector('[data-testid="u1-ais"]')?.textContent ?? ""), null, { timeout: 15000 }).catch(() => {});
+    await p.click(".u1-quiz .u1-opt >> nth=1");
+    await p.click('[data-testid="u1-seal"]');
+    const ok = await p.waitForSelector('[data-testid="mark-list"]', { timeout: 90000 }).then(() => true, () => false);
+    const err = (await text(p, '[role="alert"]')) ?? "";
+    say(`${label}: the example plays again to a verdict`, ok && !/needs an invite code/.test(err), err);
+  };
+  await p.click('[data-testid="u1-example"]');
+  await playAgain("Back to the example");
+  await p.reload();
+  await playAgain("reload");
+  await p.waitForTimeout(1200);
+  await p.screenshot({ path: `${OUT}/6-no-code-after-reload-${w}x${h}.png` });
   const ev = await (await fetch(`${BASE}/__evidence`)).json();
   say("the server asked no model at all", ev.modelCalls === 0, JSON.stringify(ev.calls));
   writeFileSync(`${OUT}/api-statuses.txt`, statuses.join("\n") + "\n");

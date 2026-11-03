@@ -518,7 +518,10 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       const lang = pasted?.target.language ?? pasted?.language.chosen;
       // The default is Wonder's first allowed test; "Test this claim" too, except on code that keeps state (claimProposal).
       // A test that has already run on this code is not offered again: its answer is known.
-      const offered = p.proposals.filter((x) => !alreadyRan(x.params));
+      // R10 review (D72): with no code, going back to the example plays the same question again (the only one open to them);
+      // the server gives a fresh round and counts it once on their record. Skipping it would land on a question that needs a code.
+      const replayExample = locked && readText === U1_EXAMPLE;
+      const offered = p.proposals.filter((x) => replayExample || !alreadyRan(x.params));
       const first = opts.pick === "list" ? undefined : opts.pick === "first" ? claimProposal(offered, lang ? { source: readText, language: lang } : undefined) : defaultProposal(offered);
       if (first) await start(() => api.experimentFromProposal(target, first.id, quizOpts()));
       else setChanging(true);
@@ -730,8 +733,11 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     // Whatever was pasted stays in its box: the code only opens the door.
     const ok = await useCode(inviteCode.trim());
     if (ok && code.trim() !== "") void read(code, lang === "auto" ? undefined : lang);
-    else if (ok && !autoExample.current) {
+    else if (ok) {
+      // R10 review (D72): a code entered with no file pasted (a judge, first thing) goes back to the example, now on their own budget.
       autoExample.current = true;
+      setOwnOpen(false);
+      autoBet.current = null;
       void read(U1_EXAMPLE, "ts");
     }
   };

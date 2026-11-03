@@ -83,7 +83,7 @@ import { canonicalJson, verifySeal } from "../src/seal";
 import { bodyLimit } from "hono/body-limit";
 import { createModelBudget, type ModelBudget } from "./meta/budget";
 import { isExampleVisitor, principalClientKey, runAs } from "./access/context";
-import { EXAMPLE_ALREADY_PLAYED, refuseMismatch, refuseOwnCode } from "./access/example-lane";
+import { refuseMismatch, refuseOwnCode } from "./access/example-lane";
 import { createShareLimit, DEFAULT_GITHUB_SHARES, type ShareLimit } from "./access/shares";
 import { cleanRecord, type RefusalWriter } from "./proofs/refusals";
 import { createHelperStore, helperRun, HELPER_WORDS } from "./helpers";
@@ -391,6 +391,8 @@ export interface AppOptions {
    * ATLAS_EXAMPLE_RUNS_PER_IP_PER_HOUR) and all such visitors together an hour (default 200, env ATLAS_EXAMPLE_RUNS_PER_HOUR).
    */
   exampleRunLimits?: { perIpPerHour?: number; perHour?: number };
+  /** R10 review (D72): whether the open example's own daily sandbox allowance has room (the ledger's exampleRoom). */
+  exampleRoom?: () => { ok: true } | { ok: false; reason: string };
   /** D60: where a shared link's card is kept, without its source (ATLAS_PROOFS_DIR/kept on a hosted server). */
   keptProofsDir?: string;
   /** D63: refuse a chain round before any paid call when there is no chain connection (server/index.ts turns this on). */
@@ -1224,10 +1226,11 @@ export function createApp(opts: AppOptions = {}) {
       // E3 review r3 minor 3: compared with the defaults filled in, so writing a default out does not hide a repeat.
       const asRun = (p: unknown) => canonicalJson(withCallDefaults(p));
       const same = [...rounds.values()].find((r) => r.run !== undefined && r.experiment.target.codeSha256 === target.codeSha256 && asRun(r.experiment.params) === asRun(experiment.params));
-      if (same) round.repeatOf = same.experiment.id;
+      // R10 review (D72): a visitor with no code who reloads or goes back to the example gets a fresh, playable round. Its text is
+      // the recorded one, with no "repeat" line for anyone: the person's screen shows none either, so every bettor still gets the
+      // same text (D19). Their track record counts the same code and test once (recordRound marks the repeat).
+      if (same && !openExample) round.repeatOf = same.experiment.id;
     }
-    // R10 (D72): a repeat tells every bettor it is a repeat, a text no answer was recorded from.
-    if (openExample && round.repeatOf) return refuseOwnCode(c, EXAMPLE_ALREADY_PLAYED);
     if (pastedEntry && decision.allowed) {
       // D19: the bet screen's text; the page shows it and every betting model gets it. E3 review r2 B2/B3/M3: the
       // test part is keyed on everything that appears in it, length-checked against the one limit (the prompt cap
@@ -1522,6 +1525,9 @@ export function createApp(opts: AppOptions = {}) {
     if (isExampleVisitor()) {
       // A model slot that is not a recorded answer (or off) means something asked live: never run it without a code.
       if (modelSlotsOf(round).some((s) => s.status === "sealed" && !s.recorded)) return refuseMismatch(c);
+      // R10 review (D72): the open example's own daily sandbox allowance (apart from the owner's and developers'), checked first.
+      const room = opts.exampleRoom?.() ?? { ok: true as const };
+      if (!room.ok) return c.json({ error: room.reason }, 429);
       const ip = clientOf(c);
       const mine = exampleRunsByIp.check(ip);
       if (!mine.ok) return c.json({ error: `run not started: ${mine.reason}. An invite code lifts this limit.` }, 429);

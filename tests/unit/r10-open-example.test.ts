@@ -13,7 +13,7 @@ import type { ChatArgs, ChatResult } from "../../server/meta/client";
 import { createReplayGate, createRunGate, createSandboxGate } from "../../server/replay-limits";
 import { runAs } from "../../server/access/context";
 import { EXAMPLE_ROUTES, INVITE_HEADER, NEEDS_INVITE, isExampleRoute, isOpenRoute, waitlistUrlFromEnv, withInviteGate } from "../../server/access/gate";
-import { EXAMPLE_ALREADY_PLAYED, EXAMPLE_SHA, OWN_CODE_NEEDS_INVITE, REPLAY_MISMATCH } from "../../server/access/example-lane";
+import { EXAMPLE_SHA, OWN_CODE_NEEDS_INVITE, REPLAY_MISMATCH } from "../../server/access/example-lane";
 import { openLedger } from "../../server/access/ledger";
 import { meteredExecutor, meteredGate } from "../../server/access/metered";
 import { openInviteStore } from "../../server/access/store";
@@ -34,23 +34,27 @@ interface Opts {
   exampleCopy?: boolean;
   trackDir?: string;
   exampleSandboxesAtOnce?: number;
+  /** Pretend the sandbox is Modal (it still runs locally; the ledger counts Modal starts). */
+  modal?: boolean;
+  exampleStartsPerDay?: number;
+  devDaily?: number;
 }
 
 /** The hosted server as server/index.ts builds it (dev copy, owner copy, open-example copy), with counting fakes. */
 function build(o: Opts = {}) {
   const dir = mkdtempSync(join(tmpdir(), "atlas-r10-"));
   const store = openInviteStore(dir, { env: { ATLAS_INVITE_PEPPER: PEPPER } });
-  const dev = store.create({ label: "dev-ada" });
+  const dev = store.create({ label: "dev-ada", ...(o.devDaily !== undefined ? { dailyUsd: o.devDaily } : {}) });
   const owner = store.create({ label: "dami", role: "owner" });
   let budget: ModelBudget | undefined;
-  const ledger = openLedger({ dir, store, requireInvite: o.require ?? true, ceilingUsd: 100, ownerReserveUsd: 20, modelSpentUsd: () => budget!.spentUsd(), ...(o.exampleSandboxesAtOnce ? { exampleSandboxesAtOnce: o.exampleSandboxesAtOnce } : {}) });
+  const ledger = openLedger({ dir, store, requireInvite: o.require ?? true, ceilingUsd: 100, ownerReserveUsd: 20, modelSpentUsd: () => budget!.spentUsd(), ...(o.exampleSandboxesAtOnce ? { exampleSandboxesAtOnce: o.exampleSandboxesAtOnce } : {}), ...(o.exampleStartsPerDay !== undefined ? { exampleModalStartsPerDay: o.exampleStartsPerDay } : {}) });
   budget = createModelBudget({ spendCeilingUsd: 100, guard: ledger, callsPerHour: 1000, experimentsPerSession: 1000 });
   const spent = { calls: [] as ChatArgs[], execs: 0 };
   const chat = async (a: ChatArgs): Promise<ChatResult> => {
     spent.calls.push(a);
     return { ok: true, finishReason: "stop", usage: { promptTokens: 10, completionTokens: 10, usd: 0.01 }, content: a.role === "investigator" ? WONDER_ANSWER : SPARK_ANSWER };
   };
-  const raw: Executor = { kind: "local", exec: (r) => (spent.execs++, localExecutor.exec(r)) };
+  const raw: Executor = o.modal ? { kind: "modal", fingerprint: "r10-test-modal", exec: (r) => (spent.execs++, localExecutor.exec(r)) } : { kind: "local", exec: (r) => (spent.execs++, localExecutor.exec(r)) };
   const opts = (): Parameters<typeof createApp>[0] => ({
     agentLog: createAgentLog(),
     proofs: createProofStore({ publish: false }),
@@ -68,6 +72,7 @@ function build(o: Opts = {}) {
       throw new Error("no fork in this test");
     },
     trustProxy: true,
+    exampleRoom: () => ledger.exampleRoom(),
     ...(o.limits ? { exampleRunLimits: o.limits } : {}),
     ...(o.trackDir ? { trackStore: diskTrackStore(o.trackDir) } : {}),
   });
@@ -334,17 +339,25 @@ describe("R10: tampering is refused, and never reaches a model or the sandbox", 
     nothingSpent(s);
   });
 
-  it("the same question again in one session (a repeat, never recorded): refused with its own line", async () => {
+  it("reload or 'Back to the example' (same session, or a new one): a fresh playable round each time, recorded text, counted once on the record", async () => {
     const s = build();
-    const c = client(s.app);
+    const c = client(s.app, { browser: "b_visitor_000000000009" });
     const first = await playToEnd(c);
     expect(first.r.status).toBe(200);
-    const execs = s.spent.execs;
-    const again = await c.post("/experiments", { target: first.target, proposalId: first.allowed[0]!.id, quiz: true, one: true });
-    expect(again.status).toBe(401);
-    expect(again.json.error).toBe(EXAMPLE_ALREADY_PLAYED);
-    nothingSpent(s, execs);
-  }, 60_000);
+    // Same session (sessionStorage keeps it on reload): the whole example again.
+    const again = await playToEnd(c);
+    expect(again.r.status, JSON.stringify(again.r.json)).toBe(200);
+    expect(again.slots.json.models.every((m: { status: string; recorded?: string }) => m.status === "sealed" && m.recorded)).toBe(true);
+    // A new session in the same browser (a new tab): playable too.
+    const third = await playToEnd(client(s.app, { browser: "b_visitor_000000000009" }));
+    expect(third.r.status).toBe(200);
+    expect(s.spent.calls).toHaveLength(0);
+    // The record counts the same code and test once.
+    const rec = await c.get("/track-record");
+    expect(rec.json.record.lines).toEqual(first.r.json.track.after.lines);
+    expect(rec.json.record.counted).toBe(1);
+    expect(rec.json.record.excludedRepeats).toBe(2);
+  }, 90_000);
 
   it("the ledger itself refuses the open example any model call or EVM run, and caps its sandboxes at once", () => {
     const s = build({ exampleSandboxesAtOnce: 1 });
@@ -439,4 +452,74 @@ describe("R10: local development (ATLAS_REQUIRE_INVITE unset) behaves as before"
     await c2.post(`/experiments/${e2.json.experiment.id}/model-bets`);
     expect(s.spent.calls.length).toBeGreaterThan(0);
   }, 60_000);
+});
+
+describe("R10 review: the open example's own daily sandbox allowance", () => {
+  it("one example run starts 3 sandboxes, counted (the first on a fresh server 4: the known-case check comes first)", async () => {
+    const s = build({ modal: true });
+    expect((await playToEnd(client(s.app))).r.status).toBe(200);
+    await new Promise((r) => setTimeout(r, 1500)); // the helper steps' run ends after the answer
+    expect(s.spent.execs).toBe(4);
+    const before = s.spent.execs;
+    expect((await playToEnd(client(s.app, { ip: "198.51.100.77" }))).r.status).toBe(200);
+    await new Promise((r) => setTimeout(r, 1500));
+    expect(s.spent.execs - before).toBe(3);
+    expect(s.ledger.exampleToday().starts).toBe(7);
+    expect(s.ledger.modalToday().starts).toBe(0); // never counted in Modal's daily caps that the owner and developers share
+  }, 60_000);
+
+  it("used up: no-code runs get a plain sentence with the invite line; an owner run and a developer run still start", async () => {
+    const s = build({ modal: true, exampleStartsPerDay: 4 });
+    const statuses: number[] = [];
+    let refused: Record<string, any> | null = null;
+    for (let i = 0; i < 4 && !refused; i++) {
+      const r = (await playToEnd(client(s.app, { ip: `198.51.100.${20 + i}` }))).r;
+      statuses.push(r.status);
+      if (r.status === 429) refused = r.json;
+      await new Promise((res) => setTimeout(res, 300));
+    }
+    expect(refused, JSON.stringify(statuses)).not.toBeNull();
+    expect(refused!.error).toMatch(/Today's free runs of the example are used up/);
+    expect(refused!.error).toMatch(/needs an invite code/); // the page adds Join the waitlist and I have a code
+    expect(s.ledger.exampleToday().starts).toBeGreaterThanOrEqual(4);
+    expect(s.ledger.modalToday().starts).toBe(0);
+    const owner = await playToEnd(client(s.app, { code: s.codes.owner, ip: "198.51.100.40" }));
+    expect(owner.r.status, JSON.stringify(owner.r.json)).toBe(200);
+    const dev = await playToEnd(client(s.app, { code: s.codes.dev, ip: "198.51.100.41" }));
+    expect(dev.r.status, JSON.stringify(dev.r.json)).toBe(200);
+    expect(s.ledger.modalToday().starts).toBeGreaterThan(0);
+    expect(s.spent.calls).toHaveLength(0);
+  }, 120_000);
+});
+
+describe("R10 review: a code with no money left still plays the example", () => {
+  it("a spent code (daily budget below one call) plays the example through the open lane; its own code says why", async () => {
+    const s = build({ devDaily: 0.05 });
+    const c = client(s.app, { code: s.codes.dev });
+    const { r } = await playToEnd(c);
+    expect(r.status, JSON.stringify(r.json)).toBe(200);
+    const own = await c.post("/paste", { code: RETRY_SRC });
+    expect(own.status).toBe(401);
+    expect(own.json.error).toContain(NEEDS_INVITE);
+    expect(own.json.error).toMatch(/daily budget is used up/);
+    expect(s.spent.calls).toHaveLength(0);
+  }, 60_000);
+});
+
+describe("R10 review: no owner-copy fallback on the open example's routes", () => {
+  it("a 404 on an example route stays a 404; an open route still falls back", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "atlas-r10-stub-"));
+    const store = openInviteStore(dir, { env: { ATLAS_INVITE_PEPPER: PEPPER } });
+    const seen: string[] = [];
+    const stub = (name: string) => ({ fetch: (req: Request) => (seen.push(`${name} ${new URL(req.url).pathname}`), new Response(JSON.stringify({ error: "not here" }), { status: 404, headers: { "content-type": "application/json" } })) });
+    const app = withInviteGate(stub("dev"), { store, require: true, secureCookie: false, ownerInner: stub("owner"), exampleInner: stub("example") });
+    for (const path of ["/track-record", "/remember", "/runs/r_1/helpers"]) {
+      seen.length = 0;
+      expect((await app.request(path)).status).toBe(404);
+      expect(seen).toEqual([`example ${path}`]);
+    }
+    seen.length = 0;
+    await app.request("/proofs/r_1");
+    expect(seen).toEqual(["dev /proofs/r_1", "owner /proofs/r_1", "example /proofs/r_1"]);
+  });
 });

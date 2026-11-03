@@ -27,8 +27,6 @@ export const EXAMPLE_FUNCTION = "fetchWithRetry";
 export const OWN_CODE_NEEDS_INVITE = "Your own code, and anything beyond the example, needs an invite code, so nothing was run and no AI was asked.";
 /** The example's recorded AI answers do not fit the text the bettors would get now. */
 export const REPLAY_MISMATCH = "The AI answers recorded for the example no longer match its question, so Atlas stopped here: no AI was asked and nothing ran. With an invite code the AIs answer live.";
-/** The same question again in one session would tell the bettors it is a repeat: that text was never recorded. */
-export const EXAMPLE_ALREADY_PLAYED = "You have already played the example here. Playing it again asks the AIs live, which needs an invite code, so nothing was run and no AI was asked.";
 
 /** The 401 a visitor with no code gets when they reach past the example. Same shape as the gate's own 401. */
 export const refuseOwnCode = (c: Context, words: string = OWN_CODE_NEEDS_INVITE) => {

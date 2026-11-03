@@ -21,7 +21,12 @@ How the server knows it is the example (the browser cannot claim it):
 3. If the recordings do not fit (the example's text changed), the round is refused with a plain sentence (503). It never
    falls back to a live model call.
 4. Behind all of that the ledger (`server/access/ledger.ts`) refuses the "example" visitor every model call and EVM run,
-   and lets it hold at most 2 sandboxes at once.
+   and lets it hold at most 2 sandboxes at once. **Review round 1:** the example now has its OWN daily Modal allowance
+   (600 starts and 3,600 sandbox-seconds per UTC day; `ATLAS_EXAMPLE_SANDBOX_STARTS_PER_DAY`,
+   `ATLAS_EXAMPLE_SANDBOX_SECONDS_PER_DAY`). Its starts are never counted in Modal's daily caps (2,000 starts, 7,200 s)
+   that the owner and developers share. Before, about 20 addresses could have used those up in a few hours and locked
+   out the owner and the judges until 00:00 UTC. When the example's allowance runs out, no-code visitors get one
+   sentence with the waitlist and "I have a code"; anyone with a code is not affected.
 5. The example's runs are limited: 10 an hour per visitor address (Fly-Client-IP on Fly), 200 an hour for all no-code
    visitors together (`ATLAS_EXAMPLE_RUNS_PER_IP_PER_HOUR`, `ATLAS_EXAMPLE_RUNS_PER_HOUR`).
 6. No-code visitors play in a third copy of the app (`exampleInner`), so they cannot push an invited developer's session
@@ -30,9 +35,10 @@ How the server knows it is the example (the browser cannot claim it):
 
 ## What one example run costs
 
-On Modal, a run is the experiment's sandbox plus the helper-steps sandbox (the known-case control is reused for 10 minutes).
-E4 measured and checked against Modal's bill about **$0.0001 per sandbox** (`tests/evidence/E4/README.md`, "Review round 1"),
-so about **$0.0002–0.0003 per example run**. At the 200-an-hour cap that is at most about **$0.06 an hour**. The ledger holds
+**Corrected in review round 1:** I first wrote 2 sandboxes per run; that was wrong. Counted in a test, one example run
+starts **3** sandboxes (the first run after a server start, **4**: the known-case check runs too). E4 measured and checked
+against Modal's bill about **$0.0001 per sandbox** (`tests/evidence/E4/README.md`, "Review round 1"), so about
+**$0.0003 per example run**. The daily allowance of 600 starts is about 200 runs, so at most about **$0.06 a day**. The ledger holds
 each sandbox's worst case first (Modal's lifetime limit at the capped rate) and books the measured seconds, as
 "the open example (no invite code)", under the developers' share of the ceiling (never the owner's $20 reserve).
 No model is called, so model spend for the example is $0.
@@ -52,22 +58,29 @@ No model is called, so model spend for the example is $0.
     refused; a forged "example" field (400) or header (401) changes nothing; a developer's round, reached with their
     session id and no code, is refused;
   - replay mismatch (bettor text without the names; a test writer with no recording): 503 with the plain sentence, no call;
-  - the same question again in one session (a "repeat" text, never recorded): refused with its own line;
+  - review round 1: playing again in the same session (reload) or a new one gives a fresh playable round with the
+    recorded text, and the record counts it once (earlier this was refused, a wall after one play);
   - the ledger refuses the example visitor a model call, a precheck and an EVM run, and caps its sandboxes at once;
   - the per-address and global hourly limits; an invite code is outside them;
   - no-code track records stay off the disk store; another browser does not see them;
   - `ATLAS_WAITLIST_URL`: unset/empty means no link; http, javascript:, data:, no scheme, user:password, quotes and over
     500 characters stop the server; /invite/status and the /invite page carry it;
-  - local development (ATLAS_REQUIRE_INVITE unset) behaves as before.
+  - local development (ATLAS_REQUIRE_INVITE unset) behaves as before;
+  - review round 1: one example run starts 3 sandboxes (4 on a fresh server), all counted in the example's own allowance
+    and none in Modal's shared caps; with the allowance used up, a no-code run gets the sentence and an owner run and a
+    developer run still start; a code whose daily budget is spent still plays the example (its own code is refused with
+    the reason); a 404 on an example route never falls back to the owner's copy.
 - Four G1/H1 tests that said "no code: 401 on /paste, /events, …" now state the new rule (those routes refuse anything that
   is not the example), and still check that nothing is spent.
 - Page checks and screenshots (`shots.txt`, `shots/`), on a local copy of the hosted set-up (`server.mts`: the real gate,
   the three app copies, the real ledger in a temp folder, models that count and fail), with no code: 11 of 11 pass, and the
-  server counted 0 model calls.
+  server counted 0 model calls. Review round 1 added "Back to the example" and a reload, each played again to a verdict:
+  13 of 13 pass.
   - `shots/1-no-code-first-screen-1280x800.png`: the example, its question ready, the AIs' answers labelled recorded.
   - `shots/2-no-code-result-1280x800.png`, `shots/3-no-code-proof-card-1280x800.png`: the verdict and the proof card.
   - `shots/4-waitlist-prompt-try-another-1280x800.png`: "Try another question" with no code: the line, Join the waitlist, I have a code.
   - `shots/5-waitlist-prompt-own-code-1280x800.png`: "Try your own code" with no code: the same line, the code box, Draw and the samples off.
+  - `shots/6-no-code-after-reload-1280x800.png`: after a reload, played again.
   - `shots/api-statuses.txt`: every API answer the page got (all 200, no 401 on the example path).
 
 To repeat: `pnpm exec vite build && PORT=18970 pnpm exec tsx tests/evidence/R10/server.mts`, then
@@ -83,8 +96,14 @@ To repeat: `pnpm exec vite build && PORT=18970 pnpm exec tsx tests/evidence/R10/
   record (example rounds only). Kept in memory: a restart clears it.
 - Left closed with no code, on purpose: the proof card's "draw this in pencil" and "Run it again" (replay), keeping a public
   link. Each shows the server's sentence with the waitlist links.
-- A visitor who reloads and plays the example again in the same tab gets "You have already played the example here",
-  because a repeat round tells the bettors it is a repeat, and that text was never recorded.
+- A replayed example round carries no "repeat" line for anyone (person or AIs), so the text stays the recorded one; the
+  record counts the same code and test once.
+- A no-code track record is not carried over when the visitor signs in with a code: the code starts its own record.
+- Live-log streams for no-code visitors: at most 4 per address and 40 in total, apart from the developers' streams.
+- Judges playing with no code behind one shared address (an office or conference NAT) share the 10-runs-an-hour limit.
+  The README now tells judges to enter the judge code first.
+- A code whose budget is spent plays the example in the open example's copy of the app. If it ran out in the middle of a
+  round, that round's later steps land in the other copy and are refused ("unknown target"); starting again works.
 - The no-code limits count by address. Many addresses can reach the 200-an-hour total and lock other no-code visitors out
   for the rest of that hour (invited people are not affected).
 - An invalid `ATLAS_EXAMPLE_RUNS_*` value falls back to its default silently (as the other per-address limits do).

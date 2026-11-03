@@ -97,12 +97,19 @@ fly ssh console --app atlas-dami -C "/usr/local/bin/atlas-invites usage --name j
 fly logs --app atlas-dami --no-tail      # look for the line that starts "open example:"
 ```
 
-Limits on the no-code example (optional; the defaults are shown): `ATLAS_EXAMPLE_RUNS_PER_IP_PER_HOUR=10` runs an hour per
-visitor address (Fly-Client-IP), `ATLAS_EXAMPLE_RUNS_PER_HOUR=200` an hour for all no-code visitors together. Set them
-the same way (`fly secrets set ...`). An invalid value falls back to the default. No-code visitors may hold 2 sandboxes at
-once, and their spend is booked in the ledger as "the open example (no invite code)" under the developers' share of the
-ceiling, never the owner's reserve. One example run is about $0.0002–0.0003 on Modal (two sandboxes, about $0.0001 each,
-from E4's billed measurement), so 200 runs an hour is at most about $0.06 an hour.
+Limits on the no-code example (optional; the defaults are shown). Set them the same way (`fly secrets set ...`); an
+invalid value falls back to the default.
+- `ATLAS_EXAMPLE_RUNS_PER_IP_PER_HOUR=10`: runs an hour per visitor address (Fly-Client-IP).
+- `ATLAS_EXAMPLE_RUNS_PER_HOUR=200`: runs an hour for all no-code visitors together.
+- `ATLAS_EXAMPLE_SANDBOX_STARTS_PER_DAY=600` and `ATLAS_EXAMPLE_SANDBOX_SECONDS_PER_DAY=3600`: the no-code example's OWN
+  Modal allowance per UTC day. It is kept apart from Modal's daily caps (2,000 starts, 7,200 s), so no-code visitors can
+  never use up your sandboxes or the developers'. When it runs out, no-code visitors are told so (with the waitlist and
+  "I have a code") until 00:00 UTC; anyone with a code is not affected.
+
+No-code visitors may hold 2 sandboxes at once, and their spend is booked in the ledger as "the open example (no invite
+code)" under the developers' share of the ceiling, never the owner's reserve. **Cost:** one example run starts 3 Modal
+sandboxes (4 on the first run after a start, when the known-case check runs too), about $0.0001 each (E4's billed
+figure), so about **$0.0003 a run**. The daily allowance of 600 starts is about 200 runs, about **$0.06 a day** at most.
 
 ## Later
 

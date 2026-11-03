@@ -74,6 +74,9 @@ export function accessFromEnv(env: Record<string, string | undefined>, deps: { c
     // The same caps the Modal executor keeps in memory (runners/executor/select.ts), now also kept on disk.
     modalStartsPerDay: whole(env.ATLAS_MODAL_MAX_SANDBOXES_PER_DAY, 2_000, 1_000_000),
     modalSecondsPerDay: whole(env.ATLAS_MODAL_MAX_SANDBOX_SECONDS_PER_DAY, 7_200, 1_000_000),
+    // R10 review (D72): the open example's own Modal allowance per UTC day, apart from the caps above.
+    exampleModalStartsPerDay: whole(env.ATLAS_EXAMPLE_SANDBOX_STARTS_PER_DAY, 600, 1_000_000),
+    exampleModalSecondsPerDay: whole(env.ATLAS_EXAMPLE_SANDBOX_SECONDS_PER_DAY, 3_600, 1_000_000),
     });
   } catch (e) {
     release();

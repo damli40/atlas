@@ -40,6 +40,7 @@ const opts = (): Parameters<typeof createApp>[0] => ({
   runGate: meteredGate(createRunGate(), ledger, "EVM run", { ownerGate: createRunGate() }),
   replayGate: meteredGate(createReplayGate(), ledger, "EVM replay", { ownerGate: createReplayGate() }),
   sandboxGate: meteredGate(createSandboxGate(), ledger, "sandbox start", { ownerGate: createSandboxGate(), count: false }),
+  exampleRoom: () => ledger.exampleRoom(),
 });
 const gated = withInviteGate(createApp(opts()), { store, require: true, ledger, secureCookie: false, ownerInner: createApp(opts()), exampleInner: createApp(opts()), waitlistUrl: "https://example.com/atlas-waitlist-placeholder" });
 const outer = new Hono();

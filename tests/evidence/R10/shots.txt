@@ -8,4 +8,6 @@ pass the waitlist link opens the form named by the server, in a new tab
 pass Try your own code: the line with Join the waitlist and I have a code, and the code box: Your own code, and anything beyond the example, needs an invite code, so nothing was run and no AI was asked. Join the waitlist · I have a code
 pass Try your own code: Draw my code and the samples are off without a code
 pass Try your own code: the way back to the example is there
+pass Back to the example: the example plays again to a verdict
+pass reload: the example plays again to a verdict
 pass the server asked no model at all: []
