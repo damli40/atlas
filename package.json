@@ -20,6 +20,7 @@
     "hono": "^4.13.14",
     "modal": "0.11.0",
     "nanoid": "^6.0.2",
+    "pele": "1.12.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "tsx": "^4.23.15",
@@ -35,7 +36,6 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "jsdom": "^26.1.0",
-    "pele": "1.12.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.5",
     "vitest": "^5.0.5"
