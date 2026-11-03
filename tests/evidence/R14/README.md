@@ -26,6 +26,7 @@ The coordinator's decisions, all built. Where this section and the ones below di
 | Minor 2: without a browser id (the plugin) answers are keyed by session. | Logged in Limits. With an invite code they are per code. |
 | Minor 3: record page wording. | "What you ask is kept" is not shown to a visitor with no code; the first line no longer says answers are never kept, and a line says questions about a part and Muse's answers ARE kept and passed to the AIs. |
 | Minor 4–6 | Question box at 16 px (no phone zoom); the panel's buttons and box sit outside its live region; the picked box gets a starred label "★ Muse Wonder's pick for you", not only a tint. |
+| Rebase | onto main 507adbf. R15's test holds every rule after its marker in `web/tool.css` to phone-only blocks, so R14's CSS now sits just before that marker. |
 | Bet timer | The "locked in … s" timer under the bet stops when the run answers (a result or a refusal). |
 
 ## Review round 1 (an adversarial review of the first build)
@@ -73,8 +74,8 @@ D19: every bettor, the person and the AIs, bets on the same words.
 | Check | Result | File |
 |---|---|---|
 | `tsc --noEmit` | clean | `tsc.txt` (empty) |
-| Full vitest | after review round 1: 171 files passed, 1 failed, 2 skipped; **2,799 tests passed, 1 failed, 36 skipped**. The one failure is a time limit in a file R14 does not touch (x3-failure-labels M3: 78.7 ms against 50, under load); run alone it passed 3 of 3 (`vitest-timing-rerun.txt`). Before the review the full run was 2,798 passed, 0 failed. | `vitest.txt` |
-| New unit tests | `tests/unit/r14-part-talk.test.ts`: 24 tests (checkers with attack lines; ask refused before the lock with 0 calls; answer refused for claim words; off topic; hourly limit; answers in the next round's bettor text and on the page, across sessions, and not for another person; pick with no record asks nothing; pick prompt holds kinds and counts only; outcome-leaking reasons refused; captions refused before the run and for steps that don't match; contradicting captions dropped; none of the three on the proof card or in the proof file; the record page's words) | |
+| Full vitest | after review round 2, rebased onto main 507adbf (R13 + R15 merged): **174 files passed, 2 skipped; 2,834 tests passed, 35 skipped, 0 failed**. (After round 1, before the rebase: 2,799 passed and 1 timing-only failure in x3-failure-labels, which passed 3 of 3 alone: `vitest-timing-rerun.txt`.) | `vitest.txt` |
+| New unit tests | `tests/unit/r14-part-talk.test.ts`: 31 tests (checkers with attack lines; ask refused before the lock with 0 calls; answer refused for claim words; off topic; hourly limit; answers in the next round's bettor text and on the page, across sessions, and not for another person; pick with no record asks nothing; pick prompt holds kinds and counts only; outcome-leaking reasons refused; captions refused before the run and for steps that don't match; contradicting captions dropped; none of the three on the proof card or in the proof file; the record page's words) | |
 | Changed test | `tests/unit/g1-invites.test.ts`: the three new routes added to its table of spending routes (each must answer 401 without a code) | |
 | Page checks, models mocked ($0) | 21 of 21 (after round 2) | `shots.txt`, `shots/` |
 | Page checks, no invite code ($0) | 9 of 9: no request to the three routes, waitlist lines in the panel, "Lock in my bet" above the fold at 1280×800, 1440×900, 390×844 | `nocode.txt`, `nocode/` |
