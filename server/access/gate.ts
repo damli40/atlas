@@ -44,7 +44,18 @@ export const OPEN_ROUTES: readonly { method: string; path: RegExp; why: string }
   { method: "POST", path: /^\/invite(?:\/forget)?$/, why: "enter or forget an invite code" },
 ];
 
-export const isOpenRoute = (method: string, path: string): boolean => OPEN_ROUTES.some((r) => r.method === method && r.path.test(path));
+/**
+ * A code as people copy it: the judges' code was published as "[atlas_…]", so one pair of wrapping brackets,
+ * quotes or backticks (and spaces) is taken off before checking. Anything else is checked exactly as typed.
+ */
+export function unwrapCode(raw: string): string {
+  const s = raw.trim();
+  const m = /^(?:\[\s*(.*?)\s*\]|"\s*(.*?)\s*"|'\s*(.*?)\s*'|`\s*(.*?)\s*`|<\s*(.*?)\s*>)$/s.exec(s);
+  const inner = m ? (m.slice(1).find((g) => g !== undefined) ?? s) : s;
+  return /^atlas_[A-Za-z0-9_-]{32}$/.test(inner) ? inner : s;
+}
+
+export const isOpenRoute =(method: string, path: string): boolean => OPEN_ROUTES.some((r) => r.method === method && r.path.test(path));
 
 /**
  * R10 (D72): routes a visitor with NO code may reach, as the "example" principal, because the first screen's example uses them.
@@ -211,6 +222,7 @@ export function withInviteGate(inner: InnerApp, o: GateOptions): Hono {
     } catch {
       return c.json({ error: "send the code as a form field or JSON {\"code\": \"...\"}" }, 400);
     }
+    code = unwrapCode(code);
     const v = o.store.verify(code);
     if (!v.ok) {
       // G1 review M4: checked after the code, so a correct code is never refused by someone else's failures.
