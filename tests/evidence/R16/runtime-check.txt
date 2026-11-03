@@ -14,3 +14,7 @@ and scratch folders. What it does not prove: anything on Fly, Linux, Modal, or w
      drawing 200 ok, keys: kind,svg,png,pngReason,width,height,parts,aiNames,namesModel,caption
 6. Server log: 0 lines with "error"; it says "Atlas server listening on http://localhost:18971 ...". No model was called.
    The server was stopped by its PID.
+
+Rerun after the follow-up, on commit 540ffce, same steps and settings:
+  pnpm install --frozen-lockfile --prod -> exit 0 ("Done in 541ms using pnpm v12.4.1")
+  GET /health 200 {"ok":true}; paste 200 ok; drawing 200 ok (same keys); 0 lines with "error" in the log; stopped by PID.
