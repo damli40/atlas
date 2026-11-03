@@ -64,6 +64,7 @@ const SPENDING: { method: string; route: string; path: string; body?: unknown; s
   // X3: read only and free, but they are about a person's own code and record, so closed by default.
   { method: "GET", route: "/track-record", path: "/track-record", spends: "nothing (a person's own track record; closed by default)" },
   { method: "POST", route: "/paste/labels", path: "/paste/labels", body: {}, spends: "nothing (plain-code labels on a person's own paste; closed by default)" },
+  { method: "POST", route: "/paste/drawing", path: "/paste/drawing", body: {}, spends: "nothing (R13: plain code draws a person's own paste as a picture; closed by default)" },
   { method: "GET", route: "/outline/jobs/:id/labels", path: "/outline/jobs/x/labels", spends: "nothing (plain-code labels on a person's own outline; closed by default)" },
 ];
 

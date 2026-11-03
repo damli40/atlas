@@ -1,0 +1,6 @@
+npx vitest run (full suite, 2026-11-03, branch r13-plugin-draw before commit)
+ RUN  v5.0.5 <home>/Documents/Atlas-wt/r13-plugin-draw
+ Test Files  172 passed | 2 skipped (174)
+      Tests  2789 passed | 35 skipped (2824)
+   Duration  129.03s (tests 85%, import 15%)
+exit 0

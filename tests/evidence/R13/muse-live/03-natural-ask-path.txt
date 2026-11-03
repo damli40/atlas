@@ -1,0 +1,40 @@
+Do you trust this workspace?
+Workspace: <scratch>/muse1/ws
+Trusting allows project-local skills, rules, hooks, and plugin config to load before the model runs.
+Only trust this workspace when you trust its contents.
+⟩ 1  Trust and continue
+  2  Quit
+Use Up/Down or 1/2, then Enter. Esc quits.
+  Muse Code 1.4.14
+❯ /atlas-draw backend/src/services/score.ts
+◆ Drawing your file with Atlas now.
+◆ atlas_draw(backend/src/services/score.ts) · plugin:atlas:atlas · ✓ · 1 image · 0.2s · ctrl+o
+◆ Picture: .atlas/drawings/backend_src_services_score.ts.png
+  Caption, as written:
+  score.ts: Atlas's machine of 1 part
+  Drawn by Atlas's plain code from the file's syntax alone. Nothing ran, and no AI drew it.
+  Atlas's plain code drew it from the file's syntax; nothing ran.
+❯ Can you make a picture of example.ts with Atlas, starting at fetchWithRetry, and tell me what you see in it?
+◆ I'll locate example.ts and draw its fetchWithRetry view with Atlas.
+  Searched "^" (no matches)
+◆ I couldn't find an example.ts in this workspace to draw — no file by that name matched.
+  Which file should I draw? Share its workspace-relative path (for example backend/src/services/score.ts), and I'll call Atlas with function fetchWithRetry.
+❯ It is example.ts at the top of this folder. Draw it with Atlas and tell me what you see in the picture.
+◆ Got it — I'll draw that top-level file starting at fetchWithRetry and describe the picture.
+  Searched "fetchWithRetry" (1 file)
+◆ Found it — drawing it now.
+◆ atlas_draw(example.ts) · plugin:atlas:atlas · ✓ · 1 image · 0.2s · ctrl+o
+◆ Picture: .atlas/drawings/example.ts-fetchWithRetry.png
+  Caption, as written:
+  example.ts: Atlas's machine of 4 parts, entered at fetchWithRetry
+  Drawn by Atlas's plain code from the file's syntax alone. Nothing ran, and no AI drew it.
+  What I see in the picture:
+  • 4 boxes labeled fetchWithRetry, getPrice, sleep, and backoffMs.
+  • The middle box says fetchWithRetry, lines 10–21, with starts here: Atlas calls this pointing at its funnel, plus loop, line 12, returns, line 14, and throws, line 20.
+  • Red pipes connect that middle box to the other three boxes.
+  • Labels around the other boxes: getPrice, lines 23–25 with returns, line 24; sleep, lines 6–8 with waits, line 7 and returns, line 7; backoffMs with lines 2–4.
+  Atlas's plain code drew it from the file's syntax; nothing ran.
+── Voice input (⌥ + v to start) ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  muse-spark-1.3 · low · <scratch>/muse1/ws · Launch overrides

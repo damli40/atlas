@@ -36,6 +36,7 @@ import { guardPastedChat } from "./meta/pasted-guard";
 import { PROPOSER_MODEL, runProposer, type Proposal } from "./meta/roles/proposer";
 import { NAMER_MODEL, runNamer, type NamerResult } from "./meta/roles/namer";
 import { checkNames, NAMES_PART_LIMIT } from "../src/natural-names";
+import { servedPicture } from "./drawing";
 import { codeFingerprint } from "../src/code-fingerprint";
 import { EXAMPLE_NAMES, EXAMPLE_NAMES_MODEL } from "../src/example-names";
 import { SUMMARIZER_MODEL, runSummarizer, type SummarizerResult } from "./meta/roles/summarizer";
@@ -140,6 +141,9 @@ const targetRef = z.object({ ref: z.string().min(1).max(200), codeSha256: z.stri
 // Wonder is asked for tests that check that sentence. The server looks the sentence up itself: no text from the page.
 const proposalsBody = z.object({ target: targetRef, exportName: z.string().min(1).max(100), claimOf: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/).optional(), early: z.literal(true).optional() }).strict();
 const namesBody = z.object({ target: targetRef }).strict();
+// R13: the file's drawing as a picture, for the Muse Code plugin. `fileName` is only shown in the caption.
+const drawingBody = z.object({ target: targetRef, exportName: z.string().min(1).max(100).optional(), fileName: z.string().min(1).max(120).optional() }).strict();
+
 /** R6: how long a new round's bettor text waits for names already asked for. Past this it is written without them, and they are closed. */
 const NAMES_WAIT_MS = 1_500;
 /** R9: the same wait for the file summary (asked at the same time as the names, and waited for at the same time). */
@@ -592,6 +596,36 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
       e.state = "shown";
       e.names = r.names;
       return c.json({ ok: true, model: r.model, names: r.names, refused: r.refused });
+    });
+
+    // R13: the file's drawing as a picture file (SVG, and PNG where the server has the optional converter), for the Muse Code
+    // plugin's atlas_draw. Plain code only: no model is asked and nothing runs. The names on the lids are this session's
+    // natural names only when the page's rules already let this session see them (POST /paste/names answered: "shown").
+    app.post("/paste/drawing", async (c) => {
+      const sessionId = sessionIdOf(c);
+      if (sessionId === null) return c.json({ error: BAD_SESSION }, 400);
+      const raw = await readJson(c.req.raw);
+      if (!raw.ok) return c.json({ error: "the request body is not JSON" }, 400);
+      const parsed = drawingBody.safeParse(raw.body);
+      if (!parsed.success) return c.json({ error: reasonOf(parsed.error) }, 400);
+      const entry = entryOf(sessionId, parsed.data.target);
+      if (!entry) return c.json({ error: "this session has no pasted file with that ref and fingerprint: paste it first (POST /paste)" }, 400);
+      const sha = entry.target.codeSha256;
+      if (isExampleVisitor() && sha !== EXAMPLE_SHA) return refuseOwnCode(c);
+      const fn = parsed.data.exportName ?? null;
+      if (fn !== null && !entry.exports.some((e) => e.name === fn)) return c.json({ error: `the file has no exported function named "${visibleText(fn)}"` }, 400);
+      const fileName = visibleText(parsed.data.fileName ?? `pasted.${entry.target.language ?? "js"}`);
+      const n = sessionNames.get(sessionId)?.get(sha);
+      const names = n?.state === "shown" && n.names ? n.names : null;
+      const key = JSON.stringify([sha, entry.target.language, fn, fileName, names]);
+      let pic;
+      try {
+        pic = await servedPicture(key, { source: entry.target.source ?? "", language: entry.target.language ?? "js", fileName, tested: fn, names, namesModel: names ? n!.model : null, wontRun: entry.refusal !== null });
+      } catch (e) {
+        return c.json({ error: `plain code could not draw this file: ${visibleText(e instanceof Error ? e.message : String(e))}` }, 422);
+      }
+      if (pic.kind === "none") return c.json({ kind: "none", words: pic.words, parts: pic.parts });
+      return c.json({ kind: pic.kind, svg: pic.svg, png: pic.png ? pic.png.toString("base64") : null, ...(pic.pngReason ? { pngReason: pic.pngReason } : {}), width: pic.width, height: pic.height, parts: pic.parts, aiNames: pic.aiNames, namesModel: names ? n!.model : null, caption: pic.caption });
     });
 
     // R9: a short plain-English summary of the file, by Muse Wonder from the code alone, in its own call (it never sees a test or a question).

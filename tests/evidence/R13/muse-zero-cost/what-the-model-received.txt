@@ -1,0 +1,4 @@
+Per atlas_draw result Muse sent to the (puppet) model: the content item types inside function_call_output.
+Source: the puppet model's request log (each line cut at 20,000 characters, so the image data itself is cut).
+request 24: items ['input_text', 'input_text', 'input_image']; image_url starts 'data:image/png;base64,'
+request 44: items ['input_text', 'input_text', 'input_image']; image_url starts 'data:image/png;base64,'

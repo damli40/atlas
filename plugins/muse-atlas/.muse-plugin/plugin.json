@@ -15,6 +15,11 @@
         "id": "atlas",
         "path": "commands/atlas.md",
         "enabledDefault": true
+      },
+      {
+        "id": "atlas-draw",
+        "path": "commands/atlas-draw.md",
+        "enabledDefault": true
       }
     ],
     "hooks": [

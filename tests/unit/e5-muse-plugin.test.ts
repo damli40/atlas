@@ -301,7 +301,7 @@ describe("E5 the MCP server (stdio, JSON-RPC)", () => {
     expect(init.result.capabilities.tools).toBeTruthy();
     expect(await handleMessage({ jsonrpc: "2.0", method: "notifications/initialized" }, null, null)).toBeNull();
     const list = (await handleMessage({ jsonrpc: "2.0", id: 2, method: "tools/list" }, null, null)) as any;
-    expect(list.result.tools.map((t: any) => t.name)).toEqual(["atlas_status", "atlas_read_file_function", "atlas_propose_tests", "atlas_start_round", "atlas_seal_bet", "atlas_run", "atlas_choose_target", "atlas_rerun"]);
+    expect(list.result.tools.map((t: any) => t.name)).toEqual(["atlas_status", "atlas_read_file_function", "atlas_draw", "atlas_propose_tests", "atlas_start_round", "atlas_seal_bet", "atlas_run", "atlas_choose_target", "atlas_rerun"]);
     const call = (await handleMessage({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "atlas_run", arguments: {} } }, null, "Atlas is not set up: set ATLAS_URL")) as any;
     expect(call.result.isError).toBe(true);
     expect(call.result.content[0].text).toMatch(/set ATLAS_URL/);
@@ -343,7 +343,7 @@ describe("E5 the MCP server (stdio, JSON-RPC)", () => {
     await new Promise<void>((r) => child.on("close", () => r()));
     const lines = out.trim().split("\n").map((l) => JSON.parse(l));
     expect(lines.map((l) => l.id)).toEqual([1, 2, 3]);
-    expect(lines[1].result.tools).toHaveLength(8); // 6 from E5, atlas_choose_target and atlas_rerun from L1
+    expect(lines[1].result.tools).toHaveLength(9); // 6 from E5, atlas_choose_target and atlas_rerun from L1, atlas_draw from R13
     expect(lines[2].result.isError).toBe(true);
     expect(lines[2].result.content[0].text).toMatch(/Invite code: set \(from ATLAS_INVITE\)[\s\S]*does not answer/);
     expect(out + err).not.toContain(INVITE);
@@ -374,7 +374,8 @@ describe("E5 the plugin package", () => {
     expect(src).not.toMatch(/node:(http|https|net|tls|dgram|child_process)/);
     expect(src.match(/\bfetch\(/g)).toHaveLength(1);
     expect(src).toContain("doFetch(config.url + path");
-    expect(src).not.toMatch(/https?:\/\/(?!127\.0\.0\.1|atlas\.example)[a-z]/i);
+    // R13: the SVG namespace (www.w3.org/2000/svg) is a name the picture check compares against, never an address anything is sent to.
+    expect(src).not.toMatch(/https?:\/\/(?!127\.0\.0\.1|atlas\.example|www\.w3\.org\/2000\/svg")[a-z]/i);
   });
 
   it("the /atlas command walks the flow and keeps the rules", () => {

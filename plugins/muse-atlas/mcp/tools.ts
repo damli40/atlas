@@ -23,9 +23,9 @@
 // folder Muse Code is working in, to the Atlas server at ATLAS_URL. Nothing else leaves this machine from here.
 
 import { createHash, randomBytes } from "node:crypto";
-import { readFileSync, realpathSync, statSync } from "node:fs";
+import { lstatSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { extname, isAbsolute, relative, resolve, sep } from "node:path";
+import { basename, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { AtlasAnswer, AtlasClient } from "./atlas-client.ts";
 import { BUDGET_WORDS } from "./atlas-client.ts";
 import type { AtlasConfig } from "./config.ts";
@@ -87,6 +87,19 @@ export function isLoopPhrase(typed: string): boolean {
 export interface ToolText {
   text: string;
   isError?: boolean;
+  /** R13: a picture for MCP image content (base64 PNG), when the server sent one. */
+  image?: { data: string; mimeType: "image/png" };
+}
+
+/** R13: where atlas_draw writes, inside the workspace. Nothing is ever written anywhere else. */
+export const DRAWINGS_DIR = join(".atlas", "drawings");
+/** R13: said with every drawing. */
+export const DRAW_LIMITS =
+  "What this picture is: Atlas's plain code drew it from the file's syntax alone (which function calls which, loops, waits, throws, returns). Nothing ran, so it says nothing about what the code does when it runs, and no AI drew it. A name marked with a star is Muse Wonder's words (Meta's AI), not a check.";
+const PNG_MAGIC = "iVBORw0KGgo"; // base64 of the PNG signature
+/** R13: the picture files may hold only what Atlas's drawing holds: no script, no link out, no embedded page. */
+export function svgLooksSafe(svg: string): boolean {
+  return svg.startsWith('<svg xmlns="http://www.w3.org/2000/svg"') && svg.trimEnd().endsWith("</svg>") && !/<script|<foreignObject|<iframe|<a[\s>]|<image|<use|\shref=|xlink:|javascript:|\son[a-z]+\s*=|@import/i.test(svg) && !/url\((?!#|"data:font\/woff2;base64,)/i.test(svg);
 }
 
 interface FileEntry {
@@ -226,19 +239,28 @@ export function createTools(deps: ToolDeps) {
     return null;
   }
 
+  type PasteAns = { target: FileEntry["target"]; runnable: boolean; reason?: string; exports: { name: string; line: number; declaredAs?: string }[]; cantCheck: string | null };
+  /** Sends one workspace file to Atlas (POST /paste) and keeps what plain code read. */
+  async function pasteFile(f: { rel: string; code: string; language: "js" | "ts" | "py" }): Promise<{ ok: true; p: PasteAns; entry: FileEntry } | { ok: false; out: ToolText }> {
+    const readAt = new Date(now()).toISOString();
+    const r = await client.post<PasteAns>("/paste", { code: f.code, language: f.language });
+    if (!r.ok) return { ok: false, out: failFrom(r, `Atlas could not read ${visible(f.rel)}`) };
+    const p = r.json;
+    if (typeof p.runnable !== "boolean") return { ok: false, out: notAtlas("POST /paste") };
+    if (!p.runnable) return { ok: false, out: fail(`${DATA_NOTE}\nAtlas read ${visible(f.rel)} as ${LANGUAGE_NAME[f.language]}, but this Atlas server cannot run ${LANGUAGE_NAME[f.language]} yet: ${quoteLine(p.reason ?? "no runner")}.`) };
+    if (!isObj(p.target) || !isStr(p.target.ref) || !isStr(p.target.codeSha256) || !Array.isArray(p.exports) || !p.exports.every((e) => isObj(e) && isStr(e.name) && typeof e.line === "number")) return { ok: false, out: notAtlas("POST /paste") };
+    const entry: FileEntry = { path: f.rel, target: p.target, exports: p.exports.map((e) => ({ name: e.name, line: e.line })), cantCheck: isStr(p.cantCheck) ? p.cantCheck : null, sha256: sha256(f.code), readAt };
+    files.set(f.rel, entry);
+    return { ok: true, p, entry };
+  }
+
   /** atlas_read_file_function: the exported functions of one file, as Atlas's plain code reads them. */
   async function readFileFunction(args: { path?: unknown }): Promise<ToolText> {
     const f = readWorkspaceFile(String(args.path ?? ""));
     if (!f.ok) return fail(f.reason);
-    const readAt = new Date(now()).toISOString();
-    type PasteAns = { target: FileEntry["target"]; runnable: boolean; reason?: string; exports: { name: string; line: number; declaredAs?: string }[]; cantCheck: string | null };
-    const r = await client.post<PasteAns>("/paste", { code: f.code, language: f.language });
-    if (!r.ok) return failFrom(r, `Atlas could not read ${visible(f.rel)}`);
-    const p = r.json;
-    if (typeof p.runnable !== "boolean") return notAtlas("POST /paste");
-    if (!p.runnable) return fail(`${DATA_NOTE}\nAtlas read ${visible(f.rel)} as ${LANGUAGE_NAME[f.language]}, but this Atlas server cannot run ${LANGUAGE_NAME[f.language]} yet: ${quoteLine(p.reason ?? "no runner")}.`);
-    if (!isObj(p.target) || !isStr(p.target.ref) || !isStr(p.target.codeSha256) || !Array.isArray(p.exports) || !p.exports.every((e) => isObj(e) && isStr(e.name) && typeof e.line === "number")) return notAtlas("POST /paste");
-    files.set(f.rel, { path: f.rel, target: p.target, exports: p.exports.map((e) => ({ name: e.name, line: e.line })), cantCheck: isStr(p.cantCheck) ? p.cantCheck : null, sha256: sha256(f.code), readAt });
+    const pasted = await pasteFile(f);
+    if (!pasted.ok) return pasted.out;
+    const p = pasted.p;
     const lines = [
       DATA_NOTE,
       `Atlas read ${visible(f.rel)} (${LANGUAGE_NAME[f.language]}, from the file's extension; sent to the Atlas server at ${config.url}; version sha256 ${sha256(f.code).slice(0, 12)}…).`,
@@ -543,6 +565,94 @@ export function createTools(deps: ToolDeps) {
     return { text: lines.join("\n") };
   }
 
+  /**
+   * R13 atlas_draw: Atlas's drawing of one file (the machine, or the box chart past 8 parts), as a picture file in this workspace's
+   * .atlas/drawings folder. The server draws it with the page's own plain code; this tool only checks the answer and writes it.
+   */
+  async function draw(args: { path?: unknown; function?: unknown; names?: unknown }): Promise<ToolText> {
+    const f = readWorkspaceFile(String(args.path ?? ""));
+    if (!f.ok) return fail(f.reason);
+    const fn = args.function === undefined || args.function === null || args.function === "" ? null : String(args.function);
+    // The file as it is now: Atlas's earlier read is reused only if the bytes are the same.
+    let entry = fileEntry(f.rel);
+    if (!entry || entry.sha256 !== sha256(f.code)) {
+      const pasted = await pasteFile(f);
+      if (!pasted.ok) return pasted.out;
+      entry = pasted.entry;
+    }
+    if (fn !== null && !entry.exports.some((e) => e.name === fn)) return fail(`${visible(entry.path)} has no exported function named "${visible(fn)}"; it exports ${entry.exports.map((e) => quoteLine(e.name)).join(", ") || "nothing"}. Leave the function out to draw the whole file.`);
+    const notes: string[] = [];
+    if (args.names === true) {
+      // Optional, and the only step that may ask a model (one Muse Wonder call per file, on the person's invite budget).
+      const n = await client.post<{ ok?: boolean; reason?: string }>("/paste/names", { target: { ref: entry.target.ref, codeSha256: entry.target.codeSha256 } });
+      if (!n.ok) notes.push(`No natural names: ${quoteLine(n.reason)}. The lids carry the code's own names.`);
+      else if (n.json.ok !== true) notes.push(`No natural names: ${quoteLine(n.json.reason ?? "none came back")}. The lids carry the code's own names.`);
+    }
+    type DrawAns = { kind: string; words?: string; svg?: string; png?: string | null; pngReason?: string; parts?: number; aiNames?: number; namesModel?: string | null; caption?: string[] };
+    const r = await client.post<DrawAns>("/paste/drawing", { target: { ref: entry.target.ref, codeSha256: entry.target.codeSha256 }, ...(fn ? { exportName: fn } : {}), fileName: basename(f.rel) });
+    if (!r.ok) return failFrom(r, `Atlas did not draw ${visible(f.rel)}`);
+    const a = r.json;
+    if (a.kind === "none") return isStr(a.words) ? { text: `${DATA_NOTE}\nAtlas drew no picture of ${visible(f.rel)}: ${quoteLine(a.words)}\nNothing was written.` } : notAtlas("POST /paste/drawing");
+    if ((a.kind !== "machine" && a.kind !== "chart") || !isStr(a.svg) || !(a.png === null || a.png === undefined || isStr(a.png))) return notAtlas("POST /paste/drawing");
+    if (!svgLooksSafe(a.svg)) return fail("The server's picture held something Atlas's drawings never hold (a script, a link or an outside file), so the plugin did not write it. Check that ATLAS_URL points at an Atlas server.");
+    const png = isStr(a.png) && a.png.startsWith(PNG_MAGIC) && /^[A-Za-z0-9+/]+=*$/.test(a.png) ? a.png : null;
+    // Written only inside the workspace's .atlas/drawings folder, under a name made of safe characters only.
+    const where = drawingsFolder();
+    if (!where.ok) return fail(`Nothing was written: ${where.reason}`);
+    const stem = `${f.rel.replace(/[^A-Za-z0-9._-]+/g, "_").replace(/^\.+/, "")}${fn ? `-${fn.replace(/[^A-Za-z0-9_-]+/g, "_")}` : ""}`.slice(0, 120) || "drawing";
+    const written: string[] = [];
+    for (const [ext, body] of [["svg", Buffer.from(a.svg, "utf8")], ...(png ? [["png", Buffer.from(png, "base64")] as const] : [])] as const) {
+      const file = join(where.dir, `${stem}.${ext}`);
+      try {
+        if (lstatSync(file, { throwIfNoEntry: false })?.isSymbolicLink()) return fail(`Nothing more was written: ${visible(relative(where.root, file))} is a link, and Atlas writes only plain files inside this workspace.`);
+        writeFileSync(file, body);
+      } catch (e) {
+        return fail(`Atlas could not write ${visible(relative(where.root, file))}: ${quoteLine(e instanceof Error ? e.message : String(e))}`);
+      }
+      written.push(relative(where.root, file));
+    }
+    const lines = [
+      DATA_NOTE,
+      `Atlas drew ${visible(f.rel)} as ${a.kind === "machine" ? "a machine" : "a box chart"}${typeof a.parts === "number" ? ` of ${a.parts} part${a.parts === 1 ? "" : "s"}` : ""}${fn ? `, entered at ${visible(fn)}` : ""} (sent to the Atlas server at ${config.url}).`,
+      `Written in this workspace: ${written.map(visible).join(" and ")}. Open ${visible(written[written.length - 1]!)} to see it.`,
+      ...(Array.isArray(a.caption) ? [`Its caption: ${a.caption.filter(isStr).map(quoteLine).join(" / ")}`] : []),
+      ...(typeof a.aiNames === "number" && a.aiNames > 0 ? [`${a.aiNames} lid${a.aiNames === 1 ? "" : "s"} carry a name by ${quoteLine(a.namesModel ?? "Muse Wonder")} (Meta's AI): its words, not a check.`] : []),
+      ...notes,
+      ...(png ? [] : [`No PNG: ${quoteLine(a.pngReason ?? "the server sent none")}. The SVG opens in any browser.`]),
+      DRAW_LIMITS,
+      "Show the person the file path. Do not describe the code from this picture as if it were a test: it is a drawing of the syntax.",
+    ];
+    return { text: lines.join("\n"), ...(png ? { image: { data: png, mimeType: "image/png" as const } } : {}) };
+  }
+
+  /** R13: the workspace's .atlas/drawings folder, made if missing; refused if any part of it leads out of the workspace. */
+  function drawingsFolder(): { ok: true; root: string; dir: string } | { ok: false; reason: string } {
+    let root: string;
+    try {
+      root = workspaceRoot();
+    } catch {
+      return { ok: false, reason: "the workspace folder cannot be read" };
+    }
+    let dir = root;
+    for (const part of DRAWINGS_DIR.split(sep)) {
+      dir = join(dir, part);
+      const st = lstatSync(dir, { throwIfNoEntry: false });
+      if (st?.isSymbolicLink()) return { ok: false, reason: `${visible(relative(root, dir))} is a link, and Atlas writes only inside this workspace's own .atlas folder` };
+      if (st && !st.isDirectory()) return { ok: false, reason: `${visible(relative(root, dir))} is a file, not a folder` };
+      if (!st) {
+        try {
+          mkdirSync(dir);
+        } catch (e) {
+          return { ok: false, reason: `could not make ${visible(relative(root, dir))}: ${quoteLine(e instanceof Error ? e.message : String(e))}` };
+        }
+      }
+    }
+    const real = realpathSync(dir);
+    const rel = relative(root, real);
+    if (rel.startsWith("..") || isAbsolute(rel)) return { ok: false, reason: ".atlas/drawings leads out of this workspace" };
+    return { ok: true, root, dir: real };
+  }
+
   /** atlas_status: where Atlas is, whether it answers, and whether an invite is set (never the invite itself). */
   async function status(): Promise<ToolText> {
     const h = await client.get<{ ok: boolean }>("/health", { timeoutMs: 15_000 });
@@ -560,7 +670,7 @@ export function createTools(deps: ToolDeps) {
     return { text: lines.join("\n") };
   }
 
-  return { readFileFunction, proposeTests, startRound, sealBet, run, chooseTarget, rerun, status, _state: { files, rounds } };
+  return { readFileFunction, draw, proposeTests, startRound, sealBet, run, chooseTarget, rerun, status, _state: { files, rounds } };
 }
 
 export type AtlasTools = ReturnType<typeof createTools>;

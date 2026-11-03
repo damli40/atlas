@@ -31,6 +31,11 @@ export const TOOL_LIST = [
     inputSchema: { type: "object", properties: { path: str("Path of the file, relative to the workspace") }, required: ["path"], additionalProperties: false },
   },
   {
+    name: "atlas_draw",
+    description: "Draw ONE JavaScript, TypeScript or Python file from this workspace as Atlas's picture: a machine (each function a box, pipes where one calls another, loops, waits, throws, returns), or a box chart past 8 parts. Atlas's plain code draws it from the file's syntax; nothing runs and, unless names is true, no model is asked. Sends the file to the Atlas server, writes the picture to .atlas/drawings/ in this workspace (SVG, and PNG when the server can make one) and returns the path, plus the PNG as an image when there is one. Show the person the path. names: true asks Muse Wonder (Meta's AI) for short names on the lids, one paid call per file, labelled as its words.",
+    inputSchema: { type: "object", properties: { path: str("Path of the file, relative to the workspace"), function: str("Optional: an exported function, marked as where a call starts"), names: { type: "boolean", description: "Optional: ask Muse Wonder for natural names on the lids (one paid model call per file). Default false." } }, required: ["path"], additionalProperties: false },
+  },
+  {
     name: "atlas_propose_tests",
     description: "Ask Atlas for tests of one exported function: Muse Wonder (Meta) proposes up to 3, Atlas's gate allows or refuses each. Show every proposal to the person, refused ones too, and let the PERSON pick.",
     inputSchema: { type: "object", properties: { path: str("The file, as given to atlas_read_file_function"), function: str("The exported function's name") }, required: ["path", "function"], additionalProperties: false },
@@ -80,6 +85,7 @@ export function handlersOf(tools: AtlasTools): Record<string, Handler> {
   return {
     atlas_status: () => tools.status(),
     atlas_read_file_function: (a) => tools.readFileFunction(a),
+    atlas_draw: (a) => tools.draw(a),
     atlas_propose_tests: (a) => tools.proposeTests(a),
     atlas_start_round: (a) => tools.startRound(a),
     atlas_seal_bet: (a) => tools.sealBet(a),
@@ -125,7 +131,8 @@ export async function handleMessage(msg: RpcMessage, handlers: Record<string, Ha
       if (!handlers) return reply({ content: [{ type: "text", text: setupProblem ?? "Atlas is not set up" }], isError: true });
       try {
         const out = await handlers[name]!(args);
-        return reply({ content: [{ type: "text", text: out.text }], ...(out.isError ? { isError: true } : {}) });
+        // R13: a picture rides as MCP image content after the words, so a client that shows no images still has the file path.
+        return reply({ content: [{ type: "text", text: out.text }, ...(out.image ? [{ type: "image", data: out.image.data, mimeType: out.image.mimeType }] : [])], ...(out.isError ? { isError: true } : {}) });
       } catch (e) {
         return reply({ content: [{ type: "text", text: `The Atlas plugin hit an internal error: ${e instanceof Error ? e.message : String(e)}` }], isError: true });
       }

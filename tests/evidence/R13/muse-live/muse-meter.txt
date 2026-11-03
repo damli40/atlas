@@ -1,0 +1,2 @@
+16:22:16 muse calls=12 in=255440 cached=196134 out=4230 usd<=1.1064 uncached_usd=0.3218 | atlas calls=0 usd<=0.0000 | total<=1.1064 | total_uncached=0.3218 | models: {'muse-spark-1.3': 12} | stop=1.1 kill=1.4 | slowest poll gap 0.53s
+hard stop: Esc pressed, STOP file written

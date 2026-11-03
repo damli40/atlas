@@ -57,3 +57,12 @@ The server allows 3 re-runs per round. After the third miss, Atlas stops and han
 If the plugin's program stops, `last-error.log` in Muse's data folder for the plugin says what happened. Rounds are saved there too, so restarting Muse in the same folder can continue the round, as long as the Atlas server still holds it.
 
 Atlas cannot prove that you typed the words. The agent could pass them without you, and the plugin only lowers that risk (see `tests/evidence/L1/README.md`).
+
+## Pictures of your code in the Muse Code plugin
+
+Type `/atlas-draw <file> [function]` in Muse Code, or ask Muse for "a picture of <file> with Atlas". The `atlas_draw` tool sends that one file to your Atlas server, which draws it with the same plain code as the web page: the machine (one box per function, pipes where one calls another, loops, waits, throws, returns) for up to 8 parts, the box chart past that, and a list in words past 16. The picture is written into your project at `.atlas/drawings/<file>[-<function>].svg`, plus a `.png` when the server has the optional PNG converter (`@napi-rs/canvas`, a dev dependency: a local server has it, the production image does not). Naming a function marks it as where a call starts.
+
+What it is not: nothing runs and no AI draws it. It shows the code's shape, not what the code does. `names: true` asks Muse Wonder (Meta's AI) for short names on the lids: one paid call per file, marked with a star and labelled as its words, not a check.
+
+Muse Code 1.4.14 shows the picture as a "1 image" line, not as pixels, and passes it to its model, which can describe it (`tests/evidence/R13/README.md`). Open the `.png` to see it. That costs model tokens in a paid session. There is no web link for the drawing yet: the web page draws a file when you paste it there.
+

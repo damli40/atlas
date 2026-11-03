@@ -1,0 +1,7 @@
+#!/bin/sh
+# R13 live Muse Code: isolated HOME, real Meta key from the key file into this process only. Nothing is printed.
+set -a; . <home>/.config/meta-model-api/env; set +a
+export HOME=<scratch>/muse1/home MUSE_NO_AUTO_UPDATE=1 ATLAS_URL=http://127.0.0.1:8833 TERM=xterm-256color
+export ATLAS_INVITE="$(cat <scratch>/e2e/invite)"
+cd <scratch>/muse1/ws
+exec muse --model muse-spark-1.3 --contributor-mode off --reasoning-effort low --approval-mode never --approval-judge off --disable-shell

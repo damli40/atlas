@@ -1,0 +1,6 @@
+#!/bin/sh
+# R13 $0 Muse run: isolated HOME, the puppet model (never forwards anything), a dummy key. The scratch invite from a file.
+export HOME=<scratch>/muse0/home MUSE_NO_AUTO_UPDATE=1 META_API_KEY=dummy-not-a-key ATLAS_URL=http://127.0.0.1:8833 TERM=xterm-256color
+export ATLAS_INVITE="$(cat <scratch>/e2e/invite)"
+cd <scratch>/muse0/ws
+exec muse --base-url http://127.0.0.1:8899 --model muse-spark-1.3 --contributor-mode off --reasoning-effort low --approval-mode never --approval-judge off --disable-shell

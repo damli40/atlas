@@ -1,0 +1,23 @@
+// Drives the plugin's MCP server over stdio, as Muse Code would: initialize, tools/list, then atlas_draw calls.
+import { spawn } from "node:child_process";
+import { readFileSync, writeFileSync } from "node:fs";
+const [plugin, ws, inviteFile, out, ...calls] = process.argv.slice(2);
+const env = { PATH: process.env.PATH, HOME: process.env.HOME, ATLAS_URL: "http://127.0.0.1:8833", ATLAS_INVITE: readFileSync(inviteFile, "utf8").trim() };
+const p = spawn("node", ["--experimental-strip-types", `${plugin}/mcp/main.ts`], { cwd: ws, env, stdio: ["pipe", "pipe", "pipe"] });
+let buf = ""; const waiting = new Map();
+p.stdout.on("data", (d) => { buf += d; let i; while ((i = buf.indexOf("\n")) >= 0) { const line = buf.slice(0, i); buf = buf.slice(i + 1); const m = JSON.parse(line); waiting.get(m.id)?.(m); } });
+let id = 0; const send = (method, params) => new Promise((res) => { const my = ++id; waiting.set(my, res); p.stdin.write(JSON.stringify({ jsonrpc: "2.0", id: my, method, params }) + "\n"); });
+const log = [];
+const init = await send("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "r13-driver", version: "0" } });
+log.push({ step: "initialize", serverInfo: init.result.serverInfo });
+const list = await send("tools/list", {});
+log.push({ step: "tools/list", tools: list.result.tools.map((t) => t.name) });
+for (const c of calls) {
+  const args = JSON.parse(c);
+  const t0 = Date.now();
+  const r = await send("tools/call", { name: "atlas_draw", arguments: args });
+  const content = r.result.content.map((x) => x.type === "image" ? { type: "image", mimeType: x.mimeType, base64Chars: x.data.length, startsWith: x.data.slice(0, 12) } : x);
+  log.push({ step: "atlas_draw", args, ms: Date.now() - t0, isError: r.result.isError ?? false, content });
+}
+writeFileSync(out, JSON.stringify(log, null, 2));
+p.stdin.end();
