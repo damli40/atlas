@@ -1,7 +1,8 @@
 // R12: on a phone (390x844, 2x) with no code: the example's question (its "Not live." line), the verdict, and the proof card.
 import { createRequire } from "node:module";
 import { writeFileSync } from "node:fs";
-const require = createRequire("/Users/Admin/Documents/Knowledge base/verity/node_modules/");
+// Playwright is not a dependency of this repo: point PLAYWRIGHT_FROM at a folder whose node_modules has it (default: the current folder).
+const require = createRequire(`${process.env.PLAYWRIGHT_FROM ?? process.cwd()}/node_modules/`);
 const { chromium } = require("playwright");
 const S = process.argv[2];
 const browser = await chromium.launch();

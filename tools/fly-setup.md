@@ -87,10 +87,13 @@ repo outline) still needs a code, and the page then offers "Join the waitlist" a
 fly secrets set ATLAS_WAITLIST_URL="https://tally.so/r/XXXXXX" --app atlas-dami   # setting a secret restarts the machine
 
 # 2. One shared judge code, made ON the machine and printed once here. Put it in the submission form (Testing
-#    instructions) and say in README "Test me" where it is. $3 a UTC day like any dev code (D34); the owner's $20 is kept.
-fly ssh console --app atlas-dami -C "/usr/local/bin/atlas-invites create --name judges --daily-usd 3"
-#    Many judges share this one code, so its $3 a day (D34) is shared too. To give them more, use e.g. --daily-usd 10
-#    (it comes out of the developers' share of the ceiling, never your $20 reserve). Watch it with:
+#    instructions) and say in README "Test me" where it is. The owner's $20 is kept.
+#    R12 (D73): $10 a UTC day, not the $3 of a dev code. Every model call in flight HOLDS its worst case (about $0.33 for a
+#    pasted file) until it settles, and one file asks for a summary, names and a test at once (about $1 held). Several
+#    judges sharing one code at $3 would be refused "budget used up" while far less was really spent. Real spend is a few
+#    cents a file. It comes out of the developers' share of the ceiling, never your $20 reserve.
+fly ssh console --app atlas-dami -C "/usr/local/bin/atlas-invites create --name judges --daily-usd 10"
+#    Watch it with:
 fly ssh console --app atlas-dami -C "/usr/local/bin/atlas-invites usage --name judges"
 
 # 3. Check: open https://atlas-dami.fly.dev in a private window (no code): the example plays to a verdict.

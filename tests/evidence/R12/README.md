@@ -12,7 +12,7 @@ input-to-outcome table. Shots are in `shots/`, the page text of every harness ru
 | # | Finding (from the review) | What happened | Test |
 |---|---|---|---|
 | 1 | **Blocker.** A judge enters the code with no file pasted (README step 1): "this session has no proposal …", no question, no paste box. | **Fixed.** The page kept the example's test from the example's copy of the app; after sign-in the server answers from the invited copy, which never saw it. Now a successful sign-in drops every kept test, clears the session id (the next request starts a fresh one) and lands on the paste box with the three samples. README "Test me" says exactly that. "Back to the example" then plays in the invited copy with no error. | `tests/unit/r12-studio.test.tsx` "lands on the paste box…" (fails on the old code: it times out on the stuck page) |
-| 2 | **Blocker.** A failed call (`TypeError: fetch failed`, no response) was settled at its worst case (~$0.34): 8 failures charged $2.68 while Meta reported $0.29. | **Fixed.** A network error before any response settles at $0 and uses no hourly call; Atlas retries it once at once. A timeout, a body cut off mid-answer, or an answer with no usage still counts at its worst case. Words (placeholder): "Meta's AI didn't answer (network error); nothing was charged. Try again." | `tests/unit/r12-newuser.test.ts` finding 2 (4 tests: 8 failures → $0 and 16 tries; fail-then-answer → real cost; timeout → worst case, no retry; cut-off body → worst case) |
+| 2 | **Blocker.** A failed call (`TypeError: fetch failed`, no response) was settled at its worst case (~$0.34): 8 failures charged $2.68 while Meta reported $0.29. | **Fixed (narrowed in review round 1).** $0, no hourly call used, and one automatic retry ONLY when the connection never opened: the error code (on the error, its `cause`, or every inner error of a happy-eyeballs `AggregateError`) is ENOTFOUND, EAI_AGAIN, EAI_NONAME, EAI_FAIL, ECONNREFUSED, ENETUNREACH, EHOSTUNREACH, UND_ERR_CONNECT_TIMEOUT, ERR_TLS_CERT_ALTNAME_INVALID, UNABLE_TO_VERIFY_LEAF_SIGNATURE, UNABLE_TO_GET_ISSUER_CERT(_LOCALLY), SELF_SIGNED_CERT_IN_CHAIN, DEPTH_ZERO_SELF_SIGNED_CERT or any CERT_*. Anything after connecting (ECONNRESET, UND_ERR_SOCKET "other side closed", a headers timeout, an unknown or missing code), a timeout, a cut-off body or an answer with no usage stays at its worst case with no retry. Words (placeholder): "Meta's AI didn't answer (network error). Try again." The outline call's own timeout is now 290 s, so it always fires before Node's 300 s wait for response headers. | `tests/unit/r12-newuser.test.ts` finding 2 (7 tests, two with a real local socket: a closed port → $0 and one retry; a server that reads the whole request then hangs up → worst case, exactly 1 request) |
 | 3 | **Major.** A code gets 15 model calls an hour (~3 files). | **Fixed.** `fly.toml` sets `ATLAS_MODEL_CALLS_PER_HOUR = "400"` (100 an hour per code) with a comment. The limit now says when it frees up ("The next one frees up in about 50 min"). **Found:** a per-address cap of 20 "model rounds" and 60 pastes an hour still binds first for one judge on one network (my harness hit both). Not changed. | finding 3 tests |
 | 4 | **Major.** Syntax errors found only after the paid summary, test and bets; prose triggered 2 paid calls. | **Fixed.** `src/paste-precheck.ts` reads the file before any model is asked. JS/TS: the TypeScript parser Atlas already uses (syntax errors only). Python: a small local check (no Python on the hosted server): unclosed string or bracket, a missing ":" on a block line, a block with nothing indented under it. The parser's line, column and message are shown; the file goes back in the box. | finding 4 tests + studio test "a syntax error, then prose … 0 model calls" |
 | 5 | **Major.** Wrong advice for `export class Counter`; Java read as pasted.js after a paid call; Solidity and Bash "has none". | **Fixed.** Java, Solidity, Bash, Kotlin, Swift, C/C++, Go, Rust, JSON, a web address, Markdown and JSX are named before any call. A class-only file says "Atlas calls exported functions; this file exports a class (Counter). Export a function that uses it." (placeholder) and asks no summary or names. | finding 5 tests + studio "exports only a class" |
@@ -35,13 +35,21 @@ input-to-outcome table. Shots are in `shots/`, the page text of every harness ru
 
 ### Found, not fixed (report)
 
-- **Per-address caps bind before the per-code one** (20 model rounds, 60 pastes an hour per address; `ATLAS_MODEL_ROUNDS_PER_IP_PER_HOUR`, `ATLAS_PASTES_PER_IP_PER_HOUR`). One judge gets roughly 10–20 files an hour, not the ~20+ the 100 calls allow. Dami's call whether to raise them on Fly.
-- **Small daily budgets refuse calls while others are in flight.** The ledger holds each call's worst case (~$0.33 for a pasted file) until it settles, so three calls at once hold ~$1. With my $1 ceiling, `many.ts`, `big2000ok.js` and `unicode.js` got "spend limit reached ($0.82 of $1.00)" while real spend was $0.50. On Fly with a $3 judge code the same thing happens near the end of the day's money.
+- **Per-address caps bound before the per-code one** (defaults: 20 model rounds, 60 pastes an hour per address). **Review round 1 (decided):** `fly.toml` now sets `ATLAS_MODEL_ROUNDS_PER_IP_PER_HOUR = "60"` and `ATLAS_PASTES_PER_IP_PER_HOUR = "150"` (a judging panel may share one office address; the $ ledger still caps money).
+- **Small daily budgets refuse calls while others are in flight.** The ledger holds each call's worst case (~$0.33 for a pasted file) until it settles, so three calls at once hold ~$1. With my $1 ceiling, `many.ts`, `big2000ok.js` and `unicode.js` got "spend limit reached ($0.82 of $1.00)" while real spend was $0.50. **Review round 1 (decided):** `tools/fly-setup.md` now makes the judge code with `--daily-usd 10` and says why.
 - **Python `input()`** is called "the network/files (builtins.input)": true that it's refused, wrong about what it is. The wording is shared with recorded proof files, so not changed here.
 - **Names and summary are still asked** for a file that can't run (needs `fs` or a package): about $0.01–0.015 each (`fsread.js`, `imports.ts`).
 - **"Re-run it"** on a no-code visitor's proof card is offered and would answer 401.
-- **Residual risk of fix 2:** a socket reset after the request reached Meta now settles at $0 even if Meta billed it. Meta's own usage is still logged whenever it reports any.
+- **Residual risk of fix 2 (after review round 1):** only a connection that never opened is $0. If a resolver or proxy ever reported a never-connected code after a request was sent, it would be booked $0; none of the listed codes can come from a socket that already carried the request.
 - The Python check is partial on purpose: any Python error it misses is still reported by Python at run time (as before).
+
+## Review round 1 (coordinator, on 8fe92f1)
+
+1. Money: narrowed fix 2 to connections that never opened (above), dropped "nothing was charged", outline timeout 290 s.
+2. No local paths: the harness finds Playwright through `PLAYWRIGHT_FROM` (a folder whose `node_modules` has it; default the current folder) and its scratch folder through `R12_SCRATCH` (`judge.mjs`/`phone.mjs` take it as their argument). `vitest.txt` is regenerated from the final commit with the repo folder written as `<repo>`.
+3. The language picker shows after a parser refusal; choosing Python reads the file as Python (studio test).
+4. The shell check reads the block words with strings and comments blanked (a JS template literal holding `then`/`fi` is not Bash; test).
+5. `fly.toml` per-address caps and the $10 judge code (above).
 
 ## Every kind of file (the reviewer's harness, on this build)
 
@@ -95,7 +103,7 @@ No run ended stuck or blank. The only screens that stopped short of a question d
 ## Counts
 
 - `tsc --noEmit`: clean (`tsc.txt`).
-- `vitest run`: 171 files passed, 2 skipped; 2,774 tests passed, 35 skipped, 0 failed (`vitest.txt`). New: `tests/unit/r12-newuser.test.ts` (12) and `tests/unit/r12-studio.test.tsx` (7). Changed expectations, on purpose: `g1-review1`, `limits` (the limit now says when it frees up), `r3-fix3` (the full stop).
+- `vitest run`: see `vitest.txt` (final commit; counts in the commit message). New: `tests/unit/r12-newuser.test.ts` and `tests/unit/r12-studio.test.tsx`. Changed expectations, on purpose: `g1-review1`, `limits` (the limit now says when it frees up), `r3-fix3` (the full stop).
 
 ## Spend
 

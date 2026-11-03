@@ -48,6 +48,10 @@ swap_size_mb = 512
   # together and the owner get the whole 400. The 60 default left a code 15 calls (about 3 files) an hour. Money stays
   # capped by the per-code daily ledger and ATLAS_SPEND_CEILING_USD, not by this.
   ATLAS_MODEL_CALLS_PER_HOUR = "400"
+  # R12 review (D73): per client address an hour. A judging panel may share one office address, so 20 model rounds and
+  # 60 pastes (the defaults) would stop them first, at about 10 to 20 files. The $ ledger still caps money.
+  ATLAS_MODEL_ROUNDS_PER_IP_PER_HOUR = "60"
+  ATLAS_PASTES_PER_IP_PER_HOUR = "150"
   PORT = "8080"
 
 [http_service]

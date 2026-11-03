@@ -155,6 +155,13 @@ describe("R12 findings 4 + 5 + 8: files Atlas can't read, and uploads with no co
     await until(() => $('[data-testid="e-precheck"]') !== null, "the parser's words");
     expect($('[data-testid="e-precheck"]')!.textContent).toMatch(/line 3, column 26: '\)' expected\./);
     expect(($('[data-testid="u1-code"]') as HTMLTextAreaElement).value).toBe(read("syntax.js"));
+    // R12 review: the language picker is offered, so a person can say what the file is.
+    expect($('[data-testid="u1-lang"]')).not.toBeNull();
+    // Saying "this is Python" reads it as Python on the next draw.
+    click($('[data-testid="u1-lang-py"]'));
+    click($('[data-testid="u1-draw"]'));
+    await until(() => /this Python file/.test($('[data-testid="e-precheck"]')?.textContent ?? ""), "the file read as Python");
+    click($('[data-testid="u1-lang-auto"]'));
     act(() => setValue($('[data-testid="u1-code"]') as HTMLTextAreaElement, read("prose.txt")));
     click($('[data-testid="u1-draw"]'));
     await until(() => /plain text, not code/.test($('[data-testid="e-precheck"]')?.textContent ?? ""), "the prose words");

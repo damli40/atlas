@@ -10,8 +10,9 @@
 // the person's own round goes on as usual. The spend comes from the usage the Meta API reported.
 // G1 review B1: a call that was SENT but reported no usage (a timeout, a network error mid-call) is counted at its
 // worst case, because the provider may still bill it; only a call proven not sent costs $0.
-// R12 (D73): a network error before ANY response (fetch threw, not a timeout) is settled at $0: no answer came back,
-// so no tokens could be billed. A timeout, a cut-off body or an answer with no usage keeps its worst case.
+// R12 (D73, review): a connection that never opened (DNS, refused, connect timeout, TLS certificate: the client's
+// NEVER_CONNECTED_CODES) is settled at $0: nothing reached Meta. Any error after connecting, a timeout, a cut-off body
+// or an answer with no usage keeps its worst case.
 
 import { existsSync, readFileSync } from "node:fs";
 import type { ChatArgs, ChatResult } from "./client";
@@ -159,7 +160,7 @@ export function createModelBudget(opts: BudgetOptions = {}): ModelBudget {
     const r = res as { notSent?: true; costUnknown?: true; noResponse?: true; model?: unknown };
     // Final review M7: a call refused before it was sent (no key, refused model id) used nothing: it does not
     // count against the hourly limit, so a keyless server does not run out of calls without making one.
-    // R12 (D73): nor does one that got no answer at all (a network error before any response): it is settled at $0 below.
+    // R12 (D73): nor does one whose connection never opened (noResponse): nothing reached Meta, so it is settled at $0 below.
     if (r.notSent === true || r.noResponse === true) {
       for (const t of counted) {
         const i = t.indexOf(at);

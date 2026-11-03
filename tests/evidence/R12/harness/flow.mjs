@@ -1,9 +1,10 @@
 // usage: node flow.mjs <label> <codefile|-> [mode: draw|paste|sample:<id>] [pick: index|none]
 import { createRequire } from "node:module";
 import { readFileSync, writeFileSync, appendFileSync } from "node:fs";
-const require = createRequire("/Users/Admin/Documents/Knowledge base/verity/node_modules/");
+// Playwright is not a dependency of this repo: point PLAYWRIGHT_FROM at a folder whose node_modules has it (default: the current folder).
+const require = createRequire(`${process.env.PLAYWRIGHT_FROM ?? process.cwd()}/node_modules/`);
 const { chromium } = require("playwright");
-const S = "<scratch>";
+const S = process.env.R12_SCRATCH; // a scratch folder with store/code.txt, notes/ and shots/ (never the repo)
 const [label, file, mode = "draw", pick = "0"] = process.argv.slice(2);
 const CODE = readFileSync(S + "/store/code.txt", "utf8").trim().split("\n").pop().trim();
 const src = file === "-" ? "" : readFileSync(file, "utf8");

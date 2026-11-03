@@ -1,5 +1,5 @@
 #!/bin/bash
-S=<scratch>
+S="${R12_SCRATCH:?set R12_SCRATCH to a scratch folder}"
 cd $S
 spend() { python3 -c "
 import json

@@ -1302,7 +1302,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                 <kbd className="k">⌘↵</kbd>
               </button>
               {/* The language is guessed. The choice appears only if a guess did not work. */}
-              {error && !locked && (
+              {/* R12 review: also after the parser refused the file, so a person can say "this is Python". */}
+              {(error || precheck) && !locked && (
                 <Segments label="Language" value={lang} onChange={(v) => setLang(v as Lang | "auto")} testid="u1-lang" options={[["auto", "Guess the language"], ["ts", "TypeScript"], ["js", "JavaScript"], ["py", "Python"]]} />
               )}
             </div>

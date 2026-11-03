@@ -113,7 +113,9 @@ export function foreignLanguage(src: string): string | null {
   if (/^\s*#include\s*[<"]/m.test(src)) return "C or C++";
   if (/^\s*<\?php/m.test(src)) return "PHP";
   // R12 (D73): a shell script: its #! line names a shell, or it has the shell's own block words on lines of their own.
-  if (/^#!\s*\S*\/(?:env\s+)?(?:ba|z|k|da)?sh\b/.test(src) || (/^\s*(?:fi|done|esac)\s*$/m.test(src) && /;\s*(?:then|do)\s*$|^\s*(?:then|do)\s*$/m.test(src))) return "a shell script (Bash)";
+  // The #! line is read as written (it is the file's first line, which the blanking would take for a comment); the block
+  // words only outside strings and comments (R12 review: a JS template literal holding "then" and "fi" is not a shell script).
   const text = blankCommentsAndStrings(src);
+  if (/^#!\s*\S*\/(?:env\s+)?(?:ba|z|k|da)?sh\b/.test(src) || (/^\s*(?:fi|done|esac)\s*$/m.test(text) && /;\s*(?:then|do)\s*$|^\s*(?:then|do)\s*$/m.test(text))) return "a shell script (Bash)";
   return FOREIGN.find(([re]) => re.test(text))?.[1] ?? null;
 }

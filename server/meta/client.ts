@@ -112,9 +112,9 @@ export type ChatResult =
        */
       costUnknown?: true;
       /**
-       * R12 (D73): the request failed before any response arrived (fetch threw a network error, not a timeout): no
-       * answer, so no tokens could be billed. Settled at $0 and not counted against the hourly call limit. Atlas has
-       * already retried it once.
+       * R12 (D73, review): the connection to Meta never opened (neverConnected: DNS, refused, connect timeout, TLS
+       * certificate), so nothing reached Meta. Settled at $0 and not counted against the hourly call limit. Atlas has
+       * already retried it once. Never set for an error after connecting.
        */
       noResponse?: true;
     };
@@ -235,7 +235,32 @@ function addUsage(a: Usage | undefined, b: Usage | undefined): Usage | undefined
 }
 
 /** R12 (D73): what a person reads when Meta's AI never answered (placeholder wording, Dami's to finish). */
-export const NO_RESPONSE_WORDS = "Meta's AI didn't answer (network error); nothing was charged. Try again.";
+export const NO_RESPONSE_WORDS = "Meta's AI didn't answer (network error). Try again.";
+/** R12 review: the same words for a network error after connecting (counted at its worst case); the log line says which. */
+export const NETWORK_MIDCALL_WORDS = NO_RESPONSE_WORDS;
+
+/**
+ * R12 review (D73): the error codes that mean the connection to Meta never opened, so no request reached it:
+ * DNS (ENOTFOUND, EAI_AGAIN, EAI_NONAME, EAI_FAIL), refused or unreachable (ECONNREFUSED, ENETUNREACH, EHOSTUNREACH),
+ * undici's connect timeout (UND_ERR_CONNECT_TIMEOUT), and TLS certificate checks (CERT_*, ERR_TLS_CERT_ALTNAME_INVALID,
+ * UNABLE_TO_VERIFY_LEAF_SIGNATURE, UNABLE_TO_GET_ISSUER_CERT(_LOCALLY), SELF_SIGNED_CERT_IN_CHAIN,
+ * DEPTH_ZERO_SELF_SIGNED_CERT). Nothing else: ECONNRESET, UND_ERR_SOCKET ("other side closed"), headers timeouts and any
+ * unknown code may come after the request was sent.
+ */
+export const NEVER_CONNECTED_CODES = new Set([
+  "ENOTFOUND", "EAI_AGAIN", "EAI_NONAME", "EAI_FAIL", "ECONNREFUSED", "ENETUNREACH", "EHOSTUNREACH", "UND_ERR_CONNECT_TIMEOUT",
+  "ERR_TLS_CERT_ALTNAME_INVALID", "UNABLE_TO_VERIFY_LEAF_SIGNATURE", "UNABLE_TO_GET_ISSUER_CERT", "UNABLE_TO_GET_ISSUER_CERT_LOCALLY", "SELF_SIGNED_CERT_IN_CHAIN", "DEPTH_ZERO_SELF_SIGNED_CERT",
+]);
+const isNeverConnectedCode = (code: unknown) => typeof code === "string" && (NEVER_CONNECTED_CODES.has(code) || /^CERT_/.test(code));
+/** Whether fetch's error says the connection never opened: the error's own code, its cause's, or (AggregateError) every inner one's. */
+export function neverConnected(err: unknown): boolean {
+  const codeOf = (e: unknown) => (e && typeof e === "object" && "code" in e ? (e as { code?: unknown }).code : undefined);
+  const cause = err && typeof err === "object" && "cause" in err ? (err as { cause?: unknown }).cause : undefined;
+  if (isNeverConnectedCode(codeOf(err)) || isNeverConnectedCode(codeOf(cause))) return true;
+  // Happy-eyeballs: several addresses tried, each refused. All of them must say "never connected".
+  const inner = cause && typeof cause === "object" && "errors" in cause ? (cause as { errors?: unknown }).errors : undefined;
+  return Array.isArray(inner) && inner.length > 0 && inner.every((x) => isNeverConnectedCode(codeOf(x)));
+}
 
 /** Removes the key from any text before it leaves this module. */
 function scrub(text: string, key: string): string {
@@ -312,8 +337,11 @@ export function createMetaClient(opts: ClientOptions = {}) {
       const e = err as Error;
       // G1 review B1: a timeout may come after Meta accepted the request and worked on it, so it is counted at its worst case.
       if (e?.name === "TimeoutError" || e?.name === "AbortError") return { kind: "fail", reason: scrub(`timed out after ${timeoutMs} ms`, key), costUnknown: true };
-      // R12 (D73): any other throw from fetch is a network error before any response arrived (no answer, so nothing to bill).
-      return { kind: "fail", reason: NO_RESPONSE_WORDS, noResponse: true };
+      // R12 review (D73): $0 and one retry ONLY when the connection never opened (nothing reached Meta). A throw after
+      // connecting (a reset, a socket closed mid-call, any code not listed) may come after Meta read the whole request,
+      // so it is counted at its worst case and not retried.
+      if (neverConnected(err)) return { kind: "fail", reason: NO_RESPONSE_WORDS, noResponse: true };
+      return { kind: "fail", reason: NETWORK_MIDCALL_WORDS, costUnknown: true };
     }
 
     const text = await res.text().catch(() => "");
@@ -369,7 +397,7 @@ export function createMetaClient(opts: ClientOptions = {}) {
         responseFormatRejected.add(provider);
         a = await once(args, key, maxTokens, false);
       }
-      // R12 (D73): a network error before any answer is tried once more, at once (it cost nothing).
+      // R12 (D73): a connection that never opened is tried once more, at once (nothing reached Meta).
       if (a.kind === "fail" && a.noResponse && !netRetried) {
         netRetried = true;
         continue;

@@ -15,10 +15,14 @@ import { openLedger } from "../../server/access/ledger";
 import { openInviteStore } from "../../server/access/store";
 import { createApp } from "../../server/app";
 import { createModelBudget, type ModelBudget } from "../../server/meta/budget";
-import { createMetaClient, NO_RESPONSE_WORDS, type ChatArgs, type ChatResult } from "../../server/meta/client";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
+import { createMetaClient, neverConnected, NO_RESPONSE_WORDS, type ChatArgs, type ChatResult } from "../../server/meta/client";
+import { OUTLINER_TIMEOUT_MS } from "../../server/wiring";
 import { firstTryUsd } from "../../server/meta/pasted-guard";
 import { plainLimit } from "../../src/paste-words";
 import { jsSyntaxProblem, precheckPaste, pySyntaxProblem } from "../../src/paste-precheck";
+import { foreignLanguage } from "../../src/paste-language";
 import { personSealHash } from "../../web/screens/ProofImage";
 import { SAMPLE_FILES } from "../../web/sample-files";
 import { U1_EXAMPLE } from "../../web/u1-example";
@@ -40,12 +44,12 @@ const args = { role: "claimant" as const, model: "muse-spark-1.3", messages: [{ 
 const OK_BODY = JSON.stringify({ choices: [{ message: { content: "{}" }, finish_reason: "stop" }], usage: { prompt_tokens: 1000, completion_tokens: 100 } });
 
 describe("R12 finding 2: what a failed model call costs", () => {
-  it("a network error before any response (fetch threw), twice: $0 on the ledger and the budget, 2 tries, the plain sentence, no hourly call used", async () => {
+  it("a connection that never opened (DNS: ENOTFOUND), twice: $0 on the ledger and the budget, 2 tries, the plain sentence, no hourly call used", async () => {
     const s = pair({ callsPerHour: 8, devCallsPerHour: 2 });
     let sent = 0;
     const fetchImpl = (async () => {
       sent++;
-      throw new TypeError("fetch failed", { cause: new Error("getaddrinfo ENOTFOUND api.example") });
+      throw new TypeError("fetch failed", { cause: Object.assign(new Error("getaddrinfo ENOTFOUND api.example"), { code: "ENOTFOUND" }) });
     }) as unknown as typeof fetch;
     const chat = s.budget.wrap(createMetaClient({ apiKey: "fake-key-0000", fetchImpl, usagePath: join(s.dir, "usage.jsonl") }).chat);
     // 8 failed calls: the review's case ($2.68 charged for 8 failures on a $3 code).
@@ -62,12 +66,20 @@ describe("R12 finding 2: what a failed model call costs", () => {
     expect((await s.asDev(() => ok(args))).ok).toBe(true);
   });
 
-  it("a network error, then an answer: the automatic retry succeeds and only the answer's real cost is booked", async () => {
+  it("connect refused (a real closed local port), then an answer: one automatic retry, only the answer's real cost is booked", async () => {
     const s = pair();
+    // A port nothing listens on: Node's own fetch fails with ECONNREFUSED before anything is sent.
+    const closed = await new Promise<number>((done) => {
+      const srv = createServer();
+      srv.listen(0, "127.0.0.1", () => {
+        const port = (srv.address() as AddressInfo).port;
+        srv.close(() => done(port));
+      });
+    });
     let sent = 0;
-    const fetchImpl = (async () => {
+    const fetchImpl = (async (_u: string, init: RequestInit) => {
       sent++;
-      if (sent === 1) throw new TypeError("fetch failed");
+      if (sent === 1) return fetch(`http://127.0.0.1:${closed}/chat/completions`, init);
       return new Response(OK_BODY, { status: 200 });
     }) as unknown as typeof fetch;
     const chat = s.budget.wrap(createMetaClient({ apiKey: "fake-key-0000", fetchImpl, usagePath: join(s.dir, "usage.jsonl") }).chat);
@@ -75,6 +87,54 @@ describe("R12 finding 2: what a failed model call costs", () => {
     expect(r.ok).toBe(true);
     expect(sent).toBe(2);
     expect(s.ledger.today(s.devId).spentUsd).toBeCloseTo((1000 * 4 + 100 * 20) / 1e6, 9);
+  });
+
+  it("a connection dropped AFTER the whole request was read (a real local server): worst case, exactly one request, no retry, no 'nothing was charged'", async () => {
+    const s = pair({ callsPerHour: 8, devCallsPerHour: 2 });
+    let requests = 0;
+    const srv = createServer((req) => {
+      requests++;
+      req.on("data", () => {});
+      req.on("end", () => req.socket.destroy()); // read the whole prompt, then hang up without a word
+    });
+    await new Promise<void>((done) => srv.listen(0, "127.0.0.1", () => done()));
+    const port = (srv.address() as AddressInfo).port;
+    try {
+      const chat = s.budget.wrap(createMetaClient({ apiKey: "fake-key-0000", baseUrl: `http://127.0.0.1:${port}`, usagePath: join(s.dir, "usage.jsonl") }).chat);
+      const r = await s.asDev(() => chat(args));
+      expect(r).toMatchObject({ ok: false, costUnknown: true });
+      expect("noResponse" in r).toBe(false);
+      expect((r as { reason: string }).reason).not.toMatch(/nothing was charged/i);
+      expect(requests).toBe(1);
+      expect(s.ledger.today(s.devId).spentUsd).toBeCloseTo(firstTryUsd(args), 9);
+    } finally {
+      await new Promise<void>((done) => srv.close(() => done()));
+    }
+  });
+
+  it("an error with no code, or a reset after connecting (ECONNRESET, UND_ERR_SOCKET): worst case, one try", async () => {
+    for (const cause of [undefined, Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" }), Object.assign(new Error("other side closed"), { code: "UND_ERR_SOCKET" })]) {
+      const s = pair();
+      let sent = 0;
+      const fetchImpl = (async () => {
+        sent++;
+        throw new TypeError("fetch failed", cause ? { cause } : undefined);
+      }) as unknown as typeof fetch;
+      const chat = s.budget.wrap(createMetaClient({ apiKey: "fake-key-0000", fetchImpl, usagePath: join(s.dir, "usage.jsonl") }).chat);
+      const r = await s.asDev(() => chat(args));
+      expect(r, String(cause?.message)).toMatchObject({ ok: false, costUnknown: true });
+      expect(sent).toBe(1);
+      expect(s.ledger.today(s.devId).spentUsd).toBeCloseTo(firstTryUsd(args), 9);
+    }
+    // The never-connected list, by code: DNS, refused, connect timeout, TLS certificate; and happy-eyeballs (every address refused).
+    for (const code of ["ENOTFOUND", "EAI_AGAIN", "ECONNREFUSED", "UND_ERR_CONNECT_TIMEOUT", "CERT_HAS_EXPIRED", "DEPTH_ZERO_SELF_SIGNED_CERT"]) expect(neverConnected(new TypeError("fetch failed", { cause: { code } })), code).toBe(true);
+    expect(neverConnected(new TypeError("fetch failed", { cause: { errors: [{ code: "ECONNREFUSED" }, { code: "ECONNREFUSED" }] } }))).toBe(true);
+    expect(neverConnected(new TypeError("fetch failed", { cause: { errors: [{ code: "ECONNREFUSED" }, { code: "ECONNRESET" }] } }))).toBe(false);
+    for (const code of ["ECONNRESET", "UND_ERR_SOCKET", "UND_ERR_HEADERS_TIMEOUT", "EPIPE", "SOMETHING_NEW"]) expect(neverConnected(new TypeError("fetch failed", { cause: { code } })), code).toBe(false);
+  });
+
+  it("the outline call's own timeout (290 s) fires before Node's 300 s wait for response headers", () => {
+    expect(OUTLINER_TIMEOUT_MS).toBeLessThan(300_000);
   });
 
   it("a timeout (the request may have been accepted) is still its worst case, and is not retried", async () => {
@@ -131,6 +191,8 @@ describe("R12 finding 3: calls an hour per code, and when the limit frees up", (
   it("fly.toml sets ATLAS_MODEL_CALLS_PER_HOUR to 400 (100 an hour for each invite code)", () => {
     const toml = readFileSync(join(ROOT, "fly.toml"), "utf8");
     expect(toml).toMatch(/^\s*ATLAS_MODEL_CALLS_PER_HOUR = "400"$/m);
+    expect(toml).toMatch(/^\s*ATLAS_MODEL_ROUNDS_PER_IP_PER_HOUR = "60"$/m);
+    expect(toml).toMatch(/^\s*ATLAS_PASTES_PER_IP_PER_HOUR = "150"$/m);
   });
 });
 
@@ -153,6 +215,11 @@ describe("R12 findings 4 + 5: plain code reads the file before any model is aske
     expect(precheckPaste(read("Main.java"), "js")).toMatchObject({ kind: "foreign", language: "Java" });
     expect(precheckPaste(read("token.sol"), "js")).toMatchObject({ kind: "foreign", language: "Solidity" });
     expect(precheckPaste(read("script.sh"), "js")).toMatchObject({ kind: "foreign", language: "a shell script (Bash)" });
+    // R12 review: shell words inside a JS template literal (or a comment) are not a shell script.
+    const tpl = "export function script(x) {\n  return `if [ -f x ]; then\necho hi\nfi\n`;\n// done\n}\n}\n";
+    expect(foreignLanguage(tpl)).toBeNull();
+    expect(precheckPaste(tpl, "js")).toMatchObject({ kind: "syntax" });
+    expect(foreignLanguage("if [ -f x ]; then\n  echo hi\nfi\n")).toBe("a shell script (Bash)");
     expect(precheckPaste("fun main() {\n  println(\"hi\")\n}\n", "js")).toMatchObject({ kind: "foreign", language: "Kotlin" });
     expect(precheckPaste("#include <stdio.h>\nint main(void) { return 0; }\n", "js")).toMatchObject({ kind: "foreign", language: "C or C++" });
     expect(precheckPaste("func greet(name: String) -> String {\n  return name\n}\n", "ts")).toMatchObject({ kind: "foreign", language: "Swift" });

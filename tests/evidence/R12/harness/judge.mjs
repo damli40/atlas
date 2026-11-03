@@ -1,7 +1,8 @@
 // R12: a judge, first thing: Try your own code -> the code -> Use this code, at 1280x800 (2x). Then the example's proof card on a phone.
 import { createRequire } from "node:module";
 import { readFileSync, writeFileSync } from "node:fs";
-const require = createRequire("/Users/Admin/Documents/Knowledge base/verity/node_modules/");
+// Playwright is not a dependency of this repo: point PLAYWRIGHT_FROM at a folder whose node_modules has it (default: the current folder).
+const require = createRequire(`${process.env.PLAYWRIGHT_FROM ?? process.cwd()}/node_modules/`);
 const { chromium } = require("playwright");
 const S = process.argv[2];
 const CODE = readFileSync(S + "/store/code.txt", "utf8").trim();

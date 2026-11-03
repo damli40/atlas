@@ -42,8 +42,12 @@ export const switchesFromEnv = (env: Record<string, string | undefined> = proces
   outliner: env.ATLAS_OUTLINER !== "off",
 });
 
-/** X1: a whole small codebase can be ~100k tokens of prompt, so the outline call gets 5 minutes. */
-export const OUTLINER_TIMEOUT_MS = 300_000;
+/**
+ * X1: a whole small codebase can be ~100k tokens of prompt, so the outline call gets nearly 5 minutes.
+ * R12 review (D73): 290 s, not 300 s, so Atlas's own timeout (counted at its worst case) always fires before Node's
+ * 300 s wait for response headers (undici headersTimeout), whose error would otherwise be a network error mid-call.
+ */
+export const OUTLINER_TIMEOUT_MS = 290_000;
 
 export function serverOptions(env: Record<string, string | undefined>, deps: WiringDeps): AppOptions {
   const on = switchesFromEnv(env);
