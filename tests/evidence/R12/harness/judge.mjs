@@ -1,0 +1,34 @@
+// R12: a judge, first thing: Try your own code -> the code -> Use this code, at 1280x800 (2x). Then the example's proof card on a phone.
+import { createRequire } from "node:module";
+import { readFileSync, writeFileSync } from "node:fs";
+const require = createRequire("/Users/Admin/Documents/Knowledge base/verity/node_modules/");
+const { chromium } = require("playwright");
+const S = process.argv[2];
+const CODE = readFileSync(S + "/store/code.txt", "utf8").trim();
+const out = [];
+const browser = await chromium.launch();
+const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2 });
+const page = await ctx.newPage();
+const bad = [];
+page.on("response", (r) => { if (r.status() >= 400) bad.push(`${r.status()} ${r.request().method()} ${r.url().replace(/^https?:\/\/[^/]+/, "")}`); });
+await page.goto("http://localhost:8796/", { waitUntil: "networkidle" });
+await page.waitForTimeout(4000);
+await page.screenshot({ path: `${S}/shots/judge-1-first-screen.png` });
+await page.click('[data-testid="u1-own"]');
+await page.waitForSelector('[data-testid="e-invite-code"]');
+await page.fill('[data-testid="e-invite-code"]', CODE);
+await page.screenshot({ path: `${S}/shots/judge-2-code-typed.png` });
+await page.click('[data-testid="e-invite-go"]');
+await page.waitForSelector('[data-testid="e-samples"]');
+await page.waitForTimeout(1500);
+// the code itself must not appear in a shot: the box is gone once signed in
+const text = await page.evaluate(() => document.body.innerText);
+if (text.includes(CODE)) throw new Error("code visible");
+await page.screenshot({ path: `${S}/shots/judge-3-landed-on-paste-box.png` });
+out.push("after sign-in:\n" + text.slice(0, 900));
+const dis = await page.$$eval('[data-testid^="e-sample-"]', (bs) => bs.map((b) => `${b.textContent}:${b.disabled ? "disabled" : "enabled"}`));
+out.push("samples: " + dis.join(", "));
+out.push("errors >=400: " + JSON.stringify(bad));
+writeFileSync(`${S}/notes/judge.txt`, out.join("\n"));
+await browser.close();
+console.log("judge done", dis.join(","), "bad:", bad.length);

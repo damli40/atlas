@@ -111,6 +111,12 @@ export type ChatResult =
        * counts the call at its worst case. Not set for an HTTP error status (the provider answered and refused).
        */
       costUnknown?: true;
+      /**
+       * R12 (D73): the request failed before any response arrived (fetch threw a network error, not a timeout): no
+       * answer, so no tokens could be billed. Settled at $0 and not counted against the hourly call limit. Atlas has
+       * already retried it once.
+       */
+      noResponse?: true;
     };
 
 export interface ClientOptions {
@@ -228,6 +234,9 @@ function addUsage(a: Usage | undefined, b: Usage | undefined): Usage | undefined
   };
 }
 
+/** R12 (D73): what a person reads when Meta's AI never answered (placeholder wording, Dami's to finish). */
+export const NO_RESPONSE_WORDS = "Meta's AI didn't answer (network error); nothing was charged. Try again.";
+
 /** Removes the key from any text before it leaves this module. */
 function scrub(text: string, key: string): string {
   return redactSecret(text, key); // M2 (day-7 review): any 12+ character piece of the key too
@@ -276,7 +285,7 @@ export function createMetaClient(opts: ClientOptions = {}) {
 
   type Attempt =
     | { kind: "ok"; content: string; finishReason: string; usage?: Usage; warning?: string; costUnknown?: true }
-    | { kind: "fail"; reason: string; status?: number; body?: string; usage?: Usage; warning?: string; costUnknown?: true };
+    | { kind: "fail"; reason: string; status?: number; body?: string; usage?: Usage; warning?: string; costUnknown?: true; noResponse?: true };
 
   async function once(args: ChatArgs, key: string, maxTokens: number, withFormat: boolean): Promise<Attempt> {
     const provider = providerFor(args.model);
@@ -301,8 +310,10 @@ export function createMetaClient(opts: ClientOptions = {}) {
       });
     } catch (err) {
       const e = err as Error;
-      const what = e?.name === "TimeoutError" ? `timed out after ${timeoutMs} ms` : `network error (${e?.name ?? "unknown"}: ${e?.message ?? ""})`;
-      return { kind: "fail", reason: scrub(what, key), costUnknown: true }; // G1 review B1: it may have been sent and billed
+      // G1 review B1: a timeout may come after Meta accepted the request and worked on it, so it is counted at its worst case.
+      if (e?.name === "TimeoutError" || e?.name === "AbortError") return { kind: "fail", reason: scrub(`timed out after ${timeoutMs} ms`, key), costUnknown: true };
+      // R12 (D73): any other throw from fetch is a network error before any response arrived (no answer, so nothing to bill).
+      return { kind: "fail", reason: NO_RESPONSE_WORDS, noResponse: true };
     }
 
     const text = await res.text().catch(() => "");
@@ -344,6 +355,7 @@ export function createMetaClient(opts: ClientOptions = {}) {
     let maxTokens = args.maxTokens ?? DEFAULT_MAX_TOKENS;
     let total: Usage | undefined;
     let lengthRetried = false;
+    let netRetried = false;
     let unknown = false; // G1 review B1: some attempt was sent and reported no usage
     const warnings: string[] = [];
     const tail = () => ({ ...(total ? { usage: total } : {}), ...(warnings.length ? { warning: warnings.join("; ") } : {}), ...(unknown ? { costUnknown: true as const } : {}) });
@@ -357,10 +369,15 @@ export function createMetaClient(opts: ClientOptions = {}) {
         responseFormatRejected.add(provider);
         a = await once(args, key, maxTokens, false);
       }
+      // R12 (D73): a network error before any answer is tried once more, at once (it cost nothing).
+      if (a.kind === "fail" && a.noResponse && !netRetried) {
+        netRetried = true;
+        continue;
+      }
       total = addUsage(total, a.usage);
       if (a.costUnknown) unknown = true;
       if (a.warning) warnings.push(a.warning);
-      if (a.kind === "fail") return { ok: false, reason: a.reason, ...tail() };
+      if (a.kind === "fail") return { ok: false, reason: a.reason, ...tail(), ...(a.noResponse && !total && !unknown ? { noResponse: true as const } : {}) };
 
       const empty = a.content.trim() === "";
 

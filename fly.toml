@@ -44,6 +44,10 @@ swap_size_mb = 512
   # owner's or developers' caps.
   ATLAS_EXAMPLE_SANDBOX_STARTS_PER_DAY = "3000"
   ATLAS_EXAMPLE_SANDBOX_SECONDS_PER_DAY = "18000"
+  # R12 (D73): model calls an hour. Each invite code gets a quarter of this (100 an hour: a file with a bet makes about 5, so about 20 files), all codes
+  # together and the owner get the whole 400. The 60 default left a code 15 calls (about 3 files) an hour. Money stays
+  # capped by the per-code daily ledger and ATLAS_SPEND_CEILING_USD, not by this.
+  ATLAS_MODEL_CALLS_PER_HOUR = "400"
   PORT = "8080"
 
 [http_service]

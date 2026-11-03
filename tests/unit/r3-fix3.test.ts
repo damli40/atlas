@@ -218,7 +218,7 @@ describe("D63: tests written ahead", () => {
 describe("part B: words and dead ends", () => {
   it("an hourly limit reads plainly and says when it frees up", async () => {
     const { plainLimit } = await import("../../src/paste-words");
-    expect(plainLimit("not asked (call limit reached: one client address may ask for 20 model rounds an hour. The next one frees up in about 12 min)")).toBe("You've used this hour's 20 model rounds. The next one frees up in about 12 min");
+    expect(plainLimit("not asked (call limit reached: one client address may ask for 20 model rounds an hour. The next one frees up in about 12 min)")).toBe("You've used this hour's 20 model rounds. The next one frees up in about 12 min."); // R12 (D73): with its full stop (it ran into the next sentence)
     expect(plainLimit("the model call failed")).toBe("The model call failed.");
   });
   it("two tests can be told apart by what differs", async () => {

@@ -1,0 +1,10 @@
+import React, { useState } from "react";
+
+export default function Counter({ start = 0 }) {
+  const [n, setN] = useState(start);
+  return (
+    <button onClick={() => setN(n + 1)}>
+      Clicked {n} times
+    </button>
+  );
+}

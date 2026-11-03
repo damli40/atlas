@@ -1,0 +1,76 @@
+
+##### 0-after-invite (t=8.0s) shot=<scratch>/shots/in-noexports-js-0-after-invite.png
+Think you know what your code does? Bet on it.
+
+Paste a file and Atlas draws it as a machine. Bet on what it will do. Meta's AI bets too, then Atlas runs it in a sandbox and shows whose bet matched.
+
+Paste your own file anywhere on this page, or here:
+Your code
+Draw my code
+⌘↵
+No file handy? Try one of these:
+Fetch with retry
+JavaScript, 15 lines
+Price parser
+Python, 12 lines
+Cached lookup
+TypeScript, 16 lines
+A sample goes to Meta's AI as soon as Atlas draws it, like any file you paste.
+Upload files
+Or a GitHub repo
+Draw the repo (a paid AI call)
+
+Your code goes to Meta's AI as soon as Atlas draws it, so a test is ready when you bet.
+
+Back to the example
+
+Last time: you bet returns a value. It returned.
+
+★ names: Muse Wonder's words (Meta's AI), not a check
+
+price lookup
+getPrice
+retrying fetch
+fetchWithRetry
+retry wait time
+backoffMs
+pause execution
+sleep
+lines 23–25
+returns, line 24
+lines 10–21
+starts here: Atlas calls this
+loop, line 12
+returns, line 14
+throws, line 20
+lines 2–4
+lines 6–8
+waits, line 7
+returns, line 7
+clickedBet=false
+
+##### 2-question (t=12.4s) shot=<scratch>/shots/in-noexports-js-2-question.png
+pasted.js · 6 lines · drawn in 41 ms
+
+pasted.js
+
+what calls what, before anything has run
+
+A drawing of pasted.js: 2 functions and classes, each a box with its name and lines on it. None of them calls another.
+
+slugify
+title case
+titleCase
+lines 1–3
+returns, line 2
+lines 4–6
+returns, line 5
+
+Atlas bets on what a function does when it is called, and it can't see one in this file that can be called from outside. It can call one exported by name, like export function f.
+
+Paste another file
+STATE after draw: dead-end
+
+#### CONSOLE
+
+#### HTTP>=400

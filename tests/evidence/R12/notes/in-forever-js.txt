@@ -1,0 +1,208 @@
+
+##### 0-after-invite (t=8.0s) shot=<scratch>/shots/in-forever-js-0-after-invite.png
+Think you know what your code does? Bet on it.
+
+Paste a file and Atlas draws it as a machine. Bet on what it will do. Meta's AI bets too, then Atlas runs it in a sandbox and shows whose bet matched.
+
+Paste your own file anywhere on this page, or here:
+Your code
+Draw my code
+⌘↵
+No file handy? Try one of these:
+Fetch with retry
+JavaScript, 15 lines
+Price parser
+Python, 12 lines
+Cached lookup
+TypeScript, 16 lines
+A sample goes to Meta's AI as soon as Atlas draws it, like any file you paste.
+Upload files
+Or a GitHub repo
+Draw the repo (a paid AI call)
+
+Your code goes to Meta's AI as soon as Atlas draws it, so a test is ready when you bet.
+
+Back to the example
+
+★ names: Muse Wonder's words (Meta's AI), not a check
+
+price lookup
+getPrice
+retrying fetch
+fetchWithRetry
+retry wait time
+backoffMs
+pause execution
+sleep
+lines 23–25
+returns, line 24
+lines 10–21
+starts here: Atlas calls this
+loop, line 12
+returns, line 14
+throws, line 20
+lines 2–4
+lines 6–8
+waits, line 7
+returns, line 7
+
+##### 1-drawn (t=13.4s) shot=<scratch>/shots/in-forever-js-1-drawn.png
+pasted.js · 7 lines · drawn in 44 ms
+
+spin
+
+what calls what, before anything has run
+
+A drawing of pasted.js: 1 function or class, each a box with its name and lines on it. None of them calls another.
+
+Summary: Muse Wonder's words (Meta's AI). Its reading can repeat the code's own comments; the run is the check
+
+This file holds a small routine that keeps adding a given amount to a running total inside a loop.
+
+What each part does, in its words (1)
+
+★ names: Muse Wonder's words (Meta's AI), not a check
+
+sum builder
+spin
+lines 1–7
+starts here: Atlas calls this
+loop, line 3
+returns, line 6
+
+Bet on what it does
+Enter
+Muse Wonder wrote a test for this code: a paid AI call, already made. Betting adds the AI bettors: paid AI calls.
+
+Your code goes to Meta's AI as soon as Atlas draws it, so a test is ready when you bet.
+
+Try your own code
+
+ⓘ Details
+clickedBet=true
+
+##### 2-question (t=17.5s) shot=<scratch>/shots/in-forever-js-2-question.png
+pasted.js · 7 lines · drawn in 44 ms
+
+spin
+
+the code, and what Atlas will plug in. Nothing has run.
+
+A drawing of pasted.js: 1 function or class, each a box with its name and lines on it; spin is the one Atlas tests. None of them calls another. Beside the code, the test's stand-ins (fakes Atlas controls): none; and a clock that stands for Atlas's simulated clock.
+
+Summary: Muse Wonder's words (Meta's AI). Its reading can repeat the code's own comments; the run is the check
+
+This file holds a small routine that keeps adding a given amount to a running total inside a loop.
+
+What each part does, in its words (1)
+
+★ names: Muse Wonder's words (Meta's AI), not a check
+
+sum builder
+spin
+lines 1–7
+starts here: Atlas calls this
+loop, line 3
+returns, line 6
+
+The test: Atlas calls spin(1).
+
+What does spin do?
+
+returns a value
+throws (an Error or any other value)
+never finishes (waits forever, nothing left to wake it)
+still running when Atlas stops watching at 1,000 ms
+can't tell
+Lock in my bet
+↵
+
+Also betting: Muse Spark and Muse Spark Open. You see their answers after the run.
+
+Your code goes to Meta's AI as soon as Atlas draws it, so a test is ready when you bet.
+
+Try your own code
+
+More options for this bet
+ⓘ Details
+STATE after draw: question
+
+##### 3a-running (t=26.6s) shot=<scratch>/shots/in-forever-js-3a-running.png
+pasted.js · 7 lines · drawn in 44 ms
+
+spin
+
+the code, and what Atlas will plug in. Nothing has run.
+
+A drawing of pasted.js: 1 function or class, each a box with its name and lines on it; spin is the one Atlas tests. None of them calls another. Beside the code, the test's stand-ins (fakes Atlas controls): none; and a clock that stands for Atlas's simulated clock.
+
+Summary: Muse Wonder's words (Meta's AI). Its reading can repeat the code's own comments; the run is the check
+
+This file holds a small routine that keeps adding a given amount to a running total inside a loop.
+
+What each part does, in its words (1)
+
+★ names: Muse Wonder's words (Meta's AI), not a check
+
+sum builder
+spin
+lines 1–7
+starts here: Atlas calls this
+loop, line 3
+returns, line 6
+
+The test: Atlas calls spin(1).
+
+Your bet is locked in. Running the test…
+
+You
+locked in 1b0dc3bf
+Muse Spark 1.3 (Meta)
+locked in 31484206
+Muse Spark Open (Meta, open weights)
+locked in a80b3b66
+9.0 s
+
+Your code goes to Meta's AI as soon as Atlas draws it, so a test is ready when you bet.
+
+Try your own code
+
+ⓘ Details
+
+##### 4-after-bet (t=170.6s) shot=<scratch>/shots/in-forever-js-4-after-bet.png
+pasted.js · 7 lines · drawn in 44 ms
+
+spin
+
+A drawing of pasted.js: 1 function or class, each a box with its name and lines on it; spin is the one Atlas tests. None of them calls another. Beside the code, the test's stand-ins (fakes Atlas controls): none; and a clock that stands for Atlas's simulated clock.
+
+★ names: Muse Wonder's words (Meta's AI), not a check
+
+sum builder
+spin
+lines 1–7
+starts here: Atlas calls this
+loop, line 3
+returns, line 6
+
+The code ran past Atlas's 10000 ms limit of REAL time (it may loop without ever handing control back), so Atlas stopped it.
+
+you: 0 matched · 0 didn't match · 1 can't check
+
+None of your answers could be checked. Muse Spark 1.3: nothing checkable, Muse Spark Open: nothing checkable.
+
+1 can't check: Atlas could not check this run, so nothing from it is shown as fact: the code ran past Atlas's 10000 ms limit of REAL time (it may loop without ever handing control back), so Atlas stopped it
+
+Your code goes to Meta's AI as soon as Atlas draws it, so a test is ready when you bet.
+
+Try another question (asks the AIs: paid)
+Try your own code
+Try the Moonwell example
+
+More
+ⓘ Details
+STATE after bet: wait
+
+#### CONSOLE
+
+#### HTTP>=400

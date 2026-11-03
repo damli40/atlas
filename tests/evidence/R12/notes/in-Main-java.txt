@@ -1,0 +1,102 @@
+
+##### 0-after-invite (t=8.0s) shot=<scratch>/shots/in-Main-java-0-after-invite.png
+Think you know what your code does? Bet on it.
+
+Paste a file and Atlas draws it as a machine. Bet on what it will do. Meta's AI bets too, then Atlas runs it in a sandbox and shows whose bet matched.
+
+Paste your own file anywhere on this page, or here:
+Your code
+Draw my code
+⌘↵
+No file handy? Try one of these:
+Fetch with retry
+JavaScript, 15 lines
+Price parser
+Python, 12 lines
+Cached lookup
+TypeScript, 16 lines
+A sample goes to Meta's AI as soon as Atlas draws it, like any file you paste.
+Upload files
+Or a GitHub repo
+Draw the repo (a paid AI call)
+
+Your code goes to Meta's AI as soon as Atlas draws it, so a test is ready when you bet.
+
+Back to the example
+
+★ names: Muse Wonder's words (Meta's AI), not a check
+
+price lookup
+getPrice
+retrying fetch
+fetchWithRetry
+retry wait time
+backoffMs
+pause execution
+sleep
+lines 23–25
+returns, line 24
+lines 10–21
+starts here: Atlas calls this
+loop, line 12
+returns, line 14
+throws, line 20
+lines 2–4
+lines 6–8
+waits, line 7
+returns, line 7
+clickedBet=false
+
+##### 2-question (t=12.4s) shot=<scratch>/shots/in-Main-java-2-question.png
+Think you know what your code does? Bet on it.
+
+Paste a file and Atlas draws it as a machine. Bet on what it will do. Meta's AI bets too, then Atlas runs it in a sandbox and shows whose bet matched.
+
+This looks like Java. Atlas reads JavaScript, TypeScript and Python, so it didn't draw this file, and nothing was sent to Meta's AI.
+
+Paste your own file anywhere on this page, or here:
+Your code
+Draw my code
+⌘↵
+No file handy? Try one of these:
+Fetch with retry
+JavaScript, 15 lines
+Price parser
+Python, 12 lines
+Cached lookup
+TypeScript, 16 lines
+A sample goes to Meta's AI as soon as Atlas draws it, like any file you paste.
+Upload files
+Or a GitHub repo
+Draw the repo (a paid AI call)
+
+Your code goes to Meta's AI as soon as Atlas draws it, so a test is ready when you bet.
+
+Back to the example
+
+★ names: Muse Wonder's words (Meta's AI), not a check
+
+price lookup
+getPrice
+retrying fetch
+fetchWithRetry
+retry wait time
+backoffMs
+pause execution
+sleep
+lines 23–25
+returns, line 24
+lines 10–21
+starts here: Atlas calls this
+loop, line 12
+returns, line 14
+throws, line 20
+lines 2–4
+lines 6–8
+waits, line 7
+returns, line 7
+STATE after draw: precheck
+
+#### CONSOLE
+
+#### HTTP>=400

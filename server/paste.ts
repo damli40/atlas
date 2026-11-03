@@ -24,6 +24,7 @@ export { prototypeKeyIn };
 import { z } from "zod";
 import { describeCall, visibleText } from "../src/gate";
 import { guessLanguage } from "../src/paste-language";
+import { jsSyntaxProblem, precheckPaste } from "../src/paste-precheck";
 import { fileOutline } from "../src/file-outline";
 import { PASTED_LANGUAGES, PASTED_MAX_BYTES, makePastedTarget, utf8Bytes, type FoundExport, type PastedLanguage } from "../src/pasted-code";
 import type { ExperimentShape, Target } from "../src/types";
@@ -371,11 +372,24 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
       // E3 review minor 7: counted only once the paste is one Atlas will read (a refused size costs nothing).
       const perIp = deps.takePaste(c);
       if (!perIp.ok) return c.json({ error: `paste not read: ${perIp.reason}` }, 429);
-      const guess = guessLanguage(code);
+      const firstGuess = guessLanguage(code);
+      // R12 (D73): a guess of JavaScript that only the TypeScript parser reads is TypeScript (`new Set<string>()` has no other sign).
+      const guess = !parsed.data.language && firstGuess.language === "js" && jsSyntaxProblem(code, "js") && !jsSyntaxProblem(code, "ts") ? { language: "ts" as const, why: "the JavaScript parser can't read it and the TypeScript parser can" } : firstGuess;
       const language: PastedLanguage = parsed.data.language ?? guess.language;
       const lang = { chosen: language, guessed: guess.language, why: guess.why, chosenBy: parsed.data.language ? ("person" as const) : ("plain code" as const) };
       const runner = runners[language];
       const made = makePastedTarget(code, language);
+      // R12 (D73): a file the parser can't read is said so here, with the parser's line and column, before any model is asked.
+      // It is not kept: there is nothing to draw, test or run, so no summary, names or test is ever asked for.
+      const precheck = runner ? precheckPaste(code, language) : null;
+      if (precheck) {
+        try {
+          deps.agentLog.emit(sessionId, { role: "human", action: oneLine(`pastes a file Atlas can't read (${precheck.kind}); no model is asked`), ref: { kind: "target", id: made.codeSha256 } });
+        } catch {
+          // a refused log line never stops the answer
+        }
+        return c.json({ target: { kind: made.kind, ref: made.ref, codeSha256: made.codeSha256, language }, language: lang, languages: languages(), runnable: false, reason: precheck.words, precheck, exports: [], cantCheck: null, lines: lineCount });
+      }
       // E3 review r3 M2: reuse the one shared copy of this source (and mark it as pasted now).
       const known = sources.get(sourceKeyOf(made));
       const target = known?.target ?? made;

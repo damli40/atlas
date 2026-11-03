@@ -32,6 +32,7 @@ import type { Finding } from "../src/types";
 import { PasteFlow } from "./screens/Paste";
 import { ExplorerFlow, type BetHandoff } from "./screens/Explorer";
 import { Studio } from "./screens/Studio";
+import { InviteLinks, noteWaitlist } from "./screens/ErrorNotice";
 import { useDarkScheme } from "./drawing/media";
 import type { OutlineView } from "./machines/explorer/outline-data";
 
@@ -88,6 +89,8 @@ function Shell({ api: given }: { api?: Api }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [logOpen]);
   const [roundOpen, setRoundOpen] = useState(false);
+  // R12 (D73): whether the earlier screens are locked (no invite code on a server that needs one). Unknown until the fold opens.
+  const [earlierLocked, setEarlierLocked] = useState<boolean | null>(null);
   // Both Meta models bet by default when the server can ask Muse Spark Open (D07-01); otherwise Muse Spark alone.
   useEffect(() => {
     let live = true;
@@ -172,9 +175,30 @@ function Shell({ api: given }: { api?: Api }) {
         <button type="button" className="u1-link" aria-pressed={view === "explore"} onClick={() => setView("explore")} data-testid="mode-explore">
           Repo outline (early)
         </button>
-        <details className="u1-earlier" data-testid="u1-earlier">
+        <details
+          className="u1-earlier"
+          data-testid="u1-earlier"
+          onToggle={(e) => {
+            // R12 (D73): with no invite code these screens can only answer 401, so the fold says so instead of opening a stuck screen.
+            if (!(e.currentTarget as HTMLDetailsElement).open) return;
+            void Promise.resolve()
+              .then(() => studioApi.inviteStatus())
+              .then(
+                (st) => {
+                  noteWaitlist(st.waitlist);
+                  setEarlierLocked(st.required && !st.signedIn);
+                },
+                () => setEarlierLocked(false),
+              );
+          }}
+        >
           <summary>Earlier screens</summary>
-          <ul>
+          {earlierLocked && (
+            <p className="u1-sub" data-testid="u1-earlier-locked">
+              These earlier screens need an invite code. <InviteLinks />
+            </p>
+          )}
+          <ul hidden={earlierLocked === true}>
             {EARLIER.map((d) => (
               <li key={d.mode}>
                 <button type="button" onClick={(e) => { closeMenu(e); setView(d.mode); }} data-testid={`mode-${d.mode}`}>

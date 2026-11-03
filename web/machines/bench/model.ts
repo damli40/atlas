@@ -231,7 +231,8 @@ export function benchModel(input: BenchInput): BenchModel {
     .concat(outline.joins.filter((j) => j.kind === "wraps").map((j) => `${j.from} is wrapped by ${j.to}`))
     .concat((outline.selfCalls ?? []).map((x) => `${x.name} calls itself`));
   const fns = outline.parts.length;
-  const plainLabel = `A drawing of ${path}: ${fns} ${fns === 1 ? "function or class" : "functions and classes"}, each a box with its name and lines on it${tested ? `; ${tested} is the one Atlas tests` : ""}. ${callWords.length ? `Lines join them: ${callWords.join("; ")}.` : "None of them calls another."}${extraLabel ? ` ${extraLabel}` : ""}`;
+  // R12 (D73): a file with nothing to draw is not called "a drawing of pasted.js".
+  const plainLabel = fns === 0 ? "The pasted file: plain code found no function or class in it to draw." : `A drawing of ${path}: ${fns} ${fns === 1 ? "function or class" : "functions and classes"}, each a box with its name and lines on it${tested ? `; ${tested} is the one Atlas tests` : ""}. ${callWords.length ? `Lines join them: ${callWords.join("; ")}.` : "None of them calls another."}${extraLabel ? ` ${extraLabel}` : ""}`;
   return {
     plainLabel,
     notShown: boxes.length === 0 ? "plain code found no function or class in this file to draw" : null,

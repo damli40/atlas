@@ -24,7 +24,8 @@ describe("S5 model budget", () => {
     const b = createModelBudget({ callsPerHour: 3, now: () => t });
     const chat = b.wrap(ok);
     for (let i = 0; i < 3; i++) expect((await chat({ role: "claimant", model: "m", messages: [] })).ok).toBe(true);
-    expect(await chat({ role: "claimant", model: "m", messages: [] })).toEqual({ ok: false, reason: "call limit reached" });
+    // R12 (D73): the reason says when the next call frees up (all 3 were made at t=0, so in 60 min).
+    expect(await chat({ role: "claimant", model: "m", messages: [] })).toEqual({ ok: false, reason: "call limit reached. The next one frees up in about 60 min" });
     expect(b.startExperiment("s").ok).toBe(false);
     t += 60 * 60 * 1000 + 1;
     expect((await chat({ role: "claimant", model: "m", messages: [] })).ok).toBe(true);

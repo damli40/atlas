@@ -114,16 +114,25 @@ export interface ProofImageProps {
   keepsCards?: boolean;
   /** False: whoever is looking did not run this round. Copy link gives the file's own address, and no public link is offered. */
   canKeep?: boolean;
+  /** R12 (D73): opened by "Share proof card": the public-link question shows at once, so the link a person shares is the kept one (it survives a restart). */
+  askFirst?: boolean;
   /** D66: the machine's parts for this card. Null: the picture keeps its marks alone. */
   machineParts?: MachineParts | null;
   machineHelpers?: HelperAnswer | null;
   machineEnd?: MachineEnd | null;
 }
 
-export function ProofImage({ card, file, lines, names, api, download, downloadName, preExisting = null, stranger = false, reader: readerGiven = false, keepsCards = true, canKeep = true, machineHelpers = null, machineEnd = null, machineParts = null }: ProofImageProps) {
+/**
+ * R12 (D73): the short seal the card prints is the PERSON's bet, chosen by who placed it, never by its place in the list
+ * (a model's bet can come first). A card with no bet of the person's prints no seal.
+ */
+export const personSealHash = (bets: readonly { who: string; sealedHash?: string }[]): string => (bets.find((b) => b.who === "human")?.sealedHash ?? "").slice(0, 10);
+
+export function ProofImage({ card, file, lines, names, api, download, downloadName, preExisting = null, stranger = false, reader: readerGiven = false, keepsCards = true, canKeep = true, machineHelpers = null, machineEnd = null, machineParts = null, askFirst = false }: ProofImageProps) {
   const ref = useRef<SVGSVGElement | null>(null);
   const [said, setSaid] = useState<string | null>(null);
-  const [asking, setAsking] = useState(false);
+  // R12 (D73): the consent still comes first; "Share proof card" only puts the question up without a second click.
+  const [asking, setAsking] = useState(() => askFirst && api !== undefined && canKeep && keepsCards && !readerGiven && (file as { keptCard?: unknown }).keptCard === undefined && (file as { sourceWithheld?: boolean }).sourceWithheld !== true);
   // The consent is what the button asks, so it is brought into view with it. A card can be taller than its panel.
   const askRef = useRef<HTMLDivElement | null>(null);
   const saidRef = useRef<HTMLSpanElement | null>(null);
@@ -155,7 +164,7 @@ export function ProofImage({ card, file, lines, names, api, download, downloadNa
   const theory = theoryCaptions(file.change);
   // D20's words are required whole, so they wrap: this never cuts them.
   const changeLines = beforeChange || theory.length > 0 ? wrap([beforeChange, ...theory].filter(Boolean).join(" "), 150, 8) : [];
-  const hash = (file.bets[0]?.sealedHash ?? "").slice(0, 10);
+  const hash = personSealHash(file.bets);
   const fontsIn = useFontsIn();
   // D66: the machine in the picture, with its ring, when it can be drawn truthfully and clearly. Otherwise the marks stay, as they were.
   const machineSvg = useMemo(() => {
@@ -216,7 +225,7 @@ export function ProofImage({ card, file, lines, names, api, download, downloadNa
       setKeptUntil((a as { until?: string }).until ?? "kept");
       setKeptMine(true);
       copied(ok, "Anyone with it can read this card for 30 days.");
-    } else copied(ok, `No public link was made: ${a.words ?? "this server keeps no cards"}. This address works only while the round is on the server: up to 2 hours.`);
+    } else copied(ok, `No public link was made: ${a.words ?? "this server keeps no cards"}. This address works only while the round is on the server: up to 2 hours, and not after the server restarts.`);
   };
   const copyLink = async () => {
     if (keptUntil || reader || !api || !canKeep) return copied(await toClipboard(), "");

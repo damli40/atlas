@@ -101,7 +101,8 @@ export const SUMMARY_WORDS = {
   legend: "Summary: Muse Wonder's words (Meta's AI). Its reading can repeat the code's own comments; the run is the check",
   partsFold: (n: number) => `What each part does, in its words (${n})`,
   panel: (line: string) => `Meta's AI says this part: ${line} (its words, not a check)`,
-  none: "No summary this time: Meta's AI was slow or its words didn't pass Atlas's checks.",
+  // R12 (D73): a limit (spend or calls) also leaves no summary; the line no longer blames the AI for it.
+  none: "No summary this time: Meta's AI wasn't asked (a limit was reached), was slow, or its words didn't pass Atlas's checks.",
 } as const;
 
 /** D19: the lines every AI bettor gets when the summary was sent to the person's page, labelled as the model's words. */

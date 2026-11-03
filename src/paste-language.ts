@@ -94,9 +94,14 @@ export function guessLanguage(source: string): LanguageGuess {
 }
 
 const FOREIGN: [RegExp, string][] = [
+  // R12 (D73): Solidity, Kotlin, Swift's arrow functions, C++ and more Java signs, so a file in them is named before any model call.
+  [/^\s*pragma\s+solidity\b|^\s*(?:abstract\s+)?contract\s+\w+\s*(?:is\s+[\w\s,]+)?\{|^\s*library\s+\w+\s*\{/m, "Solidity"],
   [/^\s*(?:pub\s+)?fn\s+\w+\s*[(<]|^\s*use\s+\w+(?:::\w+)+|\blet\s+mut\b|^\s*impl\s+\w+/m, "Rust"],
+  [/^\s*(?:(?:private|internal|public|suspend|inline)\s+)*fun\s+(?:<[^>]*>\s*)?[\w.]+\s*\(|^\s*(?:data\s+)?class\s+\w+\s*\(\s*(?:val|var)\s/m, "Kotlin"],
+  [/^\s*import\s+(?:Foundation|UIKit|SwiftUI)\s*$|^\s*func\s+\w+\s*(?:<[^>]*>)?\s*\([^)]*\)\s*(?:async\s+)?(?:throws\s+)?->/m, "Swift"],
   [/^\s*package\s+\w+\s*$|^\s*func\s+(?:\(\w+\s+\*?\w+\)\s*)?\w+\s*\(/m, "Go"],
-  [/^\s*public\s+(?:final\s+)?class\s+\w+|public\s+static\s+void\s+main/m, "Java"],
+  [/^\s*(?:(?:public|private|protected)\s+)?(?:(?:abstract|final|static)\s+)*class\s+\w+(?:\s+extends\s+\w+)?(?:\s+implements\s+[\w,\s]+)?\s*\{[\s\S]*\b(?:public|private|protected)\s+(?:static\s+)?(?:final\s+)?(?:void|int|long|double|float|boolean|char|String|[A-Z]\w*(?:<[^>]*>)?)\s+\w+\s*\(|^\s*public\s+(?:final\s+)?class\s+\w+|public\s+static\s+void\s+main|^\s*import\s+java\.|\bSystem\.out\.print/m, "Java"],
+  [/\bstd::\w+|^\s*int\s+main\s*\(/m, "C or C++"],
   [/^\s*using\s+System\b|^\s*namespace\s+[\w.]+\s*[;{]/m, "C#"],
   [/^\s*(?:class|module)\s+[A-Z]\w*\s*$[\s\S]*^\s*end\s*$|^\s*def\s+\w+[^:\n]*$[\s\S]*^\s*end\s*$/m, "Ruby"],
   [/^\s*import\s+(?:Foundation|UIKit|SwiftUI)\s*$/m, "Swift"],
@@ -107,6 +112,8 @@ export function foreignLanguage(src: string): string | null {
   // These two start with characters the blanking takes for a comment or a string, and no JavaScript or Python file has them at the start of a line.
   if (/^\s*#include\s*[<"]/m.test(src)) return "C or C++";
   if (/^\s*<\?php/m.test(src)) return "PHP";
+  // R12 (D73): a shell script: its #! line names a shell, or it has the shell's own block words on lines of their own.
+  if (/^#!\s*\S*\/(?:env\s+)?(?:ba|z|k|da)?sh\b/.test(src) || (/^\s*(?:fi|done|esac)\s*$/m.test(src) && /;\s*(?:then|do)\s*$|^\s*(?:then|do)\s*$/m.test(src))) return "a shell script (Bash)";
   const text = blankCommentsAndStrings(src);
   return FOREIGN.find(([re]) => re.test(text))?.[1] ?? null;
 }

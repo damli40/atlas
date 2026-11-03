@@ -1,0 +1,341 @@
+
+##### 0-after-invite (t=8.0s) shot=<scratch>/shots/in-big2000ok-js-0-after-invite.png
+Think you know what your code does? Bet on it.
+
+Paste a file and Atlas draws it as a machine. Bet on what it will do. Meta's AI bets too, then Atlas runs it in a sandbox and shows whose bet matched.
+
+Paste your own file anywhere on this page, or here:
+Your code
+Draw my code
+⌘↵
+No file handy? Try one of these:
+Fetch with retry
+JavaScript, 15 lines
+Price parser
+Python, 12 lines
+Cached lookup
+TypeScript, 16 lines
+A sample goes to Meta's AI as soon as Atlas draws it, like any file you paste.
+Upload files
+Or a GitHub repo
+Draw the repo (a paid AI call)
+
+Your code goes to Meta's AI as soon as Atlas draws it, so a test is ready when you bet.
+
+Back to the example
+
+Last time: you bet returns a value. It returned.
+
+★ names: Muse Wonder's words (Meta's AI), not a check
+
+price lookup
+getPrice
+retrying fetch
+fetchWithRetry
+retry wait time
+backoffMs
+pause execution
+sleep
+lines 23–25
+returns, line 24
+lines 10–21
+starts here: Atlas calls this
+loop, line 12
+returns, line 14
+throws, line 20
+lines 2–4
+lines 6–8
+waits, line 7
+returns, line 7
+
+##### 1-drawn (t=15.6s) shot=<scratch>/shots/in-big2000ok-js-1-drawn.png
+pasted.js · 1995 lines · drawn in 96 ms
+
+fn0
+
+what calls what, before anything has run
+
+A drawing of pasted.js: 40 functions and classes, each a box with its name and lines on it. None of them calls another.
+
+No summary this time: Meta's AI was slow or its words didn't pass Atlas's checks.
+
+fn0
+lines 1–5
+fn1
+lines 6–10
+Test this function
+fn2
+lines 11–15
+Test this function
+fn3
+lines 16–20
+Test this function
+fn4
+lines 21–25
+Test this function
+fn5
+lines 26–30
+Test this function
+fn6
+lines 31–35
+Test this function
+fn7
+lines 36–40
+Test this function
+fn8
+lines 41–45
+Test this function
+fn9
+lines 46–50
+Test this function
+fn10
+lines 51–55
+Test this function
+fn11
+lines 56–60
+Test this function
+fn12
+lines 61–65
+Test this function
+fn13
+lines 66–70
+Test this function
+fn14
+lines 71–75
+Test this function
+fn15
+lines 76–80
+Test this function
+fn16
+lines 81–85
+Test this function
+fn17
+lines 86–90
+Test this function
+fn18
+lines 91–95
+Test this function
+fn19
+lines 96–100
+Test this function
+fn20
+lines 101–105
+Test this function
+fn21
+lines 106–110
+Test this function
+fn22
+lines 111–115
+Test this function
+fn23
+lines 116–120
+Test this function
+fn24
+lines 121–125
+Test this function
+fn25
+lines 126–130
+Test this function
+fn26
+lines 131–135
+Test this function
+fn27
+lines 136–140
+Test this function
+fn28
+lines 141–145
+Test this function
+fn29
+lines 146–150
+Test this function
+fn30
+lines 151–155
+Test this function
+fn31
+lines 156–160
+Test this function
+fn32
+lines 161–165
+Test this function
+fn33
+lines 166–170
+Test this function
+fn34
+lines 171–175
+Test this function
+fn35
+lines 176–180
+Test this function
+fn36
+lines 181–185
+Test this function
+fn37
+lines 186–190
+Test this function
+fn38
+lines 191–195
+Test this function
+fn39
+lines 196–200
+Test this function
+
+This file defines 399 functions and classes, more than the 8 parts the machine can draw and still be read. Here are the first 40.
+
+Bet on what it does
+Enter
+Asks Muse Wonder and the AI bettors: paid AI calls.
+
+Your code goes to Meta's AI as soon as Atlas draws it, so a test is ready when you bet.
+
+Try your own code
+
+ⓘ Details
+clickedBet=true
+
+##### 2-question (t=168.5s) shot=<scratch>/shots/in-big2000ok-js-2-question.png
+pasted.js · 1995 lines · drawn in 96 ms
+
+fn0
+
+what calls what, before anything has run
+
+A drawing of pasted.js: 40 functions and classes, each a box with its name and lines on it. None of them calls another.
+
+No summary this time: Meta's AI was slow or its words didn't pass Atlas's checks.
+
+fn0
+lines 1–5
+fn1
+lines 6–10
+Test this function
+fn2
+lines 11–15
+Test this function
+fn3
+lines 16–20
+Test this function
+fn4
+lines 21–25
+Test this function
+fn5
+lines 26–30
+Test this function
+fn6
+lines 31–35
+Test this function
+fn7
+lines 36–40
+Test this function
+fn8
+lines 41–45
+Test this function
+fn9
+lines 46–50
+Test this function
+fn10
+lines 51–55
+Test this function
+fn11
+lines 56–60
+Test this function
+fn12
+lines 61–65
+Test this function
+fn13
+lines 66–70
+Test this function
+fn14
+lines 71–75
+Test this function
+fn15
+lines 76–80
+Test this function
+fn16
+lines 81–85
+Test this function
+fn17
+lines 86–90
+Test this function
+fn18
+lines 91–95
+Test this function
+fn19
+lines 96–100
+Test this function
+fn20
+lines 101–105
+Test this function
+fn21
+lines 106–110
+Test this function
+fn22
+lines 111–115
+Test this function
+fn23
+lines 116–120
+Test this function
+fn24
+lines 121–125
+Test this function
+fn25
+lines 126–130
+Test this function
+fn26
+lines 131–135
+Test this function
+fn27
+lines 136–140
+Test this function
+fn28
+lines 141–145
+Test this function
+fn29
+lines 146–150
+Test this function
+fn30
+lines 151–155
+Test this function
+fn31
+lines 156–160
+Test this function
+fn32
+lines 161–165
+Test this function
+fn33
+lines 166–170
+Test this function
+fn34
+lines 171–175
+Test this function
+fn35
+lines 176–180
+Test this function
+fn36
+lines 181–185
+Test this function
+fn37
+lines 186–190
+Test this function
+fn38
+lines 191–195
+Test this function
+fn39
+lines 196–200
+Test this function
+
+This file defines 399 functions and classes, more than the 8 parts the machine can draw and still be read. Here are the first 40.
+
+Pick a test for fn0
+
+Muse Wonder wrote no test this time. The model call failed: spend limit reached: the money shared by invited developers is used up ($0.50 of $1.00; the last $0.00 of the $1.00 ceiling is kept for the owner). You can write your own below.
+
+No other test is ready for this function. Ask for one, or write your own.
+
+Ask Muse Wonder for a new test
+Asks Muse Wonder and the AI bettors: paid AI calls.
+Write your own test
+STATE after draw: timeout
+
+#### CONSOLE
+
+#### HTTP>=400

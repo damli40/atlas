@@ -103,6 +103,8 @@ export interface PasteAnswer {
   lines: number;
   /** U1 (D47): the file's functions and joins by plain code. Absent on servers before U1. */
   outline?: FileOutline;
+  /** R12 (D73): the parser could not read the file; why, in plain words (and Markdown's fenced code, when Atlas can use it). Nothing was kept or asked. */
+  precheck?: { kind: string; words: string; line?: number; column?: number; fenced?: { code: string; language: "js" | "ts" | "py" } };
 }
 export interface PasteLanguage {
   language: "js" | "ts" | "py";
@@ -328,6 +330,13 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
     replay: (runId: string) => get<ReplayAnswer>(`/replay/${encodeURIComponent(runId)}`),
     /** The session id the server handed back (null before the first answer). */
     session: () => session,
+    /**
+     * R12 (D73): forget this tab's session, so the next request starts a fresh one. After an invite code is entered the
+     * server answers from another copy of the app (the invited one), which never saw the example's session.
+     */
+    resetSession: () => {
+      session = null;
+    },
     /** D07-01: the claimant mode sent with the next experiment. */
     claimant: () => claimant,
     setClaimant: (mode: ClaimantMode) => {

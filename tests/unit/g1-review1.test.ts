@@ -132,7 +132,8 @@ describe("B2: calls per hour and experiments per session have per-code shares; t
     for (let i = 0; i < 10; i++) if ((await s.asDev(() => chat(args))).ok) dev++;
     expect(dev).toBe(4);
     const devMore = await s.asDev(() => chat(args));
-    expect(devMore).toMatchObject({ ok: false, reason: "call limit reached: this invite may make 4 model calls an hour" });
+    // R12 (D73): the reason also says when the next call frees up.
+    expect(devMore).toMatchObject({ ok: false, reason: expect.stringMatching(/^call limit reached: this invite may make 4 model calls an hour\. The next one frees up in about \d+ min$/) });
     let dev2 = 0;
     for (let i = 0; i < 10; i++) if ((await s.asDev2(() => chat(args))).ok) dev2++;
     expect(dev2).toBe(4); // 8 in the shared counter now: full for devs

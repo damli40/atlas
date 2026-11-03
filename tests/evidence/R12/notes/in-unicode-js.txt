@@ -1,0 +1,110 @@
+
+##### 0-after-invite (t=8.0s) shot=<scratch>/shots/in-unicode-js-0-after-invite.png
+Think you know what your code does? Bet on it.
+
+Paste a file and Atlas draws it as a machine. Bet on what it will do. Meta's AI bets too, then Atlas runs it in a sandbox and shows whose bet matched.
+
+Paste your own file anywhere on this page, or here:
+Your code
+Draw my code
+⌘↵
+No file handy? Try one of these:
+Fetch with retry
+JavaScript, 15 lines
+Price parser
+Python, 12 lines
+Cached lookup
+TypeScript, 16 lines
+A sample goes to Meta's AI as soon as Atlas draws it, like any file you paste.
+Upload files
+Or a GitHub repo
+Draw the repo (a paid AI call)
+
+Your code goes to Meta's AI as soon as Atlas draws it, so a test is ready when you bet.
+
+Back to the example
+
+Last time: you bet returns a value. It returned.
+
+★ names: Muse Wonder's words (Meta's AI), not a check
+
+price lookup
+getPrice
+retrying fetch
+fetchWithRetry
+retry wait time
+backoffMs
+pause execution
+sleep
+lines 23–25
+returns, line 24
+lines 10–21
+starts here: Atlas calls this
+loop, line 12
+returns, line 14
+throws, line 20
+lines 2–4
+lines 6–8
+waits, line 7
+returns, line 7
+
+##### 1-drawn (t=13.4s) shot=<scratch>/shots/in-unicode-js-1-drawn.png
+pasted.js · 4 lines · drawn in 41 ms
+
+grüße
+
+what calls what, before anything has run
+
+A drawing of pasted.js: 1 function or class, each a box with its name and lines on it. None of them calls another.
+
+No summary this time: Meta's AI was slow or its words didn't pass Atlas's checks.
+
+grüße
+lines 1–4
+starts here: Atlas calls this
+returns, line 3
+
+Bet on what it does
+Enter
+Asks Muse Wonder and the AI bettors: paid AI calls.
+
+Your code goes to Meta's AI as soon as Atlas draws it, so a test is ready when you bet.
+
+Try your own code
+
+ⓘ Details
+clickedBet=true
+
+##### 2-question (t=166.2s) shot=<scratch>/shots/in-unicode-js-2-question.png
+pasted.js · 4 lines · drawn in 41 ms
+
+grüße
+
+what calls what, before anything has run
+
+A drawing of pasted.js: 1 function or class, each a box with its name and lines on it. None of them calls another.
+
+No summary this time: Meta's AI was slow or its words didn't pass Atlas's checks.
+
+★ names: Muse Wonder's words (Meta's AI), not a check
+
+greet by name
+grüße
+lines 1–4
+starts here: Atlas calls this
+returns, line 3
+
+Pick a test for grüße
+
+Muse Wonder wrote no test this time. The model call failed: spend limit reached: the money shared by invited developers is used up ($0.83 of $1.00; the last $0.00 of the $1.00 ceiling is kept for the owner). You can write your own below.
+
+No other test is ready for this function. Ask for one, or write your own.
+
+Ask Muse Wonder for a new test
+Asks Muse Wonder and the AI bettors: paid AI calls.
+Write your own test
+STATE after draw: timeout
+
+#### CONSOLE
+
+#### HTTP>=400

@@ -68,7 +68,7 @@ function PencilImage({ api, runId }: { api: Pick<Api, "pencil">; runId: string }
   );
 }
 
-export function ProofCardPage({ api, runId, embedded = false }: { api: Api; runId: string; embedded?: boolean }) {
+export function ProofCardPage({ api, runId, embedded = false, askLink = false }: { api: Api; runId: string; embedded?: boolean; /** R12 (D73): opened by "Share proof card". */ askLink?: boolean }) {
   const [file, setFile] = useState<AtlasFile | null>(null);
   const [error, setError] = useState<string | null>(null);
   // J3: with an invite gate on, someone logged out cannot run anything, so nothing that runs or keeps is offered to them. Unknown yet counts as out.
@@ -141,7 +141,7 @@ export function ProofCardPage({ api, runId, embedded = false }: { api: Api; runI
       {file && viewer ? (
         <div className="proof-stack">
           {/* Inside the round's own screen the bettor is looking. Elsewhere only the server's record says so: where nothing records whose bet it was, the words stay neutral. */}
-          <ProofCard file={file} api={api} machineParts={machineParts} machineHelpers={machineHelpers} machineEnd={machineEnd} reader={loggedOut} keepsCards={viewer.keepsCards} canKeep={viewer.canKeep} stranger={!embedded && !viewer.yours} />
+          <ProofCard file={file} api={api} machineParts={machineParts} machineHelpers={machineHelpers} machineEnd={machineEnd} reader={loggedOut} keepsCards={viewer.keepsCards} canKeep={viewer.canKeep} stranger={!embedded && !viewer.yours} askLink={askLink} />
           {/* X3 (D27): only for the person whose round this was (the server answers null for anyone else). */}
           <RecordBefore api={api} runId={runId} />
         </div>
@@ -168,7 +168,7 @@ export function modelNames(file: Pick<AtlasFile, "bets">): Record<string, string
   return bettorNames(file.bets.map((b) => b.who));
 }
 
-export function ProofCard({ file, api, replay: given, stranger = false, reader = false, keepsCards = true, canKeep = true, machineParts = null, machineHelpers = null, machineEnd = null }: { machineParts?: MachineParts | null; machineHelpers?: HelperAnswer | null; machineEnd?: MachineEnd | null; file: AtlasFile; api?: Api; replay?: ReplayAnswer; /** Whoever is looking did not place these bets, so nothing says "you". */ stranger?: boolean; /** Logged out: nothing that runs or keeps is offered. */ reader?: boolean; /** False: this server has no volume to keep a card on. */ keepsCards?: boolean; /** False: whoever is looking did not run this round, so the link stays the file's own address. */ canKeep?: boolean }) {
+export function ProofCard({ file, api, replay: given, stranger = false, reader = false, keepsCards = true, canKeep = true, machineParts = null, machineHelpers = null, machineEnd = null, askLink = false }: { askLink?: boolean; machineParts?: MachineParts | null; machineHelpers?: HelperAnswer | null; machineEnd?: MachineEnd | null; file: AtlasFile; api?: Api; replay?: ReplayAnswer; /** Whoever is looking did not place these bets, so nothing says "you". */ stranger?: boolean; /** Logged out: nothing that runs or keeps is offered. */ reader?: boolean; /** False: this server has no volume to keep a card on. */ keepsCards?: boolean; /** False: whoever is looking did not run this round, so the link stays the file's own address. */ canKeep?: boolean }) {
   const card = useMemo(() => proofCardModel(file), [file]);
   // D10 + D07-01: every model bettor by product name AND id (src/claimants.ts), e.g.
   // "Muse Spark Open (meta-models/muse-spark-open-1026) · via Baseten". An unknown id is shown as itself.
@@ -212,7 +212,7 @@ export function ProofCard({ file, api, replay: given, stranger = false, reader =
 
   return (
     <article className="proof-card" data-testid="proof-card" aria-label={`proof card for run ${card.runId}`}>
-      <ProofImage stranger={stranger} reader={reader} keepsCards={keepsCards} canKeep={canKeep} machineParts={machineParts} machineHelpers={machineHelpers} machineEnd={machineEnd} card={card} file={file} lines={lines} names={names} preExisting={card.target.kind === "ts-fixture" ? preExistingLabel(file) : null} {...(api ? { api } : {})} {...(download ? { download, downloadName: `${card.runId}.atlas.json` } : {})} />
+      <ProofImage askFirst={askLink} stranger={stranger} reader={reader} keepsCards={keepsCards} canKeep={canKeep} machineParts={machineParts} machineHelpers={machineHelpers} machineEnd={machineEnd} card={card} file={file} lines={lines} names={names} preExisting={card.target.kind === "ts-fixture" ? preExistingLabel(file) : null} {...(api ? { api } : {})} {...(download ? { download, downloadName: `${card.runId}.atlas.json` } : {})} />
       <header className="pc-head">
         <div>
           <p className="pc-kicker">Atlas · proof card</p>

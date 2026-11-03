@@ -1,0 +1,155 @@
+
+##### 0-after-invite (t=8.0s) shot=<scratch>/shots/in-many-ts-0-after-invite.png
+Think you know what your code does? Bet on it.
+
+Paste a file and Atlas draws it as a machine. Bet on what it will do. Meta's AI bets too, then Atlas runs it in a sandbox and shows whose bet matched.
+
+Paste your own file anywhere on this page, or here:
+Your code
+Draw my code
+⌘↵
+No file handy? Try one of these:
+Fetch with retry
+JavaScript, 15 lines
+Price parser
+Python, 12 lines
+Cached lookup
+TypeScript, 16 lines
+A sample goes to Meta's AI as soon as Atlas draws it, like any file you paste.
+Upload files
+Or a GitHub repo
+Draw the repo (a paid AI call)
+
+Your code goes to Meta's AI as soon as Atlas draws it, so a test is ready when you bet.
+
+Back to the example
+
+Last time: you bet returns a value. It returned.
+
+★ names: Muse Wonder's words (Meta's AI), not a check
+
+price lookup
+getPrice
+retrying fetch
+fetchWithRetry
+retry wait time
+backoffMs
+pause execution
+sleep
+lines 23–25
+returns, line 24
+lines 10–21
+starts here: Atlas calls this
+loop, line 12
+returns, line 14
+throws, line 20
+lines 2–4
+lines 6–8
+waits, line 7
+returns, line 7
+
+##### 1-drawn (t=13.4s) shot=<scratch>/shots/in-many-ts-1-drawn.png
+pasted.ts · 47 lines · drawn in 39 ms
+
+step0
+
+what calls what, before anything has run
+
+A drawing of pasted.ts: 12 functions and classes, each a box with its name and lines on it. Lines join them: step0 calls step1; step1 calls step2; step10 calls step11; step2 calls step3; step3 calls step4; step4 calls step5; step5 calls step6; step6 calls step7; step7 calls step8; step8 calls step9; step9 calls step10.
+
+lines 1-3
+step0
+lines 5-7
+step1
+lines 9-11
+step2
+lines 13-15
+step3
+lines 17-19
+step4
+lines 21-23
+step5
+calls
+calls
+calls
+calls
+
+This file has 12 parts, more than the 8 the machine can draw and still be read, so here is the box chart.
+
+Bet on what it does
+Enter
+Asks Muse Wonder and the AI bettors: paid AI calls.
+
+Your code goes to Meta's AI as soon as Atlas draws it, so a test is ready when you bet.
+
+Try your own code
+
+ⓘ Details
+clickedBet=true
+
+##### 2-question (t=166.3s) shot=<scratch>/shots/in-many-ts-2-question.png
+pasted.ts · 47 lines · drawn in 39 ms
+
+step0
+
+what calls what, before anything has run
+
+A drawing of pasted.ts: 12 functions and classes, each a box with its name and lines on it. Lines join them: step0 calls step1; step1 calls step2; step10 calls step11; step2 calls step3; step3 calls step4; step4 calls step5; step5 calls step6; step6 calls step7; step7 calls step8; step8 calls step9; step9 calls step10.
+
+Summary: Muse Wonder's words (Meta's AI). Its reading can repeat the code's own comments; the run is the check
+
+This file defines a chain of small functions that each adjust a number and pass it along.
+
+What each part does, in its words (12)
+lines 1-3
+step0
+lines 5-7
+step1
+lines 9-11
+step2
+lines 13-15
+step3
+lines 17-19
+step4
+lines 21-23
+step5
+lines 25-27
+step6
+lines 29-31
+step7
+lines 33-35
+step8
+lines 37-39
+step9
+lines 41-43
+step10
+lines 45-47
+step11
+calls
+calls
+calls
+calls
+calls
+calls
+calls
+calls
+calls
+calls
+calls
+
+This file has 12 parts, more than the 8 the machine can draw and still be read, so here is the box chart.
+
+Pick a test for step0
+
+Muse Wonder wrote no test this time. The model call failed: spend limit reached: the money shared by invited developers is used up ($0.82 of $1.00; the last $0.00 of the $1.00 ceiling is kept for the owner). You can write your own below.
+
+No other test is ready for this function. Ask for one, or write your own.
+
+Ask Muse Wonder for a new test
+Asks Muse Wonder and the AI bettors: paid AI calls.
+Write your own test
+STATE after draw: timeout
+
+#### CONSOLE
+
+#### HTTP>=400

@@ -1,0 +1,2 @@
+Not live line vs foot (question, scrolled to end): [{"bottom":564,"footTop":826}]
+proof card end vs foot: {"lastText":"This was your first judged round on this server.","lastBottom":689,"footTop":826,"ask":false}

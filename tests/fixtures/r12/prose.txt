@@ -1,0 +1,1 @@
+Our team agreed that the retry logic should wait longer between attempts. Please review the plan before Friday and let me know if the price lookup needs a cache.

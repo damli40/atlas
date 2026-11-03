@@ -18,7 +18,7 @@ import { emptyCallFacts } from "./types";
 import type { CodeSymbol, ImportName } from "./types";
 import type { ParsedFile, RawCall, RawImport } from "./parse-js";
 
-type Tok = { t: "name" | "op" | "str" | "num"; v: string; line: number; start: number; end: number };
+export type Tok = { t: "name" | "op" | "str" | "num"; v: string; line: number; start: number; end: number };
 
 const SIG_MAX = 200;
 const squash = (s: string) => s.replace(/\s+/g, " ").trim();
@@ -32,13 +32,13 @@ const MAX_FSTRING_NESTING = 16;
 const MULTI_OPS = ["->", "**", ":=", "==", "!=", "<=", ">="];
 const KEYWORDS = new Set(["False", "None", "True", "and", "as", "assert", "async", "await", "break", "class", "continue", "def", "del", "elif", "else", "except", "finally", "for", "from", "global", "if", "import", "in", "is", "lambda", "nonlocal", "not", "or", "pass", "raise", "return", "try", "while", "with", "yield", "match", "case", "type"]);
 
-interface Logical {
+export interface Logical {
   indent: number;
   toks: Tok[];
 }
 
 /** Tokens grouped into logical lines, plus any problem that stopped the scan. */
-function scan(src: string): { lines: Logical[]; problem?: string } {
+export function scan(src: string): { lines: Logical[]; problem?: string } {
   const lines: Logical[] = [];
   let cur: Tok[] = [];
   let curIndent = 0;

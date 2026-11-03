@@ -14,7 +14,10 @@ import type { PastedLanguage } from "./pasted-code";
 export function plainLimit(reason: string): string {
   const inner = reason.replace(/^not asked \((.*)\)$/s, "$1");
   const m = /call limit reached: one client address may ask for (\d+) (.+?) an hour(?:[.;:,]?\s*(.*))?$/s.exec(inner);
-  if (m) return `You've used this hour's ${m[1]} ${m[2]}.${m[3] ? ` ${m[3]}` : " It frees up within the hour."}`;
+  if (m) return `You've used this hour's ${m[1]} ${m[2]}.${m[3] ? ` ${m[3]}${/[.!?]$/.test(m[3]) ? "" : "."}` : " It frees up within the hour."}`;
+  // R12 (D73): an invite code's own hourly limit of model calls, with when it frees up.
+  const inv = /call limit reached: this invite may make (\d+) model calls an hour(?:[.;:,]?\s*(.*))?$/s.exec(inner);
+  if (inv) return `Your invite code has used this hour's ${inv[1]} AI calls.${inv[2] ? ` ${inv[2]}${/[.!?]$/.test(inv[2]) ? "" : "."}` : " It frees up within the hour."}`;
   const s = /call limit reached: this session already asked for tests (\d+) times/.exec(inner);
   if (s) return `This tab has asked for tests ${s[1]} times, its limit. A new tab starts again.`;
   return `${inner.charAt(0).toUpperCase()}${inner.slice(1)}${/[.!?]$/.test(inner) ? "" : "."}`;

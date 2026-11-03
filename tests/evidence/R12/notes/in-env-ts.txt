@@ -1,0 +1,186 @@
+
+##### 0-after-invite (t=8.0s) shot=<scratch>/shots/in-env-ts-0-after-invite.png
+Think you know what your code does? Bet on it.
+
+Paste a file and Atlas draws it as a machine. Bet on what it will do. Meta's AI bets too, then Atlas runs it in a sandbox and shows whose bet matched.
+
+Paste your own file anywhere on this page, or here:
+Your code
+Draw my code
+⌘↵
+No file handy? Try one of these:
+Fetch with retry
+JavaScript, 15 lines
+Price parser
+Python, 12 lines
+Cached lookup
+TypeScript, 16 lines
+A sample goes to Meta's AI as soon as Atlas draws it, like any file you paste.
+Upload files
+Or a GitHub repo
+Draw the repo (a paid AI call)
+
+Your code goes to Meta's AI as soon as Atlas draws it, so a test is ready when you bet.
+
+Back to the example
+
+★ names: Muse Wonder's words (Meta's AI), not a check
+
+price lookup
+getPrice
+retrying fetch
+fetchWithRetry
+retry wait time
+backoffMs
+pause execution
+sleep
+lines 23–25
+returns, line 24
+lines 10–21
+starts here: Atlas calls this
+loop, line 12
+returns, line 14
+throws, line 20
+lines 2–4
+lines 6–8
+waits, line 7
+returns, line 7
+
+##### 1-drawn (t=13.3s) shot=<scratch>/shots/in-env-ts-1-drawn.png
+pasted.ts · 4 lines · drawn in 44 ms
+
+apiKey
+
+what calls what, before anything has run
+
+A drawing of pasted.ts: 1 function or class, each a box with its name and lines on it. None of them calls another.
+
+Summary: Muse Wonder's words (Meta's AI). Its reading can repeat the code's own comments; the run is the check
+
+This file provides a helper that reads a configured key from the surrounding environment for other code.
+
+What each part does, in its words (1)
+
+★ names: Muse Wonder's words (Meta's AI), not a check
+
+api key lookup
+apiKey
+lines 1–4
+starts here: Atlas calls this
+returns, line 3
+
+Bet on what it does
+Enter
+Asks Muse Wonder and the AI bettors: paid AI calls.
+
+Your code goes to Meta's AI as soon as Atlas draws it, so a test is ready when you bet.
+
+Try your own code
+
+ⓘ Details
+clickedBet=true
+
+##### 2-question (t=20.5s) shot=<scratch>/shots/in-env-ts-2-question.png
+pasted.ts · 4 lines · drawn in 44 ms
+
+apiKey
+
+the code, and what Atlas will plug in. Nothing has run.
+
+A drawing of pasted.ts: 1 function or class, each a box with its name and lines on it; apiKey is the one Atlas tests. None of them calls another. Beside the code, the test's stand-ins (fakes Atlas controls): none; and a clock that stands for Atlas's simulated clock.
+
+Summary: Muse Wonder's words (Meta's AI). Its reading can repeat the code's own comments; the run is the check
+
+This file provides a helper that reads a configured key from the surrounding environment for other code.
+
+What each part does, in its words (1)
+
+★ names: Muse Wonder's words (Meta's AI), not a check
+
+api key lookup
+apiKey
+lines 1–4
+starts here: Atlas calls this
+returns, line 3
+
+The test: Atlas calls apiKey().
+
+What does apiKey do?
+
+returns a value
+throws (an Error or any other value)
+never finishes (waits forever, nothing left to wake it)
+still running when Atlas stops watching at 30,000 ms
+can't tell
+Lock in my bet
+↵
+
+Also betting: Muse Spark and Muse Spark Open. You see their answers after the run.
+
+Your code goes to Meta's AI as soon as Atlas draws it, so a test is ready when you bet.
+
+Try your own code
+
+More options for this bet
+ⓘ Details
+STATE after draw: question
+
+##### 4-after-bet (t=29.1s) shot=<scratch>/shots/in-env-ts-4-after-bet.png
+pasted.ts · 4 lines · drawn in 44 ms
+
+apiKey
+
+A drawing of pasted.ts: 1 function or class, each a box with its name and lines on it; apiKey is the one Atlas tests. None of them calls another. Beside the code, the test's stand-ins (fakes Atlas controls): none; and a clock that stands for Atlas's simulated clock.
+
+★ names: Muse Wonder's words (Meta's AI), not a check
+
+api key lookup
+apiKey
+lines 1–4
+starts here: Atlas calls this
+returns, line 3
+
+The run played 2 steps on the machine, ending: returned "none".
+
+YOUR BET
+matched
+
+YOU BET
+returns a value
+
+THE RUN
+returned "none"
+
+On this question: How it ends
+
+You
+returns a value
+matched
+?
+Muse Spark 1.3
+can't tell
+can't check
+Muse Spark Open
+returns a value
+matched
+
+you: 1 matched · 0 didn't match · 0 can't check
+
+You matched 1 of 1 checkable answer. Muse Spark 1.3: nothing checkable, Muse Spark Open 1.
+
+Share proof card
+P
+
+Your code goes to Meta's AI as soon as Atlas draws it, so a test is ready when you bet.
+
+Try another question (asks the AIs: paid)
+Try your own code
+Try the Moonwell example
+
+More
+ⓘ Details
+STATE after bet: verdict
+
+#### CONSOLE
+
+#### HTTP>=400

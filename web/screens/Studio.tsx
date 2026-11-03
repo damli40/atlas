@@ -183,6 +183,8 @@ export const CHANGE_WORDS = {
   sameTest: "The same test, on your changed code. Bet again: nothing about this code has run yet.",
   foreign: (name: string) => `This looks like ${name}. Atlas reads JavaScript, TypeScript and Python, so it can't draw this file.`,
   nothingToDraw: "Atlas draws functions and classes, and this has none. Paste a JavaScript, TypeScript or Python file with at least one function.",
+  /** R12 (D73): a file whose only export is a class (placeholder wording). */
+  classOnly: (names: readonly string[]) => `Atlas calls exported functions; this file exports ${names.length === 1 ? "a class" : "classes"} (${names.join(", ")}). Export a function that uses it.`,
   nothingToCall: "Atlas bets on what a function does when it is called, and it can't see one in this file that can be called from outside. It can call one exported by name, like export function f.",
   claimantAsks: "Changing who bets asks them again: paid AI calls. Your answers stay.",
   sameCode: "Same code as a run you've already seen, apart from spaces or comments, so you may already know the answer.",
@@ -580,7 +582,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   // R6: the parts' natural names, asked once per drawn file. The machine draws at once with split names; these arrive later or not at all.
   const [natural, setNatural] = useState<{ sha: string; model: string; names: Record<string, string> } | { sha: string; reason: string } | null>(null);
   useEffect(() => {
-    if (!target || !api.names || !pasted?.outline || pasted.outline.parts.length === 0) return;
+    // R12 (D73): only for a file with a function Atlas can call; a dead end ("Paste another file") asks no AI.
+    if (!target || !fn || !api.names || !pasted?.outline || pasted.outline.parts.length === 0) return;
     const sha = target.codeSha256;
     let live = true;
     void api.names(target).then(
@@ -591,11 +594,11 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       live = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [target?.codeSha256, pasted?.outline]);
+  }, [target?.codeSha256, pasted?.outline, fn !== null]);
   // R9: the file's summary, asked at the same time as the names, once per drawn file. Shown before the bet in the AI's ink; none on failure.
   const [summ, setSumm] = useState<{ sha: string; model: string; summary: FileSummary } | { sha: string; reason: string } | null>(null);
   useEffect(() => {
-    if (!target || !api.summary || !pasted?.outline || pasted.outline.parts.length === 0) return;
+    if (!target || !fn || !api.summary || !pasted?.outline || pasted.outline.parts.length === 0) return;
     const sha = target.codeSha256;
     let live = true;
     void api.summary(target).then(
@@ -606,7 +609,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       live = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [target?.codeSha256, pasted?.outline]);
+  }, [target?.codeSha256, pasted?.outline, fn !== null]);
   const writeOwn = () => {
     if (needsCode()) return;
     ownTest.current = true;
@@ -614,10 +617,13 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     setForm({ initial: emptyForm() });
   };
 
+  // R12 (D73): the server's word that the parser can't read the pasted file (nothing was kept or asked). Shown over the paste box.
+  const [precheck, setPrecheck] = useState<NonNullable<PasteAnswer["precheck"]> | null>(null);
   const read = useCallback(
     async (text: string, language?: Lang, want?: string, from?: string) => {
       if (text.trim() === "") return null;
       reset();
+      setPrecheck(null);
       // R11: a new file starts with the bet closed. The example opens its bet by itself (R7), and reset() keeps `open`, so a file
       // handed over from the repo outline (or pasted over the example) landed in an open bet with nothing in it, and no way out.
       setOpen(false);
@@ -632,6 +638,14 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       try {
         const r = await api.paste(text, language);
         if (g !== gen.current) return null;
+        if (r.precheck) {
+          // R12 (D73): back to the paste box with the file in it and the parser's words above it. No drawing, so no AI is asked.
+          setPrecheck(r.precheck);
+          setCode(text);
+          setOwnOpen(true);
+          autoExample.current = true;
+          return null;
+        }
         setPasted(r);
         // A real timer from the click to the frame. Reading a file calls no AI (server/paste.ts).
         requestAnimationFrame(() => requestAnimationFrame(() => setDrawnMs(Math.round(performance.now() - drawStart.current))));
@@ -708,6 +722,12 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       setInvite((v) => ({ required: v?.required ?? false, signedIn: v?.signedIn ?? false, busy: false, error: a.error }));
       return false;
     }
+    // R12 (D73): from here the server answers from the invited copy of the app, which never saw anything the example's copy
+    // made: its session, its pasted file, its tests. Keeping them sent the example's test id to a copy that didn't have it
+    // ("this session has no proposal …"). So all of it is dropped and a fresh session starts, before anything re-renders.
+    early.current.clear();
+    ranCodes.current.clear();
+    api.resetSession?.();
     setInvite({ required: true, signedIn: true });
     return true;
   };
@@ -748,11 +768,10 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     const ok = await useCode(inviteCode.trim());
     if (ok && code.trim() !== "") void read(code, lang === "auto" ? undefined : lang);
     else if (ok) {
-      // R10 review (D72): a code entered with no file pasted (a judge, first thing) goes back to the example, now on their own budget.
-      autoExample.current = true;
-      setOwnOpen(false);
-      autoBet.current = null;
-      void read(U1_EXAMPLE, "ts");
+      // R12 (D73): a code entered with no file pasted (a judge, first thing, README "Test me") lands on the paste box with the
+      // sample files under it, in a fresh session of the invited copy. (R10 went back to the example, whose kept test the
+      // invited copy didn't have.)
+      tryOwn();
     }
   };
   // D60: paste anywhere on the first screen draws at once. R7: the first screen is the example, so pasting there draws your code too.
@@ -797,6 +816,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     setFn(null);
     setOpen(false);
     setOwnOpen(true);
+    setPrecheck(null);
     autoExample.current = true;
   };
   const backToExample = () => {
@@ -1235,6 +1255,25 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           </p>
         )}
         {error && <ErrorNotice message={error} />}
+        {ownBox && precheck && (
+          <div className="notice e-precheck" role="alert" data-testid="e-precheck">
+            <p>{precheck.words}</p>
+            {precheck.fenced && (
+              <button
+                type="button"
+                className="u1-btn u1-primary"
+                data-testid="e-precheck-fence"
+                onClick={() => {
+                  const f = precheck.fenced!;
+                  setCode(f.code);
+                  void read(f.code, f.language);
+                }}
+              >
+                Use the code inside the fence
+              </button>
+            )}
+          </div>
+        )}
         {ownBox && (
           <div className="e-own" data-testid="e-own">
             <span className="u1-sub e-or">Paste your own file anywhere on this page, or here:</span>
@@ -1263,7 +1302,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                 <kbd className="k">⌘↵</kbd>
               </button>
               {/* The language is guessed. The choice appears only if a guess did not work. */}
-              {error && (
+              {error && !locked && (
                 <Segments label="Language" value={lang} onChange={(v) => setLang(v as Lang | "auto")} testid="u1-lang" options={[["auto", "Guess the language"], ["ts", "TypeScript"], ["js", "JavaScript"], ["py", "Python"]]} />
               )}
             </div>
@@ -1305,6 +1344,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                     if (list.length === 1) {
                       const text = await list[0]!.text();
                       setCode(text);
+                      // R12 (D73): with no invite code the file waits in the box; the line above already says a code is needed.
+                      if (locked) return;
                       void read(text, /\.py$/.test(list[0]!.name) ? "py" : /\.(m|c)?jsx?$/.test(list[0]!.name) ? "js" : /\.(m|c)?tsx?$/.test(list[0]!.name) ? "ts" : undefined);
                     } else onExplore({ files: list });
                   }}
@@ -1388,6 +1429,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   const partMode = drawerOpen && partId !== null && !after;
   const partShown = partMode && partPanel?.id === partId ? partPanel : null;
   const noFunction = pasted.runnable && !fn && pasted.outline !== undefined;
+  // R12 (D73): the file exports classes and no function: say so, instead of "like export function f".
+  const exportedClasses = noFunction && !pasted.outline!.parts.some((p) => p.kind === "function" && p.exported) ? pasted.outline!.parts.filter((p) => p.kind === "class" && p.exported).map((p) => p.name) : [];
   // A language Atlas doesn't read: one message, the one that says so. "Needs a package" would be about a JavaScript reading of it.
   const foreign = pasted.outline?.parts.length === 0 ? foreignLanguage(readText) : null;
   const notRunnable = !pasted.runnable ? (pasted.reason ?? "Atlas cannot run this language here yet.") : pasted.cantCheck;
@@ -1647,14 +1690,14 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
               ×
             </button>
           </div>
-          <ProofCardPage api={api} runId={result.proof.runId} embedded />
+          <ProofCardPage api={api} runId={result.proof.runId} embedded askLink={!locked} />
         </section>
       )}
 
 
       {(shownModel?.notShown || noFunction) && !exp && (
         <div className="e-dead" data-testid="u1-dead-end">
-          <p data-testid="u1-nothing-why">{shownModel?.notShown ? (foreignLanguage(readText) ? CHANGE_WORDS.foreign(foreignLanguage(readText)!) : CHANGE_WORDS.nothingToDraw) : CHANGE_WORDS.nothingToCall}</p>
+          <p data-testid="u1-nothing-why">{pasted.cantCheck ? pasted.cantCheck : shownModel?.notShown ? (foreignLanguage(readText) ? CHANGE_WORDS.foreign(foreignLanguage(readText)!) : CHANGE_WORDS.nothingToDraw) : exportedClasses.length > 0 ? CHANGE_WORDS.classOnly(exportedClasses) : CHANGE_WORDS.nothingToCall}</p>
           <button
             type="button"
             className="u1-btn u1-primary"
@@ -1681,7 +1724,8 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           {handoffNote}
         </p>
       )}
-      {notRunnable && !foreign && (
+      {/* R12 (D73): when the dead end already says why (it shows the code's own reason first), the banner would say it twice. */}
+      {notRunnable && !foreign && !((shownModel?.notShown || noFunction) && !exp && pasted.cantCheck) && (
         <p className="u1-banner" role="note" data-testid="u1-cant-run">
           {notRunnable}
         </p>

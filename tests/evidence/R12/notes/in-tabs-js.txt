@@ -1,0 +1,126 @@
+
+##### 0-after-invite (t=8.0s) shot=<scratch>/shots/in-tabs-js-0-after-invite.png
+Think you know what your code does? Bet on it.
+
+Paste a file and Atlas draws it as a machine. Bet on what it will do. Meta's AI bets too, then Atlas runs it in a sandbox and shows whose bet matched.
+
+Paste your own file anywhere on this page, or here:
+Your code
+Draw my code
+⌘↵
+No file handy? Try one of these:
+Fetch with retry
+JavaScript, 15 lines
+Price parser
+Python, 12 lines
+Cached lookup
+TypeScript, 16 lines
+A sample goes to Meta's AI as soon as Atlas draws it, like any file you paste.
+Upload files
+Or a GitHub repo
+Draw the repo (a paid AI call)
+
+Your code goes to Meta's AI as soon as Atlas draws it, so a test is ready when you bet.
+
+Back to the example
+
+Last time: you bet returns a value. It returned.
+
+★ names: Muse Wonder's words (Meta's AI), not a check
+
+price lookup
+getPrice
+retrying fetch
+fetchWithRetry
+retry wait time
+backoffMs
+pause execution
+sleep
+lines 23–25
+returns, line 24
+lines 10–21
+starts here: Atlas calls this
+loop, line 12
+returns, line 14
+throws, line 20
+lines 2–4
+lines 6–8
+waits, line 7
+returns, line 7
+
+##### 1-drawn (t=13.4s) shot=<scratch>/shots/in-tabs-js-1-drawn.png
+pasted.js · 7 lines · drawn in 48 ms
+
+pad
+
+what calls what, before anything has run
+
+A drawing of pasted.js: 1 function or class, each a box with its name and lines on it. None of them calls another.
+
+No summary this time: Meta's AI was slow or its words didn't pass Atlas's checks.
+
+★ names: Muse Wonder's words (Meta's AI), not a check
+
+string padding
+pad
+lines 1–7
+starts here: Atlas calls this
+loop, line 3
+returns, line 6
+
+Bet on what it does
+Enter
+Asks Muse Wonder and the AI bettors: paid AI calls.
+
+Your code goes to Meta's AI as soon as Atlas draws it, so a test is ready when you bet.
+
+Try your own code
+
+ⓘ Details
+clickedBet=true
+
+##### 2-question (t=22.4s) shot=<scratch>/shots/in-tabs-js-2-question.png
+pasted.js · 7 lines · drawn in 48 ms
+
+pad
+
+the code, and what Atlas will plug in. Nothing has run.
+
+A drawing of pasted.js: 1 function or class, each a box with its name and lines on it; pad is the one Atlas tests. None of them calls another. Beside the code, the test's stand-ins (fakes Atlas controls): none; and a clock that stands for Atlas's simulated clock.
+
+No summary this time: Meta's AI was slow or its words didn't pass Atlas's checks.
+
+★ names: Muse Wonder's words (Meta's AI), not a check
+
+string padding
+pad
+lines 1–7
+starts here: Atlas calls this
+loop, line 3
+returns, line 6
+
+The test: Atlas calls pad("hello", 3).
+
+What does pad do?
+
+returns a value
+throws (an Error or any other value)
+never finishes (waits forever, nothing left to wake it)
+still running when Atlas stops watching at 30,000 ms
+can't tell
+Lock in my bet
+↵
+
+Also betting: Muse Spark and Muse Spark Open. You see their answers after the run.
+
+Your code goes to Meta's AI as soon as Atlas draws it, so a test is ready when you bet.
+
+Try your own code
+
+More options for this bet
+ⓘ Details
+STATE after draw: question
+
+#### CONSOLE
+
+#### HTTP>=400
