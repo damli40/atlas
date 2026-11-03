@@ -174,6 +174,8 @@ export interface PasteDeps {
   takeEarlyTests?: (c: Context) => { ok: true } | { ok: false; reason: string };
   /** R6: the natural-names call's own per-client hourly limit. */
   takeNames?: (c: Context) => { ok: true } | { ok: false; reason: string };
+  /** R13: drawings a client may ask for an hour. */
+  takeDrawing?: (c: Context) => { ok: true } | { ok: false; reason: string };
   /** R9: the file-summary call's own per-client hourly limit. */
   takeSummary?: (c: Context) => { ok: true } | { ok: false; reason: string };
   /** Per-address paste limit. */
@@ -617,7 +619,10 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
       const fileName = visibleText(parsed.data.fileName ?? `pasted.${entry.target.language ?? "js"}`);
       const n = sessionNames.get(sessionId)?.get(sha);
       const names = n?.state === "shown" && n.names ? n.names : null;
-      const key = JSON.stringify([sha, entry.target.language, fn, fileName, names]);
+      // R13 review M1: counted per client an hour, like the names and the summary (plain code, but CPU and memory).
+      const allowed = deps.takeDrawing?.(c) ?? { ok: true as const };
+      if (!allowed.ok) return c.json({ error: `no drawing: ${allowed.reason}` }, 429);
+      const key = JSON.stringify([sha, entry.target.language, fn, names, entry.refusal !== null]);
       let pic;
       try {
         pic = await servedPicture(key, { source: entry.target.source ?? "", language: entry.target.language ?? "js", fileName, tested: fn, names, namesModel: names ? n!.model : null, wontRun: entry.refusal !== null });

@@ -60,9 +60,11 @@ Atlas cannot prove that you typed the words. The agent could pass them without y
 
 ## Pictures of your code in the Muse Code plugin
 
-Type `/atlas-draw <file> [function]` in Muse Code, or ask Muse for "a picture of <file> with Atlas". The `atlas_draw` tool sends that one file to your Atlas server, which draws it with the same plain code as the web page: the machine (one box per function, pipes where one calls another, loops, waits, throws, returns) for up to 8 parts, the box chart past that, and a list in words past 16. The picture is written into your project at `.atlas/drawings/<file>[-<function>].svg`, plus a `.png` when the server has the optional PNG converter (`@napi-rs/canvas`, a dev dependency: a local server has it, the production image does not). Naming a function marks it as where a call starts.
+Type `/atlas-draw <file> [function]` in Muse Code, or ask Muse for "a picture of <file> with Atlas". The `atlas_draw` tool sends that one file to your Atlas server, which draws it with the same plain code as the web page: the machine (one box per function, pipes where one calls another, loops, waits, throws, returns) for up to 8 parts, the box chart past that, and a list in words past 16 parts, for very long names, or when the picture would be too big to send. The picture is written into your project at `.atlas/drawings/<file>-<short fingerprint>[-<function>].svg`. Naming a function marks it as where a call starts.
 
-What it is not: nothing runs and no AI draws it. It shows the code's shape, not what the code does. `names: true` asks Muse Wonder (Meta's AI) for short names on the lids: one paid call per file, marked with a star and labelled as its words, not a check.
+**SVG or PNG:** the hosted Atlas server returns SVG only: open the `.svg` in a browser. A server that has the optional PNG converter (`@napi-rs/canvas`, a dev dependency, so a local `pnpm server` has it) also returns a `.png`, which the plugin writes and hands to Muse as an image.
 
-Muse Code 1.4.14 shows the picture as a "1 image" line, not as pixels, and passes it to its model, which can describe it (`tests/evidence/R13/README.md`). Open the `.png` to see it. That costs model tokens in a paid session. There is no web link for the drawing yet: the web page draws a file when you paste it there.
+What it is not: nothing runs and no AI draws it. It shows the code's shape, not what the code does. `names: true` asks Muse Wonder (Meta's AI) for short names on the lids: one paid call per file, marked with a star and labelled as its words, not a check. Drawings are limited per invite code an hour (`ATLAS_DRAWINGS_PER_CLIENT_PER_HOUR`, default 60).
+
+Muse Code 1.4.14 shows a PNG as a "1 image" line, not as pixels, and passes it to its model, which can describe it (`tests/evidence/R13/README.md`). That costs model tokens in a paid session. There is no web link for the drawing yet: the web page draws a file when you paste it there.
 

@@ -370,7 +370,7 @@ describe("E5 the plugin package", () => {
   });
 
   it("the MCP server's only network call is fetch to the configured Atlas address", () => {
-    const src = ["atlas-client.ts", "tools.ts", "server.ts", "config.ts", "bet-parse.ts", "main.ts"].map((f) => readFileSync(join(PLUGIN, "mcp", f), "utf8")).join("\n");
+    const src = ["atlas-client.ts", "tools.ts", "server.ts", "config.ts", "bet-parse.ts", "main.ts", "svg-check.ts"].map((f) => readFileSync(join(PLUGIN, "mcp", f), "utf8")).join("\n");
     expect(src).not.toMatch(/node:(http|https|net|tls|dgram|child_process)/);
     expect(src.match(/\bfetch\(/g)).toHaveLength(1);
     expect(src).toContain("doFetch(config.url + path");

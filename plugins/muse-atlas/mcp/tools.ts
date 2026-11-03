@@ -23,7 +23,7 @@
 // folder Muse Code is working in, to the Atlas server at ATLAS_URL. Nothing else leaves this machine from here.
 
 import { createHash, randomBytes } from "node:crypto";
-import { lstatSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
+import { lstatSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { AtlasAnswer, AtlasClient } from "./atlas-client.ts";
@@ -31,6 +31,8 @@ import { BUDGET_WORDS } from "./atlas-client.ts";
 import type { AtlasConfig } from "./config.ts";
 import { parseTypedAnswer, toServerAnswer, type QuestionView } from "./bet-parse.ts";
 import type { RoundStore, RuntimeLog } from "./round-store.ts";
+import { svgProblem } from "./svg-check.ts";
+export { svgLooksSafe } from "./svg-check.ts";
 
 export const MAX_FILE_BYTES = 64 * 1024; // the server's limit (src/pasted-code.ts PASTED_MAX_BYTES)
 /** M3: a seal sooner than this after the questions were shown did not come from a person reading them. */
@@ -97,10 +99,6 @@ export const DRAWINGS_DIR = join(".atlas", "drawings");
 export const DRAW_LIMITS =
   "What this picture is: Atlas's plain code drew it from the file's syntax alone (which function calls which, loops, waits, throws, returns). Nothing ran, so it says nothing about what the code does when it runs, and no AI drew it. A name marked with a star is Muse Wonder's words (Meta's AI), not a check.";
 const PNG_MAGIC = "iVBORw0KGgo"; // base64 of the PNG signature
-/** R13: the picture files may hold only what Atlas's drawing holds: no script, no link out, no embedded page. */
-export function svgLooksSafe(svg: string): boolean {
-  return svg.startsWith('<svg xmlns="http://www.w3.org/2000/svg"') && svg.trimEnd().endsWith("</svg>") && !/<script|<foreignObject|<iframe|<a[\s>]|<image|<use|\shref=|xlink:|javascript:|\son[a-z]+\s*=|@import/i.test(svg) && !/url\((?!#|"data:font\/woff2;base64,)/i.test(svg);
-}
 
 interface FileEntry {
   path: string;
@@ -589,25 +587,48 @@ export function createTools(deps: ToolDeps) {
       else if (n.json.ok !== true) notes.push(`No natural names: ${quoteLine(n.json.reason ?? "none came back")}. The lids carry the code's own names.`);
     }
     type DrawAns = { kind: string; words?: string; svg?: string; png?: string | null; pngReason?: string; parts?: number; aiNames?: number; namesModel?: string | null; caption?: string[] };
-    const r = await client.post<DrawAns>("/paste/drawing", { target: { ref: entry.target.ref, codeSha256: entry.target.codeSha256 }, ...(fn ? { exportName: fn } : {}), fileName: basename(f.rel) });
+    const ask = (e: FileEntry) => client.post<DrawAns>("/paste/drawing", { target: { ref: e.target.ref, codeSha256: e.target.codeSha256 }, ...(fn ? { exportName: fn } : {}), fileName: basename(f.rel) });
+    let r = await ask(entry);
+    // R13 review M3: the server forgot the paste (it keeps pastes 2 hours, and a few per session): paste once more, then ask again.
+    if (!r.ok && r.status === 400 && /paste it first/.test(r.reason)) {
+      const again = await pasteFile(f);
+      if (!again.ok) return again.out;
+      entry = again.entry;
+      r = await ask(entry);
+    }
     if (!r.ok) return failFrom(r, `Atlas did not draw ${visible(f.rel)}`);
     const a = r.json;
     if (a.kind === "none") return isStr(a.words) ? { text: `${DATA_NOTE}\nAtlas drew no picture of ${visible(f.rel)}: ${quoteLine(a.words)}\nNothing was written.` } : notAtlas("POST /paste/drawing");
     if ((a.kind !== "machine" && a.kind !== "chart") || !isStr(a.svg) || !(a.png === null || a.png === undefined || isStr(a.png))) return notAtlas("POST /paste/drawing");
-    if (!svgLooksSafe(a.svg)) return fail("The server's picture held something Atlas's drawings never hold (a script, a link or an outside file), so the plugin did not write it. Check that ATLAS_URL points at an Atlas server.");
+    const problem = svgProblem(a.svg);
+    if (problem) return fail(`The server's picture held something Atlas's drawings never hold (${visible(problem)}), so the plugin did not write it. Check that ATLAS_URL points at an Atlas server.`);
     const png = isStr(a.png) && a.png.startsWith(PNG_MAGIC) && /^[A-Za-z0-9+/]+=*$/.test(a.png) ? a.png : null;
     // Written only inside the workspace's .atlas/drawings folder, under a name made of safe characters only.
     const where = drawingsFolder();
     if (!where.ok) return fail(`Nothing was written: ${where.reason}`);
-    const stem = `${f.rel.replace(/[^A-Za-z0-9._-]+/g, "_").replace(/^\.+/, "")}${fn ? `-${fn.replace(/[^A-Za-z0-9_-]+/g, "_")}` : ""}`.slice(0, 120) || "drawing";
+    // R13 review m3: readable, plus a short fingerprint of the path, so a/b.ts and a_b.ts (or two non-ASCII names) never share a file.
+    const readable = f.rel.replace(/[^A-Za-z0-9._-]+/g, "_").replace(/^[._]+/, "").slice(0, 80) || "file";
+    const stem = `${readable}-${sha256(f.rel).slice(0, 8)}${fn ? `-${fn.replace(/[^A-Za-z0-9_-]+/g, "_").slice(0, 60)}` : ""}`;
     const written: string[] = [];
     for (const [ext, body] of [["svg", Buffer.from(a.svg, "utf8")], ...(png ? [["png", Buffer.from(png, "base64")] as const] : [])] as const) {
       const file = join(where.dir, `${stem}.${ext}`);
+      const said = visible(relative(where.root, file));
+      // R13 review m1/m2: written to a new temp file in the same folder, then renamed over the name, so no link or second
+      // name is ever written through. An existing name must be a plain file with one name, and the folder still ours.
+      const tmp = join(where.dir, `.${stem}.${randomBytes(6).toString("hex")}.tmp`);
       try {
-        if (lstatSync(file, { throwIfNoEntry: false })?.isSymbolicLink()) return fail(`Nothing more was written: ${visible(relative(where.root, file))} is a link, and Atlas writes only plain files inside this workspace.`);
-        writeFileSync(file, body);
+        const old = lstatSync(file, { throwIfNoEntry: false });
+        if (old && (!old.isFile() || old.nlink !== 1)) return fail(`Nothing more was written: ${said} exists and is not a plain file with one name (a link, a folder or a hard link), and Atlas only replaces its own plain files.`);
+        writeFileSync(tmp, body, { flag: "wx", mode: 0o644 });
+        const still = drawingsFolder();
+        if (!still.ok || still.dir !== where.dir) {
+          rmSync(tmp, { force: true });
+          return fail(`Nothing more was written: the .atlas/drawings folder changed while Atlas was writing${still.ok ? "" : ` (${still.reason})`}.`);
+        }
+        renameSync(tmp, file);
       } catch (e) {
-        return fail(`Atlas could not write ${visible(relative(where.root, file))}: ${quoteLine(e instanceof Error ? e.message : String(e))}`);
+        rmSync(tmp, { force: true });
+        return fail(`Atlas could not write ${said}: ${quoteLine(e instanceof Error ? e.message : String(e))}`);
       }
       written.push(relative(where.root, file));
     }

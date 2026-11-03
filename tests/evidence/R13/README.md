@@ -7,7 +7,7 @@ Date: 2026-11-03 (WAT) · Muse Code 1.4.14 (R7309.1) · branch `r13-plugin-draw`
 **Yes: pointed at a file, the plugin now makes a picture of it.** The person types `/atlas-draw <file> [function]` in Muse Code
 (or asks for "a picture of <file> with Atlas"). The new `atlas_draw` tool sends that one file to the Atlas server. The server
 draws it with the same plain code as the web page and sends back the picture. The plugin writes it into the project at
-`.atlas/drawings/<file>[-<function>].svg` and `.png`, and returns the path, the caption and the PNG as MCP image content.
+`.atlas/drawings/<file>-<path fingerprint>[-<function>].svg`, and `.png` when the server can make one, and returns the path, the caption and the PNG as MCP image content.
 
 **What Muse Code shows: a "1 image" line, not the picture.** Muse 1.4.14's terminal screen marks the tool call
 `✓ · 1 image` and, expanded, `[MCP image content: media_type=image/png, bytes=428836]`. It draws no pixels in the terminal (seen
@@ -39,16 +39,43 @@ All in [drawings/](drawings/), made through the plugin's real MCP server (stdio)
 
 | File | What came out |
 |---|---|
-| Atlas's example `example.ts`, function `fetchWithRetry` | machine, 4 parts: [png](drawings/example.ts-fetchWithRetry.png), [svg](drawings/example.ts-fetchWithRetry.svg) |
-| `example.ts` with `names: true` | machine with Muse Wonder's names on 2 lids, starred, legend in the caption: [png](drawings/example.ts.png). These are the example's recorded names, so no call was made |
-| oft-sentinel `backend/src/services/score.ts` | machine, 1 part: [png](drawings/backend_src_services_score.ts.png) |
-| oft-sentinel `backend/src/services/attestor.ts` | machine, 4 parts: [png](drawings/backend_src_services_attestor.ts.png) |
-| oft-sentinel `backend/src/services/orchestrator.ts` | 10 parts, so the box chart, saying why: [png](drawings/backend_src_services_orchestrator.ts.png) |
+| Atlas's example `example.ts`, function `fetchWithRetry` | machine, 4 parts: [png](drawings/example.ts-c2367a00-fetchWithRetry.png), [svg](drawings/example.ts-c2367a00-fetchWithRetry.svg) |
+| `example.ts` with `names: true` | machine with Muse Wonder's names on 2 lids, starred, legend in the caption: [png](drawings/example.ts-c2367a00.png). These are the example's recorded names, so no call was made |
+| oft-sentinel `backend/src/services/score.ts` | machine, 1 part: [png](drawings/backend_src_services_score.ts-27af8389.png) |
+| oft-sentinel `backend/src/services/attestor.ts` | machine, 4 parts: [png](drawings/backend_src_services_attestor.ts-e580cfc5.png) |
+| oft-sentinel `backend/src/services/orchestrator.ts` | 10 parts, so the box chart, saying why: [png](drawings/backend_src_services_orchestrator.ts-6559e0fa.png) |
 
 oft-sentinel files are from github.com/damli40/oft-sentinel at commit 2927212ab1c0, copied into a scratch folder.
 
 The SVG files stand alone. Every element carries its colours as attributes, and the fonts are embedded. They open in a browser and in
 macOS Quick Look (checked with `qlmanage` on attestor.ts). The PNG was made from that same SVG by `@napi-rs/canvas` (Skia).
+
+## Review round 1 (after c763cf4)
+
+The first commit had a red suite (two path/word checks) and four real holes. Fixed in the next commit:
+
+- **M1, size:** the picture is capped before it is made. A name over 200 characters, a drawing over 4,000 × 4,000 px, an SVG
+  over 1.5 MB, or a box chart over 25 boxes or 40 joins gives words and no picture. A machine with more than 16 pipes goes
+  straight to the chart (the router could spend seconds failing). No PNG past 12 million pixels, and the converter is not
+  even loaded then. The drawing is kept per code, function and names, never per file name; the caption is made per
+  request. Drawings are counted per client an hour (`ATLAS_DRAWINGS_PER_CLIENT_PER_HOUR`, default 60). The reviewer's
+  inputs, through the plugin: a 64,000-character name came back as words in 48 ms, 16 functions all calling each other in
+  61 ms ([mcp/mcp-transcript.json](mcp/mcp-transcript.json)). Before the fix, those made a 501,484 px wide SVG and a
+  12.5 MB SVG.
+- **M2, the safety check:** a strict XML reader with an allow-list of the elements and attributes the renderer writes
+  (`plugins/muse-atlas/mcp/svg-check.ts`). It refuses any namespace prefix, any backslash, any stylesheet but Atlas's own
+  font rules, href in any form, `set`/`animate`, `feImage`, `script`, `foreignObject`, and `url(` to anything but `#id`
+  (also when written with an entity). Checked on 130 real files: 108 pictures, all accepted, none wrongly refused.
+- **M3:** when the server has forgotten the paste, the plugin pastes once more and asks again.
+- **m1/m2:** each picture is written to a new temp file in the same folder and renamed into place. An existing name must
+  be a plain file with one name (not a link, not a hard link). The folder is checked again just before the rename.
+- **m3:** picture names carry an 8-character fingerprint of the path, so `a/b.ts` and `a_b.ts` (or two non-ASCII names)
+  never share a file.
+- **m4:** a file name is caption text. It is never checked as markup, so a name like `url(evil) onload=…` draws fine.
+- **m5:** the hosted server returns SVG only (no converter there, decided). The README says so: open the `.svg` in a browser.
+
+The Muse runs below were made at c763cf4, before these fixes. Then, file names had no fingerprint and nothing was capped.
+What they show (how Muse displays and passes the image) does not depend on either.
 
 ## How it works, in plain words
 
@@ -64,10 +91,10 @@ macOS Quick Look (checked with `qlmanage` on attestor.ts). The PNG was made from
 4. **PNG** only where `@napi-rs/canvas` is installed. It is a dev dependency, so a local server has it and the production image
    does not. Without it the answer says so in words and the SVG is the picture. A PNG over 700 KB is redrawn at 1x so the
    answer stays under the plugin's 2 MB limit.
-5. **Writing**: only into `<workspace>/.atlas/drawings/`. A `.atlas` or `drawings` folder that is a link is refused, and so is
-   a picture file that is a link. The file name is made from safe characters only. The plugin refuses a server answer whose SVG
-   holds a script, a link out, an outside URL or an event handler. It also drops a "PNG" that does not start with the PNG
-   signature.
+5. **Writing**: only into `<workspace>/.atlas/drawings/`, through a temp file and a rename. A `.atlas` or `drawings` folder
+   that is a link is refused, and so is a picture name that is a link or a hard link. The file name is safe characters plus a
+   fingerprint of the path. The plugin reads the server's SVG as XML against an allow-list (review round 1, M2) and drops a
+   "PNG" that does not start with the PNG signature.
 
 ## Natural names
 
@@ -78,7 +105,7 @@ caption gets the page's legend: "names: Muse Wonder's words (Meta's AI), not a c
 
 ## Tests
 
-- `tests/unit/r13-plugin-draw.test.ts`, 12 tests. They cover: the output files and the image content shape over MCP; path
+- `tests/unit/r13-plugin-draw.test.ts`, 20 tests (12, plus 8 from review round 1). They cover: the output files and the image content shape over MCP; path
   safety (outside the workspace, `../`, absolute, other file kinds, empty) with nothing sent and nothing written; an unknown
   function; `.atlas` or `drawings` as a link out; a picture file that is a link; no invite (401, nothing written); with an
   invite; hostile server answers (script, `<image href>`, outside `url()`, `onload`, not SVG, fake PNG); the route's

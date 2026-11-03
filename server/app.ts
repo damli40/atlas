@@ -671,6 +671,8 @@ export function createApp(opts: AppOptions = {}) {
   const namesByClient = createHourlyLimit(envCount(process.env.ATLAS_NAMES_PER_CLIENT_PER_HOUR, 12), "natural names");
   // R9: the file-summary call, one per file, its own small limit like the names (and the same model budget).
   const summaryByClient = createHourlyLimit(envCount(process.env.ATLAS_SUMMARY_PER_CLIENT_PER_HOUR, 12), "file summaries");
+  // R13: the plugin's pictures (plain code, no model), per invite code an hour (by address when there is no code).
+  const drawingsByClient = createHourlyLimit(envCount(process.env.ATLAS_DRAWINGS_PER_CLIENT_PER_HOUR, 60), "drawings");
   // R3: the third run behind the drawing's helper steps, per invite code an hour (by address when there is no code).
   const helperRunsByClient = createHourlyLimit(envCount(process.env.ATLAS_HELPER_RUNS_PER_CLIENT_PER_HOUR, 200), "helper runs");
   const helperStore = createHelperStore();
@@ -721,6 +723,7 @@ export function createApp(opts: AppOptions = {}) {
     takeEarlyTests: (c) => earlyTestsByClient.take(clientOf(c)),
     takeNames: (c) => namesByClient.take(clientOf(c)),
     takeSummary: (c) => summaryByClient.take(clientOf(c)),
+    takeDrawing: (c) => drawingsByClient.take(clientOf(c)),
     takePaste: (c) => pastesByIp.take(clientOf(c)),
     executorKind: executor.kind,
     // X3: Muse Wonder is told only the kinds of question where this person's bets most often didn't match (counts).
