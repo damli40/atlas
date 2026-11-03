@@ -1,0 +1,106 @@
+    184 ms  → GET /claimants
+    184 ms  → GET /claimants
+    184 ms  → GET /remember
+    184 ms  → GET /invite/status
+    184 ms  → GET /remember
+    184 ms  → GET /invite/status
+    230 ms  ← 200 /claimants
+    230 ms  ← 200 /remember
+    230 ms  ← 200 /invite/status
+    231 ms  ← 200 /claimants
+    232 ms  ← 200 /remember
+    232 ms  ← 200 /invite/status
+    237 ms  → POST /paste
+    237 ms  → GET /remember
+    295 ms  ← 200 /remember
+    295 ms  ← 200 /paste  {"target":{"kind":"pasted","ref":"pasted:df2152f38c62","codeSha256":"df2152f38c62e64c0e398176c5efa8a41f025beabc31a6c030b9551c7b74d948","language":"ts"},"language":{"chosen":"ts","guessed":"ts","why":"a type annotation on a parameter on line 2","chosenBy":"person"},"languages":[{"language":"js","name
+    311 ms  → POST /paste/names
+    311 ms  → POST /paste/summary
+    312 ms  → POST /paste/labels
+    312 ms  → POST /paste/proposals
+    315 ms  ← 200 /paste/names
+    320 ms  ← 200 /paste/summary
+    322 ms  ← 200 /paste/labels
+    355 ms  → POST /experiments
+    355 ms  ← 200 /paste/proposals  {"ok":true,"model":"muse-wonder-1.0","display":"Muse Wonder 1.0 (muse-wonder-1.0)","setId":"ps_kxDzotWAgK","proposals":[{"id":"VN5PXHt2PK","attempt":1,"params":{"shape":"call-function","exportName":"fetchWithRetry","args":[{"kind":"stand-in","name":"fetchIt","async":true,"calls":[{"do":"throw","erro
+    360 ms  → POST /experiments/ZLyRWFMpMt/model-bets
+    404 ms  ← 200 /experiments  {"experiment":{"id":"ZLyRWFMpMt","target":{"kind":"pasted","ref":"pasted:df2152f38c62","codeSha256":"df2152f38c62e64c0e398176c5efa8a41f025beabc31a6c030b9551c7b74d948","language":"ts"},"runner":"ts","params":{"shape":"call-function","exportName":"fetchWithRetry","args":[{"kind":"stand-in","name":"fet
+    408 ms  → GET /remember?fn=fetchWithRetry&code=df2152f38c62e64c0e398176c5efa8a41f025beabc31a6c030b9551c7b74d948
+    423 ms  ← 200 /experiments/ZLyRWFMpMt/model-bets  {"model":{"model":"muse-spark-1.3","who":"model:muse-spark-1.3","display":"Muse Spark 1.3 (muse-spark-1.3)","status":"sealed","sealed":[{"id":"05kdEclb7R","experimentId":"ZLyRWFMpMt","who":"model:muse-spark-1.3","question":"Atlas calls fetchWithRetry(fetchIt, 3, 100). fetchIt (async) throws Error (\
+    424 ms  ← 200 /remember?fn=fetchWithRetry&code=df2152f38c62e64c0e398176c5efa8a41f025beabc31a6c030b9551c7b74d948
+   1936 ms  first screen: {"popOpen":true,"popText":"Think you know what your code does? Bet on it.The test: Atlas calls fetchWithRetry(fetchIt, 3, 100). fetchIt (async) throws Error (\"flaky source failed\") on call 1; every later call throws Error (\"flaky source failed\") too.What does fetchWi","toggle":false}
+   1994 ms  screenshot 1-first-screen.png
+   2089 ms  outline job started (paid: one Muse Wonder outline call)
+   2109 ms  → POST /outline/jobs
+   2111 ms  ← 202 /outline/jobs
+   3114 ms  → GET /outline/jobs/ol_eqCcJyfMXd
+   3117 ms  ← 200 /outline/jobs/ol_eqCcJyfMXd
+   4122 ms  → GET /outline/jobs/ol_eqCcJyfMXd
+   4128 ms  ← 200 /outline/jobs/ol_eqCcJyfMXd
+   5134 ms  → GET /outline/jobs/ol_eqCcJyfMXd
+   5139 ms  ← 200 /outline/jobs/ol_eqCcJyfMXd
+   6144 ms  → GET /outline/jobs/ol_eqCcJyfMXd
+   6147 ms  ← 200 /outline/jobs/ol_eqCcJyfMXd
+   7153 ms  → GET /outline/jobs/ol_eqCcJyfMXd
+   7158 ms  ← 200 /outline/jobs/ol_eqCcJyfMXd
+   8165 ms  → GET /outline/jobs/ol_eqCcJyfMXd
+   8170 ms  ← 200 /outline/jobs/ol_eqCcJyfMXd
+   9175 ms  → GET /outline/jobs/ol_eqCcJyfMXd
+   9181 ms  ← 200 /outline/jobs/ol_eqCcJyfMXd
+  10186 ms  → GET /outline/jobs/ol_eqCcJyfMXd
+  10189 ms  ← 200 /outline/jobs/ol_eqCcJyfMXd
+  11195 ms  → GET /outline/jobs/ol_eqCcJyfMXd
+  11200 ms  ← 200 /outline/jobs/ol_eqCcJyfMXd
+  12204 ms  → GET /outline/jobs/ol_eqCcJyfMXd
+  12206 ms  ← 200 /outline/jobs/ol_eqCcJyfMXd
+  13210 ms  → GET /outline/jobs/ol_eqCcJyfMXd
+  13216 ms  ← 200 /outline/jobs/ol_eqCcJyfMXd
+  14222 ms  → GET /outline/jobs/ol_eqCcJyfMXd
+  14225 ms  ← 200 /outline/jobs/ol_eqCcJyfMXd
+  15229 ms  → GET /outline/jobs/ol_eqCcJyfMXd
+  15231 ms  ← 200 /outline/jobs/ol_eqCcJyfMXd
+  16235 ms  → GET /outline/jobs/ol_eqCcJyfMXd
+  16239 ms  ← 200 /outline/jobs/ol_eqCcJyfMXd
+  17244 ms  → GET /outline/jobs/ol_eqCcJyfMXd
+  17248 ms  ← 200 /outline/jobs/ol_eqCcJyfMXd
+  17249 ms  → GET /outline/jobs/ol_eqCcJyfMXd/outline
+  17255 ms  ← 200 /outline/jobs/ol_eqCcJyfMXd/outline
+  17287 ms  → GET /outline/jobs/ol_eqCcJyfMXd/labels
+  17310 ms  ← 200 /outline/jobs/ol_eqCcJyfMXd/labels
+  20538 ms  screenshot 2-outline.png
+  20540 ms  drawn text: ["chain-registry.ts","Chain registry and","quorum","drift.ts","Drift and risk","assessment","score.ts","Finding score","calculation","multicall.ts","Multicall batching","utilities","sentinel.ts:1-267","Sentinel polling and","watchlist","sentinel.ts:275-390","Sentinel replay demos","snapshot-store.ts","Snapshot and verdict","store","imports","imports","imports","A solid line: plain code found that one part calls the other; thicker means more links. A dotted line is only","muse-wonder-1.0's word. Hover a part to bring its lines forward.","\"Confirmed\" means these lines exist on whole definitions, never that the name or purpose is true."]
+  21204 ms  card offers Bet on computeScore: true
+  21261 ms  screenshot 3-box-card.png
+  21291 ms  → GET /outline/jobs/ol_eqCcJyfMXd/atlas
+  21291 ms  clicked Bet on computeScore
+  21303 ms  ← 200 /outline/jobs/ol_eqCcJyfMXd/atlas
+  21318 ms  → POST /paste
+  21324 ms  → GET /remember
+  21352 ms  ← 200 /paste  {"target":{"kind":"pasted","ref":"pasted:005120955dbf","codeSha256":"005120955dbfa77273231ab2faa976f3d3dad73a66f02f3a11d4c8b6eee85b68","language":"ts"},"language":{"chosen":"ts","guessed":"ts","why":"a type annotation on a parameter on line 12","chosenBy":"person"},"languages":[{"language":"js","nam
+  21353 ms  ← 200 /remember
+  21368 ms  → POST /paste/names
+  21371 ms  → POST /paste/summary
+  21371 ms  → POST /paste/labels
+  21371 ms  → POST /paste/proposals
+  21376 ms  ← 200 /paste/names
+  21376 ms  ← 200 /paste/summary
+  21376 ms  ← 200 /paste/labels
+  21409 ms  after the hand-off: {"popOpen":false,"popText":null,"toggle":true}
+  21437 ms  screenshot 4-after-handoff.png
+  21437 ms  panel: {"popOpen":false,"popText":null,"toggle":true}
+  21475 ms  pressed Bet on what it does
+  23480 ms  panel: {"popOpen":true,"popText":"Muse Wonder 1.0 (Meta) is writing tests for computeScore: 2 s so far (usually under a minute).Step 1 of 3: Muse Wonder reads your file and writes up to 3 tests aimed at its edges.The drawing stays live meanwhile: hover or click any part.Wri","toggle":false}
+  25487 ms  panel: {"popOpen":true,"popText":"Muse Wonder 1.0 (Meta) is writing tests for computeScore: 4 s so far (usually under a minute).Step 1 of 3: Muse Wonder reads your file and writes up to 3 tests aimed at its edges.The drawing stays live meanwhile: hover or click any part.Wri","toggle":false}
+  27492 ms  panel: {"popOpen":true,"popText":"Muse Wonder 1.0 (Meta) is writing tests for computeScore: 6 s so far (usually under a minute).Step 1 of 3: Muse Wonder reads your file and writes up to 3 tests aimed at its edges.The drawing stays live meanwhile: hover or click any part.Wri","toggle":false}
+  27938 ms  → POST /experiments
+  27943 ms  ← 200 /paste/proposals  {"ok":true,"model":"muse-wonder-1.0","display":"Muse Wonder 1.0 (muse-wonder-1.0)","setId":"ps_TzpmXGRzaT","proposals":[{"id":"6F-BsGIW_W","attempt":1,"params":{"shape":"call-function","exportName":"computeScore","args":[{"kind":"json","value":[{"severity":"critical"}]}]},"gate":{"allowed":true},"sa
+  27952 ms  → POST /experiments/Fj9I-B1QGp/model-bets
+  27972 ms  ← 200 /experiments  {"experiment":{"id":"Fj9I-B1QGp","target":{"kind":"pasted","ref":"pasted:005120955dbf","codeSha256":"005120955dbfa77273231ab2faa976f3d3dad73a66f02f3a11d4c8b6eee85b68","language":"ts"},"runner":"ts","params":{"shape":"call-function","exportName":"computeScore","args":[{"kind":"json","value":[{"severi
+  27974 ms  → GET /remember?fn=computeScore&code=005120955dbfa77273231ab2faa976f3d3dad73a66f02f3a11d4c8b6eee85b68
+  27993 ms  ← 200 /remember?fn=computeScore&code=005120955dbfa77273231ab2faa976f3d3dad73a66f02f3a11d4c8b6eee85b68
+  29502 ms  panel: {"popOpen":true,"popText":"The test: Atlas calls computeScore([{\"severity\":\"critical\"}]).What does computeScore do?returns a valuethrows (an Error or any other value)never finishes (waits forever, nothing left to wake it)still running when Atlas stops watching at 30,","toggle":false}
+  30312 ms  end: {"popOpen":true,"popText":"The test: Atlas calls computeScore([{\"severity\":\"critical\"}]).What does computeScore do?returns a valuethrows (an Error or any other value)never finishes (waits forever, nothing left to wake it)still running when Atlas stops watching at 30,","toggle":false}
+  30362 ms  screenshot 5-bet-panel.png
+  32838 ms  ← 200 /experiments/Fj9I-B1QGp/model-bets  {"model":{"model":"muse-spark-1.3","who":"model:muse-spark-1.3","display":"Muse Spark 1.3 (muse-spark-1.3)","status":"sealed","sealed":[{"id":"3Hf9qWUb9p","experimentId":"Fj9I-B1QGp","who":"model:muse-spark-1.3","question":"Atlas calls computeScore([{\"severity\":\"critical\"}]). What does computeSc
+  39751 ms  card offers Bet on getWatchlistHealth: false
+  39810 ms  screenshot 6-import-box-card.png

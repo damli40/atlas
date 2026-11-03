@@ -1,0 +1,109 @@
+    303 ms  → GET /claimants
+    303 ms  → GET /claimants
+    303 ms  → GET /remember
+    303 ms  → GET /invite/status
+    303 ms  → GET /remember
+    303 ms  → GET /invite/status
+    342 ms  ← 200 /claimants
+    349 ms  ← 200 /remember
+    350 ms  ← 200 /invite/status
+    351 ms  ← 200 /claimants
+    351 ms  ← 200 /remember
+    351 ms  ← 200 /invite/status
+    361 ms  → POST /paste
+    362 ms  → GET /remember
+    417 ms  ← 200 /remember
+    423 ms  ← 200 /paste  {"target":{"kind":"pasted","ref":"pasted:df2152f38c62","codeSha256":"df2152f38c62e64c0e398176c5efa8a41f025beabc31a6c030b9551c7b74d948","language":"ts"},"language":{"chosen":"ts","guessed":"ts","why":"a type annotation on a parameter on line 2","chosenBy":"person"},"languages":[{"language":"js","name
+    433 ms  → POST /paste/names
+    433 ms  → POST /paste/summary
+    433 ms  → POST /paste/labels
+    433 ms  → POST /paste/proposals
+    440 ms  ← 200 /paste/names
+    442 ms  ← 200 /paste/summary
+    469 ms  ← 200 /paste/labels
+    474 ms  → POST /experiments
+    480 ms  ← 200 /paste/proposals  {"ok":true,"model":"muse-wonder-1.0","display":"Muse Wonder 1.0 (muse-wonder-1.0)","setId":"ps_CH_-DMTm26","proposals":[{"id":"VN5PXHt2PK","attempt":1,"params":{"shape":"call-function","exportName":"fetchWithRetry","args":[{"kind":"stand-in","name":"fetchIt","async":true,"calls":[{"do":"throw","erro
+    491 ms  → POST /experiments/mGVQV5kbOf/model-bets
+    547 ms  → GET /remember?fn=fetchWithRetry&code=df2152f38c62e64c0e398176c5efa8a41f025beabc31a6c030b9551c7b74d948
+    547 ms  ← 200 /experiments  {"experiment":{"id":"mGVQV5kbOf","target":{"kind":"pasted","ref":"pasted:df2152f38c62","codeSha256":"df2152f38c62e64c0e398176c5efa8a41f025beabc31a6c030b9551c7b74d948","language":"ts"},"runner":"ts","params":{"shape":"call-function","exportName":"fetchWithRetry","args":[{"kind":"stand-in","name":"fet
+    557 ms  ← 200 /remember?fn=fetchWithRetry&code=df2152f38c62e64c0e398176c5efa8a41f025beabc31a6c030b9551c7b74d948
+    558 ms  ← 200 /experiments/mGVQV5kbOf/model-bets  {"model":{"model":"muse-spark-1.3","who":"model:muse-spark-1.3","display":"Muse Spark 1.3 (muse-spark-1.3)","status":"sealed","sealed":[{"id":"QQKoW671J4","experimentId":"mGVQV5kbOf","who":"model:muse-spark-1.3","question":"Atlas calls fetchWithRetry(fetchIt, 3, 100). fetchIt (async) throws Error (\
+   1998 ms  first screen: {"popOpen":true,"popText":"Think you know what your code does? Bet on it.The test: Atlas calls fetchWithRetry(fetchIt, 3, 100). fetchIt (async) throws Error (\"flaky source failed\") on call 1; every later call throws Error (\"flaky source failed\") too.What does fetchWi","toggle":false}
+   2069 ms  screenshot 1-first-screen.png
+   2173 ms  outline job started (paid: one Muse Wonder outline call)
+   2194 ms  → POST /outline/jobs
+   2196 ms  ← 202 /outline/jobs
+   3200 ms  → GET /outline/jobs/ol_znxylLTOGH
+   3204 ms  ← 200 /outline/jobs/ol_znxylLTOGH
+   4210 ms  → GET /outline/jobs/ol_znxylLTOGH
+   4214 ms  ← 200 /outline/jobs/ol_znxylLTOGH
+   5221 ms  → GET /outline/jobs/ol_znxylLTOGH
+   5227 ms  ← 200 /outline/jobs/ol_znxylLTOGH
+   6232 ms  → GET /outline/jobs/ol_znxylLTOGH
+   6237 ms  ← 200 /outline/jobs/ol_znxylLTOGH
+   7243 ms  → GET /outline/jobs/ol_znxylLTOGH
+   7249 ms  ← 200 /outline/jobs/ol_znxylLTOGH
+   8255 ms  → GET /outline/jobs/ol_znxylLTOGH
+   8261 ms  ← 200 /outline/jobs/ol_znxylLTOGH
+   9265 ms  → GET /outline/jobs/ol_znxylLTOGH
+   9266 ms  ← 200 /outline/jobs/ol_znxylLTOGH
+  10269 ms  → GET /outline/jobs/ol_znxylLTOGH
+  10270 ms  ← 200 /outline/jobs/ol_znxylLTOGH
+  11273 ms  → GET /outline/jobs/ol_znxylLTOGH
+  11275 ms  ← 200 /outline/jobs/ol_znxylLTOGH
+  12278 ms  → GET /outline/jobs/ol_znxylLTOGH
+  12280 ms  ← 200 /outline/jobs/ol_znxylLTOGH
+  13282 ms  → GET /outline/jobs/ol_znxylLTOGH
+  13284 ms  ← 200 /outline/jobs/ol_znxylLTOGH
+  14287 ms  → GET /outline/jobs/ol_znxylLTOGH
+  14289 ms  ← 200 /outline/jobs/ol_znxylLTOGH
+  15292 ms  → GET /outline/jobs/ol_znxylLTOGH
+  15293 ms  ← 200 /outline/jobs/ol_znxylLTOGH
+  16296 ms  → GET /outline/jobs/ol_znxylLTOGH
+  16298 ms  ← 200 /outline/jobs/ol_znxylLTOGH
+  17301 ms  → GET /outline/jobs/ol_znxylLTOGH
+  17306 ms  ← 200 /outline/jobs/ol_znxylLTOGH
+  18311 ms  → GET /outline/jobs/ol_znxylLTOGH
+  18317 ms  ← 200 /outline/jobs/ol_znxylLTOGH
+  19320 ms  → GET /outline/jobs/ol_znxylLTOGH
+  19323 ms  ← 200 /outline/jobs/ol_znxylLTOGH
+  20327 ms  → GET /outline/jobs/ol_znxylLTOGH
+  20333 ms  ← 200 /outline/jobs/ol_znxylLTOGH
+  21337 ms  → GET /outline/jobs/ol_znxylLTOGH
+  21341 ms  ← 200 /outline/jobs/ol_znxylLTOGH
+  22344 ms  → GET /outline/jobs/ol_znxylLTOGH
+  22346 ms  ← 200 /outline/jobs/ol_znxylLTOGH
+  23352 ms  → GET /outline/jobs/ol_znxylLTOGH
+  23360 ms  ← 200 /outline/jobs/ol_znxylLTOGH
+  24363 ms  → GET /outline/jobs/ol_znxylLTOGH
+  24365 ms  ← 200 /outline/jobs/ol_znxylLTOGH
+  25370 ms  → GET /outline/jobs/ol_znxylLTOGH
+  25375 ms  ← 200 /outline/jobs/ol_znxylLTOGH
+  25376 ms  → GET /outline/jobs/ol_znxylLTOGH/outline
+  25382 ms  ← 200 /outline/jobs/ol_znxylLTOGH/outline
+  25431 ms  → GET /outline/jobs/ol_znxylLTOGH/labels
+  25457 ms  ← 200 /outline/jobs/ol_znxylLTOGH/labels
+  28634 ms  screenshot 2-outline.png
+  28637 ms  drawn text: ["chain-registry.ts:1-40","Provider quorum","normalization","chain-registry.ts:42-152","Chain registry loading","chain-registry.ts:158- …","Chain display names","drift.ts","Drift and risk","assessment engine","multicall.ts:1-85","Multicall configuration","parsing","multicall.ts:90-217","Multicall3 batch","execution","multicall.ts:222-252","Bounded concurrency","helper","score.ts","Finding score","calculation","sentinel.ts:1-134","Watchlist assembly and","health","sentinel.ts:275-390","Demo replay scenarios","snapshot-store.ts:1-111","Snapshot and verdict","store","snapshot-store.ts:124-1 …","Score history and feed","A solid line: plain code found that one part calls the other; thicker means more links. A dotted line is only","muse-wonder-1.0's word. Hover a part to bring its lines forward.","1 part Wonder proposed did not match the code, so not drawn.","\"Confirmed\" means these lines exist on whole definitions, never that the name or purpose is true."]
+  30080 ms  card offers Bet on computeScore: true
+  30125 ms  screenshot 3-box-card.png
+  30159 ms  → GET /outline/jobs/ol_znxylLTOGH/atlas
+  30160 ms  clicked Bet on computeScore
+  30171 ms  ← 200 /outline/jobs/ol_znxylLTOGH/atlas
+  30186 ms  → POST /paste
+  30192 ms  → GET /remember
+  30220 ms  ← 200 /remember
+  30231 ms  ← 200 /paste  {"target":{"kind":"pasted","ref":"pasted:005120955dbf","codeSha256":"005120955dbfa77273231ab2faa976f3d3dad73a66f02f3a11d4c8b6eee85b68","language":"ts"},"language":{"chosen":"ts","guessed":"ts","why":"a type annotation on a parameter on line 12","chosenBy":"person"},"languages":[{"language":"js","nam
+  30235 ms  → POST /paste/names
+  30236 ms  → POST /paste/summary
+  30236 ms  → POST /paste/labels
+  30236 ms  → POST /paste/proposals
+  30251 ms  ← 200 /paste/labels
+  32971 ms  ← 200 /paste/names
+  33753 ms  ← 200 /paste/summary
+  34043 ms  after the hand-off: {"popOpen":true,"popText":"","toggle":false}
+  34070 ms  screenshot 4-after-handoff.png
+  34071 ms  panel: {"popOpen":true,"popText":"","toggle":false}
+  37104 ms  ← 200 /paste/proposals  {"ok":true,"model":"muse-wonder-1.0","display":"Muse Wonder 1.0 (muse-wonder-1.0)","setId":"ps_0xnpbgM2H9","proposals":[{"id":"p-Gl9LuUgi","attempt":1,"params":{"shape":"call-function","exportName":"computeScore","args":[{"kind":"json","value":[{"severity":"UNKNOWN"},{"severity":"UNKNOWN"},{"severit
+ 125099 ms  end: {"popOpen":true,"popText":"","toggle":false}
+ 125152 ms  screenshot 5-bet-panel.png

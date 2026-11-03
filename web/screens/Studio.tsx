@@ -181,6 +181,8 @@ export const CHANGE_WORDS = {
   pickUsed: "The tests that came with Muse Wonder's sentence can't be used now that the sentence is shown. Ask for a new one, or write your own.",
   noOtherRan: "Every test ready for this function has already run here, so its answer is known. Ask for a new one, or write your own.",
   noOtherYet: "No other test is ready for this function. Ask for one, or write your own.",
+  /** R11: what an open bet says when nothing is being asked, so it is never a blank panel. */
+  idle: (fn: string) => `No test is being written for ${fn} yet. Ask Muse Wonder for one, or write your own.`,
   claimAsking: "Asking Muse Wonder for a new test…",
   claimNoNew: "Muse Wonder's tests for this sentence are ones that have already run here, so there is nothing new to bet on.",
   paidWonder: "Asks Muse Wonder and the AI bettors: paid AI calls.",
@@ -604,6 +606,9 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     async (text: string, language?: Lang, want?: string, from?: string) => {
       if (text.trim() === "") return null;
       reset();
+      // R11: a new file starts with the bet closed. The example opens its bet by itself (R7), and reset() keeps `open`, so a file
+      // handed over from the repo outline (or pasted over the example) landed in an open bet with nothing in it, and no way out.
+      setOpen(false);
       const g = gen.current;
       setPasted(null);
       setHandoffNote(null);
@@ -1941,6 +1946,19 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                     </button>
                   )}
                   </div>
+                </div>
+              )}
+              {/* R11: an open bet with nothing above to show says so, with a way on. Never a blank panel. */}
+              {!wonderWait && !busy && !exp && !changing && !error && (
+                <div className="u1-none" data-testid="u1-pop-idle">
+                  <p className="u1-sub">{CHANGE_WORDS.idle(fn)}</p>
+                  <button type="button" className="u1-btn u1-primary" onClick={() => void askWonder({ pick: "default" })} data-testid="u1-pop-idle-ask">
+                    Ask Muse Wonder for a test
+                  </button>
+                  <button type="button" className="u1-link" onClick={writeOwn} data-testid="u1-pop-idle-own">
+                    {SIMPLE_WORDS.writeOwn}
+                  </button>
+                  <span className="u1-sub u1-paid">{earlyState === "done" ? CHANGE_WORDS.earlyDone : CHANGE_WORDS.paidWonder}</span>
                 </div>
               )}
               {error && <ErrorNotice message={error} />}
