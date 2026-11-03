@@ -89,7 +89,7 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 
 /* A sheet's line of words beside the drawing while it plays. */
 .u1-shell .r-step{top:calc(var(--bar) * 0 + 16px);left:24px;width:calc(var(--col) - 48px);font:500 18px/1.3 var(--mono);letter-spacing:-.02em;color:var(--ink);font-style:normal}
-@media (max-width:760px){
+@media (max-width:760px),(max-height:500px){
   .u1-shell{--col:100vw}
   .u1-shell .r-head{left:60px;max-width:calc(100vw - 70px)}
   .u1-shell .r-head .r-kick,.u1-shell .r-head .r-sub{display:none}
@@ -181,7 +181,7 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 .u1-shell .r-step{position:absolute;z-index:3;top:18px;left:24px;width:calc(var(--col) - 48px);min-height:0;font:500 clamp(16px,1.35vw,19px)/1.3 var(--mono);letter-spacing:-.02em;color:var(--ink);font-style:normal;overflow-wrap:anywhere}
 .r-skip{position:absolute;left:24px;bottom:14px;margin:0;z-index:3;font-size:12px;color:var(--ink-3);pointer-events:none}
 .u1-shell .u1-toast{left:24px;right:auto;bottom:14px;transform:none;font-size:13px}
-@media (max-width:760px){
+@media (max-width:760px),(max-height:500px){
   .u1-shell .u1-root::before{display:none}
   .u1-shell .r-chart{left:0;top:0;width:100vw;height:calc(100% - 70px)}
   .u1-shell .u1-root[data-stage="run"] .r-chart{transform:none;opacity:0}
@@ -224,7 +224,7 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 .invite-links a{color:var(--ink);text-decoration:underline;text-underline-offset:2px}
 .e-right{position:relative;border-left:1px solid var(--rule);min-width:0;min-height:0;overflow:hidden}
 .rr-host.e-sheet{position:absolute;inset:0;background:transparent}
-@media (max-width:760px){
+@media (max-width:760px),(max-height:500px){
   .u1-shell .u1-entry{position:static;display:block;overflow:auto;height:100%}
   .e-right{display:none}
   .e-left{padding:20px 16px}
@@ -244,7 +244,7 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 .c-n{color:var(--ink-3);text-align:right;padding-right:10px;user-select:none}
 .u1-shell .u1-studio[data-drawer] .r-chart,.u1-shell .u1-studio[data-drawer] .u1-root[data-stage] .r-path{width:calc(100vw - var(--col) - clamp(320px,29vw,440px))}
 .u1-shell .u1-studio[data-drawer] .u1-card{right:calc(clamp(320px,29vw,440px) + 18px)}
-@media (max-width:760px){.c-drawer{width:100vw}.u1-code-toggle{right:8px;top:54px}.u1-shell .u1-studio[data-drawer] .r-chart{width:100vw}}
+@media (max-width:760px),(max-height:500px){.c-drawer{width:100vw}.u1-code-toggle{right:8px;top:54px}.u1-shell .u1-studio[data-drawer] .r-chart{width:100vw}}
 /* R6: the panel about one part. Over the left column, so the machine keeps its size and nothing on it is covered: not the part, not the ring.
    On a phone, a sheet from the bottom, with the drawing still above it. */
 .c-drawer[data-part]{grid-template-rows:38px auto auto minmax(0,1fr)}
@@ -268,7 +268,7 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 .c-part-broke p{margin:0 0 4px;overflow-wrap:anywhere}
 .c-part-broke p:last-child{margin:0}
 .u1-shell .u1-studio[data-drawer-part] .c-drawer{left:0;right:auto;width:var(--col);border-left:0;border-right:1px solid var(--rule)}
-@media (max-width:760px){
+@media (max-width:760px),(max-height:500px){
   .u1-shell .u1-studio[data-drawer-part] .c-drawer{top:auto;bottom:0;height:min(50vh,460px);width:100vw;border-right:0;border-top:1px solid var(--rule);box-shadow:0 -6px 18px rgba(31,27,29,.08)}
   .c-part{max-height:30vh}
   /* The chart refits into the space above the sheet, so the box the sheet is about stays in sight. */
@@ -419,7 +419,7 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 .u1-shell .u1-banner{position:absolute;left:calc(var(--col) + 16px);right:16px;top:10px;bottom:auto;width:auto;max-width:none;transform:none;z-index:7;margin:0;padding:8px 12px;font-size:12.5px;line-height:1.4;background:var(--raised);border:1px solid var(--rule);border-radius:7px;color:var(--ink-2)}
 .u1-shell .u1-studio[data-drawer] .u1-banner{right:calc(clamp(320px,29vw,440px) + 16px)}
 .u1-shell .u1-toast{left:calc(var(--col) + 16px);bottom:14px;max-width:calc(100vw - var(--col) - 32px)}
-@media (max-width:760px){.u1-shell .u1-banner,.u1-shell .u1-toast{left:14px;right:14px;max-width:none}}
+@media (max-width:760px),(max-height:500px){.u1-shell .u1-banner,.u1-shell .u1-toast{left:14px;right:14px;max-width:none}}
 /* "Use my test" is ink, the same as every primary button */
 .u1-shell .u1-pop [data-testid="form-submit"],.u1-shell .u1-pop button.primary{background:var(--ink)!important;border-color:var(--ink)!important;color:#fbf8ef!important;font:500 13px/1 var(--ui);padding:9px 14px;border-radius:7px;border-width:1px;border-style:solid;cursor:pointer}
 /* Choices as buttons */
@@ -455,7 +455,7 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 .u1-shell .u1-typed .u1-typed-in{display:block;width:100%}
 /* A narrow window has no room for the moment, the path and the code side by side. On a result the code sits over the moment's column,
    beside the path it explains, and the path keeps its width. C closes it. */
-@media (min-width:761px) and (max-width:1799px){
+@media (min-width:761px) and (max-width:1799px) and (min-height:501px){
   .u1-shell .u1-studio[data-drawer]:has(.u1-root[data-stage="verdict"]) .c-drawer,.u1-shell .u1-studio[data-drawer]:has(.u1-root[data-stage="run"]) .c-drawer{left:0;right:auto;width:var(--col);border-left:0;border-right:1px solid var(--rule)}
   .u1-shell .u1-studio[data-drawer]:has(.u1-root[data-stage="verdict"]) .u1-root[data-stage] .r-path,.u1-shell .u1-studio[data-drawer]:has(.u1-root[data-stage="run"]) .u1-root[data-stage] .r-path{width:calc(100vw - var(--col))}
 }
@@ -482,7 +482,7 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 .m-card-pop{position:absolute;transform:translate(-50%,-100%);max-width:320px;margin:0;padding:8px 11px;font:400 13px/1.4 "Geist",system-ui,sans-serif;color:var(--rr-ink);background:var(--rr-card);border:1px solid #dcd4c3;border-radius:7px;box-shadow:0 4px 12px rgba(31,27,29,.08);z-index:6;pointer-events:none}
 .u1-shell .r-machine{position:absolute;left:var(--col);top:0;width:calc(100vw - var(--col));height:100%;z-index:3}
 .u1-shell .u1-studio[data-drawer] .r-machine{width:calc(100vw - var(--col) - clamp(320px,29vw,440px))}
-@media (min-width:761px) and (max-width:1799px){.u1-shell .u1-studio[data-drawer]:has(.u1-root[data-stage="verdict"]) .r-machine,.u1-shell .u1-studio[data-drawer]:has(.u1-root[data-stage="run"]) .r-machine{width:calc(100vw - var(--col))}}
+@media (min-width:761px) and (max-width:1799px) and (min-height:501px){.u1-shell .u1-studio[data-drawer]:has(.u1-root[data-stage="verdict"]) .r-machine,.u1-shell .u1-studio[data-drawer]:has(.u1-root[data-stage="run"]) .r-machine{width:calc(100vw - var(--col))}}
 .u1-shell .u1-root[data-view="machine"] .r-chart,.u1-shell .u1-root[data-view="machine"] .r-path{visibility:hidden}
 .u1-shell .u1-root[data-view="machine"] .r-path .rr-list{visibility:visible}
 .u1-shell .r-machine[data-captions] .rr-host.m-host{bottom:74px}
@@ -532,7 +532,7 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 .m-captions summary{cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;list-style-position:inside}
 .m-captions[open]{background:var(--paper,#f5f0e6);padding:8px 10px;border:1px solid var(--rule-2)}
 .m-captions span{display:block;margin-top:4px}
-@media (min-width:761px){.u1-shell .u1-root[data-stage="verdict"] .r-path{height:calc(100% - 40px)}}
+@media (min-width:761px) and (min-height:501px){.u1-shell .u1-root[data-stage="verdict"] .r-path{height:calc(100% - 40px)}}
 .u1-shell .u1-root[data-list] .r-chart{visibility:hidden}
 .r-part-list{position:absolute;left:calc(var(--col) + 24px);right:24px;top:60px;bottom:16px;margin:0;padding:0;list-style:none;overflow:auto;columns:2;column-gap:32px;z-index:3;font-size:13px}
 .r-part-list li{display:flex;gap:10px;align-items:baseline;padding:4px 0;border-bottom:1px solid var(--rule-2);break-inside:avoid}
@@ -541,7 +541,7 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 .r-part-list .u1-link{margin-left:auto;font-size:12px;background:none;border:0;padding:0;cursor:pointer;text-decoration:underline}
 .e-consent{margin:10px 0 10px;color:var(--ink-2)}
 .e-right .rr-host.m-host{position:absolute;inset:0;background:transparent}
-@media (max-width:760px){.m-captions{display:none}.r-part-list{left:12px;right:12px;columns:1}}
+@media (max-width:760px),(max-height:500px){.m-captions{display:none}.r-part-list{left:12px;right:12px;columns:1}}
 .u1-cant-next p{margin:0 0 10px}
 .u1-shell .u1-root[data-view="machine"] .r-path *{visibility:hidden!important}
 .u1-shell .u1-root[data-noted] .r-machine .rr-host.m-host{top:48px}
@@ -620,7 +620,7 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 .u1-shell .u1-foot .u1-earlier li button:hover{background:var(--rule-2)}
 .u1-shell .u1-entry .u1-fine{max-width:520px}
 .u1-shell .e-own{display:flex;flex-direction:column;gap:10px;margin-top:6px}
-@media (max-width:760px){
+@media (max-width:760px),(max-height:500px){
   .u1-shell .u1-foot{left:0;right:0;bottom:0;justify-content:center;background:var(--paper);padding:3px 0;border-top:1px solid var(--rule-2);flex-wrap:wrap}
   .u1-shell .u1-bet:has(.u1-pop){top:42%;height:auto;bottom:22px;border-top:1px solid var(--rule)}
   .u1-shell .u1-root[data-pop] .r-chart{visibility:visible;top:0;height:42%}
@@ -629,7 +629,7 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
   .u1-shell .u1-actions[data-simple]{bottom:22px;flex-wrap:wrap;overflow:visible}
   .m-verdict-v{font-size:28px}
 }
-@media (max-width:760px){
+@media (max-width:760px),(max-height:500px){
   /* The file's name never covers "Your record". */
   .u1-shell .r-head{max-width:calc(100vw - 190px)}
   .u1-shell .u1-marks{height:56%}
@@ -638,7 +638,7 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 /* R7 review: the paid word beside a link; and a phone keeps the consent line, the button and the answers clear of the foot. */
 .u1-shell .u1-paid-tag{font-size:11.5px;color:var(--ink-3);text-decoration:none;display:inline-block}
 .u1-shell .u1-consent-result{flex-basis:100%;margin:0;font-size:11.5px;color:var(--ink-3)}
-@media (max-width:760px){
+@media (max-width:760px),(max-height:500px){
   .u1-shell .u1-foot{flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;padding:3px 10px;gap:10px;height:18px;white-space:nowrap}
   .u1-shell .u1-foot .u1-earlier ul{position:fixed;left:8px;right:8px;bottom:26px;width:auto}
   .u1-shell .u1-bet:has(.u1-pop){top:34%;bottom:25px}
@@ -662,7 +662,7 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 .u1-shell .u1-more-actions{order:-2;padding:4px 0 12px;margin-bottom:10px;border-bottom:1px solid var(--rule-2)}
 .u1-shell .u1-more-actions[hidden]{display:none!important}
 /* R7 review: on a wide screen the result column ends where the pinned bar starts, so no row can ever sit under the bar. */
-@media (min-width:761px){
+@media (min-width:761px) and (min-height:501px){
   .u1-shell .u1-marks{bottom:var(--actions-h,170px)}
   .u1-shell .u1-marks .m-pane{padding-bottom:24px}
 }
@@ -697,7 +697,7 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 .u1-shell .u1-root[data-summary] .r-view-note{top:calc(var(--sum-h,0px) + 12px)}
 .u1-shell .u1-root[data-summary] .r-part-list{top:calc(var(--sum-h,0px) + 60px)}
 .c-part-sum{font-size:14px}
-@media (max-width:760px){
+@media (max-width:760px),(max-height:500px){
   .u1-shell .m-summary{left:0;padding:6px 12px;max-height:22vh;font-size:12.5px}
   .u1-shell .u1-root[data-summary][data-pop] .r-chart{top:var(--sum-h,0px);height:calc(34% - var(--sum-h,0px))}
 }
@@ -709,7 +709,7 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 .u1-shell .m-summary-none{font-style:normal;font-size:12.5px;color:var(--ink-3)}
 /* R12 (D73): on a phone the fixed foot (about 25px) covered the last line of the bet ("Not live.") and the foot of the proof card.
    Everything that scrolls under it ends with room for it. */
-@media (max-width:760px){
+@media (max-width:760px),(max-height:500px){
   .u1-shell .u1-pop{padding-bottom:30px}
   .u1-shell .u1-proof{padding-bottom:36px}
   .u1-shell .u1-entry{padding-bottom:36px}
@@ -720,7 +720,7 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
    the studio is a page that scrolls: the drawing first at full width and a usable height, then the bet (or, after the run,
    the verdict) below it, then the foot links in the page's own flow. Desktop is untouched: every rule is in this query.
    Scoped to the studio view (.u1-fill shown), so the other screens keep their own scrolling sheets. */
-@media (max-width:760px){
+@media (max-width:760px),(max-height:500px){
   .u1-shell:has(>.u1-main>.u1-fill:not([hidden])){position:relative;inset:auto;display:block;min-height:100svh}
   .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-bar{position:sticky;top:0}
   .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-main{min-height:calc(100svh - var(--bar))}
@@ -748,6 +748,8 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
   .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-bet:not(:has(.u1-pop)){position:relative;inset:auto;width:100%;height:auto;border-top:1px solid var(--rule)}
   .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-pop{position:relative;inset:auto;overflow:visible;border-right:0;padding-bottom:16px}
   .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) [data-testid="u1-seal"]{scroll-margin-bottom:16px}
+  /* The open bet has no button above its headline on a phone, so no gap for one. */
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-bet:has(.u1-pop) .u1-pop{padding-top:14px}
   .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-entry{height:auto;overflow:visible}
   .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-toast{position:fixed;bottom:calc(12px + env(safe-area-inset-bottom));z-index:20}
   .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .c-drawer{position:fixed;top:var(--bar)}
@@ -766,7 +768,7 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
   .e-invite-row .u1-btn{flex:none}
 }
 /* The foot's links as tap targets, on every phone screen (the foot is also on the other views). */
-@media (max-width:760px){
+@media (max-width:760px),(max-height:500px){
   .u1-shell .u1-foot .u1-link,.u1-shell .u1-foot summary{display:inline-flex;align-items:center;min-height:44px;font-size:14px}
   .u1-shell .u1-foot .u1-earlier{margin:0;padding:0;border-top:0}
   .u1-shell .u1-foot .u1-earlier[open]{flex-basis:100%}
@@ -774,10 +776,26 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
   .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-foot .u1-earlier ul{position:static;box-shadow:none;margin:0 0 6px}
   .u1-shell .u1-foot .u1-earlier li button{min-height:44px;white-space:normal;box-sizing:border-box;width:100%}
 }
-@media (max-width:760px){
+@media (max-width:760px),(max-height:500px){
   /* On the other screens the foot stays pinned: one row of 44 px links that scrolls sideways, and the sheet ends clear of it. */
   .u1-shell .u1-foot{height:auto}
   .u1-shell .u1-foot .u1-earlier ul{bottom:52px}
   .u1-shell .u1-sheet{padding-bottom:72px}
   .u1-shell .u1-sheet.u1-moonwell{padding-bottom:110px}
+}
+/* R15 review: a short phone screen (the X in-app browser is about 390x560) shows the question and its first answer
+   before any scroll: the summary's attribution line is smaller, the drawing starts shorter, and the bet panel's top gap
+   and headline are tighter. A very short one (a phone on its side) also drops the headline and keeps 120 px of drawing. */
+@media (max-width:760px) and (max-height:700px),(max-height:500px){
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .m-summary{padding-top:4px;padding-bottom:4px}
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .m-summary-k{font-size:13px;margin-bottom:1px!important}
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .m-summary-parts{margin-top:0}
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-root{height:calc(var(--sum-h,0px) + clamp(150px,26svh,300px))}
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-bet:has(.u1-pop) .u1-pop{padding-top:12px}
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-pop-h{font-size:20px;margin:0 0 6px}
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-pop .u1-quiz{margin-top:4px}
+}
+@media (max-height:420px){
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-pop-h{display:none}
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-root{height:calc(var(--sum-h,0px) + 120px)}
 }

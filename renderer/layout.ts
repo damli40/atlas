@@ -609,7 +609,8 @@ export function layOut(spec: RenderSpec, o: LayoutOptions = {}): Scene {
   }
   const captions: TextBlock[] = [];
   let capY = y1 + 26;
-  const capW = narrow ? Math.max(340, x1 - x0) : Math.max(460, Math.min(x1 - x0, 880));
+  // R15 review: on a phone the notes under the drawing wrap at 340, so they never run off a narrow screen (they used to take the drawing's width).
+  const capW = narrow ? 340 : Math.max(460, Math.min(x1 - x0, 880));
   const hiddenWords = hiddenLabels > 0 ? [`${hiddenLabels} line${hiddenLabels === 1 ? "'s" : "s'"} words had no clean spot on the paper, so ${hiddenLabels === 1 ? "they are" : "they are"} not drawn: hover the line to read them.`] : [];
   for (const words of [...(spec.legend ? [spec.legend] : []), ...spec.captions.map((c) => c.words), ...hiddenWords]) {
     const lines = wrapWords(cleanWords(words), capW, TYPE.caption, "italic", 14);

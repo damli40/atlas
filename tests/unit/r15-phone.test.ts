@@ -1,8 +1,8 @@
 // R15: the phone fixes that plain code can check. No network, no model, $0.
 // - Finding 6: fly.toml lets one client address run 4 sandbox runs at once (two phones behind one carrier address were
-//   refused at 2); the server-wide and per-session caps keep their defaults.
-// - Findings 1-5: every R15 layout rule lives inside a phone-width media query, so a desktop window is untouched;
-//   the auto-scroll is installed once from main.tsx and does nothing above 760 px.
+//   refused at 2); the server-wide cap is 12, Modal's runner 12, and the no-code example's own cap 8 (it was a hard 2).
+// - Findings 1-5: every R15 layout rule lives inside a phone-only media query (narrow, or at most 500 px
+//   tall), so a desktop window is untouched; the auto-scroll is installed once from main.tsx with the same query.
 
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -108,7 +108,7 @@ describe("R15 review: the no-code example's own cap on sandboxes at once", () =>
 });
 
 describe("R15 findings 1-5: phone layout only at phone widths", () => {
-  it("every rule after the R15 marker in tool.css is inside an @media (max-width:760px) block", () => {
+  it("every rule after the R15 marker in tool.css is inside a phone-only media block (narrow, or short like a phone on its side)", () => {
     const css = read("web/tool.css");
     const at = css.indexOf("/* R15: phones");
     expect(at).toBeGreaterThan(0);
@@ -126,7 +126,9 @@ describe("R15 findings 1-5: phone layout only at phone widths", () => {
       else if (depth === 0) head += ch;
     }
     expect(tops.length).toBeGreaterThan(0);
-    for (const t of tops) expect(t).toBe("@media (max-width:760px)");
+    // Every query needs a narrow width or a short height: a desktop window (wider than 760 px and taller than 500 px) never matches.
+    const PHONE = ["@media (max-width:760px),(max-height:500px)", "@media (max-width:760px) and (max-height:700px),(max-height:500px)", "@media (max-height:420px)"];
+    for (const t of tops) expect(PHONE).toContain(t);
   });
 
   it("the paste box and every input are at least 16 px on a phone (iOS zooms the page on focus below 16 px)", () => {
@@ -134,10 +136,10 @@ describe("R15 findings 1-5: phone layout only at phone widths", () => {
     expect(css).toMatch(/\.u1-shell textarea,\.u1-shell input:not\(\[type=button\]\)[^{]*\{font-size:16px!important\}/);
   });
 
-  it("main.tsx installs the phone auto-scroll, which is gated on the same 760 px", () => {
+  it("main.tsx installs the phone auto-scroll, which is gated on the same query as the CSS", () => {
     expect(read("web/main.tsx")).toMatch(/installPhoneScroll\(\);/);
     const js = read("web/phone-scroll.ts");
-    expect(js).toContain('"(max-width:760px)"');
+    expect(js).toContain('"(max-width:760px),(max-height:500px)"');
     expect(js).toMatch(/if \(!phone\.matches\) return;/);
   });
 });

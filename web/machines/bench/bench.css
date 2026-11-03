@@ -148,9 +148,9 @@
 .u1-actions{position:absolute;right:16px;bottom:16px;display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;align-items:center;max-width:calc(100% - 140px);z-index:4}
 .u1-claim{margin:10px 0 0;font-size:13px;color:var(--anatomy-strong)}
 
-@media (min-width:701px){.u1-root[data-side] .u1-pan{right:min(460px,40%)}}
+@media (min-width:701px) and (min-height:501px){.u1-root[data-side] .u1-pan{right:min(460px,40%)}}
 /* phones: cards become sheets at the bottom; the drawing keeps the top half */
-@media (max-width:700px){
+@media (max-width:700px),(max-height:500px){
   .u1-pan{inset:40px 8px 50% 8px}
   .u1-figure{max-width:100%}
   .u1-card,.u1-marks{left:8px;right:8px;top:auto;bottom:60px;width:auto;max-height:44%}
@@ -220,7 +220,7 @@
 /* U3 item 4: the quiz fits a 1366×768 screen: a wider, taller pop-up, tighter options, the test sentence clamped to
    three lines (with "show the whole test"), the typed value on one row, and the seal bar pinned to the bottom. */
 .u1-pop{width:min(580px,calc(100vw - 32px));max-height:calc(100vh - 128px);padding:14px 16px 0}
-@media (min-width:701px){.u1-root[data-side] .u1-pan{right:min(600px,44%)}}
+@media (min-width:701px) and (min-height:501px){.u1-root[data-side] .u1-pan{right:min(600px,44%)}}
 .u1-test-clamp{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .u1-pop .u1-test{font-size:13.5px;line-height:1.45}
 .u1-testrow{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:2px 0 0}

@@ -111,7 +111,7 @@ button{font-family:"Atlas Besley",Georgia,serif}
 .rr-host.r-runpath-sheet,.rr-host.r-moonwell-sheet{overflow:hidden}
 .pc-pencil{display:block;max-width:100%;height:auto;margin-top:8px}
 
-@media (max-width:760px){
+@media (max-width:760px),(max-height:500px){
   .r-head{top:6px;left:14px;width:calc(100vw - 28px)}
   .r-kick{font-size:13px;margin-bottom:0}
   .r-name{font-size:30px}
@@ -135,7 +135,7 @@ button{font-family:"Atlas Besley",Georgia,serif}
 @media (prefers-reduced-motion:reduce){.r-viewport,.u1-btn,.u1-opt{transition:none}}
 
 .r-ex-pan{display:none;margin:2px 0 0;font-style:italic;font-size:13px;color:var(--anatomy-text)}
-@media (max-width:760px){.r-ex-pan{display:block}}
+@media (max-width:760px),(max-height:500px){.r-ex-pan{display:block}}
 
 /* Read by screen readers, not drawn. */
 .rr-unseen{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:normal;border:0}

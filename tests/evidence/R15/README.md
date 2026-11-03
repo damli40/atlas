@@ -1,8 +1,8 @@
 # R15: the live site on a phone, fixed
 
 The live site got traffic from an X post, mostly phones. A phone check of the live build (f876f43) found six problems.
-This round fixes them with a phone-only diff: CSS inside `@media (max-width:760px)`, one small new script, and one line
-in `fly.toml`. A desktop window is not touched.
+This round fixes them with a phone-only diff: CSS inside phone-only media queries (narrow, or at most 500 px tall: see
+"Review round 1"), one small new script, and settings in `fly.toml`. A desktop window is not touched.
 
 Where to look: **the table under "Every finding"**. Shots are in `before/` (this branch's base, f876f43, served locally),
 `after/` (this branch), and `live-before/` (the original live check on atlas-dami.fly.dev). Measurements per device are
@@ -31,7 +31,7 @@ into view; when the paste box opens, the page starts at its top.
 | 3 | Summary and test line 12.5 px. | summary 12.5, test 12.5, answers 14, paste box 12.5 px. | summary 16, test 16, answers 16, question 20, paste box and every text input 16 px (iOS Safari zooms the page when you tap a box under 16 px). | `phone-results.txt` "fonts", "pasteFs" |
 | 4 | "Earlier screens" clipped on SE. | The fold's list was pinned at the bottom, 300 px wide on a 320 px screen. | On the studio it opens in place, inside the foot, full width. On the other screens it is pinned above the foot within the screen's width. No page on any size is wider than the screen. | `after/iphoneSE-9-earlier.png` |
 | 5 | Foot links 17–18 px high. | 94×17, 50×17, 101×17, 78×15. | 114×44, 61×44, 123×44, 94×44 (44 px is Apple's minimum tap size). On the other screens (Moonwell, record) the foot stays pinned: one 51 px row that scrolls sideways, and those screens now end with room for it. | `phone-results.txt` "targets"; `after/iphoneSE-8-moonwell-end.png` |
-| 6a | Two phones on one address: "one client address runs at most 2 sandbox run(s) at once". | `ATLAS_SANDBOX_IP_MAX_CONCURRENT` was already a setting (default 2), just not set in `fly.toml`. | `fly.toml` [env] sets it to `"4"`, with a comment. The server-wide cap (4 at once), the per-session cap (2) and the hourly caps are unchanged. | `tests/unit/r15-phone.test.ts` (3 tests) |
+| 6a | Two phones on one address: "one client address runs at most 2 sandbox run(s) at once". | `ATLAS_SANDBOX_IP_MAX_CONCURRENT` was already a setting (default 2), just not set in `fly.toml`. | `fly.toml` [env] sets it to `"4"`, with a comment. Review round 1 also raised the server-wide cap to 12, Modal's runner to 12, and made the no-code example's own cap (a hard-coded 2) a setting, 8 on Fly: see "Review round 1". The per-session cap (2) and the hourly caps are unchanged. | `tests/unit/r15-phone.test.ts` |
 | 6b | A timer read 123.5 s. | | **A display bug, not a real wait. Not fixed (report).** See below. | – |
 
 Every phone size: `document.documentElement.scrollWidth` equals `innerWidth` on load, at the verdict, on the proof card
@@ -48,7 +48,7 @@ and on the paste box (390/390, 320/320, 412/412, 750/750, 390/390).
 1280×800 and 1440×900, before vs after, load / picked / verdict: 0.01–0.21% of pixels differ, and every differing pixel is
 inside one box in the top bar (x≈380–733, y 18–29). That box is the line "pasted.ts · 25 lines · drawn in N ms": the
 drawing time changes on every load (two loads of the same build read 121 ms and 82 ms). Nothing else moved. Script:
-`harness/pxdiff.mjs`. Every R15 rule is inside `@media (max-width:760px)`, and a test checks that
+`harness/pxdiff.mjs`. Every R15 rule is inside a phone-only media query, and a test checks that
 (`tests/unit/r15-phone.test.ts`).
 
 ## Finding 6b: the 123.5 s timer
@@ -61,11 +61,11 @@ because `Studio.tsx` is being changed on r14 and r13): stop the counter when the
 
 ## What I did not do, and what is open
 
-- **The server-wide cap is now the one a crowd hits.** `ATLAS_SANDBOX_MAX_CONCURRENT` is 4 for the whole server, so the
-  fifth person anywhere who presses Lock while four runs are going gets "the server runs at most 4 sandbox run(s) at once".
-  One play holds a slot for the length of its run (about 9 s on the live phones), so that is roughly 25 plays a minute.
-  With the per-address cap at 4, one address can also take all 4 slots. Raising the server-wide cap is a money and load
-  decision, so it is left for Dami.
+- **Sandboxes at once (changed in review round 1).** A run now waits on four caps: 4 per address, 8 for all no-code
+  visitors together, 12 for the whole server, and 12 on Modal's runner. One play holds a slot for about 9 s on the live
+  phones, so 8 example slots is roughly 50 example plays a minute; the 9th player at the same moment gets "visitors without
+  a code already have 8 example runs going at once…; try again in a few seconds". Money stays capped by the example's own
+  daily allowance (3,000 starts, 18,000 sandbox-seconds).
 - The local server had no Muse Spark Open (no Baseten key) and a $0 ceiling, so the example played with one recorded AI,
   not two. The layout does not depend on that.
 - Locally the run starts within a second, so the "waiting for the run" state was not photographed after the fix; its
@@ -90,3 +90,31 @@ desktop shots; `harness/r15own.mjs` the paste screen and the Moonwell screen's e
 - `tsc --noEmit`: clean (`tsc.txt`).
 - `vitest run`: 172 files passed, 2 skipped; 2,783 tests passed, 35 skipped (`vitest.txt`). The 6 new ones are in
   `tests/unit/r15-phone.test.ts`.
+
+## Review round 1 (after the coordinator's review)
+
+| # | Finding | What changed | Proof |
+|---|---|---|---|
+| 1 | **Major.** No-code visitors shared a hard-coded 2 sandboxes at once (`server/access/ledger.ts`), so the 3rd player anywhere was refused; Modal's runner ran 4 at once, so runs 5–12 queued and the queue time was booked as sandbox-seconds. | `ATLAS_EXAMPLE_MAX_CONCURRENT` (default 2, read in `server/access/setup.ts`), `"8"` in `fly.toml`. `ATLAS_MODAL_MAX_SANDBOXES = "12"`, the same as the server-wide 12. One comment in `fly.toml` explains all four caps together. The dev codes' 3 at once (`ledger.ts`) is left: it is still a safe share of 12. Modal's own account limits: the repo's executor docs (`tests/evidence/E4/README.md`, `runners/executor/modal.ts`) name only Atlas's caps, no Modal account limit; I did not check the Modal account itself (no call made). | `tests/unit/r15-phone.test.ts` "the no-code example's own cap": 8 players start, the 9th gets the plain sentence, one finishing frees a slot; no setting keeps 2; `fly.toml` values |
+| 2 | **Major.** Phones on their side wider than 760 px got the desktop layout. | Every phone query in `web/tool.css`, `web/drawing/drawing.css` and `web/machines/bench/bench.css` is now "narrow **or** at most 500 px tall"; the desktop-only ones now also need a height over 500 px. `phone-scroll.ts` uses the same query. A desktop window under 500 px tall now gets the phone layout (accepted). | 915×412, 932×430, 844×390 below; desktop diff unchanged |
+| 3 | Stale wording about the 4 cap. | `fly.toml` comment and this README rewritten for 4 / 8 / 12 / 12. | – |
+| 4 | No answer visible on first load at 390×560, 750×342, 280 px. | On short phone screens: the summary's attribution line is 13 px, the drawing starts at 26% of the height (150–300 px), the bet's top gap is 12 px and its headline 20 px. Under 420 px tall the headline is dropped and the drawing starts at 120 px. On every phone the open bet's 46 px empty top gap is now 14 px. | below |
+| 5 | At 280 px the note under the finished drawing ran off the right edge. | On a phone the drawing's notes wrap at 340 drawing units (`renderer/layout.ts`, narrow layout only), not at the drawing's full width. | `review/narrow-280x653-4-verdict.png` |
+| 6 | Auto-scroll on every re-pick, and never on a keyboard pick. | `phone-scroll.ts` now watches the answers' checked state, so a keyboard pick counts, and scrolls to Lock only once per round (a round's Lock button is a new element each round). Lock-in is also detected from the sealed list appearing, so Enter works too. | below: "re-pick" and "keyboard" columns |
+
+Measured on this branch (`harness/r15b.mjs`; y positions in CSS px, viewport height last):
+
+| Size | Question / first answer on load | Lock after first pick | Re-pick moved the page? | Keyboard pick: Lock | Drawing during run | Width = screen |
+|---|---|---|---|---|---|---|
+| 390×560 (X in-app, WebKit) | 379–404 / 412–450 of 560 | 502–544 | no (94 → 94) | 502–544 | 48–560 | yes |
+| 750×342 (landscape, WebKit) | 258–284 / 292–329 of 342 | 284–326 | no | 284–326 | 400 px, page scrolls | yes |
+| 280×653 (WebKit) | 456–507 / 515–552 of 653 | 595–637 | no | 595–637 | 48–653 | yes |
+| 915×412 (Chromium) | 258–284 / 292–329 of 412 | 354–396 | no | 354–396 | 400 px, page scrolls | yes |
+| 932×430 (WebKit) | 316–342 / 350–388 of 430 | 372–414 | no | 372–414 | 400 px, page scrolls | yes |
+| 844×390 (WebKit) | 258–284 / 292–329 of 390 | 332–374 | no | 332–374 | 400 px, page scrolls | yes |
+
+Desktop after this round, before vs after: 1280×800 0.02–0.21%, 1440×900 0.02–0.18% of pixels differ, all inside the
+"drawn in N ms" box in the top bar, as before. Shots: `review/` (390×560, 915×412, 844×390, 280×653, 1280×800).
+
+Still open: at 280 px the drawing's side note beside the end box ("you said…") still runs off the right; it is laid
+out by the renderer beside the box and needs a renderer change to move.
