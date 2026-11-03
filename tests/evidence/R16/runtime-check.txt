@@ -18,3 +18,7 @@ and scratch folders. What it does not prove: anything on Fly, Linux, Modal, or w
 Rerun after the follow-up, on commit 540ffce, same steps and settings:
   pnpm install --frozen-lockfile --prod -> exit 0 ("Done in 541ms using pnpm v12.4.1")
   GET /health 200 {"ok":true}; paste 200 ok; drawing 200 ok (same keys); 0 lines with "error" in the log; stopped by PID.
+
+Rerun after the review fixes, on commit 6770e0d, same steps and settings:
+  pnpm install --frozen-lockfile --prod -> exit 0 ("Done in 807ms using pnpm v12.4.1")
+  GET /health 200 {"ok":true}; paste 200 ok; drawing 200 ok (same keys); 0 lines with "error" in the log; stopped by PID.
