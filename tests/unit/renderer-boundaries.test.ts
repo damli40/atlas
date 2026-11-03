@@ -85,7 +85,10 @@ describe("R3 boundaries", () => {
     const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
     expect(pkg.devDependencies["@napi-rs/canvas"]).toBe("1.0.13");
     expect(pkg.dependencies["@napi-rs/canvas"]).toBeUndefined();
-    expect(pkg.devDependencies.pele).toBe("1.12.0");
+    // pele (Mermaid layout, pure JS) is a runtime dependency since R13: /paste/drawing lays out the machine on the
+    // server, and the Fly image installs --prod only (as a dev dependency it crashed release v5 at start).
+    expect(pkg.dependencies.pele).toBe("1.12.0");
+    expect(pkg.devDependencies.pele).toBeUndefined();
     let hits = "";
     try {
       hits = execFileSync("git", ["grep", "-l", "renderer/export", "--", "server", "src", "runners", "web"], { cwd: root, encoding: "utf8" }).trim();
