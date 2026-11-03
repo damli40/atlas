@@ -308,7 +308,7 @@ export function createApi(fetchFn: FetchLike = (u, i) => fetch(u, i), base = "/a
       return r.ok;
     },
     /** D60: whether this server needs an invite code, and whether this browser holds one. */
-    inviteStatus: () => get<{ required: boolean; signedIn: boolean; dailyUsd?: number | null; today?: { spentUsd: number; heldUsd: number } | null }>("/invite/status"),
+    inviteStatus: () => get<{ required: boolean; signedIn: boolean; dailyUsd?: number | null; today?: { spentUsd: number; heldUsd: number } | null; /** R10 (D72): the waitlist form, or null. */ waitlist?: string | null }>("/invite/status"),
     /** D60: the same route the /invite page posts to. The server keeps the code in an HttpOnly cookie. */
     signIn: async (code: string): Promise<{ ok: true } | { error: string }> => {
       const r = await fetchFn(`${base}/invite`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code }) });

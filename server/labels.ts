@@ -15,6 +15,8 @@
 // - M3: the code-only scan is cached per source fingerprint and span (labels then only add the runs), and each client
 //   may ask at most DEFAULT_LABELS_PER_CLIENT_PER_HOUR times an hour (per invite code when there is one).
 
+import { isExampleVisitor } from "./access/context";
+import { EXAMPLE_SHA, refuseOwnCode } from "./access/example-lane";
 import type { Context, Hono } from "hono";
 import { z } from "zod";
 import { labelFromScan, scanFailures, type FailureLabelKind, type FunctionInfo, type LabelledFailure, type LabelsAnswer, type Lang, type RunEvidence, type Scan } from "../src/failure-labels";
@@ -133,6 +135,8 @@ function registerLabelRoutes(app: Hono, deps: LabelDeps, scanOf: (key: string, m
     if (!parsed.success) return c.json({ error: "send {target: {ref, codeSha256}, exportName}" }, 400);
     const entry = deps.paste.entryOf(sessionId, parsed.data.target);
     if (!entry || typeof entry.target.source !== "string") return c.json({ error: "this session has no pasted file with that ref and fingerprint: paste it first (POST /paste)" }, 404);
+    // R10 (D72): with no code, the example's labels only (plain code, no call either way).
+    if (isExampleVisitor() && entry.target.codeSha256 !== EXAMPLE_SHA) return refuseOwnCode(c);
     const name = parsed.data.exportName;
     if (!entry.exports.some((e) => e.name === name)) return c.json({ error: `the pasted file has no export named "${name}"` }, 400);
     const allowed = deps.takeLabels(c);

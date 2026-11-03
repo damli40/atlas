@@ -9,6 +9,7 @@ import { momentOfRows } from "../../src/moment";
 import { bettorNames } from "../../src/claimants";
 import { MomentView } from "../machines/bench/BenchStage";
 import { ProofLink } from "./ProofCard";
+import { ErrorNotice } from "./ErrorNotice";
 import { useEffect, useRef, useState } from "react";
 import { MOONWELL_FORK_BLOCKS, MOONWELL_LEVEL_CAPTION, MOONWELL_LEVEL_SAYS, MOONWELL_LICENCE_LINE, moonwellBetContext, type MoonwellLevel } from "../../src/bet-context";
 import { BET_INSTRUCTION, chainFactsLines, type ChainFactsResult } from "../../src/chain-facts";
@@ -89,7 +90,7 @@ function MoonwellSaved({ api, onRunAgain, onNew }: { api: Api; onRunAgain: (plac
       if (a.ready) onRunAgain(file?.findings?.[0]);
       else setCant(a.words ?? "A new Moonwell run can't happen here. Nothing was spent.");
     } catch (e) {
-      setCant(e instanceof ApiError && e.status === 401 ? "A new Moonwell run needs an invite code. Nothing was spent." : `Atlas could not check for a chain connection, so nothing ran: ${e instanceof Error ? e.message : String(e)}`);
+      setCant(e instanceof ApiError && e.status === 401 ? "A new Moonwell run, like anything beyond the saved replay and the example, needs an invite code. Nothing was spent." : `Atlas could not check for a chain connection, so nothing ran: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setChecking(false);
     }
@@ -117,7 +118,7 @@ function MoonwellSaved({ api, onRunAgain, onNew }: { api: Api; onRunAgain: (plac
         </button>
         <span className="muted small">Your own bet on pull request #578, on a new fork. The AIs' bets are paid calls, asked only when you show the question.</span>
       </div>
-      {cant && <p className="notice" role="alert" data-testid="moonwell-cant">{cant}</p>}
+      {cant && <ErrorNotice message={cant} testId="moonwell-cant" />}
       <div className="m-split" data-testid="m-split">
         {moment && <div className="m-standalone"><MomentView moment={moment} stranger /></div>}
         <MoonwellDrawing run={file.runs[0]} bets={file.bets} verdicts={file.verdicts} captions={file.captions} still stranger machine />

@@ -219,6 +219,9 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
 .e-invite-row{display:flex;gap:8px}
 .e-invite-row input{flex:1;min-width:0;padding:9px 11px;font:400 13px/1.2 var(--mono);border:1px solid var(--ink);border-radius:7px;background:var(--raised)}
 .e-invite-error{margin:0;color:var(--ink);font-size:12.5px}
+/* R10 (D72): the one line for someone with no code, with "Join the waitlist" and "I have a code". */
+.e-needs-code{margin:0 0 10px;font-size:13px;color:var(--ink-2)}
+.invite-links a{color:var(--ink);text-decoration:underline;text-underline-offset:2px}
 .e-right{position:relative;border-left:1px solid var(--rule);min-width:0;min-height:0;overflow:hidden}
 .rr-host.e-sheet{position:absolute;inset:0;background:transparent}
 @media (max-width:760px){

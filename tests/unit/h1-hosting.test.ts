@@ -306,7 +306,8 @@ describe("H1: one origin (the built page and the API from one server)", () => {
   it("with the real invite gate: 401 without a code, the invite page and sign-in under /api, Secure cookie, cross-site refused, a whole round through /api", async () => {
     const b = build({ publicOrigin: ORIGIN });
     const page = servePage(b.app, dist());
-    const no = await page.request("/api/paste", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+    // R10 (D72): /paste is open to the example only; another file is refused with 401.
+    const no = await page.request("/api/paste", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code: "export const a = 1;\n" }) });
     expect(no.status).toBe(401);
     const inv = await page.request("/api/invite");
     expect(inv.status).toBe(200);

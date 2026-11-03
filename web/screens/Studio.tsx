@@ -38,7 +38,7 @@ import { ProofCardPage } from "./ProofCard";
 import type { ClaimantMode } from "../../src/claimants";
 import { didNotFinish, type Api, type ExperimentAnswer, type HumanAnswer, type PasteAnswer, type ProposalsAnswer, type RunAnswer, type ShownBet } from "../api";
 import { absentBettors, useModelSlots } from "./Claimant";
-import { ErrorNotice } from "./ErrorNotice";
+import { ErrorNotice, InviteLinks, noteWaitlist } from "./ErrorNotice";
 import { MachineSheet, machineFirst, useFontsIn } from "../drawing/MachineView";
 import { drawMachine, machineParts } from "../../renderer/authors/machine";
 import type { PartPanel } from "../../renderer/authors/part-panel";
@@ -63,6 +63,8 @@ import { FELT_WORDS, SIMPLE_WORDS, shortModelName } from "../../src/paste-words"
 type Lang = "js" | "ts" | "py";
 const EXAMPLE_FUNCTION_NAME = "fetchWithRetry";
 const CONSENT_LINE = "Your code goes to Meta's AI as soon as Atlas draws it, so a test is ready when you bet.";
+// R10 (D72): DAMI: placeholder wording. Said when someone with no code reaches past the example (the server says the same).
+const OWN_CODE_LINE = "Your own code, and anything beyond the example, needs an invite code, so nothing was run and no AI was asked.";
 const FILE_NAME: Record<Lang, string> = { js: "pasted.js", ts: "pasted.ts", py: "pasted.py" };
 
 /** The function drawn as "under test" by default: the exported function with the most calls out, then the first. */
@@ -597,6 +599,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target?.codeSha256, pasted?.outline]);
   const writeOwn = () => {
+    if (needsCode()) return;
     ownTest.current = true;
     setChanging(true);
     setForm({ initial: emptyForm() });
@@ -655,7 +658,14 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   // ---- D60: the invite on the first screen. A link can carry the code in its fragment, which never reaches a server's logs.
   const [invite, setInvite] = useState<{ required: boolean; signedIn: boolean; error?: string; busy?: boolean; left?: number | null } | null>(null);
   const [inviteCode, setInviteCode] = useState("");
+  // R10 (D72): no code on a server that needs one. The example still plays (the server lets it through, recorded answers only);
+  // everything beyond it says the one line and offers the waitlist and "I have a code".
   const locked = Boolean(invite?.required && !invite.signedIn);
+  const needsCode = () => {
+    if (!locked) return false;
+    setError(OWN_CODE_LINE);
+    return true;
+  };
   // R7: the first screen waits for the server's word on invites (or its silence) before drawing the example.
   const [inviteChecked, setInviteChecked] = useState(false);
   // D66: what this person's own record says. A first-time visitor gets nothing, so nothing shows.
@@ -698,12 +708,14 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
           });
         if (ok || !live) {
           const st = await Promise.resolve().then(() => api.inviteStatus()).catch(() => null);
+          noteWaitlist(st?.waitlist);
           if (live && st) setInvite((v) => ({ required: st.required, signedIn: st.signedIn, left: leftOf(st), ...(v?.error ? { error: v.error } : {}) }));
           if (live) setInviteChecked(true);
           return;
         }
       }
       const st = await Promise.resolve().then(() => api.inviteStatus()).catch(() => null);
+      noteWaitlist(st?.waitlist);
       // A code carried by the link may land first: a status read before it never undoes it.
       if (live && st) setInvite((v) => (v?.signedIn ? { ...v, required: st.required, left: leftOf(st) } : { required: st.required, signedIn: st.signedIn, left: leftOf(st), ...(v?.error ? { error: v.error } : {}) }));
       if (live) setInviteChecked(true);
@@ -735,8 +747,14 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
       const text = e.clipboardData?.getData("text") ?? "";
       if (text.trim() === "") return;
       e.preventDefault();
+      if (locked) {
+        // R10 (D72): their own code needs a code: the paste box opens with their text in it and the invite line.
+        tryOwn();
+        setCode(text);
+        return;
+      }
       setCode(text);
-      if (!locked) void read(text, lang === "auto" ? undefined : lang);
+      void read(text, lang === "auto" ? undefined : lang);
     };
     document.addEventListener("paste", onDocPaste);
     return () => document.removeEventListener("paste", onDocPaste);
@@ -744,11 +762,12 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
 
   // R7 (D69): the first screen is the example, drawn, with its one question ready. Once per page: "Try your own code" never brings it back by itself.
   useEffect(() => {
-    if (autoExample.current || pasted || busy !== null || handoff || !inviteChecked || locked || ownOpen) return;
+    // R10 (D72): with or without an invite code: the example needs none.
+    if (autoExample.current || pasted || busy !== null || handoff || !inviteChecked || ownOpen) return;
     autoExample.current = true;
     void read(U1_EXAMPLE, "ts");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inviteChecked, locked, pasted, handoff, ownOpen]);
+  }, [inviteChecked, pasted, handoff, ownOpen]);
   const tryOwn = () => {
     // reset() starts a new round, so an example still being read or bet on is dropped when it answers.
     reset();
@@ -812,7 +831,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
    * again on the new text (D19), so it is a paid step, said beside the control. Your answers stay where they still apply.
    */
   const askAgain = (o: { claimant?: ClaimantMode; one?: boolean }) => {
-    if (!exp || !target) return;
+    if (!exp || !target || needsCode()) return;
     const savedPicked = picked;
     const savedTyped = typed;
     const savedStep = step;
@@ -937,6 +956,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   }, [more, result, exp, claimRound]);
   // R7 (D69): "Try another question": the next test of this set that has not run here, one question, the same for every bettor. With none, the list.
   const tryAnother = () => {
+    if (needsCode()) return;
     const keep = proposals;
     const next = claim === null ? (keep?.proposals ?? []).find((p) => p.gate.allowed && !alreadyRan(p.params)) : undefined;
     if (!next || !target) {
@@ -965,7 +985,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   // checks them as usual. R3: the round opens only on a test that is really different from what has already run here, compared
   // whatever order its keys came in. The same test again would show its answer. With nothing new, the button goes away.
   const testClaim = async () => {
-    if (!target || !fn || !exp || !claim) return;
+    if (!target || !fn || !exp || !claim || needsCode()) return;
     const g = gen.current;
     const from = exp.experiment.id;
     const sentence = claim;
@@ -996,7 +1016,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   };
   // R3: the same test on changed code, judged the same way: the bets are sealed first, then the two runs.
   const changeAndBet = async () => {
-    if (editing === null || !exp) return;
+    if (editing === null || !exp || needsCode()) return;
     const params = exp.experiment.params;
     const language = pasted?.target.language ?? undefined;
     const want = fn ?? undefined;
@@ -1023,6 +1043,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
     });
   };
   const anotherTest = async () => {
+    if (needsCode()) return;
     reset();
     setOpen(true);
     if (!target || !fn) return;
@@ -1164,13 +1185,19 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
   // R7 (D69): this shows while the example is being read, behind an invite, or after "Try your own code". The paste box, Upload and
   // GitHub stay in the fine print until asked for.
   if (!pasted) {
-    const ownBox = ownOpen || locked;
+    // R10 (D72): the example plays with no code, so the paste box shows only when asked for.
+    const ownBox = ownOpen;
     return (
       <section className="u1-entry" aria-labelledby="u1-entry-h" data-testid="u1-entry" data-own={ownBox ? "" : undefined}>
         <div className="e-left">
         <h1 id="u1-entry-h">{SIMPLE_WORDS.headline}</h1>
         {ownBox && <p className="u1-lede">Paste a file and Atlas draws it as a machine. Bet on what it will do. Meta's AI bets too, then Atlas runs it in a sandbox and shows whose bet matched.</p>}
-        {invite?.required && !invite.signedIn && (
+        {ownBox && locked && invite && (
+          <p className="e-needs-code" data-testid="e-needs-code">
+            {OWN_CODE_LINE} <InviteLinks />
+          </p>
+        )}
+        {ownBox && locked && invite && (
           <form className="e-invite" onSubmit={(e) => void submitInvite(e)} data-testid="e-invite">
             <label htmlFor="e-invite-code">Your invite code</label>
             <div className="e-invite-row">
@@ -1288,7 +1315,7 @@ export function Studio({ api, onExplore, handoff = null, onHandoffUsed, onRoundO
                 {SIMPLE_WORDS.tryOwn}
               </button>
             )}
-            {ownBox && !locked && (
+            {ownBox && (
               <button type="button" className="u1-link" onClick={backToExample} disabled={busy !== null} data-testid="u1-example">
                 {SIMPLE_WORDS.tryExample}
               </button>

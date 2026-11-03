@@ -1,0 +1,40 @@
+(node:77349) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:77396) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:77488) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:78012) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:78240) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ tests/unit/x3-failure-labels.test.ts (24 tests | 1 failed) 1554ms
+   ❯ X3 review M3: linear scan, capped (1)
+     × the reviewer's 61 KB nested-loop paste takes under 50 ms; a nested retry flood too 379ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/unit/x2-review1.test.tsx > B4: a large outline never freezes the page > X1's maximum (40 parts, 156 joins) now draws within budget (D55: the renderer), and every check holds; past the budget it is the list
+AssertionError: expected 2210.3488340000004 to be less than 2000
+ ❯ tests/unit/x2-review1.test.tsx:119:18
+    117|     const d = drawSpec(spec);
+    118|     if (d.kind !== "drawing") throw new Error(`expected a drawing, got…
+    119|     expect(d.ms).toBeLessThan(2000);
+       |                  ^
+    120|     expect(checkDrawing(spec, d.scene, d.svg)).toEqual([]);
+    121|   }, 120_000);
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+ FAIL  tests/unit/x3-failure-labels.test.ts > X3 review M3: linear scan, capped > the reviewer's 61 KB nested-loop paste takes under 50 ms; a nested retry flood too
+AssertionError: expected 68.7647079999997 to be less than 50
+ ❯ tests/unit/x3-failure-labels.test.ts:163:38
+    161|       const t0 = performance.now();
+    162|       label(t);
+    163|       expect(performance.now() - t0).toBeLessThan(50);
+       |                                      ^
+    164|     }
+    165|   });
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+ Test Files  2 failed | 165 passed | 2 skipped (169)
+      Tests  2 failed | 2746 passed | 35 skipped (2783)
+   Start at  01:12:33
+   Duration  218.69s (tests 77%, import 22%)
+    Isolate  169 workers spawned · ~428ms startup each (spawn + environment, per file)
+             at least ~14.03s faster with isolate: false — reuses workers across files instead of one per file

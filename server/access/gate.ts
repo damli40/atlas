@@ -12,6 +12,11 @@
 // With a valid code, the rest of the request (and everything it starts later) runs as that code
 // (server/access/context.ts), so the ledger charges it and the per-address limits count it by code, not by address.
 // Without ATLAS_REQUIRE_INVITE=1 (local development) nothing is refused here; a valid code is still used if sent.
+//
+// R10 (D72), the open example: with no code (or a code that no longer works), a request may also reach the few routes in
+// EXAMPLE_ROUTES, which the first screen's example uses. It then runs as the "example" principal (context.ts), and those
+// routes accept only the example itself, checked against content the server holds (server/access/example-lane.ts). The
+// ledger refuses that principal every model call and EVM run. Every other route still needs a code, including new ones.
 
 import { Hono, type Context } from "hono";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
@@ -41,7 +46,50 @@ export const OPEN_ROUTES: readonly { method: string; path: RegExp; why: string }
 
 export const isOpenRoute = (method: string, path: string): boolean => OPEN_ROUTES.some((r) => r.method === method && r.path.test(path));
 
-export const NEEDS_INVITE = "Atlas needs an invite code for this, so nothing was run and no model was asked. Enter your code at /invite (or send it in the x-atlas-invite header).";
+/**
+ * R10 (D72): routes a visitor with NO code may reach, as the "example" principal, because the first screen's example uses them.
+ * Being on this list opens nothing by itself: each route refuses (401) anything that is not the example, checked against what the
+ * server holds, before any model is asked or anything runs. Keep it short; a new route stays closed unless added here on purpose.
+ */
+export const EXAMPLE_ROUTES: readonly { method: string; path: RegExp; why: string }[] = [
+  { method: "POST", path: /^\/paste$/, why: "reads a file only when its bytes are the example's exactly (sha256); plain code, no model" },
+  { method: "POST", path: /^\/paste\/labels$/, why: "plain code's labels, for the example's file only" },
+  { method: "POST", path: /^\/paste\/names$/, why: "the example's names, recorded once; no call; any other file is refused" },
+  { method: "POST", path: /^\/paste\/summary$/, why: "the example's summary, recorded once; no call; any other file is refused" },
+  { method: "POST", path: /^\/paste\/proposals$/, why: "Muse Wonder's recorded tests for the example's one function; refused if the recording is missing" },
+  { method: "POST", path: /^\/experiments$/, why: "only the example's default question, and only if every AI's recorded answer replays for its exact prompt" },
+  { method: "POST", path: /^\/experiments\/[^/]+\/model-bets$/, why: "waits for the recorded answers of an open-example round; other rounds refused" },
+  { method: "POST", path: /^\/bets$/, why: "seals the visitor's own bet on an open-example round (no cost); other rounds refused" },
+  { method: "POST", path: /^\/runs$/, why: "runs an open-example round in the sandbox: the example's code and test only; per-address and hourly caps" },
+  { method: "POST", path: /^\/paste\/claim$/, why: "shows the kept sentence of the example's recorded tests (no call); other rounds refused" },
+  { method: "GET", path: /^\/runs\/[^/]+\/helpers$/, why: "the steps of a run this session made, read only" },
+  { method: "GET", path: /^\/track-record$/, why: "this browser's record, kept in memory apart from invited people's; read only" },
+  { method: "GET", path: /^\/remember$/, why: "this browser's last ending, from the same record; read only" },
+  { method: "GET", path: /^\/events\/[^/]+$/, why: "the live log of this session's round; streams capped per address and in total" },
+];
+export const isExampleRoute = (method: string, path: string): boolean => EXAMPLE_ROUTES.some((r) => r.method === method && r.path.test(path));
+
+// DAMI: placeholder wording. The facts it must keep: nothing ran, no AI was asked; the example needs no code.
+export const NEEDS_INVITE = "Your own code, and anything beyond the example, needs an invite code, so nothing was run and no AI was asked.";
+
+/**
+ * R10 (D72): ATLAS_WAITLIST_URL, the external waitlist form (Dami's Tally or Google Form). Atlas only links to it and stores no
+ * email. Unset or empty: no link is shown. Anything else must be a plain https address, or the server does not start.
+ */
+export function waitlistUrlFromEnv(env: Record<string, string | undefined> = process.env): string | undefined {
+  const raw = env.ATLAS_WAITLIST_URL?.trim();
+  if (raw === undefined || raw === "") return undefined;
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    throw new Error("ATLAS_WAITLIST_URL is not a web address; set it to the waitlist form's https:// address, or leave it unset");
+  }
+  if (u.protocol !== "https:") throw new Error("ATLAS_WAITLIST_URL must start with https://");
+  if (u.username !== "" || u.password !== "") throw new Error("ATLAS_WAITLIST_URL must not carry a user name or password");
+  if (raw.length > 500 || /[\s"'<>`]/.test(raw)) throw new Error("ATLAS_WAITLIST_URL must be a plain address of at most 500 characters (no spaces or quotes)");
+  return u.toString();
+}
 
 export interface GateOptions {
   store: InviteStore;
@@ -65,6 +113,15 @@ export interface GateOptions {
   ownerInner?: InnerApp;
   /** G1 review round 2: live-log streams (GET /events) open at once: per dev code, and all dev codes together. */
   streams?: { perDev: number; devsTotal: number };
+  /** R10 (D72): the waitlist form's address (ATLAS_WAITLIST_URL, checked by waitlistUrlFromEnv). Absent: no link. */
+  waitlistUrl?: string;
+  /**
+   * R10 (D72): a separate copy of the app for visitors with no code on the open example, so their sessions and pastes can
+   * never push an invited developer's out of memory. Absent: they use the developers' copy.
+   */
+  exampleInner?: InnerApp;
+  /** R10 (D72): live-log streams for visitors with no code: per address, and all of them together. */
+  exampleStreams?: { perAddress: number; total: number };
 }
 
 /** G1 review B5: refused, because a cookie alone cannot prove the request came from Atlas's own page. */
@@ -134,13 +191,13 @@ export function withInviteGate(inner: InnerApp, o: GateOptions): Hono {
       const left = inv?.dailyUsd !== null && inv?.dailyUsd !== undefined && t ? `You have $${Math.max(0, inv.dailyUsd - t.spentUsd - t.heldUsd).toFixed(2)} of $${inv.dailyUsd.toFixed(2)} left today (resets 00:00 UTC).` : "";
       return c.html(page("Atlas invite", `<h1>You're in as ${esc(who.p.label)}</h1><p>${left}</p><form method="post" action="invite/forget"><button>Forget my code on this browser</button></form>`));
     }
-    return c.html(page("Atlas invite", `<h1>Enter your invite code</h1><p>The hosted Atlas spends real money on Meta models and sandboxes, so it asks for the code Dami gave you. It is kept in a cookie on this browser only.</p><form method="post" action="invite"><input name="code" autocomplete="off" spellcheck="false" placeholder="atlas_..." aria-label="Invite code" required><button>Use this code</button></form>`));
+    return c.html(page("Atlas invite", `<h1>Enter your invite code</h1><p>The hosted Atlas spends real money on Meta models and sandboxes, so it asks for the code Dami gave you. It is kept in a cookie on this browser only.</p><form method="post" action="invite"><input name="code" autocomplete="off" spellcheck="false" placeholder="atlas_..." aria-label="Invite code" required><button>Use this code</button></form>${o.waitlistUrl ? `<p>No code? <a href="${esc(o.waitlistUrl)}" rel="noopener noreferrer" target="_blank">Join the waitlist</a>. The example on Atlas's first screen needs no code.</p>` : ""}`));
   });
   outer.get("/invite/status", (c) => {
     const who = principalOf(c);
-    if (!who || !("p" in who) || who.p.kind !== "invite") return c.json({ required: o.require, signedIn: false, ...(who && "reason" in who ? { reason: who.reason } : {}) });
+    if (!who || !("p" in who) || who.p.kind !== "invite") return c.json({ required: o.require, signedIn: false, waitlist: o.waitlistUrl ?? null, ...(who && "reason" in who ? { reason: who.reason } : {}) });
     const inv = o.store.byId(who.p.id);
-    return c.json({ required: o.require, signedIn: true, label: who.p.label, role: who.p.role, dailyUsd: inv?.dailyUsd ?? null, today: o.ledger?.today(who.p.id) ?? null });
+    return c.json({ required: o.require, signedIn: true, waitlist: o.waitlistUrl ?? null, label: who.p.label, role: who.p.role, dailyUsd: inv?.dailyUsd ?? null, today: o.ledger?.today(who.p.id) ?? null });
   });
   outer.post("/invite", async (c) => {
     // G1 review m3: signing in is only from Atlas's own page (a cross-site form cannot plant a code in a browser).
@@ -175,19 +232,24 @@ export function withInviteGate(inner: InnerApp, o: GateOptions): Hono {
   // G1 review round 2: live-log streams held open at once, per dev code and for all dev codes together (the owner's
   // streams are not counted). A stream is counted until the client goes away or the stream ends.
   const streamCaps = o.streams ?? { perDev: 4, devsTotal: 40 };
+  // R10 (D72): visitors with no code get their own pool, so they can never use up the developers' streams.
+  const exampleCaps = o.exampleStreams ?? { perAddress: 4, total: 40 };
+  const pools = {
+    dev: { per: streamCaps.perDev, total: streamCaps.devsTotal, open: 0, mine: (n: number) => `this invite already has ${n} live-log streams open (its limit is ${streamCaps.perDev}); close a tab`, all: (n: number) => `invited developers already have ${n} live-log streams open; try again later` },
+    example: { per: exampleCaps.perAddress, total: exampleCaps.total, open: 0, mine: (n: number) => `this address already has ${n} live-log streams open (its limit is ${exampleCaps.perAddress}); close a tab`, all: (n: number) => `visitors without a code already have ${n} live-log streams open; try again later` },
+  };
   const openStreams = new Map<string, number>();
-  let devStreams = 0;
-  const streamCounted = async (id: string, pass: () => Promise<Response>): Promise<Response> => {
+  const streamCounted = async (id: string, pass: () => Promise<Response>, pool: (typeof pools)["dev"] = pools.dev): Promise<Response> => {
     const mine = openStreams.get(id) ?? 0;
-    if (mine >= streamCaps.perDev) return new Response(JSON.stringify({ error: `this invite already has ${mine} live-log streams open (its limit is ${streamCaps.perDev}); close a tab` }), { status: 429, headers: { "content-type": "application/json" } });
-    if (devStreams >= streamCaps.devsTotal) return new Response(JSON.stringify({ error: `invited developers already have ${devStreams} live-log streams open; try again later` }), { status: 429, headers: { "content-type": "application/json" } });
+    if (mine >= pool.per) return new Response(JSON.stringify({ error: pool.mine(mine) }), { status: 429, headers: { "content-type": "application/json" } });
+    if (pool.open >= pool.total) return new Response(JSON.stringify({ error: pool.all(pool.open) }), { status: 429, headers: { "content-type": "application/json" } });
     openStreams.set(id, mine + 1);
-    devStreams++;
+    pool.open++;
     let done = false;
     const end = () => {
       if (done) return;
       done = true;
-      devStreams--;
+      pool.open--;
       const n = (openStreams.get(id) ?? 1) - 1;
       if (n <= 0) openStreams.delete(id);
       else openStreams.set(id, n);
@@ -229,13 +291,18 @@ export function withInviteGate(inner: InnerApp, o: GateOptions): Hono {
     const who = principalOf(c);
     const owner = who !== undefined && "p" in who && who.p.kind === "invite" && who.p.role === "owner";
     const target = owner && o.ownerInner ? o.ownerInner : inner;
-    const pass = async (): Promise<Response> => {
-      const res = await target.fetch(c.req.raw, c.env);
+    const open = isOpenRoute(c.req.method, c.req.path);
+    const pass = async (via: InnerApp = target): Promise<Response> => {
+      const res = await via.fetch(c.req.raw, c.env);
       // A public read with no code (a proof card, an outline result) may live in the owner's copy of the app.
-      if (!who && res.status === 404 && c.req.method === "GET" && o.ownerInner) return o.ownerInner.fetch(c.req.raw, c.env);
+      if (!who && res.status === 404 && c.req.method === "GET" && o.ownerInner && via !== o.ownerInner) {
+        const other = await o.ownerInner.fetch(c.req.raw, c.env);
+        if (other.status !== 404 || !o.exampleInner || !open) return other;
+      }
+      // R10 (D72): a public read (a proof card of an example someone played with no code) may live in the open example's copy.
+      if (res.status === 404 && c.req.method === "GET" && open && o.exampleInner && via !== o.exampleInner) return o.exampleInner.fetch(c.req.raw, c.env);
       return res;
     };
-    const open = isOpenRoute(c.req.method, c.req.path);
     if (who && "p" in who) {
       // G1 review B5: a cookie is sent by the browser on its own, so a cookie-signed request that can change or spend
       // anything must come from Atlas's own page. The header (x-atlas-invite) cannot be set cross-origin without a
@@ -251,7 +318,18 @@ export function withInviteGate(inner: InnerApp, o: GateOptions): Hono {
       return runAs(who.p, pass);
     }
     if (!o.require || open) return pass();
-    return c.json({ error: who ? `${NEEDS_INVITE} (${who.reason})` : NEEDS_INVITE, invite: { required: true, page: "/invite" } }, 401);
+    // R10 (D72): the open example. No code (or one that no longer works): only the example's routes, as the "example" principal.
+    // The routes themselves accept nothing but the example; this only lets the request reach them.
+    if (isExampleRoute(c.req.method, c.req.path)) {
+      // Like a spending request with a code: JSON only, so another site cannot send a "simple" form post from a visitor's browser.
+      if (c.req.method === "POST" && !/^application\/json\s*(;|$)/i.test(c.req.header("content-type") ?? "")) return c.json({ error: "send the request as JSON (content-type: application/json); nothing was run" }, 415);
+      const ip = clientIpOf(c, trustProxy, hops, ipHeader);
+      const p: Principal = { kind: "example", label: "the open example (no invite code)", route: `${c.req.method} ${c.req.path}`, ip, ...(who && "reason" in who ? { codeProblem: who.reason } : {}) };
+      const via = o.exampleInner ?? inner;
+      if (/^\/events\//.test(c.req.path)) return runAs(p, () => streamCounted(`ip:${ip}`, () => pass(via), pools.example));
+      return runAs(p, () => pass(via));
+    }
+    return c.json({ error: who ? `${NEEDS_INVITE} (${who.reason})` : NEEDS_INVITE, invite: { required: true, page: "/invite" }, ...(o.waitlistUrl ? { waitlist: o.waitlistUrl } : {}) }, 401);
   });
   return outer;
 }

@@ -280,9 +280,12 @@ describe("Sweep: the owner's app copy keeps every in-memory capacity apart", () 
     expect(s.ownerInner).toBeDefined();
   });
 
-  it("live-log streams: no code gets 401; a dev holds at most 4 at once (the 5th is 429); the owner's stream still opens", async () => {
+  it("live-log streams: no code gets the open example's own pool (R10); a dev holds at most 4 at once (the 5th is 429); the owner's stream still opens", async () => {
     const s = build({ streams: { perDev: 4, devsTotal: 40 } });
-    expect((await s.app.request("/events/abc")).status).toBe(401);
+    // R10 (D72): with no code, a stream opens from the open example's pool (its own caps), never the developers'.
+    const anonStream = await s.app.request("/events/abc");
+    expect(anonStream.status).toBe(200);
+    await anonStream.body?.cancel();
     const open = await Promise.all(Array.from({ length: 4 }, (_, i) => s.app.request(`/events/s${i}`, { headers: { "x-atlas-invite": s.codes.dev } })));
     expect(open.map((r) => r.status)).toEqual([200, 200, 200, 200]);
     expect((await s.app.request("/events/s5", { headers: { "x-atlas-invite": s.codes.dev } })).status).toBe(429);

@@ -40,8 +40,9 @@ import { EXAMPLE_NAMES, EXAMPLE_NAMES_MODEL } from "../src/example-names";
 import { SUMMARIZER_MODEL, runSummarizer, type SummarizerResult } from "./meta/roles/summarizer";
 import { checkSummary, type FileSummary } from "../src/file-summary";
 import { EXAMPLE_SUMMARY, EXAMPLE_SUMMARY_MODEL } from "../src/example-summary";
-import { U1_EXAMPLE } from "../web/u1-example";
 import { recordedTestsChat } from "./example-round";
+import { isExampleVisitor } from "./access/context";
+import { EXAMPLE_FUNCTION, EXAMPLE_SHA, refuseMismatch, refuseOwnCode } from "./access/example-lane";
 import { oneLine, sessionEmitter, type AgentLog } from "./log/agentlog";
 import { BAD_SESSION, sessionIdOf } from "./log/sse";
 import type { ModelBudget } from "./meta/budget";
@@ -118,6 +119,8 @@ interface ProposalSet {
   proposals: Proposal[];
   /** When the set was made (ms; for PASTE_TTL_MS). */
   at: number;
+  /** R10 (D72): made from the example's recorded tests (keptExample), so a visitor with no code may bet on its first question. */
+  example?: true;
   /**
    * E3 review B2: set when the claim was shown. From then on the set is closed: no experiment can be made from it
    * (as proposed or edited), and no bet can be added to a round made from it.
@@ -179,9 +182,8 @@ export interface PasteDeps {
   weakSpotsOf?: (c: Context, sessionId: string) => string | null;
 }
 
-/** D60: the first screen's example, and the function its round opens on (a test holds this to the page's own default). */
-export const EXAMPLE_FUNCTION = "fetchWithRetry";
-export const EXAMPLE_SHA = makePastedTarget(U1_EXAMPLE, "ts").codeSha256;
+/** D60: the first screen's example, and the function its round opens on (a test holds this to the page's own default). R10: kept in server/access/example-lane.ts. */
+export { EXAMPLE_FUNCTION, EXAMPLE_SHA };
 
 export function createPaste(opts: PasteOptions, deps: PasteDeps) {
   const runners = opts.runners ?? PASTED_RUNNERS;
@@ -363,6 +365,9 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
       if (/\r(?!\n)/.test(code)) return c.json({ error: "the code uses a lone carriage return (CR) as a line ending; save it with LF or CRLF line endings and paste it again" }, 400);
       const lineCount = pastedLines(code).length;
       if (lineCount > PASTED_MAX_LINES) return c.json({ error: `the pasted code has ${lineCount} lines; Atlas reads one file of at most ${PASTED_MAX_LINES.toLocaleString("en-US")} lines` }, 413);
+      // R10 (D72): with no invite code only the example's exact bytes are read, as TypeScript. One changed byte is someone's own code.
+      if (isExampleVisitor() && (parsed.data.language ?? guessLanguage(code).language) !== "ts") return refuseOwnCode(c);
+      if (isExampleVisitor() && makePastedTarget(code, "ts").codeSha256 !== EXAMPLE_SHA) return refuseOwnCode(c);
       // E3 review minor 7: counted only once the paste is one Atlas will read (a refused size costs nothing).
       const perIp = deps.takePaste(c);
       if (!perIp.ok) return c.json({ error: `paste not read: ${perIp.reason}` }, 429);
@@ -437,6 +442,11 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
       if (!entry) return c.json({ error: "this session has no pasted file with that ref and fingerprint: paste it first (POST /paste)" }, 400);
       const exp = entry.exports.find((e) => e.name === parsed.data.exportName);
       if (!exp) return c.json({ error: `the pasted file has no export named "${parsed.data.exportName}"; it exports ${entry.exports.map((e) => e.name).join(", ") || "nothing"}` }, 400);
+      // R10 (D72): with no code, only the example's kept tests for its one function. "Test this claim" asks Wonder live: refused.
+      const openExample = isExampleVisitor();
+      if (openExample && (entry.target.codeSha256 !== EXAMPLE_SHA || exp.name !== EXAMPLE_FUNCTION || parsed.data.claimOf !== undefined)) return refuseOwnCode(c);
+      // Muse Wonder's recorded answer must exist for this server's proposer model; otherwise the kept answer could be a live one.
+      if (openExample && recordedTestsChat(proposerModel) === null) return refuseMismatch(c);
       const display = WONDER_DISPLAY;
       const notAsked = (reason: string) => c.json({ ok: false, model: proposerModel, display, reason: `not asked (${reason})`, proposals: [] });
       if (!opts.proposer || !proposerChat || !deps.budget) return notAsked("this server asks no Meta model for tests");
@@ -452,6 +462,8 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
       }
       // D60: the example's tests are asked once and kept: a real answer from the real model and gate, with no wait for the next person.
       const kept = focusClaim === undefined && entry.target.codeSha256 === EXAMPLE_SHA && exp.name === EXAMPLE_FUNCTION ? await keptExample(entry, exp) : null;
+      // R10 (D72): the recorded tests did not pass plain code's checks here: never ask Wonder live for a visitor with no code.
+      if (openExample && !kept) return refuseMismatch(c);
       // D63: asked ahead of the bet: it has its own limits, and counts against the usual ones only if the test is used.
       const ahead = parsed.data.early === true && !kept && focusClaim === undefined;
       if (ahead) {
@@ -482,7 +494,7 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
         { chat: proposerChat, log: sessionEmitter(deps.agentLog, sessionId) },
       );
       const setId = `ps_${nanoid(10)}`;
-      const set: ProposalSet = { ...(ahead ? { ahead: true } : {}), id: setId, codeSha256: entry.target.codeSha256, exportName: exp.name, model: r.model, claim: r.ok ? visibleText(r.claim) : null, proposals: r.proposals, at: Date.now() };
+      const set: ProposalSet = { ...(ahead ? { ahead: true } : {}), ...(kept ? { example: true as const } : {}), id: setId, codeSha256: entry.target.codeSha256, exportName: exp.name, model: r.model, claim: r.ok ? visibleText(r.claim) : null, proposals: r.proposals, at: Date.now() };
       touch(sets, sessionId, () => new Map<string, ProposalSet>(), MAX_PASTE_SESSIONS).set(setId, set);
       const shown = r.proposals.map((p) => ({
         id: p.id,
@@ -518,6 +530,8 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
       const entry = entryOf(sessionId, parsed.data.target);
       if (!entry) return c.json({ error: "this session has no pasted file with that ref and fingerprint: paste it first (POST /paste)" }, 400);
       const sha = entry.target.codeSha256;
+      // R10 (D72): with no code, only the example's kept words (recorded once, no call).
+      if (isExampleVisitor() && sha !== EXAMPLE_SHA) return refuseOwnCode(c);
       const unavailable = (reason: string) => c.json({ ok: false, model: NAMER_MODEL, reason, names: {} });
       let parts: { name: string; kind: string; lineStart: number; lineEnd: number }[];
       try {
@@ -578,6 +592,8 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
       const entry = entryOf(sessionId, parsed.data.target);
       if (!entry) return c.json({ error: "this session has no pasted file with that ref and fingerprint: paste it first (POST /paste)" }, 400);
       const sha = entry.target.codeSha256;
+      // R10 (D72): with no code, only the example's kept words (recorded once, no call).
+      if (isExampleVisitor() && sha !== EXAMPLE_SHA) return refuseOwnCode(c);
       const unavailable = (reason: string) => c.json({ ok: false, model: SUMMARIZER_MODEL, reason, summary: null });
       let parts: { name: string; kind: string; lineStart: number; lineEnd: number }[];
       try {
@@ -638,6 +654,8 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
       const link = experimentSet.get(id);
       if (!round || !link || link.sessionId !== sessionId) return c.json({ error: `this session has no experiment ${id} made from Muse Wonder's proposals` }, 404);
       const set = sets.get(sessionId)?.get(link.setId);
+      // R10 (D72): with no code, only the example's kept sentence (no call is made here either way).
+      if (isExampleVisitor() && (!set || !set.example)) return refuseOwnCode(c);
       if (!set || set.claim === null) return c.json({ error: "Muse Wonder wrote no usable claim for these proposals" }, 404);
       // E3 review B2: only once EVERY bet on this round is frozen (its run has started), for every bettor. Then the
       // proposal set is closed: no new experiment, edited test or bet can come from it.
@@ -710,6 +728,13 @@ export function createPaste(opts: PasteOptions, deps: PasteDeps) {
       set.ahead = false;
       proposalCount.set(sessionId, (proposalCount.get(sessionId) ?? 0) + 1);
       deps.takeModelRound(c);
+    },
+    /**
+     * R10 (D72): the example's default question: the first allowed test of a set made from the example's recorded tests. The
+     * recorded AI answers were recorded for this test only, so a visitor with no code may open a round on it and on nothing else.
+     */
+    isExampleDefault(set: ProposalSet, proposalId: string): boolean {
+      return set.example === true && set.codeSha256 === EXAMPLE_SHA && set.exportName === EXAMPLE_FUNCTION && set.proposals.find((p) => p.gate.allowed)?.id === proposalId;
     },
     proposalOf(sessionId: string, proposalId: string, codeSha256: string, edited = false): { set: ProposalSet; proposal: Proposal } | { error: string; status: 400 | 409 | 422 } {
       for (const set of sets.get(sessionId)?.values() ?? []) {

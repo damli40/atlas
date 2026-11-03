@@ -82,7 +82,8 @@ import { judge } from "../src/judge";
 import { canonicalJson, verifySeal } from "../src/seal";
 import { bodyLimit } from "hono/body-limit";
 import { createModelBudget, type ModelBudget } from "./meta/budget";
-import { principalClientKey, runAs } from "./access/context";
+import { isExampleVisitor, principalClientKey, runAs } from "./access/context";
+import { EXAMPLE_ALREADY_PLAYED, refuseMismatch, refuseOwnCode } from "./access/example-lane";
 import { createShareLimit, DEFAULT_GITHUB_SHARES, type ShareLimit } from "./access/shares";
 import { cleanRecord, type RefusalWriter } from "./proofs/refusals";
 import { createHelperStore, helperRun, HELPER_WORDS } from "./helpers";
@@ -385,6 +386,11 @@ export interface AppOptions {
   trustProxy?: boolean;
   /** S5: model rounds (experiments that ask the model) and investigations one client address may start an hour. */
   perClientModelLimits?: { modelRoundsPerHour?: number; investigationsPerHour?: number };
+  /**
+   * R10 (D72): runs of the open example by visitors with no invite code: per client address an hour (default 10, env
+   * ATLAS_EXAMPLE_RUNS_PER_IP_PER_HOUR) and all such visitors together an hour (default 200, env ATLAS_EXAMPLE_RUNS_PER_HOUR).
+   */
+  exampleRunLimits?: { perIpPerHour?: number; perHour?: number };
   /** D60: where a shared link's card is kept, without its source (ATLAS_PROOFS_DIR/kept on a hosted server). */
   keptProofsDir?: string;
   /** D63: refuse a chain round before any paid call when there is no chain connection (server/index.ts turns this on). */
@@ -668,10 +674,24 @@ export function createApp(opts: AppOptions = {}) {
   const pencilByClient = createHourlyLimit(envCount(process.env.ATLAS_PENCIL_DRAWINGS_PER_CLIENT_PER_HOUR, 12), "pencil drawings");
   const pencil = createPencil({ take: (client) => pencilByClient.take(client), ...opts.pencil });
   const pastedExperimentsByIp = createHourlyLimit(envCount(process.env.ATLAS_PASTED_EXPERIMENTS_PER_IP_PER_HOUR, 200), "experiments on pasted code");
+  // R10 (D72): the open example's runs, for visitors with no code: per address, and all of them together, an hour.
+  const exampleRunsPerIp = opts.exampleRunLimits?.perIpPerHour ?? envCount(process.env.ATLAS_EXAMPLE_RUNS_PER_IP_PER_HOUR, 10);
+  const exampleRunsPerHour = opts.exampleRunLimits?.perHour ?? envCount(process.env.ATLAS_EXAMPLE_RUNS_PER_HOUR, 200);
+  const exampleRunsByIp = createHourlyLimit(exampleRunsPerIp, "example runs without an invite code");
+  const exampleRunsAll = createHourlyLimit(exampleRunsPerHour, "example runs");
+  /** R10 (D72): the rounds a visitor with no code opened on the example's default question (session + experiment id). */
+  const openExampleRounds = new Set<string>();
+  const openKey = (sessionId: string, id: string) => `${sessionId}\n${id}`;
+  /** R10 (D72): a visitor with no code may act on a round only if it was opened as the open example. */
+  const notOpenExample = (sessionId: string, id: string) => isExampleVisitor() && !openExampleRounds.has(openKey(sessionId, id));
   const chainChecksByIp = createHourlyLimit(envCount(process.env.ATLAS_CHAIN_CHECKS_PER_IP_PER_HOUR, 120), "chain checks");
   const pastesByIp = createHourlyLimit(envCount(process.env.ATLAS_PASTES_PER_IP_PER_HOUR, DEFAULT_PASTES_PER_IP_PER_HOUR), "pastes");
   // X3 (D27): each person's track record, from their sealed bets and the judge's verdicts only (src/track-record.ts).
-  const trackStore = opts.trackStore ?? memoryTrackStore();
+  const savedTrack = opts.trackStore ?? memoryTrackStore();
+  // R10 (D72): visitors with no code keep their track record in memory only, in a store of their own (same limits). So a flood of
+  // made-up browser ids can never push an invited person's record off the disk store, which drops its oldest file past its cap.
+  const openTrack = memoryTrackStore();
+  const trackStore = { entries: (p: Person) => (isExampleVisitor() ? openTrack : savedTrack).entries(p), add: (p: Person, e: Parameters<TrackStore["add"]>[1]) => (isExampleVisitor() ? openTrack : savedTrack).add(p, e) };
   /**
    * Who "the person" is for the track record: the invite code (by its id) when there is one; otherwise this browser
    * (the page's random id in x-atlas-browser, kept in localStorage); otherwise the session.
@@ -865,7 +885,12 @@ export function createApp(opts: AppOptions = {}) {
    * `slotTaken`: the caller already counted this round against the model-bets limits (day-7 review S4: the
    * autonomous round's POST /adversary takes ONE experiment slot and ONE per-address round for the whole round).
    */
-  const startModelBets = (round: Round, sessionId: string, clientIp: string, mode: ClaimantMode = DEFAULT_CLAIMANT_MODE, slotTaken = false): void => {
+  /**
+   * R10 (D72): `requireRecorded` (a visitor with no code, on the open example): every bettor that would be asked must have a
+   * recorded answer for exactly this prompt. If one does not, nobody is asked, the slots are left off, and this returns false.
+   * Otherwise it returns true.
+   */
+  const startModelBets = (round: Round, sessionId: string, clientIp: string, mode: ClaimantMode = DEFAULT_CLAIMANT_MODE, slotTaken = false, requireRecorded = false): boolean => {
     const wanted = opts.modelBets?.model && mode === DEFAULT_CLAIMANT_MODE ? [opts.modelBets.model] : modelsFor(mode);
     const slots: ModelSlot[] = wanted.map((model) => ({ model, who: `model:${model}`, display: modelDisplay(model), status: "off" }));
     round.models = slots;
@@ -874,14 +899,17 @@ export function createApp(opts: AppOptions = {}) {
     const offAll = (reason: string) => {
       for (const s of slots) s.reason = reason;
     };
-    if (!opts.modelBets || !budget || !modelChat) return offAll("this server asks no Meta model for bets");
+    if (!opts.modelBets || !budget || !modelChat) {
+      offAll("this server asks no Meta model for bets");
+      return true;
+    }
     // Muse Spark Open is never asked when this server cannot reach it; its slot says why.
     const askable = slots.filter((s) => {
       if (s.model !== SPARK_OPEN_MODEL || sparkOpen.available) return true;
       s.reason = `not available: ${sparkOpen.reason}`;
       return false;
     });
-    if (askable.length === 0) return;
+    if (askable.length === 0) return true;
     const exp = round.experiment;
     // The finding the model works on: the one the person chose for this round, else (fixture only)
     // the session's Investigator finding or the hand-written one. D18: the model sees its file,
@@ -903,7 +931,7 @@ export function createApp(opts: AppOptions = {}) {
     }
     if (!picked) {
       for (const s of askable) s.reason = `no finding chosen yet for ${exp.target.ref}`;
-      return;
+      return !requireRecorded;
     }
     const { finding, label: findingLabelText, fileText } = picked;
     // The retry defaults sit more than 20 lines above the loop, so for the fixture the model sees the
@@ -914,7 +942,7 @@ export function createApp(opts: AppOptions = {}) {
     const seenContext = exp.target.kind === "pasted" ? seenOf(round) : prOf ? seenContextFor(exp, round.questions, finding, fileText, { title: prOf.title, fileCount: prFiles(prOf).length }, round.chainFacts) : undefined;
     if (exp.target.kind === "pasted" && seenContext === undefined) {
       for (const s of askable) s.reason = "the bet screen's text was not built, so no model is asked";
-      return;
+      return !requireRecorded;
     }
     // The one input every bettor gets, whatever answers it (live, or recorded below).
     const inputFor = (model: string) => ({ experiment: exp, questions: round.questions, finding, findingLabel: findingLabelText, ...(contextRange ? { contextRange } : {}), ...(seenContext !== undefined ? { seenContext } : {}), ...(exp.target.kind === "pasted" ? { seenInstruction: null } : {}), ...(round.repeatOf ? { repeat: true as const } : {}), fileText, gateContext: round.gateContext ?? TS_GATE_CONTEXT, model });
@@ -927,12 +955,17 @@ export function createApp(opts: AppOptions = {}) {
         if (answer !== null) recorded.set(s.model, answer);
       }
     }
+    // R10 (D72): no code, and some bettor's recorded answer does not fit this prompt: nobody is asked live.
+    if (requireRecorded && recorded.size < askable.length) {
+      for (const s of askable) s.reason = "its recorded answer does not match this question, so it was not asked";
+      return false;
+    }
     if (!slotTaken && recorded.size < askable.length) {
       const byIp = modelRoundsByIp.take(clientIp);
       const allowed = byIp.ok ? budget.startExperiment(sessionId) : byIp;
       if (!allowed.ok) {
         for (const s of askable) s.reason = allowed.reason; // e.g. "call limit reached": the person's round goes on without the model
-        return;
+        return true;
       }
     }
     // E3: a call carrying pasted code may only reach a non-contributor Meta model (server/meta/pasted-guard.ts).
@@ -975,6 +1008,7 @@ export function createApp(opts: AppOptions = {}) {
         },
       );
     }
+    return true;
   };
 
   /** Waits until every model slot of the round has sealed its bets or given no usable answer. */
@@ -1123,6 +1157,14 @@ export function createApp(opts: AppOptions = {}) {
       if ("error" in found) return c.json({ error: found.error }, found.status);
       editedFrom = { setId: found.set.id, model: found.set.model, proposalId: body.editedFrom };
     }
+    // R10 (D72): with no code, only the example's default question, as the page asks it (one quiz question), from the example's
+    // kept tests. Another question, a test of one's own, an edited test or a finding asks the AIs live: refused before anything.
+    const openExample = isExampleVisitor();
+    if (openExample) {
+      const found = body.proposalId !== undefined ? paste.proposalOf(sessionId, body.proposalId, target.codeSha256) : undefined;
+      const isDefault = found !== undefined && !("error" in found) && paste.isExampleDefault(found.set, body.proposalId!);
+      if (!pastedEntry || !isDefault || body.params !== undefined || body.editedFrom !== undefined || body.findingId !== undefined || body.quiz !== true || body.one !== true) return refuseOwnCode(c);
+    }
     // E3 review B3: experiments on pasted code are counted per client address (each holds a bet-screen text and a run).
     if (pastedEntry) {
       const perIp = pastedExperimentsByIp.take(clientOf(c));
@@ -1184,6 +1226,8 @@ export function createApp(opts: AppOptions = {}) {
       const same = [...rounds.values()].find((r) => r.run !== undefined && r.experiment.target.codeSha256 === target.codeSha256 && asRun(r.experiment.params) === asRun(experiment.params));
       if (same) round.repeatOf = same.experiment.id;
     }
+    // R10 (D72): a repeat tells every bettor it is a repeat, a text no answer was recorded from.
+    if (openExample && round.repeatOf) return refuseOwnCode(c, EXAMPLE_ALREADY_PLAYED);
     if (pastedEntry && decision.allowed) {
       // D19: the bet screen's text; the page shows it and every betting model gets it. E3 review r2 B2/B3/M3: the
       // test part is keyed on everything that appears in it, length-checked against the one limit (the prompt cap
@@ -1208,6 +1252,13 @@ export function createApp(opts: AppOptions = {}) {
       if (!got.ok) return c.json({ error: got.reason }, 413);
       round.seenHead = got.head;
       round.seenFile = { codeSha256: target.codeSha256, exportLine: line };
+    }
+    // R10 (D72): with no code, the AIs' answers must replay from the recordings, checked BEFORE the round is kept. On a mismatch
+    // nothing is kept, nobody is asked, and the visitor is told plainly.
+    if (openExample && decision.allowed) {
+      if (!startModelBets(round, sessionId, clientOf(c), claimant.mode, false, true)) return refuseMismatch(c);
+      openExampleRounds.add(openKey(sessionId, id));
+      while (openExampleRounds.size > 50_000) openExampleRounds.delete(openExampleRounds.values().next().value!);
     }
     rounds.set(id, round); // a refused experiment is kept too (shown, never run)
     if (pastedEntry) {
@@ -1249,7 +1300,7 @@ export function createApp(opts: AppOptions = {}) {
     // D22: the chain facts at block 42194662 are read before anyone is asked to bet; the page and every model get the same object.
     const facts = await chainFactsFor(experiment);
     if (facts !== undefined) round.chainFacts = facts;
-    startModelBets(round, sessionId, clientOf(c), claimant.mode); // D02-06: the model bets on this SAME experiment, from the questions only
+    if (!openExample) startModelBets(round, sessionId, clientOf(c), claimant.mode); // D02-06: the model bets on this SAME experiment, from the questions only
     return c.json({ experiment: target.kind === "pasted" ? withoutSource(experiment) : experiment, questions: round.questions, extraQuestions: round.extraQuestions, model: modelSlotView(round), models: modelSlotViews(round), claimant: claimant.mode, ...(round.chainFacts ? { chainFacts: round.chainFacts } : {}), ...(round.seenHead !== undefined ? { seenContext: seenOf(round) } : {}), ...(round.repeatOf ? { repeatOf: round.repeatOf } : {}) });
   });
 
@@ -1366,6 +1417,7 @@ export function createApp(opts: AppOptions = {}) {
     const sessionId = sessionIdOf(c);
     if (sessionId === null) return c.json({ error: BAD_SESSION }, 400);
     const id = c.req.param("id");
+    if (notOpenExample(sessionId, id)) return refuseOwnCode(c); // R10 (D72)
     const round = betStore.peek(sessionId)?.get(id); // a lookup never creates a session (S4)
     if (!round) return c.json({ error: `this session has no experiment ${id}: create it with POST /experiments first` }, 404);
     if (!round.experiment.gate.allowed) return c.json({ error: `the gate refused experiment ${id}, so no model bets on it` }, 422);
@@ -1387,6 +1439,7 @@ export function createApp(opts: AppOptions = {}) {
     const experimentId = many.success ? many.data.experimentId : one!.data!.experimentId;
     const wanted = many.success ? many.data.bets : [{ measures: one!.data!.measures, answer: one!.data!.answer }];
 
+    if (notOpenExample(sessionId, experimentId)) return refuseOwnCode(c); // R10 (D72)
     const round = betStore.peek(sessionId)?.get(experimentId); // a lookup never creates a session (S4)
     if (!round) return c.json({ error: `this session has no experiment ${experimentId}: create it with POST /experiments first` }, 404);
     if (!round.experiment.gate.allowed) return c.json({ error: `the gate refused experiment ${experimentId}, so it takes no bets` }, 422);
@@ -1449,6 +1502,7 @@ export function createApp(opts: AppOptions = {}) {
     const parsed = runBody.safeParse(raw.body);
     if (!parsed.success) return c.json({ error: plainReason(parsed.error) }, 400);
 
+    if (notOpenExample(sessionId, parsed.data.experimentId)) return refuseOwnCode(c); // R10 (D72)
     const round = betStore.peek(sessionId)?.get(parsed.data.experimentId); // a lookup never creates a session (S4)
     if (!round) return c.json({ error: `this session has no experiment ${parsed.data.experimentId}: create it with POST /experiments first` }, 404);
     const experiment = round.experiment;
@@ -1463,6 +1517,18 @@ export function createApp(opts: AppOptions = {}) {
     if (round.status === "stopped") return c.json({ error: `experiment ${experiment.id} stopped: ${round.stoppedReason ?? "no reason recorded"}; start a new experiment` }, 409);
     if (round.status !== "open") return c.json({ error: `experiment ${experiment.id} already ran (started ${round.betsFrozenAt ?? "earlier"}); start a new experiment to run again` }, 409);
     if (round.bets.length === 0) return c.json({ error: "place at least one bet first: a run only happens after bets are sealed" }, 409);
+    // R10 (D72): the open example's runs, per address and for all visitors with no code together, an hour. Both are checked
+    // before either is counted, and before the bets freeze, so a refused run can be tried again later.
+    if (isExampleVisitor()) {
+      // A model slot that is not a recorded answer (or off) means something asked live: never run it without a code.
+      if (modelSlotsOf(round).some((s) => s.status === "sealed" && !s.recorded)) return refuseMismatch(c);
+      const ip = clientOf(c);
+      const mine = exampleRunsByIp.check(ip);
+      if (!mine.ok) return c.json({ error: `run not started: ${mine.reason}. An invite code lifts this limit.` }, 429);
+      if (!exampleRunsAll.check("all").ok) return c.json({ error: `run not started: visitors without an invite code have used this hour's ${exampleRunsPerHour} example runs; try again later, or use an invite code` }, 429);
+      exampleRunsByIp.take(ip);
+      exampleRunsAll.take("all");
+    }
     // An EVM run forks Base and makes paid RPC reads, so it is capped at once and per hour, per session
     // and overall (server/replay-limits.ts). Checked before the bets freeze, so a refused run can be retried.
     let runSlot: { release: () => void } | undefined;

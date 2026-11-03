@@ -5,8 +5,9 @@ Know what your AI-written code does before you trust it.
 ## Test me (about 3 minutes)
 
 <!-- DAMI: draft wording. Finish it with /stop-slop and /copywriting before it goes public; the final strings are yours. -->
-<!-- DAMI: confirm this address and the invite-code line after the Fly deploy. -->
-**Online, nothing to install:** open **https://atlas-dami.fly.dev** and enter the invite code from the submission form.
+<!-- DAMI: confirm the address after the Fly deploy. -->
+<!-- DAMI: say where the judge code is (e.g. "in the submission form, under Testing instructions"). -->
+**Online, nothing to install:** open **https://atlas-dami.fly.dev**. The example plays with no code: steps 1 to 3 need nothing. For your own code or the sample files (step 4), enter the judge code from the submission form under **Try your own code**.
 
 1. **Meta's AI explains the file.** The page opens on an example drawn as a machine, one box per function. Above the drawing, Muse Wonder (Meta's AI) usually says in plain words what the file is for, and "What each part does" opens one line per box. These are the AI's words, labelled so, not a check. It is asked for each part's role, not how a run ends: that is what you bet on.
 2. **You and Meta's AI bet.** Read the one question, pick an answer and press **Lock in my bet**. Muse Spark and Muse Spark Open answer the same question from the same text, summary included when there is one. For the example their answers were recorded on Nov 2 and are labelled so.

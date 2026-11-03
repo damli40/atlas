@@ -75,6 +75,35 @@ fly ssh console --app atlas-dami -C "/usr/local/bin/atlas-invites revoke ada"
 
 Send each code privately. A developer opens `https://atlas-dami.fly.dev/api/invite` and pastes it.
 
+## The open example, the waitlist and the judge code (R10, D72)
+
+Anyone can play the first screen's example with no code: its AI answers are recorded, so no AI is asked, and only the
+example's own code runs in the sandbox. Everything else (their own code, the sample files, "Try another question", the
+repo outline) still needs a code, and the page then offers "Join the waitlist" and "I have a code".
+
+```sh
+# 1. The waitlist link: your Tally or Google Form. It must start with https:// (anything else stops the server at start;
+#    unset means no link is shown). Atlas only links to it and stores no email.
+fly secrets set ATLAS_WAITLIST_URL="https://tally.so/r/XXXXXX" --app atlas-dami   # setting a secret restarts the machine
+
+# 2. One shared judge code, made ON the machine and printed once here. Put it in the submission form (Testing
+#    instructions) and say in README "Test me" where it is. $3 a UTC day like any dev code (D34); the owner's $20 is kept.
+fly ssh console --app atlas-dami -C "/usr/local/bin/atlas-invites create --name judges --daily-usd 3"
+#    Many judges share this one code, so its $3 a day (D34) is shared too. To give them more, use e.g. --daily-usd 10
+#    (it comes out of the developers' share of the ceiling, never your $20 reserve). Watch it with:
+fly ssh console --app atlas-dami -C "/usr/local/bin/atlas-invites usage --name judges"
+
+# 3. Check: open https://atlas-dami.fly.dev in a private window (no code): the example plays to a verdict.
+fly logs --app atlas-dami --no-tail      # look for the line that starts "open example:"
+```
+
+Limits on the no-code example (optional; the defaults are shown): `ATLAS_EXAMPLE_RUNS_PER_IP_PER_HOUR=10` runs an hour per
+visitor address (Fly-Client-IP), `ATLAS_EXAMPLE_RUNS_PER_HOUR=200` an hour for all no-code visitors together. Set them
+the same way (`fly secrets set ...`). An invalid value falls back to the default. No-code visitors may hold 2 sandboxes at
+once, and their spend is booked in the ledger as "the open example (no invite code)" under the developers' share of the
+ceiling, never the owner's reserve. One example run is about $0.0002–0.0003 on Modal (two sandboxes, about $0.0001 each,
+from E4's billed measurement), so 200 runs an hour is at most about $0.06 an hour.
+
 ## Later
 
 - **Deploy new code** (after a merge to main): `fly deploy --remote-only --ha=false`. The old process stops before the
@@ -90,7 +119,9 @@ Send each code privately. A developer opens `https://atlas-dami.fly.dev/api/invi
   fix. The checks are in `server/hosting.ts`.
 - **Step 7 says `ATLAS_INVITE_PEPPER is not set`:** step 5 did not reach the machine. Run `sh tools/fly-secrets.sh`
   then `fly secrets deploy --app atlas-dami`, and try step 7 again.
-- **The page says it needs an invite code:** open `/api/invite` on the same address and enter it.
+- **The page says it needs an invite code:** open `/api/invite` on the same address and enter it. The example on the
+  first screen needs none; if the example itself says its recorded answers "no longer match", the example's text changed
+  after the answers were recorded: re-record them (tests/evidence/R9/record-example.mts) before deploying.
 
 ## Why these choices
 

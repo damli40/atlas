@@ -6,6 +6,7 @@
 // browser), "judged by src/judge.ts", a link to download the exact file, and a "re-run it" link that
 // asks the server to replay the round (GET /replay/:runId; the page sends the session header).
 
+import { noteWaitlist } from "./ErrorNotice";
 import { ProofImage } from "./ProofImage";
 import { useEffect, useMemo, useState } from "react";
 import type { AtlasFile } from "../../src/types";
@@ -78,7 +79,10 @@ export function ProofCardPage({ api, runId, embedded = false }: { api: Api; runI
     void Promise.resolve()
       .then(() => api.inviteStatus())
       .then(
-        (st) => live && setLoggedOut(st.required && !st.signedIn),
+        (st) => {
+          noteWaitlist(st.waitlist);
+          if (live) setLoggedOut(st.required && !st.signedIn);
+        },
         () => live && setLoggedOut(false),
       );
     return () => {

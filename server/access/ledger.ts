@@ -85,6 +85,8 @@ export interface LedgerOptions {
   devModalShare?: number;
   /** G1 review B3: sandboxes ALL dev codes may hold at once (default 3, one less than the Modal executor's 4). */
   devSandboxesAtOnce?: number;
+  /** R10 (D72): sandboxes the open example (visitors with no code) may hold at once, all together (default 2). */
+  exampleSandboxesAtOnce?: number;
   now?: () => number;
 }
 
@@ -119,6 +121,7 @@ export function openLedger(o: LedgerOptions): Ledger {
   const devModalSeconds = o.devModalSecondsPerDay ?? 900;
   const devShare = o.devModalShare ?? 0.8;
   const devSandboxesAtOnce = o.devSandboxesAtOnce ?? 3;
+  const exampleSandboxesAtOnce = o.exampleSandboxesAtOnce ?? 2;
   const dayOf = () => new Date(now()).toISOString().slice(0, 10);
   const iso = () => new Date(now()).toISOString();
 
@@ -185,7 +188,7 @@ export function openLedger(o: LedgerOptions): Ledger {
   const sum = (ps: Pending[]) => ps.reduce((n, p) => n + p.usd, 0);
   const sharedSpent = () => o.modelSpentUsd() + f.totals.global.sandboxUsd + sum(Object.values(f.pending));
 
-  type Who = { who: string; label: string; role?: "dev" | "owner"; route: string; inviteId?: string };
+  type Who = { who: string; label: string; role?: "dev" | "owner"; route: string; inviteId?: string; example?: true };
   const whoNow = (): Who | { refuse: string } => {
     const p: Principal | undefined = currentPrincipal();
     if (!p) {
@@ -193,12 +196,21 @@ export function openLedger(o: LedgerOptions): Ledger {
       return { who: "anonymous", label: "no code (invites not required)", route: "" };
     }
     if (p.kind === "system") return { who: "system", label: p.label, route: p.route };
+    // R10 (D72): a visitor with no code, on the open example. Booked as "example" in the global totals (no invite's budget).
+    if (p.kind === "example") return { who: "example", label: p.label, route: p.route, example: true };
     return { who: p.id, label: p.label, role: p.role, route: p.route, inviteId: p.id };
   };
 
   /** Why this principal may not spend `cost` now, or null. Pure check. */
   const why = (w: Who, kind: SpendKind, cost: number, modal: boolean): string | null => {
     const day = dayOf();
+    // R10 (D72): the open example never asks a model and never forks a chain: its AI answers are recorded. A model call or EVM
+    // run reaching here with no code is a bug upstream, and it stops here. It may only run the example in a sandbox.
+    if (w.example) {
+      if (kind !== "sandbox") return "no invite code: without one Atlas only plays the built-in example, whose AI answers are recorded, so no AI was asked and nothing was started";
+      const running = Object.values(f.pending).filter((p) => p.kind === "sandbox" && p.who === "example").length;
+      if (running >= exampleSandboxesAtOnce) return `call limit reached: visitors without a code already have ${running} example runs going at once (their limit together is ${exampleSandboxesAtOnce}); try again in a few seconds`;
+    }
     if (w.inviteId) {
       const inv = o.store.byId(w.inviteId);
       if (!inv || inv.revokedAt) return "that invite code was revoked, so nothing was started";
@@ -225,9 +237,10 @@ export function openLedger(o: LedgerOptions): Ledger {
     }
     if (cost > 0) {
       const shared = sharedSpent();
+      // R10 (D72): the open example ("example") gets the same cap as invited developers: never the owner's reserve.
       const cap = w.role === "owner" || w.who === "anonymous" || w.who === "system" ? o.ceilingUsd : Math.max(0, o.ceilingUsd - reserve$);
       if (shared + cost > cap) {
-        return w.role === "dev"
+        return w.role === "dev" || w.example
           ? `spend limit reached: the money shared by invited developers is used up (${usd(shared)} of ${usd(cap)}; the last ${usd(reserve$)} of the ${usd(o.ceilingUsd)} ceiling is kept for the owner)`
           : `spend limit reached: ${usd(shared)} of the ${usd(o.ceilingUsd)} ceiling is used or held; this one could cost up to ${usd(cost)}`;
       }

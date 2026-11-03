@@ -1,0 +1,11 @@
+pass no code: the example is drawn and its question is ready
+pass no code: no invite form on the first screen
+pass no code: the AIs' answers are the recorded ones, labelled: Also betting: Muse Spark's recorded answer (Nov 2) and Muse Spark Open's recorded answer (Nov 2). You see their answers after the run. Recorded on Nov 2 from this same text, before anyone answered. Not live.
+pass no code: the sandbox ran and the verdict is shown: Your betdidn't match
+pass no code: the proof card opens
+pass Try another question: the one line, Join the waitlist and I have a code: Your own code, and anything beyond the example, needs an invite code, so nothing was run and no AI was asked. Join the waitlist · I have a code
+pass the waitlist link opens the form named by the server, in a new tab
+pass Try your own code: the line with Join the waitlist and I have a code, and the code box: Your own code, and anything beyond the example, needs an invite code, so nothing was run and no AI was asked. Join the waitlist · I have a code
+pass Try your own code: Draw my code and the samples are off without a code
+pass Try your own code: the way back to the example is there
+pass the server asked no model at all: []

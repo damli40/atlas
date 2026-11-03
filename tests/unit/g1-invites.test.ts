@@ -13,7 +13,7 @@ import { createModelBudget, type ModelBudget } from "../../server/meta/budget";
 import { costUsd, createMetaClient, type ChatArgs, type ChatResult } from "../../server/meta/client";
 import { createReplayGate, createRunGate } from "../../server/replay-limits";
 import { runAs, type Principal } from "../../server/access/context";
-import { INVITE_COOKIE, INVITE_HEADER, NEEDS_INVITE, OPEN_ROUTES, isOpenRoute, requireInviteFromEnv, withInviteGate } from "../../server/access/gate";
+import { isExampleRoute, INVITE_COOKIE, INVITE_HEADER, NEEDS_INVITE, OPEN_ROUTES, isOpenRoute, requireInviteFromEnv, withInviteGate } from "../../server/access/gate";
 import { MODAL_USD_PER_SECOND_AT_CAPS, modalWorstCaseUsd, openLedger, type Ledger } from "../../server/access/ledger";
 import { meteredExecutor, meteredGate } from "../../server/access/metered";
 import { accessFromEnv } from "../../server/access/setup";
@@ -101,14 +101,32 @@ describe("G1 gate: every spending route refuses without a code, and nothing is s
       { method: "POST", path: "/a-route-added-later", body: {} },
       { method: "GET", path: "/health/", body: undefined },
     ];
+    // R10 (D72): the open example's routes are reachable with no code, but each refuses anything that is not the example
+    // (tests/unit/r10-open-example.test.ts). Here, aimed at a developer's own round, they refuse or only read; nothing is spent.
     for (const who of [anon, bogus]) {
       for (const r of reqs) {
+        if (r.path === "/events/x") continue; // an SSE stream stays open; covered in r10-open-example.test.ts
         const res = await who.raw(r.method, r.path, r.body);
+        if (isExampleRoute(r.method, r.path)) {
+          if (r.method === "GET") expect(res.status, `${r.method} ${r.path}`).toBe(200); // reads: this browser's own record, a run's helper steps (none here)
+          else expect([400, 401, 404], `${r.method} ${r.path}`).toContain(res.status);
+          continue;
+        }
         expect(res.status, `${r.method} ${r.path}`).toBe(401);
         if (r.method !== "HEAD") expect(String(res.json.error)).toContain(NEEDS_INVITE);
       }
     }
-    expect((await bogus.post("/paste", { code: RETRY_SRC })).json.error).toMatch(/not one Atlas knows/);
+    // The developer's own pasted file, sent with no code: refused, with the reason the made-up code did not work.
+    const own = await bogus.post("/paste", { code: RETRY_SRC });
+    expect(own.status).toBe(401);
+    expect(own.json.error).toContain(NEEDS_INVITE);
+    expect(own.json.error).toMatch(/not one Atlas knows/);
+    // And aimed at the developer's own round (their session id): no bet, no run, no model wait.
+    for (const [path, body] of [["/bets", { experimentId: round.id, who: "human", bets: [{ measures: "outcome", answer: { kind: "enum", value: "returned" } }] }], ["/runs", { experimentId: round.id }], [`/experiments/${round.id}/model-bets`, {}]] as const) {
+      const res = await anon.post(path, body);
+      expect(res.status, path).toBe(401);
+      expect(res.json.error).toContain(NEEDS_INVITE);
+    }
     expect({ calls: s.spent.calls.length, execs: s.spent.execs, evm: s.spent.evm, log: logLines(s.dir).length, today: s.ledger.today(s.ids.dev) }).toEqual(before);
   }, 60_000);
 
@@ -124,7 +142,7 @@ describe("G1 gate: every spending route refuses without a code, and nothing is s
     expect(card.status).toBe(200);
     expect(card.json.target.source).toBeUndefined(); // a stranger's view of a pasted card has no code (E3)
     expect((await anon.get("/invite")).status).toBe(200);
-    expect((await anon.get("/invite/status")).json).toEqual({ required: true, signedIn: false });
+    expect((await anon.get("/invite/status")).json).toEqual({ required: true, signedIn: false, waitlist: null });
   }, 60_000);
 
   it("ATLAS_REQUIRE_INVITE: only '1' turns it on; a typo stops the server instead of meaning 'off'", () => {

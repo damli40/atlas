@@ -21,7 +21,7 @@ import { warmUp } from "../runners/executor/warm";
 import { join, resolve } from "node:path";
 import { accessFromEnv } from "./access/setup";
 import { diskTrackStore } from "./track-store";
-import { withInviteGate } from "./access/gate";
+import { waitlistUrlFromEnv, withInviteGate } from "./access/gate";
 import { meteredChainFacts, meteredExecutor, meteredGate } from "./access/metered";
 import { runAs } from "./access/context";
 import { createReplayGate, createRunGate, createSandboxGate } from "./replay-limits";
@@ -44,6 +44,14 @@ const hosted = hostedFromEnv();
     for (const p of problems) console.error(`refusing to start: ${p}`);
     process.exit(1);
   }
+}
+// R10 (D72): the waitlist form's address, checked now: a wrong value stops the server here (never a broken or unsafe link).
+let waitlistUrl: string | undefined;
+try {
+  waitlistUrl = waitlistUrlFromEnv();
+} catch (e) {
+  console.error(`refusing to start: ${(e as Error).message}`);
+  process.exit(1);
 }
 // H1: the built page is served by this server (one origin) when hosted, or locally with ATLAS_SERVE_PAGE=1.
 const servesPage = hosted || process.env.ATLAS_SERVE_PAGE === "1";
@@ -146,10 +154,13 @@ const appOptions: AppOptions = {
 // once at startup and keeps it, so the finale never depends on GitHub later.
 const inner = createApp(appOptions);
 const ownerInner = access.require ? createApp({ ...appOptions, warmMoonwellPr: true }) : undefined;
-const gated = withInviteGate(inner, { store: access.store, require: access.require, ledger: access.ledger, secureCookie: access.secureCookie, ...(access.publicOrigin ? { publicOrigin: access.publicOrigin } : {}), ...(ownerInner ? { ownerInner } : {}) });
+// R10 (D72): visitors with no code play the example in a third copy, so they can never push a developer's session out of memory.
+const exampleInner = access.require ? createApp(appOptions) : undefined;
+const gated = withInviteGate(inner, { store: access.store, require: access.require, ledger: access.ledger, secureCookie: access.secureCookie, ...(access.publicOrigin ? { publicOrigin: access.publicOrigin } : {}), ...(ownerInner ? { ownerInner } : {}), ...(exampleInner ? { exampleInner } : {}), ...(waitlistUrl ? { waitlistUrl } : {}) });
 // H1: one origin. The gate (and the app behind it) answers under /api, the built page everywhere else.
 const app = servesPage ? servePage(gated) : gated;
 for (const note of access.notes) console.log(note);
+if (access.require) console.log(`open example: anyone may play the first screen's example with no code (runs: ${process.env.ATLAS_EXAMPLE_RUNS_PER_IP_PER_HOUR ?? "10"} an hour per address, ${process.env.ATLAS_EXAMPLE_RUNS_PER_HOUR ?? "200"} an hour in all); waitlist link ${waitlistUrl ? "shown" : "not set (ATLAS_WAITLIST_URL)"}`);
 
 console.log(`client address for the per-address caps: ${describeClientRule(trustProxyFromEnv(), hops, ipHeader)}`);
 if (servesPage) console.log(`page: the built page from ${DIST_DIR} at /, the API under /api (one origin)${existsSync(DIST_DIR) ? "" : " (dist/ is missing: run vite build)"}`);
@@ -174,7 +185,7 @@ serve({ fetch: app.fetch, port, hostname: hosted ? "0.0.0.0" : "127.0.0.1" }, (i
     void runAs({ kind: "system", label: "the example's tests (D60)", route: "startup" }, async () => {
       const headers = { "content-type": "application/json", "x-atlas-session": "ss_example_warmup" };
       // With invites on, the owner's code has its own copy of the app, so it gets its own kept answer too.
-      for (const copy of ownerInner ? [inner, ownerInner] : [inner]) {
+      for (const copy of [inner, ...(ownerInner ? [ownerInner] : []), ...(exampleInner ? [exampleInner] : [])]) {
         const post = (path: string, body: unknown) => copy.request(path, { method: "POST", headers, body: JSON.stringify(body) });
         const p = (await (await post("/paste", { code: U1_EXAMPLE, language: "ts" })).json()) as { target?: { ref: string; codeSha256: string } };
         if (p.target) await post("/paste/proposals", { target: { ref: p.target.ref, codeSha256: p.target.codeSha256 }, exportName: EXAMPLE_FUNCTION });
