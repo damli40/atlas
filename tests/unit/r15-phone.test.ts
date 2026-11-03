@@ -20,24 +20,27 @@ function flyEnv(): Record<string, string> {
 }
 
 describe("R15 finding 6: sandbox runs at once per client address", () => {
-  it("fly.toml raises the per-address cap to 4 and keeps the server-wide and per-session caps", () => {
+  it("fly.toml raises the per-address cap to 4 and the server-wide cap to 12, and keeps the per-session cap", () => {
     const env = flyEnv();
     expect(env.ATLAS_SANDBOX_IP_MAX_CONCURRENT).toBe("4");
-    expect(env.ATLAS_SANDBOX_MAX_CONCURRENT).toBeUndefined();
+    expect(env.ATLAS_SANDBOX_MAX_CONCURRENT).toBe("12");
     expect(env.ATLAS_SANDBOX_SESSION_MAX_CONCURRENT).toBeUndefined();
     const limits = sandboxLimitsFromEnv(env);
     expect(limits.ipConcurrent).toBe(4);
-    expect(limits.globalConcurrent).toBe(DEFAULT_SANDBOX_LIMITS.globalConcurrent);
+    expect(limits.globalConcurrent).toBe(12);
     expect(limits.sessionConcurrent).toBe(DEFAULT_SANDBOX_LIMITS.sessionConcurrent);
   });
 
-  it("with fly.toml's limits, four phones (four sessions) on one address all start; a fifth is refused by the server-wide cap", () => {
+  it("with fly.toml's limits, four phones on one address all start, a fifth there is refused, and other addresses still start", () => {
     const gate = createSandboxGate(sandboxLimitsFromEnv(flyEnv()));
     const ip = "203.0.113.7";
     for (const s of ["a", "b", "c", "d"]) expect(gate.take(`phone-${s}`, ip).ok).toBe(true);
-    const fifth = gate.take("phone-e", "198.51.100.1");
-    expect(fifth.ok).toBe(false);
-    if (!fifth.ok) expect(fifth.reason).toMatch(/the server runs at most 4/);
+    expect(gate.take("phone-e", ip).ok).toBe(false);
+    // One busy address can't hold the whole server: others fill the remaining 8 slots, then the 13th is refused.
+    for (let i = 0; i < 8; i++) expect(gate.take(`other-${i}`, `198.51.100.${i + 1}`).ok).toBe(true);
+    const thirteenth = gate.take("other-x", "198.51.100.99");
+    expect(thirteenth.ok).toBe(false);
+    if (!thirteenth.ok) expect(thirteenth.reason).toMatch(/the server runs at most 12/);
   });
 
   it("the default (no env) is still 2 per address", () => {
