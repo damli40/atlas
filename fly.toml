@@ -52,6 +52,12 @@ swap_size_mb = 512
   # 60 pastes (the defaults) would stop them first, at about 10 to 20 files. The $ ledger still caps money.
   ATLAS_MODEL_ROUNDS_PER_IP_PER_HOUR = "60"
   ATLAS_PASTES_PER_IP_PER_HOUR = "150"
+  # R15: sandbox runs at once per client address (default 2). Phone carriers put many people behind one address, and
+  # two phones on one address got "one client address runs at most 2 sandbox run(s) at once" on the no-code example.
+  # This one setting covers every sandbox start from an address (example and invite codes alike). The server-wide cap
+  # (ATLAS_SANDBOX_MAX_CONCURRENT, default 4), the per-session cap (2) and the hourly caps are unchanged, so money and
+  # load stay bounded as before; one address may now fill all 4 server slots at once.
+  ATLAS_SANDBOX_IP_MAX_CONCURRENT = "4"
   PORT = "8080"
 
 [http_service]

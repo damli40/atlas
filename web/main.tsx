@@ -7,8 +7,10 @@ import "./machines/machines.css";
 import "./drawing/drawing.css";
 import "./screens/proof.css";
 import "./tool.css";
+import { installPhoneScroll } from "./phone-scroll";
 
 ensureRendererStyle();
+installPhoneScroll();
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />

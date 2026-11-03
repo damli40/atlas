@@ -714,3 +714,70 @@ kbd.k{font:500 11px/1 var(--mono);padding:2px 4px;border:1px solid var(--rule);b
   .u1-shell .u1-proof{padding-bottom:36px}
   .u1-shell .u1-entry{padding-bottom:36px}
 }
+
+/* R15: phones (and a phone on its side). The studio was one fixed window of layers, so on a phone the bet panel sat over
+   the drawing, the foot sat over "Lock in my bet", and the drawing got a 100-200 px strip. Here, and only at phone widths,
+   the studio is a page that scrolls: the drawing first at full width and a usable height, then the bet (or, after the run,
+   the verdict) below it, then the foot links in the page's own flow. Desktop is untouched: every rule is in this query.
+   Scoped to the studio view (.u1-fill shown), so the other screens keep their own scrolling sheets. */
+@media (max-width:760px){
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])){position:relative;inset:auto;display:block;min-height:100svh}
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-bar{position:sticky;top:0}
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-main{min-height:calc(100svh - var(--bar))}
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-fill,
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-studio{position:relative;inset:auto;height:auto}
+  /* The drawing: the summary strip above it, then at least 220 px (up to 420) of drawing, so the question still starts on the first screen. */
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-root{position:relative;inset:auto;height:calc(var(--sum-h,0px) + clamp(220px,36svh,420px));scroll-margin-top:var(--bar)}
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-root[data-pop] .r-chart,
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-root[data-summary][data-pop] .r-chart{top:var(--sum-h,0px);height:calc(100% - var(--sum-h,0px))}
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .m-summary{max-height:none;font-size:16px;line-height:1.45}
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .m-summary-k,
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .m-summary-parts{font-size:16px}
+  /* The run: the drawing takes the screen under the bar; on a phone on its side it keeps 400 px and the page scrolls. */
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-root[data-stage="run"]{height:max(400px,calc(100svh - var(--bar)))}
+  /* The verdict: the drawing's end state, then the verdict and the actions, in the page's flow. */
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-root[data-stage="verdict"]{height:auto}
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-root[data-stage="verdict"] .r-path{position:relative;top:auto;left:0;width:100%;height:clamp(260px,58svh,520px)}
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-marks{position:relative;inset:auto;height:auto;overflow:visible;border-top:1px solid var(--rule);border-bottom:0}
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-marks .m-pane{padding-bottom:12px}
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-actions,
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-actions[data-simple]{position:relative;inset:auto;width:100%;border-right:0}
+  /* The bet: below the drawing, never over it, and never a box that scrolls inside the page. */
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-bet,
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-bet:has(.u1-pop),
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-bet:not(:has(.u1-pop)){position:relative;inset:auto;width:100%;height:auto;border-top:1px solid var(--rule)}
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-pop{position:relative;inset:auto;overflow:visible;border-right:0;padding-bottom:16px}
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) [data-testid="u1-seal"]{scroll-margin-bottom:16px}
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-entry{height:auto;overflow:visible}
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-toast{position:fixed;bottom:calc(12px + env(safe-area-inset-bottom));z-index:20}
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .c-drawer{position:fixed;top:var(--bar)}
+  /* Panels that open over the page (the proof card, a part's card) stay on screen wherever the page is scrolled. */
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-proof{position:fixed;top:calc(var(--bar) + 8px);bottom:calc(12px + env(safe-area-inset-bottom));max-height:none;z-index:20}
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-card{position:fixed;bottom:calc(12px + env(safe-area-inset-bottom));z-index:20}
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-studio[data-drawer-part] .c-drawer{top:auto}
+  /* The foot: at the end of the page, not pinned over it; each link a 44 px tap target; "Earlier screens" opens in place. */
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-foot{position:relative;inset:auto;height:auto;overflow:visible;flex-wrap:wrap;white-space:normal;gap:0 18px;padding:4px 14px calc(8px + env(safe-area-inset-bottom));border-top:1px solid var(--rule-2)}
+  /* Read at phone size: 16 px for the words you decide on, and for every box you type in (iOS zooms below 16 px). */
+  .u1-shell .u1-test,.u1-shell .u1-pop .u1-test{font-size:16px}
+  .u1-shell .u1-opt,.u1-shell .u1-pop .u1-opt{font-size:16px}
+  .u1-shell .u1-q{font-size:20px}
+  .u1-shell textarea,.u1-shell input:not([type=button]):not([type=submit]):not([type=file]):not([type=radio]):not([type=checkbox]),.u1-shell select,.u1-shell .u1-entry .u1-code,.u1-shell .u1-typed-in,.e-invite-row input{font-size:16px!important}
+  .e-invite-row input{width:0;flex:1 1 0;min-width:0}
+  .e-invite-row .u1-btn{flex:none}
+}
+/* The foot's links as tap targets, on every phone screen (the foot is also on the other views). */
+@media (max-width:760px){
+  .u1-shell .u1-foot .u1-link,.u1-shell .u1-foot summary{display:inline-flex;align-items:center;min-height:44px;font-size:14px}
+  .u1-shell .u1-foot .u1-earlier{margin:0;padding:0;border-top:0}
+  .u1-shell .u1-foot .u1-earlier[open]{flex-basis:100%}
+  .u1-shell .u1-foot .u1-earlier ul{left:8px;right:8px;width:auto;max-width:calc(100vw - 16px);box-sizing:border-box}
+  .u1-shell:has(>.u1-main>.u1-fill:not([hidden])) .u1-foot .u1-earlier ul{position:static;box-shadow:none;margin:0 0 6px}
+  .u1-shell .u1-foot .u1-earlier li button{min-height:44px;white-space:normal;box-sizing:border-box;width:100%}
+}
+@media (max-width:760px){
+  /* On the other screens the foot stays pinned: one row of 44 px links that scrolls sideways, and the sheet ends clear of it. */
+  .u1-shell .u1-foot{height:auto}
+  .u1-shell .u1-foot .u1-earlier ul{bottom:52px}
+  .u1-shell .u1-sheet{padding-bottom:72px}
+  .u1-shell .u1-sheet.u1-moonwell{padding-bottom:110px}
+}

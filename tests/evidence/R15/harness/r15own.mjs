@@ -1,0 +1,13 @@
+import { webkit, devices } from "playwright";
+const OUT=process.env.OUT;
+const b=await webkit.launch(); const p=await (await b.newContext({...devices["iPhone SE"]})).newPage();
+await p.goto("http://localhost:8851",{waitUntil:"domcontentloaded"}); await p.waitForSelector('[data-testid="u1-own"]'); await p.waitForTimeout(1500);
+const own=p.locator('[data-testid="u1-own"]'); await own.scrollIntoViewIfNeeded(); await own.tap(); await p.waitForTimeout(1500);
+await p.screenshot({path:OUT+"/iphoneSE-6-own.png"});
+console.log("own", await p.evaluate(()=>({y:scrollY,needs:document.querySelector('.e-needs-code')?.getBoundingClientRect().top,sw:document.documentElement.scrollWidth,iw:innerWidth})));
+await p.goto("http://localhost:8851",{waitUntil:"domcontentloaded"}); await p.waitForSelector('[data-testid="mode-pr"]'); await p.waitForTimeout(1000);
+const pr=p.locator('[data-testid="mode-pr"]'); await pr.scrollIntoViewIfNeeded(); await pr.tap(); await p.waitForTimeout(3500);
+await p.evaluate(()=>{const s=document.querySelector('[data-testid="moonwell-sheet"]'); if(s) s.scrollTop=s.scrollHeight}); await p.waitForTimeout(500);
+await p.screenshot({path:OUT+"/iphoneSE-8-moonwell-end.png"});
+console.log("moonwell", await p.evaluate(()=>{const f=document.querySelector(".u1-foot").getBoundingClientRect();return{footTop:Math.round(f.top),footH:Math.round(f.height),ih:innerHeight,sw:document.documentElement.scrollWidth,iw:innerWidth}}));
+await b.close();
