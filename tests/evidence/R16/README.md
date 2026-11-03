@@ -55,7 +55,7 @@ no Fly. The review is final review 2 (seams between R9 and R15); B1 was already 
   A fourth pass against the same mock server in one hour waited in vain for the bet question; after a restart the same
   checks passed. Most likely its hourly per-address limits (every pass comes from one address); not confirmed. Restart it
   between passes.
-- Runtime-only check: `runtime-check.txt`.
+- Runtime-only check (`git archive HEAD`, `pnpm install --frozen-lockfile --prod`, no keys, scratch folders): `/health` 200, `POST /paste` 200, `POST /paste/drawing` 200 (`runtime-check.txt`).
 
 ## Not done
 

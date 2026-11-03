@@ -1,0 +1,16 @@
+R16 runtime-only check, 2026-11-03, on commit bfd03cd (the R16 code commit).
+
+What it proves: the server starts and draws a file with production dependencies only (no dev packages), no keys,
+and scratch folders. What it does not prove: anything on Fly, Linux, Modal, or with a key.
+
+1. git archive HEAD | tar -x -C <scratch>/app
+2. cd <scratch>/app && pnpm install --frozen-lockfile --prod          -> exit 0 ("Done in 669ms using pnpm v12.4.1")
+3. env -i PATH=<node dir>:/usr/bin:/bin HOME=<scratch>/home PORT=18971 ATLAS_INVITES_DIR=<scratch>/inv
+       ATLAS_VOLUME_DIR=<scratch>/vol ATLAS_PROOFS_DIR=<scratch>/proofs node --import tsx server/index.ts
+   (an empty HOME, so no key file is found; no key in the environment)
+4. GET /health                                                         -> 200 {"ok":true}
+5. node prodcheck-smoke.mjs http://localhost:18971 (POST /paste, then POST /paste/drawing on the same session)
+     paste 200 ok
+     drawing 200 ok, keys: kind,svg,png,pngReason,width,height,parts,aiNames,namesModel,caption
+6. Server log: 0 lines with "error"; it says "Atlas server listening on http://localhost:18971 ...". No model was called.
+   The server was stopped by its PID.
