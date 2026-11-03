@@ -58,6 +58,10 @@ swap_size_mb = 512
   # (ATLAS_SANDBOX_MAX_CONCURRENT, default 4), the per-session cap (2) and the hourly caps are unchanged, so money and
   # load stay bounded as before; one address may now fill all 4 server slots at once.
   ATLAS_SANDBOX_IP_MAX_CONCURRENT = "4"
+  # Server-wide sandboxes at once (default 4). Sandboxes run on Modal, not on this machine, and one play holds a slot
+  # for about 9 s, so 4 meant roughly 25 plays a minute for everyone together. 12 gives launch traffic room; money
+  # stays bounded by the daily start caps and the $ ledger.
+  ATLAS_SANDBOX_MAX_CONCURRENT = "12"
   PORT = "8080"
 
 [http_service]
